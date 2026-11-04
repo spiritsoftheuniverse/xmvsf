@@ -144,6 +144,30 @@ int main(){
         assert(c.unsealedPrefix && !c.sealed);
         assert(c.segments.size()==3u);
     }
+    // Quitting the real XMVSF application while recording is still
+    // enabled must finalize the movie automatically, not strand
+    // 3,407 already committed frames without latest.txt (87.166).
+    unsetenv("XM8764_REPLAY_SESSION");
+    c.initialized=false;c.mode=XM8764::OFF;c.folder.clear();
+    c.journal=nullptr;c.stream=nullptr;
+    c.segments.clear();c.playIndex=0;c.allFrames=0;
+    c.insideGame=false;c.exitSession=false;c.failed=false;
+    assert(setenv("XM8764_REPLAY_ROOT",root,1)==0);
+    assert(XM8764::toggleF9());
+    const std::string exitedFolder=c.folder;
+    XM8764::gameBegin(1);
+    nativeMarker=55;p1=1;p2=2;
+    assert(XM8764::beforeFrame(training)==XM8764::FRAME_READY);
+    XM8764::gameEnd();
+    XM8764::finishAtNormalExit();
+    assert(c.mode==XM8764::OFF && c.lastSaved);
+    {
+        std::ifstream sealed((exitedFolder+"/manifest.tsv").c_str());
+        std::ostringstream out;out<<sealed.rdbuf();
+        assert(out.str().find("FINAL\t1\t1\t1\tAPPLICATION_EXIT")!=
+               std::string::npos);
+    }
+    XM8764::finishAtNormalExit(); // idempotent atexit safety net
     // Failed disk/path setups produce a visible ERROR indicator and a
     // persistent root-level status log, not fake RECORDING success.
     unsetenv("XM8764_REPLAY_SESSION");
