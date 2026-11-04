@@ -117,6 +117,9 @@ jobs:
           grep -Fq 'recordingFrames()==1' dev/dhc/tests/test_dhc_host_replay_164.cpp
           grep -Fq 'saves==1u' dev/dhc/tests/test_dhc_host_replay_164.cpp
           grep -Fq '%PROJECT%\test\87.166\replays\latest.txt' RUN_REPLAY.bat
+          grep -Fq 'dir /b /ad /o:-n' RUN_REPLAY.bat
+          grep -Fq 'RECORD_SAVE_ERROR' dev/stable/buildtree/src/burner/sdl/xmvsf_stage87_164_host_replay.h
+          grep -Fq 'V2_INPUT_FLUSH_OR_CLOSE_FAILED' dev/stable/buildtree/src/burner/sdl/xmvsf_stage87_164_host_replay.h
           grep -Fq 'XM8764_REPLAY_SESSION=' RUN_REPLAY.bat
           grep -Fq 'XM8764_FAST_FORWARD=32' RUN_REPLAY.bat
           grep -Fq 'XM8764::beforeFrame' dev/stable/buildtree/src/burner/sdl/run.cpp
