@@ -372,6 +372,26 @@ int main(int argc, char* argv[])
 	snprintf(videofiltering, 3, "0");
 
 	bool switchesOK = parseSwitches(argc, argv) == 0;
+    // XM87.163: the dedicated native F9 replay runner explicitly supplies
+    // the xmvsfu driver, bypassing the interactive boot mode selector.
+    // The original movie was recorded in Training; reconstruct the same
+    // host-mode state BEFORE DrvInit / the first replay BurnStateLoad.
+    // Ordinary Arcade/Training/Versus launches are completely unchanged.
+    const char* replayMode=std::getenv("XM8761_REPLAY_MODE");
+    const char* replayHostMode=std::getenv("XM8761_REPLAY_HOST_MODE");
+    if(switchesOK && replayMode && std::strcmp(replayMode,"play")==0 &&
+       romname && std::strcmp(romname,"xmvsfu")==0) {
+        xm14TrainingMode= !replayHostMode ||
+            std::strcmp(replayHostMode,"training")==0 ? 1 : 0;
+        xm24VersusMode= replayHostMode &&
+            std::strcmp(replayHostMode,"versus")==0 ? 1 : 0;
+        xm26PersistentShell=false;
+        usejoy=1;
+        std::fprintf(stderr,
+            "XM87.163 REPLAY_DIRECT_BOOT rom=%s training=%d versus=%d (boot menu bypassed)\\n",
+            romname,xm14TrainingMode,xm24VersusMode);
+        std::fflush(stderr);
+    }
     // Stage 26: initialize a persistent single-window application shell.
     if (switchesOK && romname == NULL && !usemenu && !dat) {
         xm26PersistentShell=true;
