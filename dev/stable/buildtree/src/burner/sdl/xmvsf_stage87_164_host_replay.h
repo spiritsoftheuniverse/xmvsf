@@ -355,6 +355,7 @@ inline bool startRecording(){
     c.mode=RECORD;c.insideGame=false;c.split=true;c.session=0;c.segment=0;
     c.frames=0;c.allFrames=0;c.totalSegments=0;
     c.reason="SESSION_START";c.failed=false;
+    c.sealed=false;c.unsealedPrefix=false;
     c.hostRecorded=false;c.lastSaved=false;c.noticeFrames=0;
     // Do not point the permanent replay runner at an empty recording
     // until F9 actually finishes a playable multi-session manifest.
