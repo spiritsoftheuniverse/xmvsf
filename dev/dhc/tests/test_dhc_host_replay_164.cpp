@@ -44,10 +44,18 @@ int main(){
     char name[]="/tmp/xmvsf_v2_XXXXXX";
     const char* root=mkdtemp(name);assert(root);
     assert(setenv("XM8764_REPLAY_ROOT",root,1)==0);
+    const std::string publicStatus=std::string(root)+"/F9_status.log";
+    assert(setenv("XM8764_REPLAY_STATUS_FILE",publicStatus.c_str(),1)==0);
     XM8764::initialize();assert(XM8764::context().mode==XM8764::OFF);
     assert(XM8764::toggleF9());
     assert(XM8764::isRecording());
+    assert(XM8764::recordingFrames()==1); // visible 000000 before game
+    assert(XM8764::visualStatus()==1);
     const std::string folder=XM8764::context().folder;
+    // F9 from the host menu creates the on-disk manifest IMMEDIATELY,
+    // before any ROM/Training selection was made.
+    assert(XM8764::exists(folder+"/manifest.tsv"));
+    assert(XM8764::exists(publicStatus));
     XM8764::Host training;training.training=1;training.owner=0;
     XM8764::gameBegin(1);
     nativeMarker=3;p1=0x12;p2=0x01;
@@ -67,6 +75,9 @@ int main(){
     assert(XM8764::beforeFrame(arcade)==XM8764::FRAME_READY);
     XM8764::gameEnd();
     assert(XM8764::toggleF9());
+    assert(XM8764::recordingFrames()==0);
+    assert(XM8764::visualStatus()==2); // saved indicator
+    assert(XM8764::exists(std::string(root)+"/latest.txt"));
     assert(saves==3u);
     assert(XM8764::exists(folder+"/manifest.tsv"));
     // Simulate a new process opening the same finished v2 session.
@@ -101,5 +112,16 @@ int main(){
     XM8764::gameEnd();
     assert(loads==3u);
     assert(XM8764::exists(folder+"/replay_v2_status.log"));
+    // Failed disk/path setups produce a visible ERROR indicator and a
+    // persistent root-level status log, not fake RECORDING success.
+    unsetenv("XM8764_REPLAY_SESSION");
+    c.initialized=false;c.mode=XM8764::OFF;c.folder.clear();
+    c.journal=nullptr;c.stream=nullptr;
+    assert(setenv("XM8764_REPLAY_ROOT",
+                  "/dev/null/xmvsf_f9_unwritable",1)==0);
+    assert(!XM8764::toggleF9());
+    assert(c.mode==XM8764::FAILED);
+    assert(XM8764::visualStatus()==-1);
+    assert(XM8764::exists(publicStatus));
     return 0;
 }
