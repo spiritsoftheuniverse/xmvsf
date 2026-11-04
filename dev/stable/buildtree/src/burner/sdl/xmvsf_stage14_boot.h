@@ -146,6 +146,14 @@ static int xmvsfBootSelector(bool returningFromGame=false) {
     // This is NOT the 87.163 direct-driver bypass.
     if(XM8764::isPlayback()){
         const int recordedChoice=XM8764::nextMode();
+        if(recordedChoice>=0 && XM8764::context().playIndex<
+                                  XM8764::context().segments.size()){
+            const XM8764::Host& h=
+                XM8764::context().segments[XM8764::context().playIndex].host;
+            xm77StageChoice=h.stage;
+            xm77StageResolved=h.stageResolved;
+            ++xm77StageRollGeneration(); // same new-session stage latch
+        }
         std::fprintf(stderr,
             "XM87.164 REPLAY_BOOT_MENU_READY choice=%d window=%p\\n",
             recordedChoice,(void*)sdlWindow);
