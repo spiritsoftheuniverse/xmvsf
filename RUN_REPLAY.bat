@@ -29,6 +29,16 @@ REM files so they are included in ordinary versioned test ZIPs.
 if not defined V2_SESSION if exist "%PROJECT%\test\87.166\replays\latest.txt" (
   for /f "usebackq delims=" %%S in ("%PROJECT%\test\87.166\replays\latest.txt") do set "V2_SESSION=%%S"
 )
+REM Keep replays available even AFTER a version bump: find the latest
+REM completed session in older numbered TEST directories, newest first.
+REM This never deletes or migrates the original recording/checkpoints.
+if not defined V2_SESSION (
+  for /f "delims=" %%D in ('dir /b /ad /o:-n "%PROJECT%\test\87.*" 2^>nul') do (
+    if not defined V2_SESSION if exist "%PROJECT%\test\%%D\replays\latest.txt" (
+      for /f "usebackq delims=" %%S in ("%PROJECT%\test\%%D\replays\latest.txt") do set "V2_SESSION=%%S"
+    )
+  )
+)
 REM Preserve older v2 recordings made with the original 87.164 layout.
 if not defined V2_SESSION if exist "%PROJECT%\test\replay_sessions\latest.txt" (
   for /f "usebackq delims=" %%S in ("%PROJECT%\test\replay_sessions\latest.txt") do set "V2_SESSION=%%S"

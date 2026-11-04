@@ -58,8 +58,11 @@ The launcher never chooses a half-finished F9 recording by default.
 ### Replay with high-speed fast-forward
 
 Run **`RUN_REPLAY.bat`** from the repository root. By default it uses
-the latest completed v2 recording. You can also drag a session folder
-or its `manifest.tsv` onto the launcher.
+the latest completed v2 recording. It searches the current
+`test/87.###/replays/` directory first, then earlier numbered TEST
+replay directories (newest first), preserving recordings across future
+point-version bumps. You can also drag a specific session folder or
+its `manifest.tsv` onto the launcher.
 
 The launcher reads the recorded host session timeline and enters the
 appropriate Arcade, Training or Versus mode before loading the next
