@@ -56,7 +56,7 @@ static inline bool setNativeScript(std::uint8_t* ram,
 }
 enum Phase{
     IDLE=0,TAG_OUT=1,WAIT_TAG_CONTROLLER=2,WAIT_NATIVE_SWAP=3,
-    WAIT_LANDING=4,SUPER_STARTED=5,FAILED=6
+    WAIT_LANDING=4,WAIT_KEN_EXIT=5,SUPER_STARTED=6,FAILED=7
 };
 static inline const char* phaseName(Phase p){
     switch(p){
@@ -64,7 +64,8 @@ static inline const char* phaseName(Phase p){
       case WAIT_TAG_CONTROLLER:return "WAIT_NATIVE_TAG_CONTROLLER";
       case WAIT_NATIVE_SWAP:return "WAIT_NATIVE_SWAP";
       case WAIT_LANDING:return "WAIT_NATIVE_LANDING";
-      case SUPER_STARTED:return "NATIVE_SUPER_QUEUED";
+      case WAIT_KEN_EXIT:return "NATIVE_KEN_KICKLESS_EXIT";
+      case SUPER_STARTED:return "NATIVE_KEN_SUPER_START";
       case FAILED:return "FAILED";
       default:return "IDLE";
     }
@@ -80,6 +81,8 @@ struct State {
     unsigned captured06[2]={0u,0u},captured08[2]={0u,0u},
              captured0A[2]={0u,0u};
     unsigned controllerAcceptedAt[2]={0u,0u};
+    unsigned kenExitAt[2]={0u,0u},kenSuperAt[2]={0u,0u};
+    bool kenExitObserved[2]={false,false},kenSuperConfirmed[2]={false,false};
     unsigned lastNormalRef[2]={~0u,~0u};
     unsigned originalX[2]={0u,0u},opponentX[2]={0u,0u};
     XM87143Queue::Command command[2]={XM87143Queue::QCF_PP,XM87143Queue::QCF_PP};
@@ -108,6 +111,8 @@ struct State {
             phase[s]=IDLE;chainUsed[s]=false;lastQueuedCheck[s]=~0u;
             lastAcceptedAt[s]=~0u;cooldownUntil[s]=0u;
             lastNormalRef[s]=~0u;
+            kenExitAt[s]=kenSuperAt[s]=0u;
+            kenExitObserved[s]=kenSuperConfirmed[s]=false;
         }
     }
     // A failed DHC attempt must NEVER use up the whole match. Discard the
@@ -316,6 +321,8 @@ struct State {
                 event(now,side,ram,"NATIVE_SWAP_WAIT_FRAME");
                 if(pointId==incoming[side] && reserveId==outgoing[side]){
                     phase[side]=WAIT_LANDING;
+                    kenExitObserved[side]=false;
+                    kenSuperConfirmed[side]=false;
                     event(now,side,ram,"REAL_ROM_POINT_RESERVE_SWAP");
                 }else if(now>controllerAcceptedAt[side]+2u &&
                          rw(ram,p+0x60u)==0x2E08u){
@@ -349,59 +356,151 @@ struct State {
             }
             if(phase[side]==WAIT_LANDING){
                 event(now,side,ram,"NATIVE_LANDING_WAIT_FRAME");
-                if(pointId!=incoming[side]){
+                if(pointId!=incoming[side] || reserveId!=outgoing[side]){
                     abort(now,side,ram,"FIGHTER_CHANGED_DURING_DHC_LANDING");
                     continue;
                 }
-                // Ken's actual native 2A0C tag jump transitions into 2A0E
-                // as he touches ground (captured at 87.144 frame 2802). Intervene
-                // only on THIS DHC-specific landing, never an ordinary tag.
-                if(rw(ram,p+0x10u)>=472u &&
-                   rw(ram,p+0x60u)==0x2A0Eu){
-                    const unsigned chosenAction=command[side]==XM87143Queue::QCF_KK?0x2Eu:0x2Cu;
-                    const unsigned chosenSub=command[side]==XM87143Queue::QCF_KK?0u:4u;
-                    const auto sup=XM87142::resolve(rom,size,pointId,chosenAction,chosenSub);
-                    if(!sup.valid){
-                        abort(now,side,ram,"MISSING_INCOMING_ROM_SCRIPT");continue;
-                    }
-                    // Establish a fully valid script BEFORE changing incoming
-                    // location or velocities. A failed ROM header must leave
-                    // Ken's actual native landing untouched.
-                    if(!setNativeScript(ram,rom,size,p,pointId,chosenAction,chosenSub)){
-                        abort(now,side,ram,"NATIVE_SCRIPT_INIT_REJECTED");
+                // 87.148 native trace:
+                // 3158..3182 Ken incoming entry D6=10 action 2A0C.
+                // 3183 Ken switches to grounded TAG KICK 2A0E; the old
+                // host forced Shoryureppa 2C04 *after* that first kick,
+                // then ROM D6=10 reasserted 2A0C on frame 3184.
+                //
+                // Exit the incoming controller BEFORE its kick/2A0E
+                // action. ROM Ken D6=12 -> PC 035EFA/035F0A selects
+                // the native non-attack tag exit action 2A08, then
+                // 035F18 returns to the game's ground control.
+                const unsigned floor=rw(ram,p+0x254u);
+                const unsigned y=rw(ram,p+0x10u);
+                const bool safeFloor=floor>=128u&&floor<=768u;
+                if(safeFloor && y+8u>=floor &&
+                   rw(ram,p+0x60u)==0x2A0Cu &&
+                   rb(ram,p+0xD6u)==0x10u){
+                    const unsigned exitScript=XM87142::resolve(
+                        rom,size,pointId,0x2Au,0x08u).script;
+                    if(exitScript!=0xD567Eu){
+                        abort(now,side,ram,"KEN_NATIVE_EXIT_2A08_ROM_LOOKUP_FAILED");
                         continue;
                     }
-                    // Fixed location: same side of opponent as outgoing
-                    // Ryu at trigger, 48 native units away, in stage bounds.
                     const unsigned foe=rw(ram,0x4400u+0x0Cu);
                     int pos=int(foe)+(originalX[side]<opponentX[side]?-48:48);
                     if(pos<192)pos=192;
                     if(pos>768)pos=768;
                     const unsigned current=rl(ram,p+0x0Cu);
                     wl(ram,p+0x0Cu,(unsigned(pos)<<16u)|(current&65535u));
+                    ww(ram,p+0x10u,floor);
                     wb(ram,p+0x4Bu,originalX[side]<opponentX[side]?1u:0u);
+                    // Stop entry attack and its velocity on the DHC
+                    // path ONLY, after Ken has physically approached
+                    // landing. Leave ordinary native tag-ins untouched.
                     wl(ram,p+0x14u,0u);wl(ram,p+0x18u,0u);
                     wl(ram,p+0x1Cu,0u);wl(ram,p+0x20u,0u);
-                    ww(ram,p+0x06u,0u);ww(ram,p+0x08u,0u);
-                    // Actual Ken super captures use native +A0=2A28.
-                    // Incoming tag's +A0=2A00 must not be retained after
-                    // switching from tag kick to the selected super.
+                    wb(ram,p+0xA4u,0u);
+                    wb(ram,p+0x256u,0u);wb(ram,p+0x259u,0u);
+                    ww(ram,p+0x06u,0u);
+                    ww(ram,p+0x08u,0u);ww(ram,p+0x0Au,0u);
+                    wb(ram,p+0xD6u,0x12u); // KEN native exit; NOT 2A0C
+                    phase[side]=WAIT_KEN_EXIT;
+                    kenExitAt[side]=now;
+                    kenExitObserved[side]=false;
+                    event(now,side,ram,"DHC_KEN_KICKLESS_EXIT_2A08_ARMED");
+                }else if(rw(ram,p+0x60u)==0x2A0Eu){
+                    // This should never happen on the experimental
+                    // kickless path. Do not start Ken's super on the
+                    // tag-kick frame, as 87.148 did.
+                    event(now,side,ram,"KEN_TAG_KICK_REACHED_BEFORE_EXIT");
+                }
+                if(phase[side]==WAIT_LANDING &&
+                   now-started[side]>135u)
+                    abort(now,side,ram,"KEN_NATIVE_LANDING_TIMEOUT");
+                continue;
+            }
+            if(phase[side]==WAIT_KEN_EXIT){
+                if(pointId!=incoming[side] || reserveId!=outgoing[side]){
+                    abort(now,side,ram,"KEN_EXIT_LOST_FIGHTER_OWNERSHIP");
+                    continue;
+                }
+                const unsigned kenAction=rw(ram,p+0x60u);
+                if(kenAction==0x2A08u && !kenExitObserved[side]){
+                    kenExitObserved[side]=true;
+                    event(now,side,ram,"KEN_ROM_EXIT_2A08_CONFIRMED");
+                }
+                if(kenAction==0x2A0Cu || kenAction==0x2A0Eu){
+                    // If native input reclaims the tag kick despite
+                    // Ken's D6=12 exit request, do not feed it another
+                    // kick through a 2C04 sprite-only injection.
+                    if(now>kenExitAt[side]+2u){
+                        event(now,side,ram,"KEN_ENTRY_KICK_REASSERTED_DURING_EXIT");
+                        wb(ram,p+0xA4u,0u);
+                    }
+                }
+                const bool nativeExitDone=kenExitObserved[side] &&
+                    (kenAction!=0x2A08u ||
+                     rb(ram,p+0x3Cu)!=0u);
+                const bool exitGrace=kenExitObserved[side] &&
+                    now>=kenExitAt[side]+8u;
+                if(nativeExitDone || exitGrace){
+                    const unsigned superAction=
+                        command[side]==XM87143Queue::QCF_KK?0x2Eu:0x2Cu;
+                    const unsigned lookupSub=
+                        command[side]==XM87143Queue::QCF_KK?0x00u:0x04u;
+                    const auto superScript=XM87142::resolve(
+                        rom,size,pointId,superAction,lookupSub);
+                    if(!superScript.valid){
+                        abort(now,side,ram,"KEN_QUEUED_SUPER_ROM_LOOKUP_FAILED");
+                        continue;
+                    }
+                    // 68000 Ken action controller (D6) is authoritative:
+                    // 0A -> PC 035956, native Shoryureppa (2C family);
+                    // 0C -> PC 0359F6, native Shinryuken (2E family).
+                    // Do NOT force a 2C04 sprite. The ROM's handler
+                    // chooses the actual move, FX and attack hitboxes.
+                    wb(ram,p+0xD6u,
+                       command[side]==XM87143Queue::QCF_KK?0x0Cu:0x0Au);
                     ww(ram,p+0xA0u,0x2A28u);
+                    ww(ram,p+0x06u,0u);
+                    ww(ram,p+0x08u,0u);ww(ram,p+0x0Au,0u);
+                    wb(ram,p+0xA4u,0u);
+                    wb(ram,p+0x256u,0u);wb(ram,p+0x259u,0u);
+                    kenSuperAt[side]=now;
+                    kenSuperConfirmed[side]=false;
                     phase[side]=SUPER_STARTED;
-                    chainUsed[side]=true;
-                    event(now,side,ram,"DHC_NATIVE_SUPER_REPLACES_KICK__UNVERIFIED_FX");
-                }else if(now-started[side]>135u){
-                    abort(now,side,ram,"NATIVE_LANDING_TIMEOUT");
+                    event(now,side,ram,"DHC_KEN_NATIVE_SUPER_HANDLER_ARMED");
+                }else if(now>kenExitAt[side]+22u){
+                    abort(now,side,ram,"KEN_ROM_EXIT_2A08_NEVER_CONFIRMED");
                 }
                 continue;
             }
             if(phase[side]==SUPER_STARTED){
-                if(now-started[side]>150u){
+                if(pointId!=incoming[side]){
+                    abort(now,side,ram,"KEN_SUPER_LOST_POINT_SLOT");
+                    continue;
+                }
+                const unsigned act=rw(ram,p+0x60u);
+                const bool nativeSuper=command[side]==XM87143Queue::QCF_KK?
+                    ((act&0xFF00u)==0x2E00u):((act&0xFF00u)==0x2C00u);
+                if(nativeSuper && !kenSuperConfirmed[side]){
+                    kenSuperConfirmed[side]=true;
+                    chainUsed[side]=true;
+                    event(now,side,ram,"DHC_KEN_NATIVE_SUPER_ROM_ACTION_CONFIRMED");
+                }
+                if(!kenSuperConfirmed[side] &&
+                   (act==0x2A0Cu || act==0x2A0Eu) &&
+                   now>kenSuperAt[side]+1u){
+                    wb(ram,p+0xA4u,0u);
+                    event(now,side,ram,"KEN_TAG_KICK_REASSERTED_AFTER_EXIT");
+                    abort(now,side,ram,"KEN_NATIVE_SUPER_HANDLER_REJECTED");
+                    continue;
+                }
+                if(!kenSuperConfirmed[side] &&
+                   now>kenSuperAt[side]+8u){
+                    abort(now,side,ram,"KEN_SUPER_NATIVE_ACTION_TIMEOUT");
+                    continue;
+                }
+                if(kenSuperConfirmed[side] &&
+                   now-started[side]>150u){
                     event(now,side,ram,"DHC_SEQUENCE_OBSERVATION_COMPLETE");
                     phase[side]=IDLE;
-                    // One DHC per chain, not one DHC per whole match.
-                    // The incoming super owns this chain; rearm only after
-                    // the native action returns to non-super neutral.
                 }
             }
             if(phase[side]==IDLE && chainUsed[side] &&
