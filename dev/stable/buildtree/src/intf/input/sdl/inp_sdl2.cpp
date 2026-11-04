@@ -460,6 +460,7 @@ bool do_reset_game = false;		// To reset game without reloading
 int SDL_KEY_IS_DOWN(int key)
 {
     if(key==FBK_D && XM8797Debug::blockChordD())return 0; // Shift+D never reaches game input
+    if(key==FBK_G && (SDL_GetModState()&KMOD_SHIFT))return 0; // XM87.140 Shift+G is chat UI only
 	if (FBKtoSDL[key] > 0) {
 		switch (key) {
 			case FBK_F3:
