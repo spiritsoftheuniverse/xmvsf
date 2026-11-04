@@ -43,6 +43,9 @@ jobs:
           grep -Fq 'XM87140_CHAT_LOG' RUN_TEST.bat
           grep -Fq 'xm87140ChatOverlay(sdlRenderer);' dev/stable/buildtree/src/intf/video/sdl/vid_sdl2.cpp
           grep -Fq 'XM87140Chat::state().frame' dev/stable/buildtree/src/burn/drv/capcom/cps_run.cpp
+          grep -Fq 'RYU SHINKUU TATSUMAKI' dev/stable/buildtree/src/burner/sdl/xmvsf_stage87_140_super_chat.h
+          grep -Fq 'if(event.type==SDL_KEYDOWN && event.key.keysym.sym==SDLK_F10)' dev/stable/buildtree/src/burner/sdl/run.cpp
+          grep -Fq '# F10_START armed' dev/stable/buildtree/src/burner/sdl/xmvsf_stage87_139_probe.h
           if grep -Fq 'XM87138Tag::state().frame(' dev/stable/buildtree/src/burn/drv/capcom/cps_run.cpp; then
             echo 'ERROR: 87.138 normal-tag gameplay mutation still hooked' >&2
             exit 1
