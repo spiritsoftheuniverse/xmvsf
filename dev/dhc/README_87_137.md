@@ -45,8 +45,8 @@ frame is **already the incoming super's FIRST active frame**.
 Three independent progress domains:
 - World/opponent/outgoing actions, collision and super projectiles: HOLD.
 - Incoming fighter native tag entrance and super startup animation: ADVANCE
-  **visibly in the dimmed scene**, first land at the outgoing fighter's recorded
-  world position, then start the actual selected super. Do not advance any other move.
+  **visibly in the dimmed scene**, first land beside the opponent on the outgoing fighter's side,
+  then start the actual selected super. Do not advance any other move.
 - DHC-only cinematic renderer: darken the stage; bypass the native portrait
   intro script AND its wait timer; NEVER draw the incoming super's portrait
   or splash, but KEEP THE INCOMING FIGHTER DRAWN at every
@@ -117,8 +117,8 @@ Do not merge into main/Stable until native proof and gameplay tests exist.
    **native portrait intro script and wait timer**, rather than allowing a
    hidden native cinematic to play. Ordinary super cinematics remain unchanged.
 3. Animate the outgoing tag departure if required, bring in the reserve
-   character and land them at the outgoing point fighter's recorded takeover
-   coordinates, with appropriate native ground/facing and slot ownership.
+   character and land them beside the opponent, on the departing fighter's
+   side, with native ground/facing and slot ownership.
 4. Keep drawing the incoming fighter on top of the darkened stage. Only after
    landing, begin the **actual selected super's native startup animation**.
    Continue that animation while the rest of the match is held; no giant
