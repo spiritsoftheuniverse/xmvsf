@@ -4,7 +4,7 @@ Status: **DHC decision layer introduced; gameplay transition not connected yet.*
 
 ## Requested gameplay
 - While a point fighter's native super is active, read an input corresponding to **one of the reserve fighter's actual supers**, not the point fighter's command list.
-- On a valid request: pay **one additional stock**, cancel the outgoing super, stage a ROM-compatible tag-out/tag-in at the outgoing fighter's current world position, and darken the stage **without any incoming super portrait**. The reserve fighter stays visible as they land at the outgoing fighter's world position and animate the selected super startup.
+- On a valid request: pay **one additional stock**, cancel the outgoing super, stage a ROM-compatible tag-out/tag-in beside the opponent, on the outgoing fighter's side, and darken the stage **without any incoming super portrait**. The reserve fighter stays visible as they land beside the opponent and animate the selected super startup.
 - Only **one DHC** per uninterrupted super sequence. No return DHC or ping-pong until the incoming super actually ends.
 - Reject invalid commands, insufficient meter, non-combat phase, unavailable reserve, inconsistent fighter identity, and unknown super animation/command state. Never consume meter on rejection.
 - Keep existing tag, Triple-Start, Training selection, KO/dizzy, Tournament, and Stable behavior unchanged.
@@ -213,3 +213,22 @@ A clean clone must first have its standard launchers rewired to a verified
 in-place warm-cache build/run path; do NOT copy back the giant release archive,
 overwrite source files, or fall back to BUILD_STABLE.bat. No launcher or Stable
 change has been made in this DHC branch.
+
+## 87.137 placement correction — prioritize the playable DHC
+
+**The incoming partner JUMPS NEXT TO THE OPPONENT**, not next to or on top
+of the outgoing point character. Aim the existing native tag-in jump at an
+opponent-relative landing X on the outgoing fighter's side; keep the normal
+jump arc and landing. After landing, animate the selected incoming super
+against the darkened stage, no portrait/portrait timer, then unfreeze on the
+first active attack frame. The opponent's position stays unchanged.
+
+The new pure `xmvsf_stage87_137_dhc_landing.h` computes the world-space jump
+target and facing from point/opponent X, a temporary separation supplied by
+the native host, and caller-verified stage boundaries. It has **no gameplay
+hook yet** and no hardcoded guessed pushbox dimensions.
+
+For the first working implementation, focus on this one complete sequence:
+**input during super → one stock → opponent-relative tag jump → land →
+visible super startup in darkened scene → first active frame release**.
+Additional refinements can follow a functioning proof of concept.
