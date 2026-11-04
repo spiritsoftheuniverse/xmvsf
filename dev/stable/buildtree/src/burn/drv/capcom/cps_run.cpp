@@ -17,6 +17,7 @@
 #include "xmvsf_stage87_137_dhc_native_capture.h" // XM87.137 opt-in read-only tag/super evidence
 #include "../../../burner/sdl/xmvsf_stage87_139_probe.h" // XM87.139 read-only F10 input/native diagnostic
 #include "../../../burner/sdl/xmvsf_stage87_140_super_chat.h" // XM87.140 native super-input chat (no writes)
+#include "xmvsf_stage87_142_rom_dispatch.h" // 87.142 pure native script table+tag observer
 #include "xmvsf_stage87_119_cyclops_recovery_probe.h" // XM87.119 read-only recovery state trace
 #include "xmvsf_stage87_121_cyclops_release.h" // XM87.121 restore recorded airborne state after throw // XM87.100 native Training-only KO suppression
 extern int xm14TrainingMode; // native SDL Training mode selection
@@ -657,10 +658,28 @@ INT32 Cps2Frame()
     const unsigned xm87140_p2_dir=
         (CpsInp000[0]&1u)|((CpsInp000[1]&1u)<<1u)|
         ((CpsInp000[2]&1u)<<2u)|((CpsInp000[3]&1u)<<3u);
-    if(!bBurnRunAheadFrame && CpsRamFF)
+    if(!bBurnRunAheadFrame && CpsRamFF){
+        // Native 68000 dispatch (PC 0x01038E) resolves ROM script via
+        // fighter id, actor action and selector. Read only; no DHC trigger.
+        const XM87142::Report romReport=XM87142::state().frame(
+            CpsRamFF,CpsRom,(unsigned)nCpsRomLen,
+            (unsigned)GetCurrentFrame(),false);
         XM87140Chat::state().frame(CpsRamFF,(unsigned)GetCurrentFrame(),
             xm87140_p1_dir,xm87140_p2_dir,
-            xm8786_p1_buttons,xm8786_p2_buttons);
+            xm8786_p1_buttons,xm8786_p2_buttons,
+            romReport.verifiedSuperMask);
+        for(unsigned i=0;i<romReport.count;++i){
+            const XM87142::Event& e=romReport.event[i];
+            char note[XM87140Chat::CHAT_LENGTH];
+            std::snprintf(note,sizeof(note),
+                "P%u %s actor=%02X bench=%02X move=%02X%02X ROM=%06X ptr=%06X",
+                e.side+1u,XM87142::name(e.kind),e.pointId,e.reserveId,
+                e.action,e.selector,e.tableScript,e.partnerPointer);
+            XM87140Chat::state().log((unsigned)GetCurrentFrame(),
+                e.kind==XM87142::NATIVE_SUPER_ENTRY?XM87140Chat::MATCH:XM87140Chat::SYSTEM,
+                note);
+        }
+    }
     // Read-only after-CPU capture: do not edit fighter RAM or native action.
     XM8795Native::state().after(CpsRamFF,(unsigned)GetCurrentFrame(),
         XM8795Native::env("XM8755_TOURNAMENT_MODE"));
