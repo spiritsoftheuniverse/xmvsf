@@ -4,9 +4,9 @@ for %%I in ("%~dp0.") do set "PROJECT=%%~fI"
 set "MSYSTEM=UCRT64"
 set "PATH=C:\msys64\ucrt64\bin;C:\msys64\usr\bin;%PATH%"
 set "XMVSF_PROJECT=%PROJECT%"
-set "EXE=%PROJECT%\runtime\stable\XMVSF_Test_87_151.exe"
+set "EXE=%PROJECT%\runtime\stable\XMVSF_Test_87_152.exe"
 if not exist "%EXE%" (
-  echo ERROR: Stage 87.151 TEST executable is missing.
+  echo ERROR: Stage 87.152 TEST executable is missing.
   echo Run BUILD_TEST.bat first. Will NOT fall back to 87.132.4 or Stable.
   goto :fail
 )
@@ -17,8 +17,8 @@ if not exist "%PROJECT%\FBNeo" (
 REM 87.139 isolation: disable the old 87.138 normal-tag mutation.
 set "XM87138_TAG_LAND_TEST=0"
 set "XM8761_DISABLE_RUNAHEAD=1"
-set "XM87139_PROBE_DIR=%PROJECT%\test\87.151"
-set "XM87140_CHAT_DIR=%PROJECT%\test\87.151"
+set "XM87139_PROBE_DIR=%PROJECT%\test\87.152"
+set "XM87140_CHAT_DIR=%PROJECT%\test\87.152"
 if not exist "%XM87139_PROBE_DIR%" mkdir "%XM87139_PROBE_DIR%"
 if not exist "%XM87139_PROBE_DIR%" (
   echo ERROR: Cannot create diagnostic output directory.
@@ -44,7 +44,7 @@ set "XM8795_NATIVE_HIT_TEST=1"
 set "XM8796_DIZZY_HANDOFF_TEST=1"
 set "XM8799_GROUND_DEFENSE_TEST=1"
 set "XM87149_TOURNAMENT_AUDIT=%XM87140_CHAT_DIR%\tournament_rules.tsv"
-echo XMVSF Stage 87.151 TEST - DHC first-frame Ken kick suppression, queued native super, Tournament rules TEST
+echo XMVSF Stage 87.152 TEST - Ken native input dispatch after kickless 2A08, no isolated ROM script loops
 echo Executable: %EXE%
 echo Super-candidate inputs print to Warcraft-style chat and fade after 3 sec.
 echo Shift+G opens/closes the full chat history.
@@ -54,11 +54,12 @@ echo Super chat transcript: %XM87140_CHAT_LOG%
 echo ROM script/role events: %XM87142_ROM_TRACE%
 echo Prepared queue events and selections: %XM87140_CHAT_LOG%
 echo DHC native step-by-step transaction: %XM87144_DHC_LOG%
-echo Ken 2A0C is replaced on FIRST incoming frame by 2A08; native 2C00 or 2E00 is primed on exit.
-echo If ROM rewrites Shoryureppa into harmless 2C32, 2C04 is tried once then rejected cleanly.
-echo All 6 attack buttons and standard motions log independently for P1 and P2.
+echo Ken's first native tag kick is replaced by 2A08, then the game's REAL exit runs to neutral.
+echo After neutral, DHC submits one QCF+3P or QCF+3K through the CPS-2 native input ports.
+echo Native 2E00 Shoryureppa / 2E02 Shinryuken are verified; no hand-initialized 2C scripts.
+echo All physical button inputs remain intact outside the 17-frame DHC command window.
 echo Ryu tag-out and super-charge streaks retained.
-echo Failed DHC attempts unlock: enter another command to retry.
+echo Failed input dispatch, normal super recovery and native point swap release the DHC lock.
 echo EXPERIMENT: Ryu-to-Ken only. Normal tags unchanged. Stable untouched.
 echo Active Tournament rules audit: %XM87149_TOURNAMENT_AUDIT%
 echo Tournament rules are applied ONLY when selected in the Options menu.
@@ -68,7 +69,7 @@ pushd "%PROJECT%\FBNeo" || goto :fail
 set "RC=%ERRORLEVEL%"
 popd
 echo.
-echo Stage 87.151 TEST exit code: %RC%
+echo Stage 87.152 TEST exit code: %RC%
 echo Probe directory: %XM87139_PROBE_DIR%
 pause
 exit /b %RC%
