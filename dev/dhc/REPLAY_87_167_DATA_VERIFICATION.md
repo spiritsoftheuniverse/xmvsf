@@ -2,7 +2,20 @@
 
 ## Current verdict
 
-**OFFLINE DATA PASS. WINDOWS REPLAY / CPU DETERMINISM NOT YET CONFIRMED.**
+**OFFLINE DATA PASS. WINDOWS REPLAY COMPLETION + ROM ACTION TRACE PASS (87.167_2.zip). FULL CPU/RAM DETERMINISM NOT YET PROVEN.**
+
+## Recorded replay completion — independently inspected 87.167_2.zip
+
+- New evidence ZIP SHA-256: `28cd91161e4cc98c317c2c409e77f34328bcb6c7a31200ab8af1b98620ebe333`.
+- ZIP integrity: CRC checks pass; embedded `87.167.zip` SHA-256 equals the original `01cda0b08c8427b0e91ad09a3237f29e2d9c57cdd6a510be259ad7954893ad14`. All 43 common original archive entries are byte-identical.
+- `replay_results/replay_v2_status.log` shows sealed manifest `6395/2/14`, all fourteen `CHECKPOINT_LOADED` entries, transition `SESSION_END next_session=2`, and `PLAY_END complete_frames=6395`; zero `REPLAY_DIVERGED` entries.
+- `replay_results/rom_super_observed.tsv` has 39 events and is **byte-identical** to the original capture `rom_super_observed.tsv` (SHA-256 `f971af18cd48f797b367ba9b1018e97043b5fe1c99ec74af3ecf3f7d56319f8e`). This checks fighter IDs, ROM frame/movie frame, selector, scripts, animation, last inputs, and classifications.
+- `rom_super_catalog.tsv`, `rom_dispatch.tsv`, and `dhc_native_handoff.tsv` also match their replay-results counterparts byte-for-byte.
+- `tournament_rules.tsv` differs **only** in initial active-frame stamp (capture `780`, replay `851`); all ten enabled/installed/status fields on that row match. This is a diagnostic timing difference, *not* yet established to be a behavior divergence.
+- Observed fighters: `1E` (20 events), `0E` (12), `18` (5), `0C` (2); 18 distinct native script roots. 13 `PHYSICAL_CANDIDATE` events, 26 `NONE`.
+- **Gate:** recording/replay and ROM-action correlations are ready for expanding cast collection; command-recognizer disassembly and framewise deterministic RAM hashes remain separate future gates. Do not mislabel unverified script roots as verified move inputs.
+
+
 
 Audited original user-supplied `87.167.zip`, SHA-256:
 `01cda0b08c8427b0e91ad09a3237f29e2d9c57cdd6a510be259ad7954893ad14`.
