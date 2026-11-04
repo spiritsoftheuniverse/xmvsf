@@ -21,6 +21,8 @@ struct XM23State {
     bool menuOpen=false, hitboxes=false, dataDisplay=false, infiniteMeter=false;
     bool dizzyAllowed=true; // XM87.37: ON = normal stun; OFF = prevent stun accumulation in Training
     bool combat=false, loaded=false, returnMainRequested=false;
+    bool restoreSavedPlayerSelect=false;
+    unsigned savedPlayerSelect=0u; // applied only AFTER character selection ends
     int selected=0, count=0;
     unsigned char pressed[2][12]={{0}};
     int health[2]={0,0}, meter[2]={0,0}, combo[2]={0,0};
@@ -72,7 +74,11 @@ static inline void xm257LoadTrainingOptions(){
     XM87105HP::state().tick[0]=settings.dummy1HP;
     XM87105HP::state().tick[1]=settings.dummy2HP;
     XM87105HP::state().queueAll();
-    xm14InputTarget=(int)settings.playerSelect;
+    // Stage17 must own P1->P2 handoff during character selection. That stage
+    // resets xm14InputTarget as part of its legitimate two-team selection.
+    // Apply remembered Training PLAYER SELECT only after combat begins.
+    xm23State.savedPlayerSelect=settings.playerSelect;
+    xm23State.restoreSavedPlayerSelect=true;
     // Frame Data's event history remains per-match. Restore only the toggle.
     xm23State.frameData.setEnabled(settings.frameData!=0u);
     std::fprintf(stderr,
@@ -148,6 +154,8 @@ static inline void xm257TrainingAccept(){
           // character/health RAM, or Versus ownership.
           if(xm23State.combat){
               xm14InputTarget=(xm14InputTarget==0)?1:0;
+              xm23State.savedPlayerSelect=(unsigned)xm14InputTarget;
+              xm23State.restoreSavedPlayerSelect=false;
               xm25BeginInputHandoff(); // release the confirm before gameplay
               std::fprintf(stderr,"XM86.72 TRAINING_CONTROL_CHANGED selected=P%d\n",xm14InputTarget+1);
               std::fflush(stderr);
