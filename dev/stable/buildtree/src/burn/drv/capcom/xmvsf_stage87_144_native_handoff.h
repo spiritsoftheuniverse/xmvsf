@@ -57,7 +57,7 @@ static inline bool setNativeScript(std::uint8_t* ram,
 enum Phase{
     IDLE=0,TAG_OUT=1,WAIT_TAG_CONTROLLER=2,WAIT_NATIVE_SWAP=3,
     WAIT_LANDING=4,WAIT_KEN_EXIT=5,SUPER_STARTED=6,FAILED=7,
-    DELIVER_NATIVE_INPUT=8
+    DELIVER_NATIVE_INPUT=8,WAIT_RYU_SUPER_END=9
 };
 static inline const char* phaseName(Phase p){
     switch(p){
@@ -68,6 +68,7 @@ static inline const char* phaseName(Phase p){
       case WAIT_KEN_EXIT:return "NATIVE_KEN_KICKLESS_EXIT";
       case SUPER_STARTED:return "NATIVE_KEN_SUPER_START";
       case DELIVER_NATIVE_INPUT:return "NATIVE_KEN_INPUT_SEQUENCE";
+      case WAIT_RYU_SUPER_END:return "WAIT_RYU_NATIVE_SUPER_TIMER_08";
       case FAILED:return "FAILED";
       default:return "IDLE";
     }
@@ -181,6 +182,51 @@ struct State {
             unsigned(command[side]));
         std::fflush(log);
     }
+
+    // 87.150 succeeded with Ryu's super +4E <= 08; 87.152 corrupted
+    // control with +4E=0D. Arm only in that observed late-super window.
+    // Called after choosing either Ken super, never for ordinary tags.
+    void armOutgoingTag(std::uint8_t*ram,unsigned now,unsigned side,
+                        unsigned selectedAt){
+        const unsigned p=0x4000u+side*0x400u;
+                capturedMode[side]=rw(ram,p+0xA0u);
+                capturedAction[side]=rw(ram,p+0x60u);
+                captured256[side]=rb(ram,p+0x256u);
+                captured259[side]=rb(ram,p+0x259u);
+                capturedD6[side]=rb(ram,p+0xD6u);
+                captured06[side]=rw(ram,p+0x06u);
+                captured08[side]=rw(ram,p+0x08u);
+                captured0A[side]=rw(ram,p+0x0Au);
+                // Native 68000 013B8E: partner tag command acceptance
+                // writes controller +256/+259=8. The PC 00C4E6
+                // dispatcher routes controller 8 to 011E50, which resets
+                // the state scheduler and selects a fighter-specific tag
+                // routine. Action 32/00 is selected downstream in native
+                // ROM code PC 011B00/011B16. No host sprite-script write.
+                // The 87.145 test wrote script 32/00 but left the actor
+                // in super controller +A0=2A28, so the ROM immediately
+                // rewrote 2E08 on the NEXT frame.
+                //
+                // Real native frames 2758->2759:
+                //   PRE-TAG Ryu +A0=002A -> TAG Ryu +A0=2A00.
+                // At PC 033762 Ryu's controller 8 copies current A0
+                // high byte to A1 then sets A0 high=2A. We must enter
+                // with high=0, or the native code would produce 2A2A.
+                // Do not force the final 2A00 too early. Prepare the
+                // observed PRE-TAG state and let the ROM perform 2A00.
+                wb(ram,p+0x256u,0x08u);
+                wb(ram,p+0x259u,0x08u);
+                ww(ram,p+0x06u,0u);
+                ww(ram,p+0x08u,0u);
+                ww(ram,p+0x0Au,0u);
+                ww(ram,p+0xA0u,0x002Au);
+                phase[side]=WAIT_TAG_CONTROLLER;
+                started[side]=now;
+                lastAcceptedAt[side]=selectedAt;
+                event(now,side,ram,"DHC_NATIVE_TAG_CONTROLLER_08_ARMED");
+                event(now,side,ram,
+                      "DHC_DUAL_KEN_TARGETS_REPPA_2E00_D6722_SHINRYUKEN_2E02_D6976");
+    }
     // 87.152: one-shot real CPS-2 controller stream. This is consumed
     // BEFORE CpsRwGetInp in the next real emulation frame, then the host
     // restores the physical SDL button array immediately after that read.
@@ -286,44 +332,43 @@ struct State {
                 opponentX[side]=rw(ram,0x4400u+0x0Cu);
                 command[side]=entry->known->command;
                 outgoing[side]=pointId;incoming[side]=reserveId;
-                capturedMode[side]=rw(ram,p+0xA0u);
-                capturedAction[side]=rw(ram,p+0x60u);
-                captured256[side]=rb(ram,p+0x256u);
-                captured259[side]=rb(ram,p+0x259u);
-                capturedD6[side]=rb(ram,p+0xD6u);
-                captured06[side]=rw(ram,p+0x06u);
-                captured08[side]=rw(ram,p+0x08u);
-                captured0A[side]=rw(ram,p+0x0Au);
-                // Native 68000 013B8E: partner tag command acceptance
-                // writes controller +256/+259=8. The PC 00C4E6
-                // dispatcher routes controller 8 to 011E50, which resets
-                // the state scheduler and selects a fighter-specific tag
-                // routine. Action 32/00 is selected downstream in native
-                // ROM code PC 011B00/011B16. No host sprite-script write.
-                // The 87.145 test wrote script 32/00 but left the actor
-                // in super controller +A0=2A28, so the ROM immediately
-                // rewrote 2E08 on the NEXT frame.
-                //
-                // Real native frames 2758->2759:
-                //   PRE-TAG Ryu +A0=002A -> TAG Ryu +A0=2A00.
-                // At PC 033762 Ryu's controller 8 copies current A0
-                // high byte to A1 then sets A0 high=2A. We must enter
-                // with high=0, or the native code would produce 2A2A.
-                // Do not force the final 2A00 too early. Prepare the
-                // observed PRE-TAG state and let the ROM perform 2A00.
-                wb(ram,p+0x256u,0x08u);
-                wb(ram,p+0x259u,0x08u);
-                ww(ram,p+0x06u,0u);
-                ww(ram,p+0x08u,0u);
-                ww(ram,p+0x0Au,0u);
-                ww(ram,p+0xA0u,0x002Au);
-                phase[side]=WAIT_TAG_CONTROLLER;
-                started[side]=now;
+                // Keep BOTH verified Ken targets staged, but do not start
+                // Ryu's native tag controller until the same late-super
+                // timer window that worked at 87.150 frame 2302 (+4E=8).
+                // The too-early 87.152 trial at +4E=13 selected 2C04.
+                const unsigned remaining=rw(ram,p+0x4Eu);
                 lastAcceptedAt[side]=selectedAt;
-                event(now,side,ram,"DHC_NATIVE_TAG_CONTROLLER_08_ARMED");
-                event(now,side,ram,
-                      "DHC_DUAL_KEN_TARGETS_REPPA_2E00_D6722_SHINRYUKEN_2E02_D6976");
+                lastKenTargetAction[side]=0u;
                 XM87143Queue::state().discard(side);
+                if(remaining==0u || remaining>60u ||
+                   rb(ram,p+0xD6u)!=0x0Au){
+                    abort(now,side,ram,
+                        "DHC_BLOCK_RYU_SUPER_TIMER_OR_CONTROLLER_INVALID");
+                    continue;
+                }
+                if(remaining>8u){
+                    phase[side]=WAIT_RYU_SUPER_END;
+                    started[side]=now;
+                    event(now,side,ram,"DHC_WAIT_RYU_SUPER_TIMER_08");
+                }else armOutgoingTag(ram,now,side,selectedAt);
+                continue;
+            }
+            if(phase[side]==WAIT_RYU_SUPER_END){
+                const unsigned left=rw(ram,p+0x4Eu);
+                // All checks are observational until the verified +4E<=8
+                // window. Failure leaves native fighter state untouched.
+                if(pointId!=outgoing[side] ||
+                   reserveId!=incoming[side] ||
+                   rw(ram,p+0x60u)!=0x2E08u ||
+                   (rw(ram,p+0xA0u)!=0x2A28u &&
+                    rw(ram,p+0xA0u)!=0x2A02u) ||
+                   rb(ram,p+0xD6u)!=0x0Au ||
+                   left==0u || now>started[side]+52u){
+                    abort(now,side,ram,"DHC_RYU_SUPER_LEFT_SAFE_WINDOW");
+                }else if(left<=8u){
+                    event(now,side,ram,"DHC_LATE_SUPER_TIMER_WINDOW_ACCEPTED");
+                    armOutgoingTag(ram,now,side,lastAcceptedAt[side]);
+                }
                 continue;
             }
             if(phase[side]==WAIT_TAG_CONTROLLER){
