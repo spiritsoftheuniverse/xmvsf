@@ -14,6 +14,7 @@
 #include "xmvsf_stage87_99_tournament_ground_defense.h" // XM87.99 native Tournament dizzy landing combo/guard
 #include "xmvsf_stage87_125_stun_rearm_lock.h" // XM87.125 Tournament dizzy->landing stun rearm
 #include "xmvsf_stage87_100_training_ko.h"
+#include "xmvsf_stage87_137_dhc_native_capture.h" // XM87.137 opt-in read-only tag/super evidence
 #include "xmvsf_stage87_119_cyclops_recovery_probe.h" // XM87.119 read-only recovery state trace
 #include "xmvsf_stage87_121_cyclops_release.h" // XM87.121 restore recorded airborne state after throw // XM87.100 native Training-only KO suppression
 extern int xm14TrainingMode; // native SDL Training mode selection
@@ -648,6 +649,12 @@ INT32 Cps2Frame()
                                  (unsigned)Cpi01A,(unsigned)Cpi01C,(unsigned)Cpi01E);
     XM8798Latency::state().nativeFrame(CpsRamFF,(unsigned)GetCurrentFrame());
     XM87119::state().frame((unsigned)GetCurrentFrame(),CpsRamFF); // XM87.119 read-only probe
+    // XM87.137: real-frame native evidence only; never tag/spend/suppress here.
+    // The four-slot capture is entirely inert unless its TSV path is supplied.
+    if(!bBurnRunAheadFrame)
+        XM87137Capture::state().frame(CpsRamFF,BurnDrvGetTextA(DRV_NAME),
+          (unsigned)GetCurrentFrame(),xm8786_p1_buttons,xm8786_p2_buttons,
+          (unsigned)Cpi01A,(unsigned)Cpi01C,(unsigned)Cpi01E);
     XM87121::state().frame((unsigned)GetCurrentFrame(),CpsRamFF); // XM87.121 cancel only recovery, no new jump
     xm8634Mark("COMPLETE");
 
