@@ -18,19 +18,24 @@ struct Known {
     unsigned actions[2],selectors[2],expected[2];
     unsigned alternatives;
 };
-// Input assignments supplied by user; action-script associations are only
-// proven where an exact active script was observed, not yet callable DHC
-// entry points. Ken's two 2C variants must remain separate candidates.
+// 87.152: directly recorded native command->action evidence, supplied by
+// the user in 87.151(1).zip (all supers performed without DHC):
+// Ryu + 3P: 2E08 @ D3070; Ryu + 3K: 2E00 @ D2CFC.
+// Ken + 3P: 2E00 @ D6722; Ken + 3K: 2E02 @ D6976.
+// Ken HP+HK: 2E06 @ D6B3E is a separate Variable Combination control
+// reference, NOT a substitute for the QCF+PP/KK DHC reserve super.
+// The old Ken 2C00/2C04 guesses executed Hadoken and stuck in 2A28.
+// Script lookup proves identity, NOT a callable standalone 68000 handler.
 static inline const Known* definition(unsigned id,unsigned index){
     static const Known entries[]={
         {0x12u,QCF_PP,"RYU SHINKUU HADOKEN",false,false,
            {0x2Eu,0u},{0x08u,0u},{0xD3070u,0u},1u},
         {0x12u,QCB_KK,"RYU SHINKUU TATSUMAKI",true,true,
-           {0u,0u},{0u,0u},{0u,0u},0u},
+           {0x2Eu,0u},{0x00u,0u},{0xD2CFCu,0u},1u},
         {0x14u,QCF_PP,"KEN SHORYUREPPA",false,false,
-           {0x2Cu,0x2Cu},{0x00u,0x04u},{0xD5C46u,0xD5E2Eu},2u},
+           {0x2Eu,0u},{0x00u,0u},{0xD6722u,0u},1u},
         {0x14u,QCF_KK,"KEN SHINRYUKEN",true,false,
-           {0x2Eu,0u},{0x00u,0u},{0xD6722u,0u},1u}
+           {0x2Eu,0u},{0x02u,0u},{0xD6976u,0u},1u}
     };
     unsigned seen=0;
     for(unsigned i=0;i<sizeof(entries)/sizeof(entries[0]);++i){
