@@ -757,6 +757,8 @@ INT32 Cps2Frame()
         // exact native script are independently verified.
         // The one-shot TEST input injection is marked as synthetic; it
         // must NOT contaminate physical controller-command discovery.
+        XM87160::state().exportPrivateCode(
+            CpsCode,(unsigned)nCpsCodeLen,CpsRom,(unsigned)nCpsRomLen);
         XM87160::state().frame(
             CpsRamFF,CpsRom,(unsigned)nCpsRomLen,(unsigned)GetCurrentFrame(),
             dhcInput.active?dhcInput.directions:xm87140_p1_dir,
