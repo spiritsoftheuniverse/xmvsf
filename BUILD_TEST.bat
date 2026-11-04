@@ -4,29 +4,62 @@ for %%I in ("%~dp0.") do set "PROJECT=%%~fI"
 set "MSYSTEM=UCRT64"
 set "PATH=C:\msys64\ucrt64\bin;C:\msys64\usr\bin;%PATH%"
 set "XMVSF_PROJECT=%PROJECT%"
+REM Build logs are written BEFORE checking prerequisites. This path is
+REM stable across point versions and never touches or deletes build objects.
+set "LOGDIR=%PROJECT%\test\build_logs"
+if not exist "%LOGDIR%" mkdir "%LOGDIR%"
+if not exist "%LOGDIR%" goto :no_log
+set "BUILDLOG=%LOGDIR%\BUILD_TEST.log"
+>>"%BUILDLOG%" echo.
+>>"%BUILDLOG%" echo ========== XMVSF BUILD_TEST.bat 87.165 START %DATE% %TIME% ==========
+>>"%BUILDLOG%" echo Project: %PROJECT%
+echo XMVSF 87.165 incremental TEST build
+echo Source: "%PROJECT%\dev\stable\buildtree"
+echo Permanent build transcript: "%BUILDLOG%"
+echo All build output is displayed AND appended to the transcript.
+echo Stable, prior TEST binaries, and warm object cache are preserved.
 if not exist "%PROJECT%\dev\dhc\BUILD_TEST.sh" (
-  echo ERROR: Stage 87.164 TEST builder not found. Switch to feature/dhc-mvc2-stage87 and pull.
+  echo ERROR: Current TEST builder missing. Pull feature/dhc-mvc2-stage87.
+  >>"%BUILDLOG%" echo ERROR: Missing dev\dhc\BUILD_TEST.sh
   goto :fail
 )
 where bash.exe >nul 2>nul
 if errorlevel 1 (
-  echo ERROR: MSYS2 bash.exe not found at C:\msys64\usr\bin
+  echo ERROR: MSYS2 bash.exe not found on PATH.
+  >>"%BUILDLOG%" echo ERROR: MSYS2 bash.exe not found on PATH
   goto :fail
 )
-echo XMVSF Stage 87.164 TEST builder - CURRENT warm-cache source
-echo Source: %PROJECT%\dev\stable\buildtree
-echo Stable and the old 87.132.4 executable will not be overwritten.
-pushd "%PROJECT%\dev\dhc" || goto :fail
+where tee.exe >nul 2>nul
+if errorlevel 1 (
+  echo ERROR: MSYS2 tee.exe not found on PATH. Cannot write live build log.
+  >>"%BUILDLOG%" echo ERROR: MSYS2 tee.exe not found on PATH
+  goto :fail
+)
+pushd "%PROJECT%\dev\dhc"
+if errorlevel 1 (
+  echo ERROR: Cannot enter dev\dhc build directory.
+  >>"%BUILDLOG%" echo ERROR: Cannot enter dev\dhc build directory
+  goto :fail
+)
 bash.exe BUILD_TEST.sh
 set "RC=%ERRORLEVEL%"
 popd
 if not "%RC%"=="0" goto :fail
 echo.
-echo Stage 87.164 TEST build published. Run RUN_TEST.bat.
+echo TEST 87.165 BUILD READY. Run RUN_TEST.bat.
+echo Full transcript: "%BUILDLOG%"
+>>"%BUILDLOG%" echo BATCH RESULT: SUCCESS %DATE% %TIME%
 pause
 exit /b 0
 :fail
 echo.
 echo TEST BUILD FAILED. Existing Stable and previous TEST binaries preserved.
+echo Diagnostic transcript: "%BUILDLOG%"
+>>"%BUILDLOG%" echo BATCH RESULT: FAILURE %DATE% %TIME%
 pause
 exit /b 1
+:no_log
+echo ERROR: Cannot create "%LOGDIR%" for the build transcript.
+echo The build was NOT started. Verify write permissions.
+pause
+exit /b 2
