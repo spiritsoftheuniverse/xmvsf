@@ -25,6 +25,7 @@
 #include "xmvsf_stage86_49_camera.h" // XM86.49 opt-in read-only native camera
 #include "xmvsf_stage87_61_replay.h" // XM87.61 opt-in state-anchored input movie
 #include "xmvsf_stage87_139_probe.h" // XM87.139 F10 native/input diagnostic toggle
+#include "xmvsf_stage87_140_super_chat.h" // XM87.140 Shift+G chat history toggle
 #include "xmvsf_stage77_native_stage5.h" // XM86.31 postframe guarded native stage request
 #include "xmvsf_stage29_display.h" /* XMVSF_STAGE29_SCALABLE_DISPLAY */
 #include "xmvsf_stage24_3_menu_poll.h" /* XMVSF_STAGE24_3_LIVE_RESULTS */
@@ -649,6 +650,10 @@ int RunMessageLoop()
                         if(event.key.keysym.mod & KMOD_SHIFT) QuickState(0); // legacy quick save retained on Shift+F9
                         else XM8761::toggleF9(bDrvOkay!=0);
                     }
+                    break;
+                                case SDLK_g: // XM87.140 expand/collapse DHC chat history
+                    if(event.key.repeat==0 && (event.key.keysym.mod&KMOD_SHIFT))
+                        XM87140Chat::state().toggle();
                     break;
                 case SDLK_F10: // XM87.139 F10 diagnostics start/stop
                     if(event.key.repeat==0){
