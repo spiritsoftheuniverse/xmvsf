@@ -63,13 +63,18 @@ static inline Kind classify(const Lookup& x,unsigned nativeScript){
     if(!x.valid||nativeScript!=x.script)return NO_EVENT;
     // Observed AND resolved through original ROM data, NOT user-provided
     // move names or synthetic proxies. New fighters require more captures.
-    if(x.fighter==0x12u && x.action==0x2Eu && x.selector==0x08u &&
-       x.script==0xD3070u)return NATIVE_SUPER_ENTRY;
-    if(x.fighter==0x14u &&
-       ((x.action==0x2Cu && x.selector==0x04u && x.script==0xD5E2Eu) ||
-        (x.action==0x2Cu && x.selector==0x00u && x.script==0xD5C46u) ||
-        (x.action==0x2Eu && x.selector==0x00u && x.script==0xD6722u)))
-       return NATIVE_SUPER_ENTRY;
+    // 87.152: classify true command-owned super OPENINGS from native
+    // 87.151(1) first-frame CPS2 input+script evidence. A valid 2C script
+    // alone was insufficient and led the old DHC into a looping Hadoken.
+    if(x.fighter==0x12u && x.action==0x2Eu &&
+       ((x.selector==0x08u && x.script==0xD3070u) ||
+        (x.selector==0x00u && x.script==0xD2CFCu)))
+        return NATIVE_SUPER_ENTRY;
+    if(x.fighter==0x14u && x.action==0x2Eu &&
+       ((x.selector==0x00u && x.script==0xD6722u) ||
+        (x.selector==0x02u && x.script==0xD6976u) ||
+        (x.selector==0x06u && x.script==0xD6B3Eu)))
+        return NATIVE_SUPER_ENTRY;
     if(x.fighter==0x12u && x.action==0x32u && x.selector==0x00u &&
        x.script==0xD1DACu)return NATIVE_TAG_OUT;
     if(x.fighter==0x14u && x.action==0x2Au && x.selector==0x0Cu &&
