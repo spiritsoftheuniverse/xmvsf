@@ -8,6 +8,7 @@
 #include "../../../burner/sdl/xmvsf_stage86_49_state.h"
 #include "xmvsf_stage86_49_wily_art.h"
 #include "xmvsf_stage87_63_super_intro.h"
+#include "../../../burn/drv/capcom/xmvsf_stage87_138_tag_land_test.h" // 87.138 tag jump visual test only
 #include <memory>
 #include <string>
 #include <fstream>
@@ -206,9 +207,25 @@ static bool xm8649Paint(SDL_Renderer* render,const SDL_Rect& view){
   // XM86.64: scene textures are already graded to 30% brightness with
   // 70% spectral saturation. Render exactly once. The old SDL ADD +35%
   // pass undid darkness and clipped animated exhaust gradients.
-  if(SDL_RenderCopy(render,xm8649Target,nullptr,&view)!=0 ||
-     SDL_RenderCopy(render,xm8656WilyActorTarget,nullptr,&view)!=0)
-     throw std::runtime_error("Wily 86.64 scene/actor compositing failed");
+  if(SDL_RenderCopy(render,xm8649Target,nullptr,&view)!=0)
+     throw std::runtime_error("Wily 86.64 scene compositing failed");
+  // 87.138: DHC placement smoke test. Darken ONLY the Wily stage scenery
+  // during the incoming fighter's native airborne tag-in. The actual native
+  // character and HUD layers are composited afterward at full brightness.
+  // This does NOT start, pause, or modify a super. Disabled by default.
+  if(XM87138Tag::state().dimStage()){
+     SDL_BlendMode originalBlend=SDL_BLENDMODE_NONE;
+     SDL_GetRenderDrawBlendMode(render,&originalBlend);
+     Uint8 oldR=0,oldG=0,oldB=0,oldA=0;
+     SDL_GetRenderDrawColor(render,&oldR,&oldG,&oldB,&oldA);
+     SDL_SetRenderDrawBlendMode(render,SDL_BLENDMODE_BLEND);
+     SDL_SetRenderDrawColor(render,0,0,0,144);
+     SDL_RenderFillRect(render,&view);
+     SDL_SetRenderDrawColor(render,oldR,oldG,oldB,oldA);
+     SDL_SetRenderDrawBlendMode(render,originalBlend);
+  }
+  if(SDL_RenderCopy(render,xm8656WilyActorTarget,nullptr,&view)!=0)
+     throw std::runtime_error("Wily 86.64 actor compositing failed");
   // XM87.46: dizzy HUD drawn BEFORE the native fighters/FX layer, never
   // after complete composition. Sprite alpha naturally occludes the meter.
   xm8733Overlay(render,view);
