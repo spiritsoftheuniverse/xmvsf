@@ -4,9 +4,9 @@ for %%I in ("%~dp0.") do set "PROJECT=%%~fI"
 set "MSYSTEM=UCRT64"
 set "PATH=C:\msys64\ucrt64\bin;C:\msys64\usr\bin;%PATH%"
 set "XMVSF_PROJECT=%PROJECT%"
-set "EXE=%PROJECT%\runtime\stable\XMVSF_Test_87_139.exe"
+set "EXE=%PROJECT%\runtime\stable\XMVSF_Test_87_140.exe"
 if not exist "%EXE%" (
-  echo ERROR: Stage 87.139 TEST executable is missing.
+  echo ERROR: Stage 87.140 TEST executable is missing.
   echo Run BUILD_TEST.bat first. Will NOT fall back to 87.132.4 or Stable.
   goto :fail
 )
@@ -18,21 +18,31 @@ REM 87.139 isolation: disable the old 87.138 normal-tag mutation.
 set "XM87138_TAG_LAND_TEST=0"
 set "XM8761_DISABLE_RUNAHEAD=1"
 set "XM87139_PROBE_DIR=%PROJECT%\test\87.139"
+set "XM87140_CHAT_DIR=%PROJECT%\test\87.140"
 if not exist "%XM87139_PROBE_DIR%" mkdir "%XM87139_PROBE_DIR%"
 if not exist "%XM87139_PROBE_DIR%" (
   echo ERROR: Cannot create diagnostic output directory.
   goto :fail
 )
-echo XMVSF Stage 87.139 TEST - UNMODIFIED native tags, F10 input/actor/OAM recorder
+if not exist "%XM87140_CHAT_DIR%" mkdir "%XM87140_CHAT_DIR%"
+if not exist "%XM87140_CHAT_DIR%" (
+  echo ERROR: Cannot create chat log directory.
+  goto :fail
+)
+set "XM87140_CHAT_LOG=%XM87140_CHAT_DIR%\super_chat.tsv"
+echo XMVSF Stage 87.140 TEST - read-only first-super reserve command chat
 echo Executable: %EXE%
-echo F10 starts/stops probing. F9 remains replay recording; Shift+F10 quick-load.
-echo Diagnostic files: %XM87139_PROBE_DIR%
+echo Super-candidate inputs print to Warcraft-style chat and fade after 3 sec.
+echo Shift+G opens/closes the full chat history.
+echo F10 native probing, F9 replay, Shift+F10 quick-load.
+echo Super chat transcript: %XM87140_CHAT_LOG%
+echo F10 probe files: %XM87139_PROBE_DIR%
 pushd "%PROJECT%\FBNeo" || goto :fail
 "%EXE%"
 set "RC=%ERRORLEVEL%"
 popd
 echo.
-echo Stage 87.139 TEST exit code: %RC%
+echo Stage 87.140 TEST exit code: %RC%
 echo Probe directory: %XM87139_PROBE_DIR%
 pause
 exit /b %RC%
