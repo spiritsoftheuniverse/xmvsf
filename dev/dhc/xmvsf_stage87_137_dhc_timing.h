@@ -8,8 +8,10 @@
 // * World/opponent/outgoing hit resolution must be held throughout DHC freeze.
 // * The incoming fighter remains DRAWN: land at the outgoing actor's recorded
 //   takeover position, then play native super startup in the darkened scene.
-// * Suppress ONLY the incoming DHC super's portrait/splash objects, never
-//   the fighter, hitboxes, HUD, or ordinary non-DHC super portraits.
+// * BYPASS the incoming DHC super's native portrait animation AND its timer,
+//   not merely the sprite visibility. Keep native super startup and attack logic.
+// * Suppress any residual incoming DHC portrait/splash sprites, never the
+//   fighter, hitboxes, HUD, or ordinary non-DHC super portraits.
 // * Host advances permitted incoming logic; not the frozen match.
 // * READY means the *next* native incoming animation tick is the first active
 //   attack tick, NOT that a guessed timer has expired.
@@ -31,6 +33,7 @@ struct Signal {
     bool worldHeld=false;          // Opponent/world/global time AND hit resolution held
     bool darkScenePresented=false; // Stage dimming actually presented; actors remain visible
     bool incomingPortraitVisible=false; // DHC-specific portrait filter failed if true
+    bool nativePortraitIntroBypassed=false; // no hidden portrait timer may delay startup
     bool nativeTagComplete=false;  // The reserve is now the incoming point fighter
     bool incomingGrounded=false;   // Native tag entry completed its landing
     bool incomingAtTakeoverPosition=false; // Native world-space X matches outgoing point
@@ -43,6 +46,7 @@ struct Signal {
 };
 struct Result {
     bool holdWorld=false, dimStage=false, suppressIncomingPortrait=false;
+    bool bypassIncomingPortraitIntro=false; // request native DHC-only intro bypass
     bool showIncomingFighter=false, tickIncomingOnly=false;
     bool releaseBeforeNextNativeFrame=false, rollbackRequired=false;
 };
@@ -87,6 +91,7 @@ struct Coordinator {
         if(phase==BLACKOUT_PENDING){r.holdWorld=true;r.dimStage=true;return r;}
         if(phase==TAG_ENTER || phase==STARTUP || phase==RELEASE_ARMED){
             r.holdWorld=true;r.dimStage=true;r.showIncomingFighter=true;
+            r.bypassIncomingPortraitIntro=true;
             // The DHC presentation must not show the native portrait, even
             // transiently; its sprite group needs a precise owner-aware filter.
             // Freeze violation is NOT repairable by dropping the darkening.
@@ -98,6 +103,11 @@ struct Coordinator {
             if(phase==TAG_ENTER && s.nativeTagComplete && s.incomingGrounded &&
                s.incomingAtTakeoverPosition)phase=STARTUP;
             if(phase==STARTUP){
+                // Native intro must not merely run invisibly while the
+                // fighter waits. Super startup is the only allowed sequence.
+                if(s.incomingSuperStarted && !s.nativePortraitIntroBypassed){
+                    phase=FAILED;r.rollbackRequired=true;return r;
+                }
                 r.tickIncomingOnly=true;
                 if(s.incomingStartupTick && s.incomingSuperStarted)++startupTicks;
                 if(s.firstActiveOnNextTick){
