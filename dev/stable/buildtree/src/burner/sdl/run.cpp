@@ -567,6 +567,19 @@ int RunInit()
     std::fprintf(stderr,"XM86.34 RunInit enter\n");std::fflush(stderr);
 	gettimeofday(&start, NULL);
 	DisplayFPSInit();
+    // V2 playback already owns the exact ROM + host state for the first
+    // recorded frame. Do not launch the WASAPI/audio callback early,
+    // nor reload a different Training selection / StatedAuto snapshot
+    // over the movie's canonical native checkpoint. Fast-forward uses
+    // the normal synchronous RunFrame CPU path with no audio throttle.
+    if(XM8764::isPlayback()){
+        std::fprintf(stderr,
+            "XM87.164 V2_PLAYBACK_INIT skip boot snapshots/audio; native checkpoint owns state\\n");
+        std::fflush(stderr);
+        RunReset();
+        XM8764::gameBegin(xm24VersusMode?2:xm14TrainingMode?1:0);
+        return 0;
+    }
 	// Try to run with sound
 	AudSetCallback(RunGetNextSound);
     std::fprintf(stderr,"XM86.34 RunInit audio play begin\n");std::fflush(stderr);
