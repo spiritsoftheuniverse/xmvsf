@@ -58,7 +58,7 @@ jobs:
           assert segment[-1].strip().endswith('all'), segment
           PY
           grep -Fq 'BUILD_TEST.sh' BUILD_TEST.bat
-          grep -Fq 'XMVSF_Test_87_156.exe' RUN_TEST.bat
+          grep -Fq 'XMVSF_Test_87_157.exe' RUN_TEST.bat
           grep -Fq 'XM87139_PROBE_DIR' RUN_TEST.bat
           grep -Fq 'XM87140_CHAT_LOG' RUN_TEST.bat
           grep -Fq 'xm87140ChatOverlay(sdlRenderer);' dev/stable/buildtree/src/intf/video/sdl/vid_sdl2.cpp
@@ -68,10 +68,14 @@ jobs:
           grep -Fq 'DHC QUEUED ' dev/stable/buildtree/src/burner/sdl/xmvsf_stage87_140_super_chat.h
           grep -Fq 'XM87144::state().frame' dev/stable/buildtree/src/burn/drv/capcom/cps_run.cpp
           grep -Fq 'XM87144_DHC_NATIVE_TEST=1' RUN_TEST.bat
-          grep -Fq 'XM87156_PROOF_NATIVE=1' RUN_TEST.bat
+          grep -Fq 'XM87157_EARLY_CANCEL=1' RUN_TEST.bat
           grep -Fq 'PROOF_156_ROM_HP_HK_NATIVE_3200_ACCEPTED' dev/stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_144_native_handoff.h
           grep -Fq '0x18u:0x03u' dev/stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_144_native_handoff.h
           test -f dev/dhc/tests/test_dhc_native_proof_156.cpp
+          test -f dev/dhc/tests/test_dhc_fast_ken_cancel_157.cpp
+          grep -Fq 'XM87156_PROOF_NATIVE=0' RUN_TEST.bat
+          grep -Fq 'FAST_157_KEN_2A08_CANCEL_TO_VERIFIED_ROM_IDLE' dev/stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_144_native_handoff.h
+          grep -Fq 'FAST_157_KEN_NATIVE_TWO_BUTTON_EDGE' dev/stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_144_native_handoff.h
           test -f dev/dhc/tests/test_dhc_dual_ken_supers_155.cpp
           grep -Fq 'QCF+LP+MP queues Ken SHORYUREPPA' RUN_TEST.bat
           grep -Fq 'QCF+LK+MK queues Ken SHINRYUKEN' RUN_TEST.bat
@@ -87,7 +91,7 @@ jobs:
             exit 1
           fi
           grep -Fq 'required_markers=(' dev/dhc/BUILD_TEST.sh
-          grep -Fq 'TEST executable is missing compiled 87.156 marker' dev/dhc/BUILD_TEST.sh
+          grep -Fq 'TEST executable is missing compiled 87.157 marker' dev/dhc/BUILD_TEST.sh
           grep -Fq 'DHC_NATIVE_TAG_CONTROLLER_08_ARMED' dev/stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_144_native_handoff.h
           grep -Fq 'NATIVE_CONTROLLER_ACCEPTED_OUTGOING_3200' dev/stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_144_native_handoff.h
           grep -Fq 'NATIVE_TAG_CONTROLLER_REJECTED_12F' dev/stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_144_native_handoff.h
@@ -118,7 +122,7 @@ jobs:
           grep -Fq 'REFERENCE_REAL_ROM_NORMAL_TAG' dev/stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_144_native_handoff.h
           grep -Fq 'DHC_NATIVE_TAG_CONTROLLER_08_ARMED' dev/stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_144_native_handoff.h
           grep -Fq 'NATIVE_TAG_CONTROLLER_REJECTED_12F' dev/stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_144_native_handoff.h
-          # 87.156 accepts BOTH native 2A02 and 2A28 observed on actual
+          # 87.157 accepts BOTH native 2A02 and 2A28 observed on actual
           # Ryu supers, but never forces either mode for incoming Ken.
           grep -Fq 'rw(ram,p+0xA0u)!=0x2A28u' dev/stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_144_native_handoff.h
           grep -Fq 'rw(ram,p+0xA0u)!=0x2A02u' dev/stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_144_native_handoff.h
