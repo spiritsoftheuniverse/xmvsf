@@ -384,9 +384,9 @@ static inline int xm39TimelineStride(unsigned long long span,int availablePixels
     const int slots=std::max(1,availablePixels/3);
     return (int)std::max(1ull,(span+(unsigned long long)slots-1)/(unsigned long long)slots);
 }
-// Stage 41: two independently sampled timelines share exactly one time axis.
-// Upper line is projectile spawn/active/travel; lower line is conservative
-// return-to-neutral observation. The latter is NOT verified input permission.
+// Stage 87.154: hitbox/projectile lifetime in upper lane and real native
+// attack-action duration below. The latter stops at action-controller exit,
+// including when the next ROM action is walking or jumping.
 static inline void xm41DrawFrameCard(SDL_Renderer* r,const SDL_Rect& card,
                                       const XM30Event& e,unsigned long long currentFrame){
     if(!r || card.w<105 || card.h<135)return;
@@ -405,14 +405,13 @@ static inline void xm41DrawFrameCard(SDL_Renderer* r,const SDL_Rect& card,
     if(e.closed || e.noBox)finish=std::max(finish,e.endFrame);
     if(!e.closed && !e.noBox)finish=std::max(finish,e.source==1?
         std::min(currentFrame,e.inputFrame+600ull):currentFrame);
-    if(e.neutralEstimate)finish=std::max(finish,e.neutralFrame);
+    if(e.attackObserved)finish=std::max(finish,
+        e.attackEnded?e.attackEndFrame:e.attackLastFrame);
     if(e.despawnFrame)finish=std::max(finish,e.despawnFrame);
     else if(e.projectileBase && e.positionKnown)
         finish=std::max(finish,std::min(currentFrame,e.inputFrame+600ull));
-    // Pending recovery is an observation, not a hold-to-extend timer.
-    // Keep it bounded if the actor never returns to observed idle.
-    if(e.lockPending)finish=std::max(finish,
-        std::min(currentFrame,e.inputFrame+(unsigned long long)XM30FrameData::MAX_IDLE_WAIT));
+    // No idle-state timer. Once the ROM exits an attack, nothing in the
+    // second lane advances while the fighter holds a direction or jumps.
     // A still-pending entry uses its own ongoing elapsed frame range.
     if(finish<=e.inputFrame)finish=e.inputFrame+1;
     const unsigned long long span=finish-e.inputFrame+1;
@@ -429,7 +428,7 @@ static inline void xm41DrawFrameCard(SDL_Renderer* r,const SDL_Rect& card,
     };
     // Markers sit ABOVE both chart rows; connecting lines keep the precise
     // tick location visible even when captions need to be displaced.
-    XM39Mark marks[5];int n=0;
+    XM39Mark marks[6];int n=0;
     marks[n++]={"IN",e.inputFrame};
     if(e.source==1 && e.spawnFrame)marks[n++]={"SP",e.spawnFrame};
     if(!e.noBox)marks[n++]={"ON",e.firstFrame};
@@ -437,6 +436,8 @@ static inline void xm41DrawFrameCard(SDL_Renderer* r,const SDL_Rect& card,
     // control phase. The rightmost tick is the object-lifetime boundary.
     // Fighter hitboxes still show OFF at last active frame.
     if(e.source==0 && !e.noBox && e.closed)marks[n++]={"OFF",e.endFrame};
+    if(e.attackObserved && e.attackEnded)
+        marks[n++]={"END",e.attackEndFrame};
     for(int k=0;k<n;++k){
         marks[k].x=px(marks[k].at);
         const int width=(int)std::strlen(marks[k].label)*6;
@@ -487,17 +488,22 @@ static inline void xm41DrawFrameCard(SDL_Renderer* r,const SDL_Rect& card,
     xm32ColoredText(r,"MOVE",right-25,card.y+55,1,86,193,243);
     SDL_SetRenderDrawColor(r,53,78,110,255);
     SDL_RenderDrawLine(r,left,card.y+74,right,card.y+74);
-    // Synchronized lower lane. No guessed recovery time: for unsupported
-    // moves this remains UNKNOWN rather than borrowing the projectile end.
-    xm32ColoredText(r,"PLAYER ATTACK > IDLE",left,card.y+78,1,177,188,211);
-    if(e.lockObserved){
-        const unsigned long long end=e.neutralEstimate?e.neutralFrame:currentFrame;
+    // The ROM action is the sole duration clock. Each attack owns its
+    // start, last valid frame and exit; button holds, movement, and Y
+    // position cannot keep the timeline running beyond action end.
+    xm32ColoredText(r,"ATTACK DURATION",left,card.y+78,1,177,188,211);
+    if(e.attackObserved){
+        const unsigned long long actionEnd=e.attackEnded?
+            e.attackEndFrame:e.attackLastFrame;
         for(unsigned long long step=0;step<span;step+=(unsigned)stride){
             const unsigned long long at=e.inputFrame+step;
-            if(at<=end)tick(px(at),card.y+92,7,236,150,99);
+            if(at>=e.attackStartFrame && at<=actionEnd)
+                tick(px(at),card.y+92,7,236,150,99);
             else tick(px(at),card.y+92,7,74,88,111);
         }
-        if(e.neutralEstimate)tick(px(e.neutralFrame),card.y+90,11,255,229,196);
+        tick(px(e.attackStartFrame),card.y+90,11,255,229,196);
+        if(e.attackEnded)
+            tick(px(e.attackEndFrame),card.y+90,11,255,229,196);
     }else{
         xm32ColoredText(r,"UNKNOWN",left+2,card.y+91,1,157,169,185);
     }
@@ -514,12 +520,14 @@ static inline void xm41DrawFrameCard(SDL_Renderer* r,const SDL_Rect& card,
         xm32ColoredText(r,val,left+94,card.y+112,1,255,207,182);
     }
     char info[56];
-    if(e.neutralEstimate){
-        const unsigned long long duration=e.neutralFrame-e.inputFrame;
-        std::snprintf(info,sizeof(info),"IDLE STATE %lluF",duration);
-    }else if(e.recoveryUnresolved)std::snprintf(info,sizeof(info),"IDLE UNCONFIRMED");
-    else if(e.lockObserved)std::snprintf(info,sizeof(info),"AWAIT IDLE STATE");
-    else std::snprintf(info,sizeof(info),"IDLE UNKNOWN");
+    if(e.attackObserved){
+        const unsigned long long end=e.attackEnded?
+            e.attackEndFrame:e.attackLastFrame;
+        const unsigned long long duration=end>=e.attackStartFrame?
+            end-e.attackStartFrame+1u:0u;
+        std::snprintf(info,sizeof(info),"%lluF %s",
+            duration,e.attackEnded?"COMPLETE":"RUNNING");
+    }else std::snprintf(info,sizeof(info),"DURATION UNKNOWN");
     xm32ColoredText(r,info,left,card.y+124,1,255,207,182);
     std::snprintf(info,sizeof(info),"1T=%dF",stride);
     xm32ColoredText(r,info,right-48,card.y+124,1,128,157,192);
