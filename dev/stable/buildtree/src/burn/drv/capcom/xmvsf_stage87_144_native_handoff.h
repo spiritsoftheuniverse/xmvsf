@@ -219,15 +219,19 @@ struct State {
                 // in super controller +A0=2A28, so the ROM immediately
                 // rewrote 2E08 on the NEXT frame.
                 //
-                // Real Ryu normal tag capture at 2759: action 3200,
-                // mode +A0=2A00. Preserve the native controller path;
-                // DO NOT force an outgoing sprite script from the host.
+                // Real native frames 2758->2759:
+                //   PRE-TAG Ryu +A0=002A -> TAG Ryu +A0=2A00.
+                // At PC 033762 Ryu's controller 8 copies current A0
+                // high byte to A1 then sets A0 high=2A. We must enter
+                // with high=0, or the native code would produce 2A2A.
+                // Do not force the final 2A00 too early. Prepare the
+                // observed PRE-TAG state and let the ROM perform 2A00.
                 wb(ram,p+0x256u,0x08u);
                 wb(ram,p+0x259u,0x08u);
                 ww(ram,p+0x06u,0u);
                 ww(ram,p+0x08u,0u);
                 ww(ram,p+0x0Au,0u);
-                ww(ram,p+0xA0u,0x2A00u);
+                ww(ram,p+0xA0u,0x002Au);
                 phase[side]=WAIT_TAG_CONTROLLER;
                 started[side]=now;
                 lastAcceptedAt[side]=selectedAt;
