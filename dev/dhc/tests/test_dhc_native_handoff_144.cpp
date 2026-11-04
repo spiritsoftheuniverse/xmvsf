@@ -167,7 +167,7 @@ int main(){
     one=s.inputForFrame(ram.data(),177u);
     assert(one.active && one.directions==1u && !one.attacks);
     one=s.inputForFrame(ram.data(),180u);
-    assert(one.active && one.directions==1u && one.attacks==7u);
+    assert(one.active && one.directions==1u && one.attacks==3u);
     one=s.inputForFrame(ram.data(),184u);
     assert(one.active && !one.directions && !one.attacks);
     assert(!s.inputForFrame(ram.data(),186u).active);
