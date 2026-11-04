@@ -154,6 +154,7 @@ inline bool requiresCheckpoint(const Host& a,const Host& b){
 }
 inline bool loadManifest(){
     Context& c=context();
+    c.segments.clear();c.sealed=false;c.unsealedPrefix=false;
     std::ifstream f((c.folder+"/manifest.tsv").c_str(),std::ios::binary);
     if(!f)return fail("V2_MANIFEST_MISSING");
     std::string line;
@@ -161,6 +162,7 @@ inline bool loadManifest(){
         return fail("V2_MANIFEST_SIGNATURE");
     bool sawFinal=false;
     unsigned finalFrames=0,finalSessions=0,finalSegments=0;
+    unsigned lastEventFrame=0,maxEventFrame=0;
     std::string finalReason;
     while(std::getline(f,line)){
         if(line.empty())continue;
@@ -172,7 +174,20 @@ inline bool loadManifest(){
                finalReason.empty())return fail("V2_FINAL_FORMAT");
             std::string extra;
             if(in>>extra)return fail("V2_FINAL_TRAILING_DATA");
+            if(finalReason!="F9_STOP" &&
+               finalReason!="APPLICATION_EXIT")
+                return fail("V2_FINAL_STOP_REASON");
             sawFinal=true;
+        }else if(key=="EVENT"){
+            unsigned eventSession=0,absolute=0,x=0,y=0;
+            std::string verb,extra;
+            if(!(in>>eventSession>>absolute>>verb>>x>>y) || verb.empty() ||
+               (in>>extra))
+                return fail("V2_MANIFEST_EVENT_FORMAT");
+            if(absolute<lastEventFrame)
+                return fail("V2_NONMONOTONIC_EVENT");
+            lastEventFrame=absolute;
+            if(absolute>maxEventFrame)maxEventFrame=absolute;
         }else if(key=="SEG"){
             Segment s;
             if(!(in>>s.session>>s.index>>s.mode>>s.reason>>
@@ -191,6 +206,8 @@ inline bool loadManifest(){
                 }
             }
             if(!found)return fail("V2_ORPHAN_DONE");
+        }else{
+            return fail("V2_UNKNOWN_MANIFEST_VERB");
         }
     }
     if(c.segments.empty())return fail("V2_NO_SEGMENTS");
@@ -224,6 +241,7 @@ inline bool loadManifest(){
             return fail("V2_TOO_MANY_FRAMES");
         countFrames+=seg.count;
     }
+    if(maxEventFrame>countFrames)return fail("V2_EVENT_BEYOND_LAST_INPUT");
     c.sealed=sawFinal;
     c.unsealedPrefix=!sawFinal;
     if(sawFinal){
