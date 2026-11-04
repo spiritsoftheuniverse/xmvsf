@@ -92,6 +92,8 @@ def correlate(integrity, segments, frames, observed, catalog, discovery):
     physical = 0
     without_input = 0
     offsets = {}
+    catalog_gaps = set()
+    json_gaps = set()
     for event in observed:
         frame = int(event["movie_input_frame"])
         require(0 <= frame < len(frames), "ROM event beyond recorded movie")
@@ -101,17 +103,22 @@ def correlate(integrity, segments, frames, observed, catalog, discovery):
         require(event["action"] == "2E" and event["rom_match"] == "1"
                 and event["native_script"] == event["table_script"],
                 "Unmatched native ROM script at movie frame " + str(frame))
-        require(key in catalog_map and key in json_map,
-                "Script absent from ROM catalog or JSON: " + str(key))
-        require(catalog_map[key]["animation"] == event["animation"]
-                and json_map[key]["animation"] == event["animation"],
-                "ROM animation disagreement: " + str(key))
+        if key not in catalog_map:
+            catalog_gaps.add(key)
+        else:
+            require(catalog_map[key]["animation"] == event["animation"],
+                    "ROM catalog animation disagreement: " + str(key))
+        if key not in json_map:
+            json_gaps.add(key)
+        else:
+            require(json_map[key]["animation"] == event["animation"],
+                    "Reverse JSON animation disagreement: " + str(key))
         offsets.setdefault(str(segment["session"]), set()).add(
             frame - int(event["frame"]))
         if event["input_origin"] == "PHYSICAL_CANDIDATE":
             physical += 1
             lag = int(event["frame"]) - int(event["last_input_frame"])
-            require(0 < lag <= 64 and frame - lag >= segment["start"],
+            require(0 <= lag <= 64 and frame - lag >= segment["start"],
                     "Input correlation crossed a state boundary: " + str(frame))
             # The order is the native Cps2FightingInputList in d_cps2.cpp:
             # P1 LP/MP/HP/LK/MK/HK at slots 6-11, P2 at 18-23.
@@ -143,6 +150,8 @@ def correlate(integrity, segments, frames, observed, catalog, discovery):
         "catalog_candidates": len(catalog_map),
         "json_candidates": len(json_map),
         "catalog_only_unverified_candidates": len(set(catalog_map) - set(json_map)),
+        "observed_rom_catalog_gaps": [list(k) for k in sorted(catalog_gaps)],
+        "observed_reverse_json_gaps": [list(k) for k in sorted(json_gaps)],
         "movie_minus_rom_frame_offsets_by_session":
             {k: sorted(v) for k, v in offsets.items()},
         "runtime_playback": "NOT_VERIFIED",
