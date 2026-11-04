@@ -55,6 +55,7 @@ struct Context {
     // completion/error feedback survive F9 stop or a failed write.
     unsigned noticeFrames=0;
     bool lastSaved=false;
+    bool sealed=false,unsealedPrefix=false;
     ~Context(){if(stream)std::fclose(stream);if(journal)std::fclose(journal);}
 };
 inline Context& context(){static Context x;return x;}
@@ -158,11 +159,21 @@ inline bool loadManifest(){
     std::string line;
     if(!std::getline(f,line) || line!="XM8764V2\t1")
         return fail("V2_MANIFEST_SIGNATURE");
+    bool sawFinal=false;
+    unsigned finalFrames=0,finalSessions=0,finalSegments=0;
+    std::string finalReason;
     while(std::getline(f,line)){
         if(line.empty())continue;
         std::istringstream in(line);std::string key;
         in>>key;
-        if(key=="SEG"){
+        if(sawFinal)return fail("V2_TRAILING_RECORD_AFTER_FINAL");
+        if(key=="FINAL"){
+            if(!(in>>finalFrames>>finalSessions>>finalSegments>>finalReason) ||
+               finalReason.empty())return fail("V2_FINAL_FORMAT");
+            std::string extra;
+            if(in>>extra)return fail("V2_FINAL_TRAILING_DATA");
+            sawFinal=true;
+        }else if(key=="SEG"){
             Segment s;
             if(!(in>>s.session>>s.index>>s.mode>>s.reason>>
                   s.input>>s.state) || !hostRead(in,s.host))
@@ -183,13 +194,51 @@ inline bool loadManifest(){
         }
     }
     if(c.segments.empty())return fail("V2_NO_SEGMENTS");
+    unsigned countFrames=0,countSessions=0;
     for(unsigned i=0;i<c.segments.size();++i){
-        const Segment& s=c.segments[i];
-        if(!s.complete||!s.count)return fail("V2_INCOMPLETE_SEGMENT");
-        if(i && (s.session<c.segments[i-1].session ||
-           (s.session==c.segments[i-1].session &&
-            s.index<=c.segments[i-1].index)))
-            return fail("V2_SEGMENT_ORDER");
+        const Segment& seg=c.segments[i];
+        if(!seg.complete||!seg.count)return fail("V2_INCOMPLETE_SEGMENT");
+        if(seg.session==0 || seg.index>9999u)return fail("V2_SEGMENT_ID");
+        if(seg.input.find('/')!=std::string::npos ||
+           seg.input.find('\\')!=std::string::npos ||
+           seg.state.find('/')!=std::string::npos ||
+           seg.state.find('\\')!=std::string::npos ||
+           seg.input.find("..")!=std::string::npos ||
+           seg.state.find("..")!=std::string::npos)
+            return fail("V2_SEGMENT_PATH_NOT_LOCAL");
+        if(!i){
+            if(seg.session!=1u || seg.index!=0u)
+                return fail("V2_FIRST_SEGMENT_NOT_SESSION_1");
+            countSessions=1u;
+        }else{
+            const Segment& prev=c.segments[i-1];
+            if(seg.session==prev.session){
+                if(seg.index!=prev.index+1u)return fail("V2_SEGMENT_ORDER");
+            }else{
+                if(seg.session!=prev.session+1u || seg.index!=0u)
+                    return fail("V2_SESSION_ORDER");
+                ++countSessions;
+            }
+        }
+        if(seg.count>10000000u-countFrames)
+            return fail("V2_TOO_MANY_FRAMES");
+        countFrames+=seg.count;
+    }
+    c.sealed=sawFinal;
+    c.unsealedPrefix=!sawFinal;
+    if(sawFinal){
+        if(finalFrames!=countFrames ||
+           finalSessions!=countSessions ||
+           finalSegments!=c.segments.size())
+            return fail("V2_FINAL_TOTAL_MISMATCH");
+        status("V2_MANIFEST_SEALED frames="+std::to_string(countFrames)+
+            " sessions="+std::to_string(countSessions)+
+            " segments="+std::to_string(c.segments.size())+
+            " reason="+finalReason);
+    }else{
+        status("V2_UNSEALED_PREFIX frames="+std::to_string(countFrames)+
+            " segments="+std::to_string(c.segments.size())+
+            " explicit_selection_only");
     }
     status("V2_MANIFEST_READY segments="+std::to_string(c.segments.size()));
     return true;
