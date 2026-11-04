@@ -12,6 +12,7 @@
 #include <stdio.h>
 #include <SDL.h>
 #include "xmvsf_stage87_74_select_present.h" // XM87.74 native framebuffer matched pen colors
+#include "../../../burner/sdl/xmvsf_stage87_139_probe.h" // XM87.139 F10 probe status
 #include "../../../burner/sdl/xmvsf_stage23_ui.h" /* XMVSF_STAGE23_TRAINING_MENU */
 #include "../../../burner/sdl/xmvsf_stage24_versus.h" /* XMVSF_STAGE24_VERSUS */
 #include <SDL_image.h>
@@ -104,6 +105,38 @@ static void xm87132ReplayNotice(SDL_Renderer* renderer){
     SDL_SetRenderDrawColor(renderer,235,45,55,255);
     SDL_RenderFillRect(renderer,&dot);
     SDL_SetRenderDrawColor(renderer,r,g,b,a);
+    inprint_shadowed(renderer,caption,x,y);
+}
+
+// XM87.139 bottom-right status is drawn AFTER the entire video compositor,
+// so it cannot contaminate native character tiles, DF masks, or Wily palette.
+static void xm87139ProbeNotice(SDL_Renderer* renderer){
+    if(!renderer)return;
+    const XM87139Probe::State& st=XM87139Probe::state();
+    char caption[80];
+    if(st.active)std::snprintf(caption,sizeof(caption),"PROBE ON %06u F10 STOP",st.frames);
+    else if(st.error)std::snprintf(caption,sizeof(caption),"PROBE ERROR F10 RETRY");
+    else std::snprintf(caption,sizeof(caption),"PROBE OFF F10 START");
+    int w=0,h=0;
+    SDL_RenderGetLogicalSize(renderer,&w,&h);
+    if(w<=0||h<=0)SDL_GetRendererOutputSize(renderer,&w,&h);
+    if(w<=0||h<=0)return;
+    const int labelWidth=(int)std::strlen(caption)*8;
+    const int x=w-labelWidth-15>10?w-labelWidth-15:10;
+    const int y=(xm87132ReplayRecordingFrames()>0 && h>64)?h-46:(h>28?h-24:3);
+    Uint8 r=0,g=0,b=0,a=0;SDL_GetRenderDrawColor(renderer,&r,&g,&b,&a);
+    SDL_BlendMode blend=SDL_BLENDMODE_NONE;SDL_GetRenderDrawBlendMode(renderer,&blend);
+    SDL_SetRenderDrawBlendMode(renderer,SDL_BLENDMODE_BLEND);
+    SDL_Rect backing={x-13,y-2,labelWidth+16,17};
+    SDL_SetRenderDrawColor(renderer,0,0,0,184);
+    SDL_RenderFillRect(renderer,&backing);
+    SDL_Rect light={x-9,y+3,6,6};
+    if(st.error)SDL_SetRenderDrawColor(renderer,235,55,55,255);
+    else if(st.active)SDL_SetRenderDrawColor(renderer,65,236,138,255);
+    else SDL_SetRenderDrawColor(renderer,135,145,155,255);
+    SDL_RenderFillRect(renderer,&light);
+    SDL_SetRenderDrawColor(renderer,r,g,b,a);
+    SDL_SetRenderDrawBlendMode(renderer,blend);
     inprint_shadowed(renderer,caption,x,y);
 }
 
@@ -608,10 +641,12 @@ static int Paint(int bValidate)
         /* XM87.104 removed colored selector overlay */
 
 xm87132ReplayNotice(sdlRenderer);
+        xm87139ProbeNotice(sdlRenderer);
         SDL_RenderPresent(sdlRenderer);
     } else { /* XM87.104 removed colored selector overlay */
 
 xm87132ReplayNotice(sdlRenderer);
+        xm87139ProbeNotice(sdlRenderer);
         SDL_RenderPresent(sdlRenderer);
     } /* XM86.58 native layer-aware gameplay */
     xm8652TrackWindowGeometry(sdlWindow,false,"game-frame");
