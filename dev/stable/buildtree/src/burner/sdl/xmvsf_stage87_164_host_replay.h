@@ -1,0 +1,428 @@
+// XMVSF 87.164 — host-aware F9 session movie.
+// Preserve the original 87.61 recorder for old .bin/.fs files. This separate
+// v2 format adds a host timeline: game sessions, menu choices and full native
+// save-state checkpoints at every host-side reset/option discontinuity.
+// Runs only when XM8764_REPLAY_ROOT (record) or XM8764_REPLAY_SESSION (play)
+// is provided. No DHC, ROM script or Stable data is modified.
+#ifndef XMVSF_STAGE87_164_HOST_REPLAY_H
+#define XMVSF_STAGE87_164_HOST_REPLAY_H
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <cstdint>
+#include <string>
+#include <vector>
+#include <sstream>
+#include <fstream>
+#ifdef _WIN32
+#include <direct.h>
+#else
+#include <sys/stat.h>
+#include <sys/types.h>
+#endif
+namespace XM8764 {
+enum { OFF=0, RECORD=1, PLAY=2, FAILED=3, COMPLETE=4 };
+struct Host {
+    int training=0,versus=0,owner=0,damage=0,menu=0,selection=0;
+    int hitboxes=0,display=0,meter=0,dizzy=1,frameData=0,stage=0;
+};
+struct Slot { UINT8* address=nullptr; unsigned width=0,type=0; };
+struct Segment {
+    unsigned session=0,index=0,count=0;
+    int mode=0;
+    Host host;
+    std::string reason,input,state;
+    bool complete=false;
+};
+struct Context {
+    int mode=OFF;
+    bool initialized=false,insideGame=false,split=true,exitSession=false,failed=false;
+    bool fast=true;
+    unsigned session=0,segment=0,frames=0,allFrames=0,playIndex=0;
+    unsigned totalSegments=0;
+    std::string root,folder,journalPath,reason="SESSION_START",error;
+    FILE* journal=nullptr;
+    FILE* stream=nullptr;
+    std::vector<Slot> slots;
+    std::vector<Segment> segments;
+    Host restored;
+    bool hostChanged=false;
+    ~Context(){if(stream)std::fclose(stream);if(journal)std::fclose(journal);}
+};
+inline Context& context(){static Context x;return x;}
+inline int makeDir(const char* p){
+#ifdef _WIN32
+    return _mkdir(p);
+#else
+    return mkdir(p,0775);
+#endif
+}
+inline bool exists(const std::string& path){
+    std::FILE* f=std::fopen(path.c_str(),"rb");
+    if(!f)return false;
+    std::fclose(f);return true;
+}
+inline void status(const std::string& message){
+    Context& c=context();
+    std::fprintf(stderr,"XM87.164 HOST_REPLAY %s\n",message.c_str());
+    std::fflush(stderr);
+    if(!c.folder.empty()){
+        const std::string path=c.folder+"/replay_v2_status.log";
+        std::FILE* f=std::fopen(path.c_str(),"ab");
+        if(f){std::fprintf(f,"%s\n",message.c_str());std::fclose(f);}
+    }
+}
+inline bool fail(const char* why){
+    Context& c=context();c.mode=FAILED;c.failed=true;c.error=why;
+    status(std::string("REPLAY_DIVERGED ")+why);
+    return false;
+}
+inline bool write32(std::FILE* f,std::uint32_t x){
+    UINT8 b[4]={(UINT8)x,(UINT8)(x>>8),(UINT8)(x>>16),(UINT8)(x>>24)};
+    return std::fwrite(b,1,4,f)==4u;
+}
+inline bool read32(std::FILE* f,std::uint32_t& x){
+    UINT8 b[4];if(std::fread(b,1,4,f)!=4u)return false;
+    x=(std::uint32_t)b[0]|((std::uint32_t)b[1]<<8)|
+      ((std::uint32_t)b[2]<<16)|((std::uint32_t)b[3]<<24);
+    return true;
+}
+inline bool collect(){
+    Context& c=context();c.slots.clear();
+    for(unsigned i=0;i<1024;++i){
+        BurnInputInfo info={};
+        if(BurnDrvGetInputInfo(&info,i))break;
+        if(!info.pVal)continue;
+        const unsigned width=(info.nType & BIT_GROUP_ANALOG)?2u:1u;
+        Slot slot;slot.address=info.pVal;slot.type=(unsigned)info.nType;
+        slot.width=width;c.slots.push_back(slot);
+    }
+    return !c.slots.empty() && c.slots.size()<=1024;
+}
+inline void releaseInputs(){
+    for(const Slot& s:context().slots)
+        for(unsigned i=0;i<s.width;++i)s.address[i]=0;
+}
+inline void hostWrite(std::FILE* f,const Host& h){
+    std::fprintf(f,"%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d",
+      h.training,h.versus,h.owner,h.damage,h.menu,h.selection,h.hitboxes,
+      h.display,h.meter,h.dizzy,h.frameData,h.stage);
+}
+inline bool hostRead(std::istringstream& stream,Host& h){
+    return bool(stream>>h.training>>h.versus>>h.owner>>h.damage>>
+        h.menu>>h.selection>>h.hitboxes>>h.display>>h.meter>>
+        h.dizzy>>h.frameData>>h.stage);
+}
+inline bool loadManifest(){
+    Context& c=context();
+    std::ifstream f((c.folder+"/manifest.tsv").c_str(),std::ios::binary);
+    if(!f)return fail("V2_MANIFEST_MISSING");
+    std::string line;
+    if(!std::getline(f,line) || line!="XM8764V2\t1")
+        return fail("V2_MANIFEST_SIGNATURE");
+    while(std::getline(f,line)){
+        if(line.empty())continue;
+        std::istringstream in(line);std::string key;
+        in>>key;
+        if(key=="SEG"){
+            Segment s;
+            if(!(in>>s.session>>s.index>>s.mode>>s.reason>>
+                  s.input>>s.state) || !hostRead(in,s.host))
+                return fail("V2_MANIFEST_SEGMENT_FORMAT");
+            c.segments.push_back(s);
+        }else if(key=="DONE"){
+            unsigned session=0,index=0,count=0;
+            if(!(in>>session>>index>>count))
+                return fail("V2_MANIFEST_DONE_FORMAT");
+            bool found=false;
+            for(Segment& s:c.segments){
+                if(s.session==session && s.index==index){
+                    if(s.complete)return fail("V2_DUPLICATE_DONE");
+                    s.complete=true;s.count=count;found=true;break;
+                }
+            }
+            if(!found)return fail("V2_ORPHAN_DONE");
+        }
+    }
+    if(c.segments.empty())return fail("V2_NO_SEGMENTS");
+    for(unsigned i=0;i<c.segments.size();++i){
+        const Segment& s=c.segments[i];
+        if(!s.complete||!s.count)return fail("V2_INCOMPLETE_SEGMENT");
+        if(i && (s.session<c.segments[i-1].session ||
+           (s.session==c.segments[i-1].session &&
+            s.index<=c.segments[i-1].index)))
+            return fail("V2_SEGMENT_ORDER");
+    }
+    status("V2_MANIFEST_READY segments="+std::to_string(c.segments.size()));
+    return true;
+}
+inline void initialize(){
+    Context& c=context();
+    if(c.initialized)return;
+    c.initialized=true;
+    const char* session=std::getenv("XM8764_REPLAY_SESSION");
+    if(session&&*session){
+        c.folder=session;c.mode=PLAY;
+        c.fast=!(std::getenv("XM8764_FAST_FORWARD") &&
+            std::strcmp(std::getenv("XM8764_FAST_FORWARD"),"0")==0);
+        if(!loadManifest())return;
+        return;
+    }
+    const char* root=std::getenv("XM8764_REPLAY_ROOT");
+    if(root&&*root)c.root=root;
+}
+inline bool isPlayback(){initialize();return context().mode==PLAY;}
+inline bool isRecording(){initialize();return context().mode==RECORD;}
+inline bool active(){initialize();return context().mode==RECORD ||
+                                            context().mode==PLAY;}
+inline void journal(const char* event,unsigned x=0,unsigned y=0){
+    Context& c=context();
+    if(c.mode!=RECORD||!c.journal)return;
+    std::fprintf(c.journal,"EVENT\t%u\t%u\t%s\t%u\t%u\n",
+        c.session,c.allFrames,event,x,y);
+    std::fflush(c.journal);
+}
+inline bool startRecording(){
+    Context& c=context();initialize();
+    if(c.root.empty())return fail("V2_RECORD_ROOT_UNSET");
+    makeDir(c.root.c_str());
+    bool found=false;
+    for(unsigned n=1;n<=9999;++n){
+        char name[48];std::snprintf(name,sizeof(name),"/session_%04u",n);
+        const std::string folder=c.root+name;
+        if(exists(folder+"/manifest.tsv"))continue;
+        if(makeDir(folder.c_str())==0){
+            c.folder=folder;found=true;break;
+        }
+    }
+    if(!found)return fail("V2_RECORD_DIRECTORY_UNAVAILABLE");
+    c.journalPath=c.folder+"/manifest.tsv";
+    c.journal=std::fopen(c.journalPath.c_str(),"wb");
+    if(!c.journal)return fail("V2_MANIFEST_CREATE_FAILED");
+    std::fputs("XM8764V2\t1\n",c.journal);
+    std::fflush(c.journal);
+    c.mode=RECORD;c.insideGame=false;c.split=true;c.session=0;c.segment=0;
+    c.frames=0;c.allFrames=0;c.reason="SESSION_START";c.failed=false;
+    // Pointer contains no ROM bytes, and is updated only on explicit F9.
+    const std::string latest=c.root+"/latest.txt";
+    std::FILE* pointer=std::fopen(latest.c_str(),"wb");
+    if(pointer){std::fprintf(pointer,"%s\n",c.folder.c_str());
+        std::fclose(pointer);}
+    status("RECORD_START "+c.folder);
+    return true;
+}
+inline void closeSegment(){
+    Context& c=context();
+    if(!c.stream)return;
+    std::fflush(c.stream);
+    std::fclose(c.stream);c.stream=nullptr;
+    if(c.mode==RECORD && c.journal){
+        std::fprintf(c.journal,"DONE\t%u\t%u\t%u\n",
+            c.session,c.segment,c.frames);
+        std::fflush(c.journal);
+        status("SEGMENT_SAVED session="+std::to_string(c.session)+
+            " segment="+std::to_string(c.segment)+
+            " frames="+std::to_string(c.frames));
+    }
+}
+inline bool toggleF9(){
+    initialize();Context& c=context();
+    if(c.mode==PLAY){status("F9_REJECTED_PLAYBACK_ACTIVE");return false;}
+    if(c.mode==RECORD){
+        closeSegment();
+        if(c.journal){std::fclose(c.journal);c.journal=nullptr;}
+        status("RECORD_STOP total_frames="+std::to_string(c.allFrames)+
+            " session_count="+std::to_string(c.session));
+        c.mode=OFF;c.insideGame=false;return true;
+    }
+    return startRecording();
+}
+inline void hostEvent(const char* event,unsigned detail=0){
+    Context& c=context();initialize();
+    if(c.mode!=RECORD)return;
+    journal(event,detail);
+    c.reason=event;c.split=true;
+}
+inline void checkpoint(const char* reason){
+    Context& c=context();initialize();
+    if(c.mode!=RECORD || !c.insideGame)return;
+    journal("HOST_STATE_LOAD",0);
+    c.reason=reason;c.split=true;
+}
+inline int nextMode(){
+    initialize();Context& c=context();
+    if(c.mode!=PLAY)return -2;
+    if(c.playIndex>=c.segments.size())return -1;
+    return c.segments[c.playIndex].mode;
+}
+inline void gameBegin(int gameMode){
+    Context& c=context();initialize();
+    if(c.mode==RECORD){
+        if(c.insideGame)return;
+        ++c.session;c.segment=0;c.insideGame=true;c.split=true;
+        c.reason="SESSION_START";
+        journal("GAME_BEGIN",(unsigned)gameMode);
+    }else if(c.mode==PLAY){
+        if(c.playIndex>=c.segments.size()){fail("GAME_BEGIN_NO_SEGMENT");return;}
+        if(c.segments[c.playIndex].mode!=gameMode){
+            fail("GAME_MODE_MISMATCH");return;
+        }
+        c.session=c.segments[c.playIndex].session;
+        c.insideGame=true;c.exitSession=false;
+        status("GAME_BEGIN session="+std::to_string(c.session)+
+            " mode="+std::to_string(gameMode));
+    }
+}
+inline void gameEnd(){
+    Context& c=context();initialize();
+    if(c.mode==RECORD && c.insideGame){
+        closeSegment();journal("GAME_END",0);
+    }
+    if(c.mode==PLAY && c.stream){
+        std::fclose(c.stream);c.stream=nullptr;
+    }
+    c.insideGame=false;c.exitSession=false;
+}
+inline bool openRecord(const Host& host){
+    Context& c=context();
+    if(c.stream){closeSegment();++c.segment;}
+    c.frames=0;
+    char stem[48];std::snprintf(stem,sizeof(stem),
+        "s%04u_seg%04u",c.session,c.segment);
+    const std::string input=std::string(stem)+"_inputs.bin";
+    const std::string state=std::string(stem)+"_start.fs";
+    if(!collect())return fail("V2_NO_EMULATED_INPUT_SLOTS");
+    const std::string statePath=c.folder+"/"+state;
+    if(BurnStateSave(const_cast<char*>(statePath.c_str()),1)!=0)
+        return fail("V2_CHECKPOINT_SAVE_FAILED");
+    const std::string inputPath=c.folder+"/"+input;
+    c.stream=std::fopen(inputPath.c_str(),"wb");
+    if(!c.stream)return fail("V2_INPUT_OPEN_FAILED");
+    const char* driver=BurnDrvGetTextA(DRV_NAME);
+    char rom[32]={};
+    if(driver)std::strncpy(rom,driver,sizeof(rom)-1);
+    if(std::fwrite("XM8761R1",1,8,c.stream)!=8u||
+       !write32(c.stream,(std::uint32_t)c.slots.size())||
+       std::fwrite(rom,1,32,c.stream)!=32u)
+        return fail("V2_INPUT_HEADER_WRITE_FAILED");
+    for(const Slot& s:c.slots){
+        UINT8 info[2]={(UINT8)s.type,(UINT8)s.width};
+        if(std::fwrite(info,1,2,c.stream)!=2u)
+            return fail("V2_INPUT_LAYOUT_WRITE_FAILED");
+    }
+    std::fprintf(c.journal,"SEG\t%u\t%u\t%d\t%s\t%s\t%s\t",
+        c.session,c.segment,host.versus?2:host.training?1:0,
+        c.reason.c_str(),input.c_str(),state.c_str());
+    hostWrite(c.journal,host);
+    std::fputc('\n',c.journal);std::fflush(c.journal);
+    c.split=false;
+    status("CHECKPOINT_SAVED session="+std::to_string(c.session)+
+        " segment="+std::to_string(c.segment)+
+        " reason="+c.reason);
+    return true;
+}
+inline bool openPlay(){
+    Context& c=context();
+    if(c.playIndex>=c.segments.size())return fail("V2_SEGMENT_EOF");
+    const Segment& s=c.segments[c.playIndex];
+    if(s.session!=c.session)return fail("V2_SEGMENT_SESSION_MISMATCH");
+    if(!collect())return fail("V2_PLAY_INPUT_LAYOUT_UNAVAILABLE");
+    c.stream=std::fopen((c.folder+"/"+s.input).c_str(),"rb");
+    if(!c.stream)return fail("V2_INPUT_SEGMENT_MISSING");
+    char magic[8],rom[32],live[32]={};
+    std::uint32_t count=0;
+    const char* driver=BurnDrvGetTextA(DRV_NAME);
+    if(driver)std::strncpy(live,driver,sizeof(live)-1);
+    if(std::fread(magic,1,8,c.stream)!=8u ||
+       std::memcmp(magic,"XM8761R1",8)!=0 ||
+       !read32(c.stream,count) || count!=c.slots.size() ||
+       std::fread(rom,1,32,c.stream)!=32u ||
+       std::memcmp(rom,live,32)!=0)
+        return fail("V2_SEGMENT_ROM_OR_INPUT_MISMATCH");
+    for(const Slot& slot:c.slots){
+        UINT8 info[2];
+        if(std::fread(info,1,2,c.stream)!=2u ||
+           info[0]!=(UINT8)slot.type || info[1]!=(UINT8)slot.width)
+            return fail("V2_SEGMENT_LAYOUT_MISMATCH");
+    }
+    unsigned bytes=4u;
+    for(const Slot& slot:c.slots)bytes+=slot.width;
+    const long pos=std::ftell(c.stream);
+    if(pos<0||std::fseek(c.stream,0,SEEK_END)!=0)
+        return fail("V2_INPUT_SEEK_FAILED");
+    const long end=std::ftell(c.stream);
+    if(end-pos!=long(s.count)*long(bytes) ||
+       std::fseek(c.stream,pos,SEEK_SET)!=0)
+        return fail("V2_INPUT_SIZE_MISMATCH");
+    const std::string state=c.folder+"/"+s.state;
+    if(BurnStateLoad(const_cast<char*>(state.c_str()),1,NULL)!=0)
+        return fail("V2_NATIVE_CHECKPOINT_LOAD_FAILED");
+    c.frames=0;c.restored=s.host;c.hostChanged=true;
+    status("CHECKPOINT_LOADED session="+std::to_string(s.session)+
+        " segment="+std::to_string(s.index)+
+        " frames="+std::to_string(s.count)+" reason="+s.reason);
+    return true;
+}
+enum FrameResult { NO_REPLAY=0, FRAME_READY=1, END_GAME=2, DIVERGED=3 };
+inline FrameResult beforeFrame(const Host& host){
+    Context& c=context();initialize();
+    if(c.mode!=RECORD && c.mode!=PLAY)return NO_REPLAY;
+    if(!c.insideGame)gameBegin(host.versus?2:host.training?1:0);
+    if(c.mode==FAILED)return DIVERGED;
+    if(c.mode==RECORD){
+        if(c.split || !c.stream)if(!openRecord(host))return DIVERGED;
+        if(!write32(c.stream,c.frames))return fail("V2_FRAME_WRITE_FAILED"),DIVERGED;
+        for(const Slot& slot:c.slots)
+            if(std::fwrite(slot.address,1,slot.width,c.stream)!=slot.width)
+                return fail("V2_INPUT_WRITE_FAILED"),DIVERGED;
+        ++c.frames;++c.allFrames;
+        return FRAME_READY;
+    }
+    if(!c.stream && !openPlay())return DIVERGED;
+    if(c.frames==c.segments[c.playIndex].count){
+        std::fclose(c.stream);c.stream=nullptr;
+        ++c.playIndex;
+        if(c.playIndex>=c.segments.size()){
+            c.mode=COMPLETE;c.exitSession=true;
+            status("PLAY_END complete_frames="+std::to_string(c.allFrames));
+            releaseInputs();return END_GAME;
+        }
+        if(c.segments[c.playIndex].session!=c.session){
+            c.exitSession=true;releaseInputs();
+            status("SESSION_END next_session="+
+                std::to_string(c.segments[c.playIndex].session));
+            return END_GAME;
+        }
+        if(!openPlay())return DIVERGED;
+    }
+    std::uint32_t index=~0u;
+    if(!read32(c.stream,index)||index!=c.frames)
+        return fail("V2_FRAME_INDEX_MISMATCH"),DIVERGED;
+    std::vector<UINT8> bytes;
+    for(const Slot& slot:c.slots){
+        UINT8 value[2]={};
+        if(std::fread(value,1,slot.width,c.stream)!=slot.width)
+            return fail("V2_TRUNCATED_FRAME"),DIVERGED;
+        for(unsigned j=0;j<slot.width;++j)bytes.push_back(value[j]);
+    }
+    unsigned position=0;
+    for(const Slot& slot:c.slots)
+        for(unsigned j=0;j<slot.width;++j)slot.address[j]=bytes[position++];
+    ++c.frames;++c.allFrames;
+    if(c.allFrames==1u || c.allFrames%600u==0u)
+        status("PLAY_PROGRESS frame="+std::to_string(c.allFrames)+
+            " segment="+std::to_string(c.playIndex+1u)+"/"+
+            std::to_string(c.segments.size()));
+    return FRAME_READY;
+}
+inline unsigned fastFrames(){
+    initialize();Context& c=context();
+    if(c.mode!=PLAY || !c.fast)return 0u;
+    const char* value=std::getenv("XM8764_FAST_FORWARD");
+    if(!value||!*value)return 32u;
+    const int n=std::atoi(value);
+    if(n<=0)return 0u;
+    return n>128?128u:(unsigned)n;
+}
+} // namespace XM8764
+#endif
