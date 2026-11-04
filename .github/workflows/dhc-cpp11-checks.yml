@@ -172,3 +172,37 @@ jobs:
             "$bin"
           done
           echo "All isolated DHC tests passed"
+      - name: Smoke-test private ROM scanner without distributing ROM bytes
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m py_compile dev/dhc/tools/DISASSEMBLE_SUPER_MOVES.py
+          python3 - <<'PY'
+          import importlib.util
+          from pathlib import Path
+          p=Path('dev/dhc/tools/DISASSEMBLE_SUPER_MOVES.py')
+          spec=importlib.util.spec_from_file_location('xmvsf_rom_scan',p)
+          mod=importlib.util.module_from_spec(spec)
+          spec.loader.exec_module(mod)
+          assert mod.byte_unswap(b'\\x12\\x34\\x56\\x78') == b'\\x34\\x12\\x78\\x56'
+          rom=bytearray(0xE1000)
+          def w(p,x):
+              rom[p]=x&255;rom[p+1]=(x>>8)&255
+          def l(p,x):
+              w(p,x>>16);w(p+2,x)
+          table=0xCFAD4
+          section=0xCFCA2
+          script=0xD3070
+          l(0x8A946+0x12*2,table)
+          w(table+0x2E,section-table)
+          w(section+0x08,script-section)
+          w(script+2,3)
+          w(script+6,0xBDA0)
+          got=mod.native_candidates(bytes(rom))
+          known=[v for v in got if v['fighter_id']=='12' and v['selector']=='08']
+          assert len(known)==1, known
+          assert known[0]['script']=='0D3070'
+          assert known[0]['status']=='KNOWN_CAPTURE'
+          assert known[0]['verified_input']=='QCF+PP'
+          print('Read-only native M68K scanner smoke check passed')
+          PY
