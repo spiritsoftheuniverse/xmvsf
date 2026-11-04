@@ -145,17 +145,36 @@ int main(){
     assert(s.phase[0]==SUPER_STARTED);
     assert(rb(ram.data(),0x40D6u)==0x0Au); // Ken 2C ROM handler
     assert(rw(ram.data(),0x40A0u)==0x2A28u);
-    assert(rw(ram.data(),0x4008u)==0u);
+    assert(rw(ram.data(),0x4008u)==2u);
     assert(rb(ram.data(),0x4259u)==0u);
     assert(rw(ram.data(),0x4214u)==3u);
-    ww(ram.data(),0x4060u,0x2C32u); // ROM selects queued super
+    // 87.151: commit the verified ROM opening action, not only a native
+    // +D6 handler that jumped to Ken's harmless 2C32 dash in 87.150.
+    assert(rw(ram.data(),0x4060u)==0x2C00u);
+    assert(rl(ram.data(),0x4034u)==0xD5C46u);
+    ww(ram.data(),0x4060u,0x2C32u);
+    wl(ram.data(),0x4034u,0xD667Au);
     s.frame(ram.data(),rom.data(),unsigned(rom.size()),119u,1u);
     assert(s.phase[0]==SUPER_STARTED);
-    assert(s.chainUsed[0] && s.kenSuperConfirmed[0]);
-    assert(XM87143Queue::state().select(0u,0x12u,XM87143Queue::QCF_PP,120u));
-    const auto after=ram;
+    assert(!s.chainUsed[0] && !s.kenSuperConfirmed[0]);
+    assert(s.kenFallbackUsed[0]);
+    assert(rw(ram.data(),0x4060u)==0x2C04u);
+    assert(rl(ram.data(),0x4034u)==0xD5E2Eu);
+    // The game must really progress the corresponding ROM super script
+    // before the host may claim the incoming fighter performed a super.
+    wl(ram.data(),0x4034u,0xD5E3Eu);
     s.frame(ram.data(),rom.data(),unsigned(rom.size()),120u,1u);
+    assert(s.chainUsed[0] && s.kenSuperConfirmed[0]);
+    assert(XM87143Queue::state().select(0u,0x12u,XM87143Queue::QCF_PP,121u));
+    const auto after=ram;
+    s.frame(ram.data(),rom.data(),unsigned(rom.size()),121u,1u);
     assert(ram==after);
+    // The point fighter may change after the native action. Even a
+    // successfully observed DHC must then release its per-match gate.
+    ww(ram.data(),0x4052u,0x12u);
+    ww(ram.data(),0x4852u,0x14u);
+    s.frame(ram.data(),rom.data(),unsigned(rom.size()),122u,1u);
+    assert(s.phase[0]==IDLE && !s.chainUsed[0]);
     // Different round resets only bookkeeping, not fighters or ROM memory.
     wb(ram.data(),0x5000u,0u);
     s.frame(ram.data(),rom.data(),unsigned(rom.size()),300u,0u);
