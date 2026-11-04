@@ -1,6 +1,6 @@
 # XMVSF native input replay — permanent TEST launchers
 
-## Host-aware replay v2 — available in TEST 87.164
+## Host-aware replay v2 — TEST 87.166 (F9 output and indicator restored)
 
 **This is the current recording workflow.** The permanent root files
 `BUILD_TEST.bat`, `RUN_TEST.bat`, and `RUN_REPLAY.bat` remain stable
@@ -18,15 +18,41 @@ across point-version updates.
 4. **Press F9 again to finish**. This closes the last input segment and
    publishes the last completed recording.
 
+**F9 status is visible again:** the main menu and gameplay show a
+red `RECORDING 000000 F9 STOP` counter while active, a green
+`RECORDING SAVED` confirmation when the completed recording is
+published, or an amber `F9 RECORD ERROR` indicator if saving fails.
+
+A new F9 recording creates its `session_XXXX/manifest.tsv`
+**immediately, even when F9 is pressed at the main menu before any
+CPS2 frames exist**. The full `.bin` input stream and `.fs` save
+state are then written into that same session folder once the
+first real emulator frame runs.
+
+The permanent, append-only failure/status log is
+`test/87.166/replays/F9_status.log`, even if the new session folder
+cannot be created. To share an issue, ZIP the entire
+`test/87.166/replays` folder, including its
+`session_XXXX` subfolder and `F9_status.log`.
+
+87.166 also fixes a serious 87.164/165 recorder bug: it previously
+treated Training's **incrementing character-select frame counter**
+as a change requiring a new full save-state every frame. It now
+creates checkpoints only on semantic host changes and explicit
+native state reloads; normal per-frame selection counters remain
+inside the ongoing input segment instead of flooding the disk.
+
+
+
 A new directory is created per recording:
-`test/replay_sessions/session_0001/`, then `session_0002/`, etc.
+`test/87.166/replays/session_0001/`, then `session_0002/`, etc.
 Its `manifest.tsv` journals game sessions, menu choices, host events
 and checkpoint boundaries. Each `s####_seg####_inputs.bin` has a
 matching native `s####_seg####_start.fs` state. These are **not**
 old single-segment `xm8761_f9_..._inputs.bin` files.
 
 A completed F9 recording updates
-`test/replay_sessions/latest.txt` with the latest session path.
+`test/87.166/replays/latest.txt` with the latest session path.
 The launcher never chooses a half-finished F9 recording by default.
 
 ### Replay with high-speed fast-forward
@@ -56,7 +82,7 @@ Use `0` for normal-speed replay. Visual rendering is reduced during
 fast playback, but actual emulator CPU/input steps are never skipped.
 
 Logs are kept in the session's `replay_v2_status.log`, plus the
-current TEST version's `test/87.164/replay_results/`. A missing
+current TEST version's `test/87.166/replay_results/`. A missing
 checkpoint, invalid frame number, input-layout mismatch or other
 recognized failure emits `REPLAY_DIVERGED` and a nonzero process exit.
 
@@ -69,7 +95,7 @@ complete 14-fighter host-session replay.
 
 ### Current verification scope
 
-87.164 includes a native movie round-trip C++11 test that covers two
+87.166 includes a native movie round-trip C++11 test that covers two
 distinct game sessions and checkpointing after a host Training change,
 plus a replay-direct-start test for v1. It has **not yet been proven**
 end-to-end inside the user's native Windows SDL application. In
@@ -115,8 +141,10 @@ Versus runs through `RUN_TEST.bat` still use the normal boot selector.
 DHC transaction timing, native super inputs, projectile isolation,
 Tournament rules, and the Stable executable are untouched.
 
-The original native 87.61 replay code remains the one and only
-input/state recorder. The launcher does NOT recreate its movie format.
+The original 87.61 input/state recorder remains intact for legacy
+v1 movies. The current v2 recorder adds a separate host/session
+manifest and native checkpoints; `RUN_REPLAY.bat` can detect either
+format without silently converting or overwriting original movies.
 
 ## Record
 
