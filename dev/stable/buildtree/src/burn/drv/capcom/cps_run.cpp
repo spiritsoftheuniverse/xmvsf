@@ -662,6 +662,33 @@ INT32 Cps2Frame()
     const char* xm87142Game=BurnDrvGetTextA(DRV_NAME);
     if(!bBurnRunAheadFrame && CpsRamFF && CpsRom && xm87142Game &&
        std::strncmp(xm87142Game,"xmvsf",5)==0){
+        // 87.143: populate match-start queues for the two roster fighters.
+        // Never run/replace a native super here: this only resolves data
+        // tables from CpsRom. Normal tags do not rebuild the queued roster.
+        const bool rosterPrepared=XM87143Queue::state().prepare(
+            CpsRamFF,CpsRom,(unsigned)nCpsRomLen,(unsigned)GetCurrentFrame());
+        if(rosterPrepared){
+            for(unsigned side=0;side<2u;++side)
+                for(unsigned slot=0;slot<2u;++slot){
+                    const unsigned fighter=XM87143Queue::state().roster[side][slot];
+                    for(unsigned i=0;i<4u;++i){
+                        const XM87143Queue::Known* item=
+                            XM87143Queue::definition(fighter,i);
+                        if(!item)break;
+                        const auto* e=XM87143Queue::state().find(
+                            side,fighter,item->command);
+                        unsigned resolved=0;
+                        if(e)for(unsigned j=0;j<e->count;++j)
+                            if(e->scripts[j].resolved)++resolved;
+                        char note[XM87140Chat::CHAT_LENGTH];
+                        std::snprintf(note,sizeof(note),
+                            "P%u MATCH-START QUEUE %02X %s ROM=%u/%u",
+                            side+1u,fighter,item->name,resolved,e?e->count:0u);
+                        XM87140Chat::state().log((unsigned)GetCurrentFrame(),
+                            XM87140Chat::SYSTEM,note);
+                    }
+                }
+        }
         // Native 68000 dispatch (PC 0x01038E) resolves ROM script via
         // fighter id, actor action and selector. Read only; no DHC trigger.
         const XM87142::Report romReport=XM87142::state().frame(
