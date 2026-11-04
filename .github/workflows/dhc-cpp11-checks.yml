@@ -96,7 +96,11 @@ jobs:
           grep -Fq 'XM8764_FAST_FORWARD=32' RUN_REPLAY.bat
           grep -Fq 'XM8764::beforeFrame' dev/stable/buildtree/src/burner/sdl/run.cpp
           grep -Fq 'XM8764::fastFrames()' dev/stable/buildtree/src/burner/sdl/run.cpp
-          grep -Fq 'XM8764::nextMode()' dev/stable/buildtree/src/burner/sdl/main.cpp
+          # The actual custom boot selector initializes the existing SDL
+          # window, then consumes the recorded semantic menu choice.
+          grep -Fq 'XM8764::nextMode()' dev/stable/buildtree/src/burner/sdl/xmvsf_stage14_boot.h
+          grep -Fq 'const int selectedMode=xmvsfBootSelector()' dev/stable/buildtree/src/burner/sdl/main.cpp
+          grep -Fq 'const int selectedMode=xmvsfBootSelector(true)' dev/stable/buildtree/src/burner/sdl/main.cpp
           grep -Fq 'XM8764::toggleF9()' dev/stable/buildtree/src/burner/sdl/xmvsf_stage14_boot.h
           grep -Fq 'XM8764::checkpoint' dev/stable/buildtree/src/burner/sdl/xmvsf_stage87_105_training_reset.h
           test_exe="$(grep -oE 'XMVSF_Test_87_[0-9]+\.exe' RUN_TEST.bat | head -1)"
