@@ -20,6 +20,15 @@ static void makeKen(std::vector<std::uint8_t>& v){
     romW(v,table+0x2Eu,section-table);
     romW(v,section+0u,0xD6722u-section);
     romW(v,section+2u,0xD6976u-section);
+    romL(v,0x8AA04u+fighter*2u,0x9D0BAu);
+    for(unsigned a: {0xD6722u,0xD6976u}){
+        romW(v,a+0u,0u);
+        romW(v,a+2u,3u);
+        romL(v,a+4u,0x0026A5C2u);
+        romL(v,a+8u,0x30008000u);
+        romW(v,a+12u,0u);
+        romW(v,a+14u,0u);
+    }
 }
 static void exercise(XM87143Queue::Command requested,unsigned action,unsigned script,
                      unsigned mask){
