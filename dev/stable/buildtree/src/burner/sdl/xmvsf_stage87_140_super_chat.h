@@ -6,6 +6,7 @@
 // These patterns are NOT an invented fighter-specific verified super list.
 // The ROM-specific DHC super registry remains unpopulated until demonstrated.
 #include "../../intf/input/sdl/xmvsf_stage87_137_dhc_input_history.h"
+#include "../../burn/drv/capcom/xmvsf_stage87_143_super_queue.h" // prebuilt match-start descriptor queue
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
@@ -89,21 +90,12 @@ static inline const char* motion(const XM87137Input::History& h,bool right,unsig
     if(sequence(h,right,qcb,3u,now))return "QCB";
     return nullptr;
 }
-// Stage 87.141 user-confirmed COMMAND LIST, not an ROM action/dispatch table.
-// Ryu and Ken native fighter IDs from observed point/reserve slots.
-// First super's point facing controls relative input directions.
-struct ListedSuper {unsigned fighter;bool kicks;bool back;const char* name;};
+// One authoritative per-fighter command catalog: the match-start queue
+// populates from this source, and the input matcher selects its entries.
+using XM87143Queue::Known;
+typedef XM87143Queue::Known ListedSuper;
 static inline const ListedSuper* known(unsigned id,unsigned index){
-    static const ListedSuper moves[]={
-      {0x12u,false,false,"RYU SHINKUU HADOKEN"},
-      {0x12u,true,true,"RYU SHINKUU TATSUMAKI"},
-      {0x14u,false,false,"KEN SHORYUREPPA"},
-      {0x14u,true,false,"KEN SHINRYUKEN"}
-    };
-    unsigned found=0;
-    for(unsigned i=0;i<sizeof(moves)/sizeof(moves[0]);++i)
-        if(moves[i].fighter==id && found++==index)return &moves[i];
-    return nullptr;
+    return XM87143Queue::definition(id,index);
 }
 static inline const ListedSuper* matchListed(unsigned fighter,
         const XM87137Input::History& h,bool facingRight,unsigned now,unsigned chordMask){
@@ -302,11 +294,27 @@ struct State {
                             frame>=lastNamedMatchFrame[side] &&
                             frame-lastNamedMatchFrame[side]<12u;
                         if(!repeat){
+                            const XM87143Queue::Entry* queued=
+                                XM87143Queue::state().find(side,bench,found->command);
+                            // The prepared queue, not a synthesized action,
+                            // supplies DHC's selected super. Never dispatch
+                            // a native action through this diagnostic path.
                             std::snprintf(text,sizeof(text),
                                 "P%u RESERVE %02X MATCH %s (%s+%s) [INPUT ONLY]",
                                 side+1u,bench,found->name,
                                 found->back?"QCB":"QCF",found->kicks?"KK":"PP");
                             log(frame,MATCH,text);
+                            if(queued){
+                                unsigned ready=0u;
+                                for(unsigned k=0;k<queued->count;++k)
+                                    if(queued->scripts[k].resolved)++ready;
+                                std::snprintf(text,sizeof(text),
+                                    "P%u DHC QUEUED %s: ROM script options=%u/%u; NO EXECUTION",
+                                    side+1u,found->name,ready,queued->count);
+                                log(frame,ready?MATCH:SYSTEM,text);
+                            }else if(XM87143Queue::state().prepared){
+                                log(frame,ALERT,"DHC SELECT REJECTED: NO MATCH-START QUEUE ENTRY");
+                            }
                             lastNamedMatch[side]=found;
                             lastNamedMatchFrame[side]=frame;
                             lastReserveMatchId[side]=bench;
