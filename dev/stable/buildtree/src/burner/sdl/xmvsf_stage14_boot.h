@@ -139,6 +139,19 @@ static int xmvsfBootSelector(bool returningFromGame=false) {
     std::fprintf(stderr,"XM27: boot FIRST FRAME presented window=%u renderer=%s\n",
                  (unsigned)SDL_GetWindowID(window),SDL_GetRenderer(window)==render?"ready":"mismatch");
     std::fflush(stderr);
+    // V2 replay must enter the REAL boot selector so the shared SDL
+    // window, renderer, video geometry and input focus are initialized.
+    // Once its first native menu frame has been presented, resolve the
+    // recorded semantic choice without polling a physical controller.
+    // This is NOT the 87.163 direct-driver bypass.
+    if(XM8764::isPlayback()){
+        const int recordedChoice=XM8764::nextMode();
+        std::fprintf(stderr,
+            "XM87.164 REPLAY_BOOT_MENU_READY choice=%d window=%p\\n",
+            recordedChoice,(void*)sdlWindow);
+        std::fflush(stderr);
+        return recordedChoice;
+    }
     xmvsfHost::menuStart(); /* XMVSF_STAGE20_WASAPI */
     SDL_Joystick* menuSticks[8]={NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL};
     SDL_GameController* menuPads[8]={NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL};
