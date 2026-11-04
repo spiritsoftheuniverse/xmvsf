@@ -276,26 +276,35 @@ inline bool startRecording(){
     status("RECORD_START "+c.folder);
     return true;
 }
-inline void closeSegment(){
+inline bool closeSegment(){
     Context& c=context();
-    if(!c.stream)return;
-    std::fflush(c.stream);
-    std::fclose(c.stream);c.stream=nullptr;
+    if(!c.stream)return true;
+    const int flushRc=std::fflush(c.stream);
+    const int closeRc=std::fclose(c.stream);
+    c.stream=nullptr;
+    if(flushRc!=0 || closeRc!=0)
+        return fail("V2_INPUT_FLUSH_OR_CLOSE_FAILED");
     if(c.mode==RECORD && c.journal){
-        std::fprintf(c.journal,"DONE\t%u\t%u\t%u\n",
-            c.session,c.segment,c.frames);
-        std::fflush(c.journal);
+        if(std::fprintf(c.journal,"DONE\t%u\t%u\t%u\n",
+                c.session,c.segment,c.frames)<0 ||
+           std::fflush(c.journal)!=0)
+            return fail("V2_MANIFEST_DONE_WRITE_FAILED");
         status("SEGMENT_SAVED session="+std::to_string(c.session)+
             " segment="+std::to_string(c.segment)+
             " frames="+std::to_string(c.frames));
     }
+    return true;
 }
 inline bool toggleF9(){
     initialize();Context& c=context();
     if(c.mode==PLAY){status("F9_REJECTED_PLAYBACK_ACTIVE");return false;}
     if(c.mode==RECORD){
-        closeSegment();
-        if(c.journal){std::fclose(c.journal);c.journal=nullptr;}
+        if(!closeSegment())return false;
+        if(c.journal){
+            const int rc=std::fclose(c.journal);
+            c.journal=nullptr;
+            if(rc!=0)return fail("V2_MANIFEST_FINAL_CLOSE_FAILED");
+        }
         if(c.allFrames==0u){
             c.mode=OFF;c.insideGame=false;
             c.lastSaved=false;c.noticeFrames=180;
@@ -365,7 +374,8 @@ inline void gameBegin(int gameMode){
 inline void gameEnd(){
     Context& c=context();initialize();
     if(c.mode==RECORD && c.insideGame){
-        closeSegment();journal("GAME_END",0);
+        if(!closeSegment()){c.insideGame=false;return;}
+        journal("GAME_END",0);
     }
     if(c.mode==PLAY && c.stream){
         std::fclose(c.stream);c.stream=nullptr;
@@ -374,7 +384,10 @@ inline void gameEnd(){
 }
 inline bool openRecord(const Host& host){
     Context& c=context();
-    if(c.stream){closeSegment();++c.segment;}
+    if(c.stream){
+        if(!closeSegment())return false;
+        ++c.segment;
+    }
     c.frames=0;
     char stem[48];std::snprintf(stem,sizeof(stem),
         "s%04u_seg%04u",c.session,c.segment);
