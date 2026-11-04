@@ -6,6 +6,7 @@
 #include "../../../burner/sdl/xmvsf_stage17_auto.h"
 #include "../../../burner/sdl/xmvsf_stage18_position.h" /* XMVSF_STAGE18_POSITION */
 #include "../../../burner/sdl/xmvsf_stage87_110_restart.h" // XM87.110 Start x3 restart
+#include "xmvsf_stage87_137_dhc_input_history.h" // XM87.137 passive mapped-input ring
 #include "../../../burner/sdl/xmvsf_stage23_ui.h" /* XMVSF_STAGE23_TRAINING_MENU */ // XMVSF_STAGE17_AUTO // XMVSF_STAGE15_MACHINE // XMVSF_STAGE14_INPUT_HANDOFF // XMVSF_STAGE13_CONTROLLERS
 
 #include "burner.h"
@@ -718,6 +719,7 @@ int SDLinpState(int nCode)
             const int xm18Val=xm87110Restart?0:xm18ProcessInput(p,xm15Sub,xm15Value,xm18Left,xm18Right);
             const int xm8766Delivered=xm23FilterInput(p,xm15Sub,(xm18Val || xm15SyntheticButton(p,xm15Sub)),xm14TrainingMode);
             const int xm8768Delivered=xm17FilterTransferredConfirm(p,xm15Sub,xm8766Delivered);
+            XM87137Input::state().mapped((unsigned)p,(unsigned)xm15Sub,xm8768Delivered,(unsigned)GetCurrentFrame()); // XM87.137 no input injection
             xm8770SelectInput((unsigned)p,(unsigned)xm15Sub,xm8768Delivered,(unsigned)GetCurrentFrame(),(unsigned)xm17.phase);
             XM8766::RecordInput(p,xm15Sub,xm14Source,xm8768Delivered,(unsigned)GetCurrentFrame(),xm17.phase,xm14InputTarget); // XM87.66 routed input evidence
             return xm8768Delivered; /* XMVSF_STAGE23_TRAINING_MENU */ // XMVSF_STAGE15_MACHINE
@@ -888,6 +890,20 @@ int SDLinpGetControlName(int nCode, TCHAR* pszDeviceName, TCHAR* pszControlName)
 	}
 
 	return 0;
+}
+
+// XM87.137: native DHC parser can inspect the ACTUAL forwarded mapped inputs,
+// never altering the inputs the CPS-2 ROM receives. ago=0 is newest frame.
+extern "C" int xm87137ReadMappedInput(unsigned p,unsigned ago,
+                                     unsigned* frame,unsigned* direction,
+                                     unsigned* heldButtons,unsigned* pressedButtons) {
+    XM87137Input::Sample s;
+    if(!XM87137Input::state().sample(p,ago,s))return 0;
+    if(frame)*frame=s.frame;
+    if(direction)*direction=s.direction;
+    if(heldButtons)*heldButtons=s.buttons;
+    if(pressedButtons)*pressedButtons=s.pressed;
+    return 1;
 }
 
 struct InputInOut InputInOutSDL2 = { SDLinpInit, SDLinpExit, SDLinpSetCooperativeLevel, SDLinpStart, SDLinpState, SDLinpJoyAxis, SDLinpMouseAxis, SDLinpFind, SDLinpGetControlName, NULL, _T("SDL input") };
