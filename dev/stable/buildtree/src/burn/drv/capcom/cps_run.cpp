@@ -523,6 +523,13 @@ INT32 Cps2Frame()
             CpsInp011[k]=dhcSavedKick[k];
         }
     }
+    // XM87.159: clear offensive collision only on OUTGOING Ryu's linked
+    // projectile objects before native 68000 collision evaluation.
+    // Normal P1 projectiles, P2 objects and Ken's new projectiles are
+    // never touched. The image/animation objects remain alive.
+    if(!bBurnRunAheadFrame && dhcGameMatches && CpsRamFF)
+        XM87144::state().oldRyuProjectiles.beforeCPU(
+            CpsRamFF,(unsigned)GetCurrentFrame());
     // XM87.95 Tournament-only native dizzy initializer AND per-frame state handler bypass.
     XM8795Native::state().before(CpsCode,(unsigned)nCpsCodeLen,
         BurnDrvGetTextA(DRV_NAME),(unsigned)GetCurrentFrame(),
@@ -762,6 +769,17 @@ INT32 Cps2Frame()
         const XM87144::Phase phaseBefore=XM87144::state().phase[0];
         XM87144::state().frame(CpsRamFF,CpsRom,(unsigned)nCpsRomLen,
             (unsigned)GetCurrentFrame(),dhcWindow);
+        // ROM may regenerate the detached projectile attack descriptors
+        // each frame. Capture late Ryu-spawned objects until Ken swaps;
+        // suppress their offense after CPU and before the next CPU frame.
+        const XM87144::Phase dhcPhase=XM87144::state().phase[0];
+        const bool outgoingRyu=
+            XM87144::rw(CpsRamFF,0x4052u)==0x12u &&
+            XM87144::rw(CpsRamFF,0x4852u)==0x14u &&
+            (dhcPhase==XM87144::WAIT_TAG_CONTROLLER ||
+             dhcPhase==XM87144::WAIT_NATIVE_SWAP);
+        XM87144::state().oldRyuProjectiles.afterCPU(
+            CpsRamFF,(unsigned)GetCurrentFrame(),outgoingRyu);
         const XM87144::Phase phaseAfter=XM87144::state().phase[0];
         if(phaseAfter!=phaseBefore && XM87144::state().enabled){
             char status[XM87140Chat::CHAT_LENGTH];
