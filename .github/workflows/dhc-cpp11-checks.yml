@@ -75,7 +75,7 @@ jobs:
             echo 'ERROR: awk compiler-warning filter must not truncate build logs' >&2
             exit 1
           fi
-          grep -Fq 'XMVSF_Test_87_165.exe' RUN_TEST.bat
+          grep -Fq 'XMVSF_Test_87_166.exe' RUN_TEST.bat
           grep -Fq 'XM87139_PROBE_DIR' RUN_TEST.bat
           grep -Fq 'XM87140_CHAT_LOG' RUN_TEST.bat
           grep -Fq 'xm87140ChatOverlay(sdlRenderer);' dev/stable/buildtree/src/intf/video/sdl/vid_sdl2.cpp
@@ -91,7 +91,7 @@ jobs:
           test -f dev/dhc/tests/test_dhc_rom_catalog_160.cpp
           grep -Fq 'XM8761_REPLAY_DIR=' RUN_TEST.bat
           grep -Fq 'XM8761_REPLAY_MODE=off' RUN_TEST.bat
-          grep -Fq 'XMVSF_Test_87_165.exe' RUN_REPLAY.bat
+          grep -Fq 'XMVSF_Test_87_166.exe' RUN_REPLAY.bat
           # The replay launcher is a permanent first-class root entry point.
           # Never let point-version bumps strand it on a stale TEST executable.
           test -f RUN_REPLAY.bat
@@ -104,6 +104,19 @@ jobs:
           grep -Fq 'REPLAY_DIVERGED' dev/stable/buildtree/src/burner/sdl/xmvsf_stage87_164_host_replay.h
           grep -Fq 'HOST_MENU_STATE_CHANGED' dev/stable/buildtree/src/burner/sdl/xmvsf_stage87_164_host_replay.h
           grep -Fq 'XM8764_REPLAY_ROOT=' RUN_TEST.bat
+          # F9 must keep the SAME red gameplay counter and file-location
+          # discoverability as the old recorder, plus show it in boot menu.
+          grep -Fq 'XM8764_REPLAY_ROOT=%PROJECT%\test\87.166\replays' RUN_TEST.bat
+          grep -Fq 'XM8764_REPLAY_STATUS_FILE=' RUN_TEST.bat
+          grep -Fq 'XM8764::recordingFrames()' dev/stable/buildtree/src/burner/sdl/run.cpp
+          grep -Fq 'xm87166ReplayVisualStatus' dev/stable/buildtree/src/intf/video/sdl/vid_sdl2.cpp
+          grep -Fq 'RECORDING %06u F9 STOP' dev/stable/buildtree/src/burner/sdl/xmvsf_stage14_boot.h
+          grep -Fq 'RECORDING SAVED' dev/stable/buildtree/src/intf/video/sdl/vid_sdl2.cpp
+          grep -Fq 'RECORD_SAVED total_frames=' dev/stable/buildtree/src/burner/sdl/xmvsf_stage87_164_host_replay.h
+          grep -Fq 'requiresCheckpoint(host,c.lastRecordedHost)' dev/stable/buildtree/src/burner/sdl/xmvsf_stage87_164_host_replay.h
+          grep -Fq 'recordingFrames()==1' dev/dhc/tests/test_dhc_host_replay_164.cpp
+          grep -Fq 'saves==1u' dev/dhc/tests/test_dhc_host_replay_164.cpp
+          grep -Fq '%PROJECT%\test\87.166\replays\latest.txt' RUN_REPLAY.bat
           grep -Fq 'XM8764_REPLAY_SESSION=' RUN_REPLAY.bat
           grep -Fq 'XM8764_FAST_FORWARD=32' RUN_REPLAY.bat
           grep -Fq 'XM8764::beforeFrame' dev/stable/buildtree/src/burner/sdl/run.cpp
@@ -173,7 +186,7 @@ jobs:
             exit 1
           fi
           grep -Fq 'required_markers=(' dev/dhc/BUILD_TEST.sh
-          grep -Fq 'TEST executable is missing compiled 87.165 marker' dev/dhc/BUILD_TEST.sh
+          grep -Fq 'TEST executable is missing compiled 87.166 marker' dev/dhc/BUILD_TEST.sh
           grep -Fq 'DHC_NATIVE_TAG_CONTROLLER_08_ARMED' dev/stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_144_native_handoff.h
           grep -Fq 'NATIVE_CONTROLLER_ACCEPTED_OUTGOING_3200' dev/stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_144_native_handoff.h
           grep -Fq 'NATIVE_TAG_CONTROLLER_REJECTED_12F' dev/stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_144_native_handoff.h
