@@ -313,7 +313,7 @@ struct State {
                                 for(unsigned k=0;k<queued->count;++k)
                                     if(queued->scripts[k].resolved)++ready;
                                 std::snprintf(text,sizeof(text),
-                                    "P%u DHC QUEUED %s: ROM script options=%u/%u; NO EXECUTION",
+                                    "P%u DHC QUEUED %s: ROM script options=%u/%u; HANDOFF PENDING",
                                     side+1u,found->name,ready,queued->count);
                                 log(frame,ready?MATCH:SYSTEM,text);
                             }else if(XM87143Queue::state().prepared){
