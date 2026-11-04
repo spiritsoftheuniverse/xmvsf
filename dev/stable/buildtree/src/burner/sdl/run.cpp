@@ -598,6 +598,19 @@ int RunMessageLoop()
 		{
             // XM87.141: F10 must reach the recorder BEFORE display, Training
             // and Versus event handlers have any opportunity to consume it.
+            // 87.161: restore the existing 87.61 F9 state-anchored input
+            // movie recorder BEFORE the display/Training/Versus handlers
+            // can consume its SDL event. Shift+F9 is the legacy quick-save.
+            // Keep event.repeat suppressed to prevent repeated toggles.
+            if(event.type==SDL_KEYDOWN && event.key.keysym.sym==SDLK_F9){
+                if(event.key.repeat==0){
+                    if(event.key.keysym.mod & KMOD_SHIFT)
+                        QuickState(0);
+                    else
+                        XM8761::toggleF9(bDrvOkay!=0);
+                }
+                continue;
+            }
             if(event.type==SDL_KEYDOWN && event.key.keysym.sym==SDLK_F10){
                 if(event.key.repeat==0){
                     if(event.key.keysym.mod & KMOD_SHIFT){
@@ -671,12 +684,8 @@ int RunMessageLoop()
 				case SDLK_F1:
 					bAppDoFast = 1;
 					break;
-                case SDLK_F9: // XM87.132 state-anchored recording start / stop
-                    if(event.key.repeat==0){
-                        if(event.key.keysym.mod & KMOD_SHIFT) QuickState(0); // legacy quick save retained on Shift+F9
-                        else XM8761::toggleF9(bDrvOkay!=0);
-                    }
-                    break;
+                // F9 recording and Shift+F9 quick-save are handled
+                // above all input-consuming menu handlers (87.161).
                                 case SDLK_g: // XM87.140 expand/collapse DHC chat history
                     if(event.key.repeat==0 && (event.key.keysym.mod&KMOD_SHIFT))
                         XM87140Chat::state().toggle();
