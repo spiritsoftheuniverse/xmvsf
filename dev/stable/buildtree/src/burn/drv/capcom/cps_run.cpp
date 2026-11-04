@@ -658,7 +658,10 @@ INT32 Cps2Frame()
     const unsigned xm87140_p2_dir=
         (CpsInp000[0]&1u)|((CpsInp000[1]&1u)<<1u)|
         ((CpsInp000[2]&1u)<<2u)|((CpsInp000[3]&1u)<<3u);
-    if(!bBurnRunAheadFrame && CpsRamFF){
+    // Never interpret other CPS-2 games through XMVSF's fighter directory.
+    const char* xm87142Game=BurnDrvGetTextA(DRV_NAME);
+    if(!bBurnRunAheadFrame && CpsRamFF && CpsRom && xm87142Game &&
+       std::strncmp(xm87142Game,"xmvsf",5)==0){
         // Native 68000 dispatch (PC 0x01038E) resolves ROM script via
         // fighter id, actor action and selector. Read only; no DHC trigger.
         const XM87142::Report romReport=XM87142::state().frame(
