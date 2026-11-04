@@ -38,11 +38,14 @@ jobs:
           assert segment[-1].strip().endswith('all'), segment
           PY
           grep -Fq 'BUILD_TEST.sh' BUILD_TEST.bat
-          grep -Fq 'XMVSF_Test_87_141.exe' RUN_TEST.bat
+          grep -Fq 'XMVSF_Test_87_142.exe' RUN_TEST.bat
           grep -Fq 'XM87139_PROBE_DIR' RUN_TEST.bat
           grep -Fq 'XM87140_CHAT_LOG' RUN_TEST.bat
           grep -Fq 'xm87140ChatOverlay(sdlRenderer);' dev/stable/buildtree/src/intf/video/sdl/vid_sdl2.cpp
           grep -Fq 'XM87140Chat::state().frame' dev/stable/buildtree/src/burn/drv/capcom/cps_run.cpp
+          grep -Fq 'XM87142::state().frame' dev/stable/buildtree/src/burn/drv/capcom/cps_run.cpp
+          grep -Fq 'XM87142_ROM_TRACE' RUN_TEST.bat
+          grep -Fq 'mappedNative?nativeStart' dev/stable/buildtree/src/burner/sdl/xmvsf_stage87_140_super_chat.h
           grep -Fq 'RYU SHINKUU TATSUMAKI' dev/stable/buildtree/src/burner/sdl/xmvsf_stage87_140_super_chat.h
           grep -Fq 'if(event.type==SDL_KEYDOWN && event.key.keysym.sym==SDLK_F10)' dev/stable/buildtree/src/burner/sdl/run.cpp
           grep -Fq '# F10_START armed' dev/stable/buildtree/src/burner/sdl/xmvsf_stage87_139_probe.h
