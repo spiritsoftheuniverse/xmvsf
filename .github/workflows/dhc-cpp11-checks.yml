@@ -98,6 +98,8 @@ jobs:
           test -f REPLAY.md
           test -f README.md
           test -f REPLAY_DATA_MODEL_MANIFESTO.md
+          test -f dev/dhc/tools/VERIFY_REPLAY_V2.py
+          grep -Fq 'UNSEALED_PREFIX' dev/dhc/tools/VERIFY_REPLAY_V2.py
           grep -Fq 'FINAL' REPLAY_DATA_MODEL_MANIFESTO.md
           grep -Fq 'UNSEALED' REPLAY_DATA_MODEL_MANIFESTO.md
           grep -Fq 'REPLAY_DATA_MODEL_MANIFESTO.md' README.md
@@ -274,6 +276,8 @@ jobs:
         run: |
           set -euo pipefail
           python3 -m py_compile dev/dhc/tools/DISASSEMBLE_SUPER_MOVES.py
+          python3 -m py_compile dev/dhc/tools/VERIFY_REPLAY_V2.py
+          python3 dev/dhc/tools/VERIFY_REPLAY_V2.py --self-test
           python3 - <<'PY'
           import importlib.util
           from pathlib import Path
