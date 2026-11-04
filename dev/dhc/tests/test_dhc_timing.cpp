@@ -33,7 +33,7 @@ int main() {
  s.nativeTagComplete=true;
  r=x.tick(s);
  assert(x.phase==TAG_ENTER && !r.tickIncomingOnly); // not landed yet
- s.incomingGrounded=true;s.incomingAtTakeoverPosition=true;
+ s.incomingGrounded=true;s.incomingBesideOpponent=true;
  r=x.tick(s);
  assert(x.phase==STARTUP && r.tickIncomingOnly && r.showIncomingFighter);
  // Screen going dark is NOT enough to release.
@@ -70,7 +70,7 @@ int main() {
  Coordinator z;z.observeFirstSuper(true,true,false);z.request(good());
  z.nativeCommit(true,true,true);
  s=frozen();s.nativeTagComplete=true;s.incomingGrounded=true;
- s.incomingAtTakeoverPosition=true;s.incomingSuperStarted=true;
+ s.incomingBesideOpponent=true;s.incomingSuperStarted=true;
  s.nativePortraitIntroBypassed=true;s.incomingStartupTick=true;z.tick(s);
  s.incomingStartupTick=false;s.firstActiveOnNextTick=true;
  assert(z.tick(s).releaseBeforeNextNativeFrame);
@@ -82,7 +82,7 @@ int main() {
  Coordinator w;w.observeFirstSuper(true,true,false);w.request(good());
  w.nativeCommit(true,true,true);
  s=frozen();s.nativeTagComplete=true;s.incomingGrounded=true;
- s.incomingAtTakeoverPosition=true;s.incomingSuperStarted=true;
+ s.incomingBesideOpponent=true;s.incomingSuperStarted=true;
  s.nativePortraitIntroBypassed=true;s.firstActiveOnNextTick=true;
  assert(w.tick(s).rollbackRequired);
 
@@ -98,7 +98,7 @@ int main() {
  assert(intro.request(good()) && intro.nativeCommit(true,true,true));
  Signal wrong=frozen();
  wrong.nativeTagComplete=true;wrong.incomingGrounded=true;
- wrong.incomingAtTakeoverPosition=true;wrong.incomingSuperStarted=true;
+ wrong.incomingBesideOpponent=true;wrong.incomingSuperStarted=true;
  assert(intro.tick(wrong).rollbackRequired);
  assert(intro.phase==FAILED);
  // Ordinary supers are unaffected by this DHC-only presentation gate.
