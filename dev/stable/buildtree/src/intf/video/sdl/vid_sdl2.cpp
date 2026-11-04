@@ -13,6 +13,7 @@
 #include <SDL.h>
 #include "xmvsf_stage87_74_select_present.h" // XM87.74 native framebuffer matched pen colors
 #include "../../../burner/sdl/xmvsf_stage87_139_probe.h" // XM87.139 F10 probe status
+#include "xmvsf_stage87_140_chat_overlay.h" // XM87.140 fading command chat after final compositor
 #include "../../../burner/sdl/xmvsf_stage23_ui.h" /* XMVSF_STAGE23_TRAINING_MENU */
 #include "../../../burner/sdl/xmvsf_stage24_versus.h" /* XMVSF_STAGE24_VERSUS */
 #include <SDL_image.h>
@@ -642,11 +643,13 @@ static int Paint(int bValidate)
 
 xm87132ReplayNotice(sdlRenderer);
         xm87139ProbeNotice(sdlRenderer);
+        xm87140ChatOverlay(sdlRenderer);
         SDL_RenderPresent(sdlRenderer);
     } else { /* XM87.104 removed colored selector overlay */
 
 xm87132ReplayNotice(sdlRenderer);
         xm87139ProbeNotice(sdlRenderer);
+        xm87140ChatOverlay(sdlRenderer);
         SDL_RenderPresent(sdlRenderer);
     } /* XM86.58 native layer-aware gameplay */
     xm8652TrackWindowGeometry(sdlWindow,false,"game-frame");
