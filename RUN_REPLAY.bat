@@ -78,8 +78,8 @@ if not exist "%TRACE%" (
 REM Append a new, dated session marker; never delete even prior replay logs.
 set "XM8761_REPLAY_STATUS_LOG=%TRACE%\replay_status.log"
 >> "%XM8761_REPLAY_STATUS_LOG%" echo ===== REPLAY START %DATE% %TIME% =====
->> "%XM8761_REPLAY_STATUS_LOG%" echo MOVIE=%MOVIE%
->> "%XM8761_REPLAY_STATUS_LOG%" echo STATE=%STATE%
+>> "%XM8761_REPLAY_STATUS_LOG%" echo MOVIE="%MOVIE%"
+>> "%XM8761_REPLAY_STATUS_LOG%" echo STATE="%STATE%"
 set "XM87140_CHAT_DIR=%TRACE%"
 set "XM87139_PROBE_DIR=%TRACE%"
 set "XM87140_CHAT_LOG=%TRACE%\super_chat.tsv"
