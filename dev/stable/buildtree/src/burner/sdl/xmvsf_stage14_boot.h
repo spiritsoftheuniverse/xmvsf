@@ -146,6 +146,20 @@ static int xmvsfBootSelector(bool returningFromGame=false) {
     // This is NOT the 87.163 direct-driver bypass.
     if(XM8764::isPlayback()){
         const int recordedChoice=XM8764::nextMode();
+        if(recordedChoice<0){
+            // No driver should launch if all movie sessions are consumed.
+            // Close exactly the resources this selector owns.
+            SDL_DestroyRenderer(render);
+            if(window==sdlWindow)sdlWindow=nullptr;
+            SDL_DestroyWindow(window);
+            return -1;
+        }
+        // The 87.164 replay branch originally returned before the normal
+        // menuStart / Versus setup / enterGame lifecycle ran. This breaks
+        // audio and host-state contracts after in-process reset. Replay
+        // semantic selection automatically, but run the authentic setup.
+        xmvsfHost::menuStart();
+        xm25OpenSetup();
         if(recordedChoice>=0 && XM8764::context().playIndex<
                                   XM8764::context().segments.size()){
             const XM8764::Host& h=
@@ -158,6 +172,9 @@ static int xmvsfBootSelector(bool returningFromGame=false) {
             "XM87.164 REPLAY_BOOT_MENU_READY choice=%d window=%p\\n",
             recordedChoice,(void*)sdlWindow);
         std::fflush(stderr);
+        xm8652TrackWindowGeometry(window,true,"boot-exit");
+        xmvsfHost::enterGame();
+        SDL_SetWindowTitle(window,"X-MEN VS. STREET FIGHTER | USA 961023");
         return recordedChoice;
     }
     xmvsfHost::menuStart(); /* XMVSF_STAGE20_WASAPI */
