@@ -272,7 +272,8 @@ def main(argv=None):
     if args.self_test:
         self_test()
         return 0
-    p.error("recording is required unless --self-test" if not args.recording else "")
+    if not args.recording:
+        p.error("recording is required unless --self-test")
     src = SessionSource(args.recording)
     try:
         report = verify(src, allow_unsealed=args.allow_unsealed)
