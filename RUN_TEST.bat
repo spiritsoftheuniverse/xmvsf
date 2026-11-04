@@ -120,6 +120,18 @@ pushd "%PROJECT%\FBNeo" || goto :fail
 "%EXE%"
 set "RC=%ERRORLEVEL%"
 popd
+REM 87.160: after native play, analyze only PRIVATE locally captured ROM
+REM bytes. ROM binaries are outside Git; the emitted JSON is evidence,
+REM never an instruction to activate unverified DHC moves.
+if exist "%XM87160_PRIVATE_ROM_DIR%\xmvsfu_program_data_host_swapped.bin" (
+  where python.exe >nul 2>nul
+  if not errorlevel 1 (
+    python.exe "%PROJECT%\dev\dhc\tools\DISASSEMBLE_SUPER_MOVES.py" --rom "%XM87160_PRIVATE_ROM_DIR%\xmvsfu_program_data_host_swapped.bin" --opcodes "%XM87160_PRIVATE_ROM_DIR%\xmvsfu_decrypted_opcodes_host_swapped.bin" --observations "%XM87160_OBSERVED_LOG%" --out "%XM87140_CHAT_DIR%\native_super_reverse_engineering.json"
+    if errorlevel 1 echo WARNING: ROM analysis report failed; original TEST and game exit result preserved.
+  ) else (
+    echo INFO: Python not on PATH. Native ROM TSV catalogs were still written.
+  )
+)
 echo.
 echo Stage 87.160 TEST exit code: %RC%
 echo Probe directory: %XM87139_PROBE_DIR%
