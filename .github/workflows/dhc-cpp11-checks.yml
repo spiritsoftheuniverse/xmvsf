@@ -30,13 +30,20 @@ jobs:
           lines=Path('dev/dhc/BUILD_TEST.sh').read_text().splitlines()
           starts=[i for i,line in enumerate(lines) if line.startswith('MAKELEVEL=1 make')]
           assert len(starts)==1, 'Expected single two-pass builder command'
-          segment=lines[starts[0]:starts[0]+5]
-          assert len(segment)==5, segment
-          assert all(line.endswith(chr(92)) and not line.endswith(chr(92)*2) for line in segment[:4]), segment
+          stop=next((i for i in range(starts[0], min(starts[0]+16,len(lines)))
+                     if lines[i].strip().endswith(' all')),None)
+          assert stop is not None,'make command never terminates in all'
+          segment=lines[starts[0]:stop+1]
+          assert all(line.endswith(chr(92)) and not line.endswith(chr(92)*2) for line in segment[:-1]), segment
           assert segment[-1].strip().endswith('all'), segment
           PY
           grep -Fq 'BUILD_TEST.sh' BUILD_TEST.bat
-          grep -Fq 'XMVSF_Test_87_138.exe' RUN_TEST.bat
+          grep -Fq 'XMVSF_Test_87_139.exe' RUN_TEST.bat
+          grep -Fq 'XM87139_PROBE_DIR' RUN_TEST.bat
+          if grep -Fq 'XM87138Tag::state().frame(' dev/stable/buildtree/src/burn/drv/capcom/cps_run.cpp; then
+            echo 'ERROR: 87.138 normal-tag gameplay mutation still hooked' >&2
+            exit 1
+          fi
           if grep -Fq 'releases\\87_132' BUILD_TEST.bat || grep -Fq 'releases\\87_132' RUN_TEST.bat; then
             echo 'ERROR: Historical 87.132 launcher dependency remains' >&2
             exit 1
