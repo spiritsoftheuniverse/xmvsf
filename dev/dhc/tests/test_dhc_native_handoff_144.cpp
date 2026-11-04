@@ -36,12 +36,15 @@ static void entry(std::vector<std::uint8_t>& rom,unsigned fighter,
 int main(){
     std::vector<std::uint8_t> rom(0xE1000u,0),ram(65536u,0);
     entry(rom,0x12u,0x2Eu,0x08u,0xD3070u);
+    entry(rom,0x12u,0x2Eu,0x00u,0xD2CFCu);
     entry(rom,0x12u,0x32u,0x00u,0xD1DACu,4u);
     entry(rom,0x14u,0x2Au,0x08u,0xD567Eu);
     entry(rom,0x14u,0x2Cu,0x00u,0xD5C46u);
     entry(rom,0x14u,0x2Cu,0x32u,0xD60AAu);
     entry(rom,0x14u,0x2Cu,0x04u,0xD5E2Eu);
     entry(rom,0x14u,0x2Eu,0x00u,0xD6722u);
+    entry(rom,0x14u,0x2Eu,0x02u,0xD6976u);
+    entry(rom,0x14u,0x2Eu,0x06u,0xD6B3Eu);
     wb(ram.data(),0x5000u,8u);ww(ram.data(),0x4052u,0x12u);
     ww(ram.data(),0x4852u,0x14u);
     ww(ram.data(),0x4452u,0x20u);ww(ram.data(),0x4C52u,0x22u);
@@ -61,13 +64,13 @@ int main(){
     const auto original=ram;
     s.frame(ram.data(),rom.data(),unsigned(rom.size()),100u,0u);
     assert(ram==original && s.phase[0]==IDLE);
-    // 87.144 had the native mode backwards: super is 2A28, never 2A02.
-    // A wrongly labeled +A0 state must NOT trigger gameplay writes.
-    ww(ram.data(),0x40A0u,0x2A02u);
+    // A verified native Ryu super may occupy 2A02 or 2A28; wrong mode
+    // is refused, but 2A02 from the user's normal-super recording works.
+    ww(ram.data(),0x40A0u,0x0000u);
     const auto invalidMode=ram;
     s.frame(ram.data(),rom.data(),unsigned(rom.size()),101u,1u);
     assert(s.phase[0]==IDLE && ram==invalidMode);
-    ww(ram.data(),0x40A0u,0x2A28u);
+    ww(ram.data(),0x40A0u,0x2A02u);
     s.frame(ram.data(),rom.data(),unsigned(rom.size()),102u,1u);
     assert(s.phase[0]==WAIT_TAG_CONTROLLER);
     assert(rw(ram.data(),0x4060u)==0x2E08u); // no scripted sprite hijack
@@ -135,45 +138,68 @@ int main(){
     assert(s.phase[0]==WAIT_KEN_EXIT);
     assert(s.kenExitObserved[0]);
     // ROM native 2A08 exit has embedded displacement even with VX=0;
-    // DHC must restore fixed opponent-relative location at super time.
+    // 87.152: never prime 2C00/D5C46 and never force A0=2A28.
+    // Native Ken 2A08 exit must finish its own controller chain FIRST.
     ww(ram.data(),0x400Cu,540u);
     s.frame(ram.data(),rom.data(),unsigned(rom.size()),118u,1u);
-    assert(rw(ram.data(),0x400Cu)==552u);
-    assert(rw(ram.data(),0x4010u)==472u);
-    // DHC directly cancels the verified non-attacking exit into
-    // the queued Ken native super; no 67-frame natural 2A08 wait.
+    assert(s.phase[0]==WAIT_KEN_EXIT);
+    assert(rw(ram.data(),0x4060u)==0x2A08u);
+    assert(rb(ram.data(),0x40D6u)==0x12u);
+    assert(!s.inputForFrame(ram.data(),118u).active);
+    // The ROM, not the host, eventually completes Ken's non-attacking 2A08.
+    // The 87.149 log observed natural 2A08 lasting about 67 frames.
+    ww(ram.data(),0x4060u,0u);
+    ww(ram.data(),0x40A0u,0x002Au);
+    wb(ram.data(),0x40D6u,0u);
+    s.frame(ram.data(),rom.data(),unsigned(rom.size()),165u,1u);
+    s.frame(ram.data(),rom.data(),unsigned(rom.size()),166u,1u);
+    s.frame(ram.data(),rom.data(),unsigned(rom.size()),167u,1u);
+    assert(s.phase[0]==DELIVER_NATIVE_INPUT);
+    assert(s.inputBegin[0]==169u);
+    const auto unchangedBeforeInputs=ram;
+    auto one=s.inputForFrame(ram.data(),169u);
+    assert(one.active && one.directions==4u && !one.attacks);
+    one=s.inputForFrame(ram.data(),173u);
+    assert(one.active && one.directions==5u && !one.attacks);
+    one=s.inputForFrame(ram.data(),177u);
+    assert(one.active && one.directions==1u && !one.attacks);
+    one=s.inputForFrame(ram.data(),180u);
+    assert(one.active && one.directions==1u && one.attacks==7u);
+    one=s.inputForFrame(ram.data(),184u);
+    assert(one.active && !one.directions && !one.attacks);
+    assert(!s.inputForFrame(ram.data(),186u).active);
+    assert(ram==unchangedBeforeInputs); // inputForFrame NEVER modifies RAM
+    // Only the game's own command decoder may now allocate 2E00/D6722.
+    // Exact action+script+native mode prove a valid ROM action; previous
+    // 2C32 dash and 2C00 looping Hadoken must never be accepted.
+    ww(ram.data(),0x4060u,0x2C00u);
+    ww(ram.data(),0x40A0u,0x2A28u);
+    wl(ram.data(),0x4034u,0xD5C46u);
+    s.frame(ram.data(),rom.data(),unsigned(rom.size()),181u,1u);
+    assert(s.phase[0]==DELIVER_NATIVE_INPUT && !s.chainUsed[0]);
+    ww(ram.data(),0x4060u,0x2E00u);
+    ww(ram.data(),0x40A0u,0x2A02u);
+    wl(ram.data(),0x4034u,0xD6722u);
+    s.frame(ram.data(),rom.data(),unsigned(rom.size()),183u,1u);
     assert(s.phase[0]==SUPER_STARTED);
-    assert(rb(ram.data(),0x40D6u)==0x0Au); // Ken 2C ROM handler
-    assert(rw(ram.data(),0x40A0u)==0x2A28u);
-    assert(rw(ram.data(),0x4008u)==2u);
-    assert(rb(ram.data(),0x4259u)==0u);
-    assert(rw(ram.data(),0x4214u)==3u);
-    // 87.151: commit the verified ROM opening action, not only a native
-    // +D6 handler that jumped to Ken's harmless 2C32 dash in 87.150.
-    assert(rw(ram.data(),0x4060u)==0x2C00u);
-    assert(rl(ram.data(),0x4034u)==0xD5C46u);
-    ww(ram.data(),0x4060u,0x2C32u);
-    wl(ram.data(),0x4034u,0xD667Au);
-    s.frame(ram.data(),rom.data(),unsigned(rom.size()),119u,1u);
-    assert(s.phase[0]==SUPER_STARTED);
-    assert(!s.chainUsed[0] && !s.kenSuperConfirmed[0]);
-    assert(s.kenFallbackUsed[0]);
-    assert(rw(ram.data(),0x4060u)==0x2C04u);
-    assert(rl(ram.data(),0x4034u)==0xD5E2Eu);
-    // The game must really progress the corresponding ROM super script
-    // before the host may claim the incoming fighter performed a super.
-    wl(ram.data(),0x4034u,0xD5E3Eu);
-    s.frame(ram.data(),rom.data(),unsigned(rom.size()),120u,1u);
     assert(s.chainUsed[0] && s.kenSuperConfirmed[0]);
-    assert(XM87143Queue::state().select(0u,0x12u,XM87143Queue::QCF_PP,121u));
+    assert(!s.inputForFrame(ram.data(),184u).active);
+    assert(XM87143Queue::state().select(0u,0x12u,XM87143Queue::QCF_PP,184u));
     const auto after=ram;
-    s.frame(ram.data(),rom.data(),unsigned(rom.size()),121u,1u);
+    s.frame(ram.data(),rom.data(),unsigned(rom.size()),184u,1u);
     assert(ram==after);
-    // The point fighter may change after the native action. Even a
-    // successfully observed DHC must then release its per-match gate.
+    // A true super has multiple native stages; only the ROM may decide
+    // when to end. Re-arm after at least three full neutral samples.
+    ww(ram.data(),0x4060u,0u);
+    ww(ram.data(),0x40A0u,0x002Au);
+    s.frame(ram.data(),rom.data(),unsigned(rom.size()),340u,1u);
+    s.frame(ram.data(),rom.data(),unsigned(rom.size()),341u,1u);
+    s.frame(ram.data(),rom.data(),unsigned(rom.size()),342u,1u);
+    assert(s.phase[0]==IDLE && !s.chainUsed[0]);
+    // Same match: a new native point swap must never hold the DHC lock.
     ww(ram.data(),0x4052u,0x12u);
     ww(ram.data(),0x4852u,0x14u);
-    s.frame(ram.data(),rom.data(),unsigned(rom.size()),122u,1u);
+    s.frame(ram.data(),rom.data(),unsigned(rom.size()),343u,1u);
     assert(s.phase[0]==IDLE && !s.chainUsed[0]);
     // Different round resets only bookkeeping, not fighters or ROM memory.
     wb(ram.data(),0x5000u,0u);
