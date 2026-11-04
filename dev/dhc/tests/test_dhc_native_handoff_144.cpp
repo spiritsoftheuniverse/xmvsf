@@ -89,6 +89,10 @@ int main(){
     assert(rw(ram.data(),0x40A0u)==0x2A00u);
     assert(rw(ram.data(),0x404Eu)==0x001Eu);
     assert(rb(ram.data(),0x4259u)==0u);
+    // Verified from decrypted xmvsfu: Ryu +D6=14 dispatches via
+    // 0337BA -> 0341F6 -> 011B00/011B1E native outgoing tag logic.
+    // Without this the animation reaches D1DEC but stays forever.
+    assert(rb(ram.data(),0x40D6u)==0x14u);
     assert(rw(ram.data(),0x4008u)==2u);
     assert(rw(ram.data(),0x4214u)==3u);
     // Real ROM must swap fighter IDs. Do not synthesize it in the engine.
@@ -159,6 +163,7 @@ int main(){
     assert(trial.phase[0]==WAIT_NATIVE_SWAP);
     assert(rw(r2.data(),0x4060u)==0x3200u);
     assert(rw(r2.data(),0x404Eu)==0x001Eu);
+    assert(rb(r2.data(),0x40D6u)==0x14u);
     trial.frame(r2.data(),rom.data(),unsigned(rom.size()),427u,1u);
     ww(r2.data(),0x4060u,0x2E08u); // 68000 reasserts Ryu super
     trial.frame(r2.data(),rom.data(),unsigned(rom.size()),429u,1u);
