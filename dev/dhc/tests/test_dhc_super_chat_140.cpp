@@ -88,7 +88,7 @@ int main(){
     };
     auto testMove=[&](unsigned reserveId,unsigned d1,unsigned d2,
                       unsigned d3,unsigned buttons,const char* label,
-                      bool shouldMatch,bool leftFacing=false){
+                      bool shouldMatch,bool leftFacing){
         std::vector<std::uint8_t> ram=makeWindow(reserveId);
         State t;
         if(leftFacing)byte(ram,0x404Bu,0u);
@@ -102,11 +102,11 @@ int main(){
         assert(w(ram.data(),0x4852u)==reserveId);
     };
     // Facing right (native facingBit=1): QCB is D, D+LEFT, LEFT.
-    testMove(0x12u,4u,6u,2u,24u,"MATCH RYU SHINKUU TATSUMAKI (QCB+KK)",true);
-    testMove(0x12u,4u,5u,1u,24u,"MATCH RYU SHINKUU TATSUMAKI (QCB+KK)",false);
-    testMove(0x12u,4u,5u,1u,3u,"MATCH RYU SHINKUU HADOKEN (QCF+PP)",true);
-    testMove(0x14u,4u,5u,1u,3u,"MATCH KEN SHORYUREPPA (QCF+PP)",true);
-    testMove(0x14u,4u,5u,1u,24u,"MATCH KEN SHINRYUKEN (QCF+KK)",true);
+    testMove(0x12u,4u,6u,2u,24u,"MATCH RYU SHINKUU TATSUMAKI (QCB+KK)",true,false);
+    testMove(0x12u,4u,5u,1u,24u,"MATCH RYU SHINKUU TATSUMAKI (QCB+KK)",false,false);
+    testMove(0x12u,4u,5u,1u,3u,"MATCH RYU SHINKUU HADOKEN (QCF+PP)",true,false);
+    testMove(0x14u,4u,5u,1u,3u,"MATCH KEN SHORYUREPPA (QCF+PP)",true,false);
+    testMove(0x14u,4u,5u,1u,24u,"MATCH KEN SHINRYUKEN (QCF+KK)",true,false);
     // Facing left (native facingBit=0): QCB is D, D+RIGHT, RIGHT.
     testMove(0x12u,4u,5u,1u,24u,"MATCH RYU SHINKUU TATSUMAKI (QCB+KK)",true,true);
     // 87.151: six discrete attack buttons, single buttons and mixed P+K
