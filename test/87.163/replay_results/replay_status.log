@@ -1,0 +1,10 @@
+===== REPLAY START Wed 11/04/2026 15:45:30.19 =====
+MOVIE="F:\xmvsf\test\87.161\replays\xm8761_f9_0001_inputs.bin"
+STATE="F:\xmvsf\test\87.161\replays\xm8761_f9_0001_start.fs"
+XM87.61 REPLAY PLAY_READY: native state loaded, 17426 movie frames, ROM=xmvsfu; first input next
+XM87.61 REPLAY PLAY_FRAME_1 injected; native movie playback is running
+XM87.61 REPLAY PLAY_PROGRESS 600/17426 frames
+XM87.61 REPLAY PLAY_PROGRESS 1200/17426 frames
+XM87.61 REPLAY PLAY_PROGRESS 1800/17426 frames
+XM87.61 REPLAY PLAY_PROGRESS 2400/17426 frames
+XM87.61 REPLAY PLAY_PROGRESS 3000/17426 frames

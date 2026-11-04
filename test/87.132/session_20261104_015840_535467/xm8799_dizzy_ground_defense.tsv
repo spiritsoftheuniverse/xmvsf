@@ -1,4 +1,0 @@
-frame	event	player	mode	patched	action	previous_action	ground_y	position_y	stun_b8	dizzy_135	hit_latch_134	def_gate_83	attacker_combo_110	attacker_last_combo_111	defender_c0	defender_c4	detail
-780	TOURNAMENT_GROUNDED_NATIVE_HOOK_INSTALLED	-	1	1	-	-	-	-	-	-	-	-	-	-	-	-	E800 -> 109C0; original 4 landing helpers; 16E76 combo finalize; clear 134; 11FC0 native guard selector
-1727	ATTACKER_COMBO_COUNT_CHANGED	P2	1	1	0000	1C00	472	472	0	00	00	80	0	1	0000	0000	ROM-native count, no RAM count overrides
-1855	ATTACKER_COMBO_COUNT_CHANGED	P2	1	1	0000	1C02	472	472	0	00	00	80	0	6	0000	0000	ROM-native count, no RAM count overrides

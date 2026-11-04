@@ -1,0 +1,3 @@
+frame	role	event	phase	stage	p1buttons	p2buttons	cpi01A	cpi01C	cpi01E	mapP1frame	mapP1dir	mapP1held	mapP1pressed	mapP2frame	mapP2dir	mapP2held	mapP2pressed	meterP1	meterP2	activity	fighterId	bank40	action60	modeA0	anim42	x	y	facingBit	vx	vy	hit70	hit72	gate82	gate83	script34	script38	nativeD6	controller256	controller259	step08	timer4E	entryA4
+# F10_START armed; awaiting native combat frames
+# F10_STOP native_frames=0 tag_events=0 NO_COMBAT_FRAMES_SEEN
