@@ -25,6 +25,7 @@ enum { OFF=0, RECORD=1, PLAY=2, FAILED=3, COMPLETE=4 };
 struct Host {
     int training=0,versus=0,owner=0,damage=0,menu=0,selection=0;
     int hitboxes=0,display=0,meter=0,dizzy=1,frameData=0,stage=0;
+    int stageResolved=0,tournament=0;
 };
 struct Slot { UINT8* address=nullptr; unsigned width=0,type=0; };
 struct Segment {
@@ -104,14 +105,15 @@ inline void releaseInputs(){
         for(unsigned i=0;i<s.width;++i)s.address[i]=0;
 }
 inline void hostWrite(std::FILE* f,const Host& h){
-    std::fprintf(f,"%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d",
+    std::fprintf(f,"%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d",
       h.training,h.versus,h.owner,h.damage,h.menu,h.selection,h.hitboxes,
-      h.display,h.meter,h.dizzy,h.frameData,h.stage);
+      h.display,h.meter,h.dizzy,h.frameData,h.stage,
+      h.stageResolved,h.tournament);
 }
 inline bool hostRead(std::istringstream& stream,Host& h){
     return bool(stream>>h.training>>h.versus>>h.owner>>h.damage>>
         h.menu>>h.selection>>h.hitboxes>>h.display>>h.meter>>
-        h.dizzy>>h.frameData>>h.stage);
+        h.dizzy>>h.frameData>>h.stage>>h.stageResolved>>h.tournament);
 }
 inline bool loadManifest(){
     Context& c=context();
@@ -204,11 +206,8 @@ inline bool startRecording(){
     c.mode=RECORD;c.insideGame=false;c.split=true;c.session=0;c.segment=0;
     c.frames=0;c.allFrames=0;c.reason="SESSION_START";c.failed=false;
     c.hostRecorded=false;
-    // Pointer contains no ROM bytes, and is updated only on explicit F9.
-    const std::string latest=c.root+"/latest.txt";
-    std::FILE* pointer=std::fopen(latest.c_str(),"wb");
-    if(pointer){std::fprintf(pointer,"%s\n",c.folder.c_str());
-        std::fclose(pointer);}
+    // Do not point the permanent replay runner at an empty recording
+    // until F9 actually finishes a playable multi-session manifest.
     status("RECORD_START "+c.folder);
     return true;
 }
@@ -232,6 +231,12 @@ inline bool toggleF9(){
     if(c.mode==RECORD){
         closeSegment();
         if(c.journal){std::fclose(c.journal);c.journal=nullptr;}
+        if(c.allFrames>0u){
+            const std::string latest=c.root+"/latest.txt";
+            std::FILE* pointer=std::fopen(latest.c_str(),"wb");
+            if(pointer){std::fprintf(pointer,"%s\n",c.folder.c_str());
+                std::fclose(pointer);}
+        }
         status("RECORD_STOP total_frames="+std::to_string(c.allFrames)+
             " session_count="+std::to_string(c.session));
         c.mode=OFF;c.insideGame=false;return true;
