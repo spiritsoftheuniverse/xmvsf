@@ -339,6 +339,8 @@ struct State {
                     event(now,side,ram,"NATIVE_CONTROLLER_ACCEPTED_OUTGOING_3200");
                 }else if(rw(ram,p+0xA0u)==0x2A00u &&
                          rb(ram,p+0x256u)==0u &&
+                         rb(ram,p+0x259u)==0x08u &&
+                         rb(ram,p+0xD6u)==capturedD6[side] &&
                          rw(ram,p+0x60u)==0x2E08u){
                     // 87.146 real recording: controller 8 WAS executed by
                     // 68000 at 1778/2365/2756; A0 switched to 2A00 and
@@ -375,19 +377,31 @@ struct State {
                     controllerAcceptedAt[side]=now;
                     event(now,side,ram,"DHC_ROM_TAG_3200_AFTER_CONTROLLER_ACCEPT");
 
+                }else if(rb(ram,p+0x256u)==0u &&
+                          rw(ram,p+0x60u)!=0x2E08u &&
+                          rw(ram,p+0x60u)!=0x3200u){
+                    // 87.152: controller consumed but Ryu ran 2C04, not
+                    // tag 3200. Never paste stale A0/step values over 2C04.
+                    abort(now,side,ram,
+                          "DHC_152_ROM_2C04_WRONG_ACTION_ABORT_NO_ROLLBACK");
                 }else if(now-started[side]>12u){
-                    // No native tag controller was established. Restore
-                    // its command/status bytes only when Ryu is STILL the
-                    // same point fighter, and retain all native animation/
-                    // script and opponent state as the ROM left them.
-                    if(pointId==outgoing[side]&&reserveId==incoming[side]){
+                    // Restore only a verified UNCONSUMED staging command.
+                    // Once ROM selected any action, it owns all state.
+                    const bool unconsumed=
+                        pointId==outgoing[side] && reserveId==incoming[side] &&
+                        rw(ram,p+0x60u)==capturedAction[side] &&
+                        rw(ram,p+0xA0u)==0x002Au &&
+                        rb(ram,p+0x256u)==0x08u &&
+                        rb(ram,p+0x259u)==0x08u;
+                    if(unconsumed){
                         ww(ram,p+0xA0u,capturedMode[side]);
                         wb(ram,p+0x256u,captured256[side]);
                         wb(ram,p+0x259u,captured259[side]);
                         ww(ram,p+0x06u,captured06[side]);
                         ww(ram,p+0x08u,captured08[side]);
                         ww(ram,p+0x0Au,captured0A[side]);
-                    }
+                        event(now,side,ram,"DHC_UNCONSUMED_COMMAND_RESTORED");
+                    }else event(now,side,ram,"DHC_CONSUMED_ROM_ACTION_LEFT_INTACT");
                     abort(now,side,ram,"NATIVE_TAG_CONTROLLER_REJECTED_12F");
                 }
                 continue;
