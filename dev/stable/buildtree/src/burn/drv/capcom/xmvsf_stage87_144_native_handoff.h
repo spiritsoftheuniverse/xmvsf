@@ -10,6 +10,7 @@
 // If the native swap never happens, abort the DHC transaction without
 // touching partner, opponent, meter, or Stable.
 #include "xmvsf_stage87_143_super_queue.h"
+#include "xmvsf_stage87_159_projectile_cutoff.h"
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
@@ -79,6 +80,7 @@ struct State {
     bool initialized=false,enabled=false,proofNative=false,earlyCancel=false,
          chainUsed[2]={false,false};
     Phase phase[2]={IDLE,IDLE};
+    XM87159Projectile::State oldRyuProjectiles;
     unsigned started[2]={0u,0u},outgoing[2]={0u,0u},incoming[2]={0u,0u};
     unsigned cooldownUntil[2]={0u,0u},lastAcceptedAt[2]={~0u,~0u};
     unsigned capturedMode[2]={0u,0u},capturedAction[2]={0u,0u};
@@ -137,6 +139,7 @@ struct State {
             enabled?1:0,proofNative?1:0,earlyCancel?1:0);
     }
     void reset(){
+        oldRyuProjectiles.reset();
         for(unsigned s=0;s<2u;++s){
             phase[s]=IDLE;chainUsed[s]=false;lastQueuedCheck[s]=~0u;
             lastAcceptedAt[s]=~0u;cooldownUntil[s]=0u;
@@ -158,6 +161,8 @@ struct State {
                const char*reason){
         phase[side]=FAILED;
         event(now,side,ram,reason);
+        if(side==0u)oldRyuProjectiles.abort(now,
+            rw(ram,0x4052u)==0x14u && rw(ram,0x4852u)==0x12u);
         phase[side]=IDLE;
         // 87.150 left this true when Ken lost the point slot, so later
         // first supers were queued but could never enter the DHC gate.
@@ -205,6 +210,11 @@ struct State {
     void armOutgoingTag(std::uint8_t*ram,unsigned now,unsigned side,
                         unsigned selectedAt){
         const unsigned p=0x4000u+side*0x400u;
+        // Original 87.151 Ryu->Ken handoff: capture the independent
+        // P1 projectile objects, not the outgoing Ryu actor's hitboxes.
+        if(side==0u && earlyCancel &&
+           rw(ram,0x4052u)==0x12u && rw(ram,0x4852u)==0x14u)
+            oldRyuProjectiles.arm(ram,now);
                 capturedMode[side]=rw(ram,p+0xA0u);
                 capturedAction[side]=rw(ram,p+0x60u);
                 captured256[side]=rb(ram,p+0x256u);
@@ -477,6 +487,8 @@ struct State {
                     abort(now,side,ram,"CONTROLLER_FIGHTER_CHANGED_BEFORE_TAG");
                 }else if(rw(ram,p+0x60u)==0x3200u &&
                          rw(ram,p+0xA0u)==0x2A00u){
+                    if(side==0u && earlyCancel)
+                        oldRyuProjectiles.activate(ram,now);
                     phase[side]=WAIT_NATIVE_SWAP;
                     controllerAcceptedAt[side]=now;
                     event(now,side,ram,"NATIVE_CONTROLLER_ACCEPTED_OUTGOING_3200");
@@ -519,6 +531,8 @@ struct State {
                     // Ken's separate state table *also* uses +D6=0x14
                     // (PC 0x035F28) for the ROM-owned tag handler.
                     wb(ram,p+0xD6u,0x14u);
+                    if(side==0u && earlyCancel)
+                        oldRyuProjectiles.activate(ram,now);
                     phase[side]=WAIT_NATIVE_SWAP;
                     controllerAcceptedAt[side]=now;
                     event(now,side,ram,"DHC_ROM_TAG_3200_AFTER_CONTROLLER_ACCEPT");
@@ -558,6 +572,8 @@ struct State {
                 // what the point actor actually did after script selection.
                 event(now,side,ram,"NATIVE_SWAP_WAIT_FRAME");
                 if(pointId==incoming[side] && reserveId==outgoing[side]){
+                    if(side==0u && earlyCancel)
+                        oldRyuProjectiles.swapped(now);
                     phase[side]=WAIT_LANDING;
                     kenExitObserved[side]=false;
                     kenSuperConfirmed[side]=false;
