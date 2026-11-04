@@ -21,7 +21,7 @@ Status: **DHC decision layer introduced; gameplay transition not connected yet.*
 1. **Pure arbitration** (this branch): per-player DHC state, reserve-super command whitelist, one-use lock, no meter debit until commit, reset only after verified incoming-super exit. Unit-testable without ROM writes.
 2. **ROM-backed input tables:** capture native command parsing and accepted super IDs for every fighter, including alternate supers. Record specific character ID, input signature, resulting action/script, and stock change. Never fabricate command tables from motions alone.
 3. **Native tag transition:** compare normal tag-in (including Sabretooth entrance) with native super-start snapshots; reproduce required point/reserve slot and control ownership transactions without overwriting HP, dizzy, opponent state, or scripts.
-4. **DHC-only visual / freeze integration:** dim the native stage, filter only the incoming DHC portrait objects, keep the incoming character and their landing/super animation visible. Freeze world/opponent/outgoing attacks until first-active release; never suppress normal super portraits.
+4. **DHC-only visual / freeze integration:** dim the native stage, **bypass the native incoming portrait-intro animation and its timer** (not only its sprites), filter any residual DHC portrait objects, and keep incoming landing/super startup visible. Freeze world/opponent/outgoing attacks until first-active release; never suppress normal super portraits.
 5. **Real-frame-only integration:** honor runahead, mode and phase gates. Input capture on edges; commit exactly once at safe post-CPU boundary. Keep arbitrary debug logging opt-in.
 6. **Test matrix:** all eligible point/reserve combinations, each actual reserve super, both sides, 0/1/2+ meter, already-tagging, grounded/air, hits vs misses, DF/Classic/Tournament/Training/Versus, subsequent fresh supers, and Triple-Start reset. Reject unverified super forms instead of silently invoking the wrong move.
 
@@ -47,8 +47,9 @@ Three independent progress domains:
 - Incoming fighter native tag entrance and super startup animation: ADVANCE
   **visibly in the dimmed scene**, first land at the outgoing fighter's recorded
   world position, then start the actual selected super. Do not advance any other move.
-- DHC-only cinematic renderer: darken the stage; NEVER draw the incoming
-  super's portrait or splash, but KEEP THE INCOMING FIGHTER DRAWN at every
+- DHC-only cinematic renderer: darken the stage; bypass the native portrait
+  intro script AND its wait timer; NEVER draw the incoming super's portrait
+  or splash, but KEEP THE INCOMING FIGHTER DRAWN at every
   step of entry and startup. No opaque full-frame black overlay. The normal
   super portrait pipeline stays untouched for non-DHC supers.
 
@@ -89,8 +90,9 @@ not hide all priority-7 HUD art. This is the remaining difficult part.
 ### New isolated source files
 
 - `xmvsf_stage87_137_dhc_timing.h` — landing-gated, dimmed-stage/startup/release FSM;
-  cannot release without confirmed landing, real super startup and readiness.
-  It requests portrait suppression only during a committed DHC sequence.
+  cannot release without confirmed landing, native portrait-intro bypass,
+  real super startup and readiness. It requests DHC-only portrait filtering
+  and intro bypass; the native host must carry these out.
 - `xmvsf_stage87_137_dhc_lookahead.h` — speculative one-frame readiness
   probe with unconditional rollback and restoration check.
 - `tests/test_dhc_timing.cpp` and `tests/test_dhc_lookahead.cpp` — deterministic
@@ -98,7 +100,7 @@ not hide all priority-7 HUD art. This is the remaining difficult part.
 - `xmvsf_stage87_137_dhc_arbiter.h` redirects to the new coordinator rather
   than allowing a premature unlock on incoming action exit.
 
-**Not yet connected to `Cps2Frame` or `RunFrame`, and portrait filtering is a requested policy, not an implemented native render hook; not playable.** The
+**Not yet connected to `Cps2Frame` or `RunFrame`. Both the native portrait-intro bypass and portrait rendering suppression are policy gates, not implemented native hooks; not playable.** The
 repository currently lacks validated native move-specific super command tables,
 first-active predicates and independently-steppable incoming-fighter update.
 These cannot safely be derived from the 87.55 / 87.59 candidate super probes.
@@ -111,7 +113,9 @@ Do not merge into main/Stable until native proof and gameplay tests exist.
    commit only once.
 2. Freeze the existing world, opponent and outgoing attack state; dim the
    stage. Apply the DHC-only incoming portrait filter **before** the reserve
-   starts a native super. Ordinary super cinematics remain unchanged.
+   starts a native super. The host must also bypass the DHC incoming super's
+   **native portrait intro script and wait timer**, rather than allowing a
+   hidden native cinematic to play. Ordinary super cinematics remain unchanged.
 3. Animate the outgoing tag departure if required, bring in the reserve
    character and land them at the outgoing point fighter's recorded takeover
    coordinates, with appropriate native ground/facing and slot ownership.
