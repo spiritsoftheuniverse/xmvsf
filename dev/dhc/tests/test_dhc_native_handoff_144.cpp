@@ -68,7 +68,7 @@ int main(){
     s.frame(ram.data(),rom.data(),unsigned(rom.size()),102u,1u);
     assert(s.phase[0]==WAIT_TAG_CONTROLLER);
     assert(rw(ram.data(),0x4060u)==0x2E08u); // no scripted sprite hijack
-    assert(rw(ram.data(),0x40A0u)==0x2A00u); // captured true tag controller
+    assert(rw(ram.data(),0x40A0u)==0x002Au); // real pre-tag: ROM 033762 will produce 2A00
     assert(rb(ram.data(),0x4256u)==0x08u);
     assert(rb(ram.data(),0x4259u)==0x08u);
     assert(rw(ram.data(),0x4214u)==3u); // no speculative meter debit
@@ -77,6 +77,7 @@ int main(){
     // Simulate a ROM-owned acceptance of controller 08: the ROM itself
     // selects 32/00 on the next native CPU frame.
     ww(ram.data(),0x4060u,0x3200u);
+    ww(ram.data(),0x40A0u,0x2A00u); // simulated Ryu ROM handler, NOT the host
     wl(ram.data(),0x4034u,0xD1DACu);
     s.frame(ram.data(),rom.data(),unsigned(rom.size()),103u,1u);
     assert(s.phase[0]==WAIT_NATIVE_SWAP);
