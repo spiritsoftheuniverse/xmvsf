@@ -24,6 +24,7 @@
 #include "xmvsf_stage87_118_meter_audio.h" /* XM87.118 read-only stock edge (restored in 87.132 build repair) */
 #include "xmvsf_stage24_engine.h" /* XMVSF_STAGE24_VERSUS */
 #include "xmvsf_stage86_49_camera.h" // XM86.49 opt-in read-only native camera
+#include "xmvsf_stage87_164_host_replay.h" // v2 host menu / session / checkpoint replay
 #include "xmvsf_stage87_61_replay.h" // XM87.61 opt-in state-anchored input movie
 #include "xmvsf_stage87_162_replay_sync.h" // F9 movie index read-only native ROM trace correlation
 #include "xmvsf_stage87_139_probe.h" // XM87.139 F10 native/input diagnostic toggle
@@ -229,17 +230,63 @@ static int RunFrame(int bDraw, int bPause)
 		nFramesEmulated++;
 		nCurrentFrame++;
 		InputMake(true);
-		XM8761::afterInput(); // XM87.132 F9 optional state-anchored recorder, pre-emulation
+        // 87.164: host-aware v2, snapshotting actual successful host
+        // transitions at a safe pre-emulation-frame boundary. Original
+        // 87.61 movies remain supported when v2 is not active.
+        XM8764::Host host;
+        host.training=xm14TrainingMode;host.versus=xm24VersusMode;
+        host.owner=xm14InputTarget;host.damage=xm87102DamageMode;
+        host.menu=xm23State.menuOpen?1:0;
+        host.selection=xm23State.selected;
+        host.hitboxes=xm23State.hitboxes?1:0;
+        host.display=xm23State.dataDisplay?1:0;
+        host.meter=xm23State.infiniteMeter?1:0;
+        host.dizzy=xm23State.dizzyAllowed?1:0;
+        host.frameData=xm23State.frameData.enabled?1:0;
+        host.stage=xm77StageChoice;
+        const XM8764::FrameResult hostReplay=XM8764::beforeFrame(host);
+        if(hostReplay==XM8764::DIVERGED ||
+           hostReplay==XM8764::END_GAME)return 0;
+        if(hostReplay==XM8764::FRAME_READY){
+            XM8764::Context& rec=XM8764::context();
+            if(rec.hostChanged){
+                const XM8764::Host& h=rec.restored;
+                xm14TrainingMode=h.training;xm24VersusMode=h.versus;
+                xm14InputTarget=h.owner;xm87102DamageMode=h.damage;
+                xm23State.menuOpen=h.menu!=0;xm23State.selected=h.selection;
+                xm23State.hitboxes=h.hitboxes!=0;
+                xm23State.dataDisplay=h.display!=0;
+                xm23State.infiniteMeter=h.meter!=0;
+                xm23State.dizzyAllowed=h.dizzy!=0;
+                xm23State.frameData.enabled=h.frameData!=0;
+                xm77StageChoice=h.stage;
+                rec.hostChanged=false;
+            }
+            XM87162ReplaySync::publish(rec.frames-1u);
+        }else{
+            XM8761::afterInput(); // original F9 native v1 path
+        }
         // The movie index is monotonic even when loading an emulator save
         // state resets GetCurrentFrame(). This identifies the EXACT input
         // frame being presented to BurnDrvFrame() without any input edits.
         XM8761::Context& movie=XM8761::ctx();
-        XM87162ReplaySync::publish(
-            ((movie.mode==1 || movie.mode==2) && movie.index>0u)?
-            movie.index-1u : ~0u);
+        if(hostReplay!=XM8764::FRAME_READY)
+            XM87162ReplaySync::publish(
+                ((movie.mode==1 || movie.mode==2) && movie.index>0u)?
+                movie.index-1u : ~0u);
         // 87.163: visible playback status. The old runner reached a boot
         // menu and gave no feedback because no CPS2 frame ever executed.
         // Title updates are presentation-only, never alter replay inputs.
+        if(sdlWindow && XM8764::context().mode==XM8764::PLAY){
+            const XM8764::Context& v2=XM8764::context();
+            if(v2.allFrames==1u || (v2.allFrames%300u)==0u){
+                char progress[160];
+                std::snprintf(progress,sizeof(progress),
+                    "XMVSF HOST REPLAY | %u FRAMES | SESSION %u | %ux FAST",
+                    v2.allFrames,v2.session,XM8764::fastFrames());
+                SDL_SetWindowTitle(sdlWindow,progress);
+            }
+        }
         const char* playback=std::getenv("XM8761_REPLAY_MODE");
         if(sdlWindow && playback && std::strcmp(playback,"play")==0){
             if(movie.mode==2 && movie.index &&
@@ -434,6 +481,18 @@ int RunIdle()
 
 	// Independent QPC deadline determines game updates, not the audio play cursor.
     // Even if WASAPI is unavailable, the machine runs at its original frame rate.
+    // 87.164 high-speed playback: preserve ordered CPS2 CPU/input steps,
+    // render once per batch, and pump real SDL events between batches.
+    const unsigned replayBatch=XM8764::fastFrames();
+    if(replayBatch){
+        if(bAudPlaying)AudSoundStop();
+        for(unsigned i=0u;i<replayBatch;++i){
+            if(XM8764::context().exitSession ||
+               XM8764::context().mode==XM8764::FAILED)break;
+            RunFrame(i+1u==replayBatch?1:0,0);
+        }
+        return 0;
+    }
     if(!xmvsfHost::frameDue(nAppVirtualFps)) return 0;
     if(bAudPlaying) AudSoundCheck();
     else RunFrame(1,0);
@@ -522,6 +581,7 @@ int RunInit()
      xm16LoadTrainingSnapshot(); // XMVSF_STAGE16_SNAPSHOT
     }
     std::fprintf(stderr,"XM86.34 RunInit training snapshot complete skipped=%d\n",(int)skipSnapshot);std::fflush(stderr);
+    XM8764::gameBegin(xm24VersusMode?2:xm14TrainingMode?1:0);
 	return 0;
 }
 
@@ -638,7 +698,10 @@ int RunMessageLoop()
                     if(event.key.keysym.mod & KMOD_SHIFT)
                         QuickState(0);
                     else
-                        XM8761::toggleF9(bDrvOkay!=0);
+                        if(std::getenv("XM8764_REPLAY_ROOT"))
+                            XM8764::toggleF9();
+                        else
+                            XM8761::toggleF9(bDrvOkay!=0);
                 }
                 continue;
             }
@@ -798,6 +861,14 @@ int RunMessageLoop()
             xm258ArcadeReturnRequested=false;
             xm26ReturnToBoot=true; // Stage26 in-process return, no process spawn
         }
+        if(XM8764::context().exitSession ||
+           XM8764::context().mode==XM8764::FAILED){
+            const bool finished=XM8764::context().mode==XM8764::COMPLETE ||
+                XM8764::context().mode==XM8764::FAILED;
+            xm26ReturnToBoot=!finished;
+            xm8640ExitReason=finished?"replay_done":"replay_session_end";
+            quit=1;continue;
+        }
         if(xm26ReturnToBoot){
             // Explicitly leave gameplay's backbuffer behind. This transition
             // does not destroy, reposition, or recreate the SDL_Window.
@@ -814,6 +885,14 @@ int RunMessageLoop()
             continue;
         }
 		RunIdle(); // game runs naturally; custom overlay retains input and score
+        if(XM8764::context().exitSession ||
+           XM8764::context().mode==XM8764::FAILED){
+            const bool finished=XM8764::context().mode==XM8764::COMPLETE ||
+                XM8764::context().mode==XM8764::FAILED;
+            xm26ReturnToBoot=!finished;
+            xm8640ExitReason=finished?"replay_done":"replay_session_end";
+            quit=1;
+        }
 
 	}
 
