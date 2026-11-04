@@ -25,9 +25,13 @@ static inline unsigned relative(std::uint8_t raw,bool faceRight) {
     const bool l=(raw&1u)!=0,r=(raw&2u)!=0,u=(raw&4u)!=0,d=(raw&8u)!=0;
     if((l&&r)||(u&&d))return 0u;
     const bool f=faceRight?r:l,back=faceRight?l:r;
-    if(d&&f)return 3u; if(d&&back)return 1u;
-    if(d)return 2u;if(f)return 6u;if(back)return 4u;
-    if(u&&f)return 9u;if(u&&back)return 7u;
+    if(d&&f)return 3u;
+    if(d&&back)return 1u;
+    if(d)return 2u;
+    if(f)return 6u;
+    if(back)return 4u;
+    if(u&&f)return 9u;
+    if(u&&back)return 7u;
     if(u)return 8u;
     return 5u; // number-pad notation
 }
