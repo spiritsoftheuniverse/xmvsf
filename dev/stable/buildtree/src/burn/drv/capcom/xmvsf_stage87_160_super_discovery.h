@@ -93,7 +93,8 @@ struct State {
                 "frame\tside\tfighter_id\treserve_id\taction\tselector"
                 "\tnative_script\ttable_script\tanimation\trom_match"
                 "\tlast_input_frame\tlast_input_mask\tlast_input_chord"
-                "\tmotion_hint\tinput_origin\tclassification\tmotion_path\n",
+                "\tmotion_hint\tinput_origin\tclassification\tmotion_path"
+                 "\tmovie_input_frame\n",
                 observations);
         }
     }
@@ -276,7 +277,8 @@ struct State {
     }
     void frame(const std::uint8_t* ram,const std::uint8_t* rom,unsigned size,
                unsigned now,unsigned p1Dir,unsigned p2Dir,
-               unsigned p1Buttons,unsigned p2Buttons,bool p1Injected){
+               unsigned p1Buttons,unsigned p2Buttons,bool p1Injected,
+               unsigned movieFrame=~0u){
         discover(rom,size);
         if(!enabled||!ram||rb(ram,0x5000u)!=8u || now==lastFrame)return;
         if(lastFrame!=~0u && now<lastFrame){
@@ -332,14 +334,15 @@ struct State {
                 std::fprintf(observations,
                     "%u\t%u\t%02X\t%02X\t%02X\t%02X"
                     "\t%06X\t%06X\t%04X\t%u"
-                    "\t%u\t%02X\t%s\t%s\t%s\t%s\t%s\n",
+                    "\t%u\t%02X\t%s\t%s\t%s\t%s\t%s\t%lld\n",
                     now,side+1u,fighter,reserve,action,selector,
                     script,x.script,x.animation,matches?1u:0u,
                     last.frame,last.buttons,physicalChord(last.buttons),
                     hint,source,
                     known?"VERIFIED_RYU_KEN_SUPER":
                     matches?"ROM_2E_SCRIPT_OBSERVED_COMMAND_UNVERIFIED":
-                            "UNKNOWN_ROM_SCRIPT",path);
+                            "UNKNOWN_ROM_SCRIPT",path,
+                    movieFrame==~0u?-1LL:static_cast<long long>(movieFrame));
                 std::fflush(observations);
             }
         }
