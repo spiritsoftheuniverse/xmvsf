@@ -109,9 +109,14 @@ struct State {
         if(initialized)return;
         initialized=true;
         const char* setting=std::getenv("XM87144_DHC_NATIVE_TEST");
-        enabled=setting && std::strcmp(setting,"1")==0;
+        const bool requested=setting && std::strcmp(setting,"1")==0;
         const char* proof=std::getenv("XM87156_PROOF_NATIVE");
-        proofNative=enabled && proof && std::strcmp(proof,"1")==0;
+        proofNative=requested && proof && std::strcmp(proof,"1")==0;
+        const char* legacy=std::getenv("XM87144_DHC_LEGACY_TAG_WRITER");
+        // Never silently enable the 87.155 direct controller writer. It
+        // must be *separately* opted into for historical isolated tests.
+        enabled=requested && (proofNative ||
+                 (legacy && std::strcmp(legacy,"1")==0));
         const char* path=std::getenv("XM87144_DHC_LOG");
         if(enabled && path && *path){
             log=std::fopen(path,"wb");
