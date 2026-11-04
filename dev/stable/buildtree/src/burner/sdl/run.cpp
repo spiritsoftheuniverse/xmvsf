@@ -4,6 +4,7 @@
 #endif
 // Run module
 #include "burner.h"
+#include "xmvsf_stage87_164_host_replay.h" // must precede native reload and Training menu handlers
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -24,8 +25,7 @@
 #include "xmvsf_stage87_118_meter_audio.h" /* XM87.118 read-only stock edge (restored in 87.132 build repair) */
 #include "xmvsf_stage24_engine.h" /* XMVSF_STAGE24_VERSUS */
 #include "xmvsf_stage86_49_camera.h" // XM86.49 opt-in read-only native camera
-#include "xmvsf_stage87_164_host_replay.h" // v2 host menu / session / checkpoint replay
-#include "xmvsf_stage87_61_replay.h" // XM87.61 opt-in state-anchored input movie
+ #include "xmvsf_stage87_61_replay.h" // XM87.61 opt-in state-anchored input movie
 #include "xmvsf_stage87_162_replay_sync.h" // F9 movie index read-only native ROM trace correlation
 #include "xmvsf_stage87_139_probe.h" // XM87.139 F10 native/input diagnostic toggle
 #include "xmvsf_stage87_140_super_chat.h" // XM87.140 Shift+G chat history toggle
@@ -378,7 +378,9 @@ static int RunFrame(int bDraw, int bPause)
     xm87118OnRealFrame(bDrvOkay); /* XM87.118 completed super-stock observer */
     xm24OnRealFrame(bDrvOkay); /* XMVSF_STAGE24_VERSUS */
     // Triple-Start restart takes priority over the KO-landing autoload.
-    if(!xm87110RestartAfterFrame(bDrvOkay,(unsigned)nCurrentFrame))
+    if(xm87110RestartAfterFrame(bDrvOkay,(unsigned)nCurrentFrame))
+        XM8764::checkpoint("TRAINING_TRIPLE_START_RELOAD");
+    else
         xm87105TrainingResetOnLanding(bDrvOkay,(unsigned)nCurrentFrame); // KO -> landed -> match snapshot
     if(traceFrame){std::fprintf(stderr,"XM86.34 FIRST RunFrame reached stage5 hook\n");std::fflush(stderr);}
     // Stage86.57: stage resolution and camera were sampled before VidPaint.
@@ -709,6 +711,7 @@ int RunMessageLoop()
                 if(event.key.repeat==0){
                     if(event.key.keysym.mod & KMOD_SHIFT){
                         QuickState(1); // original Shift+F10 load
+                        XM8764::checkpoint("HOST_SHIFT_F10_QUICKLOAD");
                     }else{
                         const bool wasActive=XM87139Probe::state().active;
                         const bool ok=XM87139Probe::state().toggle(bDrvOkay!=0);
@@ -854,7 +857,10 @@ int RunMessageLoop()
             xm23State.returnMainRequested=false;
             xm26ReturnToBoot=true; // Stage26 in-process return, no process spawn
         }
+        const int oldVersusCommand=xm24Session.command;
 		xm24HandlePendingCommand(); /* XMVSF_STAGE24_VERSUS */
+        if(oldVersusCommand!=XM24_NONE)
+            XM8764::checkpoint("VERSUS_RESULT_OR_RESELECT_COMMAND");
 		xm243PollLiveMenu(); /* XMVSF_STAGE24_3_LIVE_RESULTS */
         xm258PollArcadeMenu(); /* XMVSF_STAGE25_8_ARCADE_MENU */
         if(xm258ArcadeReturnRequested){
