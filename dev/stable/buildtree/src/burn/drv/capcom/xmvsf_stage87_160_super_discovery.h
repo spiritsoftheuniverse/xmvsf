@@ -57,7 +57,7 @@ static inline const char* physicalChord(unsigned mask){
     }
 }
 struct State {
-    bool initialized=false,enabled=false,catalogDone=false;
+    bool initialized=false,enabled=false,catalogDone=false,privateDumpDone=false;
     unsigned lastFrame=~0u,lastFighter[2]={~0u,~0u},
              lastAction[2]={~0u,~0u},lastScript[2]={~0u,~0u};
     unsigned previousButtons[2]={0u,0u};
@@ -130,6 +130,40 @@ struct State {
         const unsigned span=next-section;
         return span<0x50u?(span&~1u):0x50u;
     }
+    // Private, local-only export of decoded CPS2 program words and ROM data.
+    // Both buffers are from the running game; the binary files are excluded
+    // from Git and are NEVER included in diagnostics ZIPs automatically.
+    // This is needed to disassemble command-recognition 68000 instructions,
+    // rather than incorrectly treating animation scripts as input commands.
+    void exportPrivateCode(const std::uint8_t* code,unsigned codeLen,
+                           const std::uint8_t* rom,unsigned romLen){
+        init();
+        if(!enabled||privateDumpDone||!code||!rom ||
+           codeLen<0x1000u||codeLen>0x2000000u ||
+           romLen<0x1000u||romLen>0x2000000u)return;
+        const char* dest=std::getenv("XM87160_PRIVATE_ROM_DIR");
+        if(!dest||!*dest)return;
+        privateDumpDone=true;
+        const std::uint8_t* bytes[2]={code,rom};
+        const unsigned lengths[2]={codeLen,romLen};
+        const char* names[2]={
+           "xmvsfu_decrypted_opcodes_host_swapped.bin",
+           "xmvsfu_program_data_host_swapped.bin"
+        };
+        for(unsigned i=0u;i<2u;++i){
+            char path[2048];
+            const int n=std::snprintf(path,sizeof(path),"%s/%s",dest,names[i]);
+            if(n<0 || unsigned(n)>=sizeof(path))continue;
+            // Never overwrite a successfully captured existing ROM file.
+            std::FILE* exists=std::fopen(path,"rb");
+            if(exists){std::fclose(exists);continue;}
+            std::FILE* out=std::fopen(path,"wb");
+            if(!out)continue;
+            const size_t wrote=std::fwrite(bytes[i],1,lengths[i],out);
+            std::fclose(out);
+            if(wrote!=lengths[i])std::remove(path);
+        }
+    }
     void discover(const std::uint8_t* rom,unsigned size){
         init();
         if(!enabled||catalogDone||!rom||size<0x8AA08u)return;
@@ -144,13 +178,17 @@ struct State {
                 if(!duration || duration>=0x8000u)continue;
                 const XM87143Queue::Known* known=
                     label(fighter,0x2Eu,selector,x.script);
+                const bool teamOnly=fighter==0x14u &&
+                    selector==0x06u && x.script==0xD6B3Eu;
                 ++candidateCount;
                 if(catalog){
                     std::fprintf(catalog,
                         "%02X\t2E\t%02X\t%06X\t%04X\t%u\t%s\t%s\t%s\n",
                         fighter,selector,x.script,x.animation,duration,
+                        teamOnly?"EXCLUDE_VARIABLE_COMBINATION":
                         known?"VERIFIED_CAPTURE":"UNVERIFIED_ROM_2E_SCRIPT",
-                        known?known->name:"UNKNOWN",
+                        known?known->name:
+                        teamOnly?"KEN_VARIABLE_COMBINATION":"UNKNOWN",
                         known?(known->back?"QCB+KK":
                             known->kicks?"QCF+KK":"QCF+PP"):"UNDECODED");
                 }
