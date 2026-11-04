@@ -253,6 +253,7 @@ int main(){
     trial.frame(r2.data(),rom.data(),unsigned(rom.size()),429u,1u);
     assert(trial.phase[0]==IDLE && !trial.chainUsed[0]);
     ww(r2.data(),0x40A0u,0x2A28u);
+    ww(r2.data(),0x404Eu,8u); // only try after verified late-super timer
     assert(XM87143Queue::state().select(0u,0x14u,
         XM87143Queue::QCF_PP,436u));
     trial.frame(r2.data(),rom.data(),unsigned(rom.size()),436u,1u);
