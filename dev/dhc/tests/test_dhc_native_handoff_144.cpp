@@ -134,6 +134,10 @@ int main(){
     assert(s.kenExitObserved[0]);
     for(unsigned t=118u;t<124u;++t)
         s.frame(ram.data(),rom.data(),unsigned(rom.size()),t,1u);
+    // Eight elapsed frames alone are NOT an exit. The 68000's native
+    // animation completion flag or a real neutral action must decide.
+    assert(s.phase[0]==WAIT_KEN_EXIT);
+    wb(ram.data(),0x403Cu,1u); // ROM 2A08 animation completion flag
     s.frame(ram.data(),rom.data(),unsigned(rom.size()),124u,1u);
     assert(s.phase[0]==SUPER_STARTED);
     assert(rb(ram.data(),0x40D6u)==0x0Au); // actual Ken 2C super handler
