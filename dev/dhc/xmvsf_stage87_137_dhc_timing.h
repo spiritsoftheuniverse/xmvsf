@@ -5,9 +5,12 @@
 // from action +A0 or from the visual portrait alone.
 //
 // Timing contract:
-// * World/opponent/outgoing hit resolution must be held throughout blackout.
-// * Incoming reserve completes its native tag arrival and SUPER STARTUP while
-//   black is rendered. The host advances only permitted incoming logic.
+// * World/opponent/outgoing hit resolution must be held throughout DHC freeze.
+// * The incoming fighter remains DRAWN: land at the outgoing actor's recorded
+//   takeover position, then play native super startup in the darkened scene.
+// * Suppress ONLY the incoming DHC super's portrait/splash objects, never
+//   the fighter, hitboxes, HUD, or ordinary non-DHC super portraits.
+// * Host advances permitted incoming logic; not the frozen match.
 // * READY means the *next* native incoming animation tick is the first active
 //   attack tick, NOT that a guessed timer has expired.
 // * Release the world freeze only at the next frame boundary; the first
@@ -26,8 +29,11 @@ struct Command {
 struct Signal {
     bool combat=false;
     bool worldHeld=false;          // Opponent/world/global time AND hit resolution held
-    bool blackPresented=false;     // At least one blackout frame presented
+    bool darkScenePresented=false; // Stage dimming actually presented; actors remain visible
+    bool incomingPortraitVisible=false; // DHC-specific portrait filter failed if true
     bool nativeTagComplete=false;  // The reserve is now the incoming point fighter
+    bool incomingGrounded=false;   // Native tag entry completed its landing
+    bool incomingAtTakeoverPosition=false; // Native world-space X matches outgoing point
     bool incomingSuperStarted=false;
     bool incomingStartupTick=false; // native startup animation advanced under blackout
     bool firstActiveOnNextTick=false; // move-specific script/hitbox transition proved
@@ -36,12 +42,13 @@ struct Signal {
     bool foreignWorldAdvanced=false; // invariant failure: opponent, hitbox, etc advanced
 };
 struct Result {
-    bool holdWorld=false, drawBlack=false, tickIncomingOnly=false;
+    bool holdWorld=false, dimStage=false, suppressIncomingPortrait=false;
+    bool showIncomingFighter=false, tickIncomingOnly=false;
     bool releaseBeforeNextNativeFrame=false, rollbackRequired=false;
 };
 struct Coordinator {
     Phase phase=IDLE;
-    unsigned side=0, reserveId=0, superId=0, startupTicks=0, blackoutFrames=0;
+    unsigned side=0, reserveId=0, superId=0, startupTicks=0, cinematicFrames=0;
     bool didDHC=false, nativeCommitted=false, firstReleaseTick=false;
 
     void clear(){*this=Coordinator();}
@@ -71,30 +78,41 @@ struct Coordinator {
     Result tick(const Signal& s){
         Result r;
         if(!s.combat){clear();return r;}
-        if(phase==FAILED){r.holdWorld=true;r.drawBlack=true;r.rollbackRequired=true;return r;}
-        if(phase==BLACKOUT_PENDING){r.holdWorld=true;r.drawBlack=true;return r;}
+        // This is a DHC-scoped presentation policy. The host must identify
+        // the incoming portrait objects precisely; don't suppress every P7
+        // sprite or normal super's splash. World is dim, not opaque black.
+        if(didDHC && phase>=TAG_ENTER && phase<=INCOMING)
+            r.suppressIncomingPortrait=true;
+        if(phase==FAILED){r.holdWorld=true;r.dimStage=true;r.rollbackRequired=true;return r;}
+        if(phase==BLACKOUT_PENDING){r.holdWorld=true;r.dimStage=true;return r;}
         if(phase==TAG_ENTER || phase==STARTUP || phase==RELEASE_ARMED){
-            r.holdWorld=true;r.drawBlack=true;
-            // Freeze violation is NOT repairable by merely dropping darkness.
-            if(!s.worldHeld || s.foreignWorldAdvanced){
+            r.holdWorld=true;r.dimStage=true;r.showIncomingFighter=true;
+            // The DHC presentation must not show the native portrait, even
+            // transiently; its sprite group needs a precise owner-aware filter.
+            // Freeze violation is NOT repairable by dropping the darkening.
+            if(!s.worldHeld || s.foreignWorldAdvanced ||
+               s.incomingPortraitVisible){
                 phase=FAILED;r.rollbackRequired=true;return r;
             }
-            if(s.blackPresented)++blackoutFrames;
-            if(phase==TAG_ENTER && s.nativeTagComplete)phase=STARTUP;
+            if(s.darkScenePresented)++cinematicFrames;
+            if(phase==TAG_ENTER && s.nativeTagComplete && s.incomingGrounded &&
+               s.incomingAtTakeoverPosition)phase=STARTUP;
             if(phase==STARTUP){
                 r.tickIncomingOnly=true;
                 if(s.incomingStartupTick && s.incomingSuperStarted)++startupTicks;
                 if(s.firstActiveOnNextTick){
-                    // Do not release from a portrait exit or a guess. Incoming
-                    // native super must have actually progressed during blackout.
-                    if(s.incomingSuperStarted && startupTicks>0 && blackoutFrames>0)
+                    // Do not release from a visual transition or fixed timer.
+                    // Incoming native super must actually progress in the
+                    // visible darkened scene, with no portrait drawn.
+                    if(s.incomingSuperStarted && startupTicks>0 && cinematicFrames>0)
                         phase=RELEASE_ARMED;
                     else {phase=FAILED;r.rollbackRequired=true;return r;}
                 }
             }
             if(phase==RELEASE_ARMED){
-                // Called after an emulated hidden startup frame. The host removes
-                // darkness + freeze BEFORE the following, now-active frame.
+                // The next real native frame is ACTIVE. Remove dimming + match
+                // freeze before it, not before the completed startup. Keep
+                // suppressing the incoming portrait through this transition.
                 r.tickIncomingOnly=false;
                 r.releaseBeforeNextNativeFrame=true;
                 phase=INCOMING;firstReleaseTick=true;
@@ -102,6 +120,9 @@ struct Coordinator {
             return r;
         }
         if(phase==INCOMING){
+            if(s.incomingPortraitVisible){
+                phase=FAILED;r.rollbackRequired=true;return r;
+            }
             if(firstReleaseTick){
                 firstReleaseTick=false;
                 if(!s.firstActiveNow){
