@@ -50,6 +50,14 @@ jobs:
           grep -Fq 'XM87144_DHC_NATIVE_TEST=1' RUN_TEST.bat
           test -f dev/stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_144_native_handoff.h
           grep -Fq 'xmvsf_stage87_144_native_handoff.h' dev/dhc/BUILD_TEST.sh
+          # 87.146 retired the forced outgoing animation; the builder
+          # must not require that old binary marker after a successful link.
+          if grep -Fq "'DHC_APPROVED_ROM_OUTGOING_ACTION' \"\$BUILT\"" dev/dhc/BUILD_TEST.sh; then
+            echo 'ERROR: obsolete forced-tag marker still blocks a successful build' >&2
+            exit 1
+          fi
+          grep -Fq 'required_markers=(' dev/dhc/BUILD_TEST.sh
+          grep -Fq 'TEST executable is missing compiled 87.146 marker' dev/dhc/BUILD_TEST.sh
           grep -Fq 'DHC_NATIVE_TAG_CONTROLLER_08_ARMED' dev/stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_144_native_handoff.h
           grep -Fq 'NATIVE_CONTROLLER_ACCEPTED_OUTGOING_3200' dev/stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_144_native_handoff.h
           grep -Fq 'NATIVE_TAG_CONTROLLER_REJECTED_12F' dev/stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_144_native_handoff.h
