@@ -74,6 +74,11 @@ echo Movie input: "%MOVIE%"
 echo Full-state anchor: "%STATE%"
 echo Native replay results: "%TRACE%"
 echo No new DHC move mappings are enabled by this launcher.
+echo LIMITATION: F9 records native CPS2 input ports and one initial state.
+echo Training-menu character swaps / host savestate shortcuts are NOT in
+echo this replay movie and may cause later playback to diverge.
+echo Native ROM input/action correlations from the original capture are
+echo preserved separately in dev\dhc\evidence\REPLAY_87_161_INPUT_NATIVE_ACTIONS.tsv
 echo Let the playback run, then close the game when PLAY_END is reported.
 echo.
 pushd "%PROJECT%\FBNeo" || goto :fail
