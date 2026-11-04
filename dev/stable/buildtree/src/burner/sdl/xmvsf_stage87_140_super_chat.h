@@ -187,7 +187,8 @@ struct State {
     }
     void frame(const std::uint8_t* ram,unsigned frame,
                unsigned p1directions,unsigned p2directions,
-               unsigned p1buttons,unsigned p2buttons){
+               unsigned p1buttons,unsigned p2buttons,
+               unsigned nativeSuperScriptMask=0u){
         if(!ram||lastFrame==frame)return;
         if(lastFrame!=~0u && frame<lastFrame){
             ready[0]=ready[1]=candidate[0]=candidate[1]=false;
@@ -217,12 +218,21 @@ struct State {
             const bool meterDebit=stock<oldStock[side]&&stock<=3u&&oldStock[side]<=3u;
             // Never label 2A as VERIFIED super. Intro suppression in 87.63
             // gives useful correlated evidence on Stage 05 but not universal.
-            if(!candidate[side] && (actionEdge||meterDebit)){
+            // XM87.142: For Ryu/Ken we have actual native 68000 action
+            // table+script resolution. Ignore the old +A0==2A proxy here:
+            // it also fires for NORMAL TAG (captured at 87.141 frame 2978).
+            // Other fighters retain the openly provisional fallback until
+            // their own ROM script mapping has been captured and verified.
+            const bool mappedNative= fighter==0x12u || fighter==0x14u;
+            const bool nativeStart=(nativeSuperScriptMask&(1u<<side))!=0u;
+            if(!candidate[side] && (mappedNative?nativeStart:(actionEdge||meterDebit))){
                 candidate[side]=true;openAt[side]=frame;
                 char m[CHAT_LENGTH];
                 std::snprintf(m,sizeof(m),"P%u FIRST SUPER? point=%02X a0=%02X meter %u>%u",
                     side+1u,fighter,a0,oldStock[side],stock);
                 log(frame,ALERT,m);
+                if(nativeStart)
+                    log(frame,MATCH,"NATIVE 68000 ROM-TABLE SCRIPT VERIFIED (NOT YET DHC EXECUTION)");
                 std::snprintf(m,sizeof(m),"P%u RESERVE %02X act=%04X anim=%04X script=%08X",
                     side+1u,bench,w(ram,reserve+0x60u),w(ram,reserve+0x42u),
                     unsigned((std::uint32_t(w(ram,reserve+0x34u))<<16u)|
