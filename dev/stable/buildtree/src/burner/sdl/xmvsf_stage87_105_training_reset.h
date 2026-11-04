@@ -38,6 +38,7 @@ static inline void xm87105TrainingResetOnLanding(bool ready,unsigned frame){
         return;
     }
     const int rc=BurnStateLoad((TCHAR*)XM87102Lab::SNAPSHOT,1,NULL);
+    if(rc==0)XM8764::checkpoint("TRAINING_KO_LANDING_RELOAD");
     std::fprintf(stderr,"XM87.105 TRAINING_KO_LANDING_RESET P%d frame=%u action=KO_GROUND_ENTRY load_rc=%d\n",landed+1,frame,rc);
     if(rc!=0)return;
     // Host-side configuration persists across savestate reload. Reapply the
