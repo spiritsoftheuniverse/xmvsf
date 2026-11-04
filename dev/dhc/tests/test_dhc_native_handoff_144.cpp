@@ -54,6 +54,7 @@ int main(){
     ww(ram.data(),0x4000u+0x60u,0x2E08u);
     ww(ram.data(),0x4000u+0xA0u,0x2A28u);
     wb(ram.data(),0x40D6u,0x0Au); // real outgoing Ryu super controller
+    ww(ram.data(),0x404Eu,8u);  // 87.150 proven native late-super entry
     ww(ram.data(),0x4214u,3u);
     const auto& q=XM87143Queue::state();
     (void)q;
@@ -217,6 +218,7 @@ int main(){
     ww(r2.data(),0x4060u,0x2E08u);
     ww(r2.data(),0x40A0u,0x2A28u);
     wb(r2.data(),0x40D6u,0x0Au);
+    ww(r2.data(),0x404Eu,8u);
     assert(XM87143Queue::state().prepare(r2.data(),rom.data(),
         unsigned(rom.size()),400u));
     State trial;
