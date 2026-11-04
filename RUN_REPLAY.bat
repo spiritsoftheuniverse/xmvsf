@@ -9,7 +9,7 @@ REM Replay the original 87.161 F9 full-state + exact CPS2 inputs without
 REM creating replacement ROM scripts, patching native input, or touching Stable.
 set "EXE=%PROJECT%\runtime\stable\XMVSF_Test_87_162.exe"
 if not exist "%EXE%" (
-  echo ERROR: Need existing XMVSF_Test_87_161.exe. Run BUILD_TEST.bat.
+  echo ERROR: Need existing XMVSF_Test_87_162.exe. Run BUILD_TEST.bat.
   goto :fail
 )
 if not exist "%PROJECT%\FBNeo" (
