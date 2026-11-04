@@ -6,8 +6,8 @@
 //
 // Timing contract:
 // * World/opponent/outgoing hit resolution must be held throughout DHC freeze.
-// * The incoming fighter remains DRAWN: land at the outgoing actor's recorded
-//   takeover position, then play native super startup in the darkened scene.
+// * The incoming fighter remains DRAWN: jump and land beside the opponent on the outgoing teammate's side,
+//   then play native super startup in the darkened scene.
 // * BYPASS the incoming DHC super's native portrait animation AND its timer,
 //   not merely the sprite visibility. Keep native super startup and attack logic.
 // * Suppress any residual incoming DHC portrait/splash sprites, never the
@@ -36,7 +36,7 @@ struct Signal {
     bool nativePortraitIntroBypassed=false; // no hidden portrait timer may delay startup
     bool nativeTagComplete=false;  // The reserve is now the incoming point fighter
     bool incomingGrounded=false;   // Native tag entry completed its landing
-    bool incomingAtTakeoverPosition=false; // Native world-space X matches outgoing point
+    bool incomingBesideOpponent=false; // Native jump landed at opponent-relative target X
     bool incomingSuperStarted=false;
     bool incomingStartupTick=false; // native startup animation advanced under blackout
     bool firstActiveOnNextTick=false; // move-specific script/hitbox transition proved
@@ -101,7 +101,7 @@ struct Coordinator {
             }
             if(s.darkScenePresented)++cinematicFrames;
             if(phase==TAG_ENTER && s.nativeTagComplete && s.incomingGrounded &&
-               s.incomingAtTakeoverPosition)phase=STARTUP;
+               s.incomingBesideOpponent)phase=STARTUP;
             if(phase==STARTUP){
                 // Native intro must not merely run invisibly while the
                 // fighter waits. Super startup is the only allowed sequence.
