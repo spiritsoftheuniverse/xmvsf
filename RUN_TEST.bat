@@ -34,6 +34,14 @@ set "XM87142_ROM_TRACE=%XM87140_CHAT_DIR%\rom_dispatch.tsv"
 REM Experimental TEST only: P1 Ryu->Ken, real first-super and reserve input required.
 set "XM87144_DHC_NATIVE_TEST=1"
 set "XM87144_DHC_LOG=%XM87140_CHAT_DIR%\dhc_native_handoff.tsv"
+REM Enable the latest Tournament-only rule implementations in TEST.
+REM Native handlers ALSO require the live menu selection tournament=1.
+REM Classic remains ROM-original; do NOT enable retired 80/83/84/85 flight writers.
+set "XM8786_STORM_BUTTON_TEST=1"
+set "XM8795_NATIVE_HIT_TEST=1"
+set "XM8796_DIZZY_HANDOFF_TEST=1"
+set "XM8799_GROUND_DEFENSE_TEST=1"
+set "XM87149_TOURNAMENT_AUDIT=%XM87140_CHAT_DIR%\tournament_rules.tsv"
 echo XMVSF Stage 87.148 TEST - opt-in DHC native ROM tag scheduler D6=14 and outgoing exit TEST
 echo Executable: %EXE%
 echo Super-candidate inputs print to Warcraft-style chat and fade after 3 sec.
@@ -47,6 +55,8 @@ echo DHC native step-by-step transaction: %XM87144_DHC_LOG%
 echo Outgoing Ryu tag scheduler +D6 and exit flag are traced. Charge streaks retained.
 echo Failed DHC attempts unlock: enter another command to retry.
 echo EXPERIMENT: Ryu-to-Ken only. Normal tags unchanged. Stable untouched.
+echo Active Tournament rules audit: %XM87149_TOURNAMENT_AUDIT%
+echo Tournament rules are applied ONLY when selected in the Options menu.
 echo F10 probe files: %XM87139_PROBE_DIR%
 pushd "%PROJECT%\FBNeo" || goto :fail
 "%EXE%"
