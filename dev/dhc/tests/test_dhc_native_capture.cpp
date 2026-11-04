@@ -27,6 +27,7 @@ int main() {
     capture.tsv=std::tmpfile();
     capture.binary=std::tmpfile();
     assert(capture.tsv && capture.binary);
+    std::fputs("test header\n",capture.tsv); // Recorder::init is bypassed by this fixture
     capture.frame(ram.data(),"xmvsfu",100u,0x11u,0x22u,0x33u,0x44u,0x55u);
     assert(capture.frames==1u);
     assert(capture.previous[0].id==0x21u);
