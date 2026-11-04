@@ -74,6 +74,15 @@ jobs:
           test -f dev/dhc/tests/test_dhc_rom_catalog_160.cpp
           grep -Fq 'XM8761_REPLAY_DIR=' RUN_TEST.bat
           grep -Fq 'XM8761_REPLAY_MODE=off' RUN_TEST.bat
+          grep -Fq 'XMVSF_Test_87_162.exe' RUN_REPLAY.bat
+          grep -Fq 'XM8761_REPLAY_MODE=play' RUN_REPLAY.bat
+          grep -Fq 'XM8761_REPLAY_INPUT_FILE' RUN_REPLAY.bat
+          grep -Fq 'XM8761_REPLAY_STATE_FILE' RUN_REPLAY.bat
+          grep -Fq 'XM87162ReplaySync::publish' dev/stable/buildtree/src/burner/sdl/run.cpp
+          grep -Fq 'XM87162ReplaySync::movieFrame()' dev/stable/buildtree/src/burn/drv/capcom/cps_run.cpp
+          grep -Fq 'movie_input_frame' dev/stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_160_super_discovery.h
+          test -f dev/dhc/evidence/REPLAY_87_161_INPUT_NATIVE_ACTIONS.tsv
+          test -f dev/dhc/tests/test_dhc_replay_clock_sync_162.cpp
           grep -Fq 'XM8761::toggleF9(bDrvOkay!=0)' dev/stable/buildtree/src/burner/sdl/run.cpp
           grep -Fq 'XM8761::afterInput()' dev/stable/buildtree/src/burner/sdl/run.cpp
           grep -Fq 'XM87160_DISCOVER=1' RUN_TEST.bat
