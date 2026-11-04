@@ -277,6 +277,10 @@ void generateDats()
 
 void DoGame(int gameToRun)
 {
+    // Restore the user's Training MENU choices once for each Training
+    // session, including a fresh process or a return from the boot menu.
+    // This never loads a fight state and never affects Arcade or Versus.
+    if(xm14TrainingMode)xm257LoadTrainingOptions();
     std::fprintf(stderr,"XM86.32 HOST ENTER DoGame id=%d modeTraining=%d modeVersus=%d stageChoice=%d resolved=%d\n",gameToRun,xm14TrainingMode,xm24VersusMode,xm77StageChoice,xm77StageResolved);
     std::fflush(stderr);
     const int driverResult=DrvInit(gameToRun, 0);
@@ -286,6 +290,13 @@ void DoGame(int gameToRun)
 	{
         std::fprintf(stderr,"XM86.32 HOST MediaInit begin\n");std::fflush(stderr);
 		MediaInit();
+        if(xm14TrainingMode){
+            // The Frame Data toggle is persisted, but an SDL session's
+            // external-pane geometry is not: apply the saved toggle to
+            // the newly initialized renderer/window now.
+            xm31SetPaneWindow(sdlWindow,xm23State.frameData.enabled);
+            AdjustImageSize();
+        }
         std::fprintf(stderr,"XM86.32 HOST MediaInit complete; controls begin\n");std::fflush(stderr);
 		display_set_controls();
         std::fprintf(stderr,"XM86.32 HOST controls complete; RunMessageLoop begin\n");std::fflush(stderr);
@@ -527,7 +538,10 @@ int main(int argc, char* argv[])
                 xm258ArcadeMenuOpen=false;
                 xm258ArcadeReturnRequested=false;
                 xm31SetPaneWindow(sdlWindow,false); // Restore standard window width for boot.
-                xm23State.frameData.clear(false); // Fresh Training starts with Frame Data OFF.
+                // Reset only frame measurements when leaving Training.
+                // The ON/OFF preference is saved separately and reloaded
+                // when the user next chooses Training.
+                xm23State.frameData.clear(false);
                 xm14TrainingMode=0;
                 xm24VersusMode=0;
                 xm24ResultInputCapture=0;
