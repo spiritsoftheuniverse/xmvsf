@@ -113,6 +113,11 @@ static inline const ListedSuper* matchListed(unsigned fighter,
         if(!m)continue;
         const unsigned mask=m->kicks?(chordMask>>3u)&7u:chordMask&7u;
         if(bc(mask)<2u)continue;
+        // Anchor to the CURRENT final cardinal direction. Do not reach into
+        // an earlier QCB/QCF while the latest stick position is DF/DB from
+        // another command; that was the confusing Ryu KK diagnostic.
+        const unsigned final=relative(h.direction,facingRight);
+        if(final!=(m->back?4u:6u))continue;
         if(sequence(h,facingRight,m->back?qcb:qcf,3u,now,40u))
             return m;
     }
