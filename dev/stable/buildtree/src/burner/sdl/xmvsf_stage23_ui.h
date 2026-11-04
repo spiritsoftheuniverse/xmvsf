@@ -9,6 +9,7 @@
 #include <algorithm>
 #include "xmvsf_stage13_controls.h"
 #include "xmvsf_stage87_105_training_hp.h"
+#include "xmvsf_stage87_153_training_options.h" // 87.153 persisted Training menu choices
 #include "xmvsf_stage14_mode.h" // XM86.72 training player-select uses existing input ownership
 #include "xmvsf_stage30_frame_data.h" /* XMVSF_STAGE30_FRAME_DATA */
 #include "xmvsf_stage31_external_pane.h" /* XMVSF_STAGE31_EXTERNAL_PANE */
@@ -28,6 +29,58 @@ struct XM23State {
 };
 extern XM23State xm23State;
 extern int xm87102DamageMode; // 0: Regenerate 1: KO Enabled
+
+// User's nine Training OPTIONS only. Match save states, actor inputs,
+// stage, menu row, and Return/Main Menu are intentionally NOT preferences.
+static inline XM87153Training::Options xm257TrainingOptionsSnapshot(){
+    XM87153Training::Options p;
+    p.hitboxes=xm23State.hitboxes?1u:0u;
+    p.displayData=xm23State.dataDisplay?1u:0u;
+    p.infiniteMeter=xm23State.infiniteMeter?1u:0u;
+    p.dizzyAllowed=xm23State.dizzyAllowed?1u:0u;
+    p.damageMode=xm87102DamageMode==1?1u:0u;
+    p.dummy1HP=XM87105HP::state().tick[0];
+    p.dummy2HP=XM87105HP::state().tick[1];
+    p.playerSelect=xm14InputTarget==1?1u:0u;
+    p.frameData=xm23State.frameData.enabled?1u:0u;
+    return p;
+}
+static inline void xm257SaveTrainingOptions(){
+    if(!xm14TrainingMode)return;
+    const XM87153Training::Options settings=xm257TrainingOptionsSnapshot();
+    if(!XM87153Training::save(XM87153Training::PATH,settings))
+        std::fprintf(stderr,
+            "XM87.153 TRAINING_OPTIONS_SAVE_FAILED path=%s (previous file preserved)\n",
+            XM87153Training::PATH);
+    else std::fprintf(stderr,"XM87.153 TRAINING_OPTIONS_SAVED path=%s\n",
+                      XM87153Training::PATH);
+}
+static inline void xm257LoadTrainingOptions(){
+    if(!xm14TrainingMode)return;
+    XM87153Training::Options settings;
+    if(!XM87153Training::load(XM87153Training::PATH,settings)){
+        std::fprintf(stderr,
+            "XM87.153 TRAINING_OPTIONS_DEFAULTS no valid settings at %s\n",
+            XM87153Training::PATH);
+        return;
+    }
+    xm23State.hitboxes=settings.hitboxes!=0u;
+    xm23State.dataDisplay=settings.displayData!=0u;
+    xm23State.infiniteMeter=settings.infiniteMeter!=0u;
+    xm23State.dizzyAllowed=settings.dizzyAllowed!=0u;
+    xm87102DamageMode=(int)settings.damageMode;
+    XM87105HP::state().tick[0]=settings.dummy1HP;
+    XM87105HP::state().tick[1]=settings.dummy2HP;
+    XM87105HP::state().queueAll();
+    xm14InputTarget=(int)settings.playerSelect;
+    // Frame Data's event history remains per-match. Restore only the toggle.
+    xm23State.frameData.setEnabled(settings.frameData!=0u);
+    std::fprintf(stderr,
+        "XM87.153 TRAINING_OPTIONS_LOADED hitboxes=%u display=%u meter=%u dizzy=%u damage=%u hp=%u,%u player=%u frame=%u\n",
+        settings.hitboxes,settings.displayData,settings.infiniteMeter,
+        settings.dizzyAllowed,settings.damageMode,settings.dummy1HP,
+        settings.dummy2HP,settings.playerSelect,settings.frameData);
+}
 
 // Called from the EXISTING mapped SDL input route: zero input buffering.
 // Codes 0-3 are L/R/U/D; 0x80-0x85 attack; 0x86 Coin; 0x87 Start.
@@ -108,6 +161,10 @@ static inline void xm257TrainingAccept(){
           AdjustImageSize(); // update logical canvas and game rectangle immediately
           break;
     }
+    // Save immediately after any actual Training option edit. Menu commands
+    // RETURN (8) and MAIN MENU (9) are not persistent configuration.
+    if(xm23State.selected!=8 && xm23State.selected!=9)
+        xm257SaveTrainingOptions();
 }
 // Menu owner is P1's saved controller; physical XInput face layout is fixed
 // for UI independently of each player's remappable arcade attack buttons.
@@ -132,7 +189,10 @@ static inline bool xm87105TrainingHPHotkey(const SDL_Event& e){
         case SDLK_KP_DIVIDE:player=1;direction=-1;break;
         default:return false;
     }
-    if(!e.key.repeat)XM87105HP::state().change(player,direction);
+    if(!e.key.repeat){
+        XM87105HP::state().change(player,direction);
+        xm257SaveTrainingOptions();
+    }
     return true; // do not also adjust global volume
 }
 static inline bool xm257HandleTrainingMenuEvent(const SDL_Event& e, bool training){
