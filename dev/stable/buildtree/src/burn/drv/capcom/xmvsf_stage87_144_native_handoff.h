@@ -37,7 +37,7 @@ static inline bool setNativeScript(std::uint8_t* ram,
     // Negative/zero duration has its own ROM branching logic; no guess.
     if(!dur || (dur&0x8000u) || tableIdx>0x200u)return false;
     const unsigned table=XM87142::romL(rom,size,0x8AA04u+fighter*2u);
-    if(table>=size||tableIdx*16u>size-table-16u)return false;
+    if(table>=size || size-table<16u || tableIdx*16u>size-table-16u)return false;
     // Native ROM dispatch writes +60/+61, +68, then animation fields.
     wb(ram,actor+0x60u,action);wb(ram,actor+0x61u,selector);
     wl(ram,actor+0x68u,table);
@@ -88,7 +88,7 @@ struct State {
         std::fprintf(stderr,"XM87.144 native DHC proof-of-concept enabled=%d\n",enabled?1:0);
     }
     void reset(){
-        for(unsigned s=0;s<2u;++s)phase[s]=IDLE;
+        for(unsigned s=0;s<2u;++s){phase[s]=IDLE;used[s]=false;}
     }
     void event(unsigned now,unsigned side,const std::uint8_t*ram,
                const char*decision){
