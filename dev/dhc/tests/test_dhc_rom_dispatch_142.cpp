@@ -46,19 +46,25 @@ static void actor(std::vector<std::uint8_t>& ram,unsigned base,unsigned id,
 int main(){
     std::vector<std::uint8_t> rom(0xE1000u,0),ram(65536u,0);
     fakeEntry(rom,0x12u,0x2Eu,0x08u,0xD3070u,0xBDA0u);
+    fakeEntry(rom,0x12u,0x2Eu,0x00u,0xD2CFCu,0xBDA0u);
     fakeEntry(rom,0x12u,0x32u,0x00u,0xD1DACu,0xA5C2u);
     fakeEntry(rom,0x14u,0x2Au,0x0Cu,0xD5702u,0xEB0Au);
     fakeEntry(rom,0x14u,0x2Cu,0x00u,0xD5C46u,0xEE56u);
     fakeEntry(rom,0x14u,0x2Cu,0x04u,0xD5E2Eu,0xEE56u);
     fakeEntry(rom,0x14u,0x2Eu,0x00u,0xD6722u,0xEF18u);
+    fakeEntry(rom,0x14u,0x2Eu,0x02u,0xD6976u,0xEF18u);
+    fakeEntry(rom,0x14u,0x2Eu,0x06u,0xD6B3Eu,0xEF18u);
     struct Item{unsigned id,action,sub,script,anim;Kind kind;};
     const Item known[]={
       {0x12u,0x2Eu,0x08u,0xD3070u,0xBDA0u,NATIVE_SUPER_ENTRY},
+      {0x12u,0x2Eu,0x00u,0xD2CFCu,0xBDA0u,NATIVE_SUPER_ENTRY},
       {0x12u,0x32u,0x00u,0xD1DACu,0xA5C2u,NATIVE_TAG_OUT},
       {0x14u,0x2Au,0x0Cu,0xD5702u,0xEB0Au,NATIVE_TAG_IN},
-      {0x14u,0x2Cu,0x00u,0xD5C46u,0xEE56u,NATIVE_SUPER_ENTRY},
-      {0x14u,0x2Cu,0x04u,0xD5E2Eu,0xEE56u,NATIVE_SUPER_ENTRY},
-      {0x14u,0x2Eu,0x00u,0xD6722u,0xEF18u,NATIVE_SUPER_ENTRY}
+      {0x14u,0x2Cu,0x00u,0xD5C46u,0xEE56u,NO_EVENT},
+      {0x14u,0x2Cu,0x04u,0xD5E2Eu,0xEE56u,NO_EVENT},
+      {0x14u,0x2Eu,0x00u,0xD6722u,0xEF18u,NATIVE_SUPER_ENTRY},
+      {0x14u,0x2Eu,0x02u,0xD6976u,0xEF18u,NATIVE_SUPER_ENTRY},
+      {0x14u,0x2Eu,0x06u,0xD6B3Eu,0xEF18u,NATIVE_SUPER_ENTRY}
     };
     for(const Item& x:known){
         const Lookup r=resolve(rom.data(),unsigned(rom.size()),x.id,x.action,x.sub);
@@ -96,10 +102,16 @@ int main(){
     assert(tag.event[1].kind==NATIVE_TAG_IN);
     // Incoming Ken's tag is explicitly NOT a super.
     actor(ram,0x4000u,0x14u,0x2Cu,4u,0xD5E2Eu);
-    Report ken=obs.frame(ram.data(),rom.data(),unsigned(rom.size()),107u,false);
+    Report oldKen=obs.frame(ram.data(),rom.data(),unsigned(rom.size()),107u,false);
+    assert(!oldKen.verifiedSuperMask && oldKen.count==0u);
+    actor(ram,0x4000u,0x14u,0x2Eu,0u,0xD6722u);
+    Report ken=obs.frame(ram.data(),rom.data(),unsigned(rom.size()),108u,false);
     assert(ken.verifiedSuperMask==1u && ken.event[0].kind==NATIVE_SUPER_ENTRY);
+    actor(ram,0x4000u,0x14u,0x2Eu,2u,0xD6976u);
+    Report shin=obs.frame(ram.data(),rom.data(),unsigned(rom.size()),109u,false);
+    assert(shin.verifiedSuperMask==1u && shin.event[0].kind==NATIVE_SUPER_ENTRY);
     actor(ram,0x4000u,0x14u,0x2Cu,0u,0xD5C56u);
-    Report wrong=obs.frame(ram.data(),rom.data(),unsigned(rom.size()),108u,false);
+    Report wrong=obs.frame(ram.data(),rom.data(),unsigned(rom.size()),110u,false);
     assert(!wrong.verifiedSuperMask && wrong.count==0u);
     return 0;
 }
