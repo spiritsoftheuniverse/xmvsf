@@ -151,5 +151,22 @@ int main(){
         XM87143Queue::QCF_KK,425u));
     trial.frame(r2.data(),rom.data(),unsigned(rom.size()),425u,1u);
     assert(trial.phase[0]==WAIT_TAG_CONTROLLER);
+    // 87.147 regression: ROM accepts controller 08, but fails to keep
+    // tag action 3200. Do not lock this match after the reverted super.
+    ww(r2.data(),0x40A0u,0x2A00u);
+    wb(r2.data(),0x4256u,0u);
+    trial.frame(r2.data(),rom.data(),unsigned(rom.size()),426u,1u);
+    assert(trial.phase[0]==WAIT_NATIVE_SWAP);
+    assert(rw(r2.data(),0x4060u)==0x3200u);
+    assert(rw(r2.data(),0x404Eu)==0x001Eu);
+    trial.frame(r2.data(),rom.data(),unsigned(rom.size()),427u,1u);
+    ww(r2.data(),0x4060u,0x2E08u); // 68000 reasserts Ryu super
+    trial.frame(r2.data(),rom.data(),unsigned(rom.size()),429u,1u);
+    assert(trial.phase[0]==IDLE && !trial.chainUsed[0]);
+    ww(r2.data(),0x40A0u,0x2A28u);
+    assert(XM87143Queue::state().select(0u,0x14u,
+        XM87143Queue::QCF_PP,436u));
+    trial.frame(r2.data(),rom.data(),unsigned(rom.size()),436u,1u);
+    assert(trial.phase[0]==WAIT_TAG_CONTROLLER);
     return 0;
 }
