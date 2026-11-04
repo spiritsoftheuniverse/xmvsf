@@ -596,6 +596,32 @@ int RunMessageLoop()
 		SDL_Event event;
         while (SDL_PollEvent(&event))
 		{
+            // XM87.141: F10 must reach the recorder BEFORE display, Training
+            // and Versus event handlers have any opportunity to consume it.
+            if(event.type==SDL_KEYDOWN && event.key.keysym.sym==SDLK_F10){
+                if(event.key.repeat==0){
+                    if(event.key.keysym.mod & KMOD_SHIFT){
+                        QuickState(1); // original Shift+F10 load
+                    }else{
+                        const bool wasActive=XM87139Probe::state().active;
+                        const bool ok=XM87139Probe::state().toggle(bDrvOkay!=0);
+                        char note[124];
+                        if(!ok)std::snprintf(note,sizeof(note),
+                            "F10 PROBE ERROR: %s",
+                            bDrvOkay?"LOG FILE COULD NOT OPEN":"NO GAME ACTIVE");
+                        else if(wasActive)std::snprintf(note,sizeof(note),
+                            "F10 PROBE STOP frames=%u file=%s",
+                            XM87139Probe::state().frames,
+                            XM87139Probe::state().tracePath.c_str());
+                        else std::snprintf(note,sizeof(note),
+                            "F10 PROBE ON writing %s",
+                            XM87139Probe::state().tracePath.c_str());
+                        XM87140Chat::state().log((unsigned)GetCurrentFrame(),
+                            ok?XM87140Chat::SYSTEM:XM87140Chat::ALERT,note);
+                    }
+                }
+                continue;
+            }
             if(xm29HandleDisplayHotkey(event,sdlWindow))continue;
             if(!xm14TrainingMode && !xm24VersusMode && event.type==SDL_KEYDOWN && !event.key.repeat){
                 if(event.key.keysym.sym==SDLK_5){
@@ -655,14 +681,8 @@ int RunMessageLoop()
                     if(event.key.repeat==0 && (event.key.keysym.mod&KMOD_SHIFT))
                         XM87140Chat::state().toggle();
                     break;
-                case SDLK_F10: // XM87.139 F10 diagnostics start/stop
-                    if(event.key.repeat==0){
-                        // Prior F10 quick-load is preserved under Shift+F10;
-                        // plain F10 records inputs and native tag/super data.
-                        if(event.key.keysym.mod & KMOD_SHIFT)QuickState(1);
-                        else XM87139Probe::state().toggle(bDrvOkay!=0);
-                    }
-                    break;
+                // F10 handled before menu event consumers (XM87.141).
+
 				case SDLK_F11:
 					bAppShowFPS = !bAppShowFPS;
 #ifdef BUILD_SDL2
