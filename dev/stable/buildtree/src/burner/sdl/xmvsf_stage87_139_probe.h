@@ -19,6 +19,7 @@ static inline std::uint32_t d(const std::uint8_t* r,unsigned a){
 struct Actor {
     unsigned active=0,id=0,bank=0,action=0,mode=0,anim=0;
     unsigned x=0,y=0,face=0,hit70=0,hit72=0,gate82=0,gate83=0;
+    unsigned nativeD6=0,controller256=0,controller259=0,step08=0,timer4E=0,entryA4=0;
     std::uint32_t script34=0,script38=0,vx=0,vy=0;
 };
 static inline Actor actor(const std::uint8_t* r,unsigned a){
@@ -31,6 +32,12 @@ static inline Actor actor(const std::uint8_t* r,unsigned a){
     o.gate83=w(r,a+0x83u);o.script34=d(r,a+0x34u);
     o.script38=d(r,a+0x38u);o.vx=d(r,a+0x14u);
     o.vy=d(r,a+0x1Cu);
+    o.nativeD6=b(r,a+0xD6u);
+    o.controller256=b(r,a+0x256u);
+    o.controller259=b(r,a+0x259u);
+    o.step08=w(r,a+0x08u);
+    o.timer4E=w(r,a+0x4Eu);
+    o.entryA4=b(r,a+0xA4u);
     return o;
 }
 // Already exported from the native SDL input mapping. The mapped samples
@@ -90,7 +97,8 @@ struct State {
           "\tmapP2frame\tmapP2dir\tmapP2held\tmapP2pressed"
           "\tmeterP1\tmeterP2\tactivity\tfighterId\tbank40\taction60\tmodeA0"
           "\tanim42\tx\ty\tfacingBit\tvx\tvy\thit70\thit72\tgate82\tgate83"
-          "\tscript34\tscript38\n",trace);
+          "\tscript34\tscript38\tnativeD6\tcontroller256\tcontroller259"
+          "\tstep08\ttimer4E\tentryA4\n",trace);
         std::fputs("frame\tslot\tpriority\tpalette\ttile\twidth\theight\trawX\trawY"
           "\tattr\tsourceWord0\tsourceWord1\tpassFrom\tpassTo\n",oam);
         // Even if a menu handler formerly stole F10 or no combat frames
@@ -142,13 +150,16 @@ struct State {
                 "%u\t%u\t%s\t%u\t%u\t%02X\t%02X\t%02X\t%02X\t%02X"
                 "\t%u\t%02X\t%02X\t%02X\t%u\t%02X\t%02X\t%02X"
                 "\t%u\t%u\t%04X\t%04X\t%04X\t%04X\t%04X\t%04X"
-                "\t%u\t%u\t%u\t%08X\t%08X\t%04X\t%04X\t%04X\t%04X\t%08X\t%08X\n",
+                "\t%u\t%u\t%u\t%08X\t%08X\t%04X\t%04X\t%04X\t%04X\t%08X\t%08X"
+                "\t%02X\t%02X\t%02X\t%04X\t%04X\t%02X\n",
                 frameId,i,event,phase,stage,p1Buttons,p2Buttons,cpiA,cpiC,cpiE,
                 mf1,md1,mh1,mp1,mf2,md2,mh2,mp2,
                 b(r,0x4214u),b(r,0x4614u),a.active,a.id,a.bank,a.action,
                 a.mode,a.anim,a.x,a.y,a.face,(unsigned)a.vx,(unsigned)a.vy,
                 a.hit70,a.hit72,a.gate82,a.gate83,
-                (unsigned)a.script34,(unsigned)a.script38);
+                (unsigned)a.script34,(unsigned)a.script38,
+                a.nativeD6,a.controller256,a.controller259,a.step08,
+                a.timer4E,a.entryA4);
             prior[i]=a;priorValid[i]=true;
         }
         ++frames;
