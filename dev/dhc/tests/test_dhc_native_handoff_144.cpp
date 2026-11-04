@@ -74,13 +74,23 @@ int main(){
     assert(rw(ram.data(),0x4214u)==3u); // no speculative meter debit
     assert(rw(ram.data(),0x4452u)==0x20u); // P2 untouched
     assert(XM87143Queue::state().selected[0]==nullptr);
-    // Simulate a ROM-owned acceptance of controller 08: the ROM itself
-    // selects 32/00 on the next native CPU frame.
-    ww(ram.data(),0x4060u,0x3200u);
-    ww(ram.data(),0x40A0u,0x2A00u); // simulated Ryu ROM handler, NOT the host
-    wl(ram.data(),0x4034u,0xD1DACu);
+    // Stage 87.146 captured exactly this ROM-owned controller
+    // acceptance: +256 becomes 0, A0 becomes 2A00, but action stays
+    // HADOKEN 2E08. The DHC-only tag bridge must convert the native
+    // controller ACCEPTANCE into outgoing action 3200 and timer 001E.
+    wb(ram.data(),0x4256u,0u);
+    wb(ram.data(),0x4259u,8u);
+    ww(ram.data(),0x40A0u,0x2A00u);
+    assert(rw(ram.data(),0x4060u)==0x2E08u);
     s.frame(ram.data(),rom.data(),unsigned(rom.size()),103u,1u);
     assert(s.phase[0]==WAIT_NATIVE_SWAP);
+    assert(rw(ram.data(),0x4060u)==0x3200u);
+    assert(rl(ram.data(),0x4034u)==0xD1DACu);
+    assert(rw(ram.data(),0x40A0u)==0x2A00u);
+    assert(rw(ram.data(),0x404Eu)==0x001Eu);
+    assert(rb(ram.data(),0x4259u)==0u);
+    assert(rw(ram.data(),0x4008u)==2u);
+    assert(rw(ram.data(),0x4214u)==3u);
     // Real ROM must swap fighter IDs. Do not synthesize it in the engine.
     s.frame(ram.data(),rom.data(),unsigned(rom.size()),104u,1u);
     assert(s.phase[0]==WAIT_NATIVE_SWAP);
