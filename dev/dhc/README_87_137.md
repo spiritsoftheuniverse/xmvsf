@@ -1,5 +1,7 @@
 # XMVSF DHC — native implementation track (Stage 87.137)
 
+**CURRENT TEST: Stage 87.142** — native ROM-table resolution of real Ryu/Ken super scripts and actual tag/partner allocation evidence; facing proxy fixed. See [ROM_SCOUT_87_142.md](ROM_SCOUT_87_142.md). The old 87.138–87.141 notes below are historical. DHC gameplay not yet connected.
+
 **CURRENT EXPERIMENTAL TEST: Stage 87.141.** Ryu/Ken-specific super-input chat and F10 native capture repair. [Read the 87.141 handoff](TEST_87_141_RYU_KEN_F10.md). Older 87.138/87.139/87.140 procedures below are historical and should not be used for current diagnostics. No playable DHC is enabled.
 
 **CURRENT TEST IS 87.139 — F10 READ-ONLY DIAGNOSTICS.**
