@@ -1,0 +1,134 @@
+// Stage15.2: sequential player joining, no premature P1 -> P2 switch.
+// Important: character-select timer remains read-only until its address is verified.
+#ifndef XMVSF_STAGE15_MACHINE_H
+#define XMVSF_STAGE15_MACHINE_H
+#include "xmvsf_stage14_mode.h"
+#include "burnint.h"
+#include <stdio.h>
+#include <string.h>
+
+struct XM15Machine {
+    unsigned int frame;
+    unsigned int p1Picks, p2Picks;
+    // 0 P1 join, 1 P1 select, 2 P2 join, 4 P2 select, 5 await match, 3 combat
+    unsigned char phase;
+    unsigned char attackThisFrame, attackPreviously;
+    unsigned char matchSeen, lastMatchState;
+    unsigned char timerSamples;
+    unsigned char lastTimerSample[0x8000];
+    unsigned char tickCount[0x8000];
+    unsigned int p2JoinFrame;
+    FILE* log;
+};
+extern XM15Machine xm15;
+
+static inline void xm15Reset() {
+    if(xm15.log) { fclose(xm15.log); xm15.log=NULL; }
+    memset(&xm15,0,sizeof(xm15));
+    xm14InputTarget=0;
+    if(xm14TrainingMode) {
+        xm15.log=fopen("xmvsf_stage15_2_select_probe.log","w");
+        if(xm15.log) { fprintf(xm15.log,"Stage15.2 USA 961023 Training; select-timer probe READ ONLY\n"); fflush(xm15.log); }
+    }
+}
+
+// These are game-input pulses, not a permanent EEPROM free-play setting.
+// P1 joins before P2. Never pulse both Start lines together during initial boot.
+static inline int xm15SyntheticButton(int player,int sub) {
+    if(!xm14TrainingMode || player<0 || player>1) return 0;
+    if (xm15.phase==0 && player==0) {
+        const unsigned int f=xm15.frame;
+        if(sub==0x86) return f>=180 && ((f-180)%240)==0; // P1 Coin
+        if(sub==0x87) return f>=205 && ((f-205)%240)<=1; // P1 Start
+    }
+    if (xm15.phase==2 && player==1) {
+        const unsigned int age=xm15.frame-xm15.p2JoinFrame;
+        if(sub==0x86) return age==20;                 // P2 Coin, once
+        if(sub==0x87) return age==45 || age==46;   // P2 Start, after Coin
+    }
+    return 0;
+}
+
+static inline void xm15ObserveInput(int player,int sub,int value) {
+    if(!xm14TrainingMode || !value || sub<0x80 || sub>0x85) return;
+    if((player==0 && xm15.phase<=1 && xm14InputTarget==0) ||
+       (player==1 && xm15.phase==4 && xm14InputTarget==1)) xm15.attackThisFrame=1;
+}
+
+static inline void xm15LogState(const unsigned char state) {
+    if(xm15.log && state!=xm15.lastMatchState) {
+        fprintf(xm15.log,"f=%u match_state=%02X phase=%u p1=%u p2=%u\n",xm15.frame,state,xm15.phase,xm15.p1Picks,xm15.p2Picks);
+        fflush(xm15.log);
+    }
+    xm15.lastMatchState=state;
+}
+
+// Read-only diagnostics. Do NOT write an unverified selection-countdown address.
+static inline void xm15ProbeSelectTimer(cpu_core_config* cpu) {
+    if(!cpu || !cpu->read || !cpu->open || !cpu->close ||
+        (xm15.phase!=1 && xm15.phase!=4) || xm15.frame%60!=0 || xm15.timerSamples>=16) return;
+    cpu->open(0);
+    unsigned int candidates=0;
+    for(unsigned int i=0;i<0x8000;i++) {
+        const unsigned char v=cpu->read(0xFF0000+i);
+        const unsigned char old=xm15.lastTimerSample[i];
+        const unsigned int a=(old>>4)*10+(old&0x0f), b=(v>>4)*10+(v&0x0f);
+        if((old>>4)<=9 && (old&15)<=9 && (v>>4)<=9 && (v&15)<=9 &&
+            a>=10 && b+1==a && old!=v) {
+            if(xm15.tickCount[i]<255)xm15.tickCount[i]++;
+            if(xm15.tickCount[i]>=2) {
+                candidates++;
+                if(xm15.log) fprintf(xm15.log,"candidate=%06X old=%02X now=%02X hits=%u\n",0xFF0000+i,old,v,xm15.tickCount[i]);
+            }
+        }
+        xm15.lastTimerSample[i]=v;
+    }
+    cpu->close();
+    xm15.timerSamples++;
+    if(xm15.log) { fprintf(xm15.log,"timer_scan=%u candidates=%u\n",xm15.timerSamples,candidates);fflush(xm15.log); }
+}
+
+// Called after a completed real game frame (not during runahead).
+static inline void xm15OnRealFrame(int driverReady) {
+    if(!xm14TrainingMode || bBurnRunAheadFrame || !driverReady) return;
+    xm15.frame++;
+    cpu_core_config* cpu=GetCpuCoreConfig(0);
+    if(cpu && cpu->read && cpu->open && cpu->close) {
+        cpu->open(0);
+        const unsigned char state=cpu->read(0xFF5000);
+        cpu->close();
+        xm15LogState(state);
+        if(state==0x08 && (xm15.p1Picks || xm15.p2Picks)) {
+            if(!xm15.matchSeen && xm15.log) {fprintf(xm15.log,"COMBAT_STARTED f=%u\n",xm15.frame);fflush(xm15.log);}
+            xm15.matchSeen=1;xm15.phase=3;xm14InputTarget=0;
+        }
+        xm15ProbeSelectTimer(cpu);
+    }
+    // Join P2 only after P1 has made two distinct confirmation presses.
+    // This is still an INPUT-EDGE heuristic, not authoritative selection state.
+    if(xm15.phase!=3 && xm15.attackThisFrame && !xm15.attackPreviously) {
+        if((xm15.phase==0 && xm15.frame>=240) || xm15.phase==1) {
+            xm15.phase=1; xm15.p1Picks++;
+            if(xm15.log) {fprintf(xm15.log,"P1_CONFIRM_HEURISTIC %u f=%u\n",xm15.p1Picks,xm15.frame);fflush(xm15.log);}
+            if(xm15.p1Picks>=2) {
+                xm15.phase=2; xm15.p2JoinFrame=xm15.frame;
+                xm14InputTarget=0; // VERY IMPORTANT: P1 still owns P1 during P2 join
+                if(xm15.log) {fprintf(xm15.log,"P2_JOIN_PENDING f=%u\n",xm15.frame);fflush(xm15.log);}
+            }
+        } else if(xm15.phase==4) {
+            xm15.p2Picks++;
+            if(xm15.log) {fprintf(xm15.log,"P2_CONFIRM_HEURISTIC %u f=%u\n",xm15.p2Picks,xm15.frame);fflush(xm15.log);}
+            if(xm15.p2Picks>=2) {
+                xm15.phase=5;xm14InputTarget=0;
+                if(xm15.log) {fprintf(xm15.log,"WAITING_FOR_COMBAT f=%u\n",xm15.frame);fflush(xm15.log);}
+            }
+        }
+    }
+    if(xm15.phase==2 && (xm15.frame-xm15.p2JoinFrame)>=55) {
+        xm15.phase=4;xm14InputTarget=1; // Only after P2 Coin/Start pulses completed
+        if(xm15.log) {fprintf(xm15.log,"P1_CONTROLLER_TO_P2_SELECT f=%u\n",xm15.frame);fflush(xm15.log);}
+    }
+    xm15.attackPreviously=xm15.attackThisFrame;
+    xm15.attackThisFrame=0;
+}
+#endif

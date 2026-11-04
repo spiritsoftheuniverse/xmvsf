@@ -1,0 +1,278 @@
+#ifndef XMVSF_STAGE20_WASAPI_IMPL_H
+#define XMVSF_STAGE20_WASAPI_IMPL_H
+// Windows-only WASAPI sink + independent QPC scheduler. Included exactly once
+// from the patched aud_sdl.cpp; link with ole32 and uuid.
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#include <mmdeviceapi.h>
+#include <audioclient.h>
+#include <SDL.h>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <cmath>
+#include <cstdint>
+#include <algorithm>
+#ifdef min
+#undef min
+#endif
+#ifdef max
+#undef max
+#endif
+#include "../../../burner/sdl/xmvsf_stage20_api.h"
+
+namespace xm20 {
+static constexpr unsigned kGameCapacity = 1u << 17; // stereo sample frames
+struct Clip {
+    Uint8* pcm = nullptr;
+    uint32_t frames = 0;
+    double pos = 0;
+    void release() { if (pcm) SDL_FreeWAV(pcm); pcm=nullptr; frames=0; pos=0; }
+};
+struct Machine {
+    HANDLE thread = nullptr;
+    HANDLE stop = nullptr;
+    HANDLE event = nullptr;
+    CRITICAL_SECTION lock;
+    bool csReady = false;
+    bool begun = false;
+    volatile LONG threadStatus = 0;
+    Clip music, move, confirm;
+    float musicGain = 0.5f, musicTarget = 0.5f, gameGain = 1.f;
+    bool moveOn = false, confirmOn = false, fight = false, gameStarted = false;
+    uint32_t gameHz = 48000;
+    int16_t* game = nullptr;
+    uint64_t produced = 0;
+    double consumed = 0;
+    int dropped = 0;
+    int underflows = 0;
+};
+static Machine m;
+static LARGE_INTEGER qpf = {};
+static double deadline = 0;
+static bool clockStarted = false;
+
+static bool clipLoad(Clip& dst, const char* filename) {
+    char path[1024] = {};
+    char* base = SDL_GetBasePath();
+    snprintf(path, sizeof(path), "%sassets/xmvsf/%s", base ? base : "", filename);
+    if (base) SDL_free(base);
+    SDL_AudioSpec spec = {};
+    Uint8* data = nullptr; Uint32 bytes = 0;
+    if (!SDL_LoadWAV(path,&spec,&data,&bytes)) {
+        fprintf(stderr,"XM20 asset unavailable: %s: %s\n",path,SDL_GetError());
+        return false;
+    }
+    if (spec.freq != 48000 || spec.channels != 2 || spec.format != AUDIO_S16SYS || bytes%4) {
+        fprintf(stderr,"XM20 requires 48 kHz stereo signed 16-bit: %s\n",path);
+        SDL_FreeWAV(data);return false;
+    }
+    dst.pcm = data; dst.frames = bytes/4;dst.pos=0;return true;
+}
+static float clipSample(const Clip& c, uint32_t f, int ch) {
+    if (!c.pcm || f>=c.frames) return 0.f;
+    return (reinterpret_cast<const int16_t*>(c.pcm)[f*2+ch])/32768.f;
+}
+static float linearClip(const Clip& c, double pos, int ch) {
+    if (!c.pcm || !c.frames) return 0.f;
+    uint32_t lo = static_cast<uint32_t>(pos);
+    if (lo>=c.frames) return 0.f;
+    const uint32_t hi = std::min(lo+1,c.frames-1);
+    const float t=static_cast<float>(pos-lo);
+    return clipSample(c,lo,ch)*(1.f-t)+clipSample(c,hi,ch)*t;
+}
+static void advanceClip(Clip& c, double step, bool repeat) {
+    if (!c.pcm || !c.frames) return;
+    c.pos += step;
+    if (repeat) { while (c.pos>=c.frames) c.pos -= c.frames; }
+    else if (c.pos>=c.frames) c.pos=c.frames;
+}
+static inline float clamp(float f) { return std::max(-1.f,std::min(1.f,f)); }
+static bool subtype(const WAVEFORMATEX* f, DWORD type) {
+    if(f->wFormatTag != WAVE_FORMAT_EXTENSIBLE || f->cbSize < 22) return false;
+    static const BYTE tail[8] = {0x80,0x00,0x00,0xaa,0x00,0x38,0x9b,0x71};
+    const GUID& g = reinterpret_cast<const WAVEFORMATEXTENSIBLE*>(f)->SubFormat;
+    return g.Data1==type && g.Data2==0 && g.Data3==0x0010 && memcmp(g.Data4,tail,8)==0;
+}
+static bool isFloat(const WAVEFORMATEX* f) {
+    if (f->wFormatTag == WAVE_FORMAT_IEEE_FLOAT) return f->wBitsPerSample==32;
+    if (f->wFormatTag == WAVE_FORMAT_EXTENSIBLE && f->cbSize>=22)
+        return subtype(f,3) && f->wBitsPerSample==32;
+    return false;
+}
+static bool isPcm(const WAVEFORMATEX* f) {
+    if (f->wFormatTag == WAVE_FORMAT_PCM) return true;
+    if (f->wFormatTag == WAVE_FORMAT_EXTENSIBLE && f->cbSize>=22)
+        return subtype(f,1);
+    return false;
+}
+static void putSample(BYTE* dest, unsigned channel, unsigned bits, bool floats, float value) {
+    value=clamp(value);
+    const unsigned stride=bits/8;
+    BYTE* p = dest + channel*stride;
+    if (floats) { const float v=value; memcpy(p,&v,sizeof(v)); }
+    else if (bits==16) { const int16_t v = static_cast<int16_t>(value*32767.f); memcpy(p,&v,sizeof(v)); }
+    else if (bits==24) {
+        const int32_t v = static_cast<int32_t>(value*8388607.f);
+        p[0]=static_cast<BYTE>(v);p[1]=static_cast<BYTE>(v>>8);p[2]=static_cast<BYTE>(v>>16);
+    } else if (bits==32) { const int32_t v = static_cast<int32_t>(value*2147483647.f);memcpy(p,&v,sizeof(v)); }
+}
+static void fillFrames(BYTE* output, UINT32 count, const WAVEFORMATEX* fmt) {
+    const bool floats=isFloat(fmt);
+    const unsigned hz=fmt->nSamplesPerSec,channels=fmt->nChannels,bits=fmt->wBitsPerSample;
+    const double musicStep=48000.0/hz;
+    const double gameStep=static_cast<double>(m.gameHz)/hz;
+    const uint32_t fadeFrames=240; // loop seam only, music remains continuous
+    EnterCriticalSection(&m.lock);
+    for (UINT32 i=0;i<count;i++) {
+        const float increment=1.0f/(hz*0.15f);
+        if (m.musicGain<m.musicTarget) m.musicGain=std::min(m.musicTarget,m.musicGain+increment);
+        else if(m.musicGain>m.musicTarget) m.musicGain=std::max(m.musicTarget,m.musicGain-increment);
+        float channelsOut[2]={};
+        for (int ch=0;ch<2;ch++) {
+            float game=0;
+            // Consume emulation audio opportunistically. Its buffer can never advance the game clock.
+            const uint64_t base=static_cast<uint64_t>(m.consumed);
+            if (m.gameStarted && base+1<m.produced && m.produced-base<kGameCapacity) {
+                const double blend=m.consumed-base;
+                const auto get=[&](uint64_t p)->float{return m.game[(p%kGameCapacity)*2+ch]/32768.f;};
+                game=static_cast<float>(get(base)*(1.0-blend)+get(base+1)*blend)*m.gameGain;
+            }
+            float music=linearClip(m.music,m.music.pos,ch);
+            if(m.music.frames>fadeFrames && m.music.pos>=m.music.frames-fadeFrames) {
+                const float t=static_cast<float>((m.music.pos-(m.music.frames-fadeFrames))/fadeFrames);
+                music=music*(1.f-t)+linearClip(m.music,m.music.pos-(m.music.frames-fadeFrames),ch)*t;
+            }
+            const float movement = m.moveOn ? linearClip(m.move,m.move.pos,ch)*0.82f : 0.f;
+            const float confirmation = m.confirmOn ? linearClip(m.confirm,m.confirm.pos,ch)*0.90f : 0.f;
+            // Before confirmed combat, original QSound is muted. This also mutes game SFX;
+            // selective QSound music routing is NOT implemented in this stage.
+            channelsOut[ch]=clamp((m.fight?game:0.f)+m.musicGain*music+movement+confirmation);
+        }
+        BYTE* dest=output+static_cast<size_t>(i)*fmt->nBlockAlign;
+        for(unsigned ch=0;ch<channels;ch++)putSample(dest,ch,bits,floats,ch<2?channelsOut[ch]:0.f);
+        advanceClip(m.music,musicStep,true);
+        if (m.moveOn) {advanceClip(m.move,musicStep,false);if(m.move.pos>=m.move.frames)m.moveOn=false;}
+        if (m.confirmOn){advanceClip(m.confirm,musicStep,false);if(m.confirm.pos>=m.confirm.frames)m.confirmOn=false;}
+        if(m.gameStarted && m.consumed+1<m.produced) m.consumed+=gameStep;
+        else if(m.gameStarted && m.fight) ++m.underflows;
+        // Keep latency bounded if the consumer stalls or the audio device changes.
+        if(m.produced>static_cast<uint64_t>(m.consumed)+m.gameHz/4u)
+            m.consumed=static_cast<double>(m.produced-m.gameHz/8u);
+    }
+    LeaveCriticalSection(&m.lock);
+}
+static DWORD WINAPI audioThread(LPVOID) {
+    HRESULT hr=CoInitializeEx(nullptr,COINIT_MULTITHREADED);
+    if (FAILED(hr)) { fprintf(stderr,"XM20 CoInitializeEx: 0x%08lx\n",static_cast<unsigned long>(hr));return 1; }
+    IMMDeviceEnumerator* en=nullptr; IMMDevice* endpoint=nullptr;
+    IAudioClient* client=nullptr; IAudioRenderClient* render=nullptr; WAVEFORMATEX* fmt=nullptr;
+    UINT32 bufCount=0;
+    do {
+        hr=CoCreateInstance(__uuidof(MMDeviceEnumerator),nullptr,CLSCTX_ALL,__uuidof(IMMDeviceEnumerator),reinterpret_cast<void**>(&en));if(FAILED(hr))break;
+        hr=en->GetDefaultAudioEndpoint(eRender,eConsole,&endpoint);if(FAILED(hr))break;
+        hr=endpoint->Activate(__uuidof(IAudioClient),CLSCTX_ALL,nullptr,reinterpret_cast<void**>(&client));if(FAILED(hr))break;
+        hr=client->GetMixFormat(&fmt);if(FAILED(hr))break;
+        if(fmt->nChannels<2 || fmt->nBlockAlign != (fmt->wBitsPerSample/8)*fmt->nChannels ||
+            !(isFloat(fmt) || (isPcm(fmt) && (fmt->wBitsPerSample==16 || fmt->wBitsPerSample==24 || fmt->wBitsPerSample==32)))) {
+            fprintf(stderr,"XM20 unsupported shared audio format: tag=%u channels=%u bits=%u\n",fmt->wFormatTag,fmt->nChannels,fmt->wBitsPerSample);break;
+        }
+        // Host mix format means no exclusive-mode changes and no second conversion service.
+        hr=client->Initialize(AUDCLNT_SHAREMODE_SHARED,AUDCLNT_STREAMFLAGS_EVENTCALLBACK,0,0,fmt,nullptr);if(FAILED(hr))break;
+        hr=client->GetBufferSize(&bufCount);if(FAILED(hr))break;
+        hr=client->SetEventHandle(m.event);if(FAILED(hr))break;
+        hr=client->GetService(__uuidof(IAudioRenderClient),reinterpret_cast<void**>(&render));if(FAILED(hr))break;
+        BYTE* packet=nullptr;
+        hr=render->GetBuffer(bufCount,&packet);if(FAILED(hr))break;
+        fillFrames(packet,bufCount,fmt);
+        hr=render->ReleaseBuffer(bufCount,0);if(FAILED(hr))break;
+        hr=client->Start();if(FAILED(hr))break;
+        InterlockedExchange(&m.threadStatus,1);
+        fprintf(stderr,"XM20 WASAPI started: %luHz %u channels %u bits; game independent clock\n",
+                static_cast<unsigned long>(fmt->nSamplesPerSec),fmt->nChannels,fmt->wBitsPerSample);
+        HANDLE waits[]={m.stop,m.event};
+        while(true) {
+            DWORD wr=WaitForMultipleObjects(2,waits,FALSE,200);
+            if(wr==WAIT_OBJECT_0)break;
+            if(wr!=WAIT_OBJECT_0+1)continue;
+            UINT32 pad=0;
+            if(FAILED(client->GetCurrentPadding(&pad)))break;
+            if (pad>=bufCount)continue;
+            const UINT32 frames=bufCount-pad;
+            if (FAILED(render->GetBuffer(frames,&packet)))break;
+            fillFrames(packet,frames,fmt);
+            if (FAILED(render->ReleaseBuffer(frames,0)))break;
+        }
+        client->Stop();
+    } while(false);
+    if(FAILED(hr))fprintf(stderr,"XM20 WASAPI error: 0x%08lx\n",static_cast<unsigned long>(hr));
+    InterlockedExchange(&m.threadStatus,-1);
+    if(render)render->Release();if(client)client->Release();if(endpoint)endpoint->Release();if(en)en->Release();
+    if(fmt)CoTaskMemFree(fmt);
+    CoUninitialize();return 0;
+}
+static void shutdown() {
+    if(!m.begun)return;
+    if(m.stop)SetEvent(m.stop);
+    if(m.thread){WaitForSingleObject(m.thread,2000);CloseHandle(m.thread);m.thread=nullptr;}
+    if(m.stop){CloseHandle(m.stop);m.stop=nullptr;}
+    if(m.event){CloseHandle(m.event);m.event=nullptr;}
+    m.music.release();m.move.release();m.confirm.release();
+    if(m.game){free(m.game);m.game=nullptr;}
+    if(m.csReady){DeleteCriticalSection(&m.lock);m.csReady=false;}
+    m.begun=false;
+}
+static bool start() {
+    if(m.begun)return true;
+    InitializeCriticalSection(&m.lock);m.csReady=true;m.begun=true;
+    m.game=reinterpret_cast<int16_t*>(calloc(kGameCapacity*2,sizeof(int16_t)));
+    if (!m.game){shutdown();return false;}
+    m.stop=CreateEventW(nullptr,TRUE,FALSE,nullptr);
+    m.event=CreateEventW(nullptr,FALSE,FALSE,nullptr);
+    if(!m.stop || !m.event){shutdown();return false;}
+    clipLoad(m.music,"xmvsfMenu.wav");clipLoad(m.move,"menu_movement1.wav");clipLoad(m.confirm,"menu_selection1.wav");
+    m.thread=CreateThread(nullptr,0,audioThread,nullptr,0,nullptr);
+    if(!m.thread){shutdown();return false;}
+    atexit(shutdown);
+    return true;
+}
+static void queue(const int16_t* samples,unsigned frames,unsigned hz) {
+    if(!samples || !frames || !m.begun || !m.csReady)return;
+    EnterCriticalSection(&m.lock);
+    m.gameHz=hz;
+    if(!m.gameStarted) {m.gameStarted=true;m.produced=0;m.consumed=0;}
+    for(unsigned i=0;i<frames;i++) {
+        const uint64_t w=m.produced++;
+        m.game[(w%kGameCapacity)*2]=samples[i*2];m.game[(w%kGameCapacity)*2+1]=samples[i*2+1];
+    }
+    if(m.produced>static_cast<uint64_t>(m.consumed)+kGameCapacity-2) {
+        m.consumed=static_cast<double>(m.produced-m.gameHz/8u);++m.dropped;
+    }
+    LeaveCriticalSection(&m.lock);
+}
+} // namespace xm20
+void xm20MenuStart(){ xm20::start(); }
+void xm20MenuMovement(){if(xm20::m.csReady){EnterCriticalSection(&xm20::m.lock);xm20::m.move.pos=0;xm20::m.moveOn=true;LeaveCriticalSection(&xm20::m.lock);}}
+void xm20MenuConfirm(){if(xm20::m.csReady){EnterCriticalSection(&xm20::m.lock);xm20::m.confirm.pos=0;xm20::m.confirmOn=true;LeaveCriticalSection(&xm20::m.lock);}}
+void xm20MenuEnterGame(){if(xm20::m.csReady){EnterCriticalSection(&xm20::m.lock);xm20::m.musicTarget=1.f;xm20::m.fight=false;LeaveCriticalSection(&xm20::m.lock);}}
+void xm20OnCombat(){if(xm20::m.csReady){EnterCriticalSection(&xm20::m.lock);xm20::m.musicTarget=0.f;xm20::m.fight=true;LeaveCriticalSection(&xm20::m.lock);}}
+void xm20ClockReset(){xm20::clockStarted=false;}
+int xm20FrameDue(int fpsHundredths) {
+    if(fpsHundredths<1000 || fpsHundredths>10000)fpsHundredths=5964;
+    if(!xm20::qpf.QuadPart)QueryPerformanceFrequency(&xm20::qpf);
+    LARGE_INTEGER now={};QueryPerformanceCounter(&now);
+    const double interval=static_cast<double>(xm20::qpf.QuadPart)*100.0/fpsHundredths;
+    if(!xm20::clockStarted){xm20::deadline=static_cast<double>(now.QuadPart);xm20::clockStarted=true;}
+    if(static_cast<double>(now.QuadPart)<xm20::deadline){
+        const double seconds=(xm20::deadline-now.QuadPart)/xm20::qpf.QuadPart;
+        if(seconds>0.002)Sleep(static_cast<DWORD>(seconds*1000)-1);
+        return 0;
+    }
+    xm20::deadline+=interval;
+    if(static_cast<double>(now.QuadPart)>xm20::deadline+interval*2) xm20::deadline=now.QuadPart+interval;
+    return 1;
+}
+#endif

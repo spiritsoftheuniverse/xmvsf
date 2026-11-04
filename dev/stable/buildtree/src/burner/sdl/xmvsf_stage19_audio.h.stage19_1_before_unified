@@ -1,0 +1,151 @@
+// XMVSF Stage19: independent presentation audio for the persistent SDL2 window.
+// Owns one audio output device for menu music + UI one-shots. No QSound, ROM,
+// frame scheduler, or input polling modifications. C++ definitions: main.cpp only.
+#ifndef XMVSF_STAGE19_AUDIO_H
+#define XMVSF_STAGE19_AUDIO_H
+#include <SDL.h>
+#include <cstdio>
+#include <cstring>
+#include <cstdint>
+#include <cmath>
+
+struct XM19Sound {
+    SDL_AudioSpec spec;
+    Uint8 *samples;
+    Uint32 byteLength;
+    Uint32 frames;
+    Uint32 cursor;
+};
+struct XM19Audio {
+    SDL_AudioDeviceID device;
+    XM19Sound music, cursorSound, confirmSound;
+    float gain, target;
+    unsigned int cursorIndex, confirmIndex;
+    int cursorActive, confirmActive, combatFadeStarted;
+};
+static XM19Audio xm19 = {};
+
+static void xm19AudioAssetPath(const char* name, char* output, size_t count) {
+    char* base = SDL_GetBasePath();
+    if (base) {
+        snprintf(output, count, "%sassets/xmvsf/%s",base,name);
+        SDL_free(base);
+    } else {
+        snprintf(output,count,"assets/xmvsf/%s",name);
+    }
+}
+static int xm19AudioLoad(XM19Sound* sound,const char* name) {
+    char path[1024];xm19AudioAssetPath(name,path,sizeof(path));
+    SDL_AudioSpec spec={}; Uint8* data=nullptr; Uint32 len=0;
+    if (!SDL_LoadWAV(path,&spec,&data,&len)) {
+        fprintf(stderr,"XMVSF presentation audio: can't open %s: %s\n",path,SDL_GetError());return 0;
+    }
+    // Assets are packaged as 48000 Hz, 16-bit, stereo; avoid conversion inside callback.
+    if (spec.freq!=48000 || spec.format!=AUDIO_S16SYS || spec.channels!=2 || len<4 || len%4) {
+        fprintf(stderr,"XMVSF presentation audio: invalid PCM16 stereo 48k file: %s\n",path);
+        SDL_FreeWAV(data);return 0;
+    }
+    sound->spec=spec;sound->samples=data;sound->byteLength=len;sound->frames=len/4;sound->cursor=0;
+    return 1;
+}
+static inline float xm19AudioSample(XM19Sound* sound, Uint32 pos, unsigned int channel) {
+    const int16_t* pcm=reinterpret_cast<const int16_t*>(sound->samples);
+    return pcm[pos*2+channel];
+}
+static void SDLCALL xm19AudioCallback(void* opaque, Uint8* stream, int length) {
+    XM19Audio* a=reinterpret_cast<XM19Audio*>(opaque);
+    memset(stream,0,length);
+    if (!a || !a->music.samples || length<4) return;
+    int16_t* output=reinterpret_cast<int16_t*>(stream);
+    const unsigned int frameCount=unsigned(length)/4;
+    const Uint32 xfade = a->music.frames>1024 ? 240 : 0; // five milliseconds
+    for (unsigned int i=0;i<frameCount;i++) {
+        // Fade on the audio clock, not on frame/timer polling.
+        float diff=a->target-a->gain;
+        const float step=1.0f/7200.0f; // <=150 ms full-scale transition
+        if (diff>step) a->gain+=step;
+        else if (diff< -step) a->gain-=step;
+        else a->gain=a->target;
+        for (unsigned int ch=0;ch<2;ch++) {
+            float music=xm19AudioSample(&a->music,a->music.cursor,ch);
+            if (xfade && a->music.cursor>=a->music.frames-xfade) {
+                const Uint32 k=a->music.cursor-(a->music.frames-xfade);
+                const float t=float(k+1)/float(xfade);
+                const float intro=xm19AudioSample(&a->music,k,ch);
+                music=music*(1.f-t)+intro*t;
+            }
+            float mixed=music*a->gain;
+            if (a->cursorActive && a->cursorIndex<a->cursorSound.frames)
+                mixed+=0.82f*xm19AudioSample(&a->cursorSound,a->cursorIndex,ch);
+            if (a->confirmActive && a->confirmIndex<a->confirmSound.frames)
+                mixed+=0.90f*xm19AudioSample(&a->confirmSound,a->confirmIndex,ch);
+            if (mixed>32767.f)mixed=32767.f;
+            if (mixed< -32768.f)mixed=-32768.f;
+            output[i*2+ch]=int16_t(mixed);
+        }
+        ++a->music.cursor;
+        if (a->music.cursor>=a->music.frames)a->music.cursor=xfade;
+        if (a->cursorActive && ++a->cursorIndex>=a->cursorSound.frames)a->cursorActive=0;
+        if (a->confirmActive && ++a->confirmIndex>=a->confirmSound.frames)a->confirmActive=0;
+    }
+}
+static void xm19AudioShutdown() {
+    if (xm19.device) {SDL_CloseAudioDevice(xm19.device);xm19.device=0;}
+    if (xm19.music.samples) SDL_FreeWAV(xm19.music.samples);
+    if (xm19.cursorSound.samples) SDL_FreeWAV(xm19.cursorSound.samples);
+    if (xm19.confirmSound.samples) SDL_FreeWAV(xm19.confirmSound.samples);
+    memset(&xm19,0,sizeof(xm19));
+}
+static int xm19AudioStart() {
+    if (SDL_InitSubSystem(SDL_INIT_AUDIO)!=0) {
+        fprintf(stderr,"XMVSF presentation audio: SDL audio unavailable: %s\n",SDL_GetError());
+        return 0; // Never prevent game boot on an unavailable audio device.
+    }
+    if (!xm19AudioLoad(&xm19.music,"xmvsfMenu.wav") ||
+        !xm19AudioLoad(&xm19.cursorSound,"menu_movement1.wav") ||
+        !xm19AudioLoad(&xm19.confirmSound,"menu_selection1.wav")) {
+        xm19AudioShutdown();return 0;
+    }
+    SDL_AudioSpec want={};want.freq=48000;want.format=AUDIO_S16SYS;
+    want.channels=2;want.samples=1024;want.callback=xm19AudioCallback;want.userdata=&xm19;
+    SDL_AudioSpec got={};
+    xm19.device=SDL_OpenAudioDevice(nullptr,0,&want,&got,0); // No conversion or resample on audio callback.
+    if (!xm19.device) {
+        fprintf(stderr,"XMVSF presentation audio: unable to open device: %s\n",SDL_GetError());
+        xm19AudioShutdown();return 0;
+    }
+    xm19.gain=0.5f;xm19.target=0.5f; // Main menu at half volume
+    SDL_PauseAudioDevice(xm19.device,0);
+    return 1;
+}
+static inline void xm19AudioMovement() {
+    if (!xm19.device) return;
+    SDL_LockAudioDevice(xm19.device);
+    xm19.cursorIndex=0;xm19.cursorActive=1;
+    SDL_UnlockAudioDevice(xm19.device);
+}
+static inline void xm19AudioConfirm() {
+    if (!xm19.device) return;
+    SDL_LockAudioDevice(xm19.device);
+    xm19.confirmIndex=0;xm19.confirmActive=1;
+    SDL_UnlockAudioDevice(xm19.device);
+}
+static inline void xm19AudioEnterGame() {
+    if (!xm19.device) return;
+    SDL_LockAudioDevice(xm19.device);
+    xm19.target=1.f; // same playback cursor, no restart when entering game
+    xm19.combatFadeStarted=0;
+    SDL_UnlockAudioDevice(xm19.device);
+}
+// Called from SDL gameplay loop for both Arcade and Training on confirmed live combat.
+// There is deliberately NO QSound/music-channel modification in Stage19.
+void xm19AudioOnCombat() {
+    if (!xm19.device) return;
+    SDL_LockAudioDevice(xm19.device);
+    if (!xm19.combatFadeStarted) {
+        xm19.combatFadeStarted=1;
+        xm19.target=0.f; // original game audio fully audible throughout
+    }
+    SDL_UnlockAudioDevice(xm19.device);
+}
+#endif

@@ -1,0 +1,13 @@
+frame	event	player	mode	patched	previous_action	action	substate	dizzy135	other134	stun_remaining	stun_capacity	f6	gate83	y	life210	detail
+780	TOURNAMENT_NATIVE_HANDOFF_INSTALLED	-	1	1	-	-	-	-	-	-	-	-	-	-	-	-	WORD_SWAP: @12B88 CLR.B (135,A6); JMP $11FC0 native recovery; original @150CE pop flag ST unchanged
+3373	DIZZY_POP_INTACT	P2	1	1	1C04	1C38	000C	FF	00	0	60	0000	80	472	81	No 68000 pop action/velocity rewrite; 87.95 retains airborne collision
+3453	POP_EXIT_FLAG_ALREADY_CLEARED	P2	1	1	1C3A	0000	0000	00	00	0	60	0000	80	472	81	native handler or normal recovery cleared +135
+4541	DIZZY_POP_INTACT	P2	1	1	1C2A	1C38	000C	FF	00	0	60	0000	80	393	1	No 68000 pop action/velocity rewrite; 87.95 retains airborne collision
+4625	POP_EXIT_FLAG_ALREADY_CLEARED	P2	1	1	1C3A	0000	0000	00	00	0	60	0000	80	472	1	native handler or normal recovery cleared +135
+5541	DIZZY_POP_INTACT	P2	1	1	1C30	1C36	0000	00	78	0	60	0000	80	463	1	No 68000 pop action/velocity rewrite; 87.95 retains airborne collision
+5549	POP_EXIT_FLAG_ALREADY_CLEARED	P2	1	1	1C36	0216	0000	00	78	0	60	0000	80	418	1	native handler or normal recovery cleared +135
+5577	DIZZY_POP_INTACT	P2	1	1	0000	1C38	000C	FF	00	0	60	0000	80	472	1	No 68000 pop action/velocity rewrite; 87.95 retains airborne collision
+5655	NATIVE_POP_INTERRUPTED_BY_NEW_ACTION	P2	1	1	1C3A	1C14	000C	FF	78	0	60	0000	80	414	1	clearing only CPU dizzy marker +135 after ROM changed action
+5655	DIZZY_MARKER_CLEARED_AFTER_POP_EXIT	P2	1	1	1C3A	1C14	000C	00	78	0	60	0000	80	414	1	no changes to action, life, stun, velocity, hurtbox or hitboxes
+5806	DIZZY_POP_INTACT	P2	1	1	1C16	1C36	0000	00	78	0	60	0000	80	472	1	No 68000 pop action/velocity rewrite; 87.95 retains airborne collision
+5815	POP_EXIT_FLAG_ALREADY_CLEARED	P2	1	1	1C36	0216	0000	00	78	0	60	0000	80	431	1	native handler or normal recovery cleared +135

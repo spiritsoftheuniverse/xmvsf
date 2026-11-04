@@ -1,0 +1,24 @@
+{
+  "version": "87.126",
+  "new_files": {
+    "BUILD_TEST.bat": "4648a5f8dce81a26b95f924dd90492685b386a8fa13512c77936ad36d9159aca",
+    "RUN_TEST.bat": "b2e0901c3955a74d8fd229eeada3e4ffe65e8a4ffa54b567f6165621cf5fc636",
+    "dev/stable/releases/87_126/build_87126.py": "9f27e54661d5a80afc12b0b4c0b9eefc3c38a0bd862f059887178cc84db27a1a",
+    "dev/stable/releases/87_126/run_87126.py": "a24c238a1f136c3a2d8c69f0a30faaa3855c953f182dbef21055b733cceaab14",
+    "dev/stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_126_storm_voice_trace.h": "87f0b2f942692b3666767c64ade30c6ec9ae240b3dd65ecadedcfc070404181b",
+    "dev/stable/buildtree/src/burn/drv/capcom/qs_z.cpp": "9da2ec9ab6e91b65157cd88af7471f9c98d39bd9ca904968dca9fe1833eb163d",
+    "dev/stable/buildtree/src/burner/sdl/xmvsf_stage86_56_final.h": "2050b13034fc1a42deae356a450cac9483d8ff57d5ef205d41629fff2628f4f4"
+  },
+  "expected_old": {
+    "dev/stable/buildtree/src/burn/drv/capcom/qs_z.cpp": "2c425316ae10d88972b24719ad7bca3cb9a2b60b4fdcb2b4f1c8c9c566c67b06",
+    "dev/stable/buildtree/src/burner/sdl/xmvsf_stage86_56_final.h": "e08ae93a17f0af4896a4c62aa67fe342c658bde0136c854d22a02dbcaa076be5",
+    "BUILD_TEST.bat": "c24c746e3baf23babf1b07dc1dc21a50d94a7547e795ea75f17ed44510b9cc44",
+    "RUN_TEST.bat": "da09143521ee877ca4beed1fafd7846be10a435d08e2dc797920b0a6d9aa255f"
+  },
+  "required_old": {
+    "dev/stable/buildtree/src/burn/drv/capcom/cps_run.cpp": "da60e3600fc9aff77bed84257ccf7f0fc4cc26bf2469f8f513e8f197b440a473",
+    "dev/stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_125_stun_rearm_lock.h": "c8d6b237da49dc203867b7d2d09b0b00c4eec71378a13d7d08d8928d8fc273c7",
+    "dev/stable/releases/87_125/build_87125.py": "7c10fc1bac34015ca7ed4ddb37c22c554abefbb76dc3df6b91897cf960692213",
+    "dev/stable/releases/87_125/run_87125.py": "20f898298dbcd63c2afe1fee64906dec663b9c6b154ab5fbe6ff24cb3c68fdd8"
+  }
+}

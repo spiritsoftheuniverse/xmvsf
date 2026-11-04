@@ -1,0 +1,26 @@
+Stage13.1 saved-settings-read=1 active-P1=1 active-P2=1
+p1 coin -> 4086
+p1 start -> 4087
+p1 up -> 4002
+p1 down -> 4003
+p1 left -> 4000
+p1 right -> 4001
+p1 fire 1 -> 4080
+p1 fire 2 -> 4081
+p1 fire 3 -> 4082
+p1 fire 4 -> 4083
+p1 fire 5 -> 4084
+p1 fire 6 -> 4085
+p2 coin -> 4186
+p2 start -> 4187
+p2 up -> 4102
+p2 down -> 4103
+p2 left -> 4100
+p2 right -> 4101
+p2 fire 1 -> 4180
+p2 fire 2 -> 4181
+p2 fire 3 -> 4182
+p2 fire 4 -> 4183
+p2 fire 5 -> 4184
+p2 fire 6 -> 4185
+P1 mapped=12; P2 mapped=12

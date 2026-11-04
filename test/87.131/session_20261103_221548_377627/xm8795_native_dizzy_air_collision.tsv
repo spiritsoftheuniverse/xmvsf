@@ -1,0 +1,2 @@
+frame	event	player	mode	patched	fighter_id	stun_capacity	stun_remaining	dizzy134	action	substate06	x	y	gate83	f6	defensive_box74	contact87	attacker_id	attacker_action	attacker_attack_box70	attacker_gate82	attacker_latch84	attacker_x	attacker_y	detail
+780	TOURNAMENT_INIT_AND_TICK_INSTALLED	-	1	1	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	fetch_order=WORD_SWAP; INIT 015118/01511E; native tick E784/E78A; original branch/jump table untouched

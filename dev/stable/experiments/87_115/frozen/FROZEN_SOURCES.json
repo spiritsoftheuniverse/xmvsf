@@ -1,0 +1,33 @@
+{
+  "version": "87.115",
+  "protected_stable": {
+    "stable_manifest_sha256": "ae31a7c79c49d1864b0a20d980ec1de9b90ce4dfce924ee7345706d133fb453f",
+    "stable_executable_sha256": "a72bad04db44a122e61fff42c570a356fd0a3308f07c5aa22c254157fd6e123a"
+  },
+  "sources_sha256": {
+    "burn/drv/capcom/cps_run.cpp": "463f7c56d8b87b53b4f89784d27dbe6675ef63ce8cdcc32cbd173e927dbeb826",
+    "burn/drv/capcom/cps_obj.cpp": "a29d8e63381bb4411f81da79f70fae0d6e4c2dca84cbfd0b26ca70d8e9d8733c",
+    "burn/drv/capcom/qs_z.cpp": "2c425316ae10d88972b24719ad7bca3cb9a2b60b4fdcb2b4f1c8c9c566c67b06",
+    "burn/drv/capcom/xmvsf_stage87_100_training_ko.h": "69ad2fbd893f2a86f2801d2e0a7db0e5c41f9ff813bb7d5a52ec32ca0e894449",
+    "burner/sdl/run.cpp": "2d276fb8bbc9c50cbc7fd94996753b5faa4f2d7a85c5e2514ed851ed147d83ca",
+    "intf/input/sdl/inp_sdl2.cpp": "6b56e7b8bd5cbea1db444fed7b3c09ff1c621772d1d12cca6c97ed28670447d2",
+    "burner/sdl/main.cpp": "af7fd56cba656cfb03002a7936fddfe695305f9d530d5fad2139c492ab90078b",
+    "burner/sdl/xmvsf_stage14_training.h": "aedefd1b021b041890c78ea1cdcdf13f973c000f9d5add015f165ef770458d36",
+    "burner/sdl/xmvsf_stage23_ui.h": "bd1c8f8ec753a29f4936dcfeccbb5c611eeebc150039acc9eb6616c3844fed06",
+    "burner/sdl/xmvsf_stage87_100_idle_logic.h": "c813d5bad02b7ba8f500f511ab0224679b6b89cbff3988ea9d34fdcd4273bc84",
+    "burner/sdl/xmvsf_stage87_102_training_lab.h": "74195ac91a8f3daa08ac0e9967e838d5f1feba09d6e44b8adf290ec4cb4f6975",
+    "burner/sdl/xmvsf_stage87_102_flight_impact.h": "3fec05adff8cff6b1b95bf947d1b44e790658f98b4847bda4adfa0f7948a4c82",
+    "burner/sdl/xmvsf_stage87_102_flight_audio.h": "20ce93e0e0a637c94622a2c3fdab318c1dbeb313e8c9826a603acdfdde7e7ce0",
+    "burner/sdl/xmvsf_stage87_105_training_hp.h": "4b6940d867a0f477ed31200f120d541302af1010cac1864a7f09f80a09fd871f",
+    "burner/sdl/xmvsf_stage86_49_camera.h": "ddcb208ef221223451fa96a32808783131a0528da8264d9e3222ea663f213e0f",
+    "burner/sdl/xmvsf_stage87_108_lifecycle.h": "37415238377d0611cb201b76aaa2a4f91e7b19a49c33a9328017d196b228eefa",
+    "burner/sdl/xmvsf_stage87_105_ko_reset.h": "c7ba3f08ee8701d2895014784d9ddded05640fece24931aa73acad4b6dd3d7af",
+    "burner/sdl/xmvsf_stage87_105_training_reset.h": "3eb62c882211586f5067d1b50c27dc1eaa8f9441fa8d467f7fd67f85875249bf",
+    "burner/sdl/xmvsf_stage87_110_restart.h": "d171131fafb5972da187cae4ee58fb4a7bd6adebd9e8ee1781c1a77f5321f014",
+    "burner/sdl/xmvsf_stage87_110_reload.h": "d82a34a02e0c6a8c4638e953bad79e9a9100094fd73791ca4d1c298ec30d12ce",
+    "burner/sdl/xmvsf_stage87_111_corner.h": "8103d49a4f755f6b78ff21577d471e411718c28f9e2eeea0e03fe5c750c8e640",
+    "burn/drv/capcom/xmvsf_stage87_99_tournament_ground_defense.h": "16e7750e14235d83cc6e395fb3d4f6b474fd4e509d54dba6705b6886ee2cb9c4",
+    "burner/sdl/xmvsf_stage87_97_debug_console.h": "78ae559279900029e51fd1af20178a356f9cb59c526374ce5ed2ef3599089869",
+    "intf/video/sdl/vid_sdl2.cpp": "0a77a283d9cf2abe6a93724c708c06d177c65f5f442f9eea8724e4bee0f28e6c"
+  }
+}

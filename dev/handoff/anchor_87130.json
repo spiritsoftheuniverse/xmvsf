@@ -1,0 +1,23 @@
+{
+  "version": "87.130",
+  "new_files": {
+    "BUILD_TEST.bat": "4857729885a6fba85a43e4e8a52552923b596aa21a7ed5c9f4a7a6d9dfc3db99",
+    "RUN_TEST.bat": "bd6705cbe34464ab7690eaa5242c4ff14cc4464e75ade01564bbd1231df4aeba",
+    "dev/stable/buildtree/src/intf/video/sdl/vid_sdl2.cpp": "9fdd43e9037213886f2a6f35de8c77b4e8e21b85486b93919854de1484176793",
+    "dev/stable/buildtree/src/burner/sdl/xmvsf_stage86_56_final.h": "a24cdfbe7f9918f42ea12b1bbfc9d816095f0f992d8425327e6a3c9371b9f08b",
+    "dev/stable/buildtree/src/intf/video/sdl/xmvsf_stage86_49_painter.h": "9cf645f2b239fd668dcb99aba11876df59921a73c188eda8336f6d5216a80b25",
+    "dev/stable/buildtree/src/intf/video/sdl/xmvsf_stage87_130_placement_probe.h": "7352571c0879c84cec13acdf530687b29e4152dd5cf891371aeafe459ec48a6c",
+    "dev/stable/releases/87_130/build_87130.py": "bdadcbac122b70b1cdab6eaa24cf666d5ba24c6b7fb68f8c192cd65a8b3d3b7f",
+    "dev/stable/releases/87_130/run_87130.py": "c1fb614bf2afbbf077a3f621b64f3dd02f13226b58715326b964c28ee7142595"
+  },
+  "expected_old": {
+    "BUILD_TEST.bat": "959ce069a094194c2a004e83248fa83edabf7ecbe3a0a0a1a75d20f443918e38",
+    "RUN_TEST.bat": "2f1afd53ab9e43d6493583f0ae0b18fada7c173b285254f26c00724f5e58bb0b",
+    "dev/stable/buildtree/src/intf/video/sdl/vid_sdl2.cpp": "a5f36b98dec837219ae58f2ddb0233d6b212cf3c82b12f29a5af4d51bf037cb5",
+    "dev/stable/buildtree/src/burner/sdl/xmvsf_stage86_56_final.h": "b030f503de0cc7cd1e392b9fbfa74e1a8a2877700e73f82e9addb85a93e8744b",
+    "dev/stable/buildtree/src/intf/video/sdl/xmvsf_stage86_49_painter.h": "5df51f15b90346c06ff3808c7272bf2e231161e90c86016512d2d8da844dfc52"
+  },
+  "required_old": {
+    "dev/stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_127_storm_voice_mute.h": "8369db4ec64b2dd4fd7f2214570b7217295a416e5fd0786ba1543aa74066e3fd"
+  }
+}

@@ -1,0 +1,150 @@
+#ifndef XMVSF_STAGE24_ENGINE_H
+#define XMVSF_STAGE24_ENGINE_H
+#include "xmvsf_stage24_versus.h"
+#include "burnint.h"
+#include "xm20_vs_transition.h" /* XMVSF_STAGE24_1_VS_DECLARATION */
+
+static inline unsigned xm24Read8(cpu_core_config* c,unsigned a) {return c->read(a)&255u;}
+static inline unsigned xm24Read32(cpu_core_config* c,unsigned a) {
+    return (xm24Read8(c,a)<<24)|(xm24Read8(c,a+1)<<16)|
+           (xm24Read8(c,a+2)<<8)|xm24Read8(c,a+3);
+}
+// RunFrame after real emulation (never in speculative runahead frames).
+static inline void xm24OnRealFrame(int ready) {
+    if(!xm24VersusMode || !ready || bBurnRunAheadFrame || xm24Session.resultMenu)return;
+    ++xm24Session.frames;
+    cpu_core_config* cpu=GetCpuCoreConfig(0);
+    if(!cpu || !cpu->read || !cpu->open || !cpu->close)return;
+    cpu->open(0);
+    const unsigned status=xm24Read8(cpu,0xFF5000);
+    const unsigned ptr=xm24Read32(cpu,0xFFA014);
+    const bool live=status==0x08 && ptr==0x00FF4000;
+    // These four fighter HP addresses are already used by the Stage14 game-specific cheats.
+    const unsigned hp11=xm24Read8(cpu,0xFF4211),hp12=xm24Read8(cpu,0xFF4A11);
+    const unsigned hp21=xm24Read8(cpu,0xFF4611),hp22=xm24Read8(cpu,0xFF4E11);
+    cpu->close();
+
+    const bool vsAttempt=xm20Vs.triggered && !live && !xm24Session.triedVsCapture;
+    const bool combatAttempt=live && !xm24Session.triedCombatCapture;
+    if(!xm24Session.matchSaved && (vsAttempt || combatAttempt)) {
+        if(vsAttempt)xm24Session.triedVsCapture=true;
+        if(combatAttempt)xm24Session.triedCombatCapture=true;
+        // Captured at VS if our known-good audio phase detector fires early;
+        // otherwise capture first combat frame. Score is kept OUTSIDE the save state.
+        if(BurnStateSave((TCHAR*)xm24FightPath(),1)==0 && xm24StateFileValid(xm24FightPath())) {
+            xm24Session.matchSaved=true;
+            xm24Log(xm20Vs.triggered && !live?"MATCH_STATE_CAPTURED_AT_VS":"MATCH_STATE_CAPTURED_AT_COMBAT");
+        } else {
+            xm24Log("MATCH_STATE_CAPTURE_FAILED");
+        }
+    }
+    if(live) {
+        ++xm24Session.liveFrames;
+        xm24Session.seenCombat=true;
+        xm24Session.outOfCombat=0;
+        if(hp11<=0x90 && hp12<=0x90 && hp21<=0x90 && hp22<=0x90) {
+            xm24Session.lastHp[0]=(int)(hp11+hp12);
+            xm24Session.lastHp[1]=(int)(hp21+hp22);
+            // Latch final elimination ONLY after sustained real combat.
+            if(xm24Session.liveFrames>=50 && !xm24Session.afterKO) {
+                if(!xm24Session.lastHp[0] && xm24Session.lastHp[1]>0) {
+                    xm24Session.winner=2;xm24Session.afterKO=1;xm24Log("P1_TEAM_KO_CANDIDATE");
+                } else if(!xm24Session.lastHp[1] && xm24Session.lastHp[0]>0) {
+                    xm24Session.winner=1;xm24Session.afterKO=1;xm24Log("P2_TEAM_KO_CANDIDATE");
+                }
+            }
+        }
+    } else if(xm24Session.seenCombat) {
+        ++xm24Session.outOfCombat;
+    }
+    if(xm24Session.afterKO) {
+        ++xm24Session.afterKO;
+        // Stage24.2: settle for ~4 seconds after leaving active combat,
+        // AND at least ~6 seconds since KO was detected.  No arbitrary
+        // absolute KO fallback: it previously interrupted the points tally.
+        const unsigned long kPostCombatFrames = 240;
+        const unsigned long kMinKoFrames = 360;
+        if (xm24Session.outOfCombat >= kPostCombatFrames &&
+            xm24Session.afterKO >= kMinKoFrames) {
+            xm24ShowResult(xm24Session.winner);
+            // The result-menu branch in RunMessageLoop already stops
+            // RunIdle, but continues SDL event polling and VidPaint.
+            // Never use FBNeo's global bRunPause for this custom UI.
+            xmvsfHost::resetClock();
+            xm24Log("RESULT_MENU_AFTER_POST_COMBAT_TALLY_240F"); /* XMVSF_STAGE24_2_POST_TALLY_UI */
+        }
+    }
+    if(xm25State.quickMenu && xm24Session.seenCombat &&
+       xm24Session.outOfCombat>=300){
+        xm25State.quickMenu=false;
+        xm24Session.resultMenu=false;
+        xm24ResultInputCapture=0;
+        xm24ShowResult(xm24Session.afterKO?xm24Session.winner:0);
+        xmvsfHost::resetClock();
+        xm24Log("RESULT_MENU_AFTER_COIN_OVERLAY_TALLY");
+    } /* XMVSF_STAGE25_3_MENU_LEDGER_REPAIR */
+    // Fallback for rounds where XMVSF does not expose the expected team-KO
+    // HP sequence (time-out, special finish, tag/HP edge cases). Do not
+    // trigger until sustained combat has ended and the tally has settled.
+    if(!xm24Session.resultMenu && !xm24Session.afterKO &&
+       xm24Session.seenCombat && xm24Session.liveFrames>=90 &&
+       xm24Session.outOfCombat>=300){
+        xm24ShowResult(0); // Unknown winner: offer manual 1/2 award, never invent.
+        xmvsfHost::resetClock();
+        xm24Log("RESULT_FALLBACK_AFTER_POST_COMBAT_300F");
+    } /* XMVSF_STAGE25_2_LEDGER_RESULTS */
+}
+
+// Called on SDL's MAIN thread in RunMessageLoop(), never in the WASAPI thread.
+static inline void xm24HandlePendingCommand() {
+    if(!xm24VersusMode || !xm24Session.resultMenu || !xm24Session.command)return;
+    const int cmd=xm24Session.command;
+    xm24Session.command=XM24_NONE;
+    if(cmd==XM24_TO_ARCADE || cmd==XM24_TO_TRAINING){
+        const char* target=xm24SelectPath();
+        if(!xm24StateFileValid(target)){xm24Log("MAIN_MODE_NO_SELECT_SNAPSHOT");return;}
+        if(BurnStateLoad((TCHAR*)target,1,nullptr)!=0){xm24Log("MAIN_MODE_LOAD_FAILED");return;}
+        xm25OnExit(xm24Session.wins[0],xm24Session.wins[1]);
+        xm25State.quickMenu=xm25State.mainMenu=xm25State.lobby=false;
+        xm14TrainingMode=(cmd==XM24_TO_TRAINING);
+        xm14InputTarget=0;
+        xm24VersusMode=0;xm24Session.active=false;
+        xm24Session.resultMenu=false;xm24ResultInputCapture=0;
+        xmvsfHost::enterGame();xmvsfHost::resetClock();
+        return;
+    } /* XMVSF_STAGE25_1_POLISH */
+    if(cmd==XM24_BACK_MENU){
+        xm25OnExit(xm24Session.wins[0],xm24Session.wins[1]);
+        xm25State.quickMenu=false;xm25State.mainMenu=false;xm25State.lobby=true;xm25State.ledgerView=false;xm25State.setupRow=xm25State.modeIndex;
+        xm25LoadLedger();xm24Session.resultMenu=true;xm24ResultInputCapture=1;
+        xm24Log("BACK_TO_VERSUS_MENU");return; /* XMVSF_STAGE25_3_MENU_LEDGER_REPAIR */
+    }
+    const bool freshSelection=(cmd==XM24_RESELECT || xm25State.lobby);
+    const bool newSet=xm25State.lobby || xm25State.completed;
+    const char* path=(!freshSelection && cmd==XM24_REMATCH)?xm24FightPath():xm24SelectPath(); /* XMVSF_STAGE25_SETS */
+    if(cmd==XM24_REMATCH && !xm25State.lobby && !xm24Session.matchSaved) {
+        xm24Log("REMATCH_REJECTED_NO_MATCH_STATE");return;
+    }
+    if(!xm24StateFileValid(path)) {xm24Log("RELOAD_REJECTED_INVALID_FS");return;}
+    const int rc=BurnStateLoad((TCHAR*)path,1,nullptr);
+    if(rc!=0) {xm24Log("RELOAD_FAILED");return;}
+    if(newSet){
+        xm25OnExit(xm24Session.wins[0],xm24Session.wins[1]);
+        xm25StartNewSet();xm24Session.wins[0]=xm24Session.wins[1]=0;
+    }
+    xm25State.quickMenu=false;xm25State.lobby=false;xm25State.ledgerView=false;
+    xm24ResetMatchTracking(); /* XMVSF_STAGE25_SETS */
+    if(freshSelection) {
+        xm24Session.matchSaved=false;
+        xm20Vs=XM20VsTracker{};
+        xmvsfHost::enterGame(); // selection theme + native VS handoff, no device restart
+        xm24Log("RESELECT_LOADED_SCORE_RETAINED");
+    } else {
+        xm20Vs.triggered=true;
+        xmvsfHost::enterVs();
+        xm24Log("REMATCH_LOADED_SCORE_RETAINED");
+    }
+    bRunPause=0;
+    xmvsfHost::resetClock(); // no post-pause game-frame catchup
+}
+#endif

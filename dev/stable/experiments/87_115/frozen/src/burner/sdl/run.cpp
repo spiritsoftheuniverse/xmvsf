@@ -1,0 +1,814 @@
+// XM86.41: compile-time endianness consistency assertion for the native host.
+#ifndef LSB_FIRST
+#error "XM86.41 native host requires global LSB_FIRST=1 across every object"
+#endif
+// Run module
+#include "burner.h"
+#include <cstdio>
+#include <cstdlib>
+#ifdef _WIN32
+#include <windows.h>
+#endif
+#include "xmvsf_stage14_training.h"
+#ifdef BUILD_SDL2
+#include "xmvsf_stage86_56_final.h" /* XM86.56 all presentation paths */
+#endif
+#include "xmvsf_stage15_machine.h"
+#include "xmvsf_stage17_auto.h"
+#include "xmvsf_stage18_position.h" /* XMVSF_STAGE18_POSITION */
+#include "xmvsf_stage20_api.h" /* XMVSF_STAGE20_WASAPI */
+#include "xmvsf_native_host.h" /* XMVSF_STAGE21_BOUNDARY */
+#include "xmvsf_stage22_select_audio.h" /* XMVSF_STAGE22_SELECTION_SFX */
+#include "xmvsf_stage23_engine.h" /* XMVSF_STAGE23_TRAINING_MENU */
+#include "xmvsf_stage24_engine.h" /* XMVSF_STAGE24_VERSUS */
+#include "xmvsf_stage86_49_camera.h" // XM86.49 opt-in read-only native camera
+#include "xmvsf_stage87_61_replay.h" // XM87.61 opt-in state-anchored input movie
+#include "xmvsf_stage77_native_stage5.h" // XM86.31 postframe guarded native stage request
+#include "xmvsf_stage29_display.h" /* XMVSF_STAGE29_SCALABLE_DISPLAY */
+#include "xmvsf_stage24_3_menu_poll.h" /* XMVSF_STAGE24_3_LIVE_RESULTS */
+#include "xm20_vs_transition.h" /* XMVSF_STAGE20_1_VERSUS */ // XMVSF_STAGE17_AUTO
+#include "xmvsf_stage16_snapshot.h" // XMVSF_STAGE16_SNAPSHOT
+#include "xmvsf_stage87_102_training_lab.h" // XM87.102 first-frame snapshot + KO source capture
+#include "xmvsf_stage87_105_training_reset.h" // XM87.105 KO landing snapshot reset
+#include "xmvsf_stage87_110_restart.h" // XM87.110 training triple-tap restart
+#include "xmvsf_stage87_110_reload.h" // XM87.110 snapshot load + placement
+// XM87.105 removed supplemental flying-screen WAV; native ROM sound retained // XMVSF_STAGE15_MACHINE // XMVSF_STAGE14_TRAINING_CHEATS
+#ifdef BUILD_SDL2
+#include "sdl2_gui_common.h"
+#endif
+#include <sys/time.h>
+#include "xmvsf_stage87_97_debug_console.h" // XM87.97 read-only host instrumentation
+
+// XM86.34: fault capture is diagnostic only, it NEVER swallows an exception.
+// A vectored handler may see a handled access violation, so corroborate it
+// with the final FIRST RunFrame marker and the process exit code.
+#ifdef _WIN32
+static LONG CALLBACK xm8634FirstFault(EXCEPTION_POINTERS* ep){
+ if(!ep || !ep->ExceptionRecord ||
+    ep->ExceptionRecord->ExceptionCode!=EXCEPTION_ACCESS_VIOLATION)
+   return EXCEPTION_CONTINUE_SEARCH;
+ static volatile LONG recorded=0;
+ if(InterlockedCompareExchange(&recorded,1,0)!=0)
+   return EXCEPTION_CONTINUE_SEARCH;
+ FILE* f=std::fopen("F:\\xmvsf\\runtime\\stage77safe\\xm8634_fault.txt","w");
+ if(f){
+  const auto* er=ep->ExceptionRecord;
+  std::fprintf(f,"XM86.34 FIRST ACCESS_VIOLATION (may be handled) code=%08lX thread=%lu\n",
+               (unsigned long)er->ExceptionCode,(unsigned long)GetCurrentThreadId());
+  std::fprintf(f,"instruction=%p access=%llu address=0x%llX\n",
+               er->ExceptionAddress,
+               er->NumberParameters>0?(unsigned long long)er->ExceptionInformation[0]:~0ull,
+               er->NumberParameters>1?(unsigned long long)er->ExceptionInformation[1]:0ull);
+#if defined(_M_X64) || defined(__x86_64__)
+  const CONTEXT* c=ep->ContextRecord;
+  if(c) std::fprintf(f,"RIP=%016llX RSP=%016llX RBP=%016llX RAX=%016llX RCX=%016llX RDX=%016llX\n",
+                     (unsigned long long)c->Rip,(unsigned long long)c->Rsp,
+                     (unsigned long long)c->Rbp,(unsigned long long)c->Rax,
+                     (unsigned long long)c->Rcx,(unsigned long long)c->Rdx);
+#endif
+  std::fflush(f);std::fclose(f);
+ }
+ return EXCEPTION_CONTINUE_SEARCH;
+}
+static void xm8634EnableFaultTrace(){
+ static PVOID registration=nullptr;
+ if(!registration)registration=AddVectoredExceptionHandler(1,xm8634FirstFault);
+ std::fprintf(stderr,"XM86.34 VEH registered=%d\n",registration!=nullptr);
+ std::fflush(stderr);
+}
+#else
+static void xm8634EnableFaultTrace(){}
+#endif
+
+XM8649VisualState xm8649Visual{}; // XM86.49 shared read-only video data
+// XM86.58: phase observer for game screen output, never an emulation mutation.
+int xm8658GameStatus=-1;
+static void xm8658ObserveGamePhase(bool ready){
+    xm8658GameStatus=-1;
+    if(!ready || bBurnRunAheadFrame)return;
+    const char* name=BurnDrvGetTextA(DRV_NAME);
+    if(!name || std::strncmp(name,"xmvsf",5)!=0)return;
+    cpu_core_config* c=GetCpuCoreConfig(0);
+    if(!c || !c->open || !c->close || !c->read)return;
+    c->open(0); xm8658GameStatus=int(c->read(0xFF5000u)&255u); c->close();
+    static int previous=-2;
+    if(xm8658GameStatus!=previous){
+        std::fprintf(stderr,"XM86.58 GAME_PHASE old=%02X new=%02X selectionGray=%d\n",
+            previous<0?255u:(unsigned)previous,(unsigned)xm8658GameStatus,
+            (int)(xm8658GameStatus<2));
+        previous=xm8658GameStatus;
+    }
+}
+
+static unsigned int nDoFPS = 0;
+bool bAltPause = 0;
+
+int bAlwaysDrawFrames = 0;
+
+int counter;                                // General purpose variable used when debugging
+
+static unsigned int nNormalLast = 0;        // Last value of GetTime()
+static int          nNormalFrac = 0;        // Extra fraction we did
+
+static bool bAppDoStep = 0;
+bool        bAppDoFast = 0;
+bool        bAppShowFPS = 0;
+static int  nFastSpeed = 6;
+static bool bscreenshot = 0;
+
+// SlowMo T.A. feature
+int nSlowMo = 0;
+static int flippy = 0; // free running RunFrame() counter
+
+UINT32 messageFrames = 0;
+char lastMessage[MESSAGE_MAX_LENGTH];
+
+#ifdef BUILD_SDL2
+static Uint32 starting_stick;
+/// Ingame gui
+extern SDL_Renderer* sdlRenderer;
+extern void ingame_gui_start(SDL_Renderer* renderer);
+/// Save States
+static char Windowtitle[512];
+
+extern void AdjustImageSize();		// vid_sdl2.cpp
+#endif
+
+int bDrvSaveAll = 0;
+
+// The automatic save
+int StatedAuto(int bSave)
+{
+	static TCHAR szName[MAX_PATH] = _T("");
+	int nRet;
+
+#if defined(BUILD_SDL2) && !defined(SDL_WINDOWS)
+	_stprintf(szName, _T("%s%s.fs"), szAppEEPROMPath, BurnDrvGetText(DRV_NAME));
+#else
+	_stprintf(szName, _T("config/games/%s.fs"), BurnDrvGetText(DRV_NAME));
+#endif
+
+	if (bSave == 0)
+	{
+		printf("loading state %i %s\n", bDrvSaveAll, szName);
+		nRet = BurnStateLoad(szName, bDrvSaveAll, NULL);		// Load ram
+		if (nRet && bDrvSaveAll)
+		{
+			nRet = BurnStateLoad(szName, 0, NULL);				// Couldn't get all - okay just try the nvram
+		}
+	}
+	else
+	{
+		printf("saving state %i %s\n", bDrvSaveAll, szName);
+		nRet = BurnStateSave(szName, bDrvSaveAll);				// Save ram
+	}
+
+	return nRet;
+}
+
+
+/// End Save States
+
+char fpsstring[20];
+
+static time_t fpstimer;
+static unsigned int nPreviousFrames;
+
+static void DisplayFPSInit()
+{
+	nDoFPS = 0;
+	fpstimer = 0;
+	nPreviousFrames = nFramesRendered;
+}
+
+static void DisplayFPS()
+{
+	time_t temptime = clock();
+	double fps = (double)(nFramesRendered - nPreviousFrames) * CLOCKS_PER_SEC / (temptime - fpstimer);
+	if (bAppDoFast) {
+		fps *= nFastSpeed + 1;
+	}
+	if (fpstimer && temptime - fpstimer > 0) { // avoid strange fps values
+		sprintf(fpsstring, "%2.2lf", fps);
+	}
+
+	fpstimer = temptime;
+	nPreviousFrames = nFramesRendered;
+}
+
+
+//crappy message system
+void UpdateMessage(char* message)
+{
+	snprintf(lastMessage, MESSAGE_MAX_LENGTH, "%s", message);
+	messageFrames = MESSAGE_MAX_FRAMES;
+}
+
+// define this function somewhere above RunMessageLoop()
+void ToggleLayer(unsigned char thisLayer)
+{
+	nBurnLayer ^= thisLayer;                         // xor with thisLayer
+	VidRedraw();
+	VidPaint(0);
+}
+
+
+struct timeval start;
+
+unsigned int GetTime(void)
+{
+	unsigned int ticks;
+	struct timeval now;
+	gettimeofday(&now, NULL);
+	ticks = (now.tv_sec - start.tv_sec) * 1000000 + now.tv_usec - start.tv_usec;
+	return ticks;
+}
+
+// With or without sound, run one frame.
+// If bDraw is true, it's the last frame before we are up to date, and so we should draw the screen
+static unsigned long long xm8640FrameCount=0;
+static int RunFrame(int bDraw, int bPause)
+{
+    static bool firstRunFrame=true;
+    const bool traceFrame=firstRunFrame;
+    if(traceFrame){firstRunFrame=false;std::fprintf(stderr,"XM86.34 FIRST RunFrame ENTER draw=%d pause=%d ready=%d\n",bDraw,bPause,(int)bDrvOkay);std::fflush(stderr);}
+	if (!bDrvOkay)
+	{
+		return 1;
+	}
+    ++xm8640FrameCount;
+    if(xm8640FrameCount==1 || (xm8640FrameCount%300u)==0u) {
+        std::fprintf(stderr,"XM86.40 PROGRESS frames=%llu emulated=%d paused=%d\n",
+            xm8640FrameCount,nFramesEmulated,(int)bRunPause);
+        std::fflush(stderr);
+    }
+
+    if(traceFrame){std::fprintf(stderr,"XM86.34 FRAME1 BEFORE_SLOWMO\n");std::fflush(stderr);}
+    XM8797Debug::state().frameStart();
+    XM8798Latency::state().frameStart((unsigned)nFramesEmulated);
+	// SlowMo stuff
+	flippy++;
+	nSlowMo = macroSystemSlowMo[0] + macroSystemSlowMo[1] * 2 + macroSystemSlowMo[2] * 3 + macroSystemSlowMo[3] * 4 + macroSystemSlowMo[4] * 5;
+	if ((nSlowMo == 1) && ((flippy % 4) == 0)) return 0;		// 75% speed
+	else if ((nSlowMo > 1) && (nSlowMo < 6) && (flippy % ((nSlowMo - 1) * 2)) < (((nSlowMo - 1) * 2) - 1)) return 0;		// 50% and less
+
+    if(traceFrame){std::fprintf(stderr,"XM86.34 FRAME1 BEFORE_INPUT pause=%d\n",bPause);std::fflush(stderr);}
+	if (bPause)
+	{
+		InputMake(false);
+		VidPaint(0);
+	}
+	else
+	{
+		nFramesEmulated++;
+		nCurrentFrame++;
+        XM8797Debug::state().beforeInput();
+		InputMake(true);
+        XM8797Debug::state().afterInput();
+		XM8761::afterInput(); // XM87.61 one input frame before native emulation
+	}
+    if(traceFrame){std::fprintf(stderr,"XM86.34 FRAME1 AFTER_INPUT\n");std::fflush(stderr);}
+
+	// Test/replay deterministic input stream must not have speculative frames.
+	if(std::getenv("XM8761_DISABLE_RUNAHEAD")) bRunAhead=false;
+	if (bDraw)
+	{
+		nFramesRendered++;
+
+        if(traceFrame){std::fprintf(stderr,"XM86.34 FRAME1 BEFORE_VIDEO runahead=%d disabled=%d fast=%d\n",
+           bRunAhead,(int)((BurnDrvGetFlags()&BDF_RUNAHEAD_DISABLED)!=0),bAppDoFast);std::fflush(stderr);}
+		if (!bRunAhead || (BurnDrvGetFlags() & BDF_RUNAHEAD_DISABLED) || bAppDoFast) {     // Run-Ahead feature 				-dink aug 02, 2021
+            if(traceFrame){std::fprintf(stderr,"XM86.34 FRAME1 BEFORE_VIDFRAME\n");std::fflush(stderr);}
+            XM8797Debug::state().beforeEmu();
+			const int xm8634VidResult=VidFrame();
+            XM8797Debug::state().afterEmu();
+            if(traceFrame){std::fprintf(stderr,"XM86.34 FRAME1 AFTER_VIDFRAME result=%d\n",xm8634VidResult);std::fflush(stderr);}
+			if (xm8634VidResult) {				// Do one frame w/o RunAhead or if FFWD is pressed.
+				// VidFrame() failed, but we must run a driver frame because we have
+            	// a clocked input.  Possibly from recording or netplay(!)
+            	// Note: VidFrame() calls BurnDrvFrame() on success.
+				pBurnDraw = NULL;			// Make sure no image is drawn
+            	BurnDrvFrame();
+
+				AudBlankSound();
+			}
+		} else {
+                if(traceFrame){std::fprintf(stderr,"XM86.34 FRAME1 BEFORE_RUNAHEAD_DRVRFRAME\n");std::fflush(stderr);}
+				pBurnDraw = (BurnDrvGetFlags() & BDF_RUNAHEAD_DRAWSYNC) ? pVidImage : NULL;
+				BurnDrvFrame();
+                if(traceFrame){std::fprintf(stderr,"XM86.34 FRAME1 AFTER_RUNAHEAD_DRVRFRAME\n");std::fflush(stderr);}
+				StateRunAheadSave();
+				INT16 *pBurnSoundOut_temp = pBurnSoundOut;
+				pBurnSoundOut = NULL;
+				nCurrentFrame++;
+				bBurnRunAheadFrame = 1;
+
+				if (VidFrame()) {
+					// VidFrame() failed, but we must run a driver frame because we have
+					// an input.  Possibly from recording or netplay(!)
+					pBurnDraw = NULL;			// Make sure no image is drawn, since video failed this time 'round.
+					BurnDrvFrame();
+				}
+
+				bBurnRunAheadFrame = 0;
+				nCurrentFrame--;
+				StateRunAheadLoad();
+				pBurnSoundOut = pBurnSoundOut_temp; // restore pointer, for wav & avi writer
+		}
+
+        // XM86.57 stage registration and scene gate BEFORE the first stage-frame
+        // presentation, not after the fight marquee or after VidPaint.
+        if(!bPause){
+            xm77ApplyNativeStage5(bDrvOkay,false);
+            xm8658ObserveGamePhase(bDrvOkay);
+            xm8649ObserveCamera(bDrvOkay);
+            xm14ApplyTrainingCheats(xm14TrainingMode && !xm23State.dizzyAllowed); // XM87.44: before first presentation
+        }
+	    if(traceFrame){std::fprintf(stderr,"XM86.34 FRAME1 BEFORE_VIDPAINT\n");std::fflush(stderr);}
+        XM8797Debug::state().beforePaint();
+	VidPaint(0);
+        if(traceFrame){std::fprintf(stderr,"XM86.34 FRAME1 AFTER_VIDPAINT\n");std::fflush(stderr);}                                              // paint the screen (no need to validate)
+	} else {                                       // frame skipping
+		pBurnDraw = NULL;                    // Make sure no image is drawn
+		BurnDrvFrame();
+		if (!bPause) xm14ApplyTrainingCheats(xm14TrainingMode && !xm23State.dizzyAllowed); // XM87.100 non-rendered frame
+	}
+
+	if (!bPause) { /* XM87.44: Training applied before VidPaint, not after */ xm15OnRealFrame(bDrvOkay); xm17OnRealFrame(bDrvOkay); xm18ApplyPosition(bDrvOkay); /* XMVSF_STAGE18_POSITION */
+    xm20VsCheck(bDrvOkay,bRunPause); /* XMVSF_STAGE20_1_VERSUS */
+    xm22::muteSelectionBgm(bDrvOkay, bRunPause, xm20Vs.triggered); /* XMVSF_STAGE22_SELECTION_SFX */
+    xm23OnRealFrame(bDrvOkay); /* XMVSF_STAGE23_TRAINING_MENU */
+    XM87102Lab::capture().frame(bDrvOkay,(unsigned)nCurrentFrame); // post-emulation first combat save
+    xm24OnRealFrame(bDrvOkay); /* XMVSF_STAGE24_VERSUS */
+    // Triple-Start restart takes priority over the KO-landing autoload.
+    if(!xm87110RestartAfterFrame(bDrvOkay,(unsigned)nCurrentFrame))
+        xm87105TrainingResetOnLanding(bDrvOkay,(unsigned)nCurrentFrame); // KO -> landed -> match snapshot
+    if(traceFrame){std::fprintf(stderr,"XM86.34 FIRST RunFrame reached stage5 hook\n");std::fflush(stderr);}
+    // Stage86.57: stage resolution and camera were sampled before VidPaint.
+    // Do not run the stage hook a second time after presenting the frame.
+    if(traceFrame){std::fprintf(stderr,"XM86.34 FIRST RunFrame stage5 hook returned\n");std::fflush(stderr);}
+    if (bDrvOkay && !bBurnRunAheadFrame && !bRunPause) {
+        if (xm18Position.combat) xmvsfHost::enterVs();
+        else if (!xm14TrainingMode) {
+            static unsigned xm20ScanFrames=0;
+            if ((++xm20ScanFrames & 7)==0) {
+                cpu_core_config* cpu=GetCpuCoreConfig(0);
+                if(cpu && cpu->open && cpu->close && cpu->read) {
+                    cpu->open(0);
+                    const bool live=(cpu->read(0xFF5000)==0x08);
+                    cpu->close();
+                    if(live)xmvsfHost::enterVs();
+                }
+            }
+        }
+    } /* XMVSF_STAGE20_WASAPI */ /* XMVSF_STAGE17_AUTO */ } // XMVSF_STAGE15_MACHINE // XMVSF_STAGE14_TRAINING_CHEATS
+
+	if (bAppShowFPS) {
+		if (nDoFPS < nFramesRendered) {
+			DisplayFPS();
+			nDoFPS = nFramesRendered + 30;
+		}
+	}
+
+    XM8797Debug::state().endFrame();
+	return 0;
+}
+
+// Callback used when DSound needs more sound
+static int RunGetNextSound(int bDraw)
+{
+	if (nAudNextSound == NULL)
+	{
+		return 1;
+	}
+
+	if (bRunPause)
+	{
+		if (bAppDoStep)
+		{
+			RunFrame(bDraw, 0);
+			memset(nAudNextSound, 0, nAudSegLen << 2);                                        // Write silence into the buffer
+		}
+		else
+		{
+			RunFrame(bDraw, 1);
+		}
+
+		bAppDoStep = 0;                                                   // done one step
+		return 0;
+	}
+
+	if (bAppDoFast)
+	{                                            // do more frames
+		for (int i = 0; i < nFastSpeed; i++)
+		{
+			RunFrame(0, 0);
+		}
+	}
+
+	// Render frame with sound
+	pBurnSoundOut = nAudNextSound;
+	RunFrame(bDraw, 0);
+    if(!bAppDoStep){
+        XM87102Lab::capture().pcm(nAudNextSound,(unsigned)nAudSegLen*2u,(unsigned)nCurrentFrame);
+    }
+	if (bAppDoStep)
+	{
+		memset(nAudNextSound, 0, nAudSegLen << 2);                // Write silence into the buffer
+	}
+	bAppDoStep = 0;                                              // done one step
+
+	return 0;
+}
+
+int delay_ticks(int ticks)
+{
+//sdl_delay can take up to 10 - 15 ticks it doesnt guarentee below this
+   int startTicks = 0;
+   int endTicks = 0;
+   int checkTicks = 0;
+
+   startTicks=SDL_GetTicks();
+
+   while (checkTicks <= ticks)
+   {
+      endTicks=SDL_GetTicks();
+      checkTicks = endTicks - startTicks;
+   }
+
+   return ticks;
+}
+int RunIdle()
+{
+    static bool firstIdle=true;
+    if(firstIdle){firstIdle=false;std::fprintf(stderr,"XM86.34 FIRST RunIdle enter\n");std::fflush(stderr);}
+	int nTime, nCount;
+
+	// Independent QPC deadline determines game updates, not the audio play cursor.
+    // Even if WASAPI is unavailable, the machine runs at its original frame rate.
+    if(!xmvsfHost::frameDue(nAppVirtualFps)) return 0;
+    if(bAudPlaying) AudSoundCheck();
+    else RunFrame(1,0);
+    return 0; /* XMVSF_STAGE20_WASAPI */
+
+
+	// Run without sound
+	nTime = GetTime() - nNormalLast;
+	nCount = (nTime * nAppVirtualFps - nNormalFrac) / 100000;
+	if (nCount <= 0) {						// No need to do anything for a bit
+		//delay_ticks(2);
+		return 0;
+	}
+
+	nNormalFrac += nCount * 100000;
+	nNormalLast += nNormalFrac / nAppVirtualFps;
+	nNormalFrac %= nAppVirtualFps;
+
+	if (nCount > 100) {						// Limit frame skipping
+		nCount = 100;
+	}
+	if (bRunPause) {
+		if (bAppDoStep) {					// Step one frame
+			nCount = 10;
+		}
+		else {
+			RunFrame(1, 1);					// Paused
+			return 0;
+		}
+	}
+	bAppDoStep = 0;
+
+
+	if (bAppDoFast)
+	{									// do more frames
+		for (int i = 0; i < nFastSpeed; i++)
+		{
+			RunFrame(0, 0);
+		}
+	}
+
+	if (!bAlwaysDrawFrames)
+	{
+		for (int i = nCount / 10; i > 0; i--)
+		{              // Mid-frames
+			RunFrame(0, 0);
+		}
+	}
+	RunFrame(1, 0);                                  // End-frame
+	// temp added for SDLFBA
+	//VidPaint(0);
+	return 0;
+}
+
+int RunReset()
+{
+    xmvsfHost::resetClock(); /* XMVSF_STAGE20_WASAPI */
+	// Reset the speed throttling code
+	nNormalLast = 0; nNormalFrac = 0;
+	if (!bAudPlaying)
+	{
+		// run without sound
+		nNormalLast = GetTime();
+	}
+	return 0;
+}
+
+int RunInit()
+{
+    std::fprintf(stderr,"XM86.34 RunInit enter\n");std::fflush(stderr);
+	gettimeofday(&start, NULL);
+	DisplayFPSInit();
+	// Try to run with sound
+	AudSetCallback(RunGetNextSound);
+    std::fprintf(stderr,"XM86.34 RunInit audio play begin\n");std::fflush(stderr);
+	AudSoundPlay();
+    std::fprintf(stderr,"XM86.34 RunInit audio play complete\n");std::fflush(stderr);
+	RunReset();
+    std::fprintf(stderr,"XM86.34 RunInit StatedAuto begin\n");std::fflush(stderr);
+	StatedAuto(0);
+    std::fprintf(stderr,"XM86.34 RunInit StatedAuto complete; training snapshot begin\n");std::fflush(stderr);
+    const bool skipSnapshot=std::getenv("XM8634_SKIP_SNAPSHOT")!=nullptr;
+    if(skipSnapshot){
+     std::fprintf(stderr,"XM86.34 SNAPSHOT SKIPPED: diagnostic fresh-boot run only\n");std::fflush(stderr);
+    }else{
+     xm16LoadTrainingSnapshot(); // XMVSF_STAGE16_SNAPSHOT
+    }
+    std::fprintf(stderr,"XM86.34 RunInit training snapshot complete skipped=%d\n",(int)skipSnapshot);std::fflush(stderr);
+	return 0;
+}
+
+int RunExit()
+{
+	nNormalLast = 0;
+	StatedAuto(1);
+	return 0;
+}
+
+#ifdef BUILD_SDL2
+void pause_game()
+{
+	AudSoundStop();
+
+	if(nVidSelect) {
+		// no Text in OpenGL...
+		SDL_GL_SwapWindow(sdlWindow);
+	}else{
+		inprint_shadowed(sdlRenderer, "PAUSE", 10, 10);
+		SDL_RenderPresent(sdlRenderer); /* XM86.57 preserve graded native HUD/FX on pause */
+	}
+
+    int finished = 0;
+	while (!finished)
+  	{
+		starting_stick = SDL_GetTicks();
+
+ 		SDL_Event e;
+
+		while (SDL_PollEvent(&e))
+		{
+			if (e.type == SDL_QUIT)
+			{
+				finished=1;
+			}
+			if (e.type == SDL_KEYDOWN)
+			{
+			  switch (e.key.keysym.sym)
+			  {
+				  case SDLK_TAB:
+				  case SDLK_p:
+					finished=1;
+					break;
+				  default:
+					break;
+			  }
+			}
+			if (e.type == SDL_WINDOWEVENT)
+			{ // Window Event
+				switch (e.window.event)
+				{
+					//case SDL_WINDOWEVENT_RESTORED: // keep pause when restore window
+					case SDL_WINDOWEVENT_FOCUS_GAINED:
+						finished=1;
+						break;
+					case SDL_WINDOWEVENT_CLOSE:
+						finished=1;
+						RunExit();
+						break;
+					default:
+						break;
+				}
+			}
+		}
+
+		// limit 5 FPS (free CPU usage)
+		if ( ( 1000 / 5 ) > SDL_GetTicks() - starting_stick) {
+			SDL_Delay( 1000 / 5 - ( SDL_GetTicks() - starting_stick ) );
+		}
+
+	}
+
+	AudSoundPlay();
+}
+#endif
+
+#ifndef BUILD_MACOS
+// The main message loop
+int RunMessageLoop()
+{ /* XMVSF_STAGE24_VERSUS */
+	int quit = 0;
+    const char* xm8640ExitReason="unspecified";
+    const unsigned long long xm8640StartFrames=xm8640FrameCount;
+    // XM86.55: the VS detector and the selection-music suppressor are session-scoped.
+    // An earlier match must never keep the next character select in combat mode.
+    if(xm20Vs.log){std::fclose(xm20Vs.log);xm20Vs.log=nullptr;}
+    xm20Vs=XM20VsTracker{};
+    xm22::diagnosticWritten=false;
+    xm22::writes=0;
+    std::fprintf(stderr,"XM86.55 SESSION_AUDIO_RESET vs=0 select_mute_rearmed=1\n");
+    std::fprintf(stderr,"XM86.34 RunMessageLoop ENTER\n");std::fflush(stderr);
+    xm8634EnableFaultTrace();
+	xm24StartSession(); /* XMVSF_STAGE24_VERSUS */
+    std::fprintf(stderr,"XM86.34 xm24StartSession complete\n");std::fflush(stderr);
+	RunInit();
+    std::fprintf(stderr,"XM86.34 RunInit returned to message loop\n");std::fflush(stderr);
+	GameInpCheckMouse();                                                                     // Hide the cursor
+    if(xm14TrainingMode || xm24VersusMode)xm25BeginInputHandoff(); // post-snapshot, pre-game input
+
+	while (!quit)
+	{
+
+		SDL_Event event;
+        while (SDL_PollEvent(&event))
+		{
+            if(XM8797Debug::state().consumeHotkey(event)){
+                std::fprintf(stderr,"%s Shift+D console %s\n",XM8797Debug::READY,
+                    XM8797Debug::state().visible?"OPEN":"CLOSED");
+                continue;
+            }
+            if(xm29HandleDisplayHotkey(event,sdlWindow))continue;
+            if(!xm14TrainingMode && !xm24VersusMode && event.type==SDL_KEYDOWN && !event.key.repeat){
+                if(event.key.keysym.sym==SDLK_5){
+                    xm258ArcadeMenuOpen=!xm258ArcadeMenuOpen;
+                    xm25MenuSound(xm258ArcadeMenuOpen);
+                    if(!xm258ArcadeMenuOpen)xm25BeginInputHandoff();
+                    continue;
+                }
+                if(xm258ArcadeMenuOpen && (event.key.keysym.sym==SDLK_ESCAPE ||
+                                            event.key.keysym.sym==SDLK_BACKSPACE)){
+                    xm258ArcadeMenuOpen=false;xm25MenuSound(false);
+                    xm25BeginInputHandoff();continue;
+                }
+                if(xm258ArcadeMenuOpen && (event.key.keysym.sym==SDLK_RETURN ||
+                                            event.key.keysym.sym==SDLK_SPACE)){
+                    xm258ArcadeReturnRequested=true;xm25MenuSound(true);continue;
+                }
+            }
+            if(xm258ArcadeMenuOpen && (event.type==SDL_CONTROLLERBUTTONDOWN ||
+                event.type==SDL_CONTROLLERBUTTONUP || event.type==SDL_JOYBUTTONDOWN ||
+                event.type==SDL_JOYBUTTONUP))continue;
+            if(xm87105TrainingHPHotkey(event)) continue; // Training numpad HP instead of volume
+            if(xm257HandleTrainingMenuEvent(event,xm14TrainingMode!=0)) continue;
+			if(xm24HandleEvent(event)) continue; /* XMVSF_STAGE24_VERSUS */
+			switch (event.type)
+			{
+			case SDL_QUIT:                                        /* Windows was closed */
+                xm8640ExitReason="SDL_QUIT";
+				quit = 1;
+				break;
+
+#ifdef BUILD_SDL2
+			case SDL_WINDOWEVENT:  // Window Event
+				switch (event.window.event)
+				{
+					case SDL_WINDOWEVENT_MINIMIZED:
+					case SDL_WINDOWEVENT_FOCUS_LOST:
+						pause_game();
+						break;
+				}
+				break;
+#endif
+
+			case SDL_KEYDOWN:                                                // need to find a nicer way of doing this...
+				switch (event.key.keysym.sym)
+				{
+				case SDLK_F1:
+					bAppDoFast = 1;
+					break;
+				case SDLK_F9:
+					QuickState(0);
+					break;
+				case SDLK_F10:
+					QuickState(1);
+					break;
+				case SDLK_F11:
+					bAppShowFPS = !bAppShowFPS;
+#ifdef BUILD_SDL2
+					if (!bAppShowFPS)
+					{
+						sprintf(Windowtitle, "FBNeo - %s - %s", BurnDrvGetTextA(DRV_NAME), BurnDrvGetTextA(DRV_FULLNAME));
+						SDL_SetWindowTitle(sdlWindow, Windowtitle);
+					}
+#endif
+					break;
+#ifdef BUILD_SDL2
+				case SDLK_TAB:
+					if(!nVidSelect) {
+						ingame_gui_start(sdlRenderer);
+					} else {
+						// Pause with SDL2 OpenGL mode
+						pause_game();
+					}
+					break;
+
+                case SDLK_RETURN:
+                    // Stage29 handles Alt+Enter before gameplay event dispatch.
+                    break;
+#endif
+				case SDLK_F6: // screeenshot
+					if (!bscreenshot) {
+						MakeScreenShot(0);
+						bscreenshot = 1;
+					}
+					break;
+				case SDLK_KP_MINUS: // volumme -
+					nAudVolume -= 500;
+					if (nAudVolume < 0) {
+						nAudVolume = 0;
+					}
+					if (AudSoundSetVolume() == 0) {
+					}
+					break;
+				case SDLK_KP_PLUS: // volume -+
+					nAudVolume += 500;
+					if (nAudVolume > 10000) {
+						nAudVolume = 10000;
+					}
+					if (AudSoundSetVolume() == 0) {
+					}
+					break;
+				default:
+					break;
+				}
+				break;
+
+			case SDL_KEYUP:                                                // need to find a nicer way of doing this...
+				switch (event.key.keysym.sym)
+				{
+				case SDLK_F1:
+					bAppDoFast = 0;
+					break;
+				case SDLK_F6:
+					bscreenshot = 0;
+					break;
+				case SDLK_F12:
+                    xm8640ExitReason="F12";
+					quit = 1;
+					break;
+
+				default:
+					break;
+				}
+				break;
+			}
+		}
+
+        xm257PollTrainingMenu(xm14TrainingMode!=0);
+        if(xm14TrainingMode && xm23State.returnMainRequested){
+            xm23State.returnMainRequested=false;
+            xm26ReturnToBoot=true; // Stage26 in-process return, no process spawn
+        }
+		xm24HandlePendingCommand(); /* XMVSF_STAGE24_VERSUS */
+		xm243PollLiveMenu(); /* XMVSF_STAGE24_3_LIVE_RESULTS */
+        xm258PollArcadeMenu(); /* XMVSF_STAGE25_8_ARCADE_MENU */
+        if(xm258ArcadeReturnRequested){
+            xm258ArcadeReturnRequested=false;
+            xm26ReturnToBoot=true; // Stage26 in-process return, no process spawn
+        }
+        if(xm26ReturnToBoot){
+            // Explicitly leave gameplay's backbuffer behind. This transition
+            // does not destroy, reposition, or recreate the SDL_Window.
+            std::fprintf(stderr,"XM27: emulation loop LEAVE for main menu\n");
+            std::fflush(stderr);
+            if(sdlRenderer){
+                SDL_SetRenderTarget(sdlRenderer,nullptr);
+                SDL_SetRenderDrawColor(sdlRenderer,0,0,0,255);
+                SDL_RenderClear(sdlRenderer);
+                xm8656Present(sdlRenderer); /* XM86.56 shared final pass */
+            }
+            xm8640ExitReason="return_to_main";
+            quit=1;
+            continue;
+        }
+		RunIdle(); // game runs naturally; custom overlay retains input and score
+
+	}
+
+    std::fprintf(stderr,"XM86.40 SESSION EXIT reason=%s frames=%llu emulated=%d returnToBoot=%d\n",
+         xm8640ExitReason,xm8640FrameCount-xm8640StartFrames,nFramesEmulated,(int)xm26ReturnToBoot);
+    std::fflush(stderr);
+	RunExit();
+
+	return 0;
+}
+
+#endif

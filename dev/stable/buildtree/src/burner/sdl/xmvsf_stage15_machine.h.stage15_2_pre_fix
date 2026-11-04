@@ -1,0 +1,126 @@
+// Stage15: match-state handoff + coin/start emulation + safe select-timer probe.
+// No guessed RAM writes. No input delay. Applicable only to Training.
+#ifndef XMVSF_STAGE15_MACHINE_H
+#define XMVSF_STAGE15_MACHINE_H
+#include "xmvsf_stage14_mode.h"
+#include "burnint.h"
+#include <stdio.h>
+#include <string.h>
+
+struct XM15Machine {
+    unsigned int frame;
+    unsigned int p1Picks, p2Picks;
+    unsigned char phase;       // 0=join, 1=P1 select, 2=P2 select, 3=match
+    unsigned char attackThisFrame, attackPreviously;
+    unsigned char matchSeen;
+    unsigned char lastMatchState;
+    unsigned char timerSamples;
+    unsigned char lastTimerSample[0x8000];
+    unsigned char tickCount[0x8000];
+    FILE* log;
+};
+extern XM15Machine xm15;
+
+static inline void xm15Reset() {
+    if(xm15.log) { fclose(xm15.log); xm15.log=NULL; }
+    memset(&xm15,0,sizeof(xm15));
+    if(xm14TrainingMode) {
+        xm15.log=fopen("xmvsf_stage15_select_probe.log","w");
+        if(xm15.log) fprintf(xm15.log,"USA 961023 / Stage15 Training session; time probe read-only\n");
+    }
+    xm14InputTarget=0;
+}
+
+// The game input mapping still supplies the identical virtual coin/start codes.
+// These pulses provide credit/start automatically, NOT a permanent CPS-2 free-play DIP change.
+static inline int xm15SyntheticButton(int player,int sub) {
+    if (!xm14TrainingMode || xm15.phase!=0 || player<0 || player>1) return 0;
+    // Re-try only during initial boot/join. Never fire after team selection begins.
+    // Offset the 1-frame coin and 2-frame Start pulses so the game sees separate edges.
+    const unsigned int f=xm15.frame;
+    if (sub==0x86) return (f>=180 && ((f-180)%180)==0);
+    if (sub==0x87) return (f>=205 && ((f-205)%180)<=1);
+    return 0;
+}
+
+// One pulse per press/release group, not one per individual punch button.
+// Called by the existing SDL input evaluator, without buffering or rewriting punches.
+static inline void xm15ObserveInput(int player,int sub,int value) {
+    if (!xm14TrainingMode || xm15.phase==3 || !value) return;
+    if(player==0 && sub>=0x80 && sub<=0x85) xm15.attackThisFrame=1;
+    if(player==1 && xm14InputTarget==1 && sub>=0x80 && sub<=0x85) xm15.attackThisFrame=1;
+}
+
+static inline void xm15LogStatus(unsigned char state) {
+    if (xm15.log && state!=xm15.lastMatchState) {
+        fprintf(xm15.log,"f=%u match_state=%02X phase=%u picks=%u/%u\n",
+                xm15.frame,state,xm15.phase,xm15.p1Picks,xm15.p2Picks);
+        fflush(xm15.log);
+    }
+    xm15.lastMatchState=state;
+}
+
+// Read-only search for BCD second counters, run at 1Hz. This does not freeze
+// candidates until the actual select-timer address is established by playtesting.
+static inline void xm15ProbeSelectTimer(cpu_core_config* cpu) {
+    if (!cpu || !cpu->read || !cpu->open || !cpu->close ||
+        xm15.phase==3 || xm15.frame%60!=0 || xm15.timerSamples>=10) return;
+    cpu->open(0);
+    unsigned int candidates=0;
+    for(unsigned int i=0;i<0x8000;i++) {
+        unsigned char v=cpu->read(0xFF0000+i);
+        unsigned char old=xm15.lastTimerSample[i];
+        // packed BCD 0..99; consecutive 1s decrements 39->38 or 30->29.
+        const unsigned int a=(old>>4)*10+(old&0xf);
+        const unsigned int b=(v>>4)*10+(v&0xf);
+        if((old>>4)<=9 && (old&15)<=9 && (v>>4)<=9 && (v&15)<=9 &&
+           a>=10 && b+1==a && old!=v) {
+            if(xm15.tickCount[i]<255)xm15.tickCount[i]++;
+            if(xm15.tickCount[i]>=2) {
+                candidates++;
+                if(xm15.log) fprintf(xm15.log,"f=%u candidate=%06X old=%02X now=%02X hits=%u\n",
+                     xm15.frame,0xFF0000+i,old,v,xm15.tickCount[i]);
+            }
+        }
+        xm15.lastTimerSample[i]=v;
+    }
+    cpu->close();
+    xm15.timerSamples++;
+    if(xm15.log) {fprintf(xm15.log,"timer_scan=%u candidates=%u\n",xm15.timerSamples,candidates);fflush(xm15.log);}
+}
+
+// Called after normal non-runahead game frame, same frame end as Stage14 cheats.
+static inline void xm15OnRealFrame(int driverReady) {
+    if(!xm14TrainingMode || bBurnRunAheadFrame || !driverReady)return;
+    xm15.frame++;
+    cpu_core_config* cpu=GetCpuCoreConfig(0);
+    if(cpu && cpu->read && cpu->open && cpu->close) {
+        cpu->open(0);
+        const unsigned char matchState=cpu->read(0xFF5000);
+        cpu->close();
+        xm15LogStatus(matchState);
+        // Public XMVSF hitbox tooling identifies 08 as battle-in-progress.
+        // Wait for at least one real select confirmation to avoid boot false positives.
+        if(matchState==0x08 && (xm15.p1Picks || xm15.p2Picks)) {
+            if(!xm15.matchSeen && xm15.log) {fprintf(xm15.log,"COMBAT_STARTED f=%u\n",xm15.frame);fflush(xm15.log);}
+            xm15.matchSeen=1;xm15.phase=3;xm14InputTarget=0;
+        }
+        if (xm15.phase!=0 && xm15.phase!=3)xm15ProbeSelectTimer(cpu);
+    }
+    // After boot, the first actual attack confirms character selection has begun.
+    if (xm15.phase!=3 && xm15.frame>=240 && xm15.attackThisFrame && !xm15.attackPreviously) {
+        if(xm15.phase==0)xm15.phase=1;
+        if(xm15.phase==1) {
+            xm15.p1Picks++;
+            if(xm15.log) {fprintf(xm15.log,"P1_PICK_PRESS %u f=%u\n",xm15.p1Picks,xm15.frame);fflush(xm15.log);}
+            if(xm15.p1Picks>=2) {xm15.phase=2;xm14InputTarget=1;}
+        } else if(xm15.phase==2) {
+            xm15.p2Picks++;
+            if(xm15.log) {fprintf(xm15.log,"P2_PICK_PRESS %u f=%u\n",xm15.p2Picks,xm15.frame);fflush(xm15.log);}
+            if(xm15.p2Picks>=2) {xm15.phase=3;xm14InputTarget=0;}
+        }
+    }
+    xm15.attackPreviously=xm15.attackThisFrame;
+    xm15.attackThisFrame=0;
+}
+#endif

@@ -1,0 +1,182 @@
+#include "xmvsf_stage25_4_input_handoff.h" /* XMVSF_STAGE25_4_INPUT_HANDOFF */
+#include "xmvsf_stage25_6_training_guard.h" /* XMVSF_STAGE25_6_MENU_INPUT_TRAINING */
+// XMVSF Stage 13: explicit two-player SDL joystick mapping, independent of
+// device enumeration order. Used by boot menu and existing SDL input backend.
+#ifndef XMVSF_STAGE13_CONTROLS_H
+#define XMVSF_STAGE13_CONTROLS_H
+#include <SDL.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#define XM13_ACTIONS 8
+#define XM13_DEADZONE 9000
+struct XM13_Binding { char type; int index; }; // B: raw button, A: positive axis, N: none
+struct XM13_Player {
+    int active;
+    char guid[33];
+    int occurrence; // 0-based ordinal among identical GUIDs
+    XM13_Binding binding[XM13_ACTIONS]; // LP MP HP LK MK HK COIN START
+};
+struct XM13_Settings { XM13_Player player[2]; };
+
+static void xm13Default(XM13_Settings* s) {
+    memset(s,0,sizeof(*s));
+    for(int p=0;p<2;p++) {
+        s->player[p].occurrence=0;
+        for(int a=0;a<XM13_ACTIONS;a++) {
+            s->player[p].binding[a].type='N';
+            s->player[p].binding[a].index=-1;
+        }
+    }
+}
+static int xm13ValidGuid(const char* g) {
+    if (strlen(g)!=32) return 0;
+    for(int i=0;i<32;i++) if(!((g[i]>='0'&&g[i]<='9') || (g[i]>='a'&&g[i]<='f') || (g[i]>='A'&&g[i]<='F'))) return 0;
+    return 1;
+}
+static int xm13Load(XM13_Settings* s) {
+    xm13Default(s);
+    FILE* f=fopen("xmvsf_controller_map.ini","r");
+    if(!f) return 0;
+    char line[512];
+    if(!fgets(line,sizeof(line),f) || strncmp(line,"XMVSF_CONTROLLERS_1",19)) {fclose(f);return 0;}
+    for(int p=0;p<2;p++) {
+        if(!fgets(line,sizeof(line),f)) break;
+        int num=0, occurrence=0; char guid[40]={0};
+        char* tok=strtok(line," \t\r\n");
+        if(!tok || sscanf(tok,"P%d",&num)!=1 || num!=p+1) continue;
+        tok=strtok(NULL," \t\r\n");
+        if(!tok || strlen(tok)!=32) continue;
+        snprintf(guid,sizeof(guid),"%s",tok);
+        if(!xm13ValidGuid(guid) || strcmp(guid,"00000000000000000000000000000000")==0) continue;
+        tok=strtok(NULL," \t\r\n"); if(!tok)continue;
+        occurrence=atoi(tok); if(occurrence<0 || occurrence>7)continue;
+        XM13_Player* v=&s->player[p];
+        snprintf(v->guid,sizeof(v->guid),"%s",guid);v->occurrence=occurrence;
+        v->active=1;
+        for(int a=0;a<XM13_ACTIONS;a++) {
+            tok=strtok(NULL," \t\r\n");if(!tok) {v->active=0;break;}
+            int ix=-1;char c='N';
+            if(sscanf(tok,"%c:%d",&c,&ix)!=2 || (c!='B'&&c!='A'&&c!='N') || ix < -1 || ix > 127) {v->active=0;break;}
+            v->binding[a].type=c;v->binding[a].index=ix;
+        }
+    }
+    fclose(f);return 1;
+}
+static int xm13Save(const XM13_Settings* s) {
+    FILE* f=fopen("xmvsf_controller_map.ini.tmp","w");
+    if(!f)return 0;
+    fputs("XMVSF_CONTROLLERS_1\n",f);
+    for(int p=0;p<2;p++) {
+        const XM13_Player* v=&s->player[p];
+        fprintf(f,"P%d %s %d",p+1,v->active?v->guid:"00000000000000000000000000000000",v->occurrence);
+        for(int a=0;a<XM13_ACTIONS;a++)fprintf(f," %c:%d",v->binding[a].type,v->binding[a].index);
+        fputc('\n',f);
+    }
+    if(fclose(f)!=0) {remove("xmvsf_controller_map.ini.tmp");return 0;}
+    // Windows rename() cannot replace an existing file. Preserve backup first.
+    remove("xmvsf_controller_map.ini.bak");
+    rename("xmvsf_controller_map.ini","xmvsf_controller_map.ini.bak");
+    if(rename("xmvsf_controller_map.ini.tmp","xmvsf_controller_map.ini")!=0) {
+        rename("xmvsf_controller_map.ini.bak","xmvsf_controller_map.ini"); return 0;
+    }
+    return 1;
+}
+static void xm13GuidForDevice(int device,char out[33]) {
+    SDL_JoystickGUID g=SDL_JoystickGetDeviceGUID(device);
+    SDL_JoystickGetGUIDString(g,out,33);
+}
+static int xm13DeviceOrdinal(int device) {
+    char current[33];xm13GuidForDevice(device,current);
+    int count=0;
+    for(int i=0;i<device;i++) {
+        char other[33];xm13GuidForDevice(i,other);
+        if(strcmp(current,other)==0)count++;
+    }
+    return count;
+}
+static int xm13FindDevice(const XM13_Player* p) {
+    if(!p->active)return -1;
+    int ordinal=0;
+    for(int i=0;i<SDL_NumJoysticks();i++) {
+        char candidate[33];xm13GuidForDevice(i,candidate);
+        if(strcmp(p->guid,candidate)==0) {
+            if(ordinal==p->occurrence)return i;
+            ordinal++;
+        }
+    }
+    return -1; // disconnected devices must NOT control somebody else's player
+}
+static void xm13SetDefaultButtons(XM13_Player* p,int device) {
+    const SDL_GameControllerButton names[XM13_ACTIONS]={
+        SDL_CONTROLLER_BUTTON_X, SDL_CONTROLLER_BUTTON_Y, SDL_CONTROLLER_BUTTON_LEFTSHOULDER,
+        SDL_CONTROLLER_BUTTON_A, SDL_CONTROLLER_BUTTON_B, SDL_CONTROLLER_BUTTON_RIGHTSHOULDER,
+        SDL_CONTROLLER_BUTTON_BACK, SDL_CONTROLLER_BUTTON_START
+    };
+    SDL_GameController* gc=SDL_IsGameController(device)?SDL_GameControllerOpen(device):NULL;
+    const int fallback[XM13_ACTIONS]={2,3,4,0,1,5,6,7};
+    for(int a=0;a<XM13_ACTIONS;a++) {
+        p->binding[a].type='B';p->binding[a].index=fallback[a];
+        if(gc) {
+            SDL_GameControllerButtonBind b=SDL_GameControllerGetBindForButton(gc,names[a]);
+            if(b.bindType==SDL_CONTROLLER_BINDTYPE_BUTTON) p->binding[a].index=b.value.button;
+            else if(b.bindType==SDL_CONTROLLER_BINDTYPE_AXIS && b.value.axis>=0) {
+                p->binding[a].type='A';p->binding[a].index=b.value.axis;
+            }
+        }
+    }
+    if(gc)SDL_GameControllerClose(gc);
+}
+static int xm13Assign(XM13_Settings* settings,int player,int device) {
+    if(player<0||player>1||device<0||device>=SDL_NumJoysticks())return 0;
+    char guid[33];xm13GuidForDevice(device,guid);
+    if(!xm13ValidGuid(guid))return 0;
+    int occ=xm13DeviceOrdinal(device);
+    int other=1-player;
+    if(settings->player[other].active && !strcmp(settings->player[other].guid,guid)
+       && settings->player[other].occurrence==occ) return 0;
+    XM13_Player* p=&settings->player[player];
+    p->active=1;snprintf(p->guid,sizeof(p->guid),"%s",guid);p->occurrence=occ;
+    xm13SetDefaultButtons(p,device);
+    return xm13Save(settings);
+}
+extern int xm24ResultInputCapture; /* XMVSF_STAGE24_3_LIVE_RESULTS */
+static int xm13ReadInput(const XM13_Settings* s, int player, int sub,
+                         SDL_Joystick** raw, SDL_GameController** gc, int count) {
+    if (xm24ResultInputCapture) return 0; /* XMVSF_STAGE24_3_LIVE_RESULTS */
+    if (xm25InputHandoffBlock()) return 0; /* XMVSF_STAGE25_4_INPUT_HANDOFF */
+    if (xm256TrainingOwnerBlock(xm14TrainingMode,xm14InputTarget)) return 0; /* XMVSF_STAGE25_6_MENU_INPUT_TRAINING */
+    extern int xm24VersusMode;
+    if (xm24VersusMode && sub==0x86) return 0; /* XMVSF_STAGE25_1_POLISH: Coin reserved for Versus UI */
+    if(player<0||player>1 || !s->player[player].active)return -1;
+    int device=xm13FindDevice(&s->player[player]);
+    if(device<0 || device>=count || !raw[device] || !SDL_JoystickGetAttached(raw[device]))return 0;
+    SDL_Joystick* j=raw[device];
+    SDL_GameController* c=gc[device];
+    if(sub>=0 && sub<=3) {
+        int dx=SDL_JoystickNumAxes(j)>0?SDL_JoystickGetAxis(j,0):0;
+        int dy=SDL_JoystickNumAxes(j)>1?SDL_JoystickGetAxis(j,1):0;
+        int pad=0;
+        if(c) {
+            SDL_GameControllerButton cb=(SDL_GameControllerButton)(sub==0?SDL_CONTROLLER_BUTTON_DPAD_LEFT:sub==1?SDL_CONTROLLER_BUTTON_DPAD_RIGHT:sub==2?SDL_CONTROLLER_BUTTON_DPAD_UP:SDL_CONTROLLER_BUTTON_DPAD_DOWN);
+            pad=SDL_GameControllerGetButton(c,cb)!=0;
+        }
+        if(SDL_JoystickNumHats(j)>0) {
+            Uint8 hat=SDL_JoystickGetHat(j,0);
+            int mask=sub==0?SDL_HAT_LEFT:sub==1?SDL_HAT_RIGHT:sub==2?SDL_HAT_UP:SDL_HAT_DOWN;
+            pad=pad||((hat&mask)!=0);
+        }
+        return pad || (sub==0?dx<-XM13_DEADZONE:sub==1?dx>XM13_DEADZONE:sub==2?dy<-XM13_DEADZONE:dy>XM13_DEADZONE);
+    }
+    if(sub>=0x80 && sub<0x80+XM13_ACTIONS) {
+        XM13_Binding binding=s->player[player].binding[sub-0x80];
+        if(binding.type=='B' && binding.index>=0 && binding.index<SDL_JoystickNumButtons(j))
+            return SDL_JoystickGetButton(j,binding.index)!=0;
+        if(binding.type=='A' && binding.index>=0 && binding.index<SDL_JoystickNumAxes(j))
+            return SDL_JoystickGetAxis(j,binding.index)>16000;
+        return 0;
+    }
+    return 0;
+}
+#endif

@@ -1,0 +1,27 @@
+{
+  "version": "87.122",
+  "expected_old": {
+    "dev/stable/buildtree/src/burn/drv/capcom/cps_obj.cpp": "a29d8e63381bb4411f81da79f70fae0d6e4c2dca84cbfd0b26ca70d8e9d8733c",
+    "dev/stable/buildtree/src/burn/drv/capcom/cps_draw.cpp": "cd04a47d9a60031759bf42d1b6e98f24cd7fd6fd9809f801ad3c0c9dd2f10411",
+    "dev/stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_45_hp_rgb_and_opening.h": "4cb13c6b98ca560cd6ce85b984b967467c8c53bf4369d0845edc0a147df93cee",
+    "dev/stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_46_hud_layers.h": "ae562aeeee6011764e05413f5af00be4bc4cd19e05651fd68c2deaa72f684bc1",
+    "BUILD_TEST.bat": "2f641a3b64144cd51f1ca176987e04c729fd7ab3704dbff173e6252487f11faa",
+    "RUN_TEST.bat": "da4762a7079a06dd45d81ad97cf049ea0828d35966924bafcc80e8e9c508fc1d"
+  },
+  "required_old": {
+    "dev/stable/buildtree/src/burn/drv/capcom/cps_run.cpp": "a585f818b04da166ef6788ebb7535949b6cfa41eb8c930a075eab8428cdde957",
+    "dev/stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_121_cyclops_release.h": "f997bd8db93c44529ecf2298a4125a0b42c410f26b6f1db057f15aabc05e29e6",
+    "dev/stable/releases/87_121/build_87121.py": "a5fea3b479452fc88ef3cae908c8ae8c582331d213018e3bdc40d4bcfc452bb6",
+    "dev/stable/releases/87_121/run_87121.py": "9f3ad1b3188a86735f2768cd9d55ed5b7deb3e04519e6a2ce69fed6e24bd0717"
+  },
+  "new_files": {
+    "dev/stable/buildtree/src/burn/drv/capcom/cps_obj.cpp": "925a8615c13fb361455b707be2688842e7c2e5d0bf465028e96779f57ff90470",
+    "dev/stable/buildtree/src/burn/drv/capcom/cps_draw.cpp": "53203be199d9eb74aa949a919f2c6f8c16bc9d9bedcada5800b10329a2266462",
+    "dev/stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_45_hp_rgb_and_opening.h": "284cc4d63bdf7cc57f8e3a5ad2af6eb8ee46d5cc41c774ffa420a2f869371403",
+    "dev/stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_46_hud_layers.h": "16f325071c70a57d9693cbcc04ec18f80a5e5d6904bff6125af622cd9fa96053",
+    "BUILD_TEST.bat": "5ef98a5f124881e0fd634eedab47c77cd3203e537e2bef4d5121dbafa29eed2b",
+    "RUN_TEST.bat": "ebac8e1cea1b26ca0e466f89258b70fbd925efc359e597b9e44e32b7869c964c",
+    "dev/stable/releases/87_122/build_87122.py": "e72e813e2cb34553cc463746dd9504ccd814999c7f39d5b9b68a66575ae558cc",
+    "dev/stable/releases/87_122/run_87122.py": "4834ab62e3a158a6bbda18b7c8ae9b19a89170243d5a06316f4dc0333b4f71a1"
+  }
+}

@@ -1,0 +1,34 @@
+{
+  "version": "87.132",
+  "new_files": {
+    "PACK_XMVSF_HANDOFF.bat": "5fcef66ea5f255b60cbdf9306ffc7bf3ab602ea2d2ef4f16f651c0fab35aa194",
+    "PACK_XMVSF_HANDOFF_SAFE.bat": "5fcef66ea5f255b60cbdf9306ffc7bf3ab602ea2d2ef4f16f651c0fab35aa194",
+    "RUN_TEST.bat": "0857fe13c833d149459e8a713ebe2d6b27a9570b431b344ba7c51b9e996b0ce4",
+    "RUN_STABLE.bat": "78b2ea8a3bdfba0396cd30c6a4d8dd770aa211475bdcb3cf84f274c65539389e",
+    "BUILD_STABLE.bat": "c0f028b3fa24c771a49c0fe773e738b60f9e961afafef2f03dd85bb7a5a45cbc",
+    "BUILD_TEST.bat": "3fc7670c1f496efdc3ecc699e5df205a78c6269303efbd8f37b86a81c47df5a7",
+    "dev/handoff/pack_current.py": "1efc6ab8326f5d88af06937be493e801da3a2c4758ec6deb1a76f5f06df3d079",
+    "dev/stable/releases/87_132/build_stable_87132.py": "0b3a7f0274e6eca48ecd4eb8af9e7601d8f31edf1ab2b899f366810e26db431d",
+    "dev/stable/releases/87_132/run_87132.py": "e4b02d08623797a7af34ec90aad40726432145f21cc6d29e238b0f0209355e05",
+    "dev/stable/releases/87_132/build_87132.py": "628091b5ac884f0a38b87480c7c02c6fcd3447e27fa136bc1382fbd0594ccd41",
+    "dev/stable/buildtree/src/burner/sdl/xmvsf_stage87_61_replay.h": "bc59d6333ab1e428352714242c75e9e77dbcdaf46a044fb966e83ce755e4f576",
+    "dev/stable/buildtree/src/burner/sdl/run.cpp": "7e94fa3a9805de4d143e480abc751eed86b3a5a65b84de584d43258240eaa084",
+    "dev/stable/buildtree/src/intf/video/sdl/vid_sdl2.cpp": "0cd5634cfdbd33baa978f4b6524f765aa5ed4c37763af30af843ed7016a37f96",
+    "dev/handoff/APPLY_87_132.py": "a783f70a0068e91f878e6763cc0388a8f0d59123f7aea5a5c20da39a3c39364b",
+    "dev/handoff/APPLY_HANDOFF.bat": "52f08d9c8cdc59d81c15798bb1da8bc090c4eca36a07f86c26f0217962a57282",
+    "README_87_132.txt": "db0fbc2acfe1e5f3f49d704e55346dda9b591f85b937ed21ec876de93546f849"
+  },
+  "expected_old": {
+    "dev/stable/buildtree/src/burner/sdl/xmvsf_stage87_61_replay.h": "582640614cb8e5c86b0061a90858b0c72d80868cdede4e0047a3c35c19b8523a",
+    "dev/stable/buildtree/src/burner/sdl/run.cpp": "2d276fb8bbc9c50cbc7fd94996753b5faa4f2d7a85c5e2514ed851ed147d83ca",
+    "dev/stable/buildtree/src/intf/video/sdl/vid_sdl2.cpp": "9fdd43e9037213886f2a6f35de8c77b4e8e21b85486b93919854de1484176793",
+    "BUILD_TEST.bat": "2bf01e915f436169db029e492ce2070d25be368edf3ba176029cdcfdb0f8e73b",
+    "RUN_TEST.bat": "7ee6a823adc455418fd48ba28cd55f8557642cc7057e80c8a07ec683814d62c3",
+    "PACK_XMVSF_HANDOFF.bat": "cc82d1605aef7109b1454dccc97a4544a5415474f2d8b97809edff3e5a852b32",
+    "PACK_XMVSF_HANDOFF_SAFE.bat": "05a3eacd9ef8f7cf90ec7d7a1efc18ffc5f5e95d72c2868955abde26490321ed"
+  },
+  "required_old": {
+    "dev/stable/buildtree/src/burner/sdl/xmvsf_stage86_56_final.h": "90a0ec9bd2c1ac3d3217dc0af68b69a72fb26645cdd2beed02c741991f5b2ca2",
+    "dev/stable/releases/87_131/build_87131.py": "81ce782ef394ee9cb1154ad892f63198fde0596337c0b3db981e0033f06701f9"
+  }
+}

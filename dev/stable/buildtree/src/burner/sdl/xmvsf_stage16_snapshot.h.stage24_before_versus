@@ -1,0 +1,52 @@
+// Stage16: explicit full-game-state snapshot. This is a save state, NOT a replay.
+// F8 saves the user's live state; Training reloads it after driver initialization.
+#ifndef XMVSF_STAGE16_SNAPSHOT_H
+#define XMVSF_STAGE16_SNAPSHOT_H
+#include "xmvsf_stage14_mode.h"
+#include <stdio.h>
+#include <string.h>
+static inline const TCHAR* xm16SnapshotPath() {
+    return _T("config/games/xmvsfu_training_select.fs");
+}
+static inline void xm16SnapshotLog(const char* event, int result) {
+    FILE* f=fopen("xmvsf_stage16_snapshot.log","a");
+    if (f) {
+        fprintf(f,"%s result=%d mode=%d file=config/games/xmvsfu_training_select.fs\n",
+                event,result,xm14TrainingMode);
+        fclose(f);
+    }
+    fprintf(stderr,"XMVSF Stage16: %s (%d)\n",event,result);
+}
+static inline bool xm16OnExpectedDriver() {
+    const char* name=BurnDrvGetTextA(DRV_NAME);
+    return bDrvOkay && name && strcmp(name,"xmvsfu")==0;
+}
+static inline void xm16CaptureSnapshot() {
+    if (!xm16OnExpectedDriver()) {
+        xm16SnapshotLog("CAPTURE_SKIPPED_DRIVER_NOT_READY",-1); return;
+    }
+    // Operates on same SDL event-loop thread as FBNeo's existing QuickState.
+    // Caller is responsible for pressing F8 when both character selectors are present.
+    const int rc=BurnStateSave((TCHAR*)xm16SnapshotPath(),1);
+    FILE* check=fopen("config/games/xmvsfu_training_select.fs","rb");
+    char hdr[4]={};
+    const bool saved=check && fread(hdr,1,4,check)==4 && memcmp(hdr,"FB1 ",4)==0;
+    if (check) fclose(check);
+    xm16SnapshotLog((rc || !saved) ? "CAPTURE_FAILED" : "CAPTURE_OK",rc || !saved ? (rc ? rc : -3) : 0);
+}
+static inline void xm16LoadTrainingSnapshot() {
+    if (!xm14TrainingMode) return;
+    if (!xm16OnExpectedDriver()) {
+        xm16SnapshotLog("LOAD_SKIPPED_DRIVER_NOT_READY",-1); return;
+    }
+    FILE* file=fopen("config/games/xmvsfu_training_select.fs","rb");
+    if (!file) { xm16SnapshotLog("SNAPSHOT_MISSING_USE_ARCADE_F8",-1); return; }
+    char hdr[4]={};
+    const bool good=fread(hdr,1,4,file)==4 && memcmp(hdr,"FB1 ",4)==0;
+    fclose(file);
+    if (!good) { xm16SnapshotLog("INVALID_SNAPSHOT_HEADER",-2); return; }
+    const int rc=BurnStateLoad((TCHAR*)xm16SnapshotPath(),1,NULL);
+    xm16SnapshotLog(rc ? "LOAD_FAILED" : "LOAD_OK",rc);
+    if (!rc) { xm14InputTarget=0; xm17BeginSelect(); } // XMVSF_STAGE17_AUTO
+}
+#endif

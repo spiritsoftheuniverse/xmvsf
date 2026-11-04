@@ -1,0 +1,247 @@
+#ifndef XMVSF_STAGE86_49_PAINTER_H
+#define XMVSF_STAGE86_49_PAINTER_H
+// Stage86.49 opt-in first native-window artwork pass.
+// The old Stage77 manifest compositor supplies recovered Wily machinery and
+// animated actor poses. Stage86.29's ROM-camera transform is used instead of
+// extrapolating camera motion from fighter positions.  Advanced noir/spectral
+// tuning remains in the Stage86.29 viewer; this stage tests native composition.
+#include "../../../burner/sdl/xmvsf_stage86_49_state.h"
+#include "xmvsf_stage86_49_wily_art.h"
+#include "xmvsf_stage87_63_super_intro.h"
+#include <memory>
+#include <string>
+#include <fstream>
+#include <cstdlib>
+#include <cstdio>
+extern SDL_Window* sdlWindow;
+extern INT32 xm77SpriteWidth,xm77SpriteHeight,xm77SpriteValid;
+extern const UINT8* xm77SpritePixels();
+extern const UINT8* xm8757FlashPixels(); // read-only native Raging Demon/white wipes
+extern int xm8654ConsideredObjects;
+extern unsigned xm8763NativeObjectCount;
+extern unsigned xm8763NativeObjectFrame;
+extern int xm8654FilteredObjects;
+extern int xm8654RetainedObjects;
+extern int xm8654SceneryObjects;
+extern int xm8654FilteredPriority[8];
+static SDL_Texture* xm8649Target=nullptr;
+static SDL_Texture* xm8649FighterTarget=nullptr;
+static SDL_Texture* xm8757NativeFlashTarget=nullptr;
+static SDL_Texture* xm8656WilyActorTarget=nullptr; // XM86.56 original full-bright actor
+static std::unique_ptr<xm76stage::World> xm8649World;
+static std::unique_ptr<xm76stage::Textures> xm8649Textures;
+static std::unique_ptr<xm76stage::Preview> xm8649Preview;
+static bool xm8649Unavailable=false;
+static unsigned long long xm8649PrevFrame=0;
+static int xm8649Presented=0;
+// XM86.50: SDL's keyboard snapshot is updated by the normal host event pump.
+// We don't consume events or change game controls; a 1-9 rising edge toggles
+// one visualization pass. Top-row digits and keypad digits are equivalent.
+static void xm8650PollAuditKeys(SDL_Window* win){
+ if(!xm8649Preview || !win)return;
+ const Uint8* keys=SDL_GetKeyboardState(nullptr);
+ if(!keys)return;
+ static bool held[10]={};
+ static const SDL_Scancode numberKeys[10]={SDL_SCANCODE_UNKNOWN,
+  SDL_SCANCODE_1,SDL_SCANCODE_2,SDL_SCANCODE_3,
+  SDL_SCANCODE_4,SDL_SCANCODE_5,SDL_SCANCODE_6,
+  SDL_SCANCODE_7,SDL_SCANCODE_8,SDL_SCANCODE_9};
+ static const SDL_Scancode keypadKeys[10]={SDL_SCANCODE_UNKNOWN,
+  SDL_SCANCODE_KP_1,SDL_SCANCODE_KP_2,SDL_SCANCODE_KP_3,
+  SDL_SCANCODE_KP_4,SDL_SCANCODE_KP_5,SDL_SCANCODE_KP_6,
+  SDL_SCANCODE_KP_7,SDL_SCANCODE_KP_8,SDL_SCANCODE_KP_9};
+ static const char* const names[10]={"","factory","middle","foreground",
+  "sky-fill","natural-patch","upper-repair","smoke-vapor","Wily-actor","native-sprites"};
+ for(int n=1;n<=9;++n){
+  const bool down=keys[numberKeys[n]] || keys[keypadKeys[n]];
+  if(down && !held[n]){
+   // XM86.54: the broad palette/family selectors were removed.
+   // Number keys remain available only for inspecting the separate
+   // Wily compositor layers, not for filtering live CPS2 sprite objects.
+   xm8649Preview->auditPass[n]=!xm8649Preview->auditPass[n];
+   std::string caption="Wily audit [";
+   for(int k=1;k<=9;++k)caption+=xm8649Preview->auditPass[k]?char('0'+k):'-';
+   caption+="]  1 Factory 2 Middle 3 Foreground 4 Sky 5 Patch 6 Upper 7 Smoke 8 Wily 9 Native";
+   SDL_SetWindowTitle(win,caption.c_str());
+   std::fprintf(stderr,"XM86.54 LAYER_AUDIT key=%d group=%s enabled=%d\n",
+                n,names[n],int(xm8649Preview->auditPass[n]));
+  }
+  held[n]=down;
+ }
+ // XM86.53: adjust only factory parallax registration, never the native camera.
+ static bool regHeld[4]={};
+ static const SDL_Scancode regKeys[4]={SDL_SCANCODE_LEFTBRACKET,SDL_SCANCODE_RIGHTBRACKET,SDL_SCANCODE_MINUS,SDL_SCANCODE_EQUALS};
+ for(int k=0;k<4;++k){
+  const bool pressed=keys[regKeys[k]]!=0;
+  if(pressed && !regHeld[k]){
+   if(k==0)xm8649Preview->factoryRightShiftPx-=16;
+   if(k==1)xm8649Preview->factoryRightShiftPx+=16;
+   if(k==2)xm8649Preview->factoryDrift=std::max(0.0,xm8649Preview->factoryDrift-0.01);
+   if(k==3)xm8649Preview->factoryDrift=std::min(0.25,xm8649Preview->factoryDrift+0.01);
+   xm8649Preview->factoryRightShiftPx=std::max(-128,std::min(256,xm8649Preview->factoryRightShiftPx));
+   std::fprintf(stderr,"XM86.53 FACTORY_ADJUST key=%d rightShiftPx=%d drift=%.3f cameraX=%d scrollX=%.2f\n",
+    k,xm8649Preview->factoryRightShiftPx,xm8649Preview->factoryDrift,xm8649Preview->cx,
+    xm8649Preview->layerScrollX(xm8649Preview->w.layers[1]));
+   char title[160];
+   std::snprintf(title,sizeof(title),"Wily parallax: shift=%+dpx rate=%.3f | [ ] offset - = rate",xm8649Preview->factoryRightShiftPx,xm8649Preview->factoryDrift);
+   SDL_SetWindowTitle(win,title);
+  }
+  regHeld[k]=pressed;
+ }
+}
+static bool xm8649Exists(const std::string& p){std::ifstream f(p.c_str(),std::ios::binary);return f.good();}
+static bool xm8649LocateAssets(){
+ std::vector<std::string> candidates;
+ char* base=SDL_GetBasePath();
+ if(base){const std::string b(base);SDL_free(base);
+  candidates.push_back(b+"assets/xmvsf/wily75");
+  candidates.push_back(b+"../stage77/assets/xmvsf/wily75");
+  candidates.push_back(b+"../stage79");
+  candidates.push_back(b+"../stage86_3");
+ }
+ candidates.push_back("F:/xmvsf/runtime/stage77/assets/xmvsf/wily75");
+ candidates.push_back("F:/xmvsf/runtime/stage79");
+ candidates.push_back("F:/xmvsf/runtime/stage86_3");
+ for(const auto& p:candidates)if(xm8649Exists(p+"/manifest.tsv") &&
+                                   xm8649Exists(p+"/verified_upper_cells.tsv")){
+    xm76stage::kRoot=p;
+    std::fprintf(stderr,"XM86.49 ASSETS_FOUND path=%s\n",p.c_str());return true;
+ }
+ std::fprintf(stderr,"XM86.49 ASSETS_NOT_FOUND checked=%zu; original forest retained\n",candidates.size());
+ return false;
+}
+static void xm8649VideoCleanup(){
+ xm8649Preview.reset();xm8649Textures.reset();xm8649World.reset();
+ if(xm8649Target)SDL_DestroyTexture(xm8649Target);
+ if(xm8649FighterTarget)SDL_DestroyTexture(xm8649FighterTarget);
+ if(xm8656WilyActorTarget)SDL_DestroyTexture(xm8656WilyActorTarget);
+ if(xm8757NativeFlashTarget)SDL_DestroyTexture(xm8757NativeFlashTarget);
+ xm8649Target=xm8649FighterTarget=xm8656WilyActorTarget=xm8757NativeFlashTarget=nullptr;
+ xm8649PrevFrame=0;xm8649Presented=0;xm8649Unavailable=false;
+ XM8763::State().Reset();
+}
+static bool xm8649Paint(SDL_Renderer* render,const SDL_Rect& view){
+ if(!xm8649Visual.sceneActive ||
+    xm8649Visual.stage!=5 || xm8649Unavailable ||
+    !xm77SpriteValid || xm77SpriteWidth!=384 || xm77SpriteHeight!=224 ||
+    !xm77SpritePixels())return false;
+ SDL_Texture* oldTarget=SDL_GetRenderTarget(render);
+ int logicalW=0,logicalH=0;SDL_RenderGetLogicalSize(render,&logicalW,&logicalH);
+ SDL_Rect viewport={0,0,0,0},oldClip={0,0,0,0};SDL_RenderGetViewport(render,&viewport);
+ const bool hadClip=SDL_RenderIsClipEnabled(render)==SDL_TRUE;
+ if(hadClip)SDL_RenderGetClipRect(render,&oldClip);
+ try{
+  if(!xm8649Target){
+   if(!SDL_RenderTargetSupported(render))throw std::runtime_error("SDL target textures unavailable");
+   if(!xm8649LocateAssets())throw std::runtime_error("Cannot find verified Wily artwork");
+   xm8649World.reset(new xm76stage::World(xm76stage::loadManifest(xm76stage::kRoot+"/manifest.tsv")));
+   xm8649Textures.reset(new xm76stage::Textures(render));
+   std::fprintf(stderr,"XM87.56 WILY_SCENE_MODE df=%d color=%s independent_of_stage=1\n",
+      int(xm8649Textures->noirMode),xm8649Textures->noirMode?"noir":"original");
+   xm8649Preview.reset(new xm76stage::Preview(*xm8649World,*xm8649Textures,render,sdlWindow));
+   xm8649Preview->opt.follow=false;
+   xm8649Preview->opt.actor=true;
+   xm8649Preview->opt.nativeStableAtlas=true;
+   xm8649Preview->opt.nativeSmoothUpper=true;
+   xm8649Target=SDL_CreateTexture(render,SDL_PIXELFORMAT_RGBA32,SDL_TEXTUREACCESS_TARGET,384,224);
+   xm8649FighterTarget=SDL_CreateTexture(render,SDL_PIXELFORMAT_RGBA32,SDL_TEXTUREACCESS_STREAMING,384,224);
+   xm8757NativeFlashTarget=SDL_CreateTexture(render,SDL_PIXELFORMAT_RGBA32,SDL_TEXTUREACCESS_STREAMING,384,224);
+   xm8656WilyActorTarget=SDL_CreateTexture(render,SDL_PIXELFORMAT_RGBA32,SDL_TEXTUREACCESS_TARGET,384,224);
+   if(!xm8649Target || !xm8649FighterTarget || !xm8656WilyActorTarget || !xm8757NativeFlashTarget)throw std::runtime_error("SDL native-target allocation failed");
+   SDL_SetTextureBlendMode(xm8649Target,SDL_BLENDMODE_NONE);
+   SDL_SetTextureBlendMode(xm8649FighterTarget,SDL_BLENDMODE_BLEND);
+   SDL_SetTextureBlendMode(xm8757NativeFlashTarget,SDL_BLENDMODE_BLEND);
+   SDL_SetTextureBlendMode(xm8656WilyActorTarget,SDL_BLENDMODE_BLEND);
+   std::fprintf(stderr,"XM86.64 WILY_LIGHTING scene_additive=0%% scene_dark=%d%% actor_full_bright=1 native_fighters_untouched=1\n",xm8649Textures->noirMode?30:100);
+   std::fprintf(stderr,"XM86.49 PAINTER_READY 384x224; rendering opt-in; forest fallback enabled\n");
+   std::fprintf(stderr,"XM86.50 AUDIT_KEYS: 1=factory 2=middle 3=foreground 4=sky-fill 5=natural-patch 6=upper-repair 7=smoke/vapor 8=Wily-actor 9=native-CPS2-sprites; all ON by default.\n");
+   std::fprintf(stderr,"XM86.54 FACTORY_PARALLAX horizontal=0.03 rightShift=+64px rightAnchor=222; native camera untouched; [ ] offset and - = drift\n");
+   std::fprintf(stderr,"XM86.54 NATIVE_OBJ_HARD_FILTER Stage84 ROM-verified stage05 scenery exclusions; retained priorities 6/7 and verified HUD numerals; no palette/tile selectors.\n");
+  }
+  // Stage87.63: observe the ORIGINAL CPS2 super portrait/darkening intro.
+  // Only its disappearance can start a Wily DF lighting pulse.  The OAM
+  // population is a rendering signature, not a proved ROM super declaration.
+  const bool pulse=XM8763::State().Observe(CpsRamFF,xm8658GameStatus,
+       xm8763NativeObjectFrame,xm8763NativeObjectCount);
+  const char* pulseOff=std::getenv("XM8762_DF_SUPER_PULSE");
+  xm8649Textures->superPulse=xm8649Textures->noirMode && pulse &&
+       !(pulseOff && pulseOff[0]=='0' && pulseOff[1]=='\0');
+  xm8649Textures->stepHue(); // exactly once per painter frame; smooth 3.5s/35s rotation
+  xm8650PollAuditKeys(sdlWindow);
+  const unsigned long long frame=xm8649Visual.frames;
+  if(frame<xm8649PrevFrame)xm8649PrevFrame=0;
+  if(frame!=xm8649PrevFrame){
+   const int delta=xm8649PrevFrame==0?1:(int)std::min(1000000ULL,frame-xm8649PrevFrame);
+   xm8649Preview->sceneStep(delta);
+   xm8649Preview->actorStep(delta);
+   xm8649PrevFrame=frame;
+  }
+  // Exactly Stage86.29's bounded native stage05 [0..384] -> captured
+  // Wily artwork [-64..317]. Vertical native camera remains unscaled.
+  const int nativeX=xm76stage::clamp(xm8649Visual.nativeCameraX,0,384);
+  const int wx=-64+(nativeX*381+192)/384;
+  const int wy=xm76stage::clamp(xm8649Visual.nativeCameraY,-14,256);
+  xm8649Preview->cx=wx;xm8649Preview->cy=wy;
+  if(SDL_SetRenderTarget(render,xm8649Target)!=0)throw std::runtime_error("SDL target switch failed");
+  SDL_RenderSetLogicalSize(render,384,224);
+  SDL_RenderSetViewport(render,nullptr);
+  SDL_RenderSetClipRect(render,nullptr);
+  // XM86.56: preserve the historical bright Wily actor by excluding him
+  // from the scenery-only lightening pass. Animation clocks stay untouched.
+  const bool actorEnabled=xm8649Preview->opt.actor;
+  xm8649Preview->opt.actor=false;
+  xm8649Preview->draw();
+  xm8649Preview->opt.actor=actorEnabled;
+  // Transparent actor layer: original captured intensity, no scene lift.
+  if(SDL_SetRenderTarget(render,xm8656WilyActorTarget)!=0)throw std::runtime_error("Actor target switch failed");
+  SDL_SetRenderDrawColor(render,0,0,0,0);
+  SDL_RenderClear(render);
+  xm8649Preview->drawActorOverlay();
+  if(SDL_SetRenderTarget(render,oldTarget)!=0)throw std::runtime_error("SDL restore target failed");
+  SDL_RenderSetLogicalSize(render,logicalW,logicalH);
+  SDL_RenderSetViewport(render,&viewport);
+  SDL_RenderSetClipRect(render,hadClip?&oldClip:nullptr);
+  if(SDL_UpdateTexture(xm8649FighterTarget,nullptr,xm77SpritePixels(),384*4)!=0)
+     throw std::runtime_error("Native sprite texture upload failed");
+  // XM86.64: scene textures are already graded to 30% brightness with
+  // 70% spectral saturation. Render exactly once. The old SDL ADD +35%
+  // pass undid darkness and clipped animated exhaust gradients.
+  if(SDL_RenderCopy(render,xm8649Target,nullptr,&view)!=0 ||
+     SDL_RenderCopy(render,xm8656WilyActorTarget,nullptr,&view)!=0)
+     throw std::runtime_error("Wily 86.64 scene/actor compositing failed");
+  // XM87.46: dizzy HUD drawn BEFORE the native fighters/FX layer, never
+  // after complete composition. Sprite alpha naturally occludes the meter.
+  xm8733Overlay(render,view);
+  if(xm8649Preview->auditPass[9] &&
+     SDL_RenderCopy(render,xm8649FighterTarget,nullptr,&view)!=0)
+     throw std::runtime_error("Wily 86.64 native sprite compositing failed");
+  // Stage87.57: Reproject source game's native full-screen wipe at its native
+  // compositing depth. White can occlude fighters; colored hit FX retain their
+  // exact pixels from the native raster. No ROM timing or screen-size guess.
+  const UINT8* flash=xm8757FlashPixels();
+  if(flash){
+   if(SDL_UpdateTexture(xm8757NativeFlashTarget,nullptr,flash,384*4)!=0 ||
+      SDL_RenderCopy(render,xm8757NativeFlashTarget,nullptr,&view)!=0)
+      throw std::runtime_error("Stage87.57 native flash overlay failed");
+  }
+  if(xm8649Presented==0)std::fprintf(stderr,"XM86.64 WILY_COMPOSITE scene_once=1 additive=0 brightness=30pct actor_untouched=1\n");
+  if(++xm8649Presented==1 || xm8649Presented%300==0){
+   std::fprintf(stderr,"XM86.54 OBJ_FILTER frame=%llu candidates=%d kept=%d excluded=%d scenery=%d excludedByPriority=",
+       frame,xm8654ConsideredObjects,xm8654RetainedObjects,xm8654FilteredObjects,xm8654SceneryObjects);
+   for(int b=0;b<8;++b)std::fprintf(stderr,"%s%d",b?",":"",xm8654FilteredPriority[b]);
+   std::fputc('\n',stderr);
+   std::fprintf(stderr,"XM86.54 WILY_PRESENT frame=%llu nativeCamera=%d,%d WilyCamera=%d,%d fighterValid=%d presentations=%d\n",
+      frame,xm8649Visual.nativeCameraX,xm8649Visual.nativeCameraY,wx,wy,xm77SpriteValid,xm8649Presented);
+  }
+  return true;
+ }catch(const std::exception& e){
+  std::fprintf(stderr,"XM86.49 WILY_DISABLED reason=%s; restoring native forest\n",e.what());
+  SDL_SetRenderTarget(render,oldTarget);
+  SDL_RenderSetLogicalSize(render,logicalW,logicalH);
+  SDL_RenderSetViewport(render,&viewport);
+  SDL_RenderSetClipRect(render,hadClip?&oldClip:nullptr);
+  xm8649VideoCleanup();xm8649Unavailable=true;
+  return false;
+ }
+}
+#endif

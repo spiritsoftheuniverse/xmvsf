@@ -1,0 +1,8 @@
+/archive/
+/dev/stable/releases/
+/packed/
+/testdata/
+/dev/stable/buildtree/obj/
+*.o
+*.d
+*.zip

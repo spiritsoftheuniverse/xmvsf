@@ -1,0 +1,20 @@
+{
+  "version": "87.121",
+  "expected_old": {
+    "dev/stable/buildtree/src/burn/drv/capcom/cps_run.cpp": "6234e756313a38c9054876a6290d0e05f1cd54d53311e823abd4bfbbcfc6c0ed",
+    "dev/stable/releases/87_120/run_87120.py": "de74d5083769dbf990e85ea4acb10f15c9b9f594e1c4e4682943ee0c25d08c0e",
+    "BUILD_TEST.bat": "8693a2e1365e4e0acd42a73b770287709a876bcc5874eb87b16f8ed611741cc0",
+    "RUN_TEST.bat": "bcc44f89c1f462149668c58c14dd2c013b4ce656f173880a8174c564bb33ee00"
+  },
+  "new_files": {
+    "dev/stable/buildtree/src/burn/drv/capcom/cps_run.cpp": "a585f818b04da166ef6788ebb7535949b6cfa41eb8c930a075eab8428cdde957",
+    "dev/stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_121_cyclops_release.h": "f997bd8db93c44529ecf2298a4125a0b42c410f26b6f1db057f15aabc05e29e6",
+    "dev/stable/releases/87_121/build_87121.py": "a5fea3b479452fc88ef3cae908c8ae8c582331d213018e3bdc40d4bcfc452bb6",
+    "dev/stable/releases/87_121/run_87121.py": "9f3ad1b3188a86735f2768cd9d55ed5b7deb3e04519e6a2ce69fed6e24bd0717",
+    "BUILD_TEST.bat": "2f641a3b64144cd51f1ca176987e04c729fd7ab3704dbff173e6252487f11faa",
+    "RUN_TEST.bat": "da4762a7079a06dd45d81ad97cf049ea0828d35966924bafcc80e8e9c508fc1d"
+  },
+  "required_old": {
+    "dev/stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_120_cyclops_cancel.h": "f3bd8e5fc9abc556742af129af9998341269c4827c8fbe216747fc5691847bcb"
+  }
+}

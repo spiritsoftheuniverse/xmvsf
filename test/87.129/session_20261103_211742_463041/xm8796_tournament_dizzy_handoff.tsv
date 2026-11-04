@@ -1,0 +1,24 @@
+frame	event	player	mode	patched	previous_action	action	substate	dizzy135	other134	stun_remaining	stun_capacity	f6	gate83	y	life210	detail
+780	TOURNAMENT_NATIVE_HANDOFF_INSTALLED	-	1	1	-	-	-	-	-	-	-	-	-	-	-	-	WORD_SWAP: @12B88 CLR.B (135,A6); JMP $11FC0 native recovery; original @150CE pop flag ST unchanged
+3751	DIZZY_POP_INTACT	P2	1	1	1C2E	1C36	0000	00	78	0	60	0000	80	472	1	No 68000 pop action/velocity rewrite; 87.95 retains airborne collision
+3759	POP_EXIT_FLAG_ALREADY_CLEARED	P2	1	1	1C36	0216	0000	00	78	0	60	0000	80	413	1	native handler or normal recovery cleared +135
+4637	DIZZY_POP_INTACT	P2	1	1	1C00	1C38	000C	FF	00	0	60	0000	80	472	1	No 68000 pop action/velocity rewrite; 87.95 retains airborne collision
+4680	NATIVE_POP_INTERRUPTED_BY_NEW_ACTION	P2	1	1	1C38	1C16	000C	FF	78	0	60	0000	80	93	1	clearing only CPU dizzy marker +135 after ROM changed action
+4680	DIZZY_MARKER_CLEARED_AFTER_POP_EXIT	P2	1	1	1C38	1C16	000C	00	78	0	60	0000	80	93	1	no changes to action, life, stun, velocity, hurtbox or hitboxes
+7526	DIZZY_POP_INTACT	P2	1	1	1C00	1C38	000C	FF	00	0	60	0000	80	472	1	No 68000 pop action/velocity rewrite; 87.95 retains airborne collision
+7606	POP_EXIT_FLAG_ALREADY_CLEARED	P2	1	1	1C3A	0000	0000	00	00	0	60	0000	80	472	1	native handler or normal recovery cleared +135
+9500	DIZZY_POP_INTACT	P2	1	1	1C2E	1C36	0000	00	78	0	60	0000	80	472	70	No 68000 pop action/velocity rewrite; 87.95 retains airborne collision
+9509	POP_EXIT_FLAG_ALREADY_CLEARED	P2	1	1	1C36	0216	0000	00	78	0	60	0000	80	411	70	native handler or normal recovery cleared +135
+10088	DIZZY_POP_INTACT	P2	1	1	1C2E	1C36	0000	00	78	0	60	0000	80	472	107	No 68000 pop action/velocity rewrite; 87.95 retains airborne collision
+10097	POP_EXIT_FLAG_ALREADY_CLEARED	P2	1	1	1C36	2216	0008	00	78	0	60	0000	00	396	107	native handler or normal recovery cleared +135
+12380	DIZZY_POP_INTACT	P2	1	1	1C2E	1C36	0000	00	78	0	60	0000	80	472	1	No 68000 pop action/velocity rewrite; 87.95 retains airborne collision
+12389	POP_EXIT_FLAG_ALREADY_CLEARED	P2	1	1	1C36	0216	0000	00	78	0	60	0000	80	411	1	native handler or normal recovery cleared +135
+12416	DIZZY_POP_INTACT	P2	1	1	1C2E	1C36	0000	00	78	0	60	0000	80	472	1	No 68000 pop action/velocity rewrite; 87.95 retains airborne collision
+12425	POP_EXIT_FLAG_ALREADY_CLEARED	P2	1	1	1C36	0216	0000	00	78	0	60	0000	80	450	1	native handler or normal recovery cleared +135
+12632	DIZZY_POP_INTACT	P2	1	1	1C2E	1C36	0000	00	78	0	60	0000	80	462	1	No 68000 pop action/velocity rewrite; 87.95 retains airborne collision
+12640	POP_EXIT_FLAG_ALREADY_CLEARED	P2	1	1	1C36	0216	0000	00	78	0	60	0000	80	411	1	native handler or normal recovery cleared +135
+13095	DIZZY_POP_INTACT	P2	1	1	1C2E	1C36	0000	00	78	0	60	0000	80	472	102	No 68000 pop action/velocity rewrite; 87.95 retains airborne collision
+13104	POP_EXIT_FLAG_ALREADY_CLEARED	P2	1	1	1C36	0216	0000	00	78	0	60	0000	80	431	102	native handler or normal recovery cleared +135
+13310	DIZZY_POP_INTACT	P2	1	1	1C2E	1C36	0000	00	78	0	60	0000	80	463	70	No 68000 pop action/velocity rewrite; 87.95 retains airborne collision
+13318	POP_EXIT_FLAG_ALREADY_CLEARED	P2	1	1	1C36	0216	0000	00	78	0	60	0000	80	413	70	native handler or normal recovery cleared +135
+780	TOURNAMENT_NATIVE_HANDOFF_INSTALLED	-	1	1	-	-	-	-	-	-	-	-	-	-	-	-	WORD_SWAP: @12B88 CLR.B (135,A6); JMP $11FC0 native recovery; original @150CE pop flag ST unchanged

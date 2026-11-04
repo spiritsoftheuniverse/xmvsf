@@ -1,0 +1,22 @@
+XM87.97 PASS: Shift+D edge toggle, no key leak, plain D, SDL event timing, host telemetry, ROM-safe overlay
+XM87.98 INPUT_ROM_DF_TRACE_READY initialized (mode=NORMAL)
+XM87.98 PASS: mapped edge FIFO, native action candidate, non-response timeout, DF object-phase timings, passive memory
+XM87.99 GROUND_DEFENSE_READY: native 16E76 combo close + 11FC0 guard selector
+XM87.99 guarded native E800/109C0 signatures mismatched: E800=4EB9 CAVE=0000 (no write)
+XM87.99 GROUND_DEFENSE_READY: native 16E76 combo close + 11FC0 guard selector
+XM87.99 guarded native E800/109C0 signatures mismatched: E800=B94E CAVE=0000 (no write)
+XM87.99 PASS: BE / WORD_SWAP signatures, native landing trampoline, full Classic restore, parent guards, unknown-refusal, both players
+XM87.100 native KO patch INSTALLED (mode=Training, driver=xmvsfu)
+XM87.100 native KO patch RESTORED (mode=Other, driver=xmvsfu)
+XM87.100 Training KO hook: ROM signature mismatch at 015B7E; refusing write
+XM87.100 native KO patch INSTALLED (mode=Training, driver=xmvsfu)
+XM87.100 native KO patch RESTORED (mode=Other, driver=xmvsfu)
+XM87.100 Training KO hook: ROM signature mismatch at 015B7E; refusing write
+XM87.100 TRAINING phase=08 realHP=P1:40 P2:22 timer=120 idle frames noDizzy=0
+XM87.100 TRAINING_IDLE_REFILL P1 HP=144 after 120 idle frames
+XM87.100 TRAINING_IDLE_REFILL P2 HP=144 after 120 idle frames
+XM87.100 TRAINING_IDLE_REFILL P1 HP=144 after 120 idle frames
+XM87.100 TRAINING phase=08 realHP=P1:50 P2:70 timer=120 idle frames noDizzy=0
+XM87.100 TRAINING_IDLE_REFILL P2 HP=144 after 120 idle frames
+XM87.100 TRAINING_IDLE_REFILL P1 HP=144 after 120 idle frames
+XM87.100 TRAINING phase=06 realHP=P1:64 P2:144 timer=120 idle frames noDizzy=0

@@ -1,0 +1,256 @@
+#ifndef XMVSF_STAGE24_VERSUS_H
+#define XMVSF_STAGE24_VERSUS_H
+// Native Versus session state: NEVER serialized in a CPS-2 .fs save state.
+// No guessed score RAM writes. Explicit result winner and lifetime wins survive state reloads.
+#include <SDL.h>
+#include <cstdio>
+#include <cstring>
+#include <cstdint>
+#include "xmvsf_stage25_sets.h" /* XMVSF_STAGE25_SETS */
+
+extern int xm24VersusMode;
+enum XM24Command { XM24_NONE=0, XM24_REMATCH=1, XM24_RESELECT=2, XM24_BACK_MENU=3, XM24_TO_ARCADE=4, XM24_TO_TRAINING=5 }; /* XMVSF_STAGE25_1_POLISH */ /* XMVSF_STAGE25_SETS */
+struct XM24Session {
+    bool active=false, resultMenu=false, matchSaved=false, seenCombat=false, awarded=false;
+    bool triedVsCapture=false, triedCombatCapture=false;
+    int wins[2]={0,0};
+    int selected=0, winner=0, awaitingResult=0, command=0;
+    unsigned long frames=0, liveFrames=0, afterKO=0, outOfCombat=0;
+    uint32_t lastMenuNavigateTick=0;
+    int lastHp[2]={0,0};
+    bool mouseDown=false;
+};
+extern XM24Session xm24Session;
+extern int xm24ResultInputCapture; /* XMVSF_STAGE24_3_LIVE_RESULTS */
+
+static inline void xm24Log(const char* event) {
+    FILE* f=std::fopen("xmvsf_stage24_versus.log","a");
+    if(!f)return;
+    std::fprintf(f,"frame=%lu event=%s wins=%d:%d winner=%d live=%lu afterKO=%lu outside=%lu saved=%d\n",
+        xm24Session.frames,event,xm24Session.wins[0],xm24Session.wins[1],xm24Session.winner,
+        xm24Session.liveFrames,xm24Session.afterKO,xm24Session.outOfCombat,(int)xm24Session.matchSaved);
+    std::fclose(f);
+}
+static inline const char* xm24SelectPath() { return "config/games/xmvsfu_training_select.fs"; }
+static inline const char* xm24FightPath() { return "config/games/xmvsfu_versus_match.fs"; }
+static inline bool xm24StateFileValid(const char* path) {
+    FILE* f=std::fopen(path,"rb"); if(!f)return false;
+    char magic[4]={};
+    const bool ok=std::fread(magic,1,4,f)==4 && std::memcmp(magic,"FB1 ",4)==0;
+    std::fclose(f);return ok;
+}
+static inline void xm24ResetMatchTracking() {
+    xm24ResultInputCapture=0; /* XMVSF_STAGE24_3_LIVE_RESULTS */
+    xm24Session.resultMenu=false;
+    xm24Session.seenCombat=false;
+    xm24Session.awarded=false;
+    xm24Session.winner=0;
+    xm24Session.awaitingResult=0;
+    xm24Session.command=0;
+    xm24Session.liveFrames=0;
+    xm24Session.afterKO=0;
+    xm24Session.outOfCombat=0;
+    xm24Session.lastHp[0]=xm24Session.lastHp[1]=0;
+    xm24Session.selected=0;
+    xm24Session.triedVsCapture=false;
+    xm24Session.triedCombatCapture=false;
+}
+static inline void xm24StartSession() {
+    xm24ResultInputCapture=0; /* XMVSF_STAGE24_3_LIVE_RESULTS */
+    xm24Session=XM24Session{};
+    xm24Session.active=xm24VersusMode!=0;
+    if(xm24Session.active)xm25StartNewSet(); /* XMVSF_STAGE25_SETS */
+    if(xm24Session.active)xm24Log("VERSUS_START_SCORE_ZERO");
+}
+static inline void xm24ShowResult(int winner) {
+    if(!xm24Session.active || xm24Session.resultMenu)return;
+    xm24Session.winner=(winner>=1 && winner<=2)?winner:0;
+    // Credit exactly once, only if winning team is known. Timeouts can be assigned manually.
+    if(xm24Session.winner && !xm24Session.awarded) {
+        ++xm24Session.wins[xm24Session.winner-1];
+        xm24Session.awarded=true;
+        xm25OnAward(xm24Session.wins[0],xm24Session.wins[1]); /* XMVSF_STAGE25_SETS */
+    }
+    xm24Session.resultMenu=true;
+    xm24ResultInputCapture=1; /* XMVSF_STAGE24_3_LIVE_RESULTS */
+    xm24Session.selected=0;
+    xm24Session.lastMenuNavigateTick=0;
+    xm24Log(xm24Session.winner?"RESULT_MENU_WIN_CREDITED":"RESULT_MENU_WINNER_UNKNOWN"); /* XMVSF_STAGE24_2_POST_TALLY_UI */
+}
+static inline bool xm24HandleEvent(const SDL_Event& e) {
+    if(!xm24VersusMode)return false;
+    // F9 is a safety fallback if the ROM's point-tally phase cannot be recognized.
+    if(e.type==SDL_KEYDOWN && !e.key.repeat && e.key.keysym.sym==SDLK_F9) {
+        if(!xm24Session.resultMenu && xm24Session.seenCombat) xm24ShowResult(xm24Session.winner);
+        return true;
+    }
+    if(e.type==SDL_KEYDOWN && !e.key.repeat && e.key.keysym.sym==SDLK_5){
+        if(xm25State.quickMenu){xm25State.quickMenu=false;xm24Session.resultMenu=false;xm24ResultInputCapture=0;}
+        else if(!xm24Session.resultMenu){xm25State.quickMenu=true;xm24Session.resultMenu=true;
+            xm24Session.selected=0;xm24ResultInputCapture=1;}
+        return true;
+    } /* XMVSF_STAGE25_1_POLISH */
+    if(!xm24Session.resultMenu) {
+        // Exit any live match to Versus results with Escape (no winner credited).
+        if(e.type==SDL_KEYDOWN && !e.key.repeat && e.key.keysym.sym==SDLK_ESCAPE){
+            xm24ShowResult(0);return true;
+        }
+        return false;
+    }
+    if(xm25State.mainMenu) {
+        if(e.type==SDL_KEYDOWN && !e.key.repeat){
+            SDL_Keycode k=e.key.keysym.sym;
+            if(xm25State.controlsView){if(k==SDLK_ESCAPE || k==SDLK_RETURN)xm25State.controlsView=false;return true;}
+            if(k==SDLK_ESCAPE){xm25State.mainMenu=false;xm25State.lobby=true;return true;}
+            if(k==SDLK_UP){xm25State.mainRow=(xm25State.mainRow+3)%4;xm25MenuSound(false);} /* XMVSF_STAGE25_2_LEDGER_RESULTS */
+            if(k==SDLK_DOWN){xm25State.mainRow=(xm25State.mainRow+1)%4;xm25MenuSound(false);}
+            if(k==SDLK_RETURN){
+                xm25MenuSound(true);
+                if(xm25State.mainRow==0)xm24Session.command=XM24_TO_ARCADE;
+                else if(xm25State.mainRow==1)xm24Session.command=XM24_TO_TRAINING;
+                else if(xm25State.mainRow==2){xm25State.mainMenu=false;xm25State.lobby=true;}
+                else xm25State.controlsView=true;
+            }
+        }
+        return true;
+    }
+    if(xm25State.quickMenu) {
+        if(e.type==SDL_KEYDOWN && !e.key.repeat){
+            SDL_Keycode k=e.key.keysym.sym;
+            if(k==SDLK_ESCAPE){xm25State.quickMenu=false;xm24Session.resultMenu=false;xm24ResultInputCapture=0;return true;}
+            if(k==SDLK_UP || k==SDLK_DOWN){xm24Session.selected=1-xm24Session.selected;xm25MenuSound(false);}
+            if(k==SDLK_RETURN || k==SDLK_SPACE){xm25MenuSound(true);
+                xm24Session.command=xm24Session.selected==0?XM24_BACK_MENU:XM24_RESELECT;}
+        }
+        return true;
+    } /* XMVSF_STAGE25_1_POLISH */
+    if(xm25State.lobby) {
+        if(e.type==SDL_TEXTINPUT && xm25State.focus>=0){xm25EditName(xm25State.focus,e.text.text);return true;}
+        if(e.type==SDL_KEYDOWN && !e.key.repeat){
+            SDL_Keycode k=e.key.keysym.sym;
+            if(k==SDLK_BACKSPACE && xm25State.focus>=0){xm25Backspace(xm25State.focus);return true;}
+            if(k==SDLK_ESCAPE){xm25State.ledgerView=false;xm25State.setupRow=6;return true;}
+            if(xm25State.ledgerView){
+                if(k==SDLK_LEFT || k==SDLK_UP)xm25State.page=std::max(0,xm25State.page-1);
+                if(k==SDLK_RIGHT || k==SDLK_DOWN)xm25State.page++;
+                if(k==SDLK_RETURN)xm25State.ledgerView=false;
+            }else{
+                if(k==SDLK_UP){xm25State.setupRow=(xm25State.setupRow+6)%7;xm25MenuSound(false);}
+                if(k==SDLK_DOWN){xm25State.setupRow=(xm25State.setupRow+1)%7;xm25MenuSound(false);}
+                if(k==SDLK_RETURN) {
+                    xm25MenuSound(true);
+                    if(xm25State.setupRow<5){xm25State.modeIndex=xm25State.setupRow;xm24Session.command=XM24_RESELECT;}
+                    else if(xm25State.setupRow==5){xm25LoadLedger();xm25State.ledgerView=true;xm25State.page=0;}
+                    else {xm25State.lobby=false;xm25State.mainMenu=true;xm25State.mainRow=0;} /* XMVSF_STAGE25_1_POLISH */
+                }
+            }
+        }
+        if(e.type==SDL_MOUSEBUTTONDOWN && e.button.button==SDL_BUTTON_LEFT){
+            // Mouse logical coordinates for a fullscreen game frame.
+            int mx=e.button.x,my=e.button.y;
+            if(xm25NameMouse(mx,my))return true;
+        }
+        return true;
+    } /* XMVSF_STAGE25_SETS */
+    int movement=0;bool accept=false;
+    if(e.type==SDL_KEYDOWN && !e.key.repeat) {
+        if(e.key.keysym.sym==SDLK_UP || e.key.keysym.sym==SDLK_LEFT)movement=-1;
+        if(e.key.keysym.sym==SDLK_DOWN || e.key.keysym.sym==SDLK_RIGHT)movement=1;
+        if(e.key.keysym.sym==SDLK_RETURN || e.key.keysym.sym==SDLK_SPACE)accept=true;
+        // For timeout or ambiguous results only: user can assign the actual winner.
+        if(e.key.keysym.sym==SDLK_1 && !xm24Session.awarded) {
+            xm24Session.winner=1;++xm24Session.wins[0];xm24Session.awarded=true;xm25OnAward(xm24Session.wins[0],xm24Session.wins[1]);xm24Log("MANUAL_P1_WIN");
+        }
+        if(e.key.keysym.sym==SDLK_2 && !xm24Session.awarded) {
+            xm24Session.winner=2;++xm24Session.wins[1];xm24Session.awarded=true;xm25OnAward(xm24Session.wins[0],xm24Session.wins[1]);xm24Log("MANUAL_P2_WIN");
+        }
+    } /* physical controller buttons are handled by XMVSF_STAGE24_3_LIVE_RESULTS polling */
+    if(movement) {
+        xm25MenuSound(false); /* XMVSF_STAGE25_2_LEDGER_RESULTS */
+        // GameController and Joystick APIs may both report one physical D-pad
+        // action. Accept one navigation event, never two toggles per press.
+        const uint32_t now=SDL_GetTicks();
+        if(!xm24Session.lastMenuNavigateTick || now-xm24Session.lastMenuNavigateTick>=120) {
+            xm24Session.selected=(xm24Session.selected+1)%3; /* XMVSF_STAGE25_SETS */
+            xm24Session.lastMenuNavigateTick=now?now:1;
+        }
+    }
+    if(accept && !xm24Session.command) {
+        xm25MenuSound(true);
+        xm24Session.command=xm24Session.selected==0?XM24_REMATCH:(xm24Session.selected==1?XM24_RESELECT:XM24_BACK_MENU);
+        xm24Log(xm24Session.command==XM24_REMATCH?"REQUEST_REMATCH":"REQUEST_CHARACTER_SELECT");
+    }
+    // Consume gameplay input while result menu is open, but let window-close pass through.
+    return e.type==SDL_KEYDOWN || e.type==SDL_KEYUP || e.type==SDL_CONTROLLERBUTTONDOWN ||
+           e.type==SDL_CONTROLLERBUTTONUP || e.type==SDL_JOYBUTTONDOWN ||
+           e.type==SDL_JOYBUTTONUP || e.type==SDL_JOYHATMOTION;
+}
+
+// Reuses the self-contained Stage23.1 pixel text renderer already used for Training.
+static inline void xm24Overlay(SDL_Renderer* renderer,const SDL_Rect& view) {
+    if(!xm24VersusMode || !xm24Session.resultMenu || !renderer)return;
+    SDL_BlendMode old=SDL_BLENDMODE_NONE;SDL_GetRenderDrawBlendMode(renderer,&old);
+    SDL_SetRenderDrawBlendMode(renderer,SDL_BLENDMODE_BLEND);
+    SDL_Rect panel={view.x+view.w/11,view.y+view.h/18,view.w*9/11,view.h*8/9};
+    SDL_SetRenderDrawColor(renderer,0,0,0,242);SDL_RenderFillRect(renderer,&panel);
+    SDL_SetRenderDrawColor(renderer,75,108,215,255);SDL_RenderDrawRect(renderer,&panel);
+    const int x=panel.x+10,y=panel.y+9,w=panel.w-20;
+    if(xm25State.quickMenu){
+        xm25SmallText(renderer,"VERSUS",x,y,w);
+        xm25SmallText(renderer,xm24Session.selected==0?"> RETURN TO LOBBY":"  RETURN TO LOBBY",x,y+38,w);
+        xm25SmallText(renderer,xm24Session.selected==1?"> CHARACTER SELECT":"  CHARACTER SELECT",x,y+62,w);
+        xm25SmallText(renderer,"COIN TO CLOSE",x,y+103,w);
+    }else if(xm25State.mainMenu){
+        xm25SmallText(renderer,"MAIN MENU",x,y,w);
+        if(xm25State.controlsView){
+            xm25SmallText(renderer,"P1 AND P2 DEVICE MAPPINGS SAVED",x,y+35,w);
+            xm25SmallText(renderer,"CONTROLS EDITOR AVAILABLE AT BOOT",x,y+57,w);
+            xm25SmallText(renderer,"BACK TO MAIN MENU",x,y+86,w);
+        }else{
+            const char* choices[4]={"ARCADE","TRAINING","VERSUS","CONTROLS"};
+            for(int i=0;i<4;++i){
+                if(xm25State.mainRow==i){SDL_Rect select={x,y+30+i*27,w,24};
+                    SDL_SetRenderDrawColor(renderer,37,54,117,245);SDL_RenderFillRect(renderer,&select);}
+                char row[48];std::snprintf(row,sizeof(row),"%c %s",xm25State.mainRow==i?'>':' ',choices[i]);
+                xm25SmallText(renderer,row,x+8,y+32+i*27,w-8);}
+        }
+    }else if(xm25State.lobby){
+        if(xm25State.ledgerView){
+            xm25SmallText(renderer,"VERSUS LEDGER",x,y,w);
+            const int count=(int)xm25State.entries.size(),maxpage=count?(count-1)/7:0;
+            xm25State.page=std::min(maxpage,xm25State.page);
+            for(int i=0;i<7;++i){int ix=count-1-(xm25State.page*7+i);if(ix<0)break;
+                SDL_Rect shade={x-4,y+22+i*21,w+4,19};
+                SDL_SetRenderDrawColor(renderer,i%2?28:48,i%2?34:49,i%2?67:98,224);
+                SDL_RenderFillRect(renderer,&shade);
+                char line[160]; /* XMVSF_STAGE25_2_LEDGER_RESULTS */xm25LedgerLabel(xm25State.entries[(size_t)ix],line,sizeof(line));
+                xm25SmallText(renderer,line,x,y+25+i*21,w);}
+            xm25SmallText(renderer,"LEFT RIGHT PAGE / BACK",x,y+181,w);
+        }else{
+            xm25SmallText(renderer,"VERSUS",x,y,w);
+            const char* choices[7]={"FFA","FT3","FT5","FT10","FT20","LEDGER","MAIN MENU"};
+            for(int i=0;i<7;++i){
+                if(xm25State.setupRow==i){SDL_Rect select={x,y+20+i*20,w,18};
+                    SDL_SetRenderDrawColor(renderer,37,54,117,245);SDL_RenderFillRect(renderer,&select);}
+                char row[48];std::snprintf(row,sizeof(row),"%c %s",xm25State.setupRow==i?'>':' ',choices[i]);
+                xm25SmallText(renderer,row,x+6,y+23+i*20,w-6);}
+            char names[90];std::snprintf(names,sizeof(names),"P1 %.16s  P2 %.16s",xm25State.names[0],xm25State.names[1]);
+            xm25SmallText(renderer,names,x,y+174,w);
+        }
+    }else{
+        xm25SmallText(renderer,xm25ModeName(xm25State.target),x,y,w);
+        if(xm25State.completed)xm25SmallText(renderer,"SET COMPLETE",x+55,y,w-55);
+        xm25SmallText(renderer,xm25State.names[0],x,y+20,w);
+        xm25SmallText(renderer,xm25State.names[1],x,y+79,w);
+        const int count=xm25State.target?xm25State.target:std::max(5,std::max(xm24Session.wins[0],xm24Session.wins[1])+2);
+        xm25StarRow(renderer,x+4,y+42,w-8,xm24Session.wins[0],count);
+        xm25StarRow(renderer,x+4,y+101,w-8,xm24Session.wins[1],count);
+        const char* options[3]={"REMATCH","CHARACTER SELECT","BACK TO MENU"};
+        for(int i=0;i<3;++i){char row[48];std::snprintf(row,sizeof(row),"%c %s",xm24Session.selected==i?'>':' ',options[i]);
+            xm25SmallText(renderer,row,x+3,y+134+i*19,w-3);}
+        if(!xm24Session.awarded)xm25SmallText(renderer,"WINNER? 1 P1 2 P2",x,y+197,w);
+    }
+    SDL_SetRenderDrawBlendMode(renderer,old);
+} /* XMVSF_STAGE25_1_POLISH */
+
+#endif

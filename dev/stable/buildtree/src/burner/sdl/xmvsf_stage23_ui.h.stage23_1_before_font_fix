@@ -1,0 +1,125 @@
+#ifndef XMVSF_STAGE23_TRAINING_UI_H
+#define XMVSF_STAGE23_TRAINING_UI_H
+// Stage 23: UI state and SDL presentation only. No ROM writes here.
+// Grounded in peon2/fbneo-training-mode XMVSF & Marvel hitbox profiles.
+#include <SDL.h>
+#include <cstdio>
+#include <cstring>
+#include <cstdint>
+
+struct XM23Box { int x,y,w,h,kind; };
+struct XM23State {
+    bool menuOpen=false, hitboxes=false, dataDisplay=true, infiniteMeter=false;
+    bool dizzySupported=false;  // do not pretend to disable dizzy without a verified XMVSF address
+    bool combat=false, loaded=false;
+    int selected=0, count=0;
+    unsigned char pressed[2][12]={{0}};
+    int health[2]={0,0}, meter[2]={0,0}, combo[2]={0,0};
+    XM23Box box[192];
+};
+extern XM23State xm23State;
+
+// Called from the EXISTING mapped SDL input route: zero input buffering.
+// Codes 0-3 are L/R/U/D; 0x80-0x85 attack; 0x86 Coin; 0x87 Start.
+static inline int xm23FilterInput(int player,int sub,int value,int training) {
+    if(!training || player<0 || player>1) {
+        if(!training) xm23State.menuOpen=false;
+        return value;
+    }
+    if(!xm23State.combat) { xm23State.menuOpen=false; return value; }
+    int key=-1;
+    if(sub>=0 && sub<=3)key=sub;
+    else if(sub>=0x80 && sub<=0x87)key=sub-0x80+4;
+    if(key<0) return xm23State.menuOpen?0:value;
+    const bool down=value!=0;
+    bool edge=down && !xm23State.pressed[player][key];
+    xm23State.pressed[player][key]=down?1:0;
+    // Either physical Coin opens/closes; it never falls through into the game.
+    if(sub==0x86) {
+        if(edge) {xm23State.menuOpen=!xm23State.menuOpen;xm23State.selected=0;}
+        return 0;
+    }
+    if(!xm23State.menuOpen)return value;
+    // Only Player 1 drives the overlay. Both players' game inputs are masked.
+    if(player==0 && edge) {
+        if(sub==2)xm23State.selected=(xm23State.selected+4)%5;
+        if(sub==3)xm23State.selected=(xm23State.selected+1)%5;
+        if(sub==0x80 || sub==0x87) {
+            switch(xm23State.selected) {
+              case 0: xm23State.hitboxes=!xm23State.hitboxes;break;
+              case 1: xm23State.dataDisplay=!xm23State.dataDisplay;break;
+              case 2: xm23State.infiniteMeter=!xm23State.infiniteMeter;break;
+              case 3: /* Dizzy: disabled until verified. No speculative writes. */break;
+              case 4: xm23State.menuOpen=false;break;
+            }
+        }
+    }
+    return 0;
+}
+
+static inline void xm23DrawText(SDL_Renderer* r, const char* text,int x,int y) {
+    inprint_shadowed(r,text,x,y);
+}
+static inline void xm23Overlay(SDL_Renderer* renderer, const SDL_Rect& gameDest,
+                              int sourceWidth,int sourceHeight) {
+    if(!renderer || !xm23State.combat) return;
+    SDL_BlendMode oldBlend=SDL_BLENDMODE_NONE;
+    SDL_GetRenderDrawBlendMode(renderer,&oldBlend);
+    SDL_SetRenderDrawBlendMode(renderer,SDL_BLENDMODE_BLEND);
+    if(xm23State.hitboxes && sourceWidth>0 && sourceHeight>0 && !xm23State.menuOpen) {
+        for(int i=0;i<xm23State.count && i<192;i++) {
+            const XM23Box& b=xm23State.box[i];
+            if(b.w<=0 || b.h<=0)continue;
+            SDL_Rect r={gameDest.x+b.x*gameDest.w/sourceWidth,
+                gameDest.y+b.y*gameDest.h/sourceHeight,
+                b.w*gameDest.w/sourceWidth,b.h*gameDest.h/sourceHeight};
+            if(r.w<1)r.w=1;
+            if(r.h<1)r.h=1;
+            Uint8 red=0,green=0,blue=0;
+            switch(b.kind) {
+                case 0:red=110;green=110;blue=255;break; // hurt
+                case 1:red=255;break;                      // attack
+                case 2:green=255;break;                    // push
+                case 3:red=255;green=220;break;            // throwable
+                case 4:green=255;blue=255;break;           // projectile hurt
+                default:red=255;green=60;blue=255;break;   // projectile attack
+            }
+            SDL_SetRenderDrawColor(renderer,red,green,blue,45);
+            SDL_RenderFillRect(renderer,&r);
+            SDL_SetRenderDrawColor(renderer,red,green,blue,205);
+            SDL_RenderDrawRect(renderer,&r);
+        }
+    }
+    if(xm23State.dataDisplay && !xm23State.menuOpen) {
+        SDL_Rect back={gameDest.x+6,gameDest.y+gameDest.h-35,gameDest.w-12,30};
+        SDL_SetRenderDrawColor(renderer,0,0,0,145);
+        SDL_RenderFillRect(renderer,&back);
+        char msg[190];
+        std::snprintf(msg,sizeof(msg),"P1 HP:%03d  METER:%d  COMBO:%d",xm23State.health[0],xm23State.meter[0],xm23State.combo[0]);
+        xm23DrawText(renderer,msg,back.x+5,back.y+3);
+        std::snprintf(msg,sizeof(msg),"P2 HP:%03d  METER:%d  COMBO:%d",xm23State.health[1],xm23State.meter[1],xm23State.combo[1]);
+        xm23DrawText(renderer,msg,back.x+5,back.y+16);
+    }
+    if(xm23State.menuOpen) {
+        SDL_Rect bg={gameDest.x+gameDest.w/6,gameDest.y+gameDest.h/9,
+                     gameDest.w*2/3,gameDest.h*7/9};
+        SDL_SetRenderDrawColor(renderer,0,0,0,225);
+        SDL_RenderFillRect(renderer,&bg);
+        SDL_SetRenderDrawColor(renderer,65,110,225,255);
+        SDL_RenderDrawRect(renderer,&bg);
+        xm23DrawText(renderer,"TRAINING",bg.x+18,bg.y+10);
+        const char* items[5]={"HITBOXES","DISPLAY DATA","INFINITE METER","DIZZY","RETURN"};
+        char line[128];
+        for(int i=0;i<5;i++) {
+            const char* value=(i==0?(xm23State.hitboxes?"ON":"OFF"):
+                i==1?(xm23State.dataDisplay?"ON":"OFF"):
+                i==2?(xm23State.infiniteMeter?"ON":"OFF"):
+                i==3?"NOT YET SUPPORTED":"");
+            std::snprintf(line,sizeof(line),"%c %s %s",xm23State.selected==i?'>':' ',items[i],value);
+            xm23DrawText(renderer,line,bg.x+13,bg.y+34+i*21);
+        }
+        xm23DrawText(renderer,"COIN: CLOSE  LP: CHANGE",bg.x+8,bg.y+bg.h-17);
+    }
+    SDL_SetRenderDrawBlendMode(renderer,oldBlend);
+}
+#endif

@@ -1,0 +1,199 @@
+#ifndef XMVSF_STAGE25_SETS_H
+#define XMVSF_STAGE25_SETS_H
+// XMVSF-only Versus set management. Never written into the CPS-2 save state.
+#include <SDL.h>
+#include "xmvsf_stage25_4_input_handoff.h" /* XMVSF_STAGE25_4_INPUT_HANDOFF */
+#include "xmvsf_stage25_1_font.h" /* XMVSF_STAGE25_1_POLISH */
+#include "xmvsf_native_host.h" /* XMVSF_STAGE25_2_LEDGER_RESULTS */
+#include <cstdio>
+#include <cstring>
+#include <cctype>
+#include <ctime>
+#include <cstdlib>
+#include <vector>
+#include <string>
+#include <algorithm>
+
+struct XM25LedgerRow {
+    long long id=0;
+    long long epoch=0;
+    int target=0, round=0, p1=0, p2=0;
+    std::string name1,name2,status;
+};
+struct XM25State {
+    int target=0; // 0 = FFA (unlimited), otherwise first to 3/5/10/20
+    int modeIndex=0, setupRow=0, page=0, focus=-1, round=0;
+    char names[2][25]={{'P','L','A','Y','E','R',' ','1','\0'}, {'P','L','A','Y','E','R',' ','2','\0'}};
+    long long sessionId=0, nextId=1;
+    bool completed=false, recorded=false, lobby=false, ledgerView=false;
+    bool quickMenu=false, mainMenu=false, controlsView=false;int mainRow=0; /* XMVSF_STAGE25_1_POLISH */
+    std::vector<XM25LedgerRow> entries;
+};
+extern XM25State xm25State;
+static inline const char* xm25LedgerPath(){return "config/games/xmvsfu_versus_ledger.tsv";}
+static inline const char* xm25NamesPath(){return "config/games/xmvsfu_versus_names.txt";}
+static inline const char* xm25ModeName(int target){
+    switch(target){case 3:return "FT3";case 5:return "FT5";case 10:return "FT10";case 20:return "FT20";default:return "FFA";}
+}
+static inline int xm25TargetAt(int i){ const int modes[]={0,3,5,10,20};return modes[std::max(0,std::min(4,i))];}
+static inline void xm25SanitizeName(char* name,const char* fallback){
+    char tmp[25]={}; int n=0;
+    for(int i=0;name[i] && n<24;++i){
+        unsigned char c=(unsigned char)name[i];
+        if(std::isalnum(c) || c==' ' || c=='-' || c=='_' || c=='.')tmp[n++]=(char)std::toupper(c);
+    }
+    while(n && tmp[n-1]==' ')--n;
+    tmp[n]=0;
+    if(!n)std::snprintf(tmp,sizeof(tmp),"%s",fallback);
+    std::memcpy(name,tmp,sizeof(tmp));
+}
+static inline void xm25SaveNames(){
+    FILE* f=std::fopen(xm25NamesPath(),"wb");if(!f)return;
+    std::fprintf(f,"%s\n%s\n",xm25State.names[0],xm25State.names[1]);std::fclose(f);
+}
+static inline void xm25LoadNames(){
+    FILE* f=std::fopen(xm25NamesPath(),"rb");if(!f)return;
+    for(int p=0;p<2;++p){
+        char tmp[256]={};if(!std::fgets(tmp,sizeof(tmp),f))break;
+        tmp[std::strcspn(tmp,"\r\n")]=0;
+        std::snprintf(xm25State.names[p],25,"%.24s",tmp);
+        xm25SanitizeName(xm25State.names[p],p==0?"PLAYER 1":"PLAYER 2");
+    }
+    std::fclose(f);
+}
+static inline void xm25LoadLedger(){
+    xm25State.entries.clear();
+    const long long kept=xm25State.nextId;
+    xm25State.nextId=std::max(1LL,kept);
+    FILE* f=std::fopen(xm25LedgerPath(),"rb");if(!f)return;
+    char line[1024];
+    while(std::fgets(line,sizeof(line),f)){
+        char* field[9]={};int n=0;char* cursor=line;
+        while(n<9){field[n++]=cursor;char* tab=std::strchr(cursor,'\t');
+            if(!tab)break;*tab=0;cursor=tab+1;}
+        if(n!=9)continue;
+        XM25LedgerRow r;
+        r.id=std::atoll(field[0]);r.epoch=std::atoll(field[1]);
+        r.target=std::atoi(field[2]);r.round=std::atoi(field[3]);
+        r.p1=std::atoi(field[4]);r.p2=std::atoi(field[5]);
+        r.name1=field[6];r.name2=field[7];r.status=field[8];
+        while(!r.status.empty() && (r.status.back()=='\r'||r.status.back()=='\n'))r.status.pop_back();
+        if(r.id<1 || r.p1<0 || r.p2<0)continue;
+        xm25State.nextId=std::max(xm25State.nextId,r.id+1);
+        if(r.p1==0 && r.p2==0)continue; // historic zero-win FFA/EXIT: not a match
+        if(r.status=="ROUND" || r.status=="EXIT")r.status="LEGACY";
+        XM25LedgerRow* prev=nullptr;
+        for(auto& entry:xm25State.entries){
+            if(entry.id==r.id && entry.target==r.target){prev=&entry;break;}
+        }
+        if(!prev){xm25State.entries.push_back(r);continue;}
+        prev->p1=std::max(prev->p1,r.p1);prev->p2=std::max(prev->p2,r.p2);
+        prev->round=std::max(prev->round,r.round);
+        if(r.epoch>=prev->epoch){
+            prev->epoch=r.epoch;
+            if(!r.name1.empty())prev->name1=r.name1;
+            if(!r.name2.empty())prev->name2=r.name2;
+        }
+        // A completed set is authoritative. Don't let an old ROUND/EXIT
+        // or an out-of-order record downgrade its status.
+        if(r.status=="COMPLETE" || prev->status=="LEGACY" ||
+           (r.status=="FFA_FINAL" && prev->status!="COMPLETE"))prev->status=r.status;
+    }
+    std::fclose(f);
+} /* XMVSF_STAGE25_3_MENU_LEDGER_REPAIR */
+static inline void xm25OpenSetup(){xm25LoadNames();xm25LoadLedger();xm25State.page=0;xm25State.setupRow=0;xm25State.focus=-1;}
+static inline void xm25StartNewSet(){
+    xm25State.target=xm25TargetAt(xm25State.modeIndex);
+    xm25State.sessionId=xm25State.nextId++;
+    xm25State.round=0;xm25State.completed=false;xm25State.recorded=false;
+}
+static inline bool xm25AppendRecord(const char* status,int p1,int p2){
+    if(!xm25State.sessionId)return false;
+    XM25LedgerRow r;
+    r.id=xm25State.sessionId;r.epoch=(long long)std::time(nullptr);
+    r.target=xm25State.target;r.round=xm25State.round;
+    r.p1=p1;r.p2=p2;r.name1=xm25State.names[0];r.name2=xm25State.names[1];r.status=status;
+    FILE* f=std::fopen(xm25LedgerPath(),"ab");if(!f)return false;
+    const int ok=std::fprintf(f,"%lld\t%lld\t%d\t%d\t%d\t%d\t%s\t%s\t%s\n",
+        r.id,r.epoch,r.target,r.round,r.p1,r.p2,r.name1.c_str(),r.name2.c_str(),r.status.c_str());
+    const int closed=std::fclose(f);
+    if(ok<0 || closed!=0)return false;
+    xm25State.entries.push_back(r);return true;
+}
+static inline void xm25OnAward(int p1,int p2){
+    if(xm25State.recorded || xm25State.completed || !xm25State.sessionId)return;
+    if(p1<0 || p2<0 || (p1==0 && p2==0))return;
+    ++xm25State.round;
+    if(xm25State.target!=0 && (p1>=xm25State.target || p2>=xm25State.target)){
+        xm25State.completed=true;
+        xm25State.recorded=xm25AppendRecord("COMPLETE",p1,p2);
+    }
+}
+static inline void xm25OnExit(int p1,int p2){
+    if(!xm25State.sessionId || xm25State.recorded || p1<0 || p2<0 || (p1==0 && p2==0))return;
+    const char* status=xm25State.completed?"COMPLETE":
+                       xm25State.target==0?"FFA_FINAL":"ABANDONED";
+    xm25State.recorded=xm25AppendRecord(status,p1,p2);
+} /* XMVSF_STAGE25_3_MENU_LEDGER_REPAIR */
+static inline void xm25EditName(int player,const char* typed){
+    if(player<0 || player>1 || !typed)return;
+    char* s=xm25State.names[player];size_t n=std::strlen(s);
+    for(const unsigned char* p=(const unsigned char*)typed;*p && n<24;++p){
+        if(std::isalnum(*p)||*p==' '||*p=='-'||*p=='_'||*p=='.')s[n++]=(char)std::toupper(*p);
+    }
+    s[n]=0;xm25SaveNames();
+}
+static inline void xm25Backspace(int p){if(p<0||p>1)return;size_t n=std::strlen(xm25State.names[p]);if(n){xm25State.names[p][n-1]=0;xm25SaveNames();}}
+static inline bool xm25NameMouse(int x,int y){
+    if(y<459||y>497)return false;
+    for(int p=0;p<2;++p){
+        int left=p==0?85:510;
+        if(x>=left&&x<=left+290){xm25State.focus=p;SDL_StartTextInput();return true;}
+        if(x>=left+295&&x<=left+335){xm25State.names[p][0]=0;xm25State.focus=p;SDL_StartTextInput();xm25SaveNames();return true;}
+    }
+    xm25State.focus=-1;SDL_StopTextInput();return false;
+}
+static inline void xm25LedgerLabel(const XM25LedgerRow& r,char* out,size_t cap){
+    std::time_t stamp=(std::time_t)r.epoch;
+    const std::tm* date=std::localtime(&stamp);
+    const int month=date?date->tm_mon+1:0,day=date?date->tm_mday:0;
+    std::snprintf(out,cap,"S%lld %02d/%02d %s %.8s %d-%d %.8s %s",
+        r.id,month,day,xm25ModeName(r.target),r.name1.c_str(),r.p1,r.p2,
+        r.name2.c_str(),r.status.c_str());
+}
+// Native HUD independent of upstream font: caller provides its existing pixel-text helper.
+// Rate-limit navigation samples so the SDL event and direct-pad poll
+// do not double-play a sound for the same physical press.
+static inline void xm25MenuSound(bool confirm){
+    static Uint32 lastMove=0,lastConfirm=0;
+    const Uint32 now=SDL_GetTicks();
+    Uint32& stamp=confirm?lastConfirm:lastMove;
+    if(stamp && now-stamp<85)return;
+    stamp=now?now:1;
+    if(confirm)xmvsfHost::confirm();else xmvsfHost::cursorMove();
+} /* XMVSF_STAGE25_2_LEDGER_RESULTS */
+static inline void xm25Star(SDL_Renderer* r,int x,int y,int radius,bool filled){
+    SDL_Point p[11];
+    static const int cos10[10]={0,59,95,95,59,0,-59,-95,-95,-59};
+    static const int sin10[10]={-100,-81,-31,31,81,100,81,31,-31,-81};
+    for(int i=0;i<10;++i){int rad=(i%2==0)?radius:radius*46/100;p[i]={x+cos10[i]*rad/100,y+sin10[i]*rad/100};}
+    p[10]=p[0];
+    SDL_SetRenderDrawColor(r,filled?255:90,filled?206:99,filled?68:138,255);
+    SDL_RenderDrawLines(r,p,11);
+    if(filled)for(int i=0;i<10;++i)SDL_RenderDrawLine(r,x,y,p[i].x,p[i].y);
+}
+static inline void xm25StarRow(SDL_Renderer* r,int x,int y,int width,int wins,int count){
+    // FTn: exactly N outlined/filled star slots. FFA: add slots as wins grow.
+    count=std::max(1,count);
+    const int columns=std::min(20,count);
+    const int slot=std::max(10,std::min(22,width/columns)); /* XMVSF_STAGE25_3_MENU_LEDGER_REPAIR */
+    for(int i=0;i<count;++i){
+        // Large FFA tallies: show the most recent 40-star page (no integer substitution).
+        int shownStart=count>40?((count-1)/40)*40:0;
+        if(i<shownStart || i>=shownStart+40)continue;
+        int j=i-shownStart;
+        xm25Star(r,x+(j%20)*slot+slot/2,y+(j/20)*17,slot/2-2,i<wins);
+    }
+}
+#include "xmvsf_stage25_5_ui.h" /* XMVSF_STAGE25_5_SCOREBOARD_RESET */
+#endif

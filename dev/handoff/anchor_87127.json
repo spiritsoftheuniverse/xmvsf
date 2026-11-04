@@ -1,0 +1,26 @@
+{
+  "version": "87.127",
+  "new_files": {
+    "BUILD_TEST.bat": "89f32b0bc33cccd5ace04d7408a2ecf534863e763303a7d681972b303430ef6e",
+    "RUN_TEST.bat": "5c11af905a4ad3a811a143ee7559239f5aecf1c852d3f61a3a4795d4b5da1fb6",
+    "dev/stable/releases/87_127/run_87127.py": "8d0f021f385850b6524535feb85aef49d68d3df18b4de34a74addcd679779cfb",
+    "dev/stable/releases/87_127/build_87127.py": "77bd8195c27d5d61b431a9bfa66f39dc4a5971e98f4dfc5e29d6ad1a08e92c82",
+    "dev/stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_86_storm_button_guard.h": "5b2cd32d9d57da80ca63818157eec5d08652a9abe66d3ea3e6d94814f0beed1b",
+    "dev/stable/buildtree/src/burn/drv/capcom/qs_z.cpp": "607cebcdfbd9695c14856deddbb06f35c120d15c3c8b3b3115f87b037beb7a6a",
+    "dev/stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_127_storm_voice_mute.h": "ccc9c03f0d5056f173db46d8c89569aecfdc2efe6e1e891dd14e0f08c724e849",
+    "dev/stable/buildtree/src/intf/video/sdl/vid_sdl2.cpp": "f47f858acdad48305bb6270eca92abe4f0c1d89baeda14c71600f787f7b7579f"
+  },
+  "expected_old": {
+    "BUILD_TEST.bat": "4648a5f8dce81a26b95f924dd90492685b386a8fa13512c77936ad36d9159aca",
+    "RUN_TEST.bat": "b2e0901c3955a74d8fd229eeada3e4ffe65e8a4ffa54b567f6165621cf5fc636",
+    "dev/stable/buildtree/src/burn/drv/capcom/qs_z.cpp": "9da2ec9ab6e91b65157cd88af7471f9c98d39bd9ca904968dca9fe1833eb163d",
+    "dev/stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_86_storm_button_guard.h": "06d136fd9da5921fd6c43ac5fa8351c3030a438c293e8b1e6fa07bcd860efc15",
+    "dev/stable/buildtree/src/intf/video/sdl/vid_sdl2.cpp": "0a77a283d9cf2abe6a93724c708c06d177c65f5f442f9eea8724e4bee0f28e6c"
+  },
+  "required_old": {
+    "dev/stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_126_storm_voice_trace.h": "87f0b2f942692b3666767c64ade30c6ec9ae240b3dd65ecadedcfc070404181b",
+    "dev/stable/buildtree/src/burner/sdl/xmvsf_stage86_56_final.h": "2050b13034fc1a42deae356a450cac9483d8ff57d5ef205d41629fff2628f4f4",
+    "dev/stable/releases/87_126/build_87126.py": "9f27e54661d5a80afc12b0b4c0b9eefc3c38a0bd862f059887178cc84db27a1a",
+    "dev/stable/releases/87_126/run_87126.py": "a24c238a1f136c3a2d8c69f0a30faaa3855c953f182dbef21055b733cceaab14"
+  }
+}

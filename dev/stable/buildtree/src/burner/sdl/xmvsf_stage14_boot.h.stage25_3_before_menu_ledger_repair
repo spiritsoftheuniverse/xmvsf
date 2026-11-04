@@ -1,0 +1,339 @@
+// XMVSF Stage 11: seamless single SDL window from the boot menu into CPS-2 gameplay.
+// The emulation engine is compiled into the same executable. No libretro DLL or fbneo.exe launch.
+// Stage 11 reuses the menu SDL_Window; TRAINING remains disabled until its
+// health/time implementation is bound and verified against the USA 961023 game-state.
+#ifndef XMVSF_STAGE14_BOOT_INCLUDED
+#define XMVSF_STAGE14_BOOT_INCLUDED
+
+struct XMVSFGlyph { char c; unsigned char row[7]; };
+static const XMVSFGlyph xmvsfFont[] = {
+    {'A', {0x0e, 0x11, 0x11, 0x1f, 0x11, 0x11, 0x11}},
+    {'B', {0x1e, 0x11, 0x11, 0x1e, 0x11, 0x11, 0x1e}},
+    {'C', {0x0f, 0x10, 0x10, 0x10, 0x10, 0x10, 0x0f}},
+    {'D', {0x1e, 0x11, 0x11, 0x11, 0x11, 0x11, 0x1e}},
+    {'E', {0x1f, 0x10, 0x10, 0x1e, 0x10, 0x10, 0x1f}},
+    {'F', {0x1f, 0x10, 0x10, 0x1e, 0x10, 0x10, 0x10}},
+    {'G', {0x0f, 0x10, 0x10, 0x17, 0x11, 0x11, 0x0f}},
+    {'H', {0x11, 0x11, 0x11, 0x1f, 0x11, 0x11, 0x11}},
+    {'I', {0x1f, 0x04, 0x04, 0x04, 0x04, 0x04, 0x1f}},
+    {'J', {0x07, 0x02, 0x02, 0x02, 0x12, 0x12, 0x0c}},
+    {'K', {0x11, 0x12, 0x14, 0x18, 0x14, 0x12, 0x11}},
+    {'L', {0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x1f}},
+    {'M', {0x11, 0x1b, 0x15, 0x15, 0x11, 0x11, 0x11}},
+    {'N', {0x11, 0x19, 0x15, 0x13, 0x11, 0x11, 0x11}},
+    {'O', {0x0e, 0x11, 0x11, 0x11, 0x11, 0x11, 0x0e}},
+    {'P', {0x1e, 0x11, 0x11, 0x1e, 0x10, 0x10, 0x10}},
+    {'Q', {0x0e, 0x11, 0x11, 0x11, 0x15, 0x12, 0x0d}},
+    {'R', {0x1e, 0x11, 0x11, 0x1e, 0x14, 0x12, 0x11}},
+    {'S', {0x0f, 0x10, 0x10, 0x0e, 0x01, 0x01, 0x1e}},
+    {'T', {0x1f, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04}},
+    {'U', {0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x0e}},
+    {'V', {0x11, 0x11, 0x11, 0x11, 0x11, 0x0a, 0x04}},
+    {'W', {0x11, 0x11, 0x11, 0x15, 0x15, 0x1b, 0x11}},
+    {'X', {0x11, 0x11, 0x0a, 0x04, 0x0a, 0x11, 0x11}},
+    {'Y', {0x11, 0x11, 0x0a, 0x04, 0x04, 0x04, 0x04}},
+    {'Z', {0x1f, 0x01, 0x02, 0x04, 0x08, 0x10, 0x1f}},
+    {'0', {0x0e, 0x11, 0x13, 0x15, 0x19, 0x11, 0x0e}},
+    {'1', {0x04, 0x0c, 0x04, 0x04, 0x04, 0x04, 0x0e}},
+    {'2', {0x0e, 0x11, 0x01, 0x02, 0x04, 0x08, 0x1f}},
+    {'3', {0x1e, 0x01, 0x01, 0x06, 0x01, 0x01, 0x1e}},
+    {'4', {0x02, 0x06, 0x0a, 0x12, 0x1f, 0x02, 0x02}},
+    {'5', {0x1f, 0x10, 0x10, 0x1e, 0x01, 0x01, 0x1e}},
+    {'6', {0x0f, 0x10, 0x10, 0x1e, 0x11, 0x11, 0x0e}},
+    {'7', {0x1f, 0x01, 0x02, 0x04, 0x04, 0x04, 0x04}},
+    {'8', {0x0e, 0x11, 0x11, 0x0e, 0x11, 0x11, 0x0e}},
+    {'9', {0x0e, 0x11, 0x11, 0x0f, 0x01, 0x01, 0x1e}},
+    {'-', {0x00, 0x00, 0x00, 0x1f, 0x00, 0x00, 0x00}},
+    {':', {0x00, 0x04, 0x04, 0x00, 0x04, 0x04, 0x00}},
+    {'.', {0x00, 0x00, 0x00, 0x00, 0x00, 0x0c, 0x0c}},
+    {'/', {0x01, 0x01, 0x02, 0x04, 0x08, 0x10, 0x10}},
+};
+
+static const unsigned char* xmvsfGlyph(char c) {
+    for (unsigned int i=0; i<sizeof(xmvsfFont)/sizeof(xmvsfFont[0]); ++i) {
+        if (xmvsfFont[i].c == c) return xmvsfFont[i].row;
+    }
+    return 0;
+}
+static void xmvsfPixelText(SDL_Renderer* render, const char* text, int cx, int y, int pixel,
+                            unsigned char r, unsigned char g, unsigned char b) {
+    if (!text) return;
+    int count=0;
+    while (text[count]) ++count;
+    int x=cx-(count*6*pixel)/2;
+    SDL_SetRenderDrawColor(render,r,g,b,255);
+    for (int i=0; i<count; ++i) {
+        const unsigned char* glyph=xmvsfGlyph(text[i]);
+        if (glyph) for (int row=0; row<7; ++row) for (int bit=0; bit<5; ++bit) {
+            if (glyph[row] & (1 << (4-bit))) {
+                SDL_Rect pix = {x+bit*pixel,y+row*pixel,pixel,pixel};
+                SDL_RenderFillRect(render, &pix);
+            }
+        }
+        x+=6*pixel;
+    }
+}
+
+
+#include "xmvsf_stage13_controls.h"
+#include "xmvsf_stage25_sets.h" /* XMVSF_STAGE25_SETS */
+#include "xmvsf_stage20_api.h" /* XMVSF_STAGE20_WASAPI */
+#include "xmvsf_native_host.h" /* XMVSF_STAGE21_BOUNDARY */
+// 0=Arcade, -1=Quit. Training is still disabled, never starts an ordinary match.
+extern SDL_Window* sdlWindow;
+static int xmvsfBootSelector() {
+    if(SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER | SDL_INIT_JOYSTICK | SDL_INIT_GAMECONTROLLER)!=0) {
+        fprintf(stderr,"XMVSF menu SDL initialization: %s\n",SDL_GetError());return -1;
+    }
+    SDL_JoystickEventState(SDL_ENABLE);
+    SDL_GameControllerEventState(SDL_ENABLE);
+    SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY,"0");
+    SDL_Window* window=SDL_CreateWindow("X-MEN VS. STREET FIGHTER | USA 961023",
+        SDL_WINDOWPOS_CENTERED,SDL_WINDOWPOS_CENTERED,960,540,
+        SDL_WINDOW_SHOWN|SDL_WINDOW_RESIZABLE);
+    if(!window) {fprintf(stderr,"XMVSF menu window: %s\n",SDL_GetError());SDL_Quit();return -1;}
+    SDL_Renderer* render=SDL_CreateRenderer(window,-1,SDL_RENDERER_ACCELERATED|SDL_RENDERER_PRESENTVSYNC);
+    if(!render)render=SDL_CreateRenderer(window,-1,SDL_RENDERER_SOFTWARE);
+    if(!render) {SDL_DestroyWindow(window);SDL_Quit();return -1;}
+    SDL_RenderSetLogicalSize(render,960,540);
+    xmvsfHost::menuStart(); /* XMVSF_STAGE20_WASAPI */
+    SDL_Joystick* menuSticks[8]={NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL};
+    SDL_GameController* menuPads[8]={NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL};
+    for(int i=0;i<SDL_NumJoysticks() && i<8;i++) {
+        menuSticks[i]=SDL_JoystickOpen(i);
+        if(SDL_IsGameController(i)) menuPads[i]=SDL_GameControllerOpen(i);
+    }
+    XM13_Settings config;xm13Load(&config);
+    xm25OpenSetup(); /* XMVSF_STAGE25_SETS */
+    int selection=0,controlsRow=0,screen=0,capture=-1,outcome=-1,running=1;
+    char message[96]="";Uint32 messageUntil=0,inputCooldown=0;
+    const char* actionNames[8]={"LP","MP","HP","LK","MK","HK","COIN","START"};
+    while(running) {
+        SDL_Event ev;
+        while(SDL_PollEvent(&ev)) {
+            if(ev.type==SDL_QUIT) {outcome=-1;running=0;continue;}
+            if(screen==2 || screen==3) {
+                if (ev.type==SDL_MOUSEBUTTONDOWN && ev.button.button==SDL_BUTTON_LEFT) {
+                    int mx=ev.button.x,my=ev.button.y;
+                    int ww=960,hh=540;SDL_GetWindowSize(window,&ww,&hh);
+                    if(ww>0 && hh>0){mx=mx*960/ww;my=my*540/hh;}
+                    if(screen==2) {
+                        if(xm25NameMouse(mx,my))continue;
+                        if(my>=99 && my<334 && mx>=220 && mx<=740) {
+                            xm25State.setupRow=std::min(4,(my-99)/47);continue;
+                        }
+                        if(my>=343 && my<442) {
+                            xm25State.setupRow=my<391?5:6;
+                        }
+                    }
+                }
+                if(ev.type==SDL_TEXTINPUT && screen==2 && xm25State.focus>=0) {
+                    xm25EditName(xm25State.focus,ev.text.text);continue;
+                }
+                if(ev.type==SDL_KEYDOWN && ev.key.keysym.sym==SDLK_BACKSPACE &&
+                   screen==2 && xm25State.focus>=0) {xm25Backspace(xm25State.focus);continue;}
+            } /* XMVSF_STAGE25_SETS */
+            if(screen==1 && capture>=0) {
+                if(ev.type==SDL_KEYDOWN && ev.key.keysym.sym==SDLK_ESCAPE) {
+                    capture=-1;snprintf(message,sizeof(message),"CAPTURE CANCELLED");messageUntil=SDL_GetTicks()+2000;continue;
+                }
+                if(ev.type==SDL_JOYBUTTONDOWN || ev.type==SDL_JOYAXISMOTION) {
+                    int joyInstance=ev.type==SDL_JOYBUTTONDOWN?ev.jbutton.which:ev.jaxis.which;
+                    int device=-1;
+                    for(int i=0;i<SDL_NumJoysticks();i++) {
+                        if(SDL_JoystickGetDeviceInstanceID(i)==joyInstance) {device=i;break;}
+                    }
+                    if(device<0)continue;
+                    if(ev.type==SDL_JOYAXISMOTION && ev.jaxis.value<=20000)continue;
+                    if(capture<2) {
+                        if(ev.type!=SDL_JOYBUTTONDOWN)continue;
+                        if(xm13Assign(&config,capture,device))snprintf(message,sizeof(message),"PLAYER %d CONTROLLER SAVED",capture+1);
+                        else snprintf(message,sizeof(message),"DEVICE USED OR SAVE FAILED");
+                    } else {
+                        int p=(capture-2)/8, a=(capture-2)%8;
+                        int selectedDevice=xm13FindDevice(&config.player[p]);
+                        if(device!=selectedDevice)continue;
+                        config.player[p].binding[a].type=ev.type==SDL_JOYBUTTONDOWN?'B':'A';
+                        config.player[p].binding[a].index=ev.type==SDL_JOYBUTTONDOWN?ev.jbutton.button:ev.jaxis.axis;
+                        if(xm13Save(&config))snprintf(message,sizeof(message),"PLAYER %d %s SAVED",p+1,actionNames[a]);
+                        else snprintf(message,sizeof(message),"SAVE FAILED");
+                    }
+                    capture=-1;messageUntil=SDL_GetTicks()+2200;
+                    inputCooldown=SDL_GetTicks()+250;continue;
+                }
+                // Do not handle menu navigation while waiting for a physical input.
+                continue;
+            }
+            if(SDL_GetTicks()<inputCooldown &&
+               (ev.type==SDL_CONTROLLERBUTTONDOWN || ev.type==SDL_KEYDOWN)) continue;
+            int direction=0,accept=0,back=0;
+            if(ev.type==SDL_KEYDOWN && !ev.key.repeat) {
+                SDL_Keycode k=ev.key.keysym.sym;
+                if(k==SDLK_UP)direction=-1;
+                if(k==SDLK_DOWN)direction=1;
+                if(k==SDLK_RETURN || k==SDLK_SPACE)accept=1;
+                if(k==SDLK_ESCAPE)back=1;
+            } else if(ev.type==SDL_CONTROLLERBUTTONDOWN) {
+                if(ev.cbutton.button==SDL_CONTROLLER_BUTTON_DPAD_UP)direction=-1;
+                if(ev.cbutton.button==SDL_CONTROLLER_BUTTON_DPAD_DOWN)direction=1;
+                if(ev.cbutton.button==SDL_CONTROLLER_BUTTON_A || ev.cbutton.button==SDL_CONTROLLER_BUTTON_START)accept=1;
+                if(ev.cbutton.button==SDL_CONTROLLER_BUTTON_B)back=1;
+            }
+            if(screen==2) {
+                if(back) {screen=0;xm25State.focus=-1;SDL_StopTextInput();}
+                if(direction){xm25State.setupRow=(xm25State.setupRow+7+direction)%7;xm25MenuSound(false);}
+                if(accept){
+                    xm25MenuSound(true);
+                    if(xm25State.focus>=0 && ev.type==SDL_KEYDOWN) {
+                        xm25State.focus=-1;SDL_StopTextInput();
+                    } else if(xm25State.setupRow<=4){
+                        xm25State.modeIndex=xm25State.setupRow;
+                        for(int i=0;i<2;i++)xm25SanitizeName(xm25State.names[i],i==0?"PLAYER 1":"PLAYER 2");
+                        xm25SaveNames();SDL_StopTextInput();xm25State.focus=-1;outcome=2;running=0;
+                    } else if(xm25State.setupRow==5){xm25LoadLedger();xm25State.page=0;screen=3;}
+                    else {screen=0;}
+                }
+                continue;
+            }
+            if(screen==3) {
+                if(back){screen=2;}
+                if(direction>0 || (ev.type==SDL_KEYDOWN && ev.key.keysym.sym==SDLK_RIGHT)){xm25MenuSound(false);
+                    xm25State.page=std::min(std::max(0,((int)xm25State.entries.size()-1)/7),xm25State.page+1);}
+                if(direction<0 || (ev.type==SDL_KEYDOWN && ev.key.keysym.sym==SDLK_LEFT)){xm25MenuSound(false);
+                    xm25State.page=std::max(0,xm25State.page-1);}
+                if(accept){xm25MenuSound(true);screen=2;}
+                continue;
+            }
+            if(screen==0) {
+                if(back) {running=0;outcome=-1;}
+                if(direction){xmvsfHost::cursorMove();selection=(selection+4+direction)%4; /* XMVSF_STAGE24_VERSUS */} /* XMVSF_STAGE20_WASAPI */
+                if(accept) { xmvsfHost::confirm(); /* XMVSF_STAGE20_WASAPI */
+                    if(selection==0){outcome=0;running=0;}
+                    else if(selection==1) {
+                        outcome=1;running=0; // XMVSF_STAGE14_TRAINING_BOOT
+                    } else if(selection==2){screen=2;xm25State.setupRow=xm25State.modeIndex;} /* XMVSF_STAGE25_SETS */
+                    else {screen=1;controlsRow=0;}
+                }
+            } else {
+                if(back){screen=0;capture=-1;}
+                if(direction){xmvsfHost::cursorMove();controlsRow=(controlsRow+18+direction)%18;} /* XMVSF_STAGE20_WASAPI */
+                if(accept) { xmvsfHost::confirm(); /* XMVSF_STAGE20_WASAPI */
+                    capture=controlsRow;
+                    snprintf(message,sizeof(message),"PRESS DEVICE BUTTON TO ASSIGN");
+                    messageUntil=SDL_GetTicks()+5000;
+                    if(controlsRow>=2 && !config.player[(controlsRow-2)/8].active) {
+                        capture=-1;
+                        snprintf(message,sizeof(message),"ASSIGN CONTROLLER FIRST");messageUntil=SDL_GetTicks()+2400;
+                    }
+                }
+            }
+        }
+        SDL_SetRenderDrawColor(render,0,0,0,255);SDL_RenderClear(render);
+        if(screen==0) {
+            xmvsfPixelText(render,"X-MEN VS STREET FIGHTER",480,82,4,77,178,255);
+            xmvsfPixelText(render,"USA 961023",480,140,3,155,150,255);
+            const char* entries[4]={"ARCADE","TRAINING","VERSUS","CONTROLS"}; /* XMVSF_STAGE24_VERSUS */
+            for(int a=0;a<4;a++) { /* XMVSF_STAGE24_VERSUS */
+                int y=188+a*58; /* XMVSF_STAGE24_VERSUS */
+                if(a==selection) {
+                    SDL_Rect r={206,y-12,548,57};
+                    SDL_SetRenderDrawColor(render,25,19,68,255);SDL_RenderFillRect(render,&r);
+                    SDL_SetRenderDrawColor(render,76,93,175,255);SDL_RenderDrawRect(render,&r);
+                }
+                xmvsfPixelText(render,entries[a],480,y,4,a==selection?255:125,a==selection?255:125,255);
+            }
+            if(SDL_GetTicks()<messageUntil)xmvsfPixelText(render,message,480,446,2,255,132,132);
+            else xmvsfPixelText(render,"SELECT WITH ENTER OR A",480,446,2,115,145,192);
+            xmvsfPixelText(render,"ESC TO QUIT",480,497,2,105,105,129);
+        } else if(screen==2) { /* XMVSF_STAGE25_SETS */
+            xmvsfPixelText(render,"VERSUS",480,36,5,120,175,255);
+            const char* modes[5]={"FFA","FT3","FT5","FT10","FT20"}; /* XMVSF_STAGE25_1_POLISH */
+            for(int a=0;a<5;++a){
+                int y=105+a*47;
+                if(a==xm25State.setupRow){SDL_Rect mark={225,y-6,510,35};
+                    SDL_SetRenderDrawColor(render,28,29,83,255);SDL_RenderFillRect(render,&mark);}
+                xmvsfPixelText(render,modes[a],480,y,3,a==xm25State.setupRow?255:130,150,255);
+            }
+            xmvsfPixelText(render,xm25State.setupRow==5?"> LEDGER":"  LEDGER",480,354,2,185,199,255);
+            xmvsfPixelText(render,xm25State.setupRow==6?"> MAIN MENU":"  MAIN MENU",480,405,2,140,163,214);
+            for(int p=0;p<2;++p){
+                SDL_Rect field={p==0?85:510,459,290,38};
+                SDL_SetRenderDrawColor(render,13,18,47,255);SDL_RenderFillRect(render,&field);
+                SDL_SetRenderDrawColor(render,xm25State.focus==p?230:86,117,208,255);SDL_RenderDrawRect(render,&field);
+                char label[44];std::snprintf(label,sizeof(label),"P%d %.18s",p+1,xm25State.names[p]);
+                xmvsfPixelText(render,label,field.x+145,470,2,197,205,255);
+                SDL_Rect clear={field.x+295,459,40,38};
+                SDL_RenderDrawRect(render,&clear);
+                xmvsfPixelText(render,"X",clear.x+20,470,2,235,130,137);
+            }
+            xmvsfPixelText(render,"CLICK NAME TO TYPE / X TO CLEAR",480,509,2,130,153,196);
+        } else if(screen==3) { /* XMVSF_STAGE25_SETS */
+            xmvsfPixelText(render,"VERSUS LEDGER",480,26,3,120,181,255);
+            int total=(int)xm25State.entries.size();
+            for(int j=0;j<7;++j){
+                int ix=total-1-(xm25State.page*7+j);
+                if(ix<0)break;
+                const XM25LedgerRow& r=xm25State.entries[(size_t)ix];
+                char row[160];
+                xm25LedgerLabel(r,row,sizeof(row));
+                SDL_Rect shade={76,81+j*51,808,39};
+                SDL_SetRenderDrawColor(render,j%2?20:37,j%2?25:37,j%2?55:84,255);
+                SDL_RenderFillRect(render,&shade);
+                xmvsfPixelText(render,row,480,89+j*51,2,174,183,234); /* XMVSF_STAGE25_2_LEDGER_RESULTS */
+            }
+            char footer[80];std::snprintf(footer,sizeof(footer),"PAGE %d  LEFT RIGHT / ESC BACK",xm25State.page+1);
+            xmvsfPixelText(render,footer,480,487,2,118,154,198);
+        } else {
+            xmvsfPixelText(render,"CONTROLS",480,30,5,105,181,255);
+            xmvsfPixelText(render,"PLAYER 1 / PLAYER 2",480,86,2,117,142,203);
+            int page=controlsRow/9,first=page*9;
+            for(int a=first;a<first+9;a++) {
+                char label[128]={0};
+                if(a<2) {
+                    int device=xm13FindDevice(&config.player[a]);
+                    if(!config.player[a].active)snprintf(label,sizeof(label),"P%d DEVICE : NOT ASSIGNED",a+1);
+                    else if(device<0)snprintf(label,sizeof(label),"P%d DEVICE : DISCONNECTED",a+1);
+                    else snprintf(label,sizeof(label),"P%d DEVICE : PAD %d",a+1,device+1);
+                } else {
+                    int p=(a-2)/8, action=(a-2)%8;
+                    XM13_Binding b=config.player[p].binding[action];
+                    if(b.type=='N')snprintf(label,sizeof(label),"P%d %s : NONE",p+1,actionNames[action]);
+                    else snprintf(label,sizeof(label),"P%d %s : %s %d",p+1,actionNames[action],b.type=='A'?"AXIS":"BUTTON",b.index);
+                }
+                int y=132+(a-first)*33;
+                if(a==controlsRow){
+                    SDL_Rect r={140,y-7,680,28};
+                    SDL_SetRenderDrawColor(render,28,26,81,255);SDL_RenderFillRect(render,&r);
+                }
+                xmvsfPixelText(render,label,480,y,2,a==controlsRow?255:143,a==controlsRow?255:145,255);
+            }
+            if(capture>=0) xmvsfPixelText(render,"PRESS A PHYSICAL BUTTON",480,441,2,255,208,82);
+            else if(SDL_GetTicks()<messageUntil)xmvsfPixelText(render,message,480,441,2,245,171,109);
+            else xmvsfPixelText(render,"ENTER TO MAP / ESC TO RETURN",480,441,2,117,160,193);
+            xmvsfPixelText(render,page==0?"PAGE 1 / 2":"PAGE 2 / 2",480,466,2,105,105,129);
+            SDL_GameControllerUpdate();
+            for(int p=0;p<2;p++) for(int a=0;a<6;a++) {
+                char testLabel[16];snprintf(testLabel,sizeof(testLabel),"P%d %s",p+1,actionNames[a]);
+                int pressed=xm13ReadInput(&config,p,0x80+a,menuSticks,menuPads,8);
+                xmvsfPixelText(render,testLabel,118+a*145,487+p*24,2,
+                               pressed>0?245:79,pressed>0?246:91,pressed>0?255:130);
+            }
+        }
+        SDL_RenderPresent(render);
+        SDL_Delay(8);
+    }
+    for(int i=0;i<8;i++) {
+        if(menuPads[i]) SDL_GameControllerClose(menuPads[i]);
+        if(menuSticks[i]) SDL_JoystickClose(menuSticks[i]);
+    }
+    // Stage12: retain BOTH the SDL_Window and its SDL_Renderer on Arcade entry.
+    if(outcome==0 || outcome==1 || outcome==2) { /* XMVSF_STAGE24_VERSUS */
+        xmvsfHost::enterGame(); /* XMVSF_STAGE20_WASAPI */
+        sdlWindow=window;
+        SDL_SetWindowTitle(sdlWindow,"X-MEN VS. STREET FIGHTER | USA 961023");
+    } else {
+        SDL_DestroyRenderer(render);SDL_DestroyWindow(window);SDL_Quit();
+    }
+    return outcome;
+}
+#endif

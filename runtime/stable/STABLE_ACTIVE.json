@@ -1,0 +1,9 @@
+{
+  "version": "87.132",
+  "build": "87.132.4 consolidated clean",
+  "stable_sha256": "d50d0cf42ad5dade0d16caebf7b44c546b37ba6886d4747a0404500a56bfb42f",
+  "previous_stable_sha256": "92181ce33b164532ebefa53e5d0be93b4810e7c9b74faa5c6c580664eaf46add",
+  "promoted_utc": "2026-11-04T05:37:47.491006+00:00",
+  "source_hashes": {},
+  "previous_stable_backup": "F:\\xmvsf\\testdata\\clean_build_backups\\stable_20261104_003747_304253\\XMVSF_Stable.exe"
+}

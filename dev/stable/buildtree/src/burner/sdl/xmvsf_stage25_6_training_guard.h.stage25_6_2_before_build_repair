@@ -1,0 +1,28 @@
+#ifndef XMVSF_STAGE25_6_TRAINING_GUARD_H
+#define XMVSF_STAGE25_6_TRAINING_GUARD_H
+// Isolate a controller-owner handoff from a held character-select button.
+// The owner is an existing Stage14 value; do not invent character-selected
+// memory flags. Stage17's selection detector remains authoritative.
+#include <SDL.h>
+// Observe the owner only where Stage14 variables are in scope. The
+// release/neutral logic itself remains in the shared Stage25.4 latch.
+static inline void xm256ObserveTrainingOwner(bool training, int owner) {
+    static bool previouslyTraining=false;
+    static int previousOwner=-1;
+    if (training && (!previouslyTraining || owner!=previousOwner))
+        xm25BeginInputHandoff();
+    previouslyTraining=training;
+    previousOwner=training?owner:-1;
+} /* XMVSF_STAGE25_6_1_COMPILE_REPAIR */
+static inline void xm256NormalizeBootFaceButtons(const SDL_Event& ev,bool& accept,bool& back){
+    // This changes menu behavior only, not fight controls or stored mappings.
+    if(ev.type==SDL_CONTROLLERBUTTONDOWN){
+        accept=ev.cbutton.button==SDL_CONTROLLER_BUTTON_A;
+        back=ev.cbutton.button==SDL_CONTROLLER_BUTTON_B;
+    } else if(ev.type==SDL_JOYBUTTONDOWN){
+        // SDL's XInput joystick layout puts A/B on physical buttons 0/1.
+        accept=ev.jbutton.button==0;
+        back=ev.jbutton.button==1;
+    }
+}
+#endif

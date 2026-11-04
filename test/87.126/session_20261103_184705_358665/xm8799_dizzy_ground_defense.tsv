@@ -1,0 +1,22 @@
+frame	event	player	mode	patched	action	previous_action	ground_y	position_y	stun_b8	dizzy_135	hit_latch_134	def_gate_83	attacker_combo_110	attacker_last_combo_111	defender_c0	defender_c4	detail
+780	TOURNAMENT_GROUNDED_NATIVE_HOOK_INSTALLED	-	1	1	-	-	-	-	-	-	-	-	-	-	-	-	E800 -> 109C0; original 4 landing helpers; 16E76 combo finalize; clear 134; 11FC0 native guard selector
+2297	ATTACKER_COMBO_COUNT_CHANGED	P2	1	1	1C36	1C2E	472	458	0	00	78	80	0	2	0000	0000	ROM-native count, no RAM count overrides
+2305	POP_EXIT_TO_NATIVE_ACTION	P2	1	1	0216	1C36	472	365	0	00	78	80	0	2	0000	0000	read-only: action/guard/combo after native ROM update
+2638	POP_GROUND_CONTACT_OBSERVED	P2	1	1	1C38	1C38	472	472	0	FF	00	80	1	0	0000	0000	check native 16E76 combo finalization and 11FC0 action/guard next frame
+2639	POP_GROUND_CONTACT_OBSERVED	P2	1	1	1C38	1C38	472	472	0	FF	00	80	1	0	0000	0000	check native 16E76 combo finalization and 11FC0 action/guard next frame
+2640	POP_GROUND_CONTACT_OBSERVED	P2	1	1	1C38	1C38	472	472	0	FF	00	80	1	0	0000	0000	check native 16E76 combo finalization and 11FC0 action/guard next frame
+2641	POP_GROUND_CONTACT_OBSERVED	P2	1	1	1C38	1C38	472	472	0	FF	00	80	1	0	0000	0000	check native 16E76 combo finalization and 11FC0 action/guard next frame
+2642	POP_GROUND_CONTACT_OBSERVED	P2	1	1	1C38	1C38	472	472	0	FF	00	80	1	0	0000	0000	check native 16E76 combo finalization and 11FC0 action/guard next frame
+2643	POP_GROUND_CONTACT_OBSERVED	P2	1	1	1C38	1C38	472	472	0	FF	00	80	1	0	0000	0000	check native 16E76 combo finalization and 11FC0 action/guard next frame
+2644	POP_GROUND_CONTACT_OBSERVED	P2	1	1	1C38	1C38	472	472	0	FF	00	80	1	0	0000	0000	check native 16E76 combo finalization and 11FC0 action/guard next frame
+2645	POP_GROUND_CONTACT_OBSERVED	P2	1	1	1C38	1C38	472	472	0	FF	00	80	1	0	0000	0000	check native 16E76 combo finalization and 11FC0 action/guard next frame
+2705	POP_EXIT_TO_NATIVE_ACTION	P2	1	1	1C14	1C3A	472	256	0	00	78	80	2	1	0000	0000	read-only: action/guard/combo after native ROM update
+2781	ATTACKER_COMBO_COUNT_CHANGED	P2	1	1	1C36	1C36	472	460	0	00	78	80	0	2	0000	0000	ROM-native count, no RAM count overrides
+2789	POP_EXIT_TO_NATIVE_ACTION	P2	1	1	0216	1C36	472	378	0	00	78	80	0	2	0000	0000	read-only: action/guard/combo after native ROM update
+2851	ATTACKER_COMBO_COUNT_CHANGED	P2	1	1	1C36	1C36	472	461	0	00	78	80	0	2	0000	0000	ROM-native count, no RAM count overrides
+2859	POP_EXIT_TO_NATIVE_ACTION	P2	1	1	0216	1C36	472	393	0	00	78	80	0	2	0000	0000	read-only: action/guard/combo after native ROM update
+3687	ATTACKER_COMBO_COUNT_CHANGED	P2	1	1	1C36	1C36	472	457	0	00	78	80	0	2	0000	0000	ROM-native count, no RAM count overrides
+3695	POP_EXIT_TO_NATIVE_ACTION	P2	1	1	0216	1C36	472	355	0	00	78	80	0	2	0000	0000	read-only: action/guard/combo after native ROM update
+3753	ATTACKER_COMBO_COUNT_CHANGED	P2	1	1	1C36	1C36	472	459	0	00	78	80	0	2	0000	0000	ROM-native count, no RAM count overrides
+3761	POP_EXIT_TO_NATIVE_ACTION	P2	1	1	0216	1C36	472	374	0	00	78	80	0	2	0000	0000	read-only: action/guard/combo after native ROM update
+6061	ATTACKER_COMBO_COUNT_CHANGED	P2	1	1	0000	1C02	472	472	0	00	00	80	0	1	0000	0000	ROM-native count, no RAM count overrides

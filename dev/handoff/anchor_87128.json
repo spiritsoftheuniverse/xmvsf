@@ -1,0 +1,23 @@
+{
+  "version": "87.128",
+  "new_files": {
+    "BUILD_TEST.bat": "ac9ab6d53894b2ba5f21473659f051f4bf0293ab4573c0376bb74953e0525e92",
+    "RUN_TEST.bat": "a048c8122997c825cdf4449f1a658b6e7db0e9b0c9c5ad161076f3c9c9455624",
+    "dev/stable/buildtree/src/intf/video/sdl/vid_sdl2.cpp": "a5f36b98dec837219ae58f2ddb0233d6b212cf3c82b12f29a5af4d51bf037cb5",
+    "dev/stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_127_storm_voice_mute.h": "c0654e551426ddf486d87152b2902fd7d91d5a07a1ab8c23a43df6a5a1bfafde",
+    "dev/stable/buildtree/src/burner/sdl/xmvsf_stage86_56_final.h": "b030f503de0cc7cd1e392b9fbfa74e1a8a2877700e73f82e9addb85a93e8744b",
+    "dev/stable/releases/87_128/build_87128.py": "06c8a93902ee1994ae6ba4bab563c18d87adac76fd479e224e5d1f42e98a9d47",
+    "dev/stable/releases/87_128/run_87128.py": "fb310f00cab4eb7ddfd58855f459fcb2cc77f6883f7dee83d35407528cb75465"
+  },
+  "expected_old": {
+    "BUILD_TEST.bat": "89f32b0bc33cccd5ace04d7408a2ecf534863e763303a7d681972b303430ef6e",
+    "RUN_TEST.bat": "5c11af905a4ad3a811a143ee7559239f5aecf1c852d3f61a3a4795d4b5da1fb6",
+    "dev/stable/buildtree/src/intf/video/sdl/vid_sdl2.cpp": "f47f858acdad48305bb6270eca92abe4f0c1d89baeda14c71600f787f7b7579f",
+    "dev/stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_127_storm_voice_mute.h": "ccc9c03f0d5056f173db46d8c89569aecfdc2efe6e1e891dd14e0f08c724e849",
+    "dev/stable/buildtree/src/burner/sdl/xmvsf_stage86_56_final.h": "2050b13034fc1a42deae356a450cac9483d8ff57d5ef205d41629fff2628f4f4"
+  },
+  "required_old": {
+    "dev/stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_86_storm_button_guard.h": "5b2cd32d9d57da80ca63818157eec5d08652a9abe66d3ea3e6d94814f0beed1b",
+    "dev/stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_126_storm_voice_trace.h": "87f0b2f942692b3666767c64ade30c6ec9ae240b3dd65ecadedcfc070404181b"
+  }
+}

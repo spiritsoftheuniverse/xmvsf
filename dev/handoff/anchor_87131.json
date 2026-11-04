@@ -1,0 +1,21 @@
+{
+  "version": "87.131",
+  "new_files": {
+    "BUILD_TEST.bat": "2bf01e915f436169db029e492ce2070d25be368edf3ba176029cdcfdb0f8e73b",
+    "RUN_TEST.bat": "7ee6a823adc455418fd48ba28cd55f8557642cc7057e80c8a07ec683814d62c3",
+    "dev/stable/buildtree/src/burner/sdl/xmvsf_stage86_56_final.h": "90a0ec9bd2c1ac3d3217dc0af68b69a72fb26645cdd2beed02c741991f5b2ca2",
+    "dev/stable/releases/87_131/build_87131.py": "81ce782ef394ee9cb1154ad892f63198fde0596337c0b3db981e0033f06701f9",
+    "dev/stable/releases/87_131/run_87131.py": "2a3d6e95f1b1055b8c6d191e271661f14a9eda8068ff6bff65062d8da3ecc6bc"
+  },
+  "expected_old": {
+    "BUILD_TEST.bat": "4857729885a6fba85a43e4e8a52552923b596aa21a7ed5c9f4a7a6d9dfc3db99",
+    "RUN_TEST.bat": "bd6705cbe34464ab7690eaa5242c4ff14cc4464e75ade01564bbd1231df4aeba",
+    "dev/stable/buildtree/src/burner/sdl/xmvsf_stage86_56_final.h": "a24cdfbe7f9918f42ea12b1bbfc9d816095f0f992d8425327e6a3c9371b9f08b"
+  },
+  "required_old": {
+    "dev/stable/buildtree/src/intf/video/sdl/xmvsf_stage87_130_placement_probe.h": "7352571c0879c84cec13acdf530687b29e4152dd5cf891371aeafe459ec48a6c",
+    "dev/stable/releases/87_130/build_87130.py": "bdadcbac122b70b1cdab6eaa24cf666d5ba24c6b7fb68f8c192cd65a8b3d3b7f",
+    "dev/stable/releases/87_130/run_87130.py": "c1fb614bf2afbbf077a3f621b64f3dd02f13226b58715326b964c28ee7142595",
+    "dev/stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_127_storm_voice_mute.h": "8369db4ec64b2dd4fd7f2214570b7217295a416e5fd0786ba1543aa74066e3fd"
+  }
+}

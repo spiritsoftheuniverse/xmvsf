@@ -1,0 +1,14 @@
+XM86.55 DOUBLE_FEATURE mode=1 (Wily overlay gate)
+XM87.33 DIZZY_OPTION enabled=1
+XM87.55 RULE_MODE selection=TOURNAMENT gameplay_changes=0
+XM27: boot selector ENTER (startup)
+XM86.52 WINDOW_RESTORE size=1752x1121 file=F:\xmvsf\runtime\stable\XMVSF_WindowState.ini
+XM87.131 DF_READBACK_FULL_OUTPUT ready=1752x1121
+XM86.56 FINAL_PASS_ACTIVE 1752x1121
+XM86.52 WINDOW_FOCUS phase=boot-startup size=1752x1121 inputFocus=1
+XM27: boot FIRST FRAME presented window=1 renderer=ready
+XM86.32 BOOT SELECTOR: stage submenu available
+XM20 WASAPI started: 48000Hz 2 channels 32 bits; game independent clock
+XM86.52 WINDOW_SAVED phase=boot size=1752x1121
+XM27: boot selector EXIT mode=-1
+FBNeo v1.0.0.03

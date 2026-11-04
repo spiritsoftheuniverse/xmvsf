@@ -1,0 +1,4 @@
+event	seq	frame	romframe	df	player	sub	qpc	qpc_freq	host_ms	base_action	new_action	base_sub	new_sub	frames_from_edge	ms_from_sample	detail
+MAPPED_DOWN	1	271	1049	1	1	80	6088343107448	10000000	5215.6977	0000	0000	0000	0000	0	0.0000	sampled_not_physical
+MAPPED_UP	0	278	1056	1	1	80	6088344281301	10000000	5333.0830	0000	0000	0000	0000	0	0.0000	released
+NO_ACTION_WITHIN_12_FRAMES	1	284	1063	1	1	80	6088345304332	10000000	5435.3861	0000	0000	0000	0000	13	219.6884	may_be_buffered_blocked_or_non_attack

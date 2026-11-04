@@ -1,0 +1,19 @@
+{
+  "version": "87.129",
+  "new_files": {
+    "BUILD_TEST.bat": "959ce069a094194c2a004e83248fa83edabf7ecbe3a0a0a1a75d20f443918e38",
+    "RUN_TEST.bat": "2f1afd53ab9e43d6493583f0ae0b18fada7c173b285254f26c00724f5e58bb0b",
+    "dev/stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_127_storm_voice_mute.h": "8369db4ec64b2dd4fd7f2214570b7217295a416e5fd0786ba1543aa74066e3fd",
+    "dev/stable/releases/87_129/build_87129.py": "133a9ee9c99a4fbb9724aa45af2ba4a6b07e984e9f0f1f33e68673c55da3bab8",
+    "dev/stable/releases/87_129/run_87129.py": "955cc6c262b74d81eb9d9d64834c105e5cbf43f10a78aa2f0b237ea082632d92"
+  },
+  "expected_old": {
+    "BUILD_TEST.bat": "ac9ab6d53894b2ba5f21473659f051f4bf0293ab4573c0376bb74953e0525e92",
+    "RUN_TEST.bat": "a048c8122997c825cdf4449f1a658b6e7db0e9b0c9c5ad161076f3c9c9455624",
+    "dev/stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_127_storm_voice_mute.h": "c0654e551426ddf486d87152b2902fd7d91d5a07a1ab8c23a43df6a5a1bfafde"
+  },
+  "required_old": {
+    "dev/stable/buildtree/src/intf/video/sdl/vid_sdl2.cpp": "a5f36b98dec837219ae58f2ddb0233d6b212cf3c82b12f29a5af4d51bf037cb5",
+    "dev/stable/buildtree/src/burner/sdl/xmvsf_stage86_56_final.h": "b030f503de0cc7cd1e392b9fbfa74e1a8a2877700e73f82e9addb85a93e8744b"
+  }
+}

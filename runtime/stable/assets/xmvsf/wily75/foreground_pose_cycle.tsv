@@ -1,0 +1,3 @@
+# Packed foreground smoke reconstructed from all 20 original Layer3 cells. One 160x48 draw per frame.
+POSES	assets/foreground_smoke_5poses.xrga	342	387	160	48	5	20
+CYCLE	0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,2,2,2,2,2,2,2,2,2,3,3,3,3,3,3,3,3,3,4,4,4,4,4,4,4,4,4,0

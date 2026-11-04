@@ -1,0 +1,722 @@
+XM86.55 DOUBLE_FEATURE mode=1 (Wily overlay gate)
+XM87.33 DIZZY_OPTION enabled=1
+XM87.55 RULE_MODE selection=TOURNAMENT gameplay_changes=0
+XM27: boot selector ENTER (startup)
+XM86.52 WINDOW_RESTORE size=1686x1064 file=F:\xmvsf\runtime\stable\XMVSF_WindowState.ini
+XM86.56 FINAL_PASS_READY 1686x1064 grayscale; stage05 lighting is upstream
+XM86.56 FINAL_PASS_ACTIVE 1686x1064
+XM86.52 WINDOW_FOCUS phase=boot-startup size=1686x1064 inputFocus=1
+XM27: boot FIRST FRAME presented window=1 renderer=ready
+XM86.32 BOOT SELECTOR: stage submenu available
+XM20 WASAPI started: 48000Hz 2 channels 32 bits; game independent clock
+XM86.52 WINDOW_SAVED phase=boot size=1686x1064
+XM86.32 TRAINING ENTER STAGE MENU selection=0
+XM86.32 STAGE MENU CONFIRM mode=1 selected=1 resolved=1
+XM27: boot selector EXIT mode=1
+XM86.32 HOST ENTER DoGame id=28748 modeTraining=1 modeVersus=0 stageChoice=1 resolved=1
+Loading program (xvsu.03k)... (OK)
+Loading program (xvsu.04k)... (OK)
+Loading program (xvs.05a)... (OK)
+Loading program (xvs.06a)... (OK)
+Loading program (xvs.07)... (OK)
+Loading program (xvs.08)... (OK)
+Loading program (xvs.09)... (OK)
+Loading graphics (xvs.13m)... (OK)
+Loading graphics (xvs.15m)... (OK)
+Loading graphics (xvs.17m)... (OK)
+Loading graphics (xvs.19m)... (OK)
+Loading graphics (xvs.14m)... (OK)
+Loading graphics (xvs.16m)... (OK)
+Loading graphics (xvs.18m)... (OK)
+Loading graphics (xvs.20m)... (OK)
+Loading program (xvs.01)... (OK)
+Loading program (xvs.02)... (OK)
+Loading sound (xvs.11m)... (OK)
+Loading sound (xvs.12m)... (OK)
+Loading xmvsfu.key... (OK)
+XM87.17 SOURCE_TAGS enabled: tracking 68000 source through lagged object list
+XM87.18 SOURCE_OWNER_GRAY enabled game=xmvsfu
+XM86.32 HOST DrvInit return=0
+XM86.32 HOST MediaInit begin
+XM20 sound init: 44100 Hz, 740 samples per emulated frame
+XM86.52 WINDOW_SAVED phase=game-enter size=1686x1064
+XM86.52 WINDOW_FOCUS phase=game-enter size=1686x1064 inputFocus=1
+XM86.52 GAME_WINDOW_INHERITED size=1686x1064 logical=960x540 nativeCanvas=384x224 viewport=120,0,720,540 focus=1
+XM86.32 HOST MediaInit complete; controls begin
+XM86.32 HOST controls complete; RunMessageLoop begin
+XM86.55 SESSION_AUDIO_RESET vs=0 select_mute_rearmed=1
+XM86.34 RunMessageLoop ENTER
+XM86.34 VEH registered=1
+XM86.34 xm24StartSession complete
+XM86.34 RunInit enter
+XM86.34 RunInit audio play begin
+XM86.34 RunInit audio play complete
+XM86.34 RunInit StatedAuto begin
+XM86.34 RunInit StatedAuto complete; training snapshot begin
+XMVSF Stage16: LOAD_OK (0)
+XM86.34 RunInit training snapshot complete skipped=0
+XM86.34 RunInit returned to message loop
+XM86.34 FIRST RunIdle enter
+XM86.34 FIRST RunFrame ENTER draw=1 pause=0 ready=1
+XM86.40 PROGRESS frames=1 emulated=0 paused=0
+XM86.34 FRAME1 BEFORE_SLOWMO
+XM87.98 INPUT_ROM_DF_TRACE_READY initialized (mode=DOUBLE_FEATURE)
+XM86.34 FRAME1 BEFORE_INPUT pause=0
+XM87.61 REPLAY REFUSED: invalid mode
+XM86.34 FRAME1 AFTER_INPUT
+XM86.34 FRAME1 BEFORE_VIDEO runahead=0 disabled=0 fast=0
+XM86.34 FRAME1 BEFORE_VIDFRAME
+XM86.34 SDL2 BEFORE FRAME CALLBACK
+XM86.34 CPS2 ENTER
+XM86.34 CPS2 AFTER RESET
+XM86.34 CPS2 AFTER ASPECT
+XM86.34 CPS2 BEFORE CPU/QSOUND NEW FRAME
+XM86.34 CPS2 AFTER CPU/QSOUND NEW FRAME
+XM86.34 CPS2 BEFORE CPU OPEN
+XM86.34 CPS2 AFTER CPU OPEN
+XM86.34 CPS2 BEFORE CPS INPUT READ
+XM87.95 NATIVE_DIZZY_AIR_COLLISION_READY; 68000 native tick override (Tournament only)
+XM87.96 DIZZY_HANDOFF_READY; native 12B88 standing transition; 87.95 pop preserved
+XM87.99 GROUND_DEFENSE_READY: native 16E76 combo close + 11FC0 guard selector
+XM87.125 STUN_REARM_LOCK_READY native dizzy +B8; require actual air-to-floor transition AND native landing state change
+XM87.101 Training dual KO paths INSTALLED normal@0155BC other@015B7E mode=Training driver=xmvsfu
+XM86.34 CPS2 AFTER CPS INPUT READ
+XM86.34 CPS2 BEFORE VOLUME/ROUTE
+XM86.34 CPS2 AFTER VOLUME/ROUTE
+XM86.34 CPS2 AFTER IRQ SCHEDULE
+XM86.34 CPS2 BEFORE PRE-DISPLAY CPU RUN
+XM86.34 CPS2 AFTER PRE-DISPLAY CPU RUN
+XM86.34 CPS2 BEFORE MAIN CPU SCANLINES
+XM86.34 CPS2 AFTER MAIN CPU SCANLINES
+XM86.34 CPS2 AFTER OBJECT CAPTURE
+XM86.34 CPS2 BEFORE CPS DRAW
+XM86.64 BG_30_PERCENT_70_SAT sample_entries=1522 avg_original=205 avg_graded=44; Wily graded independently
+XM86.64 NATIVE_PALETTE backgrounds=30pct_peak77 saturation70_hue35s magneto=grayscale fighter_ink96 hud_rgb50 fx_color wily_independent_dark
+XM86.34 CPS2 AFTER CPS DRAW
+XM86.34 CPS2 BEFORE CPU VBLANK RUN
+XM86.34 CPS2 AFTER CPU VBLANK RUN
+XM86.34 CPS2 BEFORE QSOUND END FRAME
+XM86.35 QSOUND ENTER mode=0 cycles=134160 soundlen=740 soundptr=000002C00A750280 z80total=0
+XM86.35 QSOUND BEFORE_TIMER
+XM87.127 STORM_VOICE_MUTE_READY enabled=1 targeted_pcm_channel=12 sample=6508
+XM87.126 DF_CENTER_AND_STORM_VOICE_TRACE_READY voice_mutation=0
+XM86.35 QSOUND AFTER_TIMER z80total=134161
+XM86.35 QSOUND BEFORE_MIXER output=000002C00A750280 len=740
+XM86.35 QSOUND AFTER_MIXER
+XM86.35 QSOUND BEFORE_CLOSE
+XM86.35 QSOUND EXIT
+XM86.34 CPS2 AFTER QSOUND END FRAME
+XM87.124 NATIVE_LAUNCH_HP_GUARD_READY enabled=1 target=00066200/00132A00 storm_mk_preserved=1 storm_hk_connected_enabled=1 protected_drill=2C1E,2C46
+XM87.123 CLASSIC_FLYING_SCREEN_GUARD mode=TOURNAMENT launch_override=1
+XM87.119 CYCLOPS_RECOVERY_PROBE enabled read-only log=F:\xmvsf\test\87.127\session_20261103_202721_214267\xm87119_cyclops_recovery.tsv
+XM87.121 CYCLOPS_THROW_RECOVERY_RELEASE enabled=1
+XM86.34 CPS2 COMPLETE
+XM86.34 SDL2 AFTER FRAME CALLBACK
+XM86.34 FRAME1 AFTER_VIDFRAME result=0
+XM86.48 SESSION generation=1 mode=1 WilyChoice=1 WilyResolved=1
+XM86.48 EARLY_SELECTOR_REQUEST old=FF new=04 readback=04 status=00 stage=00 writes=1 result=PASS
+XM86.48 STAGE OBSERVER START: stage-byte FF5113 writes=0; selector FF5082 writes=1; mode=Training:1 Versus:0 choice=1 resolved=1
+XM86.42 HOST CHOICE f=1 choice=1 resolved=1 (NO ROM CHANGE)
+XM86.42 TRANSITION f=1 oldStatus=FF newStatus=00 oldStage=FF newStage=00 p1ptr=00FF5180
+XM86.42 RAM FF5000: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+XM86.42 RAM FF5100: 01 03 00 01 00 04 00 00 00 00 00 00 00 00 00 00 00 01 00 00 79 00 00 00 00 00 00 00 00 04 00 00 FF 00 00 00 03 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+XM86.42 HEARTBEAT f=1 status=00 stage=00 actorPtr=00FF5180 events=1
+XM86.58 GAME_PHASE old=FF new=00 selectionGray=1
+XM86.34 FRAME1 BEFORE_VIDPAINT
+XM87.127 DF_PRECOMBAT_CENTER phase=0 display_h=288 native_h=224 y_shift=60
+XM87.104 SELECTOR_OVERLAY_DISABLED native_ROM_only=1
+XM86.65 SELECTION_LUMA no_full_screen_ink96=true
+XM86.34 FRAME1 AFTER_VIDPAINT
+XM22: enabling CPS2 sound-CPU music-only mute at F026/F027; QSound effects enabled.
+XM86.34 FIRST RunFrame reached stage5 hook
+XM86.34 FIRST RunFrame stage5 hook returned
+XM86.65 SCENERY_RULES exact_family_count=0
+XM86.59 FX_RULES exact_family_count=0
+XM86.35 QSOUND ENTER mode=0 cycles=134160 soundlen=740 soundptr=000002C00A750280 z80total=1
+XM86.35 QSOUND BEFORE_TIMER
+XM86.35 QSOUND AFTER_TIMER z80total=134163
+XM86.35 QSOUND BEFORE_MIXER output=000002C00A750280 len=740
+XM86.35 QSOUND AFTER_MIXER
+XM86.35 QSOUND BEFORE_CLOSE
+XM86.35 QSOUND EXIT
+XM87.76 P2_MAGENTA_CALIBRATED original_pens=10_11_12
+XM86.40 PROGRESS frames=300 emulated=299 paused=0
+XM86.42 HEARTBEAT f=300 status=00 stage=00 actorPtr=00FF5180 events=1
+XM86.40 PROGRESS frames=600 emulated=599 paused=0
+XM86.42 HEARTBEAT f=600 status=00 stage=00 actorPtr=00FF5180 events=1
+XM86.42 TRANSITION f=609 oldStatus=00 newStatus=00 oldStage=00 newStage=05 p1ptr=00FF5180
+XM86.42 RAM FF5000: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+XM86.42 RAM FF5100: 01 03 00 01 00 04 00 00 00 00 00 00 00 00 00 00 00 01 00 05 D9 00 00 00 00 00 00 00 00 04 00 00 00 00 00 00 03 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+XM86.48 NATIVE_STAGE_ASSIGNMENT f=609 stage=05 status=00 expected05=PASS
+XM87.25 OUTLINE_GATE frame=1486 p6=1 ink=1 owner=0 eligible=0 accepted=0
+XM87.25 OUTLINE_GATE frame=1486 p6=2 ink=1 owner=0 eligible=0 accepted=0
+XM87.25 OUTLINE_GATE frame=1486 p6=3 ink=1 owner=0 eligible=0 accepted=0
+XM87.25 OUTLINE_GATE frame=1486 p6=4 ink=1 owner=0 eligible=0 accepted=0
+XM86.42 TRANSITION f=707 oldStatus=00 newStatus=02 oldStage=05 newStage=05 p1ptr=00FF4000
+XM86.42 HISTORY f=527 age=180 status=00 stage=00 near5113=000000000000000000010000870000000000000000040000
+XM86.42 HISTORY f=557 age=150 status=00 stage=00 near5113=000000000000000000010000A50000000000000000040000
+XM86.42 HISTORY f=587 age=120 status=00 stage=00 near5113=000000000000000000010000C30000000000000000040000
+XM86.42 HISTORY f=617 age=90 status=00 stage=05 near5113=000000000000000000010105E00000000000000000040000
+XM86.42 HISTORY f=647 age=60 status=00 stage=05 near5113=000000000000000000010105FE0000000000000000040000
+XM86.42 HISTORY f=662 age=45 status=00 stage=05 near5113=00000000000000000001FF050D0000000000000000040000
+XM86.42 HISTORY f=677 age=30 status=00 stage=05 near5113=0000000000000000000100051C0000000000000000040000
+XM86.42 HISTORY f=687 age=20 status=00 stage=05 near5113=000000000000000000010005260000000000000000040000
+XM86.42 HISTORY f=697 age=10 status=00 stage=05 near5113=000000000000000000010005300000000000000000040000
+XM86.42 HISTORY f=702 age=5 status=00 stage=05 near5113=000000000000000000010005350000000000000001040000
+XM86.42 HISTORY f=703 age=4 status=00 stage=05 near5113=000000000000000000010005360000000000000001040000
+XM86.42 HISTORY f=704 age=3 status=00 stage=05 near5113=000000000000000000010005360000000000000001040000
+XM86.42 HISTORY f=705 age=2 status=00 stage=05 near5113=000000000000000000010005360000000000000001040000
+XM86.42 HISTORY f=706 age=1 status=00 stage=05 near5113=000000000000000000010005370000000000000001040000
+XM86.42 HISTORY f=707 age=0 status=02 stage=05 near5113=000000000300000000010005370000000000000001040000
+XM86.42 RAM FF5000: 02 00 00 00 00 00 00 00 99 28 00 00 00 00 00 0A 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 FF
+XM86.42 RAM FF5100: 01 03 00 01 00 08 00 04 00 00 00 00 03 00 00 00 00 01 00 05 37 00 00 00 00 00 00 00 01 04 00 00 00 00 00 00 03 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+XM86.58 GAME_PHASE old=00 new=02 selectionGray=0
+XM86.49 VISUAL_GATE active=1 status=02 stage=05 ptr=00FF4000 camera=192,256
+XM87.100 TRAINING phase=02 realHP=P1:144 P2:144 timer=120 idle frames noDizzy=0
+XM87.127 DF_PRECOMBAT_CENTER phase=2 display_h=288 native_h=224 y_shift=60
+XM87.57 NATIVE_WILY_BACKGROUND original_palettes=1 double_feature_preserved=1
+XM86.49 ASSETS_FOUND path=F:\xmvsf\runtime\stable\assets/xmvsf/wily75
+XM87.56 WILY_SCENE_MODE df=1 color=noir independent_of_stage=1
+XM86.64 WILY_LIGHTING scene_additive=0% scene_dark=30% actor_full_bright=1 native_fighters_untouched=1
+XM86.49 PAINTER_READY 384x224; rendering opt-in; forest fallback enabled
+XM86.50 AUDIT_KEYS: 1=factory 2=middle 3=foreground 4=sky-fill 5=natural-patch 6=upper-repair 7=smoke/vapor 8=Wily-actor 9=native-CPS2-sprites; all ON by default.
+XM86.54 FACTORY_PARALLAX horizontal=0.03 rightShift=+64px rightAnchor=222; native camera untouched; [ ] offset and - = drift
+XM86.54 NATIVE_OBJ_HARD_FILTER Stage84 ROM-verified stage05 scenery exclusions; retained priorities 6/7 and verified HUD numerals; no palette/tile selectors.
+XM87.64 DF_HUE_RATE normal_period_ms=35000 super_period_ms=875 brightness_pct=90 saturation_pct=100 phase_continuous=1
+XM86.64 WILY_DARK_SCENE scene_brightness=30pct hue_saturation=70pct actor_exempt=1 additive=0
+XM86.64 WILY_COMPOSITE scene_once=1 additive=0 brightness=30pct actor_untouched=1
+XM86.54 OBJ_FILTER frame=2 candidates=36 kept=36 excluded=0 scenery=0 excludedByPriority=0,0,0,0,0,0,0,0
+XM86.54 WILY_PRESENT frame=2 nativeCamera=192,256 WilyCamera=127,256 fighterValid=1 presentations=1
+XM87.45 HP_RGB frame=1491 tile=88544 pal=2 v=7 x=160 y=20 changedPens=14 fillPens=5 grayPens=9 matched=1 modified=1 ink=00111111
+XM87.45 HP_RGB frame=1491 tile=88530 pal=2 v=7 x=144 y=20 changedPens=14 fillPens=5 grayPens=9 matched=2 modified=2 ink=00111111
+XM87.45 HP_RGB frame=1491 tile=88530 pal=2 v=7 x=128 y=20 changedPens=14 fillPens=5 grayPens=9 matched=3 modified=3 ink=00111111
+XM87.45 HP_RGB frame=1491 tile=88530 pal=2 v=7 x=112 y=20 changedPens=14 fillPens=5 grayPens=9 matched=4 modified=4 ink=00111111
+XM87.45 HP_RGB frame=1491 tile=88530 pal=2 v=7 x=96 y=20 changedPens=14 fillPens=5 grayPens=9 matched=5 modified=5 ink=00111111
+XM87.45 HP_RGB frame=1491 tile=88530 pal=2 v=7 x=80 y=20 changedPens=14 fillPens=5 grayPens=9 matched=6 modified=6 ink=00111111
+XM87.45 HP_RGB frame=1491 tile=88530 pal=2 v=7 x=64 y=20 changedPens=14 fillPens=5 grayPens=9 matched=7 modified=7 ink=00111111
+XM87.45 HP_RGB frame=1491 tile=88530 pal=2 v=7 x=48 y=20 changedPens=14 fillPens=5 grayPens=9 matched=8 modified=8 ink=00111111
+XM87.45 HP_RGB frame=1491 tile=88530 pal=2 v=7 x=32 y=20 changedPens=14 fillPens=5 grayPens=9 matched=9 modified=9 ink=00111111
+XM87.45 HP_RGB frame=1491 tile=88513 pal=2 v=7 x=16 y=20 changedPens=14 fillPens=5 grayPens=9 matched=10 modified=10 ink=00111111
+XM87.45 HP_RGB frame=1491 tile=88498 pal=2 v=7 x=160 y=20 changedPens=14 fillPens=5 grayPens=9 matched=11 modified=11 ink=00111111
+XM87.45 HP_RGB frame=1491 tile=88460 pal=4 v=7 x=149 y=32 changedPens=12 fillPens=2 grayPens=10 matched=12 modified=12 ink=00896FBC
+XM87.45 HP_RGB frame=1491 tile=88447 pal=4 v=7 x=133 y=32 changedPens=12 fillPens=2 grayPens=10 matched=13 modified=13 ink=00896FBC
+XM87.45 HP_RGB frame=1491 tile=89418 pal=4 v=7 x=117 y=32 changedPens=12 fillPens=2 grayPens=10 matched=14 modified=14 ink=00896FBC
+XM87.45 HP_RGB frame=1491 tile=89418 pal=4 v=7 x=101 y=32 changedPens=12 fillPens=2 grayPens=10 matched=15 modified=15 ink=00896FBC
+XM87.45 HP_RGB frame=1491 tile=89418 pal=4 v=7 x=85 y=32 changedPens=12 fillPens=2 grayPens=10 matched=16 modified=16 ink=00896FBC
+XM87.45 HP_RGB frame=1491 tile=89418 pal=4 v=7 x=69 y=32 changedPens=12 fillPens=2 grayPens=10 matched=17 modified=17 ink=00896FBC
+XM87.45 HP_RGB frame=1491 tile=89418 pal=4 v=7 x=53 y=32 changedPens=12 fillPens=2 grayPens=10 matched=18 modified=18 ink=00896FBC
+XM87.45 HP_RGB frame=1491 tile=89418 pal=4 v=7 x=37 y=32 changedPens=12 fillPens=2 grayPens=10 matched=19 modified=19 ink=00896FBC
+XM87.45 HP_RGB frame=1491 tile=89418 pal=4 v=7 x=21 y=32 changedPens=12 fillPens=2 grayPens=10 matched=20 modified=20 ink=00896FBC
+XM87.45 HP_RGB frame=1491 tile=89417 pal=4 v=7 x=5 y=32 changedPens=12 fillPens=2 grayPens=10 matched=21 modified=21 ink=00896FBC
+XM87.45 HP_RGB frame=1491 tile=88579 pal=4 v=7 x=149 y=32 changedPens=12 fillPens=2 grayPens=10 matched=22 modified=22 ink=00896FBC
+XM87.45 HP_RGB frame=1491 tile=88544 pal=2 v=7 x=208 y=20 changedPens=14 fillPens=5 grayPens=9 matched=23 modified=23 ink=00111111
+XM87.45 HP_RGB frame=1491 tile=88530 pal=2 v=7 x=224 y=20 changedPens=14 fillPens=5 grayPens=9 matched=24 modified=24 ink=00111111
+XM87.45 OUTLINE_OPEN frame=1491 phase=02 owner=1 tile=135844 count=1
+XM87.25 DIRECT_SPRITE_OUTLINE frame=1491 objects=1 tiles=15 copies_per_object=4 value=100 saturation=80
+XM87.27 BRIGHT_LINE frame=1491 objects=1 direct_copies=4 value=100 saturation=80 bloom=0
+XM87.45 OUTLINE_OPEN frame=1491 phase=02 owner=1 tile=135849 count=2
+XM87.25 DIRECT_SPRITE_OUTLINE frame=1491 objects=2 tiles=27 copies_per_object=4 value=100 saturation=80
+XM87.27 BRIGHT_LINE frame=1491 objects=2 direct_copies=4 value=100 saturation=80 bloom=0
+XM87.45 OUTLINE_OPEN frame=1491 phase=02 owner=1 tile=135868 count=3
+XM87.25 DIRECT_SPRITE_OUTLINE frame=1491 objects=3 tiles=31 copies_per_object=4 value=100 saturation=80
+XM87.27 BRIGHT_LINE frame=1491 objects=3 direct_copies=4 value=100 saturation=80 bloom=0
+XM87.45 OUTLINE_OPEN frame=1491 phase=02 owner=1 tile=135872 count=4
+XM87.25 DIRECT_SPRITE_OUTLINE frame=1491 objects=4 tiles=34 copies_per_object=4 value=100 saturation=80
+XM87.27 BRIGHT_LINE frame=1491 objects=4 direct_copies=4 value=100 saturation=80 bloom=0
+XM87.45 OUTLINE_OPEN frame=1491 phase=02 owner=1 tile=135855 count=5
+XM87.25 DIRECT_SPRITE_OUTLINE frame=1491 objects=5 tiles=37 copies_per_object=4 value=100 saturation=80
+XM87.27 BRIGHT_LINE frame=1491 objects=5 direct_copies=4 value=100 saturation=80 bloom=0
+XM87.45 OUTLINE_OPEN frame=1491 phase=02 owner=1 tile=135836 count=6
+XM87.25 DIRECT_SPRITE_OUTLINE frame=1491 objects=6 tiles=39 copies_per_object=4 value=100 saturation=80
+XM87.27 BRIGHT_LINE frame=1491 objects=6 direct_copies=4 value=100 saturation=80 bloom=0
+XM87.45 OUTLINE_OPEN frame=1491 phase=02 owner=1 tile=133814 count=7
+XM87.25 DIRECT_SPRITE_OUTLINE frame=1491 objects=7 tiles=40 copies_per_object=4 value=100 saturation=80
+XM87.27 BRIGHT_LINE frame=1491 objects=7 direct_copies=4 value=100 saturation=80 bloom=0
+XM87.45 OUTLINE_OPEN frame=1491 phase=02 owner=1 tile=135870 count=8
+XM87.25 DIRECT_SPRITE_OUTLINE frame=1491 objects=8 tiles=41 copies_per_object=4 value=100 saturation=80
+XM87.27 BRIGHT_LINE frame=1491 objects=8 direct_copies=4 value=100 saturation=80 bloom=0
+XM87.45 OUTLINE_OPEN frame=1491 phase=02 owner=1 tile=135875 count=9
+XM87.45 OUTLINE_OPEN frame=1491 phase=02 owner=2 tile=245949 count=10
+XM87.45 OUTLINE_OPEN frame=1491 phase=02 owner=2 tile=245956 count=11
+XM87.45 OUTLINE_OPEN frame=1491 phase=02 owner=2 tile=245962 count=12
+XM87.45 HP_RGB frame=1519 tile=88550 pal=4 v=7 x=133 y=32 changedPens=12 fillPens=2 grayPens=10 matched=4096 modified=4096 ink=00896FBC
+XM87.45 HP_RGB frame=1545 tile=88530 pal=2 v=7 x=48 y=20 changedPens=14 fillPens=5 grayPens=9 matched=8192 modified=8192 ink=00111111
+XM87.28 INTERIOR_MASK frame=1560 tiles=53 body_pixels=7264 masked_positions=5941 offset_tiles=39 ready=1 brightness=100 saturation=80 bloom=0
+XM86.42 TRANSITION f=785 oldStatus=02 newStatus=04 oldStage=05 newStage=05 p1ptr=00FF4000
+XM86.42 RAM FF5000: 04 00 00 00 00 00 00 78 99 28 00 00 00 00 00 0A 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 FF
+XM86.42 RAM FF5100: 01 03 00 01 00 08 00 04 00 00 00 00 03 00 00 00 00 01 00 05 84 00 00 00 06 00 00 00 01 04 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+XM86.58 GAME_PHASE old=02 new=04 selectionGray=0
+XM87.100 TRAINING phase=04 realHP=P1:144 P2:144 timer=120 idle frames noDizzy=0
+XM87.127 DF_PRECOMBAT_CENTER phase=4 display_h=288 native_h=224 y_shift=60
+XM87.45 HP_RGB frame=1567 tile=88501 pal=2 v=7 x=112 y=20 changedPens=14 fillPens=5 grayPens=9 matched=12288 modified=12288 ink=00111111
+XM87.45 OUTLINE_OPEN frame=1582 phase=04 owner=1 tile=132705 count=4096
+XM87.25 DIRECT_SPRITE_OUTLINE frame=1582 objects=4096 tiles=14930 copies_per_object=4 value=100 saturation=80
+XM87.27 BRIGHT_LINE frame=1582 objects=4096 direct_copies=4 value=100 saturation=80 bloom=0
+XM87.45 HP_RGB frame=1588 tile=88501 pal=2 v=7 x=144 y=20 changedPens=14 fillPens=5 grayPens=9 matched=16384 modified=16384 ink=00111111
+XM87.25 OUTLINE_GATE frame=1598 p6=8192 ink=1 owner=1 eligible=1 accepted=5416
+XM87.45 HP_RGB frame=1607 tile=88547 pal=4 v=7 x=315 y=32 changedPens=12 fillPens=2 grayPens=10 matched=20480 modified=20480 ink=00896FBC
+XM87.45 HP_RGB frame=1624 tile=88418 pal=4 v=7 x=331 y=32 changedPens=12 fillPens=2 grayPens=10 matched=24576 modified=24576 ink=00896FBC
+XM87.45 HP_RGB frame=1642 tile=88501 pal=2 v=7 x=112 y=20 changedPens=14 fillPens=5 grayPens=9 matched=28672 modified=28672 ink=00111111
+XM87.45 HP_RGB frame=1659 tile=88464 pal=2 v=7 x=32 y=20 changedPens=14 fillPens=5 grayPens=9 matched=32768 modified=32768 ink=00111111
+XM87.45 OUTLINE_OPEN frame=1664 phase=04 owner=1 tile=131195 count=8192
+XM87.25 DIRECT_SPRITE_OUTLINE frame=1664 objects=8192 tiles=28196 copies_per_object=4 value=100 saturation=80
+XM87.27 BRIGHT_LINE frame=1664 objects=8192 direct_copies=4 value=100 saturation=80 bloom=0
+XM86.42 TRANSITION f=888 oldStatus=04 newStatus=06 oldStage=05 newStage=05 p1ptr=00FF4000
+XM86.42 RAM FF5000: 06 00 00 00 00 00 00 78 99 28 00 00 00 00 00 04 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 FF
+XM86.42 RAM FF5100: 01 03 00 01 00 08 00 04 00 00 00 00 03 00 00 00 00 01 00 05 EB 00 00 00 06 05 00 00 01 04 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+XM86.58 GAME_PHASE old=04 new=06 selectionGray=0
+XM87.100 TRAINING phase=06 realHP=P1:144 P2:144 timer=120 idle frames noDizzy=0
+XM87.127 DF_PRECOMBAT_CENTER phase=6 display_h=288 native_h=224 y_shift=60
+XM87.25 OUTLINE_GATE frame=1668 p6=16384 ink=1 owner=0 eligible=0 accepted=8337
+XM86.69 P1_FX_INDEX tile=142891 palette=14 mode=full
+XM86.69 P1_FX_INDEX tile=142893 palette=14 mode=full
+XM86.69 P1_FX_INDEX tile=142891 palette=14 mode=full
+XM86.69 P1_FX_INDEX tile=142893 palette=14 mode=full
+XM86.69 P1_FX_INDEX tile=142891 palette=14 mode=full
+XM86.69 P1_FX_INDEX tile=142893 palette=14 mode=full
+XM86.69 P1_FX_INDEX tile=142894 palette=14 mode=full
+XM86.69 P1_FX_INDEX tile=142894 palette=14 mode=full
+XM86.69 P1_FX_INDEX tile=142894 palette=14 mode=full
+XM86.69 P1_FX_INDEX tile=142894 palette=14 mode=full
+XM86.69 P1_FX_INDEX tile=142894 palette=14 mode=full
+XM86.69 P1_FX_INDEX tile=142894 palette=14 mode=full
+XM86.69 P1_FX_INDEX tile=142896 palette=14 mode=full
+XM86.69 P1_FX_INDEX tile=142896 palette=14 mode=full
+XM86.69 P1_FX_INDEX tile=142896 palette=14 mode=full
+XM86.69 P1_FX_INDEX tile=142896 palette=14 mode=full
+XM86.69 P1_FX_INDEX tile=142896 palette=14 mode=full
+XM86.69 P1_FX_INDEX tile=142896 palette=14 mode=full
+XM87.45 HP_RGB frame=1676 tile=88547 pal=4 v=7 x=69 y=32 changedPens=12 fillPens=2 grayPens=10 matched=36864 modified=36864 ink=00896FBC
+XM86.69 P1_FX_INDEX tile=142899 palette=14 mode=full
+XM86.69 P1_FX_INDEX tile=142899 palette=14 mode=full
+XM86.69 P1_FX_INDEX tile=142899 palette=14 mode=full
+XM86.69 P1_FX_INDEX tile=142913 palette=14 mode=full
+XM86.69 P1_FX_INDEX tile=142913 palette=14 mode=full
+XM86.69 P1_FX_INDEX tile=142913 palette=14 mode=full
+XM86.40 PROGRESS frames=900 emulated=899 paused=0
+XM86.42 HEARTBEAT f=900 status=06 stage=05 actorPtr=00FF4000 events=5
+XM87.28 INTERIOR_MASK frame=1680 tiles=53 body_pixels=6574 masked_positions=7428 offset_tiles=48 ready=1 brightness=100 saturation=80 bloom=0
+XM87.45 HP_RGB frame=1693 tile=88464 pal=2 v=7 x=224 y=20 changedPens=14 fillPens=5 grayPens=9 matched=40960 modified=40960 ink=00111111
+XM87.45 HP_RGB frame=1710 tile=88418 pal=4 v=7 x=331 y=32 changedPens=12 fillPens=2 grayPens=10 matched=45056 modified=45056 ink=00896FBC
+XM87.45 HP_RGB frame=1727 tile=88501 pal=2 v=7 x=112 y=20 changedPens=14 fillPens=5 grayPens=9 matched=49152 modified=49152 ink=00111111
+XM87.25 OUTLINE_GATE frame=1737 p6=24576 ink=1 owner=1 eligible=1 accepted=11405
+XM87.45 HP_RGB frame=1744 tile=88464 pal=2 v=7 x=32 y=20 changedPens=14 fillPens=5 grayPens=9 matched=53248 modified=53248 ink=00111111
+XM87.57 NATIVE_FLASH frame=1751 active=1 white=86016 near=86016 rows=224
+XM87.57 NATIVE_FLASH frame=1753 active=0 white=0 near=0 rows=0
+XM87.45 OUTLINE_OPEN frame=1753 phase=06 owner=1 tile=131096 count=12288
+XM87.25 DIRECT_SPRITE_OUTLINE frame=1753 objects=12288 tiles=42310 copies_per_object=4 value=100 saturation=80
+XM87.27 BRIGHT_LINE frame=1753 objects=12288 direct_copies=4 value=100 saturation=80 bloom=0
+XM87.57 NATIVE_FLASH frame=1756 active=1 white=86016 near=86016 rows=224
+XM87.57 NATIVE_FLASH frame=1757 active=0 white=0 near=0 rows=0
+XM87.57 NATIVE_FLASH frame=1760 active=1 white=86016 near=86016 rows=224
+XM87.57 NATIVE_FLASH frame=1761 active=0 white=0 near=0 rows=0
+XM87.45 HP_RGB frame=1761 tile=88547 pal=4 v=7 x=69 y=32 changedPens=12 fillPens=2 grayPens=10 matched=57344 modified=57344 ink=00896FBC
+XM87.57 NATIVE_FLASH frame=1764 active=1 white=86016 near=86016 rows=224
+XM87.57 NATIVE_FLASH frame=1765 active=0 white=0 near=0 rows=0
+XM87.122 HP_POINT_CHANGE frame=1771 side=1 old=4294967295 new=4
+XM87.122 HP_POINT_CHANGE frame=1771 side=2 old=4294967295 new=18
+XM86.42 TRANSITION f=992 oldStatus=06 newStatus=08 oldStage=05 newStage=05 p1ptr=00FF4000
+XM86.42 RAM FF5000: 08 00 00 00 00 00 00 3C 99 28 00 00 00 00 00 09 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 FF
+XM86.42 RAM FF5100: 01 03 00 01 00 08 00 04 00 00 00 00 03 00 00 00 00 01 00 05 53 00 00 00 06 03 00 00 01 04 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+XM86.48 COMBAT_STAGE f=992 stage=05 expected05=PASS
+XM86.58 GAME_PHASE old=06 new=08 selectionGray=0
+XM87.107 TRAINING_DUMMY_HP D1 slot=1 base=FF4400 id=18 HP=144
+XM87.107 TRAINING_DUMMY_HP D2 slot=2 base=FF4C00 id=20 HP=144
+XM87.100 TRAINING phase=08 realHP=P1:144 P2:144 timer=120 idle frames noDizzy=0
+XM87.41 HUD_SOURCE_COLOR native_priority7=1 screen_flood=0 names=original
+XM87.33 DIZZY_HUD active 384x224 raw=B8 table=8BC9A mode=game-wide
+XM87.109 TRAINING_POSITION_CAPTURE frame=1771 enabled=1
+XM87.102 TRAINING_MATCH_START_STATE frame=1771 save=OK path=config/games/xmvsfu_training_match_87102.fs
+XM87.114 CENTER_CAMERA_SYNC frame=1771 initial=1 stage=5 camera=200 p1=273 p2=512
+XM87.11 RGB_FIRST_SUBTRACT_FIGHTER frame=1772 pal=27 tile=110094 body=0 totals=0/1
+XM87.11 RGB_FIRST_SUBTRACT_FIGHTER frame=1772 pal=8 tile=127402 body=0 totals=0/2
+XM87.11 RGB_FIRST_SUBTRACT_FIGHTER frame=1772 pal=8 tile=127402 body=0 totals=0/3
+XM87.11 RGB_FIRST_SUBTRACT_FIGHTER frame=1772 pal=8 tile=119604 body=0 totals=0/4
+XM87.11 RGB_FIRST_SUBTRACT_FIGHTER frame=1772 pal=8 tile=119604 body=0 totals=0/5
+XM87.11 RGB_FIRST_SUBTRACT_FIGHTER frame=1772 pal=8 tile=127402 body=0 totals=0/6
+XM87.11 RGB_FIRST_SUBTRACT_FIGHTER frame=1772 pal=8 tile=127402 body=0 totals=0/7
+XM87.11 RGB_FIRST_SUBTRACT_FIGHTER frame=1772 pal=8 tile=119604 body=0 totals=0/8
+XM87.11 RGB_FIRST_SUBTRACT_FIGHTER frame=1772 pal=8 tile=119604 body=0 totals=0/9
+XM87.11 RGB_FIRST_SUBTRACT_FIGHTER frame=1772 pal=12 tile=142624 body=0 totals=0/10
+XM87.11 RGB_FIRST_SUBTRACT_FIGHTER frame=1772 pal=12 tile=142628 body=0 totals=0/11
+XM87.11 RGB_FIRST_SUBTRACT_FIGHTER frame=1772 pal=12 tile=142607 body=0 totals=0/12
+XM87.11 RGB_FIRST_SUBTRACT_FIGHTER frame=1772 pal=12 tile=131773 body=0 totals=0/13
+XM87.11 RGB_FIRST_SUBTRACT_FIGHTER frame=1772 pal=12 tile=132929 body=0 totals=0/14
+XM87.11 RGB_FIRST_SUBTRACT_FIGHTER frame=1772 pal=12 tile=132929 body=0 totals=0/15
+XM87.11 RGB_FIRST_SUBTRACT_FIGHTER frame=1772 pal=12 tile=142550 body=0 totals=0/16
+XM87.33 DIZZY_HUD active 384x224 raw=B8 table=8BC9A mode=game-wide
+XM87.122 HUD_DEPTH_TAG_HP frame=1772 drawn=1062 masked_actor_pixels=0
+XM87.18 DIRECT_FIGHTER_GRAY frame=1773 owner=1 a0=FF4000 pal=12 tile=131152 corrected=1
+XM87.18 DIRECT_FIGHTER_GRAY frame=1773 owner=1 a0=FF4000 pal=12 tile=131154 corrected=2
+XM87.18 DIRECT_FIGHTER_GRAY frame=1773 owner=1 a0=FF4000 pal=12 tile=131158 corrected=3
+XM87.18 DIRECT_FIGHTER_GRAY frame=1773 owner=1 a0=FF4000 pal=12 tile=131078 corrected=4
+XM87.18 DIRECT_FIGHTER_GRAY frame=1773 owner=1 a0=FF4000 pal=12 tile=131159 corrected=5
+XM87.18 DIRECT_FIGHTER_GRAY frame=1773 owner=1 a0=FF4000 pal=12 tile=131080 corrected=6
+XM87.18 DIRECT_FIGHTER_GRAY frame=1773 owner=1 a0=FF4000 pal=12 tile=131130 corrected=7
+XM87.18 DIRECT_FIGHTER_GRAY frame=1773 owner=1 a0=FF4000 pal=12 tile=131160 corrected=8
+XM87.18 DIRECT_FIGHTER_GRAY frame=1773 owner=2 a0=FF4400 pal=15 tile=244869 corrected=9
+XM87.18 DIRECT_FIGHTER_GRAY frame=1773 owner=2 a0=FF4400 pal=15 tile=244872 corrected=10
+XM87.18 DIRECT_FIGHTER_GRAY frame=1773 owner=2 a0=FF4400 pal=15 tile=244873 corrected=11
+XM87.18 DIRECT_FIGHTER_GRAY frame=1773 owner=2 a0=FF4400 pal=15 tile=196725 corrected=12
+XM87.18 DIRECT_FIGHTER_GRAY frame=1773 owner=2 a0=FF4400 pal=15 tile=244874 corrected=13
+XM87.18 DIRECT_FIGHTER_GRAY frame=1773 owner=1 a0=FF4000 pal=12 tile=131152 corrected=14
+XM87.18 DIRECT_FIGHTER_GRAY frame=1773 owner=1 a0=FF4000 pal=12 tile=131154 corrected=15
+XM87.18 DIRECT_FIGHTER_GRAY frame=1773 owner=1 a0=FF4000 pal=12 tile=131158 corrected=16
+XM87.18 DIRECT_FIGHTER_GRAY frame=1773 owner=1 a0=FF4000 pal=12 tile=131078 corrected=17
+XM87.18 DIRECT_FIGHTER_GRAY frame=1773 owner=1 a0=FF4000 pal=12 tile=131159 corrected=18
+XM87.18 DIRECT_FIGHTER_GRAY frame=1773 owner=1 a0=FF4000 pal=12 tile=131080 corrected=19
+XM87.18 DIRECT_FIGHTER_GRAY frame=1773 owner=1 a0=FF4000 pal=12 tile=131130 corrected=20
+XM87.18 DIRECT_FIGHTER_GRAY frame=1773 owner=1 a0=FF4000 pal=12 tile=131160 corrected=21
+XM87.18 DIRECT_FIGHTER_GRAY frame=1773 owner=2 a0=FF4400 pal=15 tile=244869 corrected=22
+XM87.18 DIRECT_FIGHTER_GRAY frame=1773 owner=2 a0=FF4400 pal=15 tile=244872 corrected=23
+XM87.18 DIRECT_FIGHTER_GRAY frame=1773 owner=2 a0=FF4400 pal=15 tile=244873 corrected=24
+XM87.14 BODY_PALETTE_LOCK frame=1774 actor=0 palette=12
+XM87.14 BODY_PALETTE_LOCK frame=1774 actor=1 palette=15
+XM87.45 HP_RGB frame=1778 tile=88464 pal=2 v=7 x=224 y=20 changedPens=14 fillPens=1 grayPens=13 matched=61440 modified=61440 ink=00111111
+XM86.54 OBJ_FILTER frame=301 candidates=276 kept=247 excluded=29 scenery=28 excludedByPriority=0,0,0,0,0,1,2,26
+XM86.54 WILY_PRESENT frame=301 nativeCamera=200,256 WilyCamera=134,256 fighterValid=1 presentations=300
+XM87.45 HP_RGB frame=1795 tile=88418 pal=4 v=7 x=331 y=32 changedPens=12 fillPens=2 grayPens=10 matched=65536 modified=65536 ink=00896FBC
+XM87.28 INTERIOR_MASK frame=1800 tiles=53 body_pixels=6620 masked_positions=7428 offset_tiles=48 ready=1 brightness=100 saturation=80 bloom=0
+XM87.25 OUTLINE_GATE frame=1803 p6=32768 ink=1 owner=0 eligible=0 accepted=14451
+XM87.45 HP_RGB frame=1812 tile=88501 pal=2 v=7 x=112 y=20 changedPens=14 fillPens=1 grayPens=13 matched=69632 modified=69632 ink=00111111
+XM87.14 FOREIGN_GROUP_RGB frame=1816 pal=14 n=7 bbox=80x112
+XM87.14 FOREIGN_GROUP_RGB frame=1817 pal=14 n=7 bbox=80x112
+XM87.14 FOREIGN_GROUP_RGB frame=1820 pal=14 n=7 bbox=80x96
+XM87.45 HP_RGB frame=1829 tile=88464 pal=2 v=7 x=32 y=20 changedPens=14 fillPens=5 grayPens=9 matched=73728 modified=73728 ink=00111111
+XM87.45 HP_RGB frame=1846 tile=88547 pal=4 v=7 x=69 y=32 changedPens=12 fillPens=2 grayPens=10 matched=77824 modified=77824 ink=00896FBC
+XM87.25 DIRECT_SPRITE_OUTLINE frame=1852 objects=16384 tiles=57624 copies_per_object=4 value=100 saturation=80
+XM87.27 BRIGHT_LINE frame=1852 objects=16384 direct_copies=4 value=100 saturation=80 bloom=0
+XM87.45 HP_RGB frame=1863 tile=88464 pal=2 v=7 x=224 y=20 changedPens=14 fillPens=5 grayPens=9 matched=81920 modified=81920 ink=00111111
+XM87.47 CUE frame=1867 p=1 event=SUPER_JUMP action=1A super=1 x=356 y=472 previous=02/0
+XM87.13 AIR_BODY_GEOMETRY frame=1871 actor=0 n=6 bbox=96x128 dy=30 count=1
+XM87.14 FOREIGN_GROUP_RGB frame=1872 pal=12 n=9 bbox=112x128
+XM87.14 FOREIGN_GROUP_RGB frame=1873 pal=12 n=9 bbox=112x128
+XM87.47 CUE frame=1877 p=1 event=AIR_DASH action=3C super=1 x=376 y=397 previous=1C/1
+XM87.25 OUTLINE_GATE frame=1879 p6=40960 ink=1 owner=1 eligible=1 accepted=17688
+XM87.14 FOREIGN_GROUP_RGB frame=1880 pal=8 n=9 bbox=112x144
+XM87.45 HP_RGB frame=1880 tile=88418 pal=4 v=7 x=331 y=32 changedPens=12 fillPens=2 grayPens=10 matched=86016 modified=86016 ink=00896FBC
+XM87.14 FOREIGN_GROUP_RGB frame=1881 pal=8 n=9 bbox=128x144
+XM87.14 FOREIGN_GROUP_RGB frame=1882 pal=8 n=12 bbox=134x156
+XM87.14 FOREIGN_GROUP_RGB frame=1883 pal=8 n=17 bbox=150x188
+XM87.14 FOREIGN_GROUP_RGB frame=1884 pal=8 n=18 bbox=150x188
+XM87.14 FOREIGN_GROUP_RGB frame=1885 pal=8 n=19 bbox=150x188
+XM87.14 FOREIGN_GROUP_RGB frame=1887 pal=8 n=25 bbox=202x178
+XM87.13 AIR_BODY_GEOMETRY frame=1892 actor=0 n=12 bbox=224x96 dy=20 count=2
+XM87.15 TINY_BODY frame=1892 actor=1 pal=15 n=4 count=0
+XM87.13 AIR_BODY_GEOMETRY frame=1893 actor=0 n=12 bbox=224x96 dy=20 count=3
+XM87.15 TINY_BODY frame=1893 actor=1 pal=15 n=4 count=0
+XM87.13 AIR_BODY_GEOMETRY frame=1894 actor=0 n=12 bbox=224x96 dy=20 count=4
+XM87.15 TINY_BODY frame=1894 actor=1 pal=15 n=4 count=0
+XM87.13 AIR_BODY_GEOMETRY frame=1895 actor=0 n=12 bbox=224x96 dy=20 count=5
+XM87.15 TINY_BODY frame=1895 actor=1 pal=15 n=4 count=0
+XM87.13 AIR_BODY_GEOMETRY frame=1896 actor=0 n=12 bbox=224x96 dy=20 count=6
+XM87.15 AIR_ALT_BODY frame=1896 actor=1 pal=7 n=7 count=1
+XM87.15 TINY_BODY frame=1896 actor=1 pal=15 n=4 count=0
+XM87.13 AIR_BODY_GEOMETRY frame=1897 actor=0 n=12 bbox=224x96 dy=20 count=7
+XM87.15 AIR_ALT_BODY frame=1897 actor=1 pal=7 n=6 count=2
+XM87.15 TINY_BODY frame=1897 actor=1 pal=15 n=4 count=0
+XM87.13 AIR_BODY_GEOMETRY frame=1898 actor=0 n=12 bbox=224x96 dy=20 count=8
+XM87.15 TINY_BODY frame=1898 actor=1 pal=15 n=4 count=0
+XM87.45 HP_RGB frame=1898 tile=88501 pal=2 v=7 x=112 y=20 changedPens=14 fillPens=5 grayPens=9 matched=90112 modified=90112 ink=00111111
+XM87.47 CUE frame=1899 p=1 event=LAND action=08 super=0 x=475 y=472 previous=28/2
+XM87.13 AIR_BODY_GEOMETRY frame=1899 actor=0 n=12 bbox=224x96 dy=20 count=9
+XM87.15 TINY_BODY frame=1899 actor=1 pal=15 n=4 count=0
+XM87.13 AIR_BODY_GEOMETRY frame=1900 actor=0 n=12 bbox=224x96 dy=20 count=10
+XM87.15 TINY_BODY frame=1900 actor=1 pal=15 n=4 count=0
+XM87.15 TINY_BODY frame=1901 actor=1 pal=15 n=4 count=0
+XM87.15 TINY_BODY frame=1909 actor=1 pal=15 n=4 count=0
+XM87.13 AIR_BODY_GEOMETRY frame=1910 actor=0 n=12 bbox=224x96 dy=3 count=11
+XM87.15 TINY_BODY frame=1910 actor=1 pal=15 n=4 count=0
+XM87.13 AIR_BODY_GEOMETRY frame=1911 actor=0 n=12 bbox=224x96 dy=3 count=12
+XM87.15 TINY_BODY frame=1911 actor=1 pal=15 n=4 count=0
+XM87.15 AIR_ALT_BODY frame=1914 actor=1 pal=13 n=7 count=3
+XM87.15 AIR_ALT_BODY frame=1915 actor=1 pal=13 n=7 count=4
+XM87.45 HP_RGB frame=1915 tile=88464 pal=2 v=7 x=32 y=20 changedPens=14 fillPens=1 grayPens=13 matched=94208 modified=94208 ink=00111111
+XM87.15 AIR_ALT_BODY frame=1916 actor=1 pal=13 n=9 count=5
+XM87.15 AIR_ALT_BODY frame=1917 actor=1 pal=13 n=8 count=6
+XM87.15 AIR_ALT_BODY frame=1918 actor=1 pal=13 n=8 count=7
+XM87.47 CUE frame=1919 p=1 event=SUPER_JUMP action=1A super=1 x=475 y=472 previous=28/0
+XM87.15 AIR_ALT_BODY frame=1919 actor=1 pal=13 n=11 count=8
+XM87.12 BODY_LIGHTING_BRIDGE frame=1919 tile=142568 pal=12 bridged=1
+XM87.20 SECONDARY_OWNER frame=1919 source=FF9D80 pal=13 tile=131422 mode=body_echo count=1/0
+XM87.06 FX_GRADIENT_RESTORE tile=133315 pal=13 pens=3
+XM87.20 SECONDARY_OWNER frame=1919 source=FF9D80 pal=13 tile=131422 mode=body_echo count=2/0
+XM87.06 FX_GRADIENT_RESTORE tile=133315 pal=13 pens=3
+XM87.20 SECONDARY_OWNER frame=1919 source=FF9D80 pal=13 tile=131422 mode=body_echo count=3/0
+XM87.06 FX_GRADIENT_RESTORE tile=133315 pal=13 pens=3
+XM87.12 BODY_LIGHTING_BRIDGE frame=1920 tile=248712 pal=15 bridged=2
+XM87.12 BODY_LIGHTING_BRIDGE frame=1920 tile=248692 pal=15 bridged=3
+XM87.12 BODY_LIGHTING_BRIDGE frame=1920 tile=248706 pal=15 bridged=4
+XM87.12 BODY_LIGHTING_BRIDGE frame=1920 tile=248720 pal=15 bridged=5
+XM87.12 BODY_LIGHTING_BRIDGE frame=1920 tile=248699 pal=15 bridged=6
+XM87.12 BODY_LIGHTING_BRIDGE frame=1920 tile=142568 pal=12 bridged=7
+XM87.12 BODY_LIGHTING_BRIDGE frame=1920 tile=131422 pal=13 bridged=8
+XM87.12 BODY_LIGHTING_BRIDGE frame=1920 tile=133315 pal=13 bridged=9
+XM87.28 INTERIOR_MASK frame=1920 tiles=50 body_pixels=6582 masked_positions=11216 offset_tiles=64 ready=1 brightness=100 saturation=80 bloom=0
+XM87.20 SECONDARY_OWNER frame=1920 source=FF9D80 pal=13 tile=131422 mode=body_echo count=4/0
+XM87.06 FX_GRADIENT_RESTORE tile=133315 pal=13 pens=4
+XM87.20 SECONDARY_OWNER frame=1920 source=FF9D80 pal=13 tile=131422 mode=body_echo count=5/0
+XM87.06 FX_GRADIENT_RESTORE tile=133315 pal=13 pens=4
+XM87.20 SECONDARY_OWNER frame=1920 source=FF9D80 pal=13 tile=131422 mode=body_echo count=6/0
+XM87.06 FX_GRADIENT_RESTORE tile=133315 pal=13 pens=4
+XM87.12 BODY_LIGHTING_BRIDGE frame=1921 tile=248712 pal=15 bridged=10
+XM87.12 BODY_LIGHTING_BRIDGE frame=1921 tile=248692 pal=15 bridged=11
+XM87.12 BODY_LIGHTING_BRIDGE frame=1921 tile=248706 pal=15 bridged=12
+XM87.13 AIR_BODY_GEOMETRY frame=1922 actor=1 n=8 bbox=80x112 dy=36 count=13
+XM87.13 AIR_BODY_GEOMETRY frame=1923 actor=1 n=8 bbox=80x112 dy=30 count=14
+XM87.45 HP_RGB frame=1932 tile=88501 pal=2 v=7 x=144 y=20 changedPens=14 fillPens=5 grayPens=9 matched=98304 modified=98304 ink=00111111
+XM87.25 DIRECT_SPRITE_OUTLINE frame=1938 objects=20480 tiles=73452 copies_per_object=4 value=100 saturation=80
+XM87.27 BRIGHT_LINE frame=1938 objects=20480 direct_copies=4 value=100 saturation=80 bloom=0
+XM87.25 OUTLINE_GATE frame=1943 p6=49152 ink=0 owner=0 eligible=0 accepted=20793
+XM87.13 AIR_BODY_GEOMETRY frame=1944 actor=0 n=12 bbox=224x96 dy=6 count=15
+XM87.13 AIR_BODY_GEOMETRY frame=1945 actor=0 n=12 bbox=224x96 dy=5 count=16
+XM87.45 HP_RGB frame=1949 tile=88417 pal=4 v=7 x=363 y=32 changedPens=12 fillPens=2 grayPens=10 matched=102400 modified=102400 ink=00896FBC
+XM87.15 AIR_ALT_BODY frame=1953 actor=1 pal=7 n=7 count=9
+XM87.15 AIR_ALT_BODY frame=1954 actor=1 pal=7 n=6 count=10
+XM87.15 AIR_ALT_BODY frame=1955 actor=1 pal=7 n=7 count=11
+XM87.47 CUE frame=1956 p=1 event=AIR_DASH action=3C super=1 x=567 y=176 previous=28/1
+XM87.45 HP_RGB frame=1966 tile=88464 pal=2 v=7 x=304 y=20 changedPens=14 fillPens=5 grayPens=9 matched=106496 modified=106496 ink=00111111
+XM87.15 AIR_ALT_BODY frame=1970 actor=1 pal=7 n=7 count=12
+XM86.40 PROGRESS frames=1200 emulated=1199 paused=0
+XM86.42 HEARTBEAT f=1200 status=08 stage=05 actorPtr=00FF4000 events=6
+XM87.45 HP_RGB frame=1984 tile=88501 pal=2 v=7 x=272 y=20 changedPens=14 fillPens=1 grayPens=13 matched=110592 modified=110592 ink=00111111
+XM87.86 FLIGHT frame=1986 victim=P2 bank=0022 action=1A04 anim=5DAA decision=XM87.127 FLIGHT_SEVERE_STATE_REFRESHED
+XM87.15 TINY_BODY frame=2000 actor=1 pal=15 n=3 count=0
+XM87.45 HP_RGB frame=2001 tile=88547 pal=4 v=7 x=117 y=32 changedPens=12 fillPens=2 grayPens=10 matched=114688 modified=114688 ink=00896FBC
+XM87.15 TINY_BODY frame=2015 actor=1 pal=15 n=2 count=2
+XM87.15 TINY_BODY frame=2016 actor=1 pal=15 n=2 count=4
+XM87.15 TINY_BODY frame=2017 actor=1 pal=15 n=2 count=6
+XM87.15 TINY_BODY frame=2018 actor=1 pal=15 n=2 count=8
+XM87.45 HP_RGB frame=2018 tile=88419 pal=4 v=7 x=149 y=32 changedPens=12 fillPens=2 grayPens=10 matched=118784 modified=118784 ink=00896FBC
+XM87.15 TINY_BODY frame=2019 actor=1 pal=15 n=3 count=8
+XM87.15 TINY_BODY frame=2020 actor=1 pal=15 n=3 count=8
+XM87.15 TINY_BODY frame=2021 actor=1 pal=15 n=3 count=8
+XM87.15 TINY_BODY frame=2022 actor=1 pal=15 n=3 count=8
+XM87.15 TINY_BODY frame=2023 actor=1 pal=15 n=3 count=8
+XM87.01 LIGHTING_TILE_VETO tile=197446 palette=15 frame=2024 count=1
+XM87.01 LIGHTING_TILE_VETO tile=197446 palette=15 frame=2024 count=2
+XM87.01 LIGHTING_TILE_VETO tile=197446 palette=15 frame=2024 count=3
+XM87.01 LIGHTING_TILE_VETO tile=197446 palette=15 frame=2025 count=4
+XM87.01 LIGHTING_TILE_VETO tile=197446 palette=15 frame=2025 count=5
+XM87.01 LIGHTING_TILE_VETO tile=197446 palette=15 frame=2025 count=6
+XM87.01 LIGHTING_TILE_VETO tile=197446 palette=15 frame=2026 count=7
+XM87.01 LIGHTING_TILE_VETO tile=197446 palette=15 frame=2026 count=8
+XM87.01 LIGHTING_TILE_VETO tile=197446 palette=15 frame=2026 count=9
+XM87.01 LIGHTING_TILE_VETO tile=197446 palette=15 frame=2027 count=10
+XM87.01 LIGHTING_TILE_VETO tile=197446 palette=15 frame=2027 count=11
+XM87.01 LIGHTING_TILE_VETO tile=197446 palette=15 frame=2027 count=12
+XM87.25 DIRECT_SPRITE_OUTLINE frame=2033 objects=24576 tiles=88902 copies_per_object=4 value=100 saturation=80
+XM87.27 BRIGHT_LINE frame=2033 objects=24576 direct_copies=4 value=100 saturation=80 bloom=0
+XM87.45 HP_RGB frame=2036 tile=88501 pal=2 v=7 x=32 y=20 changedPens=14 fillPens=1 grayPens=13 matched=122880 modified=122880 ink=00111111
+XM87.25 OUTLINE_GATE frame=2037 p6=57344 ink=1 owner=1 eligible=1 accepted=24894
+XM87.47 CUE frame=2038 p=1 event=LAND action=08 super=0 x=695 y=472 previous=1C/2
+XM87.28 INTERIOR_MASK frame=2040 tiles=75 body_pixels=8748 masked_positions=7691 offset_tiles=36 ready=1 brightness=100 saturation=80 bloom=0
+XM87.45 HP_RGB frame=2053 tile=88547 pal=4 v=7 x=315 y=32 changedPens=12 fillPens=2 grayPens=10 matched=126976 modified=126976 ink=00896FBC
+XM87.45 HP_RGB frame=2070 tile=88501 pal=2 v=7 x=96 y=20 changedPens=14 fillPens=1 grayPens=13 matched=131072 modified=131072 ink=00111111
+XM87.122 HUD_DEPTH_TAG_HP frame=2072 drawn=1092 masked_actor_pixels=0
+XM87.11 RGB_FIRST_SUBTRACT_FIGHTER frame=2079 pal=9 tile=63796 body=0 totals=18497/14271
+XM86.54 OBJ_FILTER frame=601 candidates=237 kept=203 excluded=34 scenery=33 excludedByPriority=0,0,0,0,0,1,7,26
+XM86.54 WILY_PRESENT frame=601 nativeCamera=384,256 WilyCamera=317,256 fighterValid=1 presentations=600
+XM87.45 HP_RGB frame=2088 tile=88501 pal=2 v=7 x=272 y=20 changedPens=14 fillPens=5 grayPens=9 matched=135168 modified=135168 ink=00111111
+XM87.47 CUE frame=2092 p=2 event=LAND action=08 super=0 x=747 y=472 previous=1E/1
+XM87.15 TINY_BODY frame=2093 actor=1 pal=15 n=3 count=8
+XM87.15 TINY_BODY frame=2094 actor=1 pal=15 n=2 count=10
+XM87.15 TINY_BODY frame=2095 actor=1 pal=15 n=2 count=12
+XM87.47 CUE frame=2099 p=1 event=SUPER_JUMP action=1A super=1 x=584 y=472 previous=0E/0
+XM87.45 HP_RGB frame=2105 tile=88501 pal=2 v=7 x=64 y=20 changedPens=14 fillPens=1 grayPens=13 matched=139264 modified=139264 ink=00111111
+XM87.25 OUTLINE_GATE frame=2113 p6=65536 ink=0 owner=0 eligible=0 accepted=28623
+XM87.25 DIRECT_SPRITE_OUTLINE frame=2114 objects=28672 tiles=103435 copies_per_object=4 value=100 saturation=80
+XM87.27 BRIGHT_LINE frame=2114 objects=28672 direct_copies=4 value=100 saturation=80 bloom=0
+XM87.45 HP_RGB frame=2123 tile=88501 pal=2 v=7 x=304 y=20 changedPens=14 fillPens=5 grayPens=9 matched=143360 modified=143360 ink=00111111
+XM87.47 CUE frame=2132 p=1 event=AIR_DASH action=3C super=1 x=677 y=169 previous=1C/1
+XM87.45 HP_RGB frame=2140 tile=88501 pal=2 v=7 x=32 y=20 changedPens=14 fillPens=1 grayPens=13 matched=147456 modified=147456 ink=00111111
+XM87.45 HP_RGB frame=2158 tile=88526 pal=2 v=7 x=336 y=20 changedPens=14 fillPens=5 grayPens=9 matched=151552 modified=151552 ink=00111111
+XM87.47 CUE frame=2160 p=1 event=LAND action=08 super=0 x=695 y=472 previous=1C/2
+XM87.28 INTERIOR_MASK frame=2160 tiles=77 body_pixels=7640 masked_positions=15072 offset_tiles=96 ready=1 brightness=100 saturation=80 bloom=0
+XM87.45 HP_RGB frame=2175 tile=88465 pal=2 v=7 x=160 y=20 changedPens=14 fillPens=1 grayPens=13 matched=155648 modified=155648 ink=00111111
+XM87.45 HP_RGB frame=2193 tile=88465 pal=2 v=7 x=208 y=20 changedPens=14 fillPens=5 grayPens=9 matched=159744 modified=159744 ink=00111111
+XM87.25 OUTLINE_GATE frame=2196 p6=73728 ink=1 owner=0 eligible=0 accepted=32502
+XM87.47 CUE frame=2199 p=1 event=SUPER_JUMP action=1A super=1 x=670 y=472 previous=28/0
+XM87.20 SECONDARY_OWNER frame=2200 source=FF9D80 pal=13 tile=138453 mode=body_echo count=7/0
+XM87.20 SECONDARY_OWNER frame=2200 source=FF9D80 pal=13 tile=138453 mode=body_echo count=8/0
+XM87.20 SECONDARY_OWNER frame=2200 source=FF9D80 pal=13 tile=138453 mode=body_echo count=9/0
+XM87.25 DIRECT_SPRITE_OUTLINE frame=2202 objects=32768 tiles=119601 copies_per_object=4 value=100 saturation=80
+XM87.27 BRIGHT_LINE frame=2202 objects=32768 direct_copies=4 value=100 saturation=80 bloom=0
+XM87.45 HP_RGB frame=2210 tile=88418 pal=4 v=7 x=299 y=32 changedPens=12 fillPens=2 grayPens=10 matched=163840 modified=163840 ink=00896FBC
+XM87.45 HP_RGB frame=2228 tile=88502 pal=2 v=7 x=160 y=20 changedPens=14 fillPens=1 grayPens=13 matched=167936 modified=167936 ink=00111111
+XM87.47 CUE frame=2234 p=1 event=AIR_DASH action=3C super=1 x=695 y=181 previous=28/1
+XM87.45 HP_RGB frame=2246 tile=88464 pal=2 v=7 x=80 y=20 changedPens=14 fillPens=5 grayPens=9 matched=172032 modified=172032 ink=00111111
+XM87.45 HP_RGB frame=2264 tile=88548 pal=4 v=7 x=149 y=32 changedPens=12 fillPens=2 grayPens=10 matched=176128 modified=176128 ink=00896FBC
+XM87.25 OUTLINE_GATE frame=2266 p6=81920 ink=0 owner=0 eligible=0 accepted=36414
+XM87.86 FLIGHT frame=2267 victim=P2 bank=0022 action=1804 anim=558C decision=XM87.127 FLIGHT_SEVERE_STATE_REFRESHED
+XM87.25 DIRECT_SPRITE_OUTLINE frame=2274 objects=36864 tiles=134216 copies_per_object=4 value=100 saturation=80
+XM87.27 BRIGHT_LINE frame=2274 objects=36864 direct_copies=4 value=100 saturation=80 bloom=0
+XM86.40 PROGRESS frames=1500 emulated=1499 paused=0
+XM87.47 CUE frame=2279 p=2 event=LAND action=36 super=0 x=747 y=472 previous=36/1
+XM86.42 HEARTBEAT f=1500 status=08 stage=05 actorPtr=00FF4000 events=6
+XM87.28 INTERIOR_MASK frame=2280 tiles=21 body_pixels=2217 masked_positions=3482 offset_tiles=32 ready=1 brightness=100 saturation=80 bloom=0
+XM87.45 HP_RGB frame=2282 tile=88464 pal=2 v=7 x=32 y=20 changedPens=14 fillPens=5 grayPens=9 matched=180224 modified=180224 ink=00111111
+XM87.45 HP_RGB frame=2300 tile=88464 pal=2 v=7 x=144 y=20 changedPens=14 fillPens=5 grayPens=9 matched=184320 modified=184320 ink=00111111
+XM87.01 LIGHTING_TILE_VETO tile=197446 palette=15 frame=2305 count=13
+XM87.01 LIGHTING_TILE_VETO tile=197446 palette=15 frame=2305 count=14
+XM87.01 LIGHTING_TILE_VETO tile=197446 palette=15 frame=2305 count=15
+XM87.01 LIGHTING_TILE_VETO tile=197446 palette=15 frame=2306 count=16
+XM87.45 HP_RGB frame=2318 tile=88501 pal=2 v=7 x=112 y=20 changedPens=14 fillPens=1 grayPens=13 matched=188416 modified=188416 ink=00111111
+XM87.47 CUE frame=2325 p=1 event=LAND action=08 super=0 x=695 y=472 previous=1C/2
+XM87.47 CUE frame=2334 p=1 event=SUPER_JUMP action=1A super=1 x=695 y=472 previous=00/0
+XM87.45 HP_RGB frame=2335 tile=88547 pal=4 v=7 x=299 y=32 changedPens=12 fillPens=2 grayPens=10 matched=192512 modified=192512 ink=00896FBC
+XM87.25 OUTLINE_GATE frame=2353 p6=90112 ink=0 owner=0 eligible=0 accepted=40476
+XM87.45 HP_RGB frame=2353 tile=88418 pal=4 v=7 x=331 y=32 changedPens=12 fillPens=2 grayPens=10 matched=196608 modified=196608 ink=00896FBC
+XM87.25 DIRECT_SPRITE_OUTLINE frame=2363 objects=40960 tiles=149955 copies_per_object=4 value=100 saturation=80
+XM87.27 BRIGHT_LINE frame=2363 objects=40960 direct_copies=4 value=100 saturation=80 bloom=0
+XM87.45 HP_RGB frame=2371 tile=88476 pal=2 v=7 x=288 y=20 changedPens=14 fillPens=5 grayPens=9 matched=200704 modified=200704 ink=00111111
+XM87.122 HUD_DEPTH_TAG_HP frame=2372 drawn=772 masked_actor_pixels=298
+XM86.54 OBJ_FILTER frame=901 candidates=194 kept=187 excluded=7 scenery=7 excludedByPriority=0,0,0,0,0,0,7,0
+XM86.54 WILY_PRESENT frame=901 nativeCamera=384,15 WilyCamera=317,15 fighterValid=1 presentations=900
+XM87.45 HP_RGB frame=2389 tile=88523 pal=2 v=7 x=320 y=20 changedPens=14 fillPens=5 grayPens=9 matched=204800 modified=204800 ink=00111111
+XM87.28 INTERIOR_MASK frame=2400 tiles=40 body_pixels=5186 masked_positions=8881 offset_tiles=56 ready=1 brightness=100 saturation=80 bloom=0
+XM87.45 HP_RGB frame=2407 tile=88547 pal=4 v=7 x=21 y=32 changedPens=12 fillPens=2 grayPens=10 matched=208896 modified=208896 ink=00896FBC
+XM87.45 HP_RGB frame=2425 tile=88547 pal=4 v=7 x=133 y=32 changedPens=12 fillPens=2 grayPens=10 matched=212992 modified=212992 ink=00896FBC
+XM87.118 METER_CHARGE_WAV side=1
+XM87.100 TRAINING_IDLE_REFILL P2 HP=144 after 120 idle frames
+XM87.11 RGB_FIRST_SUBTRACT_FIGHTER frame=2440 pal=12 tile=138737 body=1 totals=37147/28389
+XM87.45 HP_RGB frame=2443 tile=88501 pal=2 v=7 x=64 y=20 changedPens=14 fillPens=1 grayPens=13 matched=217088 modified=217088 ink=00111111
+XM87.47 CUE frame=2445 p=1 event=LAND action=08 super=0 x=599 y=472 previous=28/2
+XM87.25 DIRECT_SPRITE_OUTLINE frame=2450 objects=45056 tiles=165275 copies_per_object=4 value=100 saturation=80
+XM87.27 BRIGHT_LINE frame=2450 objects=45056 direct_copies=4 value=100 saturation=80 bloom=0
+XM87.45 HP_RGB frame=2461 tile=88548 pal=4 v=7 x=219 y=32 changedPens=12 fillPens=2 grayPens=10 matched=221184 modified=221184 ink=00896FBC
+XM87.25 OUTLINE_GATE frame=2461 p6=98304 ink=0 owner=0 eligible=0 accepted=45363
+XM87.45 HP_RGB frame=2478 tile=88417 pal=4 v=7 x=363 y=32 changedPens=12 fillPens=2 grayPens=10 matched=225280 modified=225280 ink=00896FBC
+XM87.47 CUE frame=2492 p=1 event=SUPER_JUMP action=1A super=1 x=695 y=472 previous=0E/0
+XM87.45 HP_RGB frame=2495 tile=88501 pal=2 v=7 x=64 y=20 changedPens=14 fillPens=5 grayPens=9 matched=229376 modified=229376 ink=00111111
+XM87.47 CUE frame=2499 p=1 event=AIR_DASH action=3C super=1 x=709 y=429 previous=1C/1
+XM87.45 HP_RGB frame=2512 tile=88418 pal=4 v=7 x=117 y=32 changedPens=12 fillPens=2 grayPens=10 matched=233472 modified=233472 ink=00896FBC
+XM87.47 CUE frame=2515 p=1 event=LAND action=08 super=0 x=695 y=472 previous=28/2
+XM87.28 INTERIOR_MASK frame=2520 tiles=56 body_pixels=8166 masked_positions=5971 offset_tiles=48 ready=1 brightness=100 saturation=80 bloom=0
+XM87.45 HP_RGB frame=2529 tile=88546 pal=4 v=7 x=5 y=32 changedPens=12 fillPens=2 grayPens=10 matched=237568 modified=237568 ink=00896FBC
+XM87.25 OUTLINE_GATE frame=2533 p6=106496 ink=1 owner=1 eligible=1 accepted=48453
+XM87.45 HP_RGB frame=2546 tile=88464 pal=2 v=7 x=272 y=20 changedPens=14 fillPens=1 grayPens=13 matched=241664 modified=241664 ink=00111111
+XM87.25 DIRECT_SPRITE_OUTLINE frame=2548 objects=49152 tiles=181681 copies_per_object=4 value=100 saturation=80
+XM87.27 BRIGHT_LINE frame=2548 objects=49152 direct_copies=4 value=100 saturation=80 bloom=0
+XM87.47 CUE frame=2557 p=1 event=SUPER_JUMP action=1A super=1 x=640 y=472 previous=28/0
+XM87.47 CUE frame=2563 p=1 event=AIR_DASH action=3C super=1 x=628 y=426 previous=1C/1
+XM87.45 HP_RGB frame=2564 tile=88418 pal=4 v=7 x=53 y=32 changedPens=12 fillPens=2 grayPens=10 matched=245760 modified=245760 ink=00896FBC
+XM86.40 PROGRESS frames=1800 emulated=1799 paused=0
+XM86.42 HEARTBEAT f=1800 status=08 stage=05 actorPtr=00FF4000 events=6
+XM87.45 HP_RGB frame=2581 tile=88464 pal=2 v=7 x=96 y=20 changedPens=14 fillPens=5 grayPens=9 matched=249856 modified=249856 ink=00111111
+XM87.45 HP_RGB frame=2598 tile=88501 pal=2 v=7 x=128 y=20 changedPens=14 fillPens=1 grayPens=13 matched=253952 modified=253952 ink=00111111
+XM87.47 CUE frame=2599 p=1 event=LAND action=08 super=0 x=651 y=472 previous=28/2
+XM87.25 OUTLINE_GATE frame=2601 p6=114688 ink=0 owner=0 eligible=0 accepted=51939
+XM87.45 HP_RGB frame=2615 tile=88548 pal=4 v=7 x=219 y=32 changedPens=12 fillPens=2 grayPens=10 matched=258048 modified=258048 ink=00896FBC
+XM87.25 DIRECT_SPRITE_OUTLINE frame=2624 objects=53248 tiles=195975 copies_per_object=4 value=100 saturation=80
+XM87.27 BRIGHT_LINE frame=2624 objects=53248 direct_copies=4 value=100 saturation=80 bloom=0
+XM87.45 HP_RGB frame=2633 tile=88464 pal=2 v=7 x=320 y=20 changedPens=14 fillPens=1 grayPens=13 matched=262144 modified=262144 ink=00111111
+XM87.28 INTERIOR_MASK frame=2640 tiles=76 body_pixels=7652 masked_positions=9575 offset_tiles=72 ready=1 brightness=100 saturation=80 bloom=0
+XM87.45 HP_RGB frame=2650 tile=88501 pal=2 v=7 x=288 y=20 changedPens=14 fillPens=5 grayPens=9 matched=266240 modified=266240 ink=00111111
+XM87.45 HP_RGB frame=2667 tile=88547 pal=4 v=7 x=101 y=32 changedPens=12 fillPens=2 grayPens=10 matched=270336 modified=270336 ink=00896FBC
+XM87.122 HUD_DEPTH_TAG_HP frame=2672 drawn=1073 masked_actor_pixels=0
+XM87.45 HP_RGB frame=2685 tile=88418 pal=4 v=7 x=133 y=32 changedPens=12 fillPens=2 grayPens=10 matched=274432 modified=274432 ink=00896FBC
+XM86.54 OBJ_FILTER frame=1201 candidates=257 kept=228 excluded=29 scenery=28 excludedByPriority=0,0,0,0,0,1,2,26
+XM86.54 WILY_PRESENT frame=1201 nativeCamera=384,256 WilyCamera=317,256 fighterValid=1 presentations=1200
+XM87.25 OUTLINE_GATE frame=2691 p6=122880 ink=0 owner=0 eligible=0 accepted=56367
+XM87.47 CUE frame=2699 p=1 event=SUPER_JUMP action=1A super=1 x=620 y=472 previous=02/0
+XM87.45 HP_RGB frame=2702 tile=88500 pal=2 v=7 x=16 y=20 changedPens=14 fillPens=1 grayPens=13 matched=278528 modified=278528 ink=00111111
+XM87.47 CUE frame=2708 p=1 event=AIR_DASH action=3C super=1 x=592 y=370 previous=1C/1
+XM87.25 DIRECT_SPRITE_OUTLINE frame=2711 objects=57344 tiles=212720 copies_per_object=4 value=100 saturation=80
+XM87.27 BRIGHT_LINE frame=2711 objects=57344 direct_copies=4 value=100 saturation=80 bloom=0
+XM87.45 HP_RGB frame=2719 tile=88547 pal=4 v=7 x=331 y=32 changedPens=12 fillPens=2 grayPens=10 matched=282624 modified=282624 ink=00896FBC
+XM87.45 HP_RGB frame=2736 tile=88418 pal=4 v=7 x=299 y=32 changedPens=12 fillPens=2 grayPens=10 matched=286720 modified=286720 ink=00896FBC
+XM87.47 CUE frame=2747 p=1 event=LAND action=02 super=0 x=502 y=472 previous=28/2
+XM87.11 RGB_FIRST_SUBTRACT_FIGHTER frame=2752 pal=10 tile=64638 body=0 totals=54342/43962
+XM87.45 HP_RGB frame=2754 tile=88464 pal=2 v=7 x=240 y=20 changedPens=14 fillPens=5 grayPens=9 matched=290816 modified=290816 ink=00111111
+XM87.100 TRAINING_IDLE_REFILL P2 HP=144 after 120 idle frames
+XM87.28 INTERIOR_MASK frame=2760 tiles=77 body_pixels=7618 masked_positions=12027 offset_tiles=96 ready=1 brightness=100 saturation=80 bloom=0
+XM87.25 OUTLINE_GATE frame=2764 p6=131072 ink=0 owner=0 eligible=0 accepted=59814
+XM87.45 HP_RGB frame=2771 tile=88464 pal=2 v=7 x=128 y=20 changedPens=14 fillPens=1 grayPens=13 matched=294912 modified=294912 ink=00111111
+XM87.45 HP_RGB frame=2788 tile=88418 pal=4 v=7 x=21 y=32 changedPens=12 fillPens=2 grayPens=10 matched=299008 modified=299008 ink=00896FBC
+XM87.25 DIRECT_SPRITE_OUTLINE frame=2799 objects=61440 tiles=229561 copies_per_object=4 value=100 saturation=80
+XM87.27 BRIGHT_LINE frame=2799 objects=61440 direct_copies=4 value=100 saturation=80 bloom=0
+XM87.45 HP_RGB frame=2805 tile=88501 pal=2 v=7 x=272 y=20 changedPens=14 fillPens=1 grayPens=13 matched=303104 modified=303104 ink=00111111
+XM87.47 CUE frame=2814 p=1 event=AIR_DASH action=3C super=0 x=543 y=400 previous=06/0
+XM87.45 HP_RGB frame=2822 tile=88419 pal=4 v=7 x=219 y=32 changedPens=12 fillPens=2 grayPens=10 matched=307200 modified=307200 ink=00896FBC
+XM87.45 HP_RGB frame=2839 tile=88547 pal=4 v=7 x=315 y=32 changedPens=12 fillPens=2 grayPens=10 matched=311296 modified=311296 ink=00896FBC
+XM87.45 HP_RGB frame=2856 tile=88464 pal=2 v=7 x=128 y=20 changedPens=14 fillPens=5 grayPens=9 matched=315392 modified=315392 ink=00111111
+XM87.25 OUTLINE_GATE frame=2858 p6=139264 ink=1 owner=1 eligible=1 accepted=64295
+XM87.45 HP_RGB frame=2873 tile=88418 pal=4 v=7 x=21 y=32 changedPens=12 fillPens=2 grayPens=10 matched=319488 modified=319488 ink=00896FBC
+XM86.40 PROGRESS frames=2100 emulated=2099 paused=0
+XM86.42 HEARTBEAT f=2100 status=08 stage=05 actorPtr=00FF4000 events=6
+XM87.28 INTERIOR_MASK frame=2880 tiles=66 body_pixels=7821 masked_positions=12217 offset_tiles=96 ready=1 brightness=100 saturation=80 bloom=0
+XM87.25 DIRECT_SPRITE_OUTLINE frame=2881 objects=65536 tiles=245995 copies_per_object=4 value=100 saturation=80
+XM87.27 BRIGHT_LINE frame=2881 objects=65536 direct_copies=4 value=100 saturation=80 bloom=0
+XM87.45 HP_RGB frame=2890 tile=88501 pal=2 v=7 x=272 y=20 changedPens=14 fillPens=5 grayPens=9 matched=323584 modified=323584 ink=00111111
+XM87.45 HP_RGB frame=2907 tile=88419 pal=4 v=7 x=219 y=32 changedPens=12 fillPens=2 grayPens=10 matched=327680 modified=327680 ink=00896FBC
+XM87.45 HP_RGB frame=2924 tile=88547 pal=4 v=7 x=315 y=32 changedPens=12 fillPens=2 grayPens=10 matched=331776 modified=331776 ink=00896FBC
+XM87.45 HP_RGB frame=2942 tile=88464 pal=2 v=7 x=128 y=20 changedPens=14 fillPens=1 grayPens=13 matched=335872 modified=335872 ink=00111111
+XM87.25 OUTLINE_GATE frame=2957 p6=147456 ink=1 owner=1 eligible=1 accepted=69018
+XM87.45 HP_RGB frame=2959 tile=88418 pal=4 v=7 x=21 y=32 changedPens=12 fillPens=2 grayPens=10 matched=339968 modified=339968 ink=00896FBC
+XM87.25 DIRECT_SPRITE_OUTLINE frame=2971 objects=69632 tiles=263823 copies_per_object=4 value=100 saturation=80
+XM87.27 BRIGHT_LINE frame=2971 objects=69632 direct_copies=4 value=100 saturation=80 bloom=0
+XM87.122 HUD_DEPTH_TAG_HP frame=2972 drawn=964 masked_actor_pixels=98
+XM87.45 HP_RGB frame=2976 tile=88501 pal=2 v=7 x=272 y=20 changedPens=14 fillPens=1 grayPens=13 matched=344064 modified=344064 ink=00111111
+XM86.54 OBJ_FILTER frame=1501 candidates=221 kept=192 excluded=29 scenery=27 excludedByPriority=0,0,0,0,0,1,2,26
+XM86.54 WILY_PRESENT frame=1501 nativeCamera=384,256 WilyCamera=317,256 fighterValid=1 presentations=1500
+XM87.45 HP_RGB frame=2993 tile=88419 pal=4 v=7 x=219 y=32 changedPens=12 fillPens=2 grayPens=10 matched=348160 modified=348160 ink=00896FBC
+XM87.28 INTERIOR_MASK frame=3000 tiles=76 body_pixels=7637 masked_positions=8655 offset_tiles=40 ready=1 brightness=100 saturation=80 bloom=0
+XM87.45 HP_RGB frame=3010 tile=88547 pal=4 v=7 x=315 y=32 changedPens=12 fillPens=2 grayPens=10 matched=352256 modified=352256 ink=00896FBC
+XM87.45 HP_RGB frame=3027 tile=88464 pal=2 v=7 x=128 y=20 changedPens=14 fillPens=5 grayPens=9 matched=356352 modified=356352 ink=00111111
+XM87.25 OUTLINE_GATE frame=3034 p6=155648 ink=1 owner=1 eligible=1 accepted=72881
+XM87.45 HP_RGB frame=3044 tile=88418 pal=4 v=7 x=21 y=32 changedPens=12 fillPens=2 grayPens=10 matched=360448 modified=360448 ink=00896FBC
+XM87.25 DIRECT_SPRITE_OUTLINE frame=3049 objects=73728 tiles=277526 copies_per_object=4 value=100 saturation=80
+XM87.27 BRIGHT_LINE frame=3049 objects=73728 direct_copies=4 value=100 saturation=80 bloom=0
+XM87.45 HP_RGB frame=3061 tile=88501 pal=2 v=7 x=272 y=20 changedPens=14 fillPens=5 grayPens=9 matched=364544 modified=364544 ink=00111111
+XM87.45 HP_RGB frame=3078 tile=88419 pal=4 v=7 x=219 y=32 changedPens=12 fillPens=2 grayPens=10 matched=368640 modified=368640 ink=00896FBC
+XM87.11 RGB_FIRST_SUBTRACT_FIGHTER frame=3087 pal=12 tile=131086 body=1 totals=74862/56210
+XM87.25 OUTLINE_GATE frame=3095 p6=163840 ink=1 owner=0 eligible=0 accepted=75672
+XM87.45 HP_RGB frame=3095 tile=88547 pal=4 v=7 x=315 y=32 changedPens=12 fillPens=2 grayPens=10 matched=372736 modified=372736 ink=00896FBC
+XM87.45 HP_RGB frame=3112 tile=88464 pal=2 v=7 x=128 y=20 changedPens=14 fillPens=5 grayPens=9 matched=376832 modified=376832 ink=00111111
+XM87.28 INTERIOR_MASK frame=3120 tiles=53 body_pixels=6260 masked_positions=7848 offset_tiles=48 ready=1 brightness=100 saturation=80 bloom=0
+XM87.45 HP_RGB frame=3129 tile=88418 pal=4 v=7 x=21 y=32 changedPens=12 fillPens=2 grayPens=10 matched=380928 modified=380928 ink=00896FBC
+XM87.100 TRAINING_IDLE_REFILL P2 HP=144 after 120 idle frames
+XM87.25 DIRECT_SPRITE_OUTLINE frame=3146 objects=77824 tiles=292859 copies_per_object=4 value=100 saturation=80
+XM87.27 BRIGHT_LINE frame=3146 objects=77824 direct_copies=4 value=100 saturation=80 bloom=0
+XM87.45 HP_RGB frame=3146 tile=88501 pal=2 v=7 x=272 y=20 changedPens=14 fillPens=5 grayPens=9 matched=385024 modified=385024 ink=00111111
+XM86.40 SESSION EXIT reason=SDL_QUIT frames=2371 emulated=2371 returnToBoot=0
+XM86.32 HOST RunMessageLoop returned
+XM27: DoGame returned; returnToBoot=0, window=000002C002AF2200
+FBNeo v1.0.0.03
+Loading config from fbneo.ini
+Found 2 joystick(s):
+  Joy 0: (8BitDo Ultimate 2 Controller) (game controller)
+  Joy 1: Controller (ZERO-Pi Fighting Board) (game controller)
+XMVSF Stage13.1 game inputs: P1=12 P2=12 mapping slots
+p1 coin Joy 0 Button 6
+p1 start Joy 0 Button 7
+p1 up Joy 0 Up (Y negative)
+p1 down Joy 0 Down (Y positive)
+p1 left Joy 0 Left (X negative)
+p1 right Joy 0 Right (X positive)
+p1 fire 1 Joy 0 Button 0
+p1 fire 2 Joy 0 Button 1
+p1 fire 3 Joy 0 Button 2
+p1 fire 4 Joy 0 Button 3
+p1 fire 5 Joy 0 Button 4
+p1 fire 6 Joy 0 Button 5
+p2 coin Joy 1 Button 6
+p2 start Joy 1 Button 7
+p2 up Joy 1 Up (Y negative)
+p2 down Joy 1 Down (Y positive)
+p2 left Joy 1 Left (X negative)
+p2 right Joy 1 Right (X positive)
+p2 fire 1 Joy 1 Button 0
+p2 fire 2 Joy 1 Button 1
+p2 fire 3 Joy 1 Button 2
+p2 fire 4 Joy 1 Button 3
+p2 fire 5 Joy 1 Button 4
+p2 fire 6 Joy 1 Button 5
+reset F3
+diag F2
+service 9
+volumeup code 0x00
+volumedown code 0x00
+loading state 0 config/games/xmvsfu.fs
+saving state 0 config/games/xmvsfu.fs

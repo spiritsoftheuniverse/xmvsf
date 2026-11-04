@@ -1,0 +1,13 @@
+{
+  "version": "87.132",
+  "build": "87.132.4 consolidated clean",
+  "test_executable_sha256": "8dbd72ddff7943ffbb51abbb9dec05d40d3dc669f3c10f2f4d1bc9870bf46c3d",
+  "clean_capture": true,
+  "compiled_utc": "2026-11-04T07:08:54.493470+00:00",
+  "source_hashes": {},
+  "features": [
+    "no screen capture in TEST or Stable",
+    "87.131 corrected DF presentation",
+    "F9 input-state recording preserved"
+  ]
+}

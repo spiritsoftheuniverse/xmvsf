@@ -1,0 +1,272 @@
+XM86.55 DOUBLE_FEATURE mode=1 (Wily overlay gate)
+XM87.33 DIZZY_OPTION enabled=1
+XM87.55 RULE_MODE selection=TOURNAMENT gameplay_changes=0
+XM27: boot selector ENTER (startup)
+XM86.52 WINDOW_RESTORE size=1752x1121 file=F:\xmvsf\runtime\stable\XMVSF_WindowState.ini
+XM86.56 FINAL_PASS_READY 1752x1121 grayscale; stage05 lighting is upstream
+XM87.128 DF_FINAL_VIEWPORT before logical=960x540 output=1752x1121 viewport=0,0,959,614
+XM87.130 GEOM point=df_before_readback phase=FF frame=0 window=844,159,1752,1121 display=0 flags=00000624 display_bounds=0,0,3440,1440 dpi=96.00,96.00,96.00 borders=31,8,8,8 driver=direct3d output=1752x1121 logical=960x540 scale=1.825000,1.825000 viewport=0,0,959,614 clipEnabled=0 clip=0,0,0,0 target=0000000000000000 dest=0,0,0,0 texture=0x0 texformat=00000000 texaccess=0
+XM87.130 GEOM point=df_fulloutput_reset phase=FF frame=0 window=844,159,1752,1121 display=0 flags=00000624 display_bounds=0,0,3440,1440 dpi=96.00,96.00,96.00 borders=31,8,8,8 driver=direct3d output=1752x1121 logical=0x0 scale=1.000000,1.000000 viewport=0,0,1752,1121 clipEnabled=0 clip=0,0,0,0 target=0000000000000000 dest=0,0,0,0 texture=0x0 texformat=00000000 texaccess=0
+XM87.131 DF_READBACK_FULL_OUTPUT frame=0 logical=960x540 viewport=0,0,959,614 full_output=1752x1121
+XM87.130 GEOM point=df_after_fulloutput_copy phase=FF frame=0 window=844,159,1752,1121 display=0 flags=00000624 display_bounds=0,0,3440,1440 dpi=96.00,96.00,96.00 borders=31,8,8,8 driver=direct3d output=1752x1121 logical=0x0 scale=1.000000,1.000000 viewport=0,0,1752,1121 clipEnabled=0 clip=0,0,0,0 target=0000000000000000 dest=0,0,0,0 texture=0x0 texformat=00000000 texaccess=0
+XM87.130 GEOM point=df_restored phase=FF frame=0 window=844,159,1752,1121 display=0 flags=00000624 display_bounds=0,0,3440,1440 dpi=96.00,96.00,96.00 borders=31,8,8,8 driver=direct3d output=1752x1121 logical=960x540 scale=1.825000,1.825000 viewport=0,37,959,539 clipEnabled=0 clip=0,0,0,0 target=0000000000000000 dest=0,0,0,0 texture=0x0 texformat=00000000 texaccess=0
+XM87.128 DF_FINAL_VIEWPORT after logical=960x540 viewport=0,37,959,539
+XM86.56 FINAL_PASS_ACTIVE 1752x1121
+XM86.52 WINDOW_FOCUS phase=boot-startup size=1752x1121 inputFocus=1
+XM27: boot FIRST FRAME presented window=1 renderer=ready
+XM86.32 BOOT SELECTOR: stage submenu available
+XM87.128 DF_FINAL_VIEWPORT before logical=960x540 output=1752x1121 viewport=0,37,959,539
+XM87.130 GEOM point=df_before_readback phase=FF frame=1 window=844,159,1752,1121 display=0 flags=00000624 display_bounds=0,0,3440,1440 dpi=96.00,96.00,96.00 borders=31,8,8,8 driver=direct3d output=1752x1121 logical=960x540 scale=1.825000,1.825000 viewport=0,37,959,539 clipEnabled=0 clip=0,0,0,0 target=0000000000000000 dest=0,0,0,0 texture=0x0 texformat=00000000 texaccess=0
+XM87.130 GEOM point=df_fulloutput_reset phase=FF frame=1 window=844,159,1752,1121 display=0 flags=00000624 display_bounds=0,0,3440,1440 dpi=96.00,96.00,96.00 borders=31,8,8,8 driver=direct3d output=1752x1121 logical=0x0 scale=1.000000,1.000000 viewport=0,0,1752,1121 clipEnabled=0 clip=0,0,0,0 target=0000000000000000 dest=0,0,0,0 texture=0x0 texformat=00000000 texaccess=0
+XM87.131 DF_READBACK_FULL_OUTPUT frame=1 logical=960x540 viewport=0,37,959,539 full_output=1752x1121
+XM87.130 GEOM point=df_after_fulloutput_copy phase=FF frame=1 window=844,159,1752,1121 display=0 flags=00000624 display_bounds=0,0,3440,1440 dpi=96.00,96.00,96.00 borders=31,8,8,8 driver=direct3d output=1752x1121 logical=0x0 scale=1.000000,1.000000 viewport=0,0,1752,1121 clipEnabled=0 clip=0,0,0,0 target=0000000000000000 dest=0,0,0,0 texture=0x0 texformat=00000000 texaccess=0
+XM87.130 GEOM point=df_restored phase=FF frame=1 window=844,159,1752,1121 display=0 flags=00000624 display_bounds=0,0,3440,1440 dpi=96.00,96.00,96.00 borders=31,8,8,8 driver=direct3d output=1752x1121 logical=960x540 scale=1.825000,1.825000 viewport=0,37,959,539 clipEnabled=0 clip=0,0,0,0 target=0000000000000000 dest=0,0,0,0 texture=0x0 texformat=00000000 texaccess=0
+XM87.128 DF_FINAL_VIEWPORT after logical=960x540 viewport=0,37,959,539
+XM20 WASAPI started: 48000Hz 2 channels 32 bits; game independent clock
+XM87.128 DF_FINAL_VIEWPORT before logical=960x540 output=1752x1121 viewport=0,37,959,539
+XM87.130 GEOM point=df_before_readback phase=FF frame=2 window=844,159,1752,1121 display=0 flags=00004624 display_bounds=0,0,3440,1440 dpi=96.00,96.00,96.00 borders=31,8,8,8 driver=direct3d output=1752x1121 logical=960x540 scale=1.825000,1.825000 viewport=0,37,959,539 clipEnabled=0 clip=0,0,0,0 target=0000000000000000 dest=0,0,0,0 texture=0x0 texformat=00000000 texaccess=0
+XM87.130 GEOM point=df_fulloutput_reset phase=FF frame=2 window=844,159,1752,1121 display=0 flags=00004624 display_bounds=0,0,3440,1440 dpi=96.00,96.00,96.00 borders=31,8,8,8 driver=direct3d output=1752x1121 logical=0x0 scale=1.000000,1.000000 viewport=0,0,1752,1121 clipEnabled=0 clip=0,0,0,0 target=0000000000000000 dest=0,0,0,0 texture=0x0 texformat=00000000 texaccess=0
+XM87.131 DF_READBACK_FULL_OUTPUT frame=2 logical=960x540 viewport=0,37,959,539 full_output=1752x1121
+XM87.130 GEOM point=df_after_fulloutput_copy phase=FF frame=2 window=844,159,1752,1121 display=0 flags=00004624 display_bounds=0,0,3440,1440 dpi=96.00,96.00,96.00 borders=31,8,8,8 driver=direct3d output=1752x1121 logical=0x0 scale=1.000000,1.000000 viewport=0,0,1752,1121 clipEnabled=0 clip=0,0,0,0 target=0000000000000000 dest=0,0,0,0 texture=0x0 texformat=00000000 texaccess=0
+XM87.130 GEOM point=df_restored phase=FF frame=2 window=844,159,1752,1121 display=0 flags=00004624 display_bounds=0,0,3440,1440 dpi=96.00,96.00,96.00 borders=31,8,8,8 driver=direct3d output=1752x1121 logical=960x540 scale=1.825000,1.825000 viewport=0,37,959,539 clipEnabled=0 clip=0,0,0,0 target=0000000000000000 dest=0,0,0,0 texture=0x0 texformat=00000000 texaccess=0
+XM87.128 DF_FINAL_VIEWPORT after logical=960x540 viewport=0,37,959,539
+XM86.52 WINDOW_SAVED phase=boot size=1752x1121
+XM86.32 TRAINING ENTER STAGE MENU selection=0
+XM86.32 STAGE MENU CONFIRM mode=1 selected=1 resolved=1
+XM27: boot selector EXIT mode=1
+XM86.32 HOST ENTER DoGame id=28748 modeTraining=1 modeVersus=0 stageChoice=1 resolved=1
+Loading program (xvsu.03k)... (OK)
+Loading program (xvsu.04k)... (OK)
+Loading program (xvs.05a)... (OK)
+Loading program (xvs.06a)... (OK)
+Loading program (xvs.07)... (OK)
+Loading program (xvs.08)... (OK)
+Loading program (xvs.09)... (OK)
+Loading graphics (xvs.13m)... (OK)
+Loading graphics (xvs.15m)... (OK)
+Loading graphics (xvs.17m)... (OK)
+Loading graphics (xvs.19m)... (OK)
+Loading graphics (xvs.14m)... (OK)
+Loading graphics (xvs.16m)... (OK)
+Loading graphics (xvs.18m)... (OK)
+Loading graphics (xvs.20m)... (OK)
+Loading program (xvs.01)... (OK)
+Loading program (xvs.02)... (OK)
+Loading sound (xvs.11m)... (OK)
+Loading sound (xvs.12m)... (OK)
+Loading xmvsfu.key... (OK)
+XM87.17 SOURCE_TAGS enabled: tracking 68000 source through lagged object list
+XM87.18 SOURCE_OWNER_GRAY enabled game=xmvsfu
+XM86.32 HOST DrvInit return=0
+XM86.32 HOST MediaInit begin
+XM20 sound init: 44100 Hz, 740 samples per emulated frame
+XM87.130 GEOM point=adjust_persistent phase=FF frame=0 window=844,159,1752,1121 display=0 flags=00000224 display_bounds=0,0,3440,1440 dpi=96.00,96.00,96.00 borders=31,8,8,8 driver=direct3d output=1752x1121 logical=960x540 scale=1.825000,1.825000 viewport=0,37,959,539 clipEnabled=0 clip=0,0,0,0 target=0000000000000000 dest=120,0,720,540 texture=0x0 texformat=00000000 texaccess=0
+XM87.130 GEOM point=init_after_adjust phase=FF frame=0 window=844,159,1752,1121 display=0 flags=00000224 display_bounds=0,0,3440,1440 dpi=96.00,96.00,96.00 borders=31,8,8,8 driver=direct3d output=1752x1121 logical=960x540 scale=1.825000,1.825000 viewport=0,37,959,539 clipEnabled=0 clip=0,0,0,0 target=0000000000000000 dest=120,0,720,540 texture=0x0 texformat=00000000 texaccess=0
+XM86.52 WINDOW_SAVED phase=game-enter size=1752x1121
+XM86.52 WINDOW_FOCUS phase=game-enter size=1752x1121 inputFocus=1
+XM86.52 GAME_WINDOW_INHERITED size=1752x1121 logical=960x540 nativeCanvas=384x224 viewport=120,0,720,540 focus=1
+XM87.130 GEOM point=texture_created phase=FF frame=0 window=844,159,1752,1121 display=0 flags=00000224 display_bounds=0,0,3440,1440 dpi=96.00,96.00,96.00 borders=31,8,8,8 driver=direct3d output=1752x1121 logical=960x540 scale=1.825000,1.825000 viewport=0,37,959,539 clipEnabled=0 clip=0,0,0,0 target=0000000000000000 dest=120,0,720,540 texture=384x224 texformat=16161804 texaccess=1
+XM86.32 HOST MediaInit complete; controls begin
+XM86.32 HOST controls complete; RunMessageLoop begin
+XM86.55 SESSION_AUDIO_RESET vs=0 select_mute_rearmed=1
+XM86.34 RunMessageLoop ENTER
+XM86.34 VEH registered=1
+XM86.34 xm24StartSession complete
+XM86.34 RunInit enter
+XM86.34 RunInit audio play begin
+XM86.34 RunInit audio play complete
+XM86.34 RunInit StatedAuto begin
+XM86.34 RunInit StatedAuto complete; training snapshot begin
+XMVSF Stage16: LOAD_OK (0)
+XM86.34 RunInit training snapshot complete skipped=0
+XM86.34 RunInit returned to message loop
+XM86.34 FIRST RunIdle enter
+XM86.34 FIRST RunFrame ENTER draw=1 pause=0 ready=1
+XM86.40 PROGRESS frames=1 emulated=0 paused=0
+XM86.34 FRAME1 BEFORE_SLOWMO
+XM87.98 INPUT_ROM_DF_TRACE_READY initialized (mode=DOUBLE_FEATURE)
+XM86.34 FRAME1 BEFORE_INPUT pause=0
+XM86.34 FRAME1 AFTER_INPUT
+XM86.34 FRAME1 BEFORE_VIDEO runahead=0 disabled=0 fast=0
+XM86.34 FRAME1 BEFORE_VIDFRAME
+XM86.34 SDL2 BEFORE FRAME CALLBACK
+XM86.34 CPS2 ENTER
+XM86.34 CPS2 AFTER RESET
+XM86.34 CPS2 AFTER ASPECT
+XM86.34 CPS2 BEFORE CPU/QSOUND NEW FRAME
+XM86.34 CPS2 AFTER CPU/QSOUND NEW FRAME
+XM86.34 CPS2 BEFORE CPU OPEN
+XM86.34 CPS2 AFTER CPU OPEN
+XM86.34 CPS2 BEFORE CPS INPUT READ
+XM87.95 NATIVE_DIZZY_AIR_COLLISION_READY; 68000 native tick override (Tournament only)
+XM87.96 DIZZY_HANDOFF_READY; native 12B88 standing transition; 87.95 pop preserved
+XM87.99 GROUND_DEFENSE_READY: native 16E76 combo close + 11FC0 guard selector
+XM87.125 STUN_REARM_LOCK_READY native dizzy +B8; require actual air-to-floor transition AND native landing state change
+XM87.101 Training dual KO paths INSTALLED normal@0155BC other@015B7E mode=Training driver=xmvsfu
+XM86.34 CPS2 AFTER CPS INPUT READ
+XM86.34 CPS2 BEFORE VOLUME/ROUTE
+XM86.34 CPS2 AFTER VOLUME/ROUTE
+XM86.34 CPS2 AFTER IRQ SCHEDULE
+XM86.34 CPS2 BEFORE PRE-DISPLAY CPU RUN
+XM86.34 CPS2 AFTER PRE-DISPLAY CPU RUN
+XM86.34 CPS2 BEFORE MAIN CPU SCANLINES
+XM86.34 CPS2 AFTER MAIN CPU SCANLINES
+XM86.34 CPS2 AFTER OBJECT CAPTURE
+XM86.34 CPS2 BEFORE CPS DRAW
+XM86.64 BG_30_PERCENT_70_SAT sample_entries=1522 avg_original=205 avg_graded=44; Wily graded independently
+XM86.64 NATIVE_PALETTE backgrounds=30pct_peak77 saturation70_hue35s magneto=grayscale fighter_ink96 hud_rgb50 fx_color wily_independent_dark
+XM86.34 CPS2 AFTER CPS DRAW
+XM86.34 CPS2 BEFORE CPU VBLANK RUN
+XM86.34 CPS2 AFTER CPU VBLANK RUN
+XM86.34 CPS2 BEFORE QSOUND END FRAME
+XM86.35 QSOUND ENTER mode=0 cycles=134160 soundlen=740 soundptr=000002B894EA4360 z80total=0
+XM86.35 QSOUND BEFORE_TIMER
+XM87.128 STORM_HORIZONTAL_MP_MUTE XM87.129 STORM_CROUCH_HP_VOICE_MUTE STORM_VOICE_MUTE_READY enabled=1 targeted_pcm_channel=12 sample=6508
+XM87.126 DF_CENTER_AND_STORM_VOICE_TRACE_READY voice_mutation=0
+XM86.35 QSOUND AFTER_TIMER z80total=134161
+XM86.35 QSOUND BEFORE_MIXER output=000002B894EA4360 len=740
+XM86.35 QSOUND AFTER_MIXER
+XM86.35 QSOUND BEFORE_CLOSE
+XM86.35 QSOUND EXIT
+XM86.34 CPS2 AFTER QSOUND END FRAME
+XM87.124 NATIVE_LAUNCH_HP_GUARD_READY enabled=1 target=00066200/00132A00 storm_mk_preserved=1 storm_hk_connected_enabled=1 protected_drill=2C1E,2C46
+XM87.123 CLASSIC_FLYING_SCREEN_GUARD mode=TOURNAMENT launch_override=1
+XM87.119 CYCLOPS_RECOVERY_PROBE enabled read-only log=F:\xmvsf\test\stable\session_20261103_230116_572727\xm87119_cyclops_recovery.tsv
+XM87.121 CYCLOPS_THROW_RECOVERY_RELEASE enabled=1
+XM86.34 CPS2 COMPLETE
+XM86.34 SDL2 AFTER FRAME CALLBACK
+XM86.34 FRAME1 AFTER_VIDFRAME result=0
+XM86.48 SESSION generation=1 mode=1 WilyChoice=1 WilyResolved=1
+XM86.48 EARLY_SELECTOR_REQUEST old=FF new=04 readback=04 status=00 stage=00 writes=1 result=PASS
+XM86.48 STAGE OBSERVER START: stage-byte FF5113 writes=0; selector FF5082 writes=1; mode=Training:1 Versus:0 choice=1 resolved=1
+XM86.42 HOST CHOICE f=1 choice=1 resolved=1 (NO ROM CHANGE)
+XM86.42 TRANSITION f=1 oldStatus=FF newStatus=00 oldStage=FF newStage=00 p1ptr=00FF5180
+XM86.42 RAM FF5000: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+XM86.42 RAM FF5100: 01 03 00 01 00 04 00 00 00 00 00 00 00 00 00 00 00 01 00 00 79 00 00 00 00 00 00 00 00 04 00 00 FF 00 00 00 03 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+XM86.42 HEARTBEAT f=1 status=00 stage=00 actorPtr=00FF5180 events=1
+XM86.58 GAME_PHASE old=FF new=00 selectionGray=1
+XM86.34 FRAME1 BEFORE_VIDPAINT
+XM87.130 GEOM point=paint_enter phase=00 frame=1 window=844,159,1752,1121 display=0 flags=00000224 display_bounds=0,0,3440,1440 dpi=96.00,96.00,96.00 borders=31,8,8,8 driver=direct3d output=1752x1121 logical=960x540 scale=1.825000,1.825000 viewport=0,37,959,539 clipEnabled=0 clip=0,0,0,0 target=0000000000000000 dest=120,0,720,540 texture=384x224 texformat=16161804 texaccess=1
+XM87.130 PIXELS point=cps_native_framebuffer phase=00 frame=1 size=384x224 pitch=1536 bpp=4 bbox_luma_gt48=30,12,378,213 yquartiles=21,365,111,254 samplehash=B349118C63AA606A
+XM87.130 CPS_LAYOUT phase=00 frame=1 native=384x224 global_offset=0,0 layer_x_offsets=0,0,0 layer_y_offsets=0,0,0 rotation=0 flip=0 double_feature=1 sceneActive=0 stage=0
+XM87.128 DF_GEOMETRY_PROBE phase=00 framebuffer=384x224 display=384x288 dstrect=120,0,720,540 logical=960x540 output=1752x1121 viewport=0,37,959,539 manual_shift=0
+XM87.130 COMPOSITION_PATH phase=00 frame=1 wily=0 source_rect=FULL native=384x224 destination=120,0,720,540
+XM87.130 GEOM point=after_wily_path phase=00 frame=1 window=844,159,1752,1121 display=0 flags=00000224 display_bounds=0,0,3440,1440 dpi=96.00,96.00,96.00 borders=31,8,8,8 driver=direct3d output=1752x1121 logical=960x540 scale=1.825000,1.825000 viewport=0,37,959,539 clipEnabled=0 clip=0,0,0,0 target=0000000000000000 dest=120,0,720,540 texture=384x224 texformat=16161804 texaccess=1
+XM87.104 SELECTOR_OVERLAY_DISABLED native_ROM_only=1
+XM87.130 GEOM point=composed_before_df phase=00 frame=1 window=844,159,1752,1121 display=0 flags=00000224 display_bounds=0,0,3440,1440 dpi=96.00,96.00,96.00 borders=31,8,8,8 driver=direct3d output=1752x1121 logical=960x540 scale=1.825000,1.825000 viewport=0,37,959,539 clipEnabled=0 clip=0,0,0,0 target=0000000000000000 dest=120,0,720,540 texture=384x224 texformat=16161804 texaccess=1
+XM86.65 SELECTION_LUMA no_full_screen_ink96=true
+XM87.128 DF_FINAL_VIEWPORT before logical=960x540 output=1752x1121 viewport=0,37,959,539
+XM87.128 DF_FINAL_VIEWPORT after logical=960x540 viewport=0,37,959,539
+XM87.130 GEOM point=after_df phase=00 frame=1 window=844,159,1752,1121 display=0 flags=00000224 display_bounds=0,0,3440,1440 dpi=96.00,96.00,96.00 borders=31,8,8,8 driver=direct3d output=1752x1121 logical=960x540 scale=1.825000,1.825000 viewport=0,37,959,539 clipEnabled=0 clip=0,0,0,0 target=0000000000000000 dest=120,0,720,540 texture=384x224 texformat=16161804 texaccess=1
+XM87.130 GEOM point=post_present phase=00 frame=1 window=844,159,1752,1121 display=0 flags=00000224 display_bounds=0,0,3440,1440 dpi=96.00,96.00,96.00 borders=31,8,8,8 driver=direct3d output=1752x1121 logical=960x540 scale=1.825000,1.825000 viewport=0,37,959,539 clipEnabled=0 clip=0,0,0,0 target=0000000000000000 dest=120,0,720,540 texture=384x224 texformat=16161804 texaccess=1
+XM86.34 FRAME1 AFTER_VIDPAINT
+XM22: enabling CPS2 sound-CPU music-only mute at F026/F027; QSound effects enabled.
+XM86.34 FIRST RunFrame reached stage5 hook
+XM86.34 FIRST RunFrame stage5 hook returned
+XM86.65 SCENERY_RULES exact_family_count=0
+XM86.59 FX_RULES exact_family_count=0
+XM86.35 QSOUND ENTER mode=0 cycles=134160 soundlen=740 soundptr=000002B894EA4360 z80total=1
+XM86.35 QSOUND BEFORE_TIMER
+XM86.35 QSOUND AFTER_TIMER z80total=134163
+XM86.35 QSOUND BEFORE_MIXER output=000002B894EA4360 len=740
+XM86.35 QSOUND AFTER_MIXER
+XM86.35 QSOUND BEFORE_CLOSE
+XM86.35 QSOUND EXIT
+XM87.130 GEOM point=paint_enter phase=00 frame=2 window=844,159,1752,1121 display=0 flags=00000224 display_bounds=0,0,3440,1440 dpi=96.00,96.00,96.00 borders=31,8,8,8 driver=direct3d output=1752x1121 logical=960x540 scale=1.825000,1.825000 viewport=0,37,959,539 clipEnabled=0 clip=0,0,0,0 target=0000000000000000 dest=120,0,720,540 texture=384x224 texformat=16161804 texaccess=1
+XM87.130 PIXELS point=cps_native_framebuffer phase=00 frame=2 size=384x224 pitch=1536 bpp=4 bbox_luma_gt48=30,12,381,222 yquartiles=732,844,992,953 samplehash=951A871827439562
+XM87.130 NATIVE_CAPTURE phase=00 frame=2 path=F:\xmvsf\test\stable\session_20261103_230116_572727/xm87130_00_000002_native.bmp result=0
+XM87.130 CPS_LAYOUT phase=00 frame=2 native=384x224 global_offset=0,0 layer_x_offsets=0,0,0 layer_y_offsets=0,0,0 rotation=0 flip=0 double_feature=1 sceneActive=0 stage=0
+XM87.130 COMPOSITION_PATH phase=00 frame=2 wily=0 source_rect=FULL native=384x224 destination=120,0,720,540
+XM87.130 GEOM point=after_wily_path phase=00 frame=2 window=844,159,1752,1121 display=0 flags=00000224 display_bounds=0,0,3440,1440 dpi=96.00,96.00,96.00 borders=31,8,8,8 driver=direct3d output=1752x1121 logical=960x540 scale=1.825000,1.825000 viewport=0,37,959,539 clipEnabled=0 clip=0,0,0,0 target=0000000000000000 dest=120,0,720,540 texture=384x224 texformat=16161804 texaccess=1
+XM87.130 GEOM point=composed_before_df phase=00 frame=2 window=844,159,1752,1121 display=0 flags=00000224 display_bounds=0,0,3440,1440 dpi=96.00,96.00,96.00 borders=31,8,8,8 driver=direct3d output=1752x1121 logical=960x540 scale=1.825000,1.825000 viewport=0,37,959,539 clipEnabled=0 clip=0,0,0,0 target=0000000000000000 dest=120,0,720,540 texture=384x224 texformat=16161804 texaccess=1
+XM87.130 PIXELS point=pre_df phase=00 frame=2 size=1752x1121 pitch=7008 bpp=4 bbox_luma_gt48=318,48,1530,984 yquartiles=13297,12726,17843,7085 samplehash=694A4A09E2FA1F68
+XM87.130 CAPTURE point=pre_df phase=00 frame=2 path=F:\xmvsf\test\stable\session_20261103_230116_572727/xm87130_00_000002_pre_df.bmp result=0
+XM87.130 GEOM point=after_df phase=00 frame=2 window=844,159,1752,1121 display=0 flags=00000224 display_bounds=0,0,3440,1440 dpi=96.00,96.00,96.00 borders=31,8,8,8 driver=direct3d output=1752x1121 logical=960x540 scale=1.825000,1.825000 viewport=0,37,959,539 clipEnabled=0 clip=0,0,0,0 target=0000000000000000 dest=120,0,720,540 texture=384x224 texformat=16161804 texaccess=1
+XM87.130 PIXELS point=post_df phase=00 frame=2 size=1752x1121 pitch=7008 bpp=4 bbox_luma_gt48=318,48,1530,984 yquartiles=13297,12726,17843,7085 samplehash=E2CD2A59E7FCC6C5
+XM87.130 CAPTURE point=post_df phase=00 frame=2 path=F:\xmvsf\test\stable\session_20261103_230116_572727/xm87130_00_000002_post_df.bmp result=0
+XM87.130 GEOM point=post_present phase=00 frame=2 window=844,159,1752,1121 display=0 flags=00000224 display_bounds=0,0,3440,1440 dpi=96.00,96.00,96.00 borders=31,8,8,8 driver=direct3d output=1752x1121 logical=960x540 scale=1.825000,1.825000 viewport=0,37,959,539 clipEnabled=0 clip=0,0,0,0 target=0000000000000000 dest=120,0,720,540 texture=384x224 texformat=16161804 texaccess=1
+XM87.130 GEOM point=paint_enter phase=00 frame=30 window=844,159,1752,1121 display=0 flags=00000224 display_bounds=0,0,3440,1440 dpi=96.00,96.00,96.00 borders=31,8,8,8 driver=direct3d output=1752x1121 logical=960x540 scale=1.825000,1.825000 viewport=0,37,959,539 clipEnabled=0 clip=0,0,0,0 target=0000000000000000 dest=120,0,720,540 texture=384x224 texformat=16161804 texaccess=1
+XM87.130 PIXELS point=cps_native_framebuffer phase=00 frame=30 size=384x224 pitch=1536 bpp=4 bbox_luma_gt48=6,6,378,213 yquartiles=1243,1197,1165,896 samplehash=FBE7B9D4CE5E9021
+XM87.130 NATIVE_CAPTURE phase=00 frame=30 path=F:\xmvsf\test\stable\session_20261103_230116_572727/xm87130_00_000030_native.bmp result=0
+XM87.130 CPS_LAYOUT phase=00 frame=30 native=384x224 global_offset=0,0 layer_x_offsets=0,0,0 layer_y_offsets=0,0,0 rotation=0 flip=0 double_feature=1 sceneActive=0 stage=0
+XM87.130 COMPOSITION_PATH phase=00 frame=30 wily=0 source_rect=FULL native=384x224 destination=120,0,720,540
+XM87.130 GEOM point=after_wily_path phase=00 frame=30 window=844,159,1752,1121 display=0 flags=00000224 display_bounds=0,0,3440,1440 dpi=96.00,96.00,96.00 borders=31,8,8,8 driver=direct3d output=1752x1121 logical=960x540 scale=1.825000,1.825000 viewport=0,37,959,539 clipEnabled=0 clip=0,0,0,0 target=0000000000000000 dest=120,0,720,540 texture=384x224 texformat=16161804 texaccess=1
+XM87.130 GEOM point=composed_before_df phase=00 frame=30 window=844,159,1752,1121 display=0 flags=00000224 display_bounds=0,0,3440,1440 dpi=96.00,96.00,96.00 borders=31,8,8,8 driver=direct3d output=1752x1121 logical=960x540 scale=1.825000,1.825000 viewport=0,37,959,539 clipEnabled=0 clip=0,0,0,0 target=0000000000000000 dest=120,0,720,540 texture=384x224 texformat=16161804 texaccess=1
+XM87.130 PIXELS point=pre_df phase=00 frame=30 size=1752x1121 pitch=7008 bpp=4 bbox_luma_gt48=228,18,1518,945 yquartiles=21379,20471,18182,7325 samplehash=9E9BA56F5E11D9D2
+XM87.130 CAPTURE point=pre_df phase=00 frame=30 path=F:\xmvsf\test\stable\session_20261103_230116_572727/xm87130_00_000030_pre_df.bmp result=0
+XM87.130 GEOM point=after_df phase=00 frame=30 window=844,159,1752,1121 display=0 flags=00000224 display_bounds=0,0,3440,1440 dpi=96.00,96.00,96.00 borders=31,8,8,8 driver=direct3d output=1752x1121 logical=960x540 scale=1.825000,1.825000 viewport=0,37,959,539 clipEnabled=0 clip=0,0,0,0 target=0000000000000000 dest=120,0,720,540 texture=384x224 texformat=16161804 texaccess=1
+XM87.130 PIXELS point=post_df phase=00 frame=30 size=1752x1121 pitch=7008 bpp=4 bbox_luma_gt48=228,18,1518,945 yquartiles=21379,20471,18182,7325 samplehash=5B58B410F6E6F08D
+XM87.130 CAPTURE point=post_df phase=00 frame=30 path=F:\xmvsf\test\stable\session_20261103_230116_572727/xm87130_00_000030_post_df.bmp result=0
+XM87.130 GEOM point=post_present phase=00 frame=30 window=844,159,1752,1121 display=0 flags=00000224 display_bounds=0,0,3440,1440 dpi=96.00,96.00,96.00 borders=31,8,8,8 driver=direct3d output=1752x1121 logical=960x540 scale=1.825000,1.825000 viewport=0,37,959,539 clipEnabled=0 clip=0,0,0,0 target=0000000000000000 dest=120,0,720,540 texture=384x224 texformat=16161804 texaccess=1
+XM87.130 GEOM point=df_before_readback phase=FF frame=240 window=844,159,1752,1121 display=0 flags=00000224 display_bounds=0,0,3440,1440 dpi=96.00,96.00,96.00 borders=31,8,8,8 driver=direct3d output=1752x1121 logical=960x540 scale=1.825000,1.825000 viewport=0,37,959,539 clipEnabled=0 clip=0,0,0,0 target=0000000000000000 dest=0,0,0,0 texture=0x0 texformat=00000000 texaccess=0
+XM87.130 GEOM point=df_fulloutput_reset phase=FF frame=240 window=844,159,1752,1121 display=0 flags=00000224 display_bounds=0,0,3440,1440 dpi=96.00,96.00,96.00 borders=31,8,8,8 driver=direct3d output=1752x1121 logical=0x0 scale=1.000000,1.000000 viewport=0,0,1752,1121 clipEnabled=0 clip=0,0,0,0 target=0000000000000000 dest=0,0,0,0 texture=0x0 texformat=00000000 texaccess=0
+XM87.131 DF_READBACK_FULL_OUTPUT frame=240 logical=960x540 viewport=0,37,959,539 full_output=1752x1121
+XM87.130 GEOM point=df_after_fulloutput_copy phase=FF frame=240 window=844,159,1752,1121 display=0 flags=00000224 display_bounds=0,0,3440,1440 dpi=96.00,96.00,96.00 borders=31,8,8,8 driver=direct3d output=1752x1121 logical=0x0 scale=1.000000,1.000000 viewport=0,0,1752,1121 clipEnabled=0 clip=0,0,0,0 target=0000000000000000 dest=0,0,0,0 texture=0x0 texformat=00000000 texaccess=0
+XM87.130 GEOM point=df_restored phase=FF frame=240 window=844,159,1752,1121 display=0 flags=00000224 display_bounds=0,0,3440,1440 dpi=96.00,96.00,96.00 borders=31,8,8,8 driver=direct3d output=1752x1121 logical=960x540 scale=1.825000,1.825000 viewport=0,37,959,539 clipEnabled=0 clip=0,0,0,0 target=0000000000000000 dest=0,0,0,0 texture=0x0 texformat=00000000 texaccess=0
+XM87.128 DF_FINAL_VIEWPORT before logical=960x540 output=1752x1121 viewport=0,37,959,539
+XM87.128 DF_FINAL_VIEWPORT after logical=960x540 viewport=0,37,959,539
+XM87.130 GEOM point=paint_enter phase=00 frame=180 window=844,159,1752,1121 display=0 flags=00000224 display_bounds=0,0,3440,1440 dpi=96.00,96.00,96.00 borders=31,8,8,8 driver=direct3d output=1752x1121 logical=960x540 scale=1.825000,1.825000 viewport=0,37,959,539 clipEnabled=0 clip=0,0,0,0 target=0000000000000000 dest=120,0,720,540 texture=384x224 texformat=16161804 texaccess=1
+XM87.130 PIXELS point=cps_native_framebuffer phase=00 frame=180 size=384x224 pitch=1536 bpp=4 bbox_luma_gt48=0,6,378,213 yquartiles=1336,1310,1155,898 samplehash=0305693363FD7920
+XM87.130 CPS_LAYOUT phase=00 frame=180 native=384x224 global_offset=0,0 layer_x_offsets=0,0,0 layer_y_offsets=0,0,0 rotation=0 flip=0 double_feature=1 sceneActive=0 stage=0
+XM87.130 COMPOSITION_PATH phase=00 frame=180 wily=0 source_rect=FULL native=384x224 destination=120,0,720,540
+XM87.130 GEOM point=after_wily_path phase=00 frame=180 window=844,159,1752,1121 display=0 flags=00000224 display_bounds=0,0,3440,1440 dpi=96.00,96.00,96.00 borders=31,8,8,8 driver=direct3d output=1752x1121 logical=960x540 scale=1.825000,1.825000 viewport=0,37,959,539 clipEnabled=0 clip=0,0,0,0 target=0000000000000000 dest=120,0,720,540 texture=384x224 texformat=16161804 texaccess=1
+XM87.130 GEOM point=composed_before_df phase=00 frame=180 window=844,159,1752,1121 display=0 flags=00000224 display_bounds=0,0,3440,1440 dpi=96.00,96.00,96.00 borders=31,8,8,8 driver=direct3d output=1752x1121 logical=960x540 scale=1.825000,1.825000 viewport=0,37,959,539 clipEnabled=0 clip=0,0,0,0 target=0000000000000000 dest=120,0,720,540 texture=384x224 texformat=16161804 texaccess=1
+XM87.130 GEOM point=after_df phase=00 frame=180 window=844,159,1752,1121 display=0 flags=00000224 display_bounds=0,0,3440,1440 dpi=96.00,96.00,96.00 borders=31,8,8,8 driver=direct3d output=1752x1121 logical=960x540 scale=1.825000,1.825000 viewport=0,37,959,539 clipEnabled=0 clip=0,0,0,0 target=0000000000000000 dest=120,0,720,540 texture=384x224 texformat=16161804 texaccess=1
+XM87.130 GEOM point=post_present phase=00 frame=180 window=844,159,1752,1121 display=0 flags=00000224 display_bounds=0,0,3440,1440 dpi=96.00,96.00,96.00 borders=31,8,8,8 driver=direct3d output=1752x1121 logical=960x540 scale=1.825000,1.825000 viewport=0,37,959,539 clipEnabled=0 clip=0,0,0,0 target=0000000000000000 dest=120,0,720,540 texture=384x224 texformat=16161804 texaccess=1
+XM86.40 PROGRESS frames=300 emulated=299 paused=0
+XM86.42 HEARTBEAT f=300 status=00 stage=00 actorPtr=00FF5180 events=1
+XM87.130 GEOM point=df_before_readback phase=FF frame=480 window=844,159,1752,1121 display=0 flags=00000224 display_bounds=0,0,3440,1440 dpi=96.00,96.00,96.00 borders=31,8,8,8 driver=direct3d output=1752x1121 logical=960x540 scale=1.825000,1.825000 viewport=0,37,959,539 clipEnabled=0 clip=0,0,0,0 target=0000000000000000 dest=0,0,0,0 texture=0x0 texformat=00000000 texaccess=0
+XM87.130 GEOM point=df_fulloutput_reset phase=FF frame=480 window=844,159,1752,1121 display=0 flags=00000224 display_bounds=0,0,3440,1440 dpi=96.00,96.00,96.00 borders=31,8,8,8 driver=direct3d output=1752x1121 logical=0x0 scale=1.000000,1.000000 viewport=0,0,1752,1121 clipEnabled=0 clip=0,0,0,0 target=0000000000000000 dest=0,0,0,0 texture=0x0 texformat=00000000 texaccess=0
+XM87.131 DF_READBACK_FULL_OUTPUT frame=480 logical=960x540 viewport=0,37,959,539 full_output=1752x1121
+XM87.130 GEOM point=df_after_fulloutput_copy phase=FF frame=480 window=844,159,1752,1121 display=0 flags=00000224 display_bounds=0,0,3440,1440 dpi=96.00,96.00,96.00 borders=31,8,8,8 driver=direct3d output=1752x1121 logical=0x0 scale=1.000000,1.000000 viewport=0,0,1752,1121 clipEnabled=0 clip=0,0,0,0 target=0000000000000000 dest=0,0,0,0 texture=0x0 texformat=00000000 texaccess=0
+XM87.130 GEOM point=df_restored phase=FF frame=480 window=844,159,1752,1121 display=0 flags=00000224 display_bounds=0,0,3440,1440 dpi=96.00,96.00,96.00 borders=31,8,8,8 driver=direct3d output=1752x1121 logical=960x540 scale=1.825000,1.825000 viewport=0,37,959,539 clipEnabled=0 clip=0,0,0,0 target=0000000000000000 dest=0,0,0,0 texture=0x0 texformat=00000000 texaccess=0
+XM87.130 GEOM point=paint_enter phase=00 frame=360 window=844,159,1752,1121 display=0 flags=00000224 display_bounds=0,0,3440,1440 dpi=96.00,96.00,96.00 borders=31,8,8,8 driver=direct3d output=1752x1121 logical=960x540 scale=1.825000,1.825000 viewport=0,37,959,539 clipEnabled=0 clip=0,0,0,0 target=0000000000000000 dest=120,0,720,540 texture=384x224 texformat=16161804 texaccess=1
+XM87.130 PIXELS point=cps_native_framebuffer phase=00 frame=360 size=384x224 pitch=1536 bpp=4 bbox_luma_gt48=0,0,378,213 yquartiles=1296,1356,1316,977 samplehash=58ABDFC4752285EA
+XM87.130 CPS_LAYOUT phase=00 frame=360 native=384x224 global_offset=0,0 layer_x_offsets=0,0,0 layer_y_offsets=0,0,0 rotation=0 flip=0 double_feature=1 sceneActive=0 stage=0
+XM87.130 COMPOSITION_PATH phase=00 frame=360 wily=0 source_rect=FULL native=384x224 destination=120,0,720,540
+XM87.130 GEOM point=after_wily_path phase=00 frame=360 window=844,159,1752,1121 display=0 flags=00000224 display_bounds=0,0,3440,1440 dpi=96.00,96.00,96.00 borders=31,8,8,8 driver=direct3d output=1752x1121 logical=960x540 scale=1.825000,1.825000 viewport=0,37,959,539 clipEnabled=0 clip=0,0,0,0 target=0000000000000000 dest=120,0,720,540 texture=384x224 texformat=16161804 texaccess=1
+XM87.130 GEOM point=composed_before_df phase=00 frame=360 window=844,159,1752,1121 display=0 flags=00000224 display_bounds=0,0,3440,1440 dpi=96.00,96.00,96.00 borders=31,8,8,8 driver=direct3d output=1752x1121 logical=960x540 scale=1.825000,1.825000 viewport=0,37,959,539 clipEnabled=0 clip=0,0,0,0 target=0000000000000000 dest=120,0,720,540 texture=384x224 texformat=16161804 texaccess=1
+XM87.130 GEOM point=after_df phase=00 frame=360 window=844,159,1752,1121 display=0 flags=00000224 display_bounds=0,0,3440,1440 dpi=96.00,96.00,96.00 borders=31,8,8,8 driver=direct3d output=1752x1121 logical=960x540 scale=1.825000,1.825000 viewport=0,37,959,539 clipEnabled=0 clip=0,0,0,0 target=0000000000000000 dest=120,0,720,540 texture=384x224 texformat=16161804 texaccess=1
+XM87.130 GEOM point=post_present phase=00 frame=360 window=844,159,1752,1121 display=0 flags=00000224 display_bounds=0,0,3440,1440 dpi=96.00,96.00,96.00 borders=31,8,8,8 driver=direct3d output=1752x1121 logical=960x540 scale=1.825000,1.825000 viewport=0,37,959,539 clipEnabled=0 clip=0,0,0,0 target=0000000000000000 dest=120,0,720,540 texture=384x224 texformat=16161804 texaccess=1
+XM87.128 DF_FINAL_VIEWPORT before logical=960x540 output=1752x1121 viewport=0,37,959,539
+XM87.128 DF_FINAL_VIEWPORT after logical=960x540 viewport=0,37,959,539
+XM86.40 SESSION EXIT reason=SDL_QUIT frames=496 emulated=496 returnToBoot=0
+XM86.32 HOST RunMessageLoop returned
+XM27: DoGame returned; returnToBoot=0, window=000002B8890D1980
+FBNeo v1.0.0.03
+Loading config from fbneo.ini
+Found 2 joystick(s):
+  Joy 0: (8BitDo Ultimate 2 Controller) (game controller)
+  Joy 1: Controller (ZERO-Pi Fighting Board) (game controller)
+XMVSF Stage13.1 game inputs: P1=12 P2=12 mapping slots
+p1 coin Joy 0 Button 6
+p1 start Joy 0 Button 7
+p1 up Joy 0 Up (Y negative)
+p1 down Joy 0 Down (Y positive)
+p1 left Joy 0 Left (X negative)
+p1 right Joy 0 Right (X positive)
+p1 fire 1 Joy 0 Button 0
+p1 fire 2 Joy 0 Button 1
+p1 fire 3 Joy 0 Button 2
+p1 fire 4 Joy 0 Button 3
+p1 fire 5 Joy 0 Button 4
+p1 fire 6 Joy 0 Button 5
+p2 coin Joy 1 Button 6
+p2 start Joy 1 Button 7
+p2 up Joy 1 Up (Y negative)
+p2 down Joy 1 Down (Y positive)
+p2 left Joy 1 Left (X negative)
+p2 right Joy 1 Right (X positive)
+p2 fire 1 Joy 1 Button 0
+p2 fire 2 Joy 1 Button 1
+p2 fire 3 Joy 1 Button 2
+p2 fire 4 Joy 1 Button 3
+p2 fire 5 Joy 1 Button 4
+p2 fire 6 Joy 1 Button 5
+reset F3
+diag F2
+service 9
+volumeup code 0x00
+volumedown code 0x00
+loading state 0 config/games/xmvsfu.fs
+saving state 0 config/games/xmvsfu.fs
