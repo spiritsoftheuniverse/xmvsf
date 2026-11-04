@@ -62,6 +62,7 @@ int main(){
             unsigned(rom.size()),100u));
     assert(XM87143Queue::state().select(0u,0x14u,XM87143Queue::QCF_PP,101u));
     assert(setenv("XM87144_DHC_NATIVE_TEST","1",1)==0);
+    assert(setenv("XM87144_DHC_LEGACY_TAG_WRITER","1",1)==0);
     State s;
     const auto original=ram;
     s.frame(ram.data(),rom.data(),unsigned(rom.size()),100u,0u);
