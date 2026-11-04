@@ -51,6 +51,12 @@ int main(){
     assert(kenPunch->scripts[0].resolved && kenPunch->scripts[1].resolved);
     assert(kenKick&&kenKick->count==1u&&kenKick->scripts[0].resolved);
     assert(kenKick->scripts[0].script==0xD6722u);
+    // DHC input chooses a prepared entry, but does not activate the ROM.
+    const auto* staged=q.select(0u,0x14u,QCF_KK,111u);
+    assert(staged==kenKick && q.selected[0]==kenKick);
+    assert(q.selectedFrame[0]==111u);
+    q.discard(0u);assert(q.selected[0]==nullptr);
+    assert(!q.select(0u,0x12u,QCF_KK,112u));
     // No arbitrary super is injected into a fighter with no proven list.
     assert(q.count(1u,0x20u)==0u && q.find(1u,0x20u,QCF_PP)==nullptr);
     assert(!q.prepare(ram.data(),rom.data(),unsigned(rom.size()),101u));
