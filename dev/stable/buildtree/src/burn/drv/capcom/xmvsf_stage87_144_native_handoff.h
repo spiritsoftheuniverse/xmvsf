@@ -92,6 +92,9 @@ struct State {
     unsigned kenExpectedAction[2]={0u,0u},kenExpectedScript[2]={0u,0u};
     bool kenFallbackUsed[2]={false,false};
     unsigned kenNeutralSince[2]={0u,0u};
+    // Both ROM super targets are independently checked in a single build.
+    bool shoryureppaReady[2]={false,false},shinryukenReady[2]={false,false};
+    unsigned lastKenTargetAction[2]={0u,0u};
     unsigned lastNormalRef[2]={~0u,~0u};
     unsigned originalX[2]={0u,0u},opponentX[2]={0u,0u};
     XM87143Queue::Command command[2]={XM87143Queue::QCF_PP,XM87143Queue::QCF_PP};
@@ -111,7 +114,8 @@ struct State {
                 "\taction\tmodeA0\tstep06\tstep08\tstep0A"
                 "\tcontroller256\tcontroller259\tnativeD6\tscriptFlag3C\tstep4E\ta4\tpartner214"
                 "\tscript34\tscript38\tpartnerPtr\tpoint210\treserve210"
-                "\tx\ty\tdecision\n",log);
+                "\tx\ty\tdecision\tken2E00_D6722_ready\tken2E02_D6976_ready"
+                "\tken_observed_2E00\tken_observed_2E02\tselected_command\n",log);
         }
         std::fprintf(stderr,"XM87.144 native DHC proof-of-concept enabled=%d\n",enabled?1:0);
     }
@@ -126,6 +130,8 @@ struct State {
             kenExitObserved[s]=kenSuperConfirmed[s]=false;
             kenExpectedAction[s]=kenExpectedScript[s]=0u;
             kenFallbackUsed[s]=false;kenNeutralSince[s]=0u;
+            shoryureppaReady[s]=shinryukenReady[s]=false;
+            lastKenTargetAction[s]=0u;
         }
     }
     // A failed DHC attempt must NEVER use up the whole match. Discard the
@@ -156,7 +162,7 @@ struct State {
             "\t%04X\t%04X\t%04X\t%04X\t%04X"
             "\t%02X\t%02X\t%02X\t%02X\t%04X\t%02X\t%04X"
             "\t%08X\t%08X\t%08X\t%04X\t%04X"
-            "\t%u\t%u\t%s\n",
+            "\t%u\t%u\t%s\t%u\t%u\t%u\t%u\t%u\n",
             now,side+1u,phaseName(phase[side]),
             rw(ram,p+0x52u),rw(ram,reserve+0x52u),
             rw(ram,p+0x60u),rw(ram,p+0xA0u),
@@ -166,7 +172,13 @@ struct State {
             rw(ram,p+0x4Eu),rb(ram,p+0xA4u),rw(ram,p+0x214u),
             rl(ram,p+0x34u),rl(ram,p+0x38u),
             rl(ram,p+0x224u),rw(ram,p+0x210u),rw(ram,reserve+0x210u),
-            rw(ram,p+0x0Cu),rw(ram,p+0x10u),decision);
+            rw(ram,p+0x0Cu),rw(ram,p+0x10u),decision,
+            unsigned(shoryureppaReady[side]),unsigned(shinryukenReady[side]),
+            unsigned(rw(ram,p+0x52u)==0x14u && rw(ram,p+0x60u)==0x2E00u &&
+                     rl(ram,p+0x34u)>=0xD6722u && rl(ram,p+0x34u)<0xD67A2u),
+            unsigned(rw(ram,p+0x52u)==0x14u && rw(ram,p+0x60u)==0x2E02u &&
+                     rl(ram,p+0x34u)>=0xD6976u && rl(ram,p+0x34u)<0xD69F6u),
+            unsigned(command[side]));
         std::fflush(log);
     }
     // 87.152: one-shot real CPS-2 controller stream. This is consumed
@@ -254,6 +266,14 @@ struct State {
                     blocked="BLOCK_MISSING_REAL_RYU_OUTGOING_TAG_SCRIPT";
                 if(!blocked && selectedAt==lastAcceptedAt[side])
                     blocked="BLOCK_SAME_INPUT_ALREADY_CONSUMED";
+                const auto rep=XM87142::resolve(rom,size,0x14u,0x2Eu,0x00u);
+                const auto ryu=XM87142::resolve(rom,size,0x14u,0x2Eu,0x02u);
+                shoryureppaReady[side]=rep.valid && rep.script==0xD6722u;
+                shinryukenReady[side]=ryu.valid && ryu.script==0xD6976u;
+                if(!blocked && entry->known->command==XM87143Queue::QCF_PP &&
+                   !shoryureppaReady[side])blocked="BLOCK_REPPA_2E00_ROM_UNRESOLVED";
+                if(!blocked && entry->known->command==XM87143Queue::QCF_KK &&
+                   !shinryukenReady[side])blocked="BLOCK_SHINRYUKEN_2E02_ROM_UNRESOLVED";
                 if(blocked){
                     if(firstCheck)event(now,side,ram,blocked);
                     // Never replay an old roster slot's super as Ken's
@@ -301,6 +321,8 @@ struct State {
                 started[side]=now;
                 lastAcceptedAt[side]=selectedAt;
                 event(now,side,ram,"DHC_NATIVE_TAG_CONTROLLER_08_ARMED");
+                event(now,side,ram,
+                      "DHC_DUAL_KEN_TARGETS_REPPA_2E00_D6722_SHINRYUKEN_2E02_D6976");
                 XM87143Queue::state().discard(side);
                 continue;
             }
