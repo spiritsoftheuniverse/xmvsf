@@ -132,3 +132,48 @@ Do not merge into main/Stable until native proof and gameplay tests exist.
 **Do not unfreeze just because the actor landed** or because a native super's
 regular portrait timer expired. A landing is necessary but not sufficient:
 the incoming super must still finish its startup within the DHC freeze.
+
+## 87.137 native capture integration — TEST branch
+
+The experimental branch now modifies the **live native CPS2 test source**
+\`dev/stable/buildtree/src/burn/drv/capcom/cps_run.cpp\` by adding one
+post-CPU, real-frame-only call into
+\`xmvsf_stage87_137_dhc_native_capture.h\`. The recorder is dormant when
+its TSV environment variable is absent; it never writes game RAM or ROM,
+consumes inputs, pauses, changes sprite composition, or spends meter.
+
+For a **branch-only TEST build** after safely switching/pulling source
+changes (do not overwrite uncommitted working files), run from a Windows
+Command Prompt:
+
+\`\`\`bat
+cd /d F:\xmvsf
+set "XM87137_DHC_CAPTURE_TSV=%TEMP%\xm87137_dhc.tsv"
+set "XM87137_DHC_CAPTURE_RAM=%TEMP%\xm87137_dhc.ram"
+BUILD_TEST.bat
+RUN_TEST.bat
+\`\`\`
+
+In a TEST session perform native tag entries and the normal point-character
+supers for the fighters being targeted. Run both move choices when a
+fighter has multiple supers, and allow each super to reach first active
+frame and finish. Capture P1 and P2 too if possible.
+
+The TSV records every real combat frame for each native point and reserve
+slot: accepted fighter ID, position, mode, animation, action, script
+pointers, existing hitbox IDs/gates, live CPS2 buttons, and meter.
+The companion binary captures native 0xFF4000–0xFF53FF RAM and
+the real input bits for deeper control-flow matching (no ROM distributed).
+Both are **opt-in** and capped at 18,000 combat frames, about 5 minutes at
+60fps. They do not establish universal super IDs by themselves.
+
+\`dev/dhc/tests/test_dhc_native_capture.cpp\` is a portable C++11
+unit test of the recorder's byte layout, fighter slots, action edges,
+phase gating, duplicate-frame suppression and binary record length.
+This test compiles without SDL, Windows or game ROMs.
+
+**Still missing for playable DHC:** a demonstrated reserve super input
+dispatch, native tag-to-super action swap, one-stock ROM debit, DHC-only
+native portrait-intro bypass + object suppression, isolated incoming-only
+animation stepping, and verified per-move first-active release. Do not
+mistake a successful capture for a working DHC. No changes to Stable.
