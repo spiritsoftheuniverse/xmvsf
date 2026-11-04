@@ -482,6 +482,24 @@ struct State {
                         abort(now,side,ram,"KEN_QUEUED_SUPER_ROM_LOOKUP_FAILED");
                         continue;
                     }
+                    // The original ROM's 2A08 script can move Ken a
+                    // few native units even with explicit velocity zero.
+                    // Re-anchor at the live opponent-relative location
+                    // at the precise DHC super handoff: face the target
+                    // and retain the verified actual floor.
+                    const unsigned liveFoe=rw(ram,0x4400u+0x0Cu);
+                    int finalPos=int(liveFoe)+
+                        (originalX[side]<opponentX[side]?-48:48);
+                    if(finalPos<192)finalPos=192;
+                    if(finalPos>768)finalPos=768;
+                    const unsigned current=rl(ram,p+0x0Cu);
+                    wl(ram,p+0x0Cu,
+                        (unsigned(finalPos)<<16u)|(current&65535u));
+                    ww(ram,p+0x10u,rw(ram,p+0x254u));
+                    wb(ram,p+0x4Bu,
+                        originalX[side]<opponentX[side]?1u:0u);
+                    wl(ram,p+0x14u,0u);wl(ram,p+0x18u,0u);
+                    wl(ram,p+0x1Cu,0u);wl(ram,p+0x20u,0u);
                     // True native Ken super-family handler owns next
                     // action. No fake first frame and no second tag kick.
                     wb(ram,p+0xD6u,
