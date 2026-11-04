@@ -1,5 +1,13 @@
 # XMVSF DHC — native implementation track (Stage 87.137)
 
+**CURRENT TEST IS 87.139 — F10 READ-ONLY DIAGNOSTICS.**
+[Use the Stage 87.139 diagnostic instructions](TEST_87_139_DIAGNOSTICS.md).
+Prior 87.138 tag-landing instructions below are historical and must **not**
+be enabled during ordinary tag or super testing. That experimental hook
+changed point-fighter X/facing on a *normal tag* and is removed from the
+current native frame and painter paths. No playable DHC is connected yet.
+
+
 Status: **DHC decision layer introduced; gameplay transition not connected yet.** This branch does not change the working build or Stable.
 
 ## Requested gameplay
