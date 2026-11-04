@@ -5,6 +5,7 @@
 // Run module
 #include "burner.h"
 #include "xmvsf_stage87_164_host_replay.h" // must precede native reload and Training menu handlers
+#include "xmvsf_stage87_55_rule_mode.h" // restore recorded Tournament/Classic host selection
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -244,6 +245,8 @@ static int RunFrame(int bDraw, int bPause)
         host.dizzy=xm23State.dizzyAllowed?1:0;
         host.frameData=xm23State.frameData.enabled?1:0;
         host.stage=xm77StageChoice;
+        host.stageResolved=xm77StageResolved;
+        host.tournament=XM8755Mode::tournament()?1:0;
         const XM8764::FrameResult hostReplay=XM8764::beforeFrame(host);
         if(hostReplay==XM8764::DIVERGED ||
            hostReplay==XM8764::END_GAME)return 0;
@@ -260,9 +263,14 @@ static int RunFrame(int bDraw, int bPause)
                 xm23State.dizzyAllowed=h.dizzy!=0;
                 xm23State.frameData.enabled=h.frameData!=0;
                 xm77StageChoice=h.stage;
+                xm77StageResolved=h.stageResolved;
+                if(XM8755Mode::tournament()!=(h.tournament!=0)){
+                    XM8755Mode::tournament()=h.tournament!=0;
+                    XM8755Mode::Apply();
+                }
                 rec.hostChanged=false;
             }
-            XM87162ReplaySync::publish(rec.frames-1u);
+            XM87162ReplaySync::publish(rec.allFrames-1u); // monotonic across saved-state resets
         }else{
             XM8761::afterInput(); // original F9 native v1 path
         }
@@ -574,7 +582,7 @@ int RunInit()
     // the normal synchronous RunFrame CPU path with no audio throttle.
     if(XM8764::isPlayback()){
         std::fprintf(stderr,
-            "XM87.164 V2_PLAYBACK_INIT skip boot snapshots/audio; native checkpoint owns state\\n");
+            "XM87.164 V2_PLAYBACK_INIT skip boot snapshots/audio; native checkpoint owns state\n");
         std::fflush(stderr);
         RunReset();
         XM8764::gameBegin(xm24VersusMode?2:xm14TrainingMode?1:0);
