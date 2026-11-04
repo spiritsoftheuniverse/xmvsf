@@ -412,6 +412,8 @@ static inline void xm23OnRealFrame(int ready) {
             const unsigned base=0xFF4000u+(unsigned)p*0x400u;
             actor[p].valid=xm23::r8(c,base)!=0;
             actor[p].action=xm23::r8(c,base+0xA0);
+            actor[p].nativeAction=xm23::r16(c,base+0x60);
+            actor[p].mode=xm23::r16(c,base+0xA0); // controller; independent of jump/directions
         }
         xm23State.frameData.onFrame(sample[0],sample[1],actor[0],actor[1]);
     }
