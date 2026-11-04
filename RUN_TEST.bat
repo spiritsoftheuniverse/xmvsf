@@ -4,9 +4,9 @@ for %%I in ("%~dp0.") do set "PROJECT=%%~fI"
 set "MSYSTEM=UCRT64"
 set "PATH=C:\msys64\ucrt64\bin;C:\msys64\usr\bin;%PATH%"
 set "XMVSF_PROJECT=%PROJECT%"
-set "EXE=%PROJECT%\runtime\stable\XMVSF_Test_87_153.exe"
+set "EXE=%PROJECT%\runtime\stable\XMVSF_Test_87_154.exe"
 if not exist "%EXE%" (
-  echo ERROR: Stage 87.153 TEST executable is missing.
+  echo ERROR: Stage 87.154 TEST executable is missing.
   echo Run BUILD_TEST.bat first. Will NOT fall back to 87.132.4 or Stable.
   goto :fail
 )
@@ -17,8 +17,8 @@ if not exist "%PROJECT%\FBNeo" (
 REM 87.139 isolation: disable the old 87.138 normal-tag mutation.
 set "XM87138_TAG_LAND_TEST=0"
 set "XM8761_DISABLE_RUNAHEAD=1"
-set "XM87139_PROBE_DIR=%PROJECT%\test\87.153"
-set "XM87140_CHAT_DIR=%PROJECT%\test\87.153"
+set "XM87139_PROBE_DIR=%PROJECT%\test\87.154"
+set "XM87140_CHAT_DIR=%PROJECT%\test\87.154"
 if not exist "%XM87139_PROBE_DIR%" mkdir "%XM87139_PROBE_DIR%"
 if not exist "%XM87139_PROBE_DIR%" (
   echo ERROR: Cannot create diagnostic output directory.
@@ -44,9 +44,11 @@ set "XM8795_NATIVE_HIT_TEST=1"
 set "XM8796_DIZZY_HANDOFF_TEST=1"
 set "XM8799_GROUND_DEFENSE_TEST=1"
 set "XM87149_TOURNAMENT_AUDIT=%XM87140_CHAT_DIR%\tournament_rules.tsv"
-echo XMVSF Stage 87.153 TEST - Training options persistence, original DHC native input experiment unchanged
+echo XMVSF Stage 87.154 TEST - Frame Data ATTACK DURATION now ends on native ROM action exit
 echo Executable: %EXE%
 echo Training menu options persist in FBNeo\config\games\xmvsfu_training_options.cfg
+echo FRAME DATA: ATTACK DURATION ends on native action exit - directions, jumps, and height do not extend it.
+echo Verified modes: normal 28xx, special 2Cxx, and multi-step super 2Exx.
 echo Saved: hitboxes, display, meter, dizzy, damage mode, two dummy HPs, player select, frame data.
 echo Super-candidate inputs print to Warcraft-style chat and fade after 3 sec.
 echo Shift+G opens/closes the full chat history.
@@ -71,7 +73,7 @@ pushd "%PROJECT%\FBNeo" || goto :fail
 set "RC=%ERRORLEVEL%"
 popd
 echo.
-echo Stage 87.153 TEST exit code: %RC%
+echo Stage 87.154 TEST exit code: %RC%
 echo Probe directory: %XM87139_PROBE_DIR%
 pause
 exit /b %RC%
