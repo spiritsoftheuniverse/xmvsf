@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
-# Stage 87.160 experimental TEST builder. Called ONLY by root BUILD_TEST.bat.
+# Stage 87.161 experimental TEST builder. Called ONLY by root BUILD_TEST.bat.
 # Build the CURRENT local source in place using the warm FBNeo object cache.
 # Never touch Stable executable, Stable manifests, user source, or old TEST binaries.
 set -euo pipefail
 PROJECT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 TREE="$PROJECT/dev/stable/buildtree"
-DEST="$PROJECT/runtime/stable/XMVSF_Test_87_160.exe"
-PENDING="$PROJECT/runtime/stable/.XMVSF_Test_87_160_pending.exe"
+DEST="$PROJECT/runtime/stable/XMVSF_Test_87_161.exe"
+PENDING="$PROJECT/runtime/stable/.XMVSF_Test_87_161_pending.exe"
 
 if [[ ! -f "$TREE/makefile.sdl2" || ! -f "$TREE/src/burn/drv/capcom/xmvsf_stage87_144_native_handoff.h" ]]; then
-  echo "ERROR: Current Stage 87.160 source was not pulled into $TREE" >&2
+  echo "ERROR: Current Stage 87.161 source was not pulled into $TREE" >&2
   exit 2
 fi
 if [[ ! -f "$TREE/src/burn/drv/capcom/cps_run.cpp" ||
@@ -24,7 +24,7 @@ fi
 
 # Preserve warm cache and anything already built on failures. Never run make clean.
 cd "$TREE"
-echo "XMVSF Stage 87.160 TEST: incremental build; preserving cached objects"
+echo "XMVSF Stage 87.161 TEST: incremental build; preserving cached objects"
 echo "Dependencies: GNU Make + persistent obj/**/*.d header dependency files"
 # The FBNeo makefile already runs a two-pass dependency-aware build:
 #   MAKELEVEL=1 generates missing/stale .d files and builds changed objects;
@@ -32,7 +32,7 @@ echo "Dependencies: GNU Make + persistent obj/**/*.d header dependency files"
 # DEPEND=1 stays enabled so changing a stage header recompiles ONLY the
 # translation units that actually include it. The .d and .o caches survive
 # between TEST sessions, including across launcher invocations.
-# Earlier 87.153-87.160 launchers passed five unconditional -W source
+# Earlier 87.153-87.161 launchers passed five unconditional -W source
 # overrides. -W pretended the same five .cpp files were always newer,
 # forcing redundant compilation even when nothing had changed. Do not use
 # -W or clean here. Missing objects and changed C/C++ headers are handled
@@ -55,7 +55,7 @@ if [[ -z "$BUILT" ]]; then
   exit 2
 fi
 
-# The original 87.160 source retired the forced-animation marker
+# The original 87.161 source retired the forced-animation marker
 # DHC_APPROVED_ROM_OUTGOING_ACTION in favor of the *native* controller-8
 # handoff. Never require strings no longer present in compiled source.
 # Emit the exact missing marker to the console, rather than reporting a
@@ -110,7 +110,7 @@ required_markers=(
 )
 for marker in "${required_markers[@]}"; do
   if ! grep -aFq "$marker" "$BUILT"; then
-    echo "ERROR: TEST executable is missing compiled 87.160 marker: $marker" >&2
+    echo "ERROR: TEST executable is missing compiled 87.161 marker: $marker" >&2
     echo "Built file: $BUILT" >&2
     echo "Existing TEST and Stable binaries are preserved." >&2
     exit 2
@@ -118,7 +118,7 @@ for marker in "${required_markers[@]}"; do
 done
 mkdir -p "$PROJECT/runtime/stable"
 # Only publish after the linked executable passed checks; replace the
-# dedicated 87.160 TEST binary, never XMVSF_Stable.exe.
+# dedicated 87.161 TEST binary, never XMVSF_Stable.exe.
 # cp exits nonzero on failure (set -e); Bash -s checks copied content
 # exists and is nonempty. Do not depend on an uninstalled 'cmp' binary.
 cp -p "$BUILT" "$PENDING"
@@ -128,4 +128,4 @@ if [[ ! -s "$PENDING" ]]; then
 fi
 mv -f "$PENDING" "$DEST"
 echo "TEST BUILD READY: $DEST"
-echo "Stage 87.160: restored 87.151 Ryu native tag timer28 and kickless Ken entry. Verified Ken super inputs; existing warm-cache and Stable preserved."
+echo "Stage 87.161: restored 87.151 Ryu native tag timer28 and kickless Ken entry. Verified Ken super inputs; existing warm-cache and Stable preserved."
