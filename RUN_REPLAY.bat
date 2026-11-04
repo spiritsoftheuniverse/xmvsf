@@ -99,6 +99,11 @@ echo Movie input: "%MOVIE%"
 echo Full-state anchor: "%STATE%"
 echo Native replay results: "%TRACE%"
 echo Replay status log: "%XM8761_REPLAY_STATUS_LOG%"
+echo LEGACY INPUT-ONLY PLAYBACK: NO HOST MENU OR RESET JOURNAL IN F9 V1.
+echo WARNING: Full 87.161 multi-character movie CANNOT be replayed faithfully.
+echo The custom boot menu, Training menu changes and host savestate
+echo reloads were never recorded. PLAY_END means input EOF only.
+echo See dev\dhc\REPLAY_V2_HOST_TRANSITIONS.md for the real replay contract.
 echo Starting ROM xmvsfu DIRECTLY in recorded Training mode - no menu.
 echo Replay begins with the recorded save-state and first input frame.
 echo No new DHC move mappings are enabled by this launcher.
