@@ -20,6 +20,7 @@
 #include "../../../burner/sdl/xmvsf_stage87_140_super_chat.h" // XM87.140 native super-input chat (no writes)
 #include "xmvsf_stage87_142_rom_dispatch.h" // 87.142 pure native script table+tag observer
 #include "xmvsf_stage87_144_native_handoff.h" // opt-in DHC-only native action transaction TEST
+#include "xmvsf_stage87_160_super_discovery.h" // read-only roster-wide native 2E ROM/script and input discovery
 #include "xmvsf_stage87_119_cyclops_recovery_probe.h" // XM87.119 read-only recovery state trace
 #include "xmvsf_stage87_121_cyclops_release.h" // XM87.121 restore recorded airborne state after throw // XM87.100 native Training-only KO suppression
 extern int xm14TrainingMode; // native SDL Training mode selection
@@ -751,6 +752,17 @@ INT32 Cps2Frame()
             xm87140_p1_dir,xm87140_p2_dir,
             xm8786_p1_buttons,xm8786_p2_buttons,
             romReport.verifiedSuperMask);
+        // Autonomous ROM inventory. No newly enumerated 2E action is
+        // permitted to enter the DHC runtime until its command, owner and
+        // exact native script are independently verified.
+        // The one-shot TEST input injection is marked as synthetic; it
+        // must NOT contaminate physical controller-command discovery.
+        XM87160::state().frame(
+            CpsRamFF,CpsRom,(unsigned)nCpsRomLen,(unsigned)GetCurrentFrame(),
+            dhcInput.active?dhcInput.directions:xm87140_p1_dir,
+            xm87140_p2_dir,
+            dhcInput.active?dhcInput.attacks:xm8786_p1_buttons,
+            xm8786_p2_buttons,dhcInput.active);
         for(unsigned i=0;i<romReport.count;++i){
             const XM87142::Event& e=romReport.event[i];
             char note[XM87140Chat::CHAT_LENGTH];
