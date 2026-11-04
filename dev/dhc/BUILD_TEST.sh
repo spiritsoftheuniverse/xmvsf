@@ -24,19 +24,21 @@ fi
 
 # Preserve warm cache and anything already built on failures. Never run make clean.
 cd "$TREE"
-echo "XMVSF Stage 87.156 TEST: compiling current local buildtree with warm cache"
-# This FBNeo makefile is a two-pass build: MAKELEVEL=1 compiles objects,
-# and the nested make (level 2) links fbneo. The old invocation could report
-# 'Nothing to be done' without checking newly pulled DHC source reliably.
-# Treat ONLY the four changed translation units as newer for this TEST.
-# -W does not alter source timestamps, files or the existing object cache.
-MAKELEVEL=1 make -f makefile.sdl2 LSB_FIRST=1 INCLUDE_7Z_SUPPORT=1 \
-  -j"${XMVSF_BUILD_JOBS:-12}" \
-  -W src/burn/drv/capcom/cps_run.cpp \
-  -W src/burner/sdl/main.cpp \
-  -W src/burner/sdl/run.cpp \
-  -W src/intf/input/sdl/inp_sdl2.cpp \
-  -W src/intf/video/sdl/vid_sdl2.cpp all
+echo "XMVSF Stage 87.156 TEST: incremental build; preserving cached objects"
+echo "Dependencies: GNU Make + persistent obj/**/*.d header dependency files"
+# The FBNeo makefile already runs a two-pass dependency-aware build:
+#   MAKELEVEL=1 generates missing/stale .d files and builds changed objects;
+#   MAKELEVEL=2 includes those .d files, checks transitive headers and links.
+# DEPEND=1 stays enabled so changing a stage header recompiles ONLY the
+# translation units that actually include it. The .d and .o caches survive
+# between TEST sessions, including across launcher invocations.
+# Earlier 87.153-87.156 launchers passed five unconditional -W source
+# overrides. -W pretended the same five .cpp files were always newer,
+# forcing redundant compilation even when nothing had changed. Do not use
+# -W or clean here. Missing objects and changed C/C++ headers are handled
+# by Make's normal dependency graph.
+MAKELEVEL=1 make -f makefile.sdl2 LSB_FIRST=1 INCLUDE_7Z_SUPPORT=1 DEPEND=1 \
+  -j"${XMVSF_BUILD_JOBS:-12}" all
 
 BUILT=""
 for exe in "$TREE/fbneo.exe" "$TREE/fbneo"; do
