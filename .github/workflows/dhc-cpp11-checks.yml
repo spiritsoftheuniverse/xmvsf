@@ -5,6 +5,11 @@ on:
       - 'dev/dhc/**'
       - 'BUILD_TEST.bat'
       - 'RUN_TEST.bat'
+      - 'RUN_REPLAY.bat'
+      - 'REPLAY.md'
+      - 'dev/stable/buildtree/src/burner/sdl/main.cpp'
+      - 'dev/stable/buildtree/src/burner/sdl/run.cpp'
+      - 'dev/stable/buildtree/src/burner/sdl/xmvsf_stage87_61_replay.h'
       - 'dev/stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_13*'
       - 'dev/stable/buildtree/src/intf/input/sdl/xmvsf_stage87_137*'
   push:
@@ -58,7 +63,7 @@ jobs:
           assert segment[-1].strip().endswith('all'), segment
           PY
           grep -Fq 'BUILD_TEST.sh' BUILD_TEST.bat
-          grep -Fq 'XMVSF_Test_87_162.exe' RUN_TEST.bat
+          grep -Fq 'XMVSF_Test_87_163.exe' RUN_TEST.bat
           grep -Fq 'XM87139_PROBE_DIR' RUN_TEST.bat
           grep -Fq 'XM87140_CHAT_LOG' RUN_TEST.bat
           grep -Fq 'xm87140ChatOverlay(sdlRenderer);' dev/stable/buildtree/src/intf/video/sdl/vid_sdl2.cpp
@@ -74,7 +79,28 @@ jobs:
           test -f dev/dhc/tests/test_dhc_rom_catalog_160.cpp
           grep -Fq 'XM8761_REPLAY_DIR=' RUN_TEST.bat
           grep -Fq 'XM8761_REPLAY_MODE=off' RUN_TEST.bat
-          grep -Fq 'XMVSF_Test_87_162.exe' RUN_REPLAY.bat
+          grep -Fq 'XMVSF_Test_87_163.exe' RUN_REPLAY.bat
+          # The replay launcher is a permanent first-class root entry point.
+          # Never let point-version bumps strand it on a stale TEST executable.
+          test -f RUN_REPLAY.bat
+          test -f REPLAY.md
+          test -f dev/dhc/tests/test_dhc_replay_runner_163.cpp
+          test_exe="$(grep -oE 'XMVSF_Test_87_[0-9]+\.exe' RUN_TEST.bat | head -1)"
+          replay_exe="$(grep -oE 'XMVSF_Test_87_[0-9]+\.exe' RUN_REPLAY.bat | head -1)"
+          builder_exe="$(grep -oE 'XMVSF_Test_87_[0-9]+\.exe' dev/dhc/BUILD_TEST.sh | head -1)"
+          if [[ -z "$test_exe" || "$test_exe" != "$replay_exe" ||
+                "$test_exe" != "$builder_exe" ]]; then
+            echo "ERROR: RUN_REPLAY.bat must target the current TEST executable ($test_exe), not a stale build" >&2
+            exit 1
+          fi
+          grep -Fq '"%EXE%" xmvsfu -joy' RUN_REPLAY.bat
+          grep -Fq 'XM8761_REPLAY_HOST_MODE=training' RUN_REPLAY.bat
+          grep -Fq 'XM8761_REPLAY_STATUS_LOG=' RUN_REPLAY.bat
+          grep -Fq 'XM87.163 REPLAY_DIRECT_BOOT' dev/stable/buildtree/src/burner/sdl/main.cpp
+          grep -Fq 'XM8761_REPLAY_MODE' dev/stable/buildtree/src/burner/sdl/main.cpp
+          grep -Fq 'PLAY_READY: native state loaded' dev/stable/buildtree/src/burner/sdl/xmvsf_stage87_61_replay.h
+          grep -Fq 'PLAY_PROGRESS' dev/stable/buildtree/src/burner/sdl/xmvsf_stage87_61_replay.h
+          grep -Fq 'XMVSF REPLAY COMPLETE' dev/stable/buildtree/src/burner/sdl/run.cpp
           grep -Fq 'XM8761_REPLAY_MODE=play' RUN_REPLAY.bat
           grep -Fq 'XM8761_REPLAY_INPUT_FILE' RUN_REPLAY.bat
           grep -Fq 'XM8761_REPLAY_STATE_FILE' RUN_REPLAY.bat
@@ -117,7 +143,7 @@ jobs:
             exit 1
           fi
           grep -Fq 'required_markers=(' dev/dhc/BUILD_TEST.sh
-          grep -Fq 'TEST executable is missing compiled 87.162 marker' dev/dhc/BUILD_TEST.sh
+          grep -Fq 'TEST executable is missing compiled 87.163 marker' dev/dhc/BUILD_TEST.sh
           grep -Fq 'DHC_NATIVE_TAG_CONTROLLER_08_ARMED' dev/stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_144_native_handoff.h
           grep -Fq 'NATIVE_CONTROLLER_ACCEPTED_OUTGOING_3200' dev/stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_144_native_handoff.h
           grep -Fq 'NATIVE_TAG_CONTROLLER_REJECTED_12F' dev/stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_144_native_handoff.h
