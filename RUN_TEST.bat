@@ -4,9 +4,9 @@ for %%I in ("%~dp0.") do set "PROJECT=%%~fI"
 set "MSYSTEM=UCRT64"
 set "PATH=C:\msys64\ucrt64\bin;C:\msys64\usr\bin;%PATH%"
 set "XMVSF_PROJECT=%PROJECT%"
-set "EXE=%PROJECT%\runtime\stable\XMVSF_Test_87_148.exe"
+set "EXE=%PROJECT%\runtime\stable\XMVSF_Test_87_149.exe"
 if not exist "%EXE%" (
-  echo ERROR: Stage 87.148 TEST executable is missing.
+  echo ERROR: Stage 87.149 TEST executable is missing.
   echo Run BUILD_TEST.bat first. Will NOT fall back to 87.132.4 or Stable.
   goto :fail
 )
@@ -17,8 +17,8 @@ if not exist "%PROJECT%\FBNeo" (
 REM 87.139 isolation: disable the old 87.138 normal-tag mutation.
 set "XM87138_TAG_LAND_TEST=0"
 set "XM8761_DISABLE_RUNAHEAD=1"
-set "XM87139_PROBE_DIR=%PROJECT%\test\87.148"
-set "XM87140_CHAT_DIR=%PROJECT%\test\87.148"
+set "XM87139_PROBE_DIR=%PROJECT%\test\87.149"
+set "XM87140_CHAT_DIR=%PROJECT%\test\87.149"
 if not exist "%XM87139_PROBE_DIR%" mkdir "%XM87139_PROBE_DIR%"
 if not exist "%XM87139_PROBE_DIR%" (
   echo ERROR: Cannot create diagnostic output directory.
@@ -42,7 +42,7 @@ set "XM8795_NATIVE_HIT_TEST=1"
 set "XM8796_DIZZY_HANDOFF_TEST=1"
 set "XM8799_GROUND_DEFENSE_TEST=1"
 set "XM87149_TOURNAMENT_AUDIT=%XM87140_CHAT_DIR%\tournament_rules.tsv"
-echo XMVSF Stage 87.148 TEST - opt-in DHC native ROM tag scheduler D6=14 and outgoing exit TEST
+echo XMVSF Stage 87.149 TEST - DHC kickless Ken native exit D6=12 plus active Tournament rules TEST
 echo Executable: %EXE%
 echo Super-candidate inputs print to Warcraft-style chat and fade after 3 sec.
 echo Shift+G opens/closes the full chat history.
@@ -52,7 +52,8 @@ echo Super chat transcript: %XM87140_CHAT_LOG%
 echo ROM script/role events: %XM87142_ROM_TRACE%
 echo Prepared queue events and selections: %XM87140_CHAT_LOG%
 echo DHC native step-by-step transaction: %XM87144_DHC_LOG%
-echo Outgoing Ryu tag scheduler +D6 and exit flag are traced. Charge streaks retained.
+echo Ken incoming kick -> non-attack exit -> native queued super: D6=10,12,0A/0C.
+echo Ryu tag-out and super-charge streaks retained.
 echo Failed DHC attempts unlock: enter another command to retry.
 echo EXPERIMENT: Ryu-to-Ken only. Normal tags unchanged. Stable untouched.
 echo Active Tournament rules audit: %XM87149_TOURNAMENT_AUDIT%
@@ -63,7 +64,7 @@ pushd "%PROJECT%\FBNeo" || goto :fail
 set "RC=%ERRORLEVEL%"
 popd
 echo.
-echo Stage 87.148 TEST exit code: %RC%
+echo Stage 87.149 TEST exit code: %RC%
 echo Probe directory: %XM87139_PROBE_DIR%
 pause
 exit /b %RC%
