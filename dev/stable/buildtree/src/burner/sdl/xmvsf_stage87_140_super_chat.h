@@ -129,6 +129,9 @@ struct State {
     unsigned lastMsgFrame=0, chatMessages=0, lastPlayerMask[2]={0,0};
     unsigned lastDirectionMask[2]={0,0};
     unsigned lastAttackFrame[2]={~0u,~0u},lastMoveFrame[2]={~0u,~0u};
+    unsigned lastNamedMatchFrame[2]={~0u,~0u};
+    const ListedSuper* lastNamedMatch[2]={nullptr,nullptr};
+    unsigned lastReserveMatchId[2]={0u,0u};
     bool open=false,ready[2]={false,false},candidate[2]={false,false};
     unsigned oldA0[2]={0,0},oldStock[2]={0,0},openAt[2]={0,0};
     unsigned lastCharacter[2]={0,0};
@@ -225,8 +228,17 @@ struct State {
             // their own ROM script mapping has been captured and verified.
             const bool mappedNative= fighter==0x12u || fighter==0x14u;
             const bool nativeStart=(nativeSuperScriptMask&(1u<<side))!=0u;
-            if(!candidate[side] && (mappedNative?nativeStart:(actionEdge||meterDebit))){
+            const bool openedNow=!candidate[side] && (mappedNative?nativeStart:(actionEdge||meterDebit));
+            if(openedNow){
                 candidate[side]=true;openAt[side]=frame;
+                // The first-super dispatch may occur while an old motion or
+                // attack chord is still buffered. A DHC command must begin
+                // AFTER this super has actually started, not on the same
+                // ROM entry frame. The 87.142 capture caught this at 2964.
+                keys[side].clear();
+                lastAttackFrame[side]=~0u;lastMoveFrame[side]=~0u;
+                lastNamedMatchFrame[side]=~0u;
+                lastNamedMatch[side]=nullptr;
                 char m[CHAT_LENGTH];
                 std::snprintf(m,sizeof(m),"P%u FIRST SUPER? point=%02X a0=%02X meter %u>%u",
                     side+1u,fighter,a0,oldStock[side],stock);
@@ -252,7 +264,7 @@ struct State {
             const unsigned pressed=buttons[side] & ~lastPlayerMask[side];
             const unsigned rawD=directions[side];
             const bool directionEdge=rawD!=lastDirectionMask[side];
-            if(candidate[side]){
+            if(candidate[side] && !openedNow){
                 if(directionEdge){
                     char text[CHAT_LENGTH];
                     const bool facingRight=(b(ram,point+0x4Bu)&1u)!=0u; // 87.142 trace verified: 1=RIGHT
@@ -283,11 +295,22 @@ struct State {
                                           facingRight,frame,buttons[side]);
                     char text[CHAT_LENGTH];
                     if(found && lastMoveFrame[side]!=lastAttackFrame[side]){
-                        std::snprintf(text,sizeof(text),
-                            "P%u RESERVE %02X MATCH %s (%s+%s) [INPUT ONLY]",
-                            side+1u,bench,found->name,
-                            found->back?"QCB":"QCF",found->kicks?"KK":"PP");
-                        log(frame,MATCH,text);
+                        // Pressing the third kick a frame after LP+MP/ LK+MK
+                        // is still one chord (frame 4674 and 4675 in trace).
+                        const bool repeat=lastNamedMatch[side]==found &&
+                            lastNamedMatchFrame[side]!=~0u &&
+                            frame>=lastNamedMatchFrame[side] &&
+                            frame-lastNamedMatchFrame[side]<12u;
+                        if(!repeat){
+                            std::snprintf(text,sizeof(text),
+                                "P%u RESERVE %02X MATCH %s (%s+%s) [INPUT ONLY]",
+                                side+1u,bench,found->name,
+                                found->back?"QCB":"QCF",found->kicks?"KK":"PP");
+                            log(frame,MATCH,text);
+                            lastNamedMatch[side]=found;
+                            lastNamedMatchFrame[side]=frame;
+                            lastReserveMatchId[side]=bench;
+                        }
                         lastMoveFrame[side]=lastAttackFrame[side];
                     }else if(pressed && !found){
                         const char* got=motion(keys[side],facingRight,frame);
