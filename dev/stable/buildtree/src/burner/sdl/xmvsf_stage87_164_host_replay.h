@@ -202,12 +202,12 @@ inline int recordingFrames(){
     return c.allFrames<2147483600u?int(c.allFrames)+1:2147483600;
 }
 // 1=recording, 2=success notice, -1=failed notice, 0=off.
-inline int visualStatus(){
+inline int visualStatus(bool advance=true){
     initialize();Context& c=context();
     if(c.mode==RECORD)return 1;
     if(c.mode==FAILED)return -1;
     if(c.noticeFrames>0u){
-        --c.noticeFrames;
+        if(advance)--c.noticeFrames;
         return c.lastSaved?2:-1;
     }
     return 0;
