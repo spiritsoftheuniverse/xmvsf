@@ -331,6 +331,17 @@ static inline void xm23OnRealFrame(int ready) {
     const bool live=xm23::r8(c,0xFF5000)==0x08 && xm23::r32(c,0xFFA014)==0x00FF4000;
     xm23State.combat=live;
     if(!live) {xm23State.menuOpen=false;xm23State.count=0;xm23State.frameData.clear();c->close();return;}
+    if(xm23State.restoreSavedPlayerSelect){
+        // XM17 must complete the actual P1/P2 team selection first. This is
+        // the first live combat frame, so now restore the user's Training
+        // PLAYER SELECT option without corrupting the selection handoff.
+        xm14InputTarget=(int)xm23State.savedPlayerSelect;
+        xm23State.restoreSavedPlayerSelect=false;
+        if(xm14InputTarget!=0)xm25BeginInputHandoff();
+        std::fprintf(stderr,
+            "XM87.153 TRAINING_PLAYER_SELECT_RESTORED P%d after native select\n",
+            xm14InputTarget+1);
+    }
     xm23State.frameData.beginCombat();
     const bool p1Anchor=xm23::r8(c,0xff4220)!=0, p2Anchor=xm23::r8(c,0xff4620)!=0;
     xm23State.health[0]=xm23::r8(c,p1Anchor?0xff4a11:0xff4211);
