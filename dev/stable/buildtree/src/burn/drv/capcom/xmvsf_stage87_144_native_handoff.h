@@ -557,10 +557,14 @@ struct State {
                 // Do NOT overwrite D6, A0, or any 2E script here.
                 // Ken must finish native 2A08, return to normal input
                 // control, and execute his own native motion/chord.
+                // Recorded natural Ken supers (87.151(1) 2456/2624)
+                // began from 0002/A0=020E, not only from action 0000.
+                const unsigned kenMode=rw(ram,p+0xA0u)&0xFF00u;
+                const bool actionable=
+                    (kenAction==0x0000u && kenMode==0u) ||
+                    (kenAction==0x0002u && kenMode==0x0200u);
                 const bool neutral=kenExitObserved[side] &&
-                   kenAction==0x0000u &&
-                   ((rw(ram,p+0xA0u)&0xFF00u)==0u) &&
-                   now>kenExitAt[side]+2u;
+                   actionable && now>kenExitAt[side]+2u;
                 if(neutral){
                     if(!kenNeutralAt[side])kenNeutralAt[side]=now;
                     if(now>=kenNeutralAt[side]+2u){
@@ -583,7 +587,7 @@ struct State {
                     }
                 }else kenNeutralAt[side]=0u;
                 if(phase[side]==WAIT_KEN_EXIT &&
-                   now>kenExitAt[side]+140u)
+                   now>kenExitAt[side]+180u)
                     abort(now,side,ram,"KEN_NATIVE_2A08_NEUTRAL_TIMEOUT");
                 continue;
             }
@@ -607,7 +611,25 @@ struct State {
                      rw(ram,p+0xA0u)==0x2A28u) &&
                     script>=original && script-original<0x80u &&
                     ((script-original)&15u)==0u;
-                if(actualNativeSuper){
+                // Watch BOTH Ken super addresses concurrently; a valid
+                // *other* super is not successful selected DHC execution.
+                const bool nativeMode=
+                    rw(ram,p+0xA0u)==0x2A02u ||
+                    rw(ram,p+0xA0u)==0x2A28u;
+                const bool repObserved=nativeMode && act==0x2E00u &&
+                    script>=0xD6722u && script-0xD6722u<0x80u;
+                const bool shinObserved=nativeMode && act==0x2E02u &&
+                    script>=0xD6976u && script-0xD6976u<0x80u;
+                if((repObserved||shinObserved) &&
+                   lastKenTargetAction[side]!=act){
+                    lastKenTargetAction[side]=act;
+                    event(now,side,ram,repObserved?
+                          "DHC_KEN_REPPA_2E00_ROM_SEEN":
+                          "DHC_KEN_SHINRYUKEN_2E02_ROM_SEEN");
+                }
+                if((repObserved||shinObserved) && !actualNativeSuper){
+                    abort(now,side,ram,"DHC_WRONG_KEN_NATIVE_SUPER_TARGET_UNLOCKED");
+                }else if(actualNativeSuper){
                     phase[side]=SUPER_STARTED;
                     kenSuperConfirmed[side]=true;
                     chainUsed[side]=true;
