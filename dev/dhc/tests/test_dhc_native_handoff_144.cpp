@@ -109,51 +109,47 @@ int main(){
     ww(ram.data(),0x4010u,430u);
     s.frame(ram.data(),rom.data(),unsigned(rom.size()),115u,1u);
     assert(s.phase[0]==WAIT_LANDING);
-    // 87.149: cancel Ken's 2A0C ATTACK BEFORE 2A0E tag kick.
-    // Incoming native +D6=10 owns action 2A0C, so a bare 2C04
-    // animation write was undone by the ROM on the next frame.
+    // 87.150: at y=430 (42 units ABOVE floor) the old 8-pixel
+    // proximity trigger never fired. Immediately suppress Ken's
+    // native incoming attack (D6=10/2A0C) after ROM fighter swap.
     ww(ram.data(),0x4060u,0x2A0Cu);
-    ww(ram.data(),0x4010u,467u); // 5 native units above floor 472
+    ww(ram.data(),0x4010u,430u); // intentionally nowhere near landing
+    ww(ram.data(),0x4070u,0x51u); // 2A0C native kick hitbox active
     wb(ram.data(),0x40A4u,4u);
     s.frame(ram.data(),rom.data(),unsigned(rom.size()),116u,1u);
     assert(s.phase[0]==WAIT_KEN_EXIT);
-    assert(rb(ram.data(),0x40D6u)==0x12u); // Ken real exit handler
-    assert(rb(ram.data(),0x40A4u)==0u); // tag kick disabled
-    assert(rw(ram.data(),0x4060u)==0x2A0Cu); // no fake super yet
+    assert(rb(ram.data(),0x40D6u)==0x12u); // Ken native exit handler
+    assert(rb(ram.data(),0x40A4u)==0u); // kick latch disabled
+    assert(rw(ram.data(),0x4060u)==0x2A08u); // first-frame suppression
+    assert(rl(ram.data(),0x4034u)==0xD567Eu); // ORIGINAL ROM exit script
+    assert(rw(ram.data(),0x4070u)==0u); // no native attack box
+    assert(rw(ram.data(),0x4008u)==2u); // native tag-exit animation step
     assert(rw(ram.data(),0x4010u)==472u);
-    assert(rw(ram.data(),0x400Cu)==552u); // opponent X600 - 48
+    assert(rw(ram.data(),0x400Cu)==552u); // opponent X600-48
     assert(rb(ram.data(),0x404Bu)==1u);
     assert(rw(ram.data(),0x440Cu)==600u); // P2 never touched
-    // Simulate the 68000 native +D6=12 handler from PC 035EFA:
-    // it selects Ken's nonattacking 2A08 exit, not second tag kick.
-    assert(setNativeScript(ram.data(),rom.data(),unsigned(rom.size()),
-                           0x4000u,0x14u,0x2Au,0x08u));
-    ww(ram.data(),0x4008u,2u);
+    assert(rw(ram.data(),0x4214u)==3u); // no additional stock debit yet
+    // The next real native ROM frame retains nonattacking 2A08.
+    // No second tag kick may be treated as a valid exit.
     s.frame(ram.data(),rom.data(),unsigned(rom.size()),117u,1u);
     assert(s.phase[0]==WAIT_KEN_EXIT);
     assert(s.kenExitObserved[0]);
-    for(unsigned t=118u;t<124u;++t)
-        s.frame(ram.data(),rom.data(),unsigned(rom.size()),t,1u);
-    // Eight elapsed frames alone are NOT an exit. The 68000's native
-    // animation completion flag or a real neutral action must decide.
-    assert(s.phase[0]==WAIT_KEN_EXIT);
-    wb(ram.data(),0x403Cu,1u); // ROM 2A08 animation completion flag
-    s.frame(ram.data(),rom.data(),unsigned(rom.size()),124u,1u);
+    s.frame(ram.data(),rom.data(),unsigned(rom.size()),118u,1u);
+    // DHC directly cancels the verified non-attacking exit into
+    // the queued Ken native super; no 67-frame natural 2A08 wait.
     assert(s.phase[0]==SUPER_STARTED);
-    assert(rb(ram.data(),0x40D6u)==0x0Au); // actual Ken 2C super handler
+    assert(rb(ram.data(),0x40D6u)==0x0Au); // Ken 2C ROM handler
     assert(rw(ram.data(),0x40A0u)==0x2A28u);
     assert(rw(ram.data(),0x4008u)==0u);
     assert(rb(ram.data(),0x4259u)==0u);
-    assert(rw(ram.data(),0x4214u)==3u); // meter still not implemented
-    // The ROM itself now owns Shoryureppa dispatch. Starting its native
-    // state should select an action in the 2Cxx family, not re-kick.
-    ww(ram.data(),0x4060u,0x2C32u);
-    s.frame(ram.data(),rom.data(),unsigned(rom.size()),125u,1u);
+    assert(rw(ram.data(),0x4214u)==3u);
+    ww(ram.data(),0x4060u,0x2C32u); // ROM selects queued super
+    s.frame(ram.data(),rom.data(),unsigned(rom.size()),119u,1u);
     assert(s.phase[0]==SUPER_STARTED);
     assert(s.chainUsed[0] && s.kenSuperConfirmed[0]);
-    assert(XM87143Queue::state().select(0u,0x12u,XM87143Queue::QCF_PP,126u));
+    assert(XM87143Queue::state().select(0u,0x12u,XM87143Queue::QCF_PP,120u));
     const auto after=ram;
-    s.frame(ram.data(),rom.data(),unsigned(rom.size()),126u,1u);
+    s.frame(ram.data(),rom.data(),unsigned(rom.size()),120u,1u);
     assert(ram==after);
     // Different round resets only bookkeeping, not fighters or ROM memory.
     wb(ram.data(),0x5000u,0u);
