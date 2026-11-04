@@ -41,9 +41,10 @@ echo "Dependencies: GNU Make + persistent obj/**/*.d header dependency files"
 # Filter only the specifically requested "-winwrite" WARNING line from
 # the batch console. Real compiler errors and other warnings are preserved.
 # No make clean, forced rebuild or source timestamp changes.
+(
 MAKELEVEL=1 make -f makefile.sdl2 LSB_FIRST=1 INCLUDE_7Z_SUPPORT=1 DEPEND=1 \
-  -j"${XMVSF_BUILD_JOBS:-12}" all 2>&1 | \
-  awk '{ line=tolower($0); if(index(line,"warning") && index(line,"-winwrite")) next; print; fflush(); }'
+  -j"${XMVSF_BUILD_JOBS:-12}" all
+) 2>&1 | awk '{ line=tolower($0); if(index(line,"warning") && index(line,"-winwrite")) next; print; fflush(); }'
 
 BUILT=""
 for exe in "$TREE/fbneo.exe" "$TREE/fbneo"; do
