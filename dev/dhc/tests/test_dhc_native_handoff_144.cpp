@@ -53,6 +53,7 @@ int main(){
     ww(ram.data(),0x4000u+0x10u,472u);
     ww(ram.data(),0x4000u+0x60u,0x2E08u);
     ww(ram.data(),0x4000u+0xA0u,0x2A28u);
+    wb(ram.data(),0x40D6u,0x0Au); // real outgoing Ryu super controller
     ww(ram.data(),0x4214u,3u);
     const auto& q=XM87143Queue::state();
     (void)q;
@@ -73,6 +74,7 @@ int main(){
     ww(ram.data(),0x40A0u,0x2A02u);
     s.frame(ram.data(),rom.data(),unsigned(rom.size()),102u,1u);
     assert(s.phase[0]==WAIT_TAG_CONTROLLER);
+    assert(s.shoryureppaReady[0] && s.shinryukenReady[0]);
     assert(rw(ram.data(),0x4060u)==0x2E08u); // no scripted sprite hijack
     assert(rw(ram.data(),0x40A0u)==0x002Au); // real pre-tag: ROM 033762 will produce 2A00
     assert(rb(ram.data(),0x4256u)==0x08u);
@@ -214,6 +216,7 @@ int main(){
     ww(r2.data(),0x4452u,0x20u);ww(r2.data(),0x4C52u,0x22u);
     ww(r2.data(),0x4060u,0x2E08u);
     ww(r2.data(),0x40A0u,0x2A28u);
+    wb(r2.data(),0x40D6u,0x0Au);
     assert(XM87143Queue::state().prepare(r2.data(),rom.data(),
         unsigned(rom.size()),400u));
     State trial;
@@ -252,6 +255,20 @@ int main(){
         XM87143Queue::QCF_PP,436u));
     trial.frame(r2.data(),rom.data(),unsigned(rom.size()),436u,1u);
     assert(trial.phase[0]==WAIT_TAG_CONTROLLER);
+    // 87.152 real capture: command 08 consumed, but 68000 dispatched
+    // Ryu 2C04 instead of 3200. Any rollback onto this action can reset
+    // all fighters. Our observer MUST abort without touching any RAM.
+    wb(r2.data(),0x4256u,0u);
+    wb(r2.data(),0x4259u,8u);
+    wb(r2.data(),0x40D6u,0u);
+    ww(r2.data(),0x40A0u,0x2A00u);
+    ww(r2.data(),0x4060u,0x2C04u);
+    ww(r2.data(),0x4008u,2u);
+    const auto wrongControllerAction=r2;
+    trial.frame(r2.data(),rom.data(),unsigned(rom.size()),437u,1u);
+    assert(trial.phase[0]==IDLE && !trial.chainUsed[0]);
+    assert(r2==wrongControllerAction); // no stale 2A28 / step rollback
+    assert(XM87143Queue::state().selected[0]==nullptr);
     // Never reuse a Ryu QCF+PP command as Ken's similarly shaped QCF+PP.
     // The input queue's command owner must equal the actual reserve ID.
     XM87143Queue::state().reset();
