@@ -30,10 +30,10 @@ echo "XMVSF Stage 87.138 TEST: compiling current local buildtree with warm cache
 # 'Nothing to be done' without checking newly pulled DHC source reliably.
 # Treat ONLY the three modified translation units as newer for this TEST.
 # -W does not alter source timestamps, files or the existing object cache.
-MAKELEVEL=1 make -f makefile.sdl2 LSB_FIRST=1 INCLUDE_7Z_SUPPORT=1 \\
-  -j"${XMVSF_BUILD_JOBS:-12}" \\
-  -W src/burn/drv/capcom/cps_run.cpp \\
-  -W src/intf/input/sdl/inp_sdl2.cpp \\
+MAKELEVEL=1 make -f makefile.sdl2 LSB_FIRST=1 INCLUDE_7Z_SUPPORT=1 \
+  -j"${XMVSF_BUILD_JOBS:-12}" \
+  -W src/burn/drv/capcom/cps_run.cpp \
+  -W src/intf/input/sdl/inp_sdl2.cpp \
   -W src/intf/video/sdl/vid_sdl2.cpp all
 
 BUILT=""
