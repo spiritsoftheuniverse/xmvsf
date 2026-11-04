@@ -71,7 +71,7 @@ jobs:
           grep -Fq 'KEN_ENTRY_ATTACK_REASSERTED_AFTER_CANCEL' dev/stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_144_native_handoff.h
           grep -Fq 'DHC_KEN_NATIVE_QCF_INPUT_BEGIN' dev/stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_144_native_handoff.h
           grep -Fq 'dhcInput.active' dev/stable/buildtree/src/burn/drv/capcom/cps_run.cpp
-          grep -Fq '2E02' dev/stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_143_super_queue.h
+          grep -Fq '0xD6976u' dev/stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_143_super_queue.h
           grep -Fq 'TOURNAMENT_RULES_INCOMPLETE' dev/stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_149_tournament_rules_audit.h
           grep -Fq 'XM87149Rules::state().frame' dev/stable/buildtree/src/burn/drv/capcom/cps_run.cpp
           grep -Fq 'if(loaded()){Apply();return;}' dev/stable/buildtree/src/burner/sdl/xmvsf_stage87_55_rule_mode.h
@@ -88,8 +88,14 @@ jobs:
           grep -Fq 'REFERENCE_REAL_ROM_NORMAL_TAG' dev/stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_144_native_handoff.h
           grep -Fq 'DHC_NATIVE_TAG_CONTROLLER_08_ARMED' dev/stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_144_native_handoff.h
           grep -Fq 'NATIVE_TAG_CONTROLLER_REJECTED_12F' dev/stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_144_native_handoff.h
-          if grep -Fq 'rw(ram,p+0xA0u)!=0x2A02u' dev/stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_144_native_handoff.h; then
-            echo 'ERROR: 87.144 wrong 2A02 native state guard returned' >&2
+          # 87.152 accepts BOTH native 2A02 and 2A28 observed on actual
+          # Ryu supers, but never forces either mode for incoming Ken.
+          grep -Fq 'rw(ram,p+0xA0u)!=0x2A28u' dev/stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_144_native_handoff.h
+          grep -Fq 'rw(ram,p+0xA0u)!=0x2A02u' dev/stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_144_native_handoff.h
+          grep -Fq 'inputForFrame' dev/stable/buildtree/src/burn/drv/capcom/cps_run.cpp
+          grep -Fq 'nativeD6' dev/stable/buildtree/src/burner/sdl/xmvsf_stage87_139_probe.h
+          if grep -Fq 'KEN_NATIVE_SUPER_OPENING_SCRIPT_PRIMED' dev/stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_144_native_handoff.h; then
+            echo 'ERROR: isolated Ken 2C sprite injection returned' >&2
             exit 1
           fi
           grep -Fq 'XM87142_ROM_TRACE' RUN_TEST.bat
