@@ -31,6 +31,7 @@ int main(){
     sw(ram.data(),0x400Eu,0xBEEFu); // retain fractional X after relocation
     test.frame(ram.data(),101u,"xmvsfu",false);
     assert(test.swaps==1 && test.positioned==1);
+    assert(test.dimStage()); // darkened scene only while native arrival airborne
     assert(w(ram.data(),0x400Cu)==452u);
     assert(w(ram.data(),0x400Eu)==0xBEEFu);
     assert((b(ram.data(),0x404Bu)&1u)==0u); // faces opponent to the right
@@ -38,7 +39,11 @@ int main(){
     assert(w(ram.data(),0x4000u+0x52u)==0x22u); // identity intact
     test.frame(ram.data(),101u,"xmvsfu",false);
     assert(test.swaps==1); // no duplicate frame
-    test.frame(ram.data(),102u,"xmvsfu",true);
+    // Native landing ends scene dimming without a guessed fixed timer.
+    sw(ram.data(),0x4010u,472u);
+    test.frame(ram.data(),102u,"xmvsfu",false);
+    assert(!test.dimStage());
+        test.frame(ram.data(),102u,"xmvsfu",true);
     assert(test.swaps==1); // speculative pass inert
 
     // Swap occurring on or after native ground height must never teleport.
@@ -48,6 +53,7 @@ int main(){
     grounded.frame(ram.data(),201u,"xmvsfu",false);
     assert(grounded.swaps==1 && grounded.positioned==0);
     assert(w(ram.data(),0x400Cu)==330u);
+    assert(!grounded.dimStage());
 
     // Disabled experiment leaves normal native tags untouched.
     setup(ram);State disabled;disabled.initialized=true;disabled.enabled=false;
