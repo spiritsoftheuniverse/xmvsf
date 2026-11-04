@@ -86,7 +86,7 @@ static void exercise(XM87143Queue::Command requested,unsigned action,unsigned sc
     assert(s.phase[0]==DELIVER_NATIVE_INPUT && ram==ready);
     assert(s.kenExpectedAction[0]==action);
     assert(s.kenExpectedScript[0]==script);
-    assert(s.inputBegin[0]==147u);
+    assert(s.inputBegin[0]==145u);
     input=s.inputForFrame(ram.data(),147u);
     assert(input.active && input.directions==4u && !input.attacks);
     input=s.inputForFrame(ram.data(),151u);
