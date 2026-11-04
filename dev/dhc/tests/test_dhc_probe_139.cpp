@@ -56,5 +56,19 @@ int main(){
  assert(nativeText.find("script34")!=std::string::npos);
  assert(oamText.find("palette")!=std::string::npos);
  assert(oamText.find("\t6\t8\t")!=std::string::npos);
+ assert(nativeText.find("# F10_START armed")!=std::string::npos);
+ assert(nativeText.find("# F10_STOP native_frames=2")!=std::string::npos);
+ assert(oamText.find("# F10_START armed")!=std::string::npos);
+ // The user must get a tangible file even if F10 is used outside combat.
+ XM87139Probe::State idle;
+ assert(idle.toggle(true)&&idle.active);
+ const std::string emptyPath=idle.tracePath;
+ assert(idle.toggle(true)&&!idle.active);
+ std::ifstream blank(emptyPath.c_str());
+ assert(blank.good());
+ const std::string blankText((std::istreambuf_iterator<char>(blank)),
+                              std::istreambuf_iterator<char>());
+ assert(blankText.find("# F10_START armed")!=std::string::npos);
+ assert(blankText.find("NO_COMBAT_FRAMES_SEEN")!=std::string::npos);
  return 0;
 }
