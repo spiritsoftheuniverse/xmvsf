@@ -1,5 +1,7 @@
 # XMVSF DHC — native implementation track (Stage 87.137)
 
+**CURRENT TEST: Stage 87.145** — fixed the silent 87.144 handoff reject using captured native +A0=2A28 state; corrected the outgoing vs incoming tag modes and added per-frame native scheduler/partner logs. [See 87.145 capture analysis and TEST instructions](NATIVE_HANDOFF_TEST_87_145.md). Still opt-in Ryu→Ken and not fully playable/verified; historical 87.144 notes below are superseded. Stable remains untouched.
+
 **CURRENT TEST Stage 87.144 — opt-in first native Ryu→Ken DHC action attempt.** It tests a real ROM-resolved outgoing action, waits for a true native fighter swap and attempts Ken's queued super instead of tag kick on grounded landing. This is gameplay-affecting but not yet fully playable/verified; no meter/freeze/portrait bypass. See [NATIVE_HANDOFF_TEST_87_144.md](NATIVE_HANDOFF_TEST_87_144.md). Stage 87.143 queue-only and earlier procedures below are historical. Stable remains untouched.
 
 **CURRENT EXPERIMENTAL TEST: Stage 87.143.** [Native match-start super queues and handoff plan](QUEUE_AND_HANDOFF_87_143.md). Ryu/Ken queue selection is now retained for future native dispatch; the actual tag-out, kickless arrival and super execution are NOT wired yet. Stable is unchanged.
