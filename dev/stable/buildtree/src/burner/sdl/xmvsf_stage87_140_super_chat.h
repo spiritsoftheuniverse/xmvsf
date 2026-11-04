@@ -28,7 +28,8 @@ static inline unsigned relative(std::uint8_t raw,bool faceRight) {
     if(d&&f)return 3u; if(d&&back)return 1u;
     if(d)return 2u;if(f)return 6u;if(back)return 4u;
     if(u&&f)return 9u;if(u&&back)return 7u;
-    if(u)return 8u;return 5u; // number-pad notation
+    if(u)return 8u;
+    return 5u; // number-pad notation
 }
 static inline const char* dirName(unsigned n){
     switch(n){case 1:return "DB";case 2:return "D";case 3:return "DF";
@@ -67,7 +68,8 @@ static inline bool sequence(const XM87137Input::History& h,bool right,
         if(!h.at(ago,x)||x.frame>now)continue;
         if(now-x.frame>window)break;
         const unsigned dir=relative(x.direction,right);
-        if(dir==last)continue;last=dir;
+        if(dir==last)continue;
+        last=dir;
         if(dir==required[need-1u]){
             if(need==length && now-x.frame>7u)return false;
             if(need<length && prior-x.frame>12u)return false;
