@@ -10,3 +10,7 @@
 # Local-only decrypted CPS2 program/data bytes for ROM command study.
 # Never upload or commit ROM exports; these are generated on the user's PC.
 /local_rom_dump/
+
+# Local TEST compiler/linker transcripts. Keep potentially large machine
+# diagnostics private; users can attach BUILD_TEST.log when a build fails.
+/test/build_logs/
