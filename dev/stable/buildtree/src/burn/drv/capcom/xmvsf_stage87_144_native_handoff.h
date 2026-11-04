@@ -241,7 +241,7 @@ struct State {
                 lastAcceptedAt[side]=selectedAt;
                 event(now,side,ram,"DHC_NATIVE_TAG_CONTROLLER_08_ARMED");
                 event(now,side,ram,
-                      "DHC_DUAL_KEN_TARGETS_REPPA_2E00_D6722_SHINRYUKEN_2E02_D6976");
+                      "DHC_KEN_ALTERNATE_ROM_SUPERS_REPPA_2E00_D6722_SHINRYUKEN_2E02_D6976");
     }
     // 87.152: one-shot real CPS-2 controller stream. This is consumed
     // BEFORE CpsRwGetInp in the next real emulation frame, then the host
@@ -368,10 +368,13 @@ struct State {
                 opponentX[side]=rw(ram,0x4400u+0x0Cu);
                 command[side]=entry->known->command;
                 outgoing[side]=pointId;incoming[side]=reserveId;
-                // Keep BOTH verified Ken targets staged, but do not start
-                // Ryu's native tag controller until the same late-super
-                // timer window that worked at 87.150 frame 2302 (+4E=8).
-                // The too-early 87.152 trial at +4E=13 selected 2C04.
+                // 87.158 restore the *actual* 87.151 Ken-Hadoken route.
+                // 87.151 armed controller 8 at 1857 (+4E=28), ROM 3200
+                // at 1858, Ken point swap at 1872, kickless 2A08 at
+                // 1873 and Hadoken 2C00 at 1875. Stalling to timer<=8 in
+                // 87.157 failed: it never reached Ken (user capture).
+                // Do not replace these genuine observations with a
+                // guessed late-super or variable-combination command.
                 const unsigned remaining=rw(ram,p+0x4Eu);
                 lastAcceptedAt[side]=selectedAt;
                 lastKenTargetAction[side]=0u;
@@ -392,11 +395,19 @@ struct State {
                         "DHC_BLOCK_RYU_SUPER_TIMER_OR_CONTROLLER_INVALID");
                     continue;
                 }
-                if(remaining>8u){
+                const unsigned verifiedWindow=earlyCancel?0x1Cu:8u;
+                if(remaining>verifiedWindow){
                     phase[side]=WAIT_RYU_SUPER_END;
                     started[side]=now;
-                    event(now,side,ram,"DHC_WAIT_RYU_SUPER_TIMER_08");
-                }else armOutgoingTag(ram,now,side,selectedAt);
+                    event(now,side,ram,earlyCancel?
+                          "DHC_158_WAIT_RYU_TIMER_28_KEN_HADOKEN_BASELINE":
+                          "DHC_WAIT_RYU_SUPER_TIMER_08");
+                }else{
+                    armOutgoingTag(ram,now,side,selectedAt);
+                    if(earlyCancel)
+                        event(now,side,ram,
+                              "DHC_158_RESTORED_151_KEN_ARRIVAL_HANDOFF");
+                }
                 continue;
             }
             if(phase[side]==WAIT_RYU_SUPER_END){
@@ -419,8 +430,8 @@ struct State {
                     continue;
                 }
                 const unsigned left=rw(ram,p+0x4Eu);
-                // All checks are observational until the verified +4E<=8
-                // window. Failure leaves native fighter state untouched.
+                // No mutation while waiting for the historically verified
+                // 87.151 +4E=28 early entry or a separate legacy window.
                 if(pointId!=outgoing[side] ||
                    reserveId!=incoming[side] ||
                    rw(ram,p+0x60u)!=0x2E08u ||
@@ -429,9 +440,14 @@ struct State {
                    rb(ram,p+0xD6u)!=0x0Au ||
                    left==0u || now>started[side]+52u){
                     abort(now,side,ram,"DHC_RYU_SUPER_LEFT_SAFE_WINDOW");
-                }else if(left<=8u){
-                    event(now,side,ram,"DHC_LATE_SUPER_TIMER_WINDOW_ACCEPTED");
+                }else if(left<=(earlyCancel?0x1Cu:8u)){
+                    event(now,side,ram,earlyCancel?
+                          "DHC_158_RYU_TIMER_28_151_ACCEPTED":
+                          "DHC_LATE_SUPER_TIMER_WINDOW_ACCEPTED");
                     armOutgoingTag(ram,now,side,lastAcceptedAt[side]);
+                    if(earlyCancel)
+                        event(now,side,ram,
+                              "DHC_158_RESTORED_151_KEN_ARRIVAL_HANDOFF");
                 }
                 continue;
             }
@@ -465,10 +481,13 @@ struct State {
                     controllerAcceptedAt[side]=now;
                     event(now,side,ram,"NATIVE_CONTROLLER_ACCEPTED_OUTGOING_3200");
                 }else if(rw(ram,p+0xA0u)==0x2A00u &&
-                         rb(ram,p+0x256u)==0u &&
-                         rb(ram,p+0x259u)==0x08u &&
-                         rb(ram,p+0xD6u)==capturedD6[side] &&
-                         rw(ram,p+0x60u)==0x2E08u){
+                          rb(ram,p+0x256u)==0u &&
+                          rw(ram,p+0x60u)==0x2E08u &&
+                          // Exact 87.151 acceptance for the active
+                          // early-cancel route, without invented guards.
+                          (earlyCancel ||
+                           (rb(ram,p+0x259u)==0x08u &&
+                            rb(ram,p+0xD6u)==capturedD6[side]))){
                     // 87.146 real recording: controller 8 WAS executed by
                     // 68000 at 1778/2365/2756; A0 switched to 2A00 and
                     // controller 256 was consumed (08->00), but +60 stayed
