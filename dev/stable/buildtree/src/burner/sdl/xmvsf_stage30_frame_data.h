@@ -53,9 +53,35 @@ struct XM32MotionHistory {
         return XM32_NORMAL;
     }
 };
-// Stage 41: passive samples of the fighter's action state, NOT a decoded
-// command-acceptance bit. 0x28 -> neutral (0x00/0x02) is an estimate only.
-struct XM41ActorSample {bool valid=false; unsigned action=0;};
+// Stage 87.154: observe ROM command ownership, not a player's ground state.
+// Neither direction inputs nor character height are used for attack termination.
+struct XM41ActorSample {
+    bool valid=false;
+    unsigned action=0;          // legacy +A0 high byte (diagnostic only)
+    unsigned nativeAction=0;    // full native fighter action +60
+    unsigned mode=0;            // full native action controller +A0
+};
+// Native action-family classification from recorded ROM traces:
+// A0=28xx: normal punches/kicks; A0=2Axx + action=2Cxx: specials;
+// A0=2Axx + action=2Exx: supers (including their internal 2E substeps).
+// Movement, jumping, landing, blocking and idle are NOT attack families.
+static inline unsigned xm30NativeAttackFamily(const XM41ActorSample& a){
+    if(!a.valid)return 0u;
+    const unsigned mode=(a.mode>>8u)&255u;
+    if(mode==0x28u)return 0x28u;
+    if(mode==0x2Au){
+        const unsigned family=(a.nativeAction>>8u)&255u;
+        if(family==0x2Cu || family==0x2Eu)return family;
+    }
+    return 0u;
+}
+static inline bool xm30SameNativeAttack(const XM41ActorSample& a,
+                                       unsigned family,unsigned firstAction){
+    if(xm30NativeAttackFamily(a)!=family)return false;
+    // Normal +60 action changes identify a new punch/kick in a sequence.
+    // A super's 2E00->2E02->2E10 transitions belong to ONE super.
+    return family!=0x28u || a.nativeAction==firstAction;
+}
 struct XM30Event {
     int player=0, startup=0, active=0, code=0, x=0, y=0, motion=XM32_NORMAL;
     unsigned long long inputFrame=0,spawnFrame=0,firstFrame=0,endFrame=0;
@@ -69,9 +95,12 @@ struct XM30Event {
     unsigned long long motionBits[16]={}; // exact movement-edge frames, up to 1024f
     bool motionOverflow=false;
     bool positionKnown=false;
-    bool lockObserved=false, lockPending=false, neutralEstimate=false;
-    bool recoveryUnresolved=false; // no validated idle transition; never grow forever
-    unsigned long long neutralFrame=0; // return to neutral-state proxy, not proven actionable
+    // Action duration is separate from the hitbox and projectile clocks.
+    // Start at the first observed real ROM attack action, end on the first
+    // different action/controller family, independent of input or height.
+    bool attackObserved=false,attackEnded=false;
+    unsigned attackFamily=0,attackAction=0;
+    unsigned long long attackStartFrame=0,attackLastFrame=0,attackEndFrame=0;
 };
 struct XM30Float {
     bool visible=false;
@@ -101,15 +130,17 @@ struct XM30Track {
     unsigned long long pendingMotionBits[16]={};
     bool pendingMotionOverflow=false;
     bool pendingPositionKnown=false;
-    unsigned long long lockInputFrame=0,lockNeutralFrame=0;
-    int lockPhase=0,lockNeutralStreak=0,lockEventIndex=-1;
+    // A not-yet-matched input keeps its own first observed attack action.
+    // Existing events retain independent ROM-state tracking after new presses.
+    unsigned pendingAttackFamily=0,pendingAttackAction=0;
+    unsigned long long pendingAttackStart=0,pendingAttackLast=0,pendingAttackEnd=0;
     int previousProjectileCount=0;
     unsigned previousProjectileBases[12]={};
     int previousActiveCount=0;
     unsigned previousActiveBases[12]={};
 };
 struct XM30FrameData {
-    static const int HISTORY=24, FLOATS=8, MAX_WAIT=120, FLOAT_LIFE=120, MAX_IDLE_WAIT=150;
+    static const int HISTORY=24, FLOATS=8, MAX_WAIT=120, FLOAT_LIFE=120;
     bool enabled=false;
     bool inCombat=false;
     unsigned long long frame=0;
@@ -144,18 +175,10 @@ struct XM30FrameData {
         t.pending=(long long)frame;
         t.pendingSpawnBase=0;
         t.pendingSpawnFrame=0;
-        // A newer attack does not keep the earlier card's lower timeline live.
-        // It remains UNKNOWN unless a neutral-state transition was observed.
-        if(t.lockEventIndex>=0 && t.lockEventIndex<count){
-            XM30Event& old=history[t.lockEventIndex];
-            if(old.lockPending && !old.neutralEstimate){
-                old.lockPending=false;old.recoveryUnresolved=true;
-            }
-        }
-        // New candidate owns its own action-state observation. An earlier
-        // unresolved candidate is left unknown, not silently completed.
-        t.lockPhase=1;t.lockNeutralStreak=0;t.lockNeutralFrame=0;
-        t.lockInputFrame=frame;t.lockEventIndex=-1;
+        // A new button edge only starts the next candidate. It NEVER ends an
+        // earlier attack: each existing card stops on native ROM action exit.
+        t.pendingAttackFamily=t.pendingAttackAction=0u;
+        t.pendingAttackStart=t.pendingAttackLast=t.pendingAttackEnd=0u;
         t.pendingFirstMotion=0;t.pendingLastMotion=0;t.pendingMoveFrames=0;
         t.pendingPositionKnown=false;t.pendingMotionOverflow=false;
         for(int word=0;word<16;++word)t.pendingMotionBits[word]=0;
@@ -172,11 +195,7 @@ struct XM30FrameData {
                 if(idx==0)idx=-1;
                 else if(idx>0)--idx;
             }
-            for(int p=0;p<2;++p){
-                if(track[p].lockEventIndex==0)track[p].lockEventIndex=-1;
-                else if(track[p].lockEventIndex>0)--track[p].lockEventIndex;
-            }
-        }
+         }
         return count++;
     }
     void onFrame(const XM30Sample& p1,const XM30Sample& p2,
@@ -193,26 +212,37 @@ struct XM30FrameData {
         for(int p=0;p<2;++p){
             XM30Track& t=track[p];
             const XM30Hit hits[2]={samples[p].melee,samples[p].projectile};
-            // Observe recovery independently of projectile lifetime. Treat the
-            // transition to a neutral state as a PROXY, never a proven ability
-            // to accept inputs or cancel; wait for two successive neutral frames.
-            if(actors[p].valid && t.lockPhase==1 && actors[p].action==0x28)
-                t.lockPhase=2;
-            if(actors[p].valid && t.lockPhase==2){
-                if(actors[p].action==0x00 || actors[p].action==0x02){
-                    if(++t.lockNeutralStreak>=2){
-                        t.lockPhase=3;t.lockNeutralFrame=frame-1;
-                    }
-                }else t.lockNeutralStreak=0;
+            // Record native action tenure without consulting current direction,
+            // held buttons, Y-position, jumping, or the later idle stance.
+            const unsigned family=xm30NativeAttackFamily(actors[p]);
+            for(int i=0;i<count;++i){
+                XM30Event& e=history[i];
+                if(e.player!=p || !e.attackObserved || e.attackEnded)continue;
+                if(xm30SameNativeAttack(actors[p],e.attackFamily,e.attackAction))
+                    e.attackLastFrame=frame;
+                else {
+                    // First nonmatching ROM frame is already the NEXT action.
+                    // Last matching frame is the exact inclusive end frame.
+                    e.attackEndFrame=e.attackLastFrame;
+                    e.attackEnded=true;
+                }
             }
-            if(t.lockPhase==2 && frame-t.lockInputFrame>=MAX_IDLE_WAIT)
-                t.lockPhase=4; // bounded observation, NOT a guessed idle frame
-            if(t.lockEventIndex>=0 && t.lockEventIndex<count){
-                XM30Event& e=history[t.lockEventIndex];
-                e.lockObserved=t.lockPhase>=2;
-                e.lockPending=t.lockPhase==2;
-                if(t.lockPhase==3){e.neutralEstimate=true;e.neutralFrame=t.lockNeutralFrame;}
-                if(t.lockPhase==4)e.recoveryUnresolved=true;
+            // Capture the action associated with the pending input before its
+            // hitbox may appear. If it already exited, save its end; never
+            // rearm from unrelated walking/jumping/another special later.
+            if(t.pending>=0 && frame>=(unsigned long long)t.pending &&
+               frame-(unsigned long long)t.pending<=MAX_WAIT){
+                if(!t.pendingAttackFamily && family){
+                    t.pendingAttackFamily=family;
+                    t.pendingAttackAction=actors[p].nativeAction;
+                    t.pendingAttackStart=t.pendingAttackLast=frame;
+                }else if(t.pendingAttackFamily && !t.pendingAttackEnd){
+                    if(xm30SameNativeAttack(actors[p],t.pendingAttackFamily,
+                                            t.pendingAttackAction))
+                        t.pendingAttackLast=frame;
+                    else
+                        t.pendingAttackEnd=t.pendingAttackLast;
+                }
             }
             // Every projectile record is advanced by ITS OWN linked object.
             // An unrelated live projectile, or a held direction/button, cannot
@@ -310,9 +340,13 @@ struct XM30FrameData {
                     const int idx=appendEvent();
                     XM30Event& e=history[idx];e=XM30Event{};
                     e.player=p;e.startup=(int)age;e.active=1;
-                    e.lockObserved=t.lockPhase>=2;e.lockPending=t.lockPhase==2;
-                    if(t.lockPhase==3){e.neutralEstimate=true;e.neutralFrame=t.lockNeutralFrame;}
-                    t.lockEventIndex=idx;
+                    e.attackObserved=t.pendingAttackFamily!=0u;
+                    e.attackFamily=t.pendingAttackFamily;
+                    e.attackAction=t.pendingAttackAction;
+                    e.attackStartFrame=t.pendingAttackStart;
+                    e.attackLastFrame=t.pendingAttackLast;
+                    e.attackEndFrame=t.pendingAttackEnd;
+                    e.attackEnded=t.pendingAttackEnd!=0u;
                     e.inputFrame=(unsigned long long)t.pending;
                     e.source=source;
                     if(source==1 && t.pendingSpawnBase &&
@@ -355,9 +389,13 @@ struct XM30FrameData {
                 const int idx=appendEvent();
                 XM30Event& e=history[idx];e=XM30Event{};
                 e.player=p;e.code=t.code;e.motion=t.motion;e.noBox=true;
-                e.lockObserved=t.lockPhase>=2;e.lockPending=t.lockPhase==2;
-                if(t.lockPhase==3){e.neutralEstimate=true;e.neutralFrame=t.lockNeutralFrame;}
-                t.lockEventIndex=idx;
+                e.attackObserved=t.pendingAttackFamily!=0u;
+                e.attackFamily=t.pendingAttackFamily;
+                e.attackAction=t.pendingAttackAction;
+                e.attackStartFrame=t.pendingAttackStart;
+                e.attackLastFrame=t.pendingAttackLast;
+                e.attackEndFrame=t.pendingAttackEnd;
+                e.attackEnded=t.pendingAttackEnd!=0u;
                 e.inputFrame=(unsigned long long)t.pending;
                 e.endFrame=frame;e.closed=true;
                 t.pending=-1;
