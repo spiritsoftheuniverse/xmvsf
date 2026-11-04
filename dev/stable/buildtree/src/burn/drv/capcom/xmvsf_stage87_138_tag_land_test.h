@@ -66,7 +66,7 @@ struct State {
             if(jumping[side] && (now.id!=jumpId[side] || now.y>=472u))
                 jumping[side]=false;
             const bool valid=idOk(now.id)&&idOk(bench.id)&&idOk(foe.id) &&
-                now.id!=bench.id && now.activity && foe.activity;
+                now.id!=bench.id && foe.activity;
             if(seeded[side] && valid &&
                previousPoint[side].id==bench.id &&
                previousReserve[side].id==now.id &&
@@ -80,7 +80,7 @@ struct State {
                 const bool xValid=now.x>=192u && now.x<=768u &&
                                   foe.x>=192u && foe.x<=768u;
                 const char* decision="REFUSED";
-                if(bounds && airborne && xValid){
+                if(bounds && airborne && xValid && now.activity){
                     target=requested;
                     sw(r,point+0x0Cu,unsigned(target)); // preserve fractional 16-bit X
                     const unsigned oldFacing=b(r,point+0x4Bu);
@@ -88,7 +88,8 @@ struct State {
                     ++positioned;
                     jumping[side]=true;jumpId[side]=now.id;
                     decision="POSITIONED_IN_NATIVE_TAG_JUMP";
-                }else if(!airborne)decision="TAG_SWAP_AT_OR_AFTER_LANDING";
+                }else if(!now.activity)decision="TAG_SWAPPED_BUT_INCOMING_INACTIVE";
+                else if(!airborne)decision="TAG_SWAP_AT_OR_AFTER_LANDING";
                 else if(!bounds)decision="TARGET_OUT_OF_STAGE05_BOUNDS";
                 else decision="UNTRUSTED_ACTOR_POSITION";
                 if(log){
