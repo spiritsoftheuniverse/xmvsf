@@ -136,9 +136,9 @@ the incoming super must still finish its startup within the DHC freeze.
 ## 87.137 native capture integration — TEST branch
 
 The experimental branch now modifies the **live native CPS2 test source**
-\`dev/stable/buildtree/src/burn/drv/capcom/cps_run.cpp\` by adding one
+`dev/stable/buildtree/src/burn/drv/capcom/cps_run.cpp` by adding one
 post-CPU, real-frame-only call into
-\`xmvsf_stage87_137_dhc_native_capture.h\`. The recorder is dormant when
+`xmvsf_stage87_137_dhc_native_capture.h`. The recorder is dormant when
 its TSV environment variable is absent; it never writes game RAM or ROM,
 consumes inputs, pauses, changes sprite composition, or spends meter.
 
@@ -146,13 +146,13 @@ For a **branch-only TEST build** after safely switching/pulling source
 changes (do not overwrite uncommitted working files), run from a Windows
 Command Prompt:
 
-\`\`\`bat
+```bat
 cd /d F:\xmvsf
 set "XM87137_DHC_CAPTURE_TSV=%TEMP%\xm87137_dhc.tsv"
 set "XM87137_DHC_CAPTURE_RAM=%TEMP%\xm87137_dhc.ram"
 BUILD_TEST.bat
 RUN_TEST.bat
-\`\`\`
+```
 
 In a TEST session perform native tag entries and the normal point-character
 supers for the fighters being targeted. Run both move choices when a
@@ -167,7 +167,7 @@ the real input bits for deeper control-flow matching (no ROM distributed).
 Both are **opt-in** and capped at 18,000 combat frames, about 5 minutes at
 60fps. They do not establish universal super IDs by themselves.
 
-\`dev/dhc/tests/test_dhc_native_capture.cpp\` is a portable C++11
+`dev/dhc/tests/test_dhc_native_capture.cpp` is a portable C++11
 unit test of the recorder's byte layout, fighter slots, action edges,
 phase gating, duplicate-frame suppression and binary record length.
 This test compiles without SDL, Windows or game ROMs.
@@ -177,3 +177,27 @@ dispatch, native tag-to-super action swap, one-stock ROM debit, DHC-only
 native portrait-intro bypass + object suppression, isolated incoming-only
 animation stepping, and verified per-move first-active release. Do not
 mistake a successful capture for a working DHC. No changes to Stable.
+
+## 87.137 reserve command queue — source connected
+
+The live SDL mapped-input path now stores a 48-frame ring for P1 and P2
+containing forwarded left/right/up/down, six attack buttons and new-press edges.
+The existing game input delivery is unchanged. It exports the data through
+`xm87137ReadMappedInput()` for the eventual CPS2 native DHC dispatcher.
+
+`dev/dhc/xmvsf_stage87_137_dhc_command_queue.h` implements a **pure**,
+facing-relative motion matcher and a per-side, once-per-super command latch.
+It supports quarter-circle, dragon-punch, half-circle and double quarter-circle
+patterns, plus exact/two-punch/two-kick/three-button requirements. The registry
+starts EMPTY. Only entries explicitly marked native-verified may be registered,
+and conflicting matches fail closed. **No super moves are guessed or injected**.
+This parser is not yet called by a gameplay dispatcher.
+
+Added isolated C++11 tests for input history, motion matching and native
+capture. They compile independently of the Windows build; Windows native TEST
+and in-game behavior remain unverified.
+
+Before actual DHC can be switched on, use the source-backed trace to map every
+reserve fighter's ROM-accepted super entry, associated script, charge/debit and
+first-active signal. The DHC-only portrait animation/timer bypass and
+incoming-fighter selective advancement are still not implemented.
