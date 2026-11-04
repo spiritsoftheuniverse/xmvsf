@@ -35,6 +35,14 @@ static inline const char* dirName(unsigned n){
     case 7:return "UB";case 8:return "U";case 9:return "UF";
     default:return "?";}
 }
+static inline const char* physicalDirection(unsigned raw){
+    switch(raw&15u){
+    case 0:return "NEUTRAL";case 1:return "RIGHT";case 2:return "LEFT";
+    case 4:return "DOWN";case 5:return "DOWN+RIGHT";case 6:return "DOWN+LEFT";
+    case 8:return "UP";case 9:return "UP+RIGHT";case 10:return "UP+LEFT";
+    default:return "MULTI";
+    }
+}
 static inline void chord(unsigned mask,char* out,unsigned size){
     static const char* words[6]={"LP","MP","HP","LK","MK","HK"};
     if(!size)return;
@@ -234,8 +242,9 @@ struct State {
                     char text[CHAT_LENGTH];
                     const bool facingRight=(b(ram,point+0x4Bu)&1u)==0u;
                     const unsigned rel=relative(keys[side].direction,facingRight);
-                    std::snprintf(text,sizeof(text),"P%u DIR %s raw=%X facing=%s",
-                        side+1u,dirName(rel),rawD,facingRight?"RIGHT":"LEFT");
+                    std::snprintf(text,sizeof(text),"P%u DIR %s abs=%s raw=%X face=%s",
+                        side+1u,dirName(rel),physicalDirection(rawD),rawD,
+                        facingRight?"RIGHT":"LEFT");
                     log(frame,INPUT,text);
                 }
                 if(pressed){
@@ -244,8 +253,8 @@ struct State {
                     const bool facingRight=(b(ram,point+0x4Bu)&1u)==0u;
                     const unsigned rel=relative(keys[side].direction,facingRight);
                     std::snprintf(text,sizeof(text),
-                        "P%u INPUT %s dir=%s(%u) raw=%X superA0=%02X",
-                        side+1u,held,dirName(rel),rel,rawD,a0);
+                        "P%u INPUT %s dir=%s(%u) abs=%s raw=%X superA0=%02X",
+                        side+1u,held,dirName(rel),rel,physicalDirection(rawD),rawD,a0);
                     log(frame,INPUT,text);
                     lastAttackFrame[side]=frame;
                 }
