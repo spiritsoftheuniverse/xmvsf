@@ -1,11 +1,90 @@
 # XMVSF native input replay — permanent TEST launchers
 
-> **Important — legacy F9 limitation:** The existing 87.61/87.163
-> movie contains one initial emulator state and CPS-2 input frames only.
+## Host-aware replay v2 — available in TEST 87.164
+
+**This is the current recording workflow.** The permanent root files
+`BUILD_TEST.bat`, `RUN_TEST.bat`, and `RUN_REPLAY.bat` remain stable
+across point-version updates.
+
+### Record an entire XMVSF session
+
+1. Run `BUILD_TEST.bat`, then `RUN_TEST.bat`.
+2. **Press F9 in the custom boot menu** to begin a v2 recording, or
+   press F9 while already fighting. F9 records until pressed again.
+3. Use the game normally. Select Training, run characters/supers, enter
+   or leave the Training menu, change options, return to the main menu,
+   start another mode or team, perform KO resets / triple-Start restarts,
+   and use Versus if desired.
+4. **Press F9 again to finish**. This closes the last input segment and
+   publishes the last completed recording.
+
+A new directory is created per recording:
+`test/replay_sessions/session_0001/`, then `session_0002/`, etc.
+Its `manifest.tsv` journals game sessions, menu choices, host events
+and checkpoint boundaries. Each `s####_seg####_inputs.bin` has a
+matching native `s####_seg####_start.fs` state. These are **not**
+old single-segment `xm8761_f9_..._inputs.bin` files.
+
+A completed F9 recording updates
+`test/replay_sessions/latest.txt` with the latest session path.
+The launcher never chooses a half-finished F9 recording by default.
+
+### Replay with high-speed fast-forward
+
+Run **`RUN_REPLAY.bat`** from the repository root. By default it uses
+the latest completed v2 recording. You can also drag a session folder
+or its `manifest.tsv` onto the launcher.
+
+The launcher reads the recorded host session timeline and enters the
+appropriate Arcade, Training or Versus mode before loading the next
+full native checkpoint. Native per-frame input bytes then drive CPS2.
+At a recorded game-session boundary the existing `DrvExit/DrvInit`
+and persistent SDL application loop run again; replay chooses the next
+recorded host mode **without requiring physical controller input**.
+At in-session host-option changes and successful native state reloads
+it applies the recorded host settings and saved CPS2 checkpoint.
+
+**Fast-forward defaults to 32 emulated frames per display update**, up
+to 128, without speculative frames or audio-clock throttling. The
+actual real-time speedup depends on CPU/GPU performance; 32 frames per
+batch does not guarantee 32× wall-clock speed. Change the line
+
+`set "XM8764_FAST_FORWARD=32"`
+
+in the root `RUN_REPLAY.bat` to select another batch size.
+Use `0` for normal-speed replay. Visual rendering is reduced during
+fast playback, but actual emulator CPU/input steps are never skipped.
+
+Logs are kept in the session's `replay_v2_status.log`, plus the
+current TEST version's `test/87.164/replay_results/`. A missing
+checkpoint, invalid frame number, input-layout mismatch or other
+recognized failure emits `REPLAY_DIVERGED` and a nonzero process exit.
+
+The latest recording is separate from the original old 87.161
+file, which predates this host-aware recorder. Its 17,426-frame
+`XM8761R1` stream **cannot reconstruct custom menu resets** that
+were never captured. `RUN_REPLAY.bat` retains legacy input-only
+playback as fallback; it does not mislabel legacy input EOF as a
+complete 14-fighter host-session replay.
+
+### Current verification scope
+
+87.164 includes a native movie round-trip C++11 test that covers two
+distinct game sessions and checkpointing after a host Training change,
+plus a replay-direct-start test for v1. It has **not yet been proven**
+end-to-end inside the user's native Windows SDL application. In
+particular, the recorder checkpoints final host state and replays
+recorded mode choices; it does not visually reenact every individual
+intermediate menu-cursor movement. It also has no full RAM-hash
+divergence detector yet. These limits remain explicit until native
+playback verifies the workflow.
+
+> **Legacy v1 limitation:** The original 87.61/87.163
+> format contains one initial emulator state and CPS-2 input frames only.
 > The real XMVSF application has a custom boot menu, Training controls,
 > mode changes, and native state reloads outside the ROM input stream.
-> **RUN_REPLAY.bat currently exercises one continuous native game segment,
-> not a verified replay of the full 87.161 multi-roster session.**
+> The **legacy v1 fallback** plays one native game segment, not a
+> verified replay of the full original 87.161 multi-roster session.
 > For the complete solution and exact unimplemented requirements, see
 > [host-aware replay v2](dev/dhc/REPLAY_V2_HOST_TRANSITIONS.md).
 > Do not rely on `PLAY_END` as proof that all original host transitions
