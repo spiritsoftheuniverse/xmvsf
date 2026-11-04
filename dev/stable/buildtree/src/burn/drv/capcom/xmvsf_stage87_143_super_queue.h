@@ -56,9 +56,12 @@ struct MatchQueue {
     unsigned roster[2][2]={{0u,0u},{0u,0u}};
     Entry supers[2][2][4];
     unsigned generation=0,initializedAt=0;
+    const Entry* selected[2]={nullptr,nullptr};
+    unsigned selectedFrame[2]={0u,0u};
     static bool idValid(unsigned id){return id<=0x40u && (id&1u)==0;}
     void reset(){
         prepared=false;initializedAt=0;
+        for(unsigned i=0;i<2u;++i){selected[i]=nullptr;selectedFrame[i]=0u;}
         for(unsigned s=0;s<2u;++s)for(unsigned c=0;c<2u;++c){
             roster[s][c]=0u;
             for(unsigned k=0;k<4u;++k)supers[s][c][k]=Entry();
@@ -120,6 +123,20 @@ struct MatchQueue {
             }
         }
         return nullptr;
+    }
+    // Input choice is staged for the future native ROM handoff engine.
+    // It has no side effects on the emulator. Only the DHC-only native
+    // handoff transaction may consume this queue entry when implemented.
+    const Entry* select(unsigned side,unsigned fighter,Command command,
+                        unsigned frame){
+        const Entry* entry=find(side,fighter,command);
+        if(!entry || side>=2u)return nullptr;
+        selected[side]=entry;
+        selectedFrame[side]=frame;
+        return entry;
+    }
+    void discard(unsigned side){
+        if(side<2u){selected[side]=nullptr;selectedFrame[side]=0u;}
     }
     unsigned count(unsigned side,unsigned fighter)const{
         if(!prepared||side>=2u)return 0u;
