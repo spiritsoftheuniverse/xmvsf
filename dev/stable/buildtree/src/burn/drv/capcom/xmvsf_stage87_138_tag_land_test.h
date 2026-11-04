@@ -26,6 +26,9 @@ static inline Actor actor(const std::uint8_t* r,unsigned a) {
 }
 struct State {
     bool initialized=false,enabled=false,seeded[2]={false,false};
+    bool jumping[2]={false,false};
+    unsigned jumpId[2]={0u,0u};
+    bool dimStage()const{return enabled && (jumping[0]||jumping[1]);}
     unsigned previousFrame=~0u,swaps=0,positioned=0;
     Actor previousPoint[2],previousReserve[2];
     std::FILE* log=nullptr;
@@ -42,6 +45,7 @@ struct State {
     }
     void clear(){
         seeded[0]=seeded[1]=false;
+        jumping[0]=jumping[1]=false;
     }
     // Called at the safe CPS2 end-of-real-frame boundary with word-swapped
     // native CpsRamFF. It is an explicit experiment, NOT yet a DHC trigger.
@@ -57,6 +61,10 @@ struct State {
             const unsigned opponent=0x4000u+(side^1u)*0x400u;
             const Actor now=actor(r,point),bench=actor(r,reserve);
             const Actor foe=actor(r,opponent);
+            // The experimental visual follows the real native tag's airborne
+            // period, NOT a guessed 20/40-frame cinematic timer.
+            if(jumping[side] && (now.id!=jumpId[side] || now.y>=472u))
+                jumping[side]=false;
             const bool valid=idOk(now.id)&&idOk(bench.id)&&idOk(foe.id) &&
                 now.id!=bench.id && now.activity && foe.activity;
             if(seeded[side] && valid &&
@@ -78,6 +86,7 @@ struct State {
                     const unsigned oldFacing=b(r,point+0x4Bu);
                     sb(r,point+0x4Bu,(oldFacing&~1u)|(onLeft?0u:1u));
                     ++positioned;
+                    jumping[side]=true;jumpId[side]=now.id;
                     decision="POSITIONED_IN_NATIVE_TAG_JUMP";
                 }else if(!airborne)decision="TAG_SWAP_AT_OR_AFTER_LANDING";
                 else if(!bounds)decision="TARGET_OUT_OF_STAGE05_BOUNDS";
