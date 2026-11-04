@@ -163,7 +163,11 @@ struct State {
                 opponentX[side]=rw(ram,0x4400u+0x0Cu);
                 command[side]=entry->known->command;
                 outgoing[side]=pointId;incoming[side]=reserveId;
-                if(!setNativeScript(ram,rom,size,p,pointId,0x32u,0u))continue;
+                if(!setNativeScript(ram,rom,size,p,pointId,0x32u,0u)){
+                    if(firstCheck)event(now,side,ram,
+                        "BLOCK_NATIVE_OUTGOING_SCRIPT_INIT_FAILED");
+                    continue;
+                }
                 // 87.144 capture proves the native OUTGOING Ryu tag stays
                 // in +A0=2A28. +A0=2A00 appears only AFTER the ROM swaps
                 // ownership and starts Ken's incoming tag. Preserve Ryu's
