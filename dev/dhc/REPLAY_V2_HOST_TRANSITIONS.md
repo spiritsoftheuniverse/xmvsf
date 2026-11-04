@@ -2,7 +2,24 @@
 
 ## Status
 
-**DESIGN / NOT IMPLEMENTED AS OF 87.163.**
+**INITIAL IMPLEMENTATION: 87.164.** The permanent
+`RUN_REPLAY.bat` now detects completed v2 manifests, enters the REAL
+custom boot menu (creating the persistent SDL window), resolves each
+recorded mode choice, re-enters `DoGame` at session boundaries, loads
+numbered native CPS2 checkpoints, reapplies saved host settings, and
+replays each segment's original CPS2 input bytes. The runner defaults
+to a 32-frame-per-UI-update fast-forward loop without runahead or audio
+throttling.
+
+**Verification limit:** Isolated C++11 two-session/checkpoint round-trip
+and repository CI checks pass. Full SDL/Windows runtime capture and
+playback have NOT been validated yet. Semantic host mode selections
+are reproduced, but intermediate menu cursor movements are not
+rendered one by one; exact host-event replay and periodic RAM-hash
+divergence checks remain later improvements. This is a checkpoint-based
+implementation, not a claim of perfect frame-for-frame reenactment
+of every application UI event. The old 87.161 movie remains legacy
+input-only and still cannot reproduce missing host resets.
 
 87.163's `RUN_REPLAY.bat` is a permanent root launcher for the original
 87.61 *CPS-2-input-only* movie. Starting `xmvsfu` directly is insufficient
