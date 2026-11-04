@@ -27,7 +27,8 @@ static inline void xm87140ChatOverlay(SDL_Renderer* render){
     const int boxWidth=std::min(610,width-30);
     const int lineHeight=16;
     const int boxHeight=int(shown)*lineHeight+26;
-    const int top=height-boxHeight-21;
+    // Reserve the bottom-right status band (F10/F9); chat sits above it.
+    const int top=height-boxHeight-47;
     if(top<10)return;
     SDL_BlendMode oldBlend=SDL_BLENDMODE_NONE;
     SDL_GetRenderDrawBlendMode(render,&oldBlend);
