@@ -81,8 +81,8 @@ jobs:
           grep -Fq '/local_rom_dump/' .gitignore
           grep -Fq 'XM87160::state().frame' dev/stable/buildtree/src/burn/drv/capcom/cps_run.cpp
           grep -Fq 'XM87160::state().exportPrivateCode' dev/stable/buildtree/src/burn/drv/capcom/cps_run.cpp
-          grep -Fq 'UNVERIFIED_ROM_2E_SCRIPT' dev/stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_161_super_discovery.h
-          grep -Fq 'EXCLUDE_VARIABLE_COMBINATION' dev/stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_161_super_discovery.h
+          grep -Fq 'UNVERIFIED_ROM_2E_SCRIPT' dev/stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_160_super_discovery.h
+          grep -Fq 'EXCLUDE_VARIABLE_COMBINATION' dev/stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_160_super_discovery.h
           if grep -Fq 'if(u)return 8u;return 5u;' dev/stable/buildtree/src/burner/sdl/xmvsf_stage87_140_super_chat.h ||
              grep -Fq 'if(dir==last)continue;last=dir;' dev/stable/buildtree/src/burner/sdl/xmvsf_stage87_140_super_chat.h; then
             echo 'ERROR: misleading-indentation warnings returned to super-chat parser' >&2
