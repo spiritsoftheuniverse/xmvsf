@@ -16,6 +16,7 @@
 #include "xmvsf_stage87_100_training_ko.h"
 #include "xmvsf_stage87_137_dhc_native_capture.h" // XM87.137 opt-in read-only tag/super evidence
 #include "../../../burner/sdl/xmvsf_stage87_139_probe.h" // XM87.139 read-only F10 input/native diagnostic
+#include "../../../burner/sdl/xmvsf_stage87_140_super_chat.h" // XM87.140 native super-input chat (no writes)
 #include "xmvsf_stage87_119_cyclops_recovery_probe.h" // XM87.119 read-only recovery state trace
 #include "xmvsf_stage87_121_cyclops_release.h" // XM87.121 restore recorded airborne state after throw // XM87.100 native Training-only KO suppression
 extern int xm14TrainingMode; // native SDL Training mode selection
@@ -648,6 +649,18 @@ INT32 Cps2Frame()
         ((CpsInp011[4]&1u)<<3) | ((CpsInp011[5]&1u)<<4) | ((CpsInp020[6]&1u)<<5);
     XM8786Flight::state().frame((unsigned)GetCurrentFrame(),CpsRamFF,
         xm8786_p1_buttons,xm8786_p2_buttons);
+    // Stage 87.140: inspect actual CPS2 controller bits AFTER native CPU run.
+    // d_cps2.cpp: [0]=Right [1]=Left [2]=Down [3]=Up.
+    const unsigned xm87140_p1_dir=
+        (CpsInp001[0]&1u)|((CpsInp001[1]&1u)<<1u)|
+        ((CpsInp001[2]&1u)<<2u)|((CpsInp001[3]&1u)<<3u);
+    const unsigned xm87140_p2_dir=
+        (CpsInp000[0]&1u)|((CpsInp000[1]&1u)<<1u)|
+        ((CpsInp000[2]&1u)<<2u)|((CpsInp000[3]&1u)<<3u);
+    if(!bBurnRunAheadFrame && CpsRamFF)
+        XM87140Chat::state().frame(CpsRamFF,(unsigned)GetCurrentFrame(),
+            xm87140_p1_dir,xm87140_p2_dir,
+            xm8786_p1_buttons,xm8786_p2_buttons);
     // Read-only after-CPU capture: do not edit fighter RAM or native action.
     XM8795Native::state().after(CpsRamFF,(unsigned)GetCurrentFrame(),
         XM8795Native::env("XM8755_TOURNAMENT_MODE"));
