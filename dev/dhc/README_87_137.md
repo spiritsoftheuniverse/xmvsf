@@ -299,3 +299,23 @@ the user's Windows machine here; the isolated C++11 tests run on GitHub Actions.
 The revised TEST runner enables the experimental Stage 05 landing flag in
 its own local environment only. Closing the Command Prompt ends the session
 without changing Stable.
+
+## 87.138 TEST builder fix — missing cmp / stale make pass
+
+An MSYS2 TEST build printed `make: Nothing to be done for 'all'.`, then
+failed at `cmp: command not found`. Fixed in the experimental branch:
+
+- `BUILD_TEST.sh` now executes `MAKELEVEL=1 make -f makefile.sdl2`
+  to follow this FBNeo tree's two-pass compile/link pipeline (as its
+  existing Stable builder already does).
+- Only `cps_run.cpp`, `inp_sdl2.cpp`, and `vid_sdl2.cpp` are treated
+  as newer using GNU Make's `-W` option. This forces the DHC-modified
+  translation units to compile and link without editing source timestamps
+  or clearing the warm object cache.
+- The optional `cmp` byte-comparison command was removed. A successful
+  `cp -p` and nonempty pending binary are verified with Bash built-ins
+  before the dedicated 87.138 TEST executable is published.
+
+Pull `feature/dhc-mvc2-stage87` again, then run the **same** root
+`BUILD_TEST.bat` and `RUN_TEST.bat`. No new launcher names, automatic
+source replacement, history restore, or Stable build is involved.
