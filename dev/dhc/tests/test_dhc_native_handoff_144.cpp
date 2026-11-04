@@ -19,6 +19,7 @@ static void entry(std::vector<std::uint8_t>& rom,unsigned fighter,
     unsigned section=0;
     if(fighter==0x12u && action==0x2Eu)section=0xCFCA2u;
     if(fighter==0x12u && action==0x32u)section=0xCFCCAu;
+    if(fighter==0x14u && action==0x2Au)section=0xD3910u;
     if(fighter==0x14u && action==0x2Cu)section=0xD3922u;
     if(fighter==0x14u && action==0x2Eu)section=0xD3966u;
     assert(section && section>fighterTable && script>section);
@@ -36,7 +37,9 @@ int main(){
     std::vector<std::uint8_t> rom(0xE1000u,0),ram(65536u,0);
     entry(rom,0x12u,0x2Eu,0x08u,0xD3070u);
     entry(rom,0x12u,0x32u,0x00u,0xD1DACu,4u);
+    entry(rom,0x14u,0x2Au,0x08u,0xD567Eu);
     entry(rom,0x14u,0x2Cu,0x00u,0xD5C46u);
+    entry(rom,0x14u,0x2Cu,0x32u,0xD60AAu);
     entry(rom,0x14u,0x2Cu,0x04u,0xD5E2Eu);
     entry(rom,0x14u,0x2Eu,0x00u,0xD6722u);
     wb(ram.data(),0x5000u,8u);ww(ram.data(),0x4052u,0x12u);
@@ -101,26 +104,52 @@ int main(){
     ww(ram.data(),0x4052u,0x14u);
     ww(ram.data(),0x4852u,0x12u);
     ww(ram.data(),0x4060u,0x2A0Cu);
+    wb(ram.data(),0x40D6u,0x10u); // Ken ROM incoming-kick controller
+    ww(ram.data(),0x4254u,472u);
     ww(ram.data(),0x4010u,430u);
     s.frame(ram.data(),rom.data(),unsigned(rom.size()),115u,1u);
     assert(s.phase[0]==WAIT_LANDING);
-    // Incoming Ken has landed: replace native TAG KICK by chosen native super.
-    ww(ram.data(),0x4060u,0x2A0Eu);
-    ww(ram.data(),0x4010u,472u);
+    // 87.149: cancel Ken's 2A0C ATTACK BEFORE 2A0E tag kick.
+    // Incoming native +D6=10 owns action 2A0C, so a bare 2C04
+    // animation write was undone by the ROM on the next frame.
+    ww(ram.data(),0x4060u,0x2A0Cu);
+    ww(ram.data(),0x4010u,467u); // 5 native units above floor 472
+    wb(ram.data(),0x40A4u,4u);
     s.frame(ram.data(),rom.data(),unsigned(rom.size()),116u,1u);
-    assert(s.phase[0]==SUPER_STARTED);
-    assert(rw(ram.data(),0x4060u)==0x2C04u);
-    assert(rw(ram.data(),0x40A0u)==0x2A28u); // super, not incoming-tag mode
-    assert(rl(ram.data(),0x4034u)==0xD5E2Eu);
-    assert(rw(ram.data(),0x400Cu)==552u);
+    assert(s.phase[0]==WAIT_KEN_EXIT);
+    assert(rb(ram.data(),0x40D6u)==0x12u); // Ken real exit handler
+    assert(rb(ram.data(),0x40A4u)==0u); // tag kick disabled
+    assert(rw(ram.data(),0x4060u)==0x2A0Cu); // no fake super yet
+    assert(rw(ram.data(),0x4010u)==472u);
+    assert(rw(ram.data(),0x400Cu)==552u); // opponent X600 - 48
     assert(rb(ram.data(),0x404Bu)==1u);
-    assert(rw(ram.data(),0x440Cu)==600u); // no opponent displacement
-    assert(rw(ram.data(),0x4214u)==3u); // meter is not implemented
-    assert(s.chainUsed[0] && s.phase[1]==IDLE);
-    // No repeat DHC during this match, even if second command selected.
-    assert(XM87143Queue::state().select(0u,0x12u,XM87143Queue::QCF_PP,117u));
-    const auto after=ram;
+    assert(rw(ram.data(),0x440Cu)==600u); // P2 never touched
+    // Simulate the 68000 native +D6=12 handler from PC 035EFA:
+    // it selects Ken's nonattacking 2A08 exit, not second tag kick.
+    assert(setNativeScript(ram.data(),rom.data(),unsigned(rom.size()),
+                           0x4000u,0x14u,0x2Au,0x08u));
+    ww(ram.data(),0x4008u,2u);
     s.frame(ram.data(),rom.data(),unsigned(rom.size()),117u,1u);
+    assert(s.phase[0]==WAIT_KEN_EXIT);
+    assert(s.kenExitObserved[0]);
+    for(unsigned t=118u;t<124u;++t)
+        s.frame(ram.data(),rom.data(),unsigned(rom.size()),t,1u);
+    s.frame(ram.data(),rom.data(),unsigned(rom.size()),124u,1u);
+    assert(s.phase[0]==SUPER_STARTED);
+    assert(rb(ram.data(),0x40D6u)==0x0Au); // actual Ken 2C super handler
+    assert(rw(ram.data(),0x40A0u)==0x2A28u);
+    assert(rw(ram.data(),0x4008u)==0u);
+    assert(rb(ram.data(),0x4259u)==0u);
+    assert(rw(ram.data(),0x4214u)==3u); // meter still not implemented
+    // The ROM itself now owns Shoryureppa dispatch. Starting its native
+    // state should select an action in the 2Cxx family, not re-kick.
+    ww(ram.data(),0x4060u,0x2C32u);
+    s.frame(ram.data(),rom.data(),unsigned(rom.size()),125u,1u);
+    assert(s.phase[0]==SUPER_STARTED);
+    assert(s.chainUsed[0] && s.kenSuperConfirmed[0]);
+    assert(XM87143Queue::state().select(0u,0x12u,XM87143Queue::QCF_PP,126u));
+    const auto after=ram;
+    s.frame(ram.data(),rom.data(),unsigned(rom.size()),126u,1u);
     assert(ram==after);
     // Different round resets only bookkeeping, not fighters or ROM memory.
     wb(ram.data(),0x5000u,0u);
