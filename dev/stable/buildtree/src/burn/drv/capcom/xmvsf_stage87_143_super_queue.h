@@ -11,12 +11,12 @@
 namespace XM87143Queue {
 enum Command { QCF_PP=1, QCB_KK=2, QCF_KK=3 };
 struct Known {
-    unsigned fighter=0;
-    Command command=QCF_PP;
-    const char* name=nullptr;
-    bool kicks=false,back=false;
-    unsigned actions[2]={0,0},selectors[2]={0,0},expected[2]={0,0};
-    unsigned alternatives=0;
+    unsigned fighter;
+    Command command;
+    const char* name;
+    bool kicks,back;
+    unsigned actions[2],selectors[2],expected[2];
+    unsigned alternatives;
 };
 // Input assignments supplied by user; action-script associations are only
 // proven where an exact active script was observed, not yet callable DHC
