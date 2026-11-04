@@ -31,6 +31,7 @@ static void trySuper(std::vector<std::uint8_t>& rom,
     ww(ram.data(),0x4852u,0x12u);
     ww(ram.data(),0x4060u,0x0002u);
     ww(ram.data(),0x40A0u,0x020Eu); // actual Ken input-ready state (87.151)
+    wb(ram.data(),0x404Bu,1u); // facing RIGHT, so QCF => down/down-right/right
     State s;
     s.phase[0]=WAIT_KEN_EXIT;
     s.outgoing[0]=0x12u;s.incoming[0]=0x14u;
