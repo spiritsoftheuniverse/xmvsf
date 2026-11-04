@@ -96,4 +96,4 @@ if [[ ! -s "$PENDING" ]]; then
 fi
 mv -f "$PENDING" "$DEST"
 echo "TEST BUILD READY: $DEST"
-echo "This is Stage 87.152 opt-in bounded QCF+3P/3K through the game's real input mapper after native Ken 2A08 neutral; NEVER prime the 2C Hadoken animation. Tournament hooks retained.
+echo "This is Stage 87.152 opt-in bounded QCF+3P/3K through the game's real input mapper after native Ken 2A08 neutral; NEVER prime the 2C Hadoken animation. Tournament hooks retained."
