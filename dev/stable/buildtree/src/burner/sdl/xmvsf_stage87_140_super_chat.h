@@ -22,7 +22,7 @@ static inline unsigned w(const std::uint8_t* ram,unsigned a){return (b(ram,a)<<8
 static inline unsigned bc(unsigned m){unsigned n=0;for(;m;m>>=1u)n+=m&1u;return n;}
 static inline unsigned relative(std::uint8_t raw,bool faceRight) {
     const bool l=(raw&1u)!=0,r=(raw&2u)!=0,u=(raw&4u)!=0,d=(raw&8u)!=0;
-    if(l&&r||u&&d)return 0u;
+    if((l&&r)||(u&&d))return 0u;
     const bool f=faceRight?r:l,back=faceRight?l:r;
     if(d&&f)return 3u; if(d&&back)return 1u;
     if(d)return 2u;if(f)return 6u;if(back)return 4u;
@@ -85,6 +85,7 @@ struct State {
     Line lines[CHAT_CAPACITY]={};
     unsigned write=0,count=0,lastFrame=~0u;
     unsigned lastMsgFrame=0, chatMessages=0, lastPlayerMask[2]={0,0};
+    unsigned lastDirectionMask[2]={0,0};
     bool open=false,ready[2]={false,false},candidate[2]={false,false};
     unsigned oldA0[2]={0,0},oldStock[2]={0,0},openAt[2]={0,0};
     unsigned lastCharacter[2]={0,0};
@@ -189,9 +190,16 @@ struct State {
             }
             const unsigned pressed=buttons[side] & ~lastPlayerMask[side];
             const unsigned rawD=directions[side];
-            const bool directionEdge=rawD!=(keys[side].count>1u?0x100u:0x100u); // handled below
-            (void)directionEdge;
+            const bool directionEdge=rawD!=lastDirectionMask[side];
             if(candidate[side]){
+                if(directionEdge){
+                    char text[CHAT_LENGTH];
+                    const bool facingRight=(b(ram,point+0x4Bu)&1u)==0u;
+                    const unsigned rel=relative(keys[side].direction,facingRight);
+                    std::snprintf(text,sizeof(text),"P%u DIR %s raw=%X facing=%s",
+                        side+1u,dirName(rel),rawD,facingRight?"RIGHT":"LEFT");
+                    log(frame,INPUT,text);
+                }
                 if(pressed){
                     char text[CHAT_LENGTH],held[48];
                     chord(buttons[side],held,sizeof(held));
@@ -227,6 +235,7 @@ struct State {
                 }
             }
             lastPlayerMask[side]=buttons[side];
+            lastDirectionMask[side]=directions[side];
             oldA0[side]=a0;oldStock[side]=stock;
         }
     }
