@@ -55,7 +55,11 @@ The DHC activation now requires the same valid conditions as before:
 
 **Instead of forcibly writing action 3200**, the host prepares the
 native tag-controller state: +256=8, +259=8, scheduler steps +06/+08/+0A
-reset, and +A0=2A00 (the observed native tag mode).
+reset, and **+A0=002A (the observed pre-tag state)**.
+PC 011E50 dispatches to Ryu's fighter-specific handler at **033762**,
+which copies the prior high byte into A1 and sets A0 high to 2A.
+Because the pre-tag high byte is zero, the ROM then produces the actual
+tag mode **2A00**, rather than incorrectly producing 2A2A.
 It then waits for the ROM itself to select 3200 and logs
 NATIVE_CONTROLLER_ACCEPTED_OUTGOING_3200 if that happens.
 If it never happens within 12 frames, it restores only the captured
