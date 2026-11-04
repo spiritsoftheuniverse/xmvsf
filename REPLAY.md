@@ -1,5 +1,16 @@
 # XMVSF native input replay — permanent TEST launchers
 
+> **Important — legacy F9 limitation:** The existing 87.61/87.163
+> movie contains one initial emulator state and CPS-2 input frames only.
+> The real XMVSF application has a custom boot menu, Training controls,
+> mode changes, and native state reloads outside the ROM input stream.
+> **RUN_REPLAY.bat currently exercises one continuous native game segment,
+> not a verified replay of the full 87.161 multi-roster session.**
+> For the complete solution and exact unimplemented requirements, see
+> [host-aware replay v2](dev/dhc/REPLAY_V2_HOST_TRANSITIONS.md).
+> Do not rely on `PLAY_END` as proof that all original host transitions
+> or all character-specific super moves were recreated.
+
 **Keep `RUN_REPLAY.bat` in the repository root permanently.** It is
 part of the native Windows development workflow, alongside the unchanged
 root `BUILD_TEST.bat` and `RUN_TEST.bat` names. Do not remove it when
@@ -16,7 +27,9 @@ The original `XM8761::afterInput()` movie reader can only run once
 `RunFrame()` executes for a loaded driver, so no replay frame was
 loaded at the menu.
 
-**87.163 launches `xmvsfu -joy` directly**, sets
+**87.163 currently launches `xmvsfu -joy` directly** (which
+only works for a continuous in-game segment, not for the original
+session's menu resets), and sets
 `XM8761_REPLAY_MODE=play`, and restores Training host mode for the
 original 87.161 movie before `DrvInit`. Ordinary normal/Training/
 Versus runs through `RUN_TEST.bat` still use the normal boot selector.
@@ -55,8 +68,11 @@ Run **`RUN_REPLAY.bat`** from the repository root.
   `RUN_REPLAY.bat`, or run:
   `RUN_REPLAY.bat "F:\\xmvsf\\test\\87.161\\replays\\xm8761_f9_0001_inputs.bin"`.
 - The matching `*_start.fs` must be in the same directory.
-- The launcher starts the recorded `xmvsfu` driver directly,
-  not the boot menu, and sets the original F9 decoder to **play**.
+- The current legacy launcher starts `xmvsfu` directly and
+  sets the original F9 decoder to **play**. This cannot reconstruct the
+  custom menu, Training return/restart, or multiple host sessions without
+  additional events and save-state checkpoints. Treat it as input-only
+  playback, NOT a full-session re-creation.
 - The native decoder validates the movie ROM ID, input layout, complete
   frame payload, and starting save state before applying any inputs.
   On failure it writes a concrete reason to `replay_status.log`.
