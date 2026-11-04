@@ -1,5 +1,7 @@
 # XMVSF DHC — native implementation track (Stage 87.137)
 
+**CURRENT TEST: Stage 87.148.** User 87.147 capture reaches actual outgoing tag script 3200 but freezes at ROM flagged exit record 0D1DEC because the Ryu +D6 native tag scheduler is missing. Corrected Ryu actor +D6=14 to dispatch through ROM 0341F6 -> 011B00/011B1E -> controller 2. Added nativeD6/scriptFlag3C diagnostics and native exit watchdog recovery; **preserves existing charge streak FX**. See [87.148 ROM handoff analysis](NATIVE_HANDOFF_TEST_87_148.md). Native Windows gameplay not yet verified; Stable untouched.
+
 **CURRENT experimental TEST: Stage 87.147.** The 87.146 capture proves controller 8 executes (+256 08→00 and +A0=2A00) but **Ryu's Hadoken action 2E08 remains the owner**. Real normal tag is 3200 with timer 001E. 87.147 bridges that missing tag action **after genuine ROM controller acceptance**, leaving ordinary tags untouched and still requiring a real fighter swap. [Source-grounded analysis and TEST guide](NATIVE_HANDOFF_TEST_87_147.md). Retry without permanent lockout remains. Windows gameplay verification pending; Stable untouched.
 
 
