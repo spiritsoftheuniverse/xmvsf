@@ -9,7 +9,7 @@ static Command good() {
  return c;
 }
 static Signal frozen() {
- Signal s;s.combat=true;s.worldHeld=true;s.blackPresented=true;
+ Signal s;s.combat=true;s.worldHeld=true;s.darkScenePresented=true;
  return s;
 }
 int main() {
@@ -29,15 +29,18 @@ int main() {
  assert(x.didDHC);
  Signal s=frozen();
  Result r=x.tick(s);
- assert(x.phase==TAG_ENTER && r.holdWorld && r.drawBlack);
+ assert(x.phase==TAG_ENTER && r.holdWorld && r.dimStage && r.showIncomingFighter && r.suppressIncomingPortrait);
  s.nativeTagComplete=true;
  r=x.tick(s);
- assert(x.phase==STARTUP && r.tickIncomingOnly);
+ assert(x.phase==TAG_ENTER && !r.tickIncomingOnly); // not landed yet
+ s.incomingGrounded=true;s.incomingAtTakeoverPosition=true;
+ r=x.tick(s);
+ assert(x.phase==STARTUP && r.tickIncomingOnly && r.showIncomingFighter);
  // Screen going dark is NOT enough to release.
  s.incomingSuperStarted=true;s.incomingStartupTick=true;
  for(unsigned i=0;i<50;++i){
     r=x.tick(s);assert(!r.releaseBeforeNextNativeFrame);
-    assert(r.holdWorld&&r.drawBlack);
+    assert(r.holdWorld&&r.dimStage&&r.showIncomingFighter&&r.suppressIncomingPortrait);
  }
  assert(x.startupTicks>=50);
  s.incomingStartupTick=false;s.firstActiveOnNextTick=true;
@@ -66,7 +69,8 @@ int main() {
  // Failure to reach the active attack on the first visible frame is fatal.
  Coordinator z;z.observeFirstSuper(true,true,false);z.request(good());
  z.nativeCommit(true,true,true);
- s=frozen();s.nativeTagComplete=true;s.incomingSuperStarted=true;
+ s=frozen();s.nativeTagComplete=true;s.incomingGrounded=true;
+ s.incomingAtTakeoverPosition=true;s.incomingSuperStarted=true;
  s.incomingStartupTick=true;z.tick(s);
  s.incomingStartupTick=false;s.firstActiveOnNextTick=true;
  assert(z.tick(s).releaseBeforeNextNativeFrame);
@@ -77,9 +81,20 @@ int main() {
  // A cinematic exit without one hidden startup tick cannot arm release.
  Coordinator w;w.observeFirstSuper(true,true,false);w.request(good());
  w.nativeCommit(true,true,true);
- s=frozen();s.nativeTagComplete=true;s.incomingSuperStarted=true;
+ s=frozen();s.nativeTagComplete=true;s.incomingGrounded=true;
+ s.incomingAtTakeoverPosition=true;s.incomingSuperStarted=true;
  s.firstActiveOnNextTick=true;
  assert(w.tick(s).rollbackRequired);
 
+ // A DHC portrait is a rendering defect: block the transition.
+ Coordinator p;p.observeFirstSuper(true,true,false);
+ assert(p.request(good()) && p.nativeCommit(true,true,true));
+ Signal bad=frozen();bad.incomingPortraitVisible=true;
+ r=p.tick(bad);
+ assert(r.rollbackRequired && p.phase==FAILED);
+ // Ordinary supers are unaffected by this DHC-only presentation gate.
+ Coordinator ordinary;ordinary.observeFirstSuper(true,true,false);
+ r=ordinary.tick(frozen());
+ assert(!r.suppressIncomingPortrait && !r.dimStage);
  return 0;
 }
