@@ -45,8 +45,8 @@ struct Context {
     FILE* stream=nullptr;
     std::vector<Slot> slots;
     std::vector<Segment> segments;
-    Host restored;
-    bool hostChanged=false;
+    Host restored,lastRecordedHost;
+    bool hostChanged=false,hostRecorded=false;
     ~Context(){if(stream)std::fclose(stream);if(journal)std::fclose(journal);}
 };
 inline Context& context(){static Context x;return x;}
@@ -203,6 +203,7 @@ inline bool startRecording(){
     std::fflush(c.journal);
     c.mode=RECORD;c.insideGame=false;c.split=true;c.session=0;c.segment=0;
     c.frames=0;c.allFrames=0;c.reason="SESSION_START";c.failed=false;
+    c.hostRecorded=false;
     // Pointer contains no ROM bytes, and is updated only on explicit F9.
     const std::string latest=c.root+"/latest.txt";
     std::FILE* pointer=std::fopen(latest.c_str(),"wb");
@@ -260,7 +261,7 @@ inline void gameBegin(int gameMode){
     if(c.mode==RECORD){
         if(c.insideGame)return;
         ++c.session;c.segment=0;c.insideGame=true;c.split=true;
-        c.reason="SESSION_START";
+        c.hostRecorded=false;c.reason="SESSION_START";
         journal("GAME_BEGIN",(unsigned)gameMode);
     }else if(c.mode==PLAY){
         if(c.playIndex>=c.segments.size()){fail("GAME_BEGIN_NO_SEGMENT");return;}
@@ -370,6 +371,15 @@ inline FrameResult beforeFrame(const Host& host){
     if(!c.insideGame)gameBegin(host.versus?2:host.training?1:0);
     if(c.mode==FAILED)return DIVERGED;
     if(c.mode==RECORD){
+        // The game's host UI consumes SDL gamepad/keyboard events outside
+        // BurnDrvGetInputInfo. Snapshot its actual resolved state whenever
+        // menu navigation, player ownership, mode or Training options change.
+        if(c.hostRecorded &&
+           std::memcmp(&host,&c.lastRecordedHost,sizeof(Host))!=0){
+            journal("HOST_MENU_STATE_CHANGED",0);
+            c.reason="HOST_MENU_STATE_CHANGED";c.split=true;
+        }
+        c.lastRecordedHost=host;c.hostRecorded=true;
         if(c.split || !c.stream)if(!openRecord(host))return DIVERGED;
         if(!write32(c.stream,c.frames))return fail("V2_FRAME_WRITE_FAILED"),DIVERGED;
         for(const Slot& slot:c.slots)
