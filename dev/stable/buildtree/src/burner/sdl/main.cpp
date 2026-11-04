@@ -405,10 +405,10 @@ int main(int argc, char* argv[])
     // Stage 26: initialize a persistent single-window application shell.
     if (switchesOK && romname == NULL && !usemenu && !dat) {
         xm26PersistentShell=true;
-        // v2 resolves the *recorded* host menu choice for this session.
-        // Never feed CPS2 movie bytes into the uninitialized boot selector.
-        const int selectedMode=XM8764::isPlayback() ?
-            XM8764::nextMode() : xmvsfBootSelector();
+        // Always enter the REAL boot selector, including v2 playback.
+        // It initializes the persistent SDL window, then selects the
+        // recorded host mode only AFTER presenting the first menu frame.
+        const int selectedMode=xmvsfBootSelector();
         if(XM8764::isRecording())
             XM8764::hostEvent("BOOT_MODE_SELECTED",(unsigned)(selectedMode+1));
         if(selectedMode==0)xm77StageResolved=0;
@@ -583,8 +583,7 @@ int main(int argc, char* argv[])
                 xm14InputTarget=0;
                 xm15Reset();
                 // The menu uses the SAME SDL_Window, avoiding Windows focus jumps.
-                const int selectedMode=XM8764::isPlayback() ?
-                    XM8764::nextMode() : xmvsfBootSelector(true);
+                const int selectedMode=xmvsfBootSelector(true);
                 if(XM8764::isRecording())
                     XM8764::hostEvent("BOOT_MODE_SELECTED",(unsigned)(selectedMode+1));
                 if (selectedMode<0) break;
