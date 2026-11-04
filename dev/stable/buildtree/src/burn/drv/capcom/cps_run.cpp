@@ -21,6 +21,7 @@
 #include "xmvsf_stage87_142_rom_dispatch.h" // 87.142 pure native script table+tag observer
 #include "xmvsf_stage87_144_native_handoff.h" // opt-in DHC-only native action transaction TEST
 #include "xmvsf_stage87_160_super_discovery.h" // read-only roster-wide native 2E ROM/script and input discovery
+#include "../../../burner/sdl/xmvsf_stage87_162_replay_sync.h" // exact F9 movie-frame index for native action logs
 #include "xmvsf_stage87_119_cyclops_recovery_probe.h" // XM87.119 read-only recovery state trace
 #include "xmvsf_stage87_121_cyclops_release.h" // XM87.121 restore recorded airborne state after throw // XM87.100 native Training-only KO suppression
 extern int xm14TrainingMode; // native SDL Training mode selection
@@ -764,7 +765,8 @@ INT32 Cps2Frame()
             dhcInput.active?dhcInput.directions:xm87140_p1_dir,
             xm87140_p2_dir,
             dhcInput.active?dhcInput.attacks:xm8786_p1_buttons,
-            xm8786_p2_buttons,dhcInput.active);
+            xm8786_p2_buttons,dhcInput.active,
+            XM87162ReplaySync::movieFrame());
         for(unsigned i=0;i<romReport.count;++i){
             const XM87142::Event& e=romReport.event[i];
             char note[XM87140Chat::CHAT_LENGTH];
