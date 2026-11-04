@@ -60,8 +60,14 @@ int main(){
     XM8764::gameBegin(1);
     nativeMarker=3;p1=0x12;p2=0x01;
     assert(XM8764::beforeFrame(training)==XM8764::FRAME_READY);
+    // These counters advance as part of the normal Training select
+    // machine EVERY frame. They must NOT create another savestate/file.
+    training.selectFrames=42;
+    training.selectCandidates=2;
     p1=0x35;p2=0x05;
+    assert(!XM8764::requiresCheckpoint(training,XM8764::context().lastRecordedHost));
     assert(XM8764::beforeFrame(training)==XM8764::FRAME_READY);
+    assert(saves==1u);
     // A host-only Training owner switch is not part of CPS2 input
     // bytes; it must split the movie and save a new checkpoint.
     training.owner=1;
