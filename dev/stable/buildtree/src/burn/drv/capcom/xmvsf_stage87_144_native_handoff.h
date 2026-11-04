@@ -76,7 +76,8 @@ static inline const char* phaseName(Phase p){
     }
 }
 struct State {
-    bool initialized=false,enabled=false,proofNative=false,chainUsed[2]={false,false};
+    bool initialized=false,enabled=false,proofNative=false,earlyCancel=false,
+         chainUsed[2]={false,false};
     Phase phase[2]={IDLE,IDLE};
     unsigned started[2]={0u,0u},outgoing[2]={0u,0u},incoming[2]={0u,0u};
     unsigned cooldownUntil[2]={0u,0u},lastAcceptedAt[2]={~0u,~0u};
@@ -111,11 +112,15 @@ struct State {
         const char* setting=std::getenv("XM87144_DHC_NATIVE_TEST");
         const bool requested=setting && std::strcmp(setting,"1")==0;
         const char* proof=std::getenv("XM87156_PROOF_NATIVE");
+        const char* fast=std::getenv("XM87157_EARLY_CANCEL");
         proofNative=requested && proof && std::strcmp(proof,"1")==0;
+        earlyCancel=requested && !proofNative && fast &&
+                    std::strcmp(fast,"1")==0;
         const char* legacy=std::getenv("XM87144_DHC_LEGACY_TAG_WRITER");
-        // Never silently enable the 87.155 direct controller writer. It
-        // must be *separately* opted into for historical isolated tests.
-        enabled=requested && (proofNative ||
+        // Proof: intact natural 87.156 sequence. Early cancel: verified
+        // 87.150 late-Ryu tag/first-Ken-arrival cancellation plus 87.156
+        // genuine ROM Ken QCF+2P/2K command, never the old guessed 2C dash.
+        enabled=requested && (proofNative || earlyCancel ||
                  (legacy && std::strcmp(legacy,"1")==0));
         const char* path=std::getenv("XM87144_DHC_LOG");
         if(enabled && path && *path){
@@ -128,8 +133,8 @@ struct State {
                 "\tken_observed_2E00\tken_observed_2E02\tselected_command\n",log);
         }
         std::fprintf(stderr,
-            "XM87.156 native Ken input proof enabled=%d proofMode=%d (legacy tag-writer BYPASSED in proof)\n",
-            enabled?1:0,proofNative?1:0);
+            "XM87.157 Ken DHC enabled=%d proofMode=%d earlyCancel=%d\n",
+            enabled?1:0,proofNative?1:0,earlyCancel?1:0);
     }
     void reset(){
         for(unsigned s=0;s<2u;++s){
@@ -262,19 +267,28 @@ struct State {
            rw(ram,0x4052u)!=0x14u || !inputBegin[0] ||
            now<inputBegin[0])return m;
         const unsigned t=now-inputBegin[0];
-        if(t>=17u)return m;
+        const unsigned maxFrames=earlyCancel?9u:17u;
+        if(t>=maxFrames)return m;
         const bool faceRight=(rb(ram,0x404Bu)&1u)!=0u;
         const unsigned forward=faceRight?1u:2u;
-        // CPS-2 native direction bits: 0=RIGHT 1=LEFT 2=DOWN 3=UP.
-        // This proves *Ken's own* command path after the real ROM tag:
-        // down -> down-forward -> forward + two punches / two kicks.
-        // The 87.155 three-button chord was incorrect: PPP=Dash, KKK=Jump.
+        // 87.156 confirmed that the game accepts native Ken QCF+2P/2K.
+        // FAST mode compresses the already verified sequence, preserving
+        // the old kickless arrival's near-immediate cancel timing.
+        // We are NOT submitting the game's built-in HP+HK dual super.
         m.active=true;
-        if(t<4u)m.directions=4u;
-        else if(t<8u)m.directions=4u|forward;
-        else if(t<14u)m.directions=forward;
-        if(t>=11u && t<14u)
-            m.attacks=command[0]==XM87143Queue::QCF_KK?0x18u:0x03u;
+        if(earlyCancel){
+            if(t<2u)m.directions=4u;              // Down
+            else if(t<4u)m.directions=4u|forward;  // Down-forward
+            else if(t<7u)m.directions=forward;     // Forward
+            if(t>=5u && t<7u)
+                m.attacks=command[0]==XM87143Queue::QCF_KK?0x18u:0x03u;
+        }else{
+            if(t<4u)m.directions=4u;
+            else if(t<8u)m.directions=4u|forward;
+            else if(t<14u)m.directions=forward;
+            if(t>=11u && t<14u)
+                m.attacks=command[0]==XM87143Queue::QCF_KK?0x18u:0x03u;
+        }
         return m;
     }
     // Call AFTER the ROM has executed a full real frame and the input queue
@@ -700,6 +714,59 @@ struct State {
                     (kenAction==0x0002u && kenMode==0x0200u);
                 const bool neutral=kenExitObserved[side] &&
                    actionable && now>kenExitAt[side]+2u;
+                if(earlyCancel && kenExitObserved[side] &&
+                   kenAction==0x2A08u &&
+                   now>kenExitAt[side] && now<=kenExitAt[side]+3u){
+                    // Restore the frame-accurate 87.150 cancellation:
+                    // the first ROM Ken tag kick (2A0C) was replaced with
+                    // its verified nonattacking 2A08 exit. In 87.150 the
+                    // next frame changed D6/A0 to a guessed action and the
+                    // ROM instead ran 2C32 dash. In 87.156 we proved that
+                    // *genuine neutral Ken* + D6=10/A0=002A accepts
+                    // QCF+2P/2K as real supers. Reproduce that actual ROM
+                    // state, then let the INPUT parser start 2E00/2E02.
+                    const auto idle=XM87142::resolve(rom,size,0x14u,0u,0u);
+                    const unsigned target=
+                       command[side]==XM87143Queue::QCF_KK?0x02u:0x00u;
+                    const unsigned expected=
+                       command[side]==XM87143Queue::QCF_KK?0xD6976u:0xD6722u;
+                    const auto sup=XM87142::resolve(rom,size,0x14u,0x2Eu,target);
+                    if(rb(ram,p+0xD6u)!=0x12u ||
+                       rl(ram,p+0x34u)!=0xD567Eu ||
+                       !idle.valid || idle.script!=0xD39FAu ||
+                       !sup.valid || sup.script!=expected){
+                        abort(now,side,ram,
+                              "FAST_KEN_CANCEL_ROM_STATE_UNVERIFIED_NO_OVERRIDE");
+                        continue;
+                    }
+                    // This is ROM-derived +00/00 neutral (from the user's
+                    // 87.156 frame 5068), NOT an invented Hadoken/dash.
+                    if(!setNativeScript(ram,rom,size,p,0x14u,0u,0u)){
+                        abort(now,side,ram,
+                              "FAST_KEN_CANCEL_IDLE_ROM_ENTRY_UNAVAILABLE");
+                        continue;
+                    }
+                    ww(ram,p+0xA0u,0x002Au);
+                    wb(ram,p+0xD6u,0x10u);
+                    wb(ram,p+0x256u,0u);wb(ram,p+0x259u,0u);
+                    wb(ram,p+0xA4u,0u);
+                    ww(ram,p+0x06u,0u);
+                    ww(ram,p+0x08u,0u);
+                    ww(ram,p+0x0Au,0u);
+                    wl(ram,p+0x14u,0u);
+                    wl(ram,p+0x18u,0u);
+                    wl(ram,p+0x1Cu,0u);
+                    wl(ram,p+0x20u,0u);
+                    kenExpectedAction[side]=0x2E00u|target;
+                    kenExpectedScript[side]=expected;
+                    kenSuperConfirmed[side]=false;
+                    kenNeutralSince[side]=0u;
+                    inputBegin[side]=now+1u;
+                    phase[side]=DELIVER_NATIVE_INPUT;
+                    event(now,side,ram,
+                          "FAST_157_KEN_2A08_CANCEL_TO_VERIFIED_ROM_IDLE");
+                    continue;
+                }
                 if(neutral){
                     if(!kenNeutralAt[side])kenNeutralAt[side]=now;
                     if(now>=kenNeutralAt[side]+2u){
@@ -733,9 +800,11 @@ struct State {
                 }
                 if(now==inputBegin[side])
                     event(now,side,ram,"DHC_KEN_NATIVE_QCF_INPUT_BEGIN");
-                if(now==inputBegin[side]+13u)
-                    event(now,side,ram,"PROOF_156_KEN_NATIVE_TWO_BUTTON_EDGE");
-                if(now==inputBegin[side]+16u)
+                if(now==inputBegin[side]+(earlyCancel?6u:13u))
+                    event(now,side,ram,earlyCancel?
+                          "FAST_157_KEN_NATIVE_TWO_BUTTON_EDGE":
+                          "PROOF_156_KEN_NATIVE_TWO_BUTTON_EDGE");
+                if(now==inputBegin[side]+(earlyCancel?8u:16u))
                     event(now,side,ram,"DHC_KEN_NATIVE_INPUT_RELEASED");
                 const unsigned act=rw(ram,p+0x60u);
                 const unsigned script=rl(ram,p+0x34u);
