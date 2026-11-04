@@ -54,10 +54,14 @@ static inline bool setNativeScript(std::uint8_t* ram,
     wl(ram,actor+0x38u,lookup.script+16u);
     return true;
 }
-enum Phase{IDLE=0,TAG_OUT=1,WAIT_NATIVE_SWAP=2,WAIT_LANDING=3,SUPER_STARTED=4,FAILED=5};
+enum Phase{
+    IDLE=0,TAG_OUT=1,WAIT_TAG_CONTROLLER=2,WAIT_NATIVE_SWAP=3,
+    WAIT_LANDING=4,SUPER_STARTED=5,FAILED=6
+};
 static inline const char* phaseName(Phase p){
     switch(p){
       case TAG_OUT:return "ROM_TAG_OUT";
+      case WAIT_TAG_CONTROLLER:return "WAIT_NATIVE_TAG_CONTROLLER";
       case WAIT_NATIVE_SWAP:return "WAIT_NATIVE_SWAP";
       case WAIT_LANDING:return "WAIT_NATIVE_LANDING";
       case SUPER_STARTED:return "NATIVE_SUPER_QUEUED";
@@ -66,9 +70,14 @@ static inline const char* phaseName(Phase p){
     }
 }
 struct State {
-    bool initialized=false,enabled=false,used[2]={false,false};
+    bool initialized=false,enabled=false,chainUsed[2]={false,false};
     Phase phase[2]={IDLE,IDLE};
     unsigned started[2]={0u,0u},outgoing[2]={0u,0u},incoming[2]={0u,0u};
+    unsigned cooldownUntil[2]={0u,0u},lastAcceptedAt[2]={~0u,~0u};
+    unsigned capturedMode[2]={0u,0u},capturedAction[2]={0u,0u};
+    unsigned captured256[2]={0u,0u},captured259[2]={0u,0u};
+    unsigned captured06[2]={0u,0u},captured08[2]={0u,0u},
+             captured0A[2]={0u,0u};
     unsigned originalX[2]={0u,0u},opponentX[2]={0u,0u};
     XM87143Queue::Command command[2]={XM87143Queue::QCF_PP,XM87143Queue::QCF_PP};
     unsigned lastFrame=~0u;
@@ -92,8 +101,20 @@ struct State {
     }
     void reset(){
         for(unsigned s=0;s<2u;++s){
-            phase[s]=IDLE;used[s]=false;lastQueuedCheck[s]=~0u;
+            phase[s]=IDLE;chainUsed[s]=false;lastQueuedCheck[s]=~0u;
+            lastAcceptedAt[s]=~0u;cooldownUntil[s]=0u;
         }
+    }
+    // A failed DHC attempt must NEVER use up the whole match. Discard the
+    // consumed command; the next intentional button/motion press is free
+    // to stage another queue entry after a short native action settle.
+    void abort(unsigned now,unsigned side,const std::uint8_t*ram,
+               const char*reason){
+        phase[side]=FAILED;
+        event(now,side,ram,reason);
+        phase[side]=IDLE;
+        cooldownUntil[side]=now+6u;
+        XM87143Queue::state().discard(side);
     }
     void event(unsigned now,unsigned side,const std::uint8_t*ram,
                const char*decision){
@@ -130,7 +151,8 @@ struct State {
             const unsigned reserveId=rw(ram,reserve+0x52u);
             if(phase[side]==IDLE){
                 const auto* entry=XM87143Queue::state().selected[side];
-                if(!entry || used[side] || !entry->known)continue;
+                if(!entry || chainUsed[side] || !entry->known ||
+                   now<cooldownUntil[side])continue;
                 const unsigned selectedAt=XM87143Queue::state().selectedFrame[side];
                 const bool firstCheck=selectedAt!=lastQueuedCheck[side];
                 lastQueuedCheck[side]=selectedAt;
@@ -155,6 +177,8 @@ struct State {
                 const auto out=XM87142::resolve(rom,size,pointId,0x32u,0u);
                 if(!blocked && (!out.valid || out.script!=0xD1DACu))
                     blocked="BLOCK_MISSING_REAL_RYU_OUTGOING_TAG_SCRIPT";
+                if(!blocked && selectedAt==lastAcceptedAt[side])
+                    blocked="BLOCK_SAME_INPUT_ALREADY_CONSUMED";
                 if(blocked){
                     if(firstCheck)event(now,side,ram,blocked);
                     continue;
@@ -163,21 +187,61 @@ struct State {
                 opponentX[side]=rw(ram,0x4400u+0x0Cu);
                 command[side]=entry->known->command;
                 outgoing[side]=pointId;incoming[side]=reserveId;
-                if(!setNativeScript(ram,rom,size,p,pointId,0x32u,0u)){
-                    if(firstCheck)event(now,side,ram,
-                        "BLOCK_NATIVE_OUTGOING_SCRIPT_INIT_FAILED");
-                    continue;
-                }
-                // 87.144 capture proves the native OUTGOING Ryu tag stays
-                // in +A0=2A28. +A0=2A00 appears only AFTER the ROM swaps
-                // ownership and starts Ken's incoming tag. Preserve Ryu's
-                // native outgoing super-family state here.
-                // Do NOT overwrite +A0 on this side of the swap.
-                // The action scheduler starts at step zero.
-                ww(ram,p+0x06u,0u);ww(ram,p+0x08u,0u);
-                phase[side]=WAIT_NATIVE_SWAP;started[side]=now;used[side]=true;
-                event(now,side,ram,"DHC_APPROVED_ROM_OUTGOING_ACTION");
+                capturedMode[side]=rw(ram,p+0xA0u);
+                capturedAction[side]=rw(ram,p+0x60u);
+                captured256[side]=rb(ram,p+0x256u);
+                captured259[side]=rb(ram,p+0x259u);
+                captured06[side]=rw(ram,p+0x06u);
+                captured08[side]=rw(ram,p+0x08u);
+                captured0A[side]=rw(ram,p+0x0Au);
+                // Native 68000 013B8E: partner tag command acceptance
+                // writes controller +256/+259=8. ROM 011B00 then
+                // processes this controller and selects actor 32/00.
+                // The 87.145 test wrote script 32/00 but left the actor
+                // in super controller +A0=2A28, so the ROM immediately
+                // rewrote 2E08 on the NEXT frame.
+                //
+                // Real Ryu normal tag capture at 2759: action 3200,
+                // mode +A0=2A00. Preserve the native controller path;
+                // DO NOT force an outgoing sprite script from the host.
+                wb(ram,p+0x256u,0x08u);
+                wb(ram,p+0x259u,0x08u);
+                ww(ram,p+0x06u,0u);
+                ww(ram,p+0x08u,0u);
+                ww(ram,p+0x0Au,0u);
+                ww(ram,p+0xA0u,0x2A00u);
+                phase[side]=WAIT_TAG_CONTROLLER;
+                started[side]=now;
+                lastAcceptedAt[side]=selectedAt;
+                event(now,side,ram,"DHC_NATIVE_TAG_CONTROLLER_08_ARMED");
                 XM87143Queue::state().discard(side);
+                continue;
+            }
+            if(phase[side]==WAIT_TAG_CONTROLLER){
+                // ROM scheduler must select outgoing action 3200 itself,
+                // not merely display Ryu's 3200 sprite for one frame.
+                event(now,side,ram,"NATIVE_TAG_CONTROLLER_WAIT_FRAME");
+                if(pointId!=outgoing[side] || reserveId!=incoming[side]){
+                    abort(now,side,ram,"CONTROLLER_FIGHTER_CHANGED_BEFORE_TAG");
+                }else if(rw(ram,p+0x60u)==0x3200u &&
+                         rw(ram,p+0xA0u)==0x2A00u){
+                    phase[side]=WAIT_NATIVE_SWAP;
+                    event(now,side,ram,"NATIVE_CONTROLLER_ACCEPTED_OUTGOING_3200");
+                }else if(now-started[side]>12u){
+                    // No native tag controller was established. Restore
+                    // its command/status bytes only when Ryu is STILL the
+                    // same point fighter, and retain all native animation/
+                    // script and opponent state as the ROM left them.
+                    if(pointId==outgoing[side]&&reserveId==incoming[side]){
+                        ww(ram,p+0xA0u,capturedMode[side]);
+                        wb(ram,p+0x256u,captured256[side]);
+                        wb(ram,p+0x259u,captured259[side]);
+                        ww(ram,p+0x06u,captured06[side]);
+                        ww(ram,p+0x08u,captured08[side]);
+                        ww(ram,p+0x0Au,captured0A[side]);
+                    }
+                    abort(now,side,ram,"NATIVE_TAG_CONTROLLER_REJECTED_12F");
+                }
                 continue;
             }
             if(phase[side]==WAIT_NATIVE_SWAP){
@@ -189,14 +253,16 @@ struct State {
                     phase[side]=WAIT_LANDING;
                     event(now,side,ram,"REAL_ROM_POINT_RESERVE_SWAP");
                 }else if(now-started[side]>60u){
-                    phase[side]=FAILED;
-                    event(now,side,ram,"NO_NATIVE_SWAP_WITHIN_60_FRAMES");
+                    abort(now,side,ram,"NO_ROM_OWNERSHIP_SWAP_WITHIN_60_FRAMES");
                 }
                 continue;
             }
             if(phase[side]==WAIT_LANDING){
                 event(now,side,ram,"NATIVE_LANDING_WAIT_FRAME");
-                if(pointId!=incoming[side]){phase[side]=FAILED;event(now,side,ram,"FIGHTER_CHANGED");continue;}
+                if(pointId!=incoming[side]){
+                    abort(now,side,ram,"FIGHTER_CHANGED_DURING_DHC_LANDING");
+                    continue;
+                }
                 // Ken's actual native 2A0C tag jump transitions into 2A0E
                 // as he touches ground (captured at 87.144 frame 2802). Intervene
                 // only on THIS DHC-specific landing, never an ordinary tag.
@@ -205,13 +271,14 @@ struct State {
                     const unsigned chosenAction=command[side]==XM87143Queue::QCF_KK?0x2Eu:0x2Cu;
                     const unsigned chosenSub=command[side]==XM87143Queue::QCF_KK?0u:4u;
                     const auto sup=XM87142::resolve(rom,size,pointId,chosenAction,chosenSub);
-                    if(!sup.valid){phase[side]=FAILED;event(now,side,ram,"MISSING_INCOMING_ROM_SCRIPT");continue;}
+                    if(!sup.valid){
+                        abort(now,side,ram,"MISSING_INCOMING_ROM_SCRIPT");continue;
+                    }
                     // Establish a fully valid script BEFORE changing incoming
                     // location or velocities. A failed ROM header must leave
                     // Ken's actual native landing untouched.
                     if(!setNativeScript(ram,rom,size,p,pointId,chosenAction,chosenSub)){
-                        phase[side]=FAILED;
-                        event(now,side,ram,"NATIVE_SCRIPT_INIT_REJECTED");
+                        abort(now,side,ram,"NATIVE_SCRIPT_INIT_REJECTED");
                         continue;
                     }
                     // Fixed location: same side of opponent as outgoing
@@ -230,9 +297,10 @@ struct State {
                     // switching from tag kick to the selected super.
                     ww(ram,p+0xA0u,0x2A28u);
                     phase[side]=SUPER_STARTED;
+                    chainUsed[side]=true;
                     event(now,side,ram,"DHC_NATIVE_SUPER_REPLACES_KICK__UNVERIFIED_FX");
                 }else if(now-started[side]>135u){
-                    phase[side]=FAILED;event(now,side,ram,"NATIVE_LANDING_TIMEOUT");
+                    abort(now,side,ram,"NATIVE_LANDING_TIMEOUT");
                 }
                 continue;
             }
@@ -240,7 +308,18 @@ struct State {
                 if(now-started[side]>150u){
                     event(now,side,ram,"DHC_SEQUENCE_OBSERVATION_COMPLETE");
                     phase[side]=IDLE;
+                    // One DHC per chain, not one DHC per whole match.
+                    // The incoming super owns this chain; rearm only after
+                    // the native action returns to non-super neutral.
                 }
+            }
+            if(phase[side]==IDLE && chainUsed[side] &&
+               rw(ram,p+0xA0u)!=0x2A28u &&
+               rw(ram,p+0x60u)!=0x2E08u &&
+               rw(ram,p+0x60u)!=0x2C04u &&
+               rw(ram,p+0x60u)!=0x2E00u){
+                chainUsed[side]=false;
+                event(now,side,ram,"DHC_REARM_NEXT_INDEPENDENT_SUPER");
             }
         }
     }
