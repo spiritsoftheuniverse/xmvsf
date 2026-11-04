@@ -1,6 +1,11 @@
 # XMVSF native input replay — permanent TEST launchers
 
-## Host-aware replay v2 — TEST 87.166 (F9 output and indicator restored)
+**Authoritative data contract:** [XMVSF Replay Data Model Manifesto](REPLAY_DATA_MODEL_MANIFESTO.md).
+This guide is operational; any changes to the file format, F9 lifecycle,
+checkpoint boundaries, legacy support or replay completion claims
+must satisfy that manifesto and its regression gates.
+
+## Host-aware replay v2 — TEST 87.167 (sealed multi-session captures)
 
 **This is the current recording workflow.** The permanent root files
 `BUILD_TEST.bat`, `RUN_TEST.bat`, and `RUN_REPLAY.bat` remain stable
@@ -30,12 +35,12 @@ state are then written into that same session folder once the
 first real emulator frame runs.
 
 The permanent, append-only failure/status log is
-`test/87.166/replays/F9_status.log`, even if the new session folder
+`test/87.167/replays/F9_status.log`, even if the new session folder
 cannot be created. To share an issue, ZIP the entire
-`test/87.166/replays` folder, including its
+`test/87.167/replays` folder, including its
 `session_XXXX` subfolder and `F9_status.log`.
 
-87.166 also fixes a serious 87.164/165 recorder bug: it previously
+87.166 fixed a serious 87.164/165 recorder bug: it previously
 treated Training's **incrementing character-select frame counter**
 as a change requiring a new full save-state every frame. It now
 creates checkpoints only on semantic host changes and explicit
@@ -45,15 +50,53 @@ inside the ongoing input segment instead of flooding the disk.
 
 
 A new directory is created per recording:
-`test/87.166/replays/session_0001/`, then `session_0002/`, etc.
+`test/87.167/replays/session_0001/`, then `session_0002/`, etc.
 Its `manifest.tsv` journals game sessions, menu choices, host events
 and checkpoint boundaries. Each `s####_seg####_inputs.bin` has a
 matching native `s####_seg####_start.fs` state. These are **not**
 old single-segment `xm8761_f9_..._inputs.bin` files.
 
 A completed F9 recording updates
-`test/87.166/replays/latest.txt` with the latest session path.
+`test/87.167/replays/latest.txt` with the latest session path.
 The launcher never chooses a half-finished F9 recording by default.
+
+**87.167 writes a `FINAL` record** after all committed `DONE`
+segments, with exact total frames, sessions, segments and a stop reason.
+Pressing F9 writes `F9_STOP`; closing the application while F9
+remains armed writes `APPLICATION_EXIT` automatically. `latest.txt`
+is published only after finalization succeeds. No need to reopen the
+game merely to press F9 after returning to the main menu.
+
+The actual uploaded 87.166 recording has 3,407 complete frames across
+eight segments but no `FINAL` or `latest.txt`. It remains an
+**unsealed recoverable prefix**. To replay this older capture, drag the
+existing `test/87.166/replays/session_0001` folder onto
+`RUN_REPLAY.bat` after building the current TEST. The reader warns
+that it is unsealed. It does not modify, seal or fabricate missing
+frames inside that older recording.
+
+### Inspect or validate a replay without launching the game
+
+The standard-library-only, **read-only** verifier enforces the
+manifesto's binary and journal rules for a recording folder,
+`manifest.tsv` or a ZIP:
+
+```bat
+python dev\dhc\tools\VERIFY_REPLAY_V2.py "test\87.167\replays\session_0001"
+python dev\dhc\tools\VERIFY_REPLAY_V2.py "87.166.zip" --allow-unsealed
+```
+
+It reports `SEALED` or `UNSEALED_PREFIX`, frame/session/segment
+counts, native input slot layouts, and whether every manifest
+`SEG`/`DONE` has an exact-size, contiguous-index `.bin`
+and a valid `FB1` state header. It **never** modifies the source
+recording or generates fake `FINAL` entries.
+
+`RUN_REPLAY.bat` calls the verifier when Python is installed:
+normal `latest.txt` playback requires `SEALED`, while explicitly
+dragging an older session allows a verified unsealed prefix.
+The emulator's own native input checks still run if Python is
+unavailable.
 
 ### Replay with high-speed fast-forward
 
@@ -85,7 +128,7 @@ Use `0` for normal-speed replay. Visual rendering is reduced during
 fast playback, but actual emulator CPU/input steps are never skipped.
 
 Logs are kept in the session's `replay_v2_status.log`, plus the
-current TEST version's `test/87.166/replay_results/`. A missing
+current TEST version's `test/87.167/replay_results/`. A missing
 checkpoint, invalid frame number, input-layout mismatch or other
 recognized failure emits `REPLAY_DIVERGED` and a nonzero process exit.
 
@@ -98,7 +141,7 @@ complete 14-fighter host-session replay.
 
 ### Current verification scope
 
-87.166 includes a native movie round-trip C++11 test that covers two
+87.167 includes a native movie round-trip C++11 test that covers two
 distinct game sessions and checkpointing after a host Training change,
 plus a replay-direct-start test for v1. It has **not yet been proven**
 end-to-end inside the user's native Windows SDL application. In

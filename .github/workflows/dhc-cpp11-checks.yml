@@ -75,7 +75,7 @@ jobs:
             echo 'ERROR: awk compiler-warning filter must not truncate build logs' >&2
             exit 1
           fi
-          grep -Fq 'XMVSF_Test_87_166.exe' RUN_TEST.bat
+          grep -Fq 'XMVSF_Test_87_167.exe' RUN_TEST.bat
           grep -Fq 'XM87139_PROBE_DIR' RUN_TEST.bat
           grep -Fq 'XM87140_CHAT_LOG' RUN_TEST.bat
           grep -Fq 'xm87140ChatOverlay(sdlRenderer);' dev/stable/buildtree/src/intf/video/sdl/vid_sdl2.cpp
@@ -91,11 +91,25 @@ jobs:
           test -f dev/dhc/tests/test_dhc_rom_catalog_160.cpp
           grep -Fq 'XM8761_REPLAY_DIR=' RUN_TEST.bat
           grep -Fq 'XM8761_REPLAY_MODE=off' RUN_TEST.bat
-          grep -Fq 'XMVSF_Test_87_166.exe' RUN_REPLAY.bat
+          grep -Fq 'XMVSF_Test_87_167.exe' RUN_REPLAY.bat
           # The replay launcher is a permanent first-class root entry point.
           # Never let point-version bumps strand it on a stale TEST executable.
           test -f RUN_REPLAY.bat
           test -f REPLAY.md
+          test -f README.md
+          test -f REPLAY_DATA_MODEL_MANIFESTO.md
+          test -f dev/dhc/tools/VERIFY_REPLAY_V2.py
+          grep -Fq 'UNSEALED_PREFIX' dev/dhc/tools/VERIFY_REPLAY_V2.py
+          grep -Fq 'FINAL' REPLAY_DATA_MODEL_MANIFESTO.md
+          grep -Fq 'UNSEALED' REPLAY_DATA_MODEL_MANIFESTO.md
+          grep -Fq 'REPLAY_DATA_MODEL_MANIFESTO.md' README.md
+          grep -Fq 'XM8764::finalizeRecording("APPLICATION_EXIT")' dev/stable/buildtree/src/burner/sdl/main.cpp
+          grep -Fq 'std::atexit(finishAtNormalExit)' dev/stable/buildtree/src/burner/sdl/xmvsf_stage87_164_host_replay.h
+          grep -Fq 'V2_MANIFEST_SEALED' dev/stable/buildtree/src/burner/sdl/xmvsf_stage87_164_host_replay.h
+          grep -Fq 'V2_UNSEALED_PREFIX' dev/stable/buildtree/src/burner/sdl/xmvsf_stage87_164_host_replay.h
+          grep -Fq 'V2_FINAL_TOTAL_MISMATCH' dev/stable/buildtree/src/burner/sdl/xmvsf_stage87_164_host_replay.h
+          grep -Fq 'FINAL' dev/dhc/tests/test_dhc_host_replay_164.cpp
+          grep -Fq 'finishAtNormalExit()' dev/dhc/tests/test_dhc_host_replay_164.cpp
           test -f dev/dhc/tests/test_dhc_replay_runner_163.cpp
           test -f dev/dhc/tests/test_dhc_host_replay_164.cpp
           test -f dev/stable/buildtree/src/burner/sdl/xmvsf_stage87_164_host_replay.h
@@ -106,7 +120,7 @@ jobs:
           grep -Fq 'XM8764_REPLAY_ROOT=' RUN_TEST.bat
           # F9 must keep the SAME red gameplay counter and file-location
           # discoverability as the old recorder, plus show it in boot menu.
-          grep -Fq 'XM8764_REPLAY_ROOT=%PROJECT%\test\87.166\replays' RUN_TEST.bat
+          grep -Fq 'XM8764_REPLAY_ROOT=%PROJECT%\test\87.167\replays' RUN_TEST.bat
           grep -Fq 'XM8764_REPLAY_STATUS_FILE=' RUN_TEST.bat
           grep -Fq 'XM8764::recordingFrames()' dev/stable/buildtree/src/burner/sdl/run.cpp
           grep -Fq 'xm87166ReplayVisualStatus' dev/stable/buildtree/src/intf/video/sdl/vid_sdl2.cpp
@@ -116,7 +130,7 @@ jobs:
           grep -Fq 'requiresCheckpoint(host,c.lastRecordedHost)' dev/stable/buildtree/src/burner/sdl/xmvsf_stage87_164_host_replay.h
           grep -Fq 'recordingFrames()==1' dev/dhc/tests/test_dhc_host_replay_164.cpp
           grep -Fq 'saves==1u' dev/dhc/tests/test_dhc_host_replay_164.cpp
-          grep -Fq '%PROJECT%\test\87.166\replays\latest.txt' RUN_REPLAY.bat
+          grep -Fq '%PROJECT%\test\87.167\replays\latest.txt' RUN_REPLAY.bat
           grep -Fq 'dir /b /ad /o:-n' RUN_REPLAY.bat
           grep -Fq 'RECORD_SAVE_ERROR' dev/stable/buildtree/src/burner/sdl/xmvsf_stage87_164_host_replay.h
           grep -Fq 'V2_INPUT_FLUSH_OR_CLOSE_FAILED' dev/stable/buildtree/src/burner/sdl/xmvsf_stage87_164_host_replay.h
@@ -189,7 +203,7 @@ jobs:
             exit 1
           fi
           grep -Fq 'required_markers=(' dev/dhc/BUILD_TEST.sh
-          grep -Fq 'TEST executable is missing compiled 87.166 marker' dev/dhc/BUILD_TEST.sh
+          grep -Fq 'TEST executable is missing compiled 87.167 marker' dev/dhc/BUILD_TEST.sh
           grep -Fq 'DHC_NATIVE_TAG_CONTROLLER_08_ARMED' dev/stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_144_native_handoff.h
           grep -Fq 'NATIVE_CONTROLLER_ACCEPTED_OUTGOING_3200' dev/stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_144_native_handoff.h
           grep -Fq 'NATIVE_TAG_CONTROLLER_REJECTED_12F' dev/stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_144_native_handoff.h
@@ -262,6 +276,8 @@ jobs:
         run: |
           set -euo pipefail
           python3 -m py_compile dev/dhc/tools/DISASSEMBLE_SUPER_MOVES.py
+          python3 -m py_compile dev/dhc/tools/VERIFY_REPLAY_V2.py
+          python3 dev/dhc/tools/VERIFY_REPLAY_V2.py --self-test
           python3 - <<'PY'
           import importlib.util
           from pathlib import Path

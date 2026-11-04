@@ -55,6 +55,7 @@ struct Context {
     // completion/error feedback survive F9 stop or a failed write.
     unsigned noticeFrames=0;
     bool lastSaved=false;
+    bool sealed=false,unsealedPrefix=false;
     ~Context(){if(stream)std::fclose(stream);if(journal)std::fclose(journal);}
 };
 inline Context& context(){static Context x;return x;}
@@ -153,16 +154,41 @@ inline bool requiresCheckpoint(const Host& a,const Host& b){
 }
 inline bool loadManifest(){
     Context& c=context();
+    c.segments.clear();c.sealed=false;c.unsealedPrefix=false;
     std::ifstream f((c.folder+"/manifest.tsv").c_str(),std::ios::binary);
     if(!f)return fail("V2_MANIFEST_MISSING");
     std::string line;
     if(!std::getline(f,line) || line!="XM8764V2\t1")
         return fail("V2_MANIFEST_SIGNATURE");
+    bool sawFinal=false;
+    unsigned finalFrames=0,finalSessions=0,finalSegments=0;
+    unsigned lastEventFrame=0,maxEventFrame=0;
+    std::string finalReason;
     while(std::getline(f,line)){
         if(line.empty())continue;
         std::istringstream in(line);std::string key;
         in>>key;
-        if(key=="SEG"){
+        if(sawFinal)return fail("V2_TRAILING_RECORD_AFTER_FINAL");
+        if(key=="FINAL"){
+            if(!(in>>finalFrames>>finalSessions>>finalSegments>>finalReason) ||
+               finalReason.empty())return fail("V2_FINAL_FORMAT");
+            std::string extra;
+            if(in>>extra)return fail("V2_FINAL_TRAILING_DATA");
+            if(finalReason!="F9_STOP" &&
+               finalReason!="APPLICATION_EXIT")
+                return fail("V2_FINAL_STOP_REASON");
+            sawFinal=true;
+        }else if(key=="EVENT"){
+            unsigned eventSession=0,absolute=0,x=0,y=0;
+            std::string verb,extra;
+            if(!(in>>eventSession>>absolute>>verb>>x>>y) || verb.empty() ||
+               (in>>extra))
+                return fail("V2_MANIFEST_EVENT_FORMAT");
+            if(absolute<lastEventFrame)
+                return fail("V2_NONMONOTONIC_EVENT");
+            lastEventFrame=absolute;
+            if(absolute>maxEventFrame)maxEventFrame=absolute;
+        }else if(key=="SEG"){
             Segment s;
             if(!(in>>s.session>>s.index>>s.mode>>s.reason>>
                   s.input>>s.state) || !hostRead(in,s.host))
@@ -180,16 +206,57 @@ inline bool loadManifest(){
                 }
             }
             if(!found)return fail("V2_ORPHAN_DONE");
+        }else{
+            return fail("V2_UNKNOWN_MANIFEST_VERB");
         }
     }
     if(c.segments.empty())return fail("V2_NO_SEGMENTS");
+    unsigned countFrames=0,countSessions=0;
     for(unsigned i=0;i<c.segments.size();++i){
-        const Segment& s=c.segments[i];
-        if(!s.complete||!s.count)return fail("V2_INCOMPLETE_SEGMENT");
-        if(i && (s.session<c.segments[i-1].session ||
-           (s.session==c.segments[i-1].session &&
-            s.index<=c.segments[i-1].index)))
-            return fail("V2_SEGMENT_ORDER");
+        const Segment& seg=c.segments[i];
+        if(!seg.complete||!seg.count)return fail("V2_INCOMPLETE_SEGMENT");
+        if(seg.session==0 || seg.index>9999u)return fail("V2_SEGMENT_ID");
+        if(seg.input.find('/')!=std::string::npos ||
+           seg.input.find('\\')!=std::string::npos ||
+           seg.state.find('/')!=std::string::npos ||
+           seg.state.find('\\')!=std::string::npos ||
+           seg.input.find("..")!=std::string::npos ||
+           seg.state.find("..")!=std::string::npos)
+            return fail("V2_SEGMENT_PATH_NOT_LOCAL");
+        if(!i){
+            if(seg.session!=1u || seg.index!=0u)
+                return fail("V2_FIRST_SEGMENT_NOT_SESSION_1");
+            countSessions=1u;
+        }else{
+            const Segment& prev=c.segments[i-1];
+            if(seg.session==prev.session){
+                if(seg.index!=prev.index+1u)return fail("V2_SEGMENT_ORDER");
+            }else{
+                if(seg.session!=prev.session+1u || seg.index!=0u)
+                    return fail("V2_SESSION_ORDER");
+                ++countSessions;
+            }
+        }
+        if(seg.count>10000000u-countFrames)
+            return fail("V2_TOO_MANY_FRAMES");
+        countFrames+=seg.count;
+    }
+    if(maxEventFrame>countFrames)return fail("V2_EVENT_BEYOND_LAST_INPUT");
+    c.sealed=sawFinal;
+    c.unsealedPrefix=!sawFinal;
+    if(sawFinal){
+        if(finalFrames!=countFrames ||
+           finalSessions!=countSessions ||
+           finalSegments!=c.segments.size())
+            return fail("V2_FINAL_TOTAL_MISMATCH");
+        status("V2_MANIFEST_SEALED frames="+std::to_string(countFrames)+
+            " sessions="+std::to_string(countSessions)+
+            " segments="+std::to_string(c.segments.size())+
+            " reason="+finalReason);
+    }else{
+        status("V2_UNSEALED_PREFIX frames="+std::to_string(countFrames)+
+            " segments="+std::to_string(c.segments.size())+
+            " explicit_selection_only");
     }
     status("V2_MANIFEST_READY segments="+std::to_string(c.segments.size()));
     return true;
@@ -237,6 +304,7 @@ inline void journal(const char* event,unsigned x=0,unsigned y=0){
         c.session,c.allFrames,event,x,y);
     std::fflush(c.journal);
 }
+inline void finishAtNormalExit(); // registered AFTER Context construction
 inline bool startRecording(){
     Context& c=context();initialize();
     // An earlier failed save may leave a partial stream/manifest open.
@@ -274,8 +342,20 @@ inline bool startRecording(){
         std::fclose(c.journal);c.journal=nullptr;
         return fail("V2_MANIFEST_HEADER_WRITE_FAILED");
     }
+    // This handler is registered after the function-local Context
+    // destructor, so it is invoked before teardown, after the
+    // current RunMessageLoop has finished. Even closing the window
+    // without pressing F9 writes the FINAL seal.
+    static bool registered=false;
+    if(!registered){
+        if(std::atexit(finishAtNormalExit)!=0)
+            return fail("V2_EXIT_FINALIZER_REGISTRATION_FAILED");
+        registered=true;
+    }
     c.mode=RECORD;c.insideGame=false;c.split=true;c.session=0;c.segment=0;
-    c.frames=0;c.allFrames=0;c.reason="SESSION_START";c.failed=false;
+    c.frames=0;c.allFrames=0;c.totalSegments=0;
+    c.reason="SESSION_START";c.failed=false;
+    c.sealed=false;c.unsealedPrefix=false;
     c.hostRecorded=false;c.lastSaved=false;c.noticeFrames=0;
     // Do not point the permanent replay runner at an empty recording
     // until F9 actually finishes a playable multi-session manifest.
@@ -295,50 +375,70 @@ inline bool closeSegment(){
                 c.session,c.segment,c.frames)<0 ||
            std::fflush(c.journal)!=0)
             return fail("V2_MANIFEST_DONE_WRITE_FAILED");
+        ++c.totalSegments; // counts only verified, committed DONE entries
         status("SEGMENT_SAVED session="+std::to_string(c.session)+
             " segment="+std::to_string(c.segment)+
             " frames="+std::to_string(c.frames));
     }
     return true;
 }
+// Seal a movie only after the final verified input segment is DONE.
+// The native application may exit while F9 is still active; that is
+// an intentional APPLICATION_EXIT stop, not an incomplete recording.
+inline bool finalizeRecording(const char* reason){
+    Context& c=context();initialize();
+    if(c.mode!=RECORD)return false;
+    if(!closeSegment())return false;
+    c.insideGame=false;
+    if(!c.journal)return fail("V2_MISSING_OPEN_MANIFEST");
+    if(c.allFrames==0u){
+        std::fclose(c.journal);c.journal=nullptr;
+        c.mode=OFF;c.lastSaved=false;c.noticeFrames=180;
+        status("RECORD_EMPTY no emulated frames; recording not published");
+        return false;
+    }
+    const char* why=(reason&&*reason)?reason:"F9_STOP";
+    // Explicit footer is part of the immutable manifest format. The
+    // FINAL record is not present in the user's real 87.166 capture;
+    // that capture remains valid as an unsealed, complete-frame prefix.
+    if(std::fprintf(c.journal,"FINAL\t%u\t%u\t%u\t%s\n",
+            c.allFrames,c.session,c.totalSegments,why)<0 ||
+       std::fflush(c.journal)!=0)
+        return fail("V2_FINAL_WRITE_FAILED");
+    const int manifestClose=std::fclose(c.journal);c.journal=nullptr;
+    if(manifestClose!=0)return fail("V2_MANIFEST_FINAL_CLOSE_FAILED");
+    // Keep the existing original/latest directory pointer contract.
+    // A failed publish is an explicit error; never claim success.
+    const std::string latest=c.root+"/latest.txt";
+    std::FILE* pointer=std::fopen(latest.c_str(),"wb");
+    if(!pointer){
+        c.mode=OFF;c.lastSaved=false;c.noticeFrames=180;
+        status("RECORD_SAVE_ERROR cannot write latest.txt");
+        return false;
+    }
+    const int wrote=std::fprintf(pointer,"%s\n",c.folder.c_str());
+    const int closeCode=std::fclose(pointer);
+    if(wrote<0 || closeCode!=0){
+        c.mode=OFF;c.lastSaved=false;c.noticeFrames=180;
+        status("RECORD_SAVE_ERROR failed writing latest.txt");
+        return false;
+    }
+    c.lastSaved=true;c.noticeFrames=180;c.sealed=true;
+    status("RECORD_SAVED total_frames="+std::to_string(c.allFrames)+
+        " session_count="+std::to_string(c.session)+
+        " segments="+std::to_string(c.totalSegments)+
+        " reason="+why+" folder="+c.folder);
+    c.mode=OFF;
+    return true;
+}
+inline void finishAtNormalExit(){
+    Context& c=context();
+    if(c.mode==RECORD)finalizeRecording("APPLICATION_EXIT");
+}
 inline bool toggleF9(){
     initialize();Context& c=context();
     if(c.mode==PLAY){status("F9_REJECTED_PLAYBACK_ACTIVE");return false;}
-    if(c.mode==RECORD){
-        if(!closeSegment())return false;
-        if(c.journal){
-            const int rc=std::fclose(c.journal);
-            c.journal=nullptr;
-            if(rc!=0)return fail("V2_MANIFEST_FINAL_CLOSE_FAILED");
-        }
-        if(c.allFrames==0u){
-            c.mode=OFF;c.insideGame=false;
-            c.lastSaved=false;c.noticeFrames=180;
-            status("RECORD_EMPTY no emulated frames; recording not published");
-            return false;
-        }
-        const std::string latest=c.root+"/latest.txt";
-        std::FILE* pointer=std::fopen(latest.c_str(),"wb");
-        if(!pointer){
-            c.mode=OFF;c.insideGame=false;
-            c.lastSaved=false;c.noticeFrames=180;
-            status("RECORD_SAVE_ERROR cannot write latest.txt");
-            return false;
-        }
-        const int wrote=std::fprintf(pointer,"%s\n",c.folder.c_str());
-        const int closeCode=std::fclose(pointer);
-        if(wrote<0 || closeCode!=0){
-            c.mode=OFF;c.insideGame=false;
-            c.lastSaved=false;c.noticeFrames=180;
-            status("RECORD_SAVE_ERROR failed writing latest.txt");
-            return false;
-        }
-        c.lastSaved=true;c.noticeFrames=180;
-        status("RECORD_SAVED total_frames="+std::to_string(c.allFrames)+
-            " session_count="+std::to_string(c.session)+
-            " folder="+c.folder);
-        c.mode=OFF;c.insideGame=false;return true;
-    }
+    if(c.mode==RECORD)return finalizeRecording("F9_STOP");
     return startRecording();
 }
 inline void hostEvent(const char* event,unsigned detail=0){

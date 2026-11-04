@@ -7,6 +7,8 @@
 #include <cstdlib>
 #include <cstring>
 #include <string>
+#include <fstream>
+#include <sstream>
 #include <unistd.h>
 typedef unsigned char UINT8;
 struct BurnInputInfo {
@@ -86,6 +88,11 @@ int main(){
     assert(XM8764::exists(std::string(root)+"/latest.txt"));
     assert(saves==3u);
     assert(XM8764::exists(folder+"/manifest.tsv"));
+    {
+        std::ifstream sealed((folder+"/manifest.tsv").c_str());
+        std::ostringstream out;out<<sealed.rdbuf();
+        assert(out.str().find("FINAL\t4\t2\t3\tF9_STOP")!=std::string::npos);
+    }
     // Simulate a new process opening the same finished v2 session.
     XM8764::Context& c=XM8764::context();
     c.initialized=false;c.mode=XM8764::OFF;c.root.clear();
@@ -94,6 +101,7 @@ int main(){
     c.insideGame=false;c.exitSession=false;c.failed=false;
     assert(setenv("XM8764_REPLAY_SESSION",folder.c_str(),1)==0);
     assert(XM8764::isPlayback());
+    assert(c.sealed && !c.unsealedPrefix);
     assert(c.segments.size()==3u);
     assert(XM8764::nextMode()==1);
     XM8764::gameBegin(1);
@@ -118,6 +126,48 @@ int main(){
     XM8764::gameEnd();
     assert(loads==3u);
     assert(XM8764::exists(folder+"/replay_v2_status.log"));
+    // The user's genuine 87.166 recording is a complete-segment,
+    // unsealed capture. It must remain readable in explicit replay,
+    // without inventing a missing FINAL record or changing input bytes.
+    {
+        const std::string manifest=folder+"/manifest.tsv";
+        std::ifstream source(manifest.c_str());
+        std::string line;std::vector<std::string> lines;
+        while(std::getline(source,line))
+            if(line.find("FINAL\t")!=0)lines.push_back(line);
+        source.close();
+        std::ofstream partial(manifest.c_str(),std::ios::binary|std::ios::trunc);
+        for(const std::string& row:lines)partial<<row<<"\n";
+        partial.close();
+        c.segments.clear();c.sealed=false;c.unsealedPrefix=false;
+        assert(XM8764::loadManifest());
+        assert(c.unsealedPrefix && !c.sealed);
+        assert(c.segments.size()==3u);
+    }
+    // Quitting the real XMVSF application while recording is still
+    // enabled must finalize the movie automatically, not strand
+    // 3,407 already committed frames without latest.txt (87.166).
+    unsetenv("XM8764_REPLAY_SESSION");
+    c.initialized=false;c.mode=XM8764::OFF;c.folder.clear();
+    c.journal=nullptr;c.stream=nullptr;
+    c.segments.clear();c.playIndex=0;c.allFrames=0;
+    c.insideGame=false;c.exitSession=false;c.failed=false;
+    assert(setenv("XM8764_REPLAY_ROOT",root,1)==0);
+    assert(XM8764::toggleF9());
+    const std::string exitedFolder=c.folder;
+    XM8764::gameBegin(1);
+    nativeMarker=55;p1=1;p2=2;
+    assert(XM8764::beforeFrame(training)==XM8764::FRAME_READY);
+    XM8764::gameEnd();
+    XM8764::finishAtNormalExit();
+    assert(c.mode==XM8764::OFF && c.lastSaved);
+    {
+        std::ifstream sealed((exitedFolder+"/manifest.tsv").c_str());
+        std::ostringstream out;out<<sealed.rdbuf();
+        assert(out.str().find("FINAL\t1\t1\t1\tAPPLICATION_EXIT")!=
+               std::string::npos);
+    }
+    XM8764::finishAtNormalExit(); // idempotent atexit safety net
     // Failed disk/path setups produce a visible ERROR indicator and a
     // persistent root-level status log, not fake RECORDING success.
     unsetenv("XM8764_REPLAY_SESSION");
