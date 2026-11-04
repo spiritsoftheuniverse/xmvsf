@@ -217,10 +217,10 @@ struct State {
                 log(frame,SYSTEM,m);
                 // These are user-confirmed move commands, NOT ROM script IDs.
                 for(unsigned mi=0;mi<2u;++mi){
-                    const ListedSuper* m=known(bench,mi);
-                    if(!m)break;
+                    const ListedSuper* listed=known(bench,mi);
+                    if(!listed)break;
                     std::snprintf(m,sizeof(m),"P%u RESERVE %02X %s = %s+%s [INPUT MAP]",
-                        side+1u,bench,m->name,m->back?"QCB":"QCF",m->kicks?"KK":"PP");
+                        side+1u,bench,listed->name,listed->back?"QCB":"QCF",listed->kicks?"KK":"PP");
                     log(frame,SYSTEM,m);
                 }
                 if(!known(bench,0u))
