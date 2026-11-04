@@ -246,5 +246,25 @@ if exist "%XM8764_REPLAY_STATUS_FILE%" (
 ) else (
   echo ERROR: no host replay status was written. Check executable and manifest.
 )
+REM Verify ROM events and complete checkpoint progression after v2 playback.
+REM Use the original record only for read-only input/reference comparison.
+if "%RC%"=="0" (
+  where python.exe >nul 2>nul
+  if errorlevel 1 (
+    echo ERROR: Python missing - replay is NOT verified for cast capture.
+    set "RC=3"
+  ) else (
+    echo Verifying checkpoint completion and recorded ROM action sequence...
+    python.exe "%PROJECT%\dev\dhc\tools\VERIFY_DHC_ROM_ACTIONS.py" "%V2_SESSION%" --replay-results "%TRACE%"
+    if errorlevel 1 (
+      echo ERROR: ROM action replay verification FAILED. Original capture preserved.
+      set "RC=3"
+    ) else (
+      echo PASS: all checkpoint loads, PLAY_END, and ROM action trace match.
+    )
+  )
+) else (
+  echo ERROR: Replay executable failed; ROM action verification not claimed.
+)
 pause
 exit /b %RC%
