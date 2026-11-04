@@ -88,6 +88,7 @@ static void wrongSuperOnlyUnlocks(){
 }
 int main(){
     assert(setenv("XM87144_DHC_NATIVE_TEST","1",1)==0);
+    assert(setenv("XM87144_DHC_LEGACY_TAG_WRITER","1",1)==0);
     std::vector<std::uint8_t> rom(0xE1000u,0u);
     setKenEntry(rom,0x00u,0xD6722u);
     setKenEntry(rom,0x02u,0xD6976u);
