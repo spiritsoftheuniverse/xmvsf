@@ -75,6 +75,29 @@ existing `test/87.166/replays/session_0001` folder onto
 that it is unsealed. It does not modify, seal or fabricate missing
 frames inside that older recording.
 
+### Inspect or validate a replay without launching the game
+
+The standard-library-only, **read-only** verifier enforces the
+manifesto's binary and journal rules for a recording folder,
+`manifest.tsv` or a ZIP:
+
+```bat
+python dev\dhc\tools\VERIFY_REPLAY_V2.py "test\87.167\replays\session_0001"
+python dev\dhc\tools\VERIFY_REPLAY_V2.py "87.166.zip" --allow-unsealed
+```
+
+It reports `SEALED` or `UNSEALED_PREFIX`, frame/session/segment
+counts, native input slot layouts, and whether every manifest
+`SEG`/`DONE` has an exact-size, contiguous-index `.bin`
+and a valid `FB1` state header. It **never** modifies the source
+recording or generates fake `FINAL` entries.
+
+`RUN_REPLAY.bat` calls the verifier when Python is installed:
+normal `latest.txt` playback requires `SEALED`, while explicitly
+dragging an older session allows a verified unsealed prefix.
+The emulator's own native input checks still run if Python is
+unavailable.
+
 ### Replay with high-speed fast-forward
 
 Run **`RUN_REPLAY.bat`** from the repository root. By default it uses
