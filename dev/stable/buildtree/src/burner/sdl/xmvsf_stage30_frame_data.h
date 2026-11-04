@@ -26,7 +26,7 @@ struct XM32MotionHistory {
         if(dir<1||dir>9)return;
         if(count && step[count-1].dir==dir)return;
         if(count==CAP){for(int i=1;i<CAP;++i)step[i-1]=step[i];--count;}
-        step[count++]={dir,frame};
+        step[count].dir=dir;step[count].frame=frame;++count;
     }
     bool matches(const int* seq,int n,unsigned long long now,int maxAge=30) const {
         int k=n-1; unsigned long long newest=0;
