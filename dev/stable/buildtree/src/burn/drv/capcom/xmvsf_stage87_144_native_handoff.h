@@ -76,6 +76,7 @@ struct State {
     unsigned cooldownUntil[2]={0u,0u},lastAcceptedAt[2]={~0u,~0u};
     unsigned capturedMode[2]={0u,0u},capturedAction[2]={0u,0u};
     unsigned captured256[2]={0u,0u},captured259[2]={0u,0u};
+    unsigned capturedD6[2]={0u,0u};
     unsigned captured06[2]={0u,0u},captured08[2]={0u,0u},
              captured0A[2]={0u,0u};
     unsigned controllerAcceptedAt[2]={0u,0u};
@@ -96,7 +97,7 @@ struct State {
             log=std::fopen(path,"wb");
             if(log)std::fputs("frame\tside\tphase\tpointId\treserveId"
                 "\taction\tmodeA0\tstep06\tstep08\tstep0A"
-                "\tcontroller256\tcontroller259\tstep4E\ta4\tpartner214"
+                "\tcontroller256\tcontroller259\tnativeD6\tscriptFlag3C\tstep4E\ta4\tpartner214"
                 "\tscript34\tscript38\tpartnerPtr\tpoint210\treserve210"
                 "\tx\ty\tdecision\n",log);
         }
@@ -127,7 +128,7 @@ struct State {
         const unsigned reserve=0x4800u+side*0x400u;
         std::fprintf(log,"%u\t%u\t%s\t%04X\t%04X"
             "\t%04X\t%04X\t%04X\t%04X\t%04X"
-            "\t%02X\t%02X\t%04X\t%02X\t%04X"
+            "\t%02X\t%02X\t%02X\t%02X\t%04X\t%02X\t%04X"
             "\t%08X\t%08X\t%08X\t%04X\t%04X"
             "\t%u\t%u\t%s\n",
             now,side+1u,phaseName(phase[side]),
@@ -135,6 +136,7 @@ struct State {
             rw(ram,p+0x60u),rw(ram,p+0xA0u),
             rw(ram,p+0x06u),rw(ram,p+0x08u),rw(ram,p+0x0Au),
             rb(ram,p+0x256u),rb(ram,p+0x259u),
+            rb(ram,p+0xD6u),rb(ram,p+0x3Cu),
             rw(ram,p+0x4Eu),rb(ram,p+0xA4u),rw(ram,p+0x214u),
             rl(ram,p+0x34u),rl(ram,p+0x38u),
             rl(ram,p+0x224u),rw(ram,p+0x210u),rw(ram,reserve+0x210u),
@@ -207,6 +209,7 @@ struct State {
                 capturedAction[side]=rw(ram,p+0x60u);
                 captured256[side]=rb(ram,p+0x256u);
                 captured259[side]=rb(ram,p+0x259u);
+                capturedD6[side]=rb(ram,p+0xD6u);
                 captured06[side]=rw(ram,p+0x06u);
                 captured08[side]=rw(ram,p+0x08u);
                 captured0A[side]=rw(ram,p+0x0Au);
@@ -273,6 +276,18 @@ struct State {
                     ww(ram,p+0x0Au,0u);
                     ww(ram,p+0x4Eu,0x001Eu);
                     wb(ram,p+0x259u,0u);
+                    // The previous 87.147 bridge played the exact 3200
+                    // script, but never switched Ryu's per-fighter *action
+                    // controller* +D6 out of the super family. On the
+                    // decrypted ROM, Ryu's +D6=0x14 goes via 0x0337BA's
+                    // state table to PC 0x0341F6 -> PC 0x011B00.
+                    // PC 0x011B1E drives each tag frame, decrements +4E,
+                    // then recognizes +3C=01 at script 0x0D1DEC and
+                    // invokes native exit controller 2. This is why the
+                    // 87.147 Ryu froze forever in the tag pose.
+                    // Ken's separate state table *also* uses +D6=0x14
+                    // (PC 0x035F28) for the ROM-owned tag handler.
+                    wb(ram,p+0xD6u,0x14u);
                     phase[side]=WAIT_NATIVE_SWAP;
                     controllerAcceptedAt[side]=now;
                     event(now,side,ram,"DHC_ROM_TAG_3200_AFTER_CONTROLLER_ACCEPT");
@@ -309,6 +324,20 @@ struct State {
                     abort(now,side,ram,
                           "ROM_REASSERTED_RYU_HADOKEN_AFTER_TAG_3200");
                 }else if(now-started[side]>60u){
+                    // The 87.147 failure left the outgoing actor
+                    // frozen even after this watchdog expired. Request
+                    // the same native exit controller 2 that the ROM
+                    // itself writes at PC 0x011B38 (never synthetic swap).
+                    // Only touch the original Ryu actor if it remains
+                    // the point with the same reserve, active action 3200
+                    // and DHC-owned tag state.
+                    if(pointId==outgoing[side]&&reserveId==incoming[side] &&
+                       rw(ram,p+0x60u)==0x3200u &&
+                       rb(ram,p+0xD6u)==0x14u){
+                        wb(ram,p+0x256u,2u);
+                        wb(ram,p+0x259u,2u);
+                        event(now,side,ram,"DHC_NATIVE_EXIT_02_WATCHDOG_RECOVERY");
+                    }
                     abort(now,side,ram,"NO_ROM_OWNERSHIP_SWAP_WITHIN_60_FRAMES");
                 }
                 continue;
