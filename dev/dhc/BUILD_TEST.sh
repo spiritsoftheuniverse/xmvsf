@@ -8,7 +8,7 @@ TREE="$PROJECT/dev/stable/buildtree"
 DEST="$PROJECT/runtime/stable/XMVSF_Test_87_145.exe"
 PENDING="$PROJECT/runtime/stable/.XMVSF_Test_87_145_pending.exe"
 
-if [[ ! -f "$TREE/makefile.sdl2" || ! -f "$TREE/src/burn/drv/capcom/xmvsf_stage87_145_native_handoff.h" ]]; then
+if [[ ! -f "$TREE/makefile.sdl2" || ! -f "$TREE/src/burn/drv/capcom/xmvsf_stage87_144_native_handoff.h" ]]; then
   echo "ERROR: Current Stage 87.145 source was not pulled into $TREE" >&2
   exit 2
 fi
