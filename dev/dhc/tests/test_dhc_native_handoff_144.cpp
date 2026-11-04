@@ -291,5 +291,28 @@ int main(){
     stale.frame(wrong.data(),rom.data(),unsigned(rom.size()),501u,1u);
     assert(stale.phase[0]==IDLE && wrong==beforeWrong);
     assert(XM87143Queue::state().selected[0]==nullptr);
+    // 87.152 armed with Ryu timer 13, while 87.150 succeeded at 8.
+    // Wait without modifying any ROM-owned fighter/controller state.
+    XM87143Queue::state().reset();
+    auto delayedRam=original;
+    ww(delayedRam.data(),0x404Eu,13u);
+    assert(XM87143Queue::state().prepare(delayedRam.data(),rom.data(),
+        unsigned(rom.size()),600u));
+    assert(XM87143Queue::state().select(0u,0x14u,
+        XM87143Queue::QCF_KK,601u));
+    State delayed;
+    const auto beforeDelay=delayedRam;
+    delayed.frame(delayedRam.data(),rom.data(),unsigned(rom.size()),601u,1u);
+    assert(delayed.phase[0]==WAIT_RYU_SUPER_END && delayedRam==beforeDelay);
+    assert(delayed.shoryureppaReady[0] && delayed.shinryukenReady[0]);
+    ww(delayedRam.data(),0x404Eu,9u);
+    delayed.frame(delayedRam.data(),rom.data(),unsigned(rom.size()),602u,1u);
+    assert(delayed.phase[0]==WAIT_RYU_SUPER_END);
+    assert(rb(delayedRam.data(),0x4256u)==0u);
+    ww(delayedRam.data(),0x404Eu,8u);
+    delayed.frame(delayedRam.data(),rom.data(),unsigned(rom.size()),603u,1u);
+    assert(delayed.phase[0]==WAIT_TAG_CONTROLLER);
+    assert(rb(delayedRam.data(),0x4256u)==8u);
+    assert(rw(delayedRam.data(),0x4060u)==0x2E08u);
     return 0;
 }
