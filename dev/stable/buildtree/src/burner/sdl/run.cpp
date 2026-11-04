@@ -6,6 +6,7 @@
 #include "burner.h"
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
 #ifdef _WIN32
 #include <windows.h>
 #endif
@@ -232,10 +233,32 @@ static int RunFrame(int bDraw, int bPause)
         // The movie index is monotonic even when loading an emulator save
         // state resets GetCurrentFrame(). This identifies the EXACT input
         // frame being presented to BurnDrvFrame() without any input edits.
-        const XM8761::Context& movie=XM8761::ctx();
+        XM8761::Context& movie=XM8761::ctx();
         XM87162ReplaySync::publish(
             ((movie.mode==1 || movie.mode==2) && movie.index>0u)?
             movie.index-1u : ~0u);
+        // 87.163: visible playback status. The old runner reached a boot
+        // menu and gave no feedback because no CPS2 frame ever executed.
+        // Title updates are presentation-only, never alter replay inputs.
+        const char* playback=std::getenv("XM8761_REPLAY_MODE");
+        if(sdlWindow && playback && std::strcmp(playback,"play")==0){
+            if(movie.mode==2 && movie.index &&
+               (movie.index==1u || (movie.index%300u)==0u)){
+                char progress[128];
+                std::snprintf(progress,sizeof(progress),
+                    "XMVSF REPLAY | %u / %u INPUT FRAMES",
+                    movie.index,movie.recordedCount);
+                SDL_SetWindowTitle(sdlWindow,progress);
+            } else if(movie.mode==4 && !movie.errorReported){
+                SDL_SetWindowTitle(sdlWindow,
+                    "XMVSF REPLAY COMPLETE | ALL RECORDED INPUTS PLAYED");
+                movie.errorReported=true;
+            } else if(movie.mode==3 && !movie.errorReported){
+                SDL_SetWindowTitle(sdlWindow,
+                    "XMVSF REPLAY FAILED | SEE replay_status.log");
+                movie.errorReported=true;
+            }
+        }
 	}
     if(traceFrame){std::fprintf(stderr,"XM86.34 FRAME1 AFTER_INPUT\n");std::fflush(stderr);}
 
