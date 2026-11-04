@@ -202,17 +202,32 @@ reserve fighter's ROM-accepted super entry, associated script, charge/debit and
 first-active signal. The DHC-only portrait animation/timer bypass and
 incoming-fighter selective advancement are still not implemented.
 
-## Repository checkout/build limitation
+## Stage 87.138 root TEST launcher repair
 
-The current root BUILD_TEST.bat and RUN_TEST.bat reference local historical
-scripts under dev/stable/releases/87_132/. These are NOT present in the
-published GitHub tree after excluding the recursively nested releases folder.
-They may still exist in the authoritative local F:\xmvsf copy. The commands
-shown above work only where that existing local launcher dependency remains.
-A clean clone must first have its standard launchers rewired to a verified
-in-place warm-cache build/run path; do NOT copy back the giant release archive,
-overwrite source files, or fall back to BUILD_STABLE.bat. No launcher or Stable
-change has been made in this DHC branch.
+The **experimental branch** now has corrected standard root launchers:
+`BUILD_TEST.bat` invokes `dev/dhc/BUILD_TEST.sh`, which compiles the
+**current** local `dev/stable/buildtree` using its warm object cache.
+After successful linking and Stage 87.138 native marker verification, it
+publishes **only** `runtime/stable/XMVSF_Test_87_138.exe`.
+`RUN_TEST.bat` launches **only that binary** from the existing
+`FBNeo` game-data working directory, never 87.132.4 or Stable, and
+sets the optional Stage 05 tag-landing experiment flag for this TEST.
+
+`BUILD_STABLE.bat`, `RUN_STABLE.bat`, `XMVSF_Stable.exe` and all
+existing older TEST builds remain untouched. Neither the recursively
+nested excluded `dev/stable/releases` directory nor the historical
+87.132 Python builders are required for the new TEST launchers.
+
+To receive the fix in GitHub Desktop:
+1. Preserve any uncommitted local edits.
+2. Select the `feature/dhc-mvc2-stage87` branch (not `main`).
+3. **Pull origin again** after this launcher fix.
+4. Run the original root `BUILD_TEST.bat` and then `RUN_TEST.bat`.
+
+The newly compiled 87.138 binary remains an experimental native tag
+**landing** test, not an implemented super-cancel DHC. GitHub CI checks
+C++11 test components and bash syntax; full MSYS2 native compilation
+and in-game behavior must be tested locally.
 
 ## 87.137 placement correction — prioritize the playable DHC
 
@@ -276,10 +291,11 @@ RUN_TEST.bat
 This is a concrete, opt-in **tag landing and visual test, NOT DHC**. It does
 not interrupt a super, trigger the incoming super, spend meter, bypass the
 native super portrait, or freeze the opponent/world. Those are the next
-native combat steps. The existing root launchers are preserved, though they
-still require the original local 87_132 launcher scripts that GitHub did
-not upload. The project was not built on the user's Windows machine here;
-the isolated C++11 tests run on GitHub Actions.
+native combat steps. The original root launcher **names** are preserved;
+the new experimental versions build and run the current Stage 87.138 TEST
+directly, without historical release scripts. The project was not built on
+the user's Windows machine here; the isolated C++11 tests run on GitHub Actions.
 
-The test flag is absent by default; closing the test Command Prompt
-also removes the two temporary environment variables.
+The revised TEST runner enables the experimental Stage 05 landing flag in
+its own local environment only. Closing the Command Prompt ends the session
+without changing Stable.
