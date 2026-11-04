@@ -764,6 +764,18 @@ int RunMessageLoop()
                 }
                 continue;
             }
+            // V2 restores recorded semantic menu decisions at exact
+            // checkpoints. Physical keyboard/gamepad input must not
+            // inject NEW Training/Versus commands while the replay runs.
+            // Window events and SDL_QUIT still reach the normal handler.
+            if(XM8764::isPlayback() &&
+               (event.type==SDL_KEYDOWN || event.type==SDL_KEYUP ||
+                event.type==SDL_CONTROLLERBUTTONDOWN ||
+                event.type==SDL_CONTROLLERBUTTONUP ||
+                event.type==SDL_JOYBUTTONDOWN ||
+                event.type==SDL_JOYBUTTONUP ||
+                event.type==SDL_JOYAXISMOTION ||
+                event.type==SDL_JOYHATMOTION))continue;
             if(xm29HandleDisplayHotkey(event,sdlWindow))continue;
             if(!xm14TrainingMode && !xm24VersusMode && event.type==SDL_KEYDOWN && !event.key.repeat){
                 if(event.key.keysym.sym==SDLK_5){
@@ -884,7 +896,10 @@ int RunMessageLoop()
 			}
 		}
 
-        xm257PollTrainingMenu(xm14TrainingMode!=0);
+        // Replay menu decisions are restored from the v2 host snapshot,
+        // never generated from a newly attached physical controller.
+        if(!XM8764::isPlayback())
+            xm257PollTrainingMenu(xm14TrainingMode!=0);
         if(xm14TrainingMode && xm23State.returnMainRequested){
             xm23State.returnMainRequested=false;
             xm26ReturnToBoot=true; // Stage26 in-process return, no process spawn
