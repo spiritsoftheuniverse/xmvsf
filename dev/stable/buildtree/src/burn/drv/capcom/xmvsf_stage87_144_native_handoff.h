@@ -580,6 +580,22 @@ struct State {
                     // opening exactly once, preserving D6=0A ownership.
                     const auto other=XM87142::resolve(
                         rom,size,pointId,0x2Cu,0x04u);
+                    // A dash may already have added horizontal velocity;
+                    // restore the same opponent-side launch position before
+                    // attempting the second ROM super opening.
+                    const unsigned liveFoe=rw(ram,0x4400u+0x0Cu);
+                    int target=int(liveFoe)+
+                        (originalX[side]<opponentX[side]?-48:48);
+                    if(target<192)target=192;
+                    if(target>768)target=768;
+                    const unsigned current=rl(ram,p+0x0Cu);
+                    wl(ram,p+0x0Cu,
+                        (unsigned(target)<<16u)|(current&65535u));
+                    ww(ram,p+0x10u,rw(ram,p+0x254u));
+                    wb(ram,p+0x4Bu,
+                       originalX[side]<opponentX[side]?1u:0u);
+                    wl(ram,p+0x14u,0u);wl(ram,p+0x18u,0u);
+                    wl(ram,p+0x1Cu,0u);wl(ram,p+0x20u,0u);
                     if(!other.valid || other.script!=0xD5E2Eu ||
                        !setNativeScript(ram,rom,size,p,pointId,0x2Cu,0x04u)){
                         abort(now,side,ram,"KEN_2C32_DASH_ALT_SCRIPT_UNAVAILABLE");
