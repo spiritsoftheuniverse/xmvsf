@@ -232,3 +232,54 @@ For the first working implementation, focus on this one complete sequence:
 **input during super → one stock → opponent-relative tag jump → land →
 visible super startup in darkened scene → first active frame release**.
 Additional refinements can follow a functioning proof of concept.
+
+
+## Stage 87.138 — first opt-in native landing smoke test
+
+The branch now contains a **real native post-CPU tag placement experiment**.
+It listens for an actual ROM point/reserve fighter-ID swap (not a synthetic
+tag). During an airborne incoming-fighter frame on Stage 05 only, it
+targets the incoming point's world X **48 native units beside the opponent**
+on the outgoing fighter's side, sets facing toward the opponent, preserves
+the fractional X, and leaves opponent/world Y and the rest of the fighter
+record untouched. When the incoming native actor is grounded or the scene
+exits combat, the renderer stops the special darkening.
+
+In Wily Stage 05, the SDL painter draws the scene then applies a translucent
+black rectangle **before** adding the Wily actor/HUD and genuine CPS2 fighter
+sprite layers. The fighters therefore stay visible against the darkened
+background for the real tag-in jump. Ordinary modes are unchanged.
+
+**Only for an experimental TEST, not Stable:**
+
+1. In GitHub Desktop switch to `feature/dhc-mvc2-stage87` after preserving
+   any outstanding local work. Pull the branch.
+2. In the same Windows Command Prompt:
+
+```bat
+cd /d F:\xmvsf
+set "XM87138_TAG_LAND_TEST=1"
+set "XM87138_TAG_LAND_LOG=%TEMP%\xm87138_tag_landing.tsv"
+BUILD_TEST.bat
+RUN_TEST.bat
+```
+
+3. Enter Stage 05 Training or Versus. Perform a **normal native tag** while
+   both fighters are on-screen. Confirm that the incoming native tag jump is
+   repositioned next to the opponent, and that the stage briefly darkens
+   while the actual incoming actor remains visible.
+4. Check the optional TSV: `POSITIONED_IN_NATIVE_TAG_JUMP` confirms the
+   experiment actually moved the incoming point actor, while
+   `TAG_SWAP_AT_OR_AFTER_LANDING` or `TAG_SWAPPED_BUT_INCOMING_INACTIVE`
+   means the ROM changed roles outside this narrow airborne write window.
+
+This is a concrete, opt-in **tag landing and visual test, NOT DHC**. It does
+not interrupt a super, trigger the incoming super, spend meter, bypass the
+native super portrait, or freeze the opponent/world. Those are the next
+native combat steps. The existing root launchers are preserved, though they
+still require the original local 87_132 launcher scripts that GitHub did
+not upload. The project was not built on the user's Windows machine here;
+the isolated C++11 tests run on GitHub Actions.
+
+The test flag is absent by default; closing the test Command Prompt
+also removes the two temporary environment variables.
