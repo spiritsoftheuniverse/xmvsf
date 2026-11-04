@@ -239,6 +239,12 @@ inline void journal(const char* event,unsigned x=0,unsigned y=0){
 }
 inline bool startRecording(){
     Context& c=context();initialize();
+    // An earlier failed save may leave a partial stream/manifest open.
+    // Never reuse it or write new frames into a previous recording.
+    if(c.stream){std::fclose(c.stream);c.stream=nullptr;}
+    if(c.journal){std::fclose(c.journal);c.journal=nullptr;}
+    c.folder.clear();c.error.clear();
+    c.noticeFrames=0;c.lastSaved=false;
     if(c.root.empty())return fail("V2_RECORD_ROOT_UNSET");
     // RUN_TEST.bat pre-creates this directory, but fail visibly if it
     // cannot be created or has become inaccessible. Never silently
