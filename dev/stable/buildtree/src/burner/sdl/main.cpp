@@ -19,6 +19,7 @@
 #include <cstring>
 #include "xmvsf_stage77_selection.h" // XM86.31 safe-host menu-only stage selection
 int xm77StageChoice=0, xm77StageResolved=0;
+#include "xmvsf_stage87_164_host_replay.h" // shared app/menu/session replay journal
 #include "xmvsf_stage14_boot.h" // XMVSF_STAGE14_TRAINING_BOOT
 int xm14TrainingMode = 0;
 int xm87102DamageMode = 0; // XM87.102 Training: 0 regenerate, 1 native KO
@@ -303,6 +304,7 @@ void DoGame(int gameToRun)
 		display_set_controls();
         std::fprintf(stderr,"XM86.32 HOST controls complete; RunMessageLoop begin\n");std::fflush(stderr);
 		RunMessageLoop();
+        XM8764::gameEnd(); // checkpoint/close recorded CPS2 session before DrvExit
         std::fprintf(stderr,"XM86.32 HOST RunMessageLoop returned\n");std::fflush(stderr);
 	}
 	else
@@ -397,7 +399,12 @@ int main(int argc, char* argv[])
     // Stage 26: initialize a persistent single-window application shell.
     if (switchesOK && romname == NULL && !usemenu && !dat) {
         xm26PersistentShell=true;
-        int selectedMode = xmvsfBootSelector();
+        // v2 resolves the *recorded* host menu choice for this session.
+        // Never feed CPS2 movie bytes into the uninitialized boot selector.
+        const int selectedMode=XM8764::isPlayback() ?
+            XM8764::nextMode() : xmvsfBootSelector();
+        if(XM8764::isRecording())
+            XM8764::hostEvent("BOOT_MODE_SELECTED",(unsigned)(selectedMode+1));
         if(selectedMode==0)xm77StageResolved=0;
         xm14TrainingMode = (selectedMode == 1);
         xm24VersusMode = (selectedMode == 2); /* XMVSF_STAGE24_VERSUS */
@@ -570,7 +577,10 @@ int main(int argc, char* argv[])
                 xm14InputTarget=0;
                 xm15Reset();
                 // The menu uses the SAME SDL_Window, avoiding Windows focus jumps.
-                const int selectedMode=xmvsfBootSelector(true);
+                const int selectedMode=XM8764::isPlayback() ?
+                    XM8764::nextMode() : xmvsfBootSelector(true);
+                if(XM8764::isRecording())
+                    XM8764::hostEvent("BOOT_MODE_SELECTED",(unsigned)(selectedMode+1));
                 if (selectedMode<0) break;
                 if(selectedMode==0)xm77StageResolved=0;
                 xm14TrainingMode=(selectedMode==1);
