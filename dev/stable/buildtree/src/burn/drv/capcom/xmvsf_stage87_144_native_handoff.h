@@ -72,6 +72,7 @@ struct State {
     unsigned originalX[2]={0u,0u},opponentX[2]={0u,0u};
     XM87143Queue::Command command[2]={XM87143Queue::QCF_PP,XM87143Queue::QCF_PP};
     unsigned lastFrame=~0u;
+    unsigned lastQueuedCheck[2]={~0u,~0u};
     std::FILE* log=nullptr;
     ~State(){if(log){std::fflush(log);std::fclose(log);}}
     void init(){
@@ -83,22 +84,24 @@ struct State {
         if(enabled && path && *path){
             log=std::fopen(path,"wb");
             if(log)std::fputs("frame\tside\tphase\tpointId\treserveId"
-                "\taction\tscript\tx\ty\tdecision\n",log);
+                "\taction\tmodeA0\tscript\tx\ty\tdecision\n",log);
         }
         std::fprintf(stderr,"XM87.144 native DHC proof-of-concept enabled=%d\n",enabled?1:0);
     }
     void reset(){
-        for(unsigned s=0;s<2u;++s){phase[s]=IDLE;used[s]=false;}
+        for(unsigned s=0;s<2u;++s){
+            phase[s]=IDLE;used[s]=false;lastQueuedCheck[s]=~0u;
+        }
     }
     void event(unsigned now,unsigned side,const std::uint8_t*ram,
                const char*decision){
         if(!log)return;
         const unsigned p=0x4000u+side*0x400u;
         const unsigned reserve=0x4800u+side*0x400u;
-        std::fprintf(log,"%u\t%u\t%s\t%04X\t%04X\t%04X\t%08X"
+        std::fprintf(log,"%u\t%u\t%s\t%04X\t%04X\t%04X\t%04X\t%08X"
             "\t%u\t%u\t%s\n",now,side+1u,phaseName(phase[side]),
             rw(ram,p+0x52u),rw(ram,reserve+0x52u),
-            rw(ram,p+0x60u),rl(ram,p+0x34u),
+            rw(ram,p+0x60u),rw(ram,p+0xA0u),rl(ram,p+0x34u),
             rw(ram,p+0x0Cu),rw(ram,p+0x10u),decision);
         std::fflush(log);
     }
@@ -119,19 +122,35 @@ struct State {
             const unsigned reserveId=rw(ram,reserve+0x52u);
             if(phase[side]==IDLE){
                 const auto* entry=XM87143Queue::state().selected[side];
-                if(!entry || used[side] || !entry->known ||
-                   !(superWindowMask&(1u<<side)) ||
-                   pointId!=0x12u || reserveId!=0x14u ||
-                   rw(ram,p+0x60u)!=0x2E08u ||
-                   rw(ram,p+0xA0u)!=0x2A28u)
-                    continue;
+                if(!entry || used[side] || !entry->known)continue;
+                const unsigned selectedAt=XM87143Queue::state().selectedFrame[side];
+                const bool firstCheck=selectedAt!=lastQueuedCheck[side];
+                lastQueuedCheck[side]=selectedAt;
+                // Explicitly log why a selected command cannot reach the
+                // ROM handoff. Stage 87.144 produced a blank DHC log because
+                // it silently required +A0=2A02 instead of native 2A28.
+                const char* blocked=nullptr;
+                if(!(superWindowMask&(1u<<side)))
+                    blocked="BLOCK_NO_ACTIVE_SUPER_WINDOW";
+                else if(pointId!=0x12u || reserveId!=0x14u)
+                    blocked="BLOCK_NOT_RYU_POINT_KEN_RESERVE";
+                else if(rw(ram,p+0x60u)!=0x2E08u)
+                    blocked="BLOCK_NOT_RYU_2E08_SUPER_ACTION";
+                else if(rw(ram,p+0xA0u)!=0x2A28u)
+                    blocked="BLOCK_NOT_NATIVE_2A28_SUPER_MODE";
                 bool hasScript=false;
                 for(unsigned i=0;i<entry->count;++i)
                     hasScript |= entry->scripts[i].resolved;
-                if(!hasScript)continue;
+                if(!blocked && !hasScript)
+                    blocked="BLOCK_SELECTED_SUPER_HAS_NO_RESOLVED_ROM_SCRIPT";
                 // Require a real ROM-verified outgoing Ryu tag script.
                 const auto out=XM87142::resolve(rom,size,pointId,0x32u,0u);
-                if(!out.valid || out.script!=0xD1DACu)continue;
+                if(!blocked && (!out.valid || out.script!=0xD1DACu))
+                    blocked="BLOCK_MISSING_REAL_RYU_OUTGOING_TAG_SCRIPT";
+                if(blocked){
+                    if(firstCheck)event(now,side,ram,blocked);
+                    continue;
+                }
                 originalX[side]=rw(ram,p+0x0Cu);
                 opponentX[side]=rw(ram,0x4400u+0x0Cu);
                 command[side]=entry->known->command;
@@ -182,7 +201,10 @@ struct State {
                     wl(ram,p+0x1Cu,0u);wl(ram,p+0x20u,0u);
                     if(setNativeScript(ram,rom,size,p,pointId,chosenAction,chosenSub)){
                         ww(ram,p+0x06u,0u);ww(ram,p+0x08u,0u);
-                        ww(ram,p+0xA0u,0x2A00u);
+                        // Actual Ken super captures use native +A0=2A28.
+                        // Incoming tag's +A0=2A00 must not be retained after
+                        // switching from tag kick to the selected super.
+                        ww(ram,p+0xA0u,0x2A28u);
                         phase[side]=SUPER_STARTED;
                         event(now,side,ram,"DHC_NATIVE_SUPER_REPLACES_KICK__UNVERIFIED_FX");
                     }else{
