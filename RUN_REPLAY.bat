@@ -7,15 +7,28 @@ set "XMVSF_PROJECT=%PROJECT%"
 REM Dedicated replay channel. Existing BUILD_TEST/RUN_TEST names are unchanged.
 REM Replay the original 87.161 F9 full-state + exact CPS2 inputs without
 REM creating replacement ROM scripts, patching native input, or touching Stable.
-set "EXE=%PROJECT%\runtime\stable\XMVSF_Test_87_163.exe"
+set "EXE=%PROJECT%\runtime\stable\XMVSF_Test_87_164.exe"
 if not exist "%EXE%" (
-  echo ERROR: Need existing XMVSF_Test_87_163.exe. Run BUILD_TEST.bat.
+  echo ERROR: Need existing XMVSF_Test_87_164.exe. Run BUILD_TEST.bat.
   goto :fail
 )
 if not exist "%PROJECT%\FBNeo" (
   echo ERROR: FBNeo runtime game directory is missing.
   goto :fail
 )
+REM 87.164: prefer a COMPLETE host-aware session journal with native
+REM checkpoints over legacy input-only F9 movies. The latest pointer is
+REM written by the actual v2 F9 recorder, never guessed from timestamps.
+set "V2_SESSION="
+if not "%~1"=="" (
+  if exist "%~f1\manifest.tsv" set "V2_SESSION=%~f1"
+  if /I "%~x1"==".tsv" if exist "%~f1" set "V2_SESSION=%~dp1"
+)
+if not defined V2_SESSION if exist "%PROJECT%\test\replay_sessions\latest.txt" (
+  for /f "usebackq delims=" %%S in ("%PROJECT%\test\replay_sessions\latest.txt") do set "V2_SESSION=%%S"
+)
+if defined V2_SESSION if exist "%V2_SESSION%\manifest.tsv" goto :run_v2
+
 REM Allow explicit input filename (drag an _inputs.bin onto RUN_REPLAY.bat),
 REM otherwise look for previously recorded F9 pairs in versioned TEST dirs.
 REM The recorder's native _start.fs is always loaded alongside its input.
@@ -54,7 +67,7 @@ REM The 87.161 movie was recorded with Training host controls. Bypass
 REM the application's original boot selector and start the CPS2 driver
 REM immediately; otherwise no input movie frame is ever consumed.
 set "XM8761_REPLAY_HOST_MODE=training"
-set "XM8761_REPLAY_DIR=%PROJECT%\test\87.163\replays"
+set "XM8761_REPLAY_DIR=%PROJECT%\test\87.164\replays"
 set "XM8761_REPLAY_INPUT_FILE=%MOVIE%"
 set "XM8761_REPLAY_STATE_FILE=%STATE%"
 set "XM8761_DISABLE_RUNAHEAD=1"
@@ -69,7 +82,7 @@ set "XM8796_DIZZY_HANDOFF_TEST=1"
 set "XM8799_GROUND_DEFENSE_TEST=1"
 REM Fresh replay diagnostics must NEVER overwrite the submitted 87.161
 REM original session logs or the saved movie pair.
-set "TRACE=%PROJECT%\test\87.163\replay_results"
+set "TRACE=%PROJECT%\test\87.164\replay_results"
 if not exist "%TRACE%" mkdir "%TRACE%"
 if not exist "%TRACE%" (
   echo ERROR: Cannot create isolated replay results directory.
@@ -94,7 +107,7 @@ REM Raw ROM analysis copies remain private and Git-ignored.
 set "XM87160_PRIVATE_ROM_DIR=%PROJECT%\local_rom_dump"
 if not exist "%XM87160_PRIVATE_ROM_DIR%" mkdir "%XM87160_PRIVATE_ROM_DIR%"
 echo.
-echo XMVSF native F9 REPLAY - TEST 87.163; Stable untouched.
+echo XMVSF native F9 REPLAY - TEST 87.164; Stable untouched.
 echo Movie input: "%MOVIE%"
 echo Full-state anchor: "%STATE%"
 echo Native replay results: "%TRACE%"
@@ -136,3 +149,59 @@ echo.
 echo Replay refused. No Stable or historical executable was launched.
 pause
 exit /b 1
+
+:run_v2
+REM F9 V2: normal XMVSF application shell, recorded host mode choices,
+REM session-by-session DrvInit/DrvExit, checkpointed state/input segments.
+REM NO direct xmvsfu argument: the app's own recorded boot decisions are
+REM re-created before each emulator session.
+set "XM8764_REPLAY_SESSION=%V2_SESSION%"
+set "XM8764_FAST_FORWARD=32"
+set "XM8761_REPLAY_MODE=off"
+set "XM8761_DISABLE_RUNAHEAD=1"
+set "XM87138_TAG_LAND_TEST=0"
+set "XM87144_DHC_NATIVE_TEST=1"
+set "XM87156_PROOF_NATIVE=0"
+set "XM87157_EARLY_CANCEL=1"
+set "XM8786_STORM_BUTTON_TEST=1"
+set "XM8795_NATIVE_HIT_TEST=1"
+set "XM8796_DIZZY_HANDOFF_TEST=1"
+set "XM8799_GROUND_DEFENSE_TEST=1"
+set "TRACE=%PROJECT%\test\87.164\replay_results"
+if not exist "%TRACE%" mkdir "%TRACE%"
+if not exist "%TRACE%" goto :fail
+set "XM87140_CHAT_DIR=%TRACE%"
+set "XM87139_PROBE_DIR=%TRACE%"
+set "XM87140_CHAT_LOG=%TRACE%\super_chat.tsv"
+set "XM87142_ROM_TRACE=%TRACE%\rom_dispatch.tsv"
+set "XM87144_DHC_LOG=%TRACE%\dhc_native_handoff.tsv"
+set "XM87159_PROJECTILE_LOG=%TRACE%\p1_old_projectile_hitboxes.tsv"
+set "XM87149_TOURNAMENT_AUDIT=%TRACE%\tournament_rules.tsv"
+set "XM87160_DISCOVER=1"
+set "XM87160_CATALOG_LOG=%TRACE%\rom_super_catalog.tsv"
+set "XM87160_OBSERVED_LOG=%TRACE%\rom_super_observed.tsv"
+echo.
+echo XMVSF HOST-AWARE F9 REPLAY V2 - CURRENT TEST 87.164
+echo Manifest: "%V2_SESSION%\manifest.tsv"
+echo Application menu, game resets, native savestate reloads and inputs
+echo will follow the recorded session/checkpoint timeline.
+echo HIGH SPEED: %XM8764_FAST_FORWARD% consecutive CPS2 frames per display update.
+echo To change speed, edit XM8764_FAST_FORWARD in this BAT. 0 = normal speed.
+echo Status: "%V2_SESSION%\replay_v2_status.log"
+echo Native diagnostic results: "%TRACE%"
+echo Stable executable and all recorded checkpoints are never overwritten.
+echo.
+pushd "%PROJECT%\FBNeo" || goto :fail
+"%EXE%" -joy
+set "RC=%ERRORLEVEL%"
+popd
+echo.
+echo HOST-AWARE REPLAY EXIT CODE: %RC%
+if exist "%V2_SESSION%\replay_v2_status.log" (
+  echo Session checkpoint/playback transcript:
+  type "%V2_SESSION%\replay_v2_status.log"
+) else (
+  echo ERROR: no host replay status was written. Check executable and manifest.
+)
+pause
+exit /b %RC%
