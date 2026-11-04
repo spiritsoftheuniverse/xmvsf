@@ -488,7 +488,41 @@ INT32 Cps2Frame()
     xm8634Mark("AFTER CPU OPEN");
 
     xm8634Mark("BEFORE CPS INPUT READ");
+    // XM87.152 DHC native command replay: submit exactly ONE 17-frame
+    // motion/chord to the ORIGINAL CPS-2 input mapper, not to any guessed
+    // 68000 action/script or permanently modified host SDL controls.
+    // This runs only during a queued Ryu->Ken DHC *after* Ken's own ROM
+    // tag exit returns to controllable neutral. Normal tags are inert.
+    const char* dhcGame=BurnDrvGetTextA(DRV_NAME);
+    const bool dhcGameMatches=dhcGame &&
+         std::strncmp(dhcGame,"xmvsf",5)==0;
+    const XM87144::State::InputMask dhcInput=
+        (!bBurnRunAheadFrame && dhcGameMatches)?
+        XM87144::state().inputForFrame(CpsRamFF,(unsigned)GetCurrentFrame()):
+        XM87144::State::InputMask();
+    UINT8 dhcSavedDir[4]={},dhcSavedPunch[3]={},dhcSavedKick[3]={};
+    if(dhcInput.active){
+        for(unsigned k=0;k<4u;++k){
+            dhcSavedDir[k]=CpsInp001[k];
+            CpsInp001[k]=(dhcInput.directions>>k)&1u;
+        }
+        for(unsigned k=0;k<3u;++k){
+            dhcSavedPunch[k]=CpsInp001[4u+k];
+            dhcSavedKick[k]=CpsInp011[k];
+            CpsInp001[4u+k]=(dhcInput.attacks>>k)&1u;
+            CpsInp011[k]=(dhcInput.attacks>>(k+3u))&1u;
+        }
+    }
 	CpsRwGetInp();											// Update the input port values
+    if(dhcInput.active){
+        // Native input bytes have already been sampled. Restore physical
+        // controller state before the remaining emulator frame runs.
+        for(unsigned k=0;k<4u;++k)CpsInp001[k]=dhcSavedDir[k];
+        for(unsigned k=0;k<3u;++k){
+            CpsInp001[4u+k]=dhcSavedPunch[k];
+            CpsInp011[k]=dhcSavedKick[k];
+        }
+    }
     // XM87.95 Tournament-only native dizzy initializer AND per-frame state handler bypass.
     XM8795Native::state().before(CpsCode,(unsigned)nCpsCodeLen,
         BurnDrvGetTextA(DRV_NAME),(unsigned)GetCurrentFrame(),
