@@ -134,7 +134,12 @@ int main(){
     s.frame(ram.data(),rom.data(),unsigned(rom.size()),117u,1u);
     assert(s.phase[0]==WAIT_KEN_EXIT);
     assert(s.kenExitObserved[0]);
+    // ROM native 2A08 exit has embedded displacement even with VX=0;
+    // DHC must restore fixed opponent-relative location at super time.
+    ww(ram.data(),0x400Cu,540u);
     s.frame(ram.data(),rom.data(),unsigned(rom.size()),118u,1u);
+    assert(rw(ram.data(),0x400Cu)==552u);
+    assert(rw(ram.data(),0x4010u)==472u);
     // DHC directly cancels the verified non-attacking exit into
     // the queued Ken native super; no 67-frame natural 2A08 wait.
     assert(s.phase[0]==SUPER_STARTED);
