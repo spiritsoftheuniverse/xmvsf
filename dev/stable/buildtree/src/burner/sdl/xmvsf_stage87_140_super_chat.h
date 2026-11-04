@@ -109,7 +109,11 @@ static inline const ListedSuper* matchListed(unsigned fighter,
         const ListedSuper* m=known(fighter,i);
         if(!m)continue;
         const unsigned mask=m->kicks?(chordMask>>3u)&7u:chordMask&7u;
-        if(bc(mask)<2u)continue;
+        // 87.156: native Hyper Combos use TWO buttons, not three.
+        // 3P=dash and 3K=super jump; mixed P+K can invoke a team
+        // command. Never capture those as Ken QCF+2P / QCF+2K.
+        if(bc(mask)!=2u || (chordMask&0x3Fu)!=(m->kicks?(mask<<3u):mask))
+            continue;
         // Anchor to the CURRENT final cardinal direction. Do not reach into
         // an earlier QCB/QCF while the latest stick position is DF/DB from
         // another command; that was the confusing Ryu KK diagnostic.
