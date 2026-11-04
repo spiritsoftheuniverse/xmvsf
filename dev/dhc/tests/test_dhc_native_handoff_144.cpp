@@ -46,7 +46,7 @@ int main(){
     ww(ram.data(),0x4400u+0x0Cu,600u);
     ww(ram.data(),0x4000u+0x10u,472u);
     ww(ram.data(),0x4000u+0x60u,0x2E08u);
-    ww(ram.data(),0x4000u+0xA0u,0x2A02u);
+    ww(ram.data(),0x4000u+0xA0u,0x2A28u);
     ww(ram.data(),0x4214u,3u);
     const auto& q=XM87143Queue::state();
     (void)q;
@@ -58,11 +58,18 @@ int main(){
     const auto original=ram;
     s.frame(ram.data(),rom.data(),unsigned(rom.size()),100u,0u);
     assert(ram==original && s.phase[0]==IDLE);
+    // 87.144 had the native mode backwards: super is 2A28, never 2A02.
+    // A wrongly labeled +A0 state must NOT trigger gameplay writes.
+    ww(ram.data(),0x40A0u,0x2A02u);
+    const auto invalidMode=ram;
     s.frame(ram.data(),rom.data(),unsigned(rom.size()),101u,1u);
+    assert(s.phase[0]==IDLE && ram==invalidMode);
+    ww(ram.data(),0x40A0u,0x2A28u);
+    s.frame(ram.data(),rom.data(),unsigned(rom.size()),103u,1u);
     assert(s.phase[0]==WAIT_NATIVE_SWAP);
     assert(rw(ram.data(),0x4060u)==0x3200u);
     assert(rl(ram.data(),0x4034u)==0xD1DACu);
-    assert(rw(ram.data(),0x40A0u)==0x2A00u);
+    assert(rw(ram.data(),0x40A0u)==0x2A28u); // outgoing native Ryu
     assert(rw(ram.data(),0x4214u)==3u); // no speculative meter debit
     assert(rw(ram.data(),0x4452u)==0x20u); // P2 untouched
     assert(XM87143Queue::state().selected[0]==nullptr);
@@ -81,6 +88,7 @@ int main(){
     s.frame(ram.data(),rom.data(),unsigned(rom.size()),116u,1u);
     assert(s.phase[0]==SUPER_STARTED);
     assert(rw(ram.data(),0x4060u)==0x2C04u);
+    assert(rw(ram.data(),0x40A0u)==0x2A28u); // super, not incoming-tag mode
     assert(rl(ram.data(),0x4034u)==0xD5E2Eu);
     assert(rw(ram.data(),0x400Cu)==552u);
     assert(rb(ram.data(),0x404Bu)==1u);
