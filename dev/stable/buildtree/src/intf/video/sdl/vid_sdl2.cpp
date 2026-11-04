@@ -24,6 +24,7 @@
 #include "../../../burn/drv/capcom/xmvsf_stage87_35_hud_palette.h" // Exact native HUD chroma overlay // Post-Wily HUD
 extern "C" int xm87132ReplayRecordingFrames(); // XM87.132 shared live recorder status
 extern "C" int xm87166ReplayVisualStatus(); // v2 F9 recording/saved/error indicator
+extern "C" int xm87166ReplayVisualPeek(); // reserved banner space without consuming notice frames
 extern UINT8 *CpsRamFF;
 
 extern int vsync;
@@ -133,7 +134,9 @@ static void xm87139ProbeNotice(SDL_Renderer* renderer){
     if(w<=0||h<=0)return;
     const int labelWidth=(int)std::strlen(caption)*8;
     const int x=w-labelWidth-15>10?w-labelWidth-15:10;
-    const int y=(xm87132ReplayRecordingFrames()>0 && h>64)?h-46:(h>28?h-24:3);
+    const bool f9Banner=xm87132ReplayRecordingFrames()>0 ||
+                        xm87166ReplayVisualPeek()!=0;
+    const int y=(f9Banner && h>64)?h-46:(h>28?h-24:3);
     Uint8 r=0,g=0,b=0,a=0;SDL_GetRenderDrawColor(renderer,&r,&g,&b,&a);
     SDL_BlendMode blend=SDL_BLENDMODE_NONE;SDL_GetRenderDrawBlendMode(renderer,&blend);
     SDL_SetRenderDrawBlendMode(renderer,SDL_BLENDMODE_BLEND);
