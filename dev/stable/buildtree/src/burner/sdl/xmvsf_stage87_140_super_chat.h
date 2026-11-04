@@ -194,6 +194,8 @@ struct State {
         if(!combat){
             ready[0]=ready[1]=candidate[0]=candidate[1]=false;
             keys[0].clear();keys[1].clear();
+            XM87143Queue::state().discard(0u);
+            XM87143Queue::state().discard(1u);
             return;
         }
         const unsigned directions[2]={p1directions,p2directions};
@@ -208,6 +210,7 @@ struct State {
             if(!ready[side]||fighter!=lastCharacter[side]){
                 ready[side]=true;oldA0[side]=a0;oldStock[side]=stock;
                 lastCharacter[side]=fighter;candidate[side]=false;
+                XM87143Queue::state().discard(side);
             }
             const bool actionEdge=a0==0x2Au&&oldA0[side]!=0x2Au;
             const bool meterDebit=stock<oldStock[side]&&stock<=3u&&oldStock[side]<=3u;
@@ -295,7 +298,8 @@ struct State {
                             frame-lastNamedMatchFrame[side]<12u;
                         if(!repeat){
                             const XM87143Queue::Entry* queued=
-                                XM87143Queue::state().find(side,bench,found->command);
+                                XM87143Queue::state().select(
+                                    side,bench,found->command,frame);
                             // The prepared queue, not a synthesized action,
                             // supplies DHC's selected super. Never dispatch
                             // a native action through this diagnostic path.
@@ -335,6 +339,7 @@ struct State {
                    (frame-openAt[side]>15u && a0!=0x2Au &&
                     a0!=0x32u && a0!=0x06u)){
                     candidate[side]=false;
+                    XM87143Queue::state().discard(side);
                     char text[CHAT_LENGTH];
                     std::snprintf(text,sizeof(text),"P%u SUPER WINDOW END candidate only",side+1u);
                     log(frame,SYSTEM,text);
