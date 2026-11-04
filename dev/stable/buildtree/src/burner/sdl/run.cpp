@@ -730,7 +730,9 @@ int RunMessageLoop()
                     if(event.key.keysym.mod & KMOD_SHIFT)
                         QuickState(0);
                     else
-                        if(std::getenv("XM8764_REPLAY_ROOT"))
+                        if(XM8764::isPlayback())
+                            XM8764::status("F9_IGNORED_DURING_PLAYBACK");
+                        else if(std::getenv("XM8764_REPLAY_ROOT"))
                             XM8764::toggleF9();
                         else
                             XM8761::toggleF9(bDrvOkay!=0);
