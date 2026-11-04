@@ -34,6 +34,6 @@ Then check the resulting action trace with:
 python dev\dhc\tools\VERIFY_DHC_ROM_ACTIONS.py test\87.167 --replay-results test\87.167\replay_results
 ```
 
-**Acceptance before whole-cast recording:** all 14 checkpoints successfully load, runtime status reports `PLAY_END complete_frames=6395` without `REPLAY_DIVERGED`, and the captured vs replayed 39 ROM events are identical (fighter, ROM frame, movie frame, selector, script, animation, physical input history). Replay-action equality is still a weaker guarantee than per-frame RAM/state hashes.
+**Acceptance before whole-cast recording:** the second verifier command now requires a latest-run marker, successful loads of all 14 checkpoints, runtime status `PLAY_END complete_frames=6395` without `REPLAY_DIVERGED`, and the captured vs replayed 39 ROM events identical (fighter, ROM frame, movie frame, selector, script, animation, physical input history). Replay-action equality is still a weaker guarantee than per-frame RAM/state hashes.
 
-**Preservation caveat:** current `XM8764::status()` appends replay status to the session's own `replay_v2_status.log`. Keep the original ZIP immutable and separate output results. No gameplay code or ROM mappings were changed in this audit.
+**Preservation fix:** the replay host's status writer was changed to avoid appending to captured session logs during playback. The permanent `RUN_REPLAY.bat` now writes to `test\87.167\replay_results\replay_v2_status.log`, with a per-run marker. Rebuild the 87.167 TEST executable to receive the fix. Keep the original ZIP immutable regardless. No gameplay/DHC command mappings were changed in this audit.
