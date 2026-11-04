@@ -53,7 +53,7 @@ static void trySuper(std::vector<std::uint8_t>& rom,
     assert(m.active && m.directions==1u && m.attacks==0u);
     m=s.inputForFrame(ram.data(),131u);
     assert(m.active && m.directions==1u &&
-           m.attacks==(command==XM87143Queue::QCF_KK?0x38u:0x07u));
+           m.attacks==(command==XM87143Queue::QCF_KK?0x18u:0x03u));
     assert(ram==original); // real native port injection, never ROM script hack
     // The ROM eventually confirms the correct Ken action; no 2Cxx fake.
     ww(ram.data(),0x4060u,expectedAction);
