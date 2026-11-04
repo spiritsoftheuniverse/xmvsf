@@ -376,6 +376,12 @@ int main(int argc, char* argv[])
 	snprintf(videofiltering, 3, "0");
 
 	bool switchesOK = parseSwitches(argc, argv) == 0;
+    // Fail closed on a bad host-aware journal; do NOT silently fall back
+    // to the interactive boot menu when the requested movie is invalid.
+    if(std::getenv("XM8764_REPLAY_SESSION")){
+        XM8764::initialize();
+        if(XM8764::context().mode==XM8764::FAILED)return 1;
+    }
     // XM87.163: the dedicated native F9 replay runner explicitly supplies
     // the xmvsfu driver, bypassing the interactive boot mode selector.
     // The original movie was recorded in Training; reconstruct the same
@@ -592,7 +598,7 @@ int main(int argc, char* argv[])
             }
         }
     }
-    return 0;
+    return XM8764::context().failed?1:0;
 }
 
 /* const */ TCHAR* ANSIToTCHAR(const char* pszInString, TCHAR* pszOutString, int nOutSize)
