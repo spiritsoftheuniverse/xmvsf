@@ -434,12 +434,17 @@ struct State {
                         wb(ram,p+0xA4u,0u);
                     }
                 }
+                // Do not mistake a SECOND native entry kick for an
+                // exit-completion event. It was the actual 87.148 bug.
+                // Wait for either the native 2A08 script completion flag
+                // or a transition out of 2A08 into a non-kick action.
+                const bool entryKick=(kenAction==0x2A0Cu ||
+                                      kenAction==0x2A0Eu);
                 const bool nativeExitDone=kenExitObserved[side] &&
-                    (kenAction!=0x2A08u ||
-                     rb(ram,p+0x3Cu)!=0u);
-                const bool exitGrace=kenExitObserved[side] &&
-                    now>=kenExitAt[side]+8u;
-                if(nativeExitDone || exitGrace){
+                    !entryKick &&
+                    ((kenAction==0x2A08u && rb(ram,p+0x3Cu)!=0u) ||
+                     (kenAction!=0x2A08u && now>kenExitAt[side]+1u));
+                if(nativeExitDone){
                     const unsigned superAction=
                         command[side]==XM87143Queue::QCF_KK?0x2Eu:0x2Cu;
                     const unsigned lookupSub=
