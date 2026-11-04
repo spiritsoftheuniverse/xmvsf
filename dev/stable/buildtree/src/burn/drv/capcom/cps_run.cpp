@@ -15,7 +15,7 @@
 #include "xmvsf_stage87_125_stun_rearm_lock.h" // XM87.125 Tournament dizzy->landing stun rearm
 #include "xmvsf_stage87_100_training_ko.h"
 #include "xmvsf_stage87_137_dhc_native_capture.h" // XM87.137 opt-in read-only tag/super evidence
-#include "xmvsf_stage87_138_tag_land_test.h" // XM87.138 opt-in native Stage5 tag jump landing
+#include "../../../burner/sdl/xmvsf_stage87_139_probe.h" // XM87.139 read-only F10 input/native diagnostic
 #include "xmvsf_stage87_119_cyclops_recovery_probe.h" // XM87.119 read-only recovery state trace
 #include "xmvsf_stage87_121_cyclops_release.h" // XM87.121 restore recorded airborne state after throw // XM87.100 native Training-only KO suppression
 extern int xm14TrainingMode; // native SDL Training mode selection
@@ -648,7 +648,20 @@ INT32 Cps2Frame()
         XM8799Ground::env("XM8755_TOURNAMENT_MODE"));
     XM8779Flight::state().frame((unsigned)GetCurrentFrame(),CpsRamFF,CpsReg,
                                  (unsigned)Cpi01A,(unsigned)Cpi01C,(unsigned)Cpi01E);
-    XM87138Tag::state().frame(CpsRamFF,(unsigned)GetCurrentFrame(),BurnDrvGetTextA(DRV_NAME),bBurnRunAheadFrame!=0);
+    // F10 probe: actual CPS2 attack bits + port values AND the mapped
+    // SDL input history; all four actor records on each real combat frame.
+    if(!bBurnRunAheadFrame && XM87139Probe::state().active) {
+        unsigned mf[2]={0,0},md[2]={0,0},mh[2]={0,0},mp[2]={0,0};
+        for(unsigned side=0;side<2u;++side)
+            XM87139Probe::xm87137ReadMappedInput(side,0u,
+                &mf[side],&md[side],&mh[side],&mp[side]);
+        XM87139Probe::state().frame(CpsRamFF,BurnDrvGetTextA(DRV_NAME),
+            (unsigned)GetCurrentFrame(),false,xm8786_p1_buttons,xm8786_p2_buttons,
+            (unsigned)Cpi01A,(unsigned)Cpi01C,(unsigned)Cpi01E,
+            mf[0],md[0],mh[0],mp[0],mf[1],md[1],mh[1],mp[1]);
+    }
+    // XM87.139: no Stage87.138 forced tag positioning/facing or other DHC
+    // gameplay writes. Record the actual ROM behavior as it happens.
     XM8798Latency::state().nativeFrame(CpsRamFF,(unsigned)GetCurrentFrame());
     XM87119::state().frame((unsigned)GetCurrentFrame(),CpsRamFF); // XM87.119 read-only probe
     // XM87.137: real-frame native evidence only; never tag/spend/suppress here.
