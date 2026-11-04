@@ -49,7 +49,7 @@ jobs:
           assert segment[-1].strip().endswith('all'), segment
           PY
           grep -Fq 'BUILD_TEST.sh' BUILD_TEST.bat
-          grep -Fq 'XMVSF_Test_87_154.exe' RUN_TEST.bat
+          grep -Fq 'XMVSF_Test_87_155.exe' RUN_TEST.bat
           grep -Fq 'XM87139_PROBE_DIR' RUN_TEST.bat
           grep -Fq 'XM87140_CHAT_LOG' RUN_TEST.bat
           grep -Fq 'xm87140ChatOverlay(sdlRenderer);' dev/stable/buildtree/src/intf/video/sdl/vid_sdl2.cpp
@@ -59,6 +59,12 @@ jobs:
           grep -Fq 'DHC QUEUED ' dev/stable/buildtree/src/burner/sdl/xmvsf_stage87_140_super_chat.h
           grep -Fq 'XM87144::state().frame' dev/stable/buildtree/src/burn/drv/capcom/cps_run.cpp
           grep -Fq 'XM87144_DHC_NATIVE_TEST=1' RUN_TEST.bat
+          test -f dev/dhc/tests/test_dhc_dual_ken_supers_155.cpp
+          grep -Fq 'QCF+LP+MP+HP = Ken SHORYUREPPA' RUN_TEST.bat
+          grep -Fq 'QCF+LK+MK+HK = Ken SHINRYUKEN' RUN_TEST.bat
+          grep -Fq 'DHC_152_ROM_2C04_WRONG_ACTION_ABORT_NO_ROLLBACK' dev/stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_144_native_handoff.h
+          grep -Fq 'ken2E00_D6722_ready' dev/stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_144_native_handoff.h
+          grep -Fq 'ken2E02_D6976_ready' dev/stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_144_native_handoff.h
           test -f dev/stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_144_native_handoff.h
           grep -Fq 'xmvsf_stage87_144_native_handoff.h' dev/dhc/BUILD_TEST.sh
           # 87.146 retired the forced outgoing animation; the builder
@@ -68,7 +74,7 @@ jobs:
             exit 1
           fi
           grep -Fq 'required_markers=(' dev/dhc/BUILD_TEST.sh
-          grep -Fq 'TEST executable is missing compiled 87.154 marker' dev/dhc/BUILD_TEST.sh
+          grep -Fq 'TEST executable is missing compiled 87.155 marker' dev/dhc/BUILD_TEST.sh
           grep -Fq 'DHC_NATIVE_TAG_CONTROLLER_08_ARMED' dev/stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_144_native_handoff.h
           grep -Fq 'NATIVE_CONTROLLER_ACCEPTED_OUTGOING_3200' dev/stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_144_native_handoff.h
           grep -Fq 'NATIVE_TAG_CONTROLLER_REJECTED_12F' dev/stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_144_native_handoff.h
@@ -99,7 +105,7 @@ jobs:
           grep -Fq 'REFERENCE_REAL_ROM_NORMAL_TAG' dev/stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_144_native_handoff.h
           grep -Fq 'DHC_NATIVE_TAG_CONTROLLER_08_ARMED' dev/stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_144_native_handoff.h
           grep -Fq 'NATIVE_TAG_CONTROLLER_REJECTED_12F' dev/stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_144_native_handoff.h
-          # 87.154 accepts BOTH native 2A02 and 2A28 observed on actual
+          # 87.155 accepts BOTH native 2A02 and 2A28 observed on actual
           # Ryu supers, but never forces either mode for incoming Ken.
           grep -Fq 'rw(ram,p+0xA0u)!=0x2A28u' dev/stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_144_native_handoff.h
           grep -Fq 'rw(ram,p+0xA0u)!=0x2A02u' dev/stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_144_native_handoff.h
