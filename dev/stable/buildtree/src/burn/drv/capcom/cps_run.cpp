@@ -714,8 +714,19 @@ INT32 Cps2Frame()
         // Ryu->Ken P1 DHC command in active native super, never normal tags.
         const unsigned dhcWindow=(XM87140Chat::state().candidate[0]?1u:0u) |
                                  (XM87140Chat::state().candidate[1]?2u:0u);
+        const XM87144::Phase phaseBefore=XM87144::state().phase[0];
         XM87144::state().frame(CpsRamFF,CpsRom,(unsigned)nCpsRomLen,
             (unsigned)GetCurrentFrame(),dhcWindow);
+        const XM87144::Phase phaseAfter=XM87144::state().phase[0];
+        if(phaseAfter!=phaseBefore && XM87144::state().enabled){
+            char status[XM87140Chat::CHAT_LENGTH];
+            std::snprintf(status,sizeof(status),
+                "P1 DHC ROM HANDOFF: %s (native test, no stock/freeze yet)",
+                XM87144::phaseName(phaseAfter));
+            XM87140Chat::state().log((unsigned)GetCurrentFrame(),
+                phaseAfter==XM87144::FAILED?XM87140Chat::ALERT:XM87140Chat::MATCH,
+                status);
+        }
     }
     // Read-only after-CPU capture: do not edit fighter RAM or native action.
     XM8795Native::state().after(CpsRamFF,(unsigned)GetCurrentFrame(),
