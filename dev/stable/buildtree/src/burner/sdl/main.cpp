@@ -415,7 +415,13 @@ int main(int argc, char* argv[])
         xm14TrainingMode = (selectedMode == 1);
         xm24VersusMode = (selectedMode == 2); /* XMVSF_STAGE24_VERSUS */
         xm15Reset(); // XMVSF_STAGE15_MACHINE original mapping / Training state
-        if (selectedMode < 0) return 0;
+        if(selectedMode<0){
+            // F9 may still be armed when the user closes the custom boot
+            // menu. Seal all committed segments before normal SDL teardown.
+            if(XM8764::isRecording())
+                XM8764::finalizeRecording("APPLICATION_EXIT");
+            return XM8764::context().failed?1:0;
+        }
         romname = "xmvsfu";
         gamefound = 1;
         usejoy = 1;
@@ -597,6 +603,8 @@ int main(int argc, char* argv[])
             }
         }
     }
+    if(XM8764::isRecording())
+        XM8764::finalizeRecording("APPLICATION_EXIT");
     return XM8764::context().failed?1:0;
 }
 
