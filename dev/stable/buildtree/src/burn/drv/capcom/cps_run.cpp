@@ -595,6 +595,21 @@ INT32 Cps2Frame()
 	
     xm8634Mark("AFTER MAIN CPU SCANLINES");
 	CpsObjGet();
+    // XM87.139 raw native OAM snapshot, AFTER CPS2 fetched objects and BEFORE
+    // DF recoloring. The recorder is read-only and runs only after F10 starts.
+    if(!bBurnRunAheadFrame && XM87139Probe::state().active && CpsRam708 &&
+       XM87139Probe::state().tagUntil >= (unsigned)GetCurrentFrame()) {
+        const std::uint16_t* raw=reinterpret_cast<const std::uint16_t*>(
+            CpsRam708+((nCpsObjectBank^1)<<15));
+        unsigned activeCount=0u;
+        for(;activeCount<0x400u;++activeCount){
+            const unsigned yw=BURN_ENDIAN_SWAP_INT16(raw[activeCount*4u+1u]);
+            const unsigned attr=BURN_ENDIAN_SWAP_INT16(raw[activeCount*4u+3u]);
+            if((yw&0x8000u)||attr>=0xFF00u)break;
+        }
+        XM87139Probe::state().oamFrame((unsigned)GetCurrentFrame(),
+            raw,activeCount,6u,6u,false);
+    }
     xm8634Mark("AFTER OBJECT CAPTURE");										// Get objects
 
 //	nCpsCyclesSegment[0] = (nCpsCycles * nVBlank) / nCpsNumScanlines;
