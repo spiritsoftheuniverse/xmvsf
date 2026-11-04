@@ -24,6 +24,7 @@
 #include "xmvsf_stage24_engine.h" /* XMVSF_STAGE24_VERSUS */
 #include "xmvsf_stage86_49_camera.h" // XM86.49 opt-in read-only native camera
 #include "xmvsf_stage87_61_replay.h" // XM87.61 opt-in state-anchored input movie
+#include "xmvsf_stage87_162_replay_sync.h" // F9 movie index read-only native ROM trace correlation
 #include "xmvsf_stage87_139_probe.h" // XM87.139 F10 native/input diagnostic toggle
 #include "xmvsf_stage87_140_super_chat.h" // XM87.140 Shift+G chat history toggle
 #include "xmvsf_stage77_native_stage5.h" // XM86.31 postframe guarded native stage request
@@ -228,6 +229,13 @@ static int RunFrame(int bDraw, int bPause)
 		nCurrentFrame++;
 		InputMake(true);
 		XM8761::afterInput(); // XM87.132 F9 optional state-anchored recorder, pre-emulation
+        // The movie index is monotonic even when loading an emulator save
+        // state resets GetCurrentFrame(). This identifies the EXACT input
+        // frame being presented to BurnDrvFrame() without any input edits.
+        const XM8761::Context& movie=XM8761::ctx();
+        XM87162ReplaySync::publish(
+            ((movie.mode==1 || movie.mode==2) && movie.index>0u)?
+            movie.index-1u : ~0u);
 	}
     if(traceFrame){std::fprintf(stderr,"XM86.34 FRAME1 AFTER_INPUT\n");std::fflush(stderr);}
 
