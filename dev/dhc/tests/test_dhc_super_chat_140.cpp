@@ -17,7 +17,7 @@ int main(){
     byte(r,0x5000u,8u);word(r,0x4052u,0x12u);word(r,0x4852u,0x14u);
     word(r,0x4860u,0x180Cu);word(r,0x4842u,0x1234u);
     word(r,0x4834u,0x1234u);word(r,0x4836u,0x5678u);
-    byte(r,0x4214u,3u);byte(r,0x404Bu,0u); // point facing right
+    byte(r,0x4214u,3u);byte(r,0x404Bu,1u); // ROM: bit1 means point facing RIGHT
     State s;
     s.frame(r.data(),10u,0,0,0,0);
     assert(!s.candidate[0] && s.count==0u);
@@ -75,7 +75,7 @@ int main(){
         std::vector<std::uint8_t> ram(65536,0);
         byte(ram,0x5000u,8u);
         word(ram,0x4052u,0x20u);word(ram,0x4852u,reserveId);
-        byte(ram,0x4214u,3u);byte(ram,0x404Bu,0u);
+        byte(ram,0x4214u,3u);byte(ram,0x404Bu,1u);
         return ram;
     };
     auto testMove=[&](unsigned reserveId,unsigned d1,unsigned d2,
@@ -83,7 +83,7 @@ int main(){
                       bool shouldMatch,bool leftFacing=false){
         std::vector<std::uint8_t> ram=makeWindow(reserveId);
         State t;
-        if(leftFacing)byte(ram,0x404Bu,1u);
+        if(leftFacing)byte(ram,0x404Bu,0u);
         t.frame(ram.data(),100u,0u,0u,0u,0u);
         byte(ram,0x40A0u,0x2Au);
         t.frame(ram.data(),101u,0u,0u,0u,0u);
@@ -93,13 +93,13 @@ int main(){
         assert(has(t,label)==shouldMatch);
         assert(w(ram.data(),0x4852u)==reserveId);
     };
-    // Facing right: QCB is absolute D, D+LEFT, LEFT, not D+RIGHT.
+    // Facing right (native facingBit=1): QCB is D, D+LEFT, LEFT.
     testMove(0x12u,4u,6u,2u,24u,"MATCH RYU SHINKUU TATSUMAKI (QCB+KK)",true);
     testMove(0x12u,4u,5u,1u,24u,"MATCH RYU SHINKUU TATSUMAKI (QCB+KK)",false);
     testMove(0x12u,4u,5u,1u,3u,"MATCH RYU SHINKUU HADOKEN (QCF+PP)",true);
     testMove(0x14u,4u,5u,1u,3u,"MATCH KEN SHORYUREPPA (QCF+PP)",true);
     testMove(0x14u,4u,5u,1u,24u,"MATCH KEN SHINRYUKEN (QCF+KK)",true);
-    // Facing left: QCB becomes absolute D, D+RIGHT, RIGHT.
+    // Facing left (native facingBit=0): QCB is D, D+RIGHT, RIGHT.
     testMove(0x12u,4u,5u,1u,24u,"MATCH RYU SHINKUU TATSUMAKI (QCB+KK)",true,true);
     return 0;
 }
