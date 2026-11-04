@@ -93,7 +93,7 @@ struct State {
                 "frame\tside\tfighter_id\treserve_id\taction\tselector"
                 "\tnative_script\ttable_script\tanimation\trom_match"
                 "\tlast_input_frame\tlast_input_mask\tlast_input_chord"
-                "\tmotion_hint\tinput_origin\tclassification\n",
+                "\tmotion_hint\tinput_origin\tclassification\tmotion_path\n",
                 observations);
         }
     }
@@ -249,6 +249,31 @@ struct State {
         }
         return "UNKNOWN";
     }
+    // Preserve the exact recent direction trail instead of silently
+    // treating an older unrelated back/forward input as an HCF/HCB.
+    // This is observation only; no new DHC command can be dispatched.
+    void directionPath(unsigned side,unsigned anchor,char* out,unsigned cap)const{
+        if(!out||!cap)return;
+        out[0]=0;
+        if(!anchor)return;
+        unsigned changes[64]={},count=0,previous=~0u;
+        for(unsigned ago=used[side];ago>0u;--ago){
+            const Input& e=history[side][(head[side]+64u-ago)%64u];
+            if(e.frame>anchor || e.frame+24u<anchor || e.injected)continue;
+            const unsigned dir=relative(e.physicalDir,e.faceRight);
+            if(dir==previous)continue;
+            previous=dir;
+            changes[count++]=dir;
+        }
+        const unsigned first=count>14u?count-14u:0u;
+        unsigned n=0u;
+        for(unsigned i=first;i<count;++i){
+            const int written=std::snprintf(out+n,cap-n,
+                                           "%s%u",n?">":"",changes[i]);
+            if(written<0 || unsigned(written)>=cap-n)break;
+            n+=unsigned(written);
+        }
+    }
     void frame(const std::uint8_t* ram,const std::uint8_t* rom,unsigned size,
                unsigned now,unsigned p1Dir,unsigned p2Dir,
                unsigned p1Buttons,unsigned p2Buttons,bool p1Injected){
@@ -273,17 +298,22 @@ struct State {
             const bool injected=(side==0u && p1Injected);
             sample(side,now,directions[side],buttons[side],
                    rb(ram,base+0x4Bu)!=0u,injected);
-            const bool newAction=lastFighter[side]!=fighter ||
-                lastAction[side]!=(action<<8u|selector) ||
-                lastScript[side]!=script;
+            const bool actionChanged=lastFighter[side]!=fighter ||
+                lastAction[side]!=(action<<8u|selector);
+            const bool scriptChanged=lastScript[side]!=script;
             lastFighter[side]=fighter;
             lastAction[side]=action<<8u|selector;
             lastScript[side]=script;
-            if(!newAction || action!=0x2Eu || (fighter&1u) ||
+            if(action!=0x2Eu || (fighter&1u) ||
                fighter>0x40u)continue;
             const XM87142::Lookup x=XM87142::resolve(
                 rom,size,fighter,action,selector);
             const bool matches=x.valid && x.script==script;
+            // 87.160 logged every animation-pointer advance as a new
+            // ROM super, causing >1000 phantom "UNKNOWN_ROM_SCRIPT"
+            // records in the user's capture. Record ONLY a native
+            // action's exact ROM script ROOT on entry or re-entry.
+            if(!matches || !(actionChanged || scriptChanged))continue;
             const XM87143Queue::Known* known=
                 matches?label(fighter,action,selector,script):nullptr;
             const Input last=recentButton(side,now);
@@ -292,6 +322,8 @@ struct State {
             const char* hint=last.injected?"UNREAD":"UNKNOWN";
             if(last.frame && !last.injected)
                 hint=motionHint(side,now,last.frame);
+            char path[96];
+            directionPath(side,last.frame,path,sizeof(path));
             ++observedCount;
             lastObservedFighter[side]=fighter;
             lastObservedAction[side]=action<<8u|selector;
@@ -300,14 +332,14 @@ struct State {
                 std::fprintf(observations,
                     "%u\t%u\t%02X\t%02X\t%02X\t%02X"
                     "\t%06X\t%06X\t%04X\t%u"
-                    "\t%u\t%02X\t%s\t%s\t%s\t%s\n",
+                    "\t%u\t%02X\t%s\t%s\t%s\t%s\t%s\n",
                     now,side+1u,fighter,reserve,action,selector,
                     script,x.script,x.animation,matches?1u:0u,
                     last.frame,last.buttons,physicalChord(last.buttons),
                     hint,source,
                     known?"VERIFIED_RYU_KEN_SUPER":
                     matches?"ROM_2E_SCRIPT_OBSERVED_COMMAND_UNVERIFIED":
-                            "UNKNOWN_ROM_SCRIPT");
+                            "UNKNOWN_ROM_SCRIPT",path);
                 std::fflush(observations);
             }
         }
