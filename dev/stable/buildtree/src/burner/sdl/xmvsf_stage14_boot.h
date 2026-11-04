@@ -159,6 +159,14 @@ static int xmvsfBootSelector(bool returningFromGame=false) {
         if(menuGate.active)menuGate.update(xm25HandoffAnyInputHeld(),SDL_GetTicks());
         SDL_Event ev;
         while(SDL_PollEvent(&ev)) {
+            // v2 F9 can arm/stop an app-wide movie INSIDE the custom main
+            // menu, before any CPS2 game or input slot exists.
+            if(ev.type==SDL_KEYDOWN && ev.key.keysym.sym==SDLK_F9 &&
+               ev.key.repeat==0 && !(ev.key.keysym.mod&KMOD_SHIFT) &&
+               std::getenv("XM8764_REPLAY_ROOT")){
+                XM8764::toggleF9();
+                continue;
+            }
             if(ev.type==SDL_QUIT) {outcome=-1;running=0;continue;}
             if(xm29HandleDisplayHotkey(ev,window)){menuGate.begin();continue;}
             if(menuGate.active)continue; // Discard BOTH SDL GameController and raw Joystick events.
