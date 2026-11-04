@@ -66,15 +66,22 @@ int main(){
     assert(s.phase[0]==IDLE && ram==invalidMode);
     ww(ram.data(),0x40A0u,0x2A28u);
     s.frame(ram.data(),rom.data(),unsigned(rom.size()),102u,1u);
-    assert(s.phase[0]==WAIT_NATIVE_SWAP);
-    assert(rw(ram.data(),0x4060u)==0x3200u);
-    assert(rl(ram.data(),0x4034u)==0xD1DACu);
-    assert(rw(ram.data(),0x40A0u)==0x2A28u); // outgoing native Ryu
+    assert(s.phase[0]==WAIT_TAG_CONTROLLER);
+    assert(rw(ram.data(),0x4060u)==0x2E08u); // no scripted sprite hijack
+    assert(rw(ram.data(),0x40A0u)==0x2A00u); // captured true tag controller
+    assert(rb(ram.data(),0x4256u)==0x08u);
+    assert(rb(ram.data(),0x4259u)==0x08u);
     assert(rw(ram.data(),0x4214u)==3u); // no speculative meter debit
     assert(rw(ram.data(),0x4452u)==0x20u); // P2 untouched
     assert(XM87143Queue::state().selected[0]==nullptr);
-    // Real ROM must swap fighter IDs. Do not synthesize it.
+    // Simulate a ROM-owned acceptance of controller 08: the ROM itself
+    // selects 32/00 on the next native CPU frame.
+    ww(ram.data(),0x4060u,0x3200u);
+    wl(ram.data(),0x4034u,0xD1DACu);
     s.frame(ram.data(),rom.data(),unsigned(rom.size()),103u,1u);
+    assert(s.phase[0]==WAIT_NATIVE_SWAP);
+    // Real ROM must swap fighter IDs. Do not synthesize it in the engine.
+    s.frame(ram.data(),rom.data(),unsigned(rom.size()),104u,1u);
     assert(s.phase[0]==WAIT_NATIVE_SWAP);
     ww(ram.data(),0x4052u,0x14u);
     ww(ram.data(),0x4852u,0x12u);
@@ -94,7 +101,7 @@ int main(){
     assert(rb(ram.data(),0x404Bu)==1u);
     assert(rw(ram.data(),0x440Cu)==600u); // no opponent displacement
     assert(rw(ram.data(),0x4214u)==3u); // meter is not implemented
-    assert(s.used[0] && s.phase[1]==IDLE);
+    assert(s.chainUsed[0] && s.phase[1]==IDLE);
     // No repeat DHC during this match, even if second command selected.
     assert(XM87143Queue::state().select(0u,0x12u,XM87143Queue::QCF_PP,117u));
     const auto after=ram;
@@ -103,6 +110,35 @@ int main(){
     // Different round resets only bookkeeping, not fighters or ROM memory.
     wb(ram.data(),0x5000u,0u);
     s.frame(ram.data(),rom.data(),unsigned(rom.size()),300u,0u);
-    assert(!s.used[0] && s.phase[0]==IDLE);
+    assert(!s.chainUsed[0] && s.phase[0]==IDLE);
+    // Failure must NOT lock the entire match. Requiring a fresh selected
+    // command prevents accidental auto-retries from the same held chord.
+    XM87143Queue::state().reset();
+    std::vector<std::uint8_t> r2(65536u,0);
+    wb(r2.data(),0x5000u,8u);
+    ww(r2.data(),0x4052u,0x12u);ww(r2.data(),0x4852u,0x14u);
+    ww(r2.data(),0x4452u,0x20u);ww(r2.data(),0x4C52u,0x22u);
+    ww(r2.data(),0x4060u,0x2E08u);
+    ww(r2.data(),0x40A0u,0x2A28u);
+    assert(XM87143Queue::state().prepare(r2.data(),rom.data(),
+        unsigned(rom.size()),400u));
+    State trial;
+    trial.frame(r2.data(),rom.data(),unsigned(rom.size()),400u,0u);
+    assert(XM87143Queue::state().select(0u,0x14u,
+        XM87143Queue::QCF_PP,401u));
+    trial.frame(r2.data(),rom.data(),unsigned(rom.size()),401u,1u);
+    assert(trial.phase[0]==WAIT_TAG_CONTROLLER);
+    // ROM fails to accept: keep original fighter identity and native action.
+    for(unsigned t=402u;t<=414u;++t)
+        trial.frame(r2.data(),rom.data(),unsigned(rom.size()),t,1u);
+    assert(trial.phase[0]==IDLE && !trial.chainUsed[0]);
+    assert(rw(r2.data(),0x40A0u)==0x2A28u);
+    assert(rb(r2.data(),0x4256u)==0u);
+    assert(XM87143Queue::state().selected[0]==nullptr);
+    // New input after cooldown (not the same pending command) can retry.
+    assert(XM87143Queue::state().select(0u,0x14u,
+        XM87143Queue::QCF_KK,425u));
+    trial.frame(r2.data(),rom.data(),unsigned(rom.size()),425u,1u);
+    assert(trial.phase[0]==WAIT_TAG_CONTROLLER);
     return 0;
 }
