@@ -109,5 +109,23 @@ int main(){
     testMove(0x14u,4u,5u,1u,24u,"MATCH KEN SHINRYUKEN (QCF+KK)",true);
     // Facing left (native facingBit=0): QCB is D, D+RIGHT, RIGHT.
     testMove(0x12u,4u,5u,1u,24u,"MATCH RYU SHINKUU TATSUMAKI (QCB+KK)",true,true);
+    // 87.151: six discrete attack buttons, single buttons and mixed P+K
+    // are observable candidate attempts even with no verified fighter map.
+    std::vector<std::uint8_t> generic=makeWindow(0x22u);
+    State all;
+    all.frame(generic.data(),500u,0u,0u,0u,0u);
+    byte(generic,0x40A0u,0x2Au);
+    all.frame(generic.data(),501u,0u,0u,0u,0u);
+    all.frame(generic.data(),502u,4u,0u,0u,0u); // down
+    all.frame(generic.data(),503u,5u,0u,0u,0u); // down-forward
+    all.frame(generic.data(),504u,1u,0u,1u,0u); // one LP
+    assert(has(all,"DHC INPUT ATTEMPT reserve=22 QCF+LP; NO VERIFIED SUPER MAP"));
+    all.frame(generic.data(),505u,1u,0u,0u,0u); // release
+    all.frame(generic.data(),506u,4u,0u,0u,0u);
+    all.frame(generic.data(),507u,5u,0u,0u,0u);
+    all.frame(generic.data(),508u,1u,0u,0u,0u);
+    all.frame(generic.data(),509u,1u,0u,0x21u,0u); // LP+HK, mixed chord
+    assert(has(all,"DHC INPUT ATTEMPT reserve=22 2QCF+LP+HK"));
+    assert(!XM87143Queue::state().selected[0]); // no guessed ROM action
     return 0;
 }
