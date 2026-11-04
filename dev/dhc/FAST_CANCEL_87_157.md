@@ -46,10 +46,13 @@ cache (no forced `-W` recompiles).
    reject any 2C dash, wrong super or timeout and release the lock.
    No speculative meter debit, infinite action override, or fake super.
 
-**Proof mode is still available** by setting `XM87156_PROOF_NATIVE=1`
-and `XM87157_EARLY_CANCEL=0` in a local TEST session environment.
-It uses the slower but 87.156 confirmed native HP+HK tag after Ryu
-finishes and Ken's unmodified full tag recovery.
+**The slower proof implementation remains in the source**, unchanged.
+To compare it using the standard TEST launcher, change the two lines
+inside `RUN_TEST.bat` to `XM87156_PROOF_NATIVE=1` and
+`XM87157_EARLY_CANCEL=0` before launching (the current launcher
+explicitly sets them to 0 and 1 respectively). The proof uses the
+87.156 confirmed HP+HK tag after Ryu finishes, then Ken's entire
+native entry and recovery.
 
 Expected early-cancel latency if the ROM accepts shortened QCF:
 Ken ownership swap → native 2A0C→2A08 one frame later →
