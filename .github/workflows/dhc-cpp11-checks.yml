@@ -184,7 +184,7 @@ jobs:
           spec=importlib.util.spec_from_file_location('xmvsf_rom_scan',p)
           mod=importlib.util.module_from_spec(spec)
           spec.loader.exec_module(mod)
-          assert mod.byte_unswap(b'\\x12\\x34\\x56\\x78') == b'\\x34\\x12\\x78\\x56'
+          assert mod.byte_unswap(bytes([0x12,0x34,0x56,0x78])) == bytes([0x34,0x12,0x78,0x56])
           rom=bytearray(0xE1000)
           def w(p,x):
               rom[p]=x&255;rom[p+1]=(x>>8)&255
