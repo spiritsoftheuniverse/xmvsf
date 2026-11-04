@@ -174,6 +174,9 @@ extern "C" int xm87132ReplayRecordingFrames(){
 extern "C" int xm87166ReplayVisualStatus(){
     return XM8764::visualStatus();
 }
+extern "C" int xm87166ReplayVisualPeek(){
+    return XM8764::visualStatus(false);
+}
 
 //crappy message system
 void UpdateMessage(char* message)
