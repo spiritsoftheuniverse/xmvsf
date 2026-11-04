@@ -21,11 +21,19 @@ int main(){
     State s;
     s.frame(r.data(),10u,0,0,0,0);
     assert(!s.candidate[0] && s.count==0u);
+    // A legacy action +A0==2A with a Ryu/Ken actor is NOT proof of super;
+    // the native tag in the user capture also used +A0==2A.
+    State tagProxy;
+    byte(r,0x40A0u,0x2Au);
+    tagProxy.frame(r.data(),9u,0,0,0,0,0u);
+    assert(!tagProxy.candidate[0]);
+    byte(r,0x40A0u,0u);
     // Native action transition and stock debit open a *candidate*, not a
     // fictional ROM-verified super ID.
     byte(r,0x40A0u,0x2Au);byte(r,0x4214u,2u);
-    s.frame(r.data(),11u,0,0,0,0);
+    s.frame(r.data(),11u,0,0,0,0,1u);
     assert(s.candidate[0]&&has(s,"FIRST SUPER?"));
+    assert(has(s,"NATIVE 68000 ROM-TABLE SCRIPT VERIFIED"));
     assert(has(s,"RESERVE 14 act=180C anim=1234 script=12345678"));
     assert(has(s,"KEN SHORYUREPPA = QCF+PP"));
     assert(has(s,"KEN SHINRYUKEN = QCF+KK"));
