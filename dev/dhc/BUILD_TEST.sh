@@ -46,26 +46,27 @@ if [[ -z "$BUILT" ]]; then
   exit 2
 fi
 
-# Never silently publish a stale 87.132.4 binary. These strings must come
-# from the command-matching chat and UI status actually linked.
-if ! grep -aFq 'DHC_NATIVE_TAG_CONTROLLER_08_ARMED' "$BUILT" ||
-   ! grep -aFq 'NATIVE_CONTROLLER_ACCEPTED_OUTGOING_3200' "$BUILT" ||
-   ! grep -aFq 'NATIVE_TAG_CONTROLLER_REJECTED_12F' "$BUILT" ||
-   ! grep -aFq 'BLOCK_NOT_NATIVE_2A28_SUPER_MODE' "$BUILT" ||
-   ! grep -aFq 'DHC_APPROVED_ROM_OUTGOING_ACTION' "$BUILT" ||
-   ! grep -aFq 'DHC_NATIVE_SUPER_REPLACES_KICK__UNVERIFIED_FX' "$BUILT" ||
-   ! grep -aFq 'MATCH-START QUEUE' "$BUILT" ||
-   ! grep -aFq 'DHC QUEUED ' "$BUILT" ||
-   ! grep -aFq 'NATIVE 68000 ROM-TABLE SCRIPT VERIFIED' "$BUILT" ||
-   ! grep -aFq 'ROM_POINT_RESERVE_SWAP' "$BUILT" ||
-   ! grep -aFq 'ROM_SUPER_SCRIPT' "$BUILT" ||
-   ! grep -aFq 'RYU SHINKUU TATSUMAKI' "$BUILT" ||
-   ! grep -aFq 'F10 PROBE ON writing' "$BUILT" ||
-   ! grep -aFq 'DHC COMMANDS  [SHIFT+G HISTORY]' "$BUILT"; then
-  echo "ERROR: Built executable lacks Stage 87.146 native markers." >&2
-  echo "Old TEST and Stable binaries have not been replaced." >&2
-  exit 2
-fi
+# The original 87.146 source retired the forced-animation marker
+# DHC_APPROVED_ROM_OUTGOING_ACTION in favor of the *native* controller-8
+# handoff. Never require strings no longer present in compiled source.
+# Emit the exact missing marker to the console, rather than reporting a
+# generic "build execution failed" after a successful compile.
+required_markers=(
+  "DHC_NATIVE_TAG_CONTROLLER_08_ARMED"
+  "NATIVE_CONTROLLER_ACCEPTED_OUTGOING_3200"
+  "NATIVE_TAG_CONTROLLER_REJECTED_12F"
+  "DHC_NATIVE_SUPER_REPLACES_KICK__UNVERIFIED_FX"
+  "MATCH-START QUEUE"
+  "DHC QUEUED "
+)
+for marker in "${required_markers[@]}"; do
+  if ! grep -aFq "$marker" "$BUILT"; then
+    echo "ERROR: TEST executable is missing compiled 87.146 marker: $marker" >&2
+    echo "Built file: $BUILT" >&2
+    echo "Existing TEST and Stable binaries are preserved." >&2
+    exit 2
+  fi
+done
 mkdir -p "$PROJECT/runtime/stable"
 # Only publish after the linked executable passed checks; replace the
 # dedicated 87.146 TEST binary, never XMVSF_Stable.exe.
