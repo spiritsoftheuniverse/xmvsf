@@ -58,7 +58,7 @@ jobs:
           assert segment[-1].strip().endswith('all'), segment
           PY
           grep -Fq 'BUILD_TEST.sh' BUILD_TEST.bat
-          grep -Fq 'XMVSF_Test_87_159.exe' RUN_TEST.bat
+          grep -Fq 'XMVSF_Test_87_160.exe' RUN_TEST.bat
           grep -Fq 'XM87139_PROBE_DIR' RUN_TEST.bat
           grep -Fq 'XM87140_CHAT_LOG' RUN_TEST.bat
           grep -Fq 'xm87140ChatOverlay(sdlRenderer);' dev/stable/buildtree/src/intf/video/sdl/vid_sdl2.cpp
@@ -71,6 +71,19 @@ jobs:
           grep -Fq 'XM87157_EARLY_CANCEL=1' RUN_TEST.bat
           grep -Fq 'PROOF_156_ROM_HP_HK_NATIVE_3200_ACCEPTED' dev/stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_144_native_handoff.h
           grep -Fq '0x18u:0x03u' dev/stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_144_native_handoff.h
+          test -f dev/dhc/tests/test_dhc_rom_catalog_160.cpp
+          grep -Fq 'XM87160_DISCOVER=1' RUN_TEST.bat
+          grep -Fq 'XM87160_PRIVATE_ROM_DIR' RUN_TEST.bat
+          grep -Fq '/local_rom_dump/' .gitignore
+          grep -Fq 'XM87160::state().frame' dev/stable/buildtree/src/burn/drv/capcom/cps_run.cpp
+          grep -Fq 'XM87160::state().exportPrivateCode' dev/stable/buildtree/src/burn/drv/capcom/cps_run.cpp
+          grep -Fq 'UNVERIFIED_ROM_2E_SCRIPT' dev/stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_160_super_discovery.h
+          grep -Fq 'EXCLUDE_VARIABLE_COMBINATION' dev/stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_160_super_discovery.h
+          if grep -Fq 'if(u)return 8u;return 5u;' dev/stable/buildtree/src/burner/sdl/xmvsf_stage87_140_super_chat.h ||
+             grep -Fq 'if(dir==last)continue;last=dir;' dev/stable/buildtree/src/burner/sdl/xmvsf_stage87_140_super_chat.h; then
+            echo 'ERROR: misleading-indentation warnings returned to super-chat parser' >&2
+            exit 1
+          fi
           test -f dev/dhc/tests/test_dhc_native_proof_156.cpp
           test -f dev/dhc/tests/test_dhc_fast_ken_cancel_157.cpp
           grep -Fq 'XM87156_PROOF_NATIVE=0' RUN_TEST.bat
@@ -91,7 +104,7 @@ jobs:
             exit 1
           fi
           grep -Fq 'required_markers=(' dev/dhc/BUILD_TEST.sh
-          grep -Fq 'TEST executable is missing compiled 87.159 marker' dev/dhc/BUILD_TEST.sh
+          grep -Fq 'TEST executable is missing compiled 87.160 marker' dev/dhc/BUILD_TEST.sh
           grep -Fq 'DHC_NATIVE_TAG_CONTROLLER_08_ARMED' dev/stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_144_native_handoff.h
           grep -Fq 'NATIVE_CONTROLLER_ACCEPTED_OUTGOING_3200' dev/stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_144_native_handoff.h
           grep -Fq 'NATIVE_TAG_CONTROLLER_REJECTED_12F' dev/stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_144_native_handoff.h
