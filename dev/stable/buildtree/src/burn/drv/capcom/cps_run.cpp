@@ -15,6 +15,7 @@
 #include "xmvsf_stage87_125_stun_rearm_lock.h" // XM87.125 Tournament dizzy->landing stun rearm
 #include "xmvsf_stage87_100_training_ko.h"
 #include "xmvsf_stage87_137_dhc_native_capture.h" // XM87.137 opt-in read-only tag/super evidence
+#include "xmvsf_stage87_138_tag_land_test.h" // XM87.138 opt-in native Stage5 tag jump landing
 #include "xmvsf_stage87_119_cyclops_recovery_probe.h" // XM87.119 read-only recovery state trace
 #include "xmvsf_stage87_121_cyclops_release.h" // XM87.121 restore recorded airborne state after throw // XM87.100 native Training-only KO suppression
 extern int xm14TrainingMode; // native SDL Training mode selection
@@ -647,6 +648,7 @@ INT32 Cps2Frame()
         XM8799Ground::env("XM8755_TOURNAMENT_MODE"));
     XM8779Flight::state().frame((unsigned)GetCurrentFrame(),CpsRamFF,CpsReg,
                                  (unsigned)Cpi01A,(unsigned)Cpi01C,(unsigned)Cpi01E);
+    XM87138Tag::state().frame(CpsRamFF,(unsigned)GetCurrentFrame(),BurnDrvGetTextA(DRV_NAME),bBurnRunAheadFrame!=0);
     XM8798Latency::state().nativeFrame(CpsRamFF,(unsigned)GetCurrentFrame());
     XM87119::state().frame((unsigned)GetCurrentFrame(),CpsRamFF); // XM87.119 read-only probe
     // XM87.137: real-frame native evidence only; never tag/spend/suppress here.
