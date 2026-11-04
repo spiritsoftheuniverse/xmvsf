@@ -49,7 +49,7 @@ set "XM8796_DIZZY_HANDOFF_TEST=1"
 set "XM8799_GROUND_DEFENSE_TEST=1"
 REM Fresh replay diagnostics must NEVER overwrite the submitted 87.161
 REM original session logs or the saved movie pair.
-set "TRACE=%PROJECT%\test\87.161\replay_results"
+set "TRACE=%PROJECT%\test\87.162\replay_results"
 if not exist "%TRACE%" mkdir "%TRACE%"
 if not exist "%TRACE%" (
   echo ERROR: Cannot create isolated replay results directory.
