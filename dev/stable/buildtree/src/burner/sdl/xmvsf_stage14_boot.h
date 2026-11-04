@@ -462,6 +462,10 @@ static int xmvsfBootSelector(bool returningFromGame=false) {
         // Draw the same red timer here and report success/failure in-place,
         // after menus but BEFORE final presentation.
         const int v2rec=XM8764::visualStatus();
+        // The menu's Double Feature final pass is applied FIRST, just
+        // as in the gameplay presenter. The red F9 indicator must remain
+        // red and legible even when menu grayscale is enabled.
+        if(v2rec!=0)xm8656FinalPass(render,false);
         if(v2rec!=0){
             const unsigned recorded=XM8764::context().allFrames;
             char caption[80]={};
@@ -486,7 +490,8 @@ static int xmvsfBootSelector(bool returningFromGame=false) {
             SDL_RenderFillRect(render,&dot);
             xmvsfPixelText(render,caption,796,17,2,red,green,blue);
         }
-        xm8656Present(render); /* XM86.56 global final pass */
+        if(v2rec!=0)SDL_RenderPresent(render);
+        else xm8656Present(render); /* XM86.56 global final pass */
         xm8652TrackWindowGeometry(window,false,"boot");
         SDL_Delay(8);
     }
