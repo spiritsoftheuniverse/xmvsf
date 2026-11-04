@@ -25,7 +25,16 @@ fi
 # Preserve warm cache and anything already built on failures. Never run make clean.
 cd "$TREE"
 echo "XMVSF Stage 87.138 TEST: compiling current local buildtree with warm cache"
-make -f makefile.sdl2 LSB_FIRST=1 INCLUDE_7Z_SUPPORT=1 -j"${XMVSF_BUILD_JOBS:-12}" all
+# This FBNeo makefile is a two-pass build: MAKELEVEL=1 compiles objects,
+# and the nested make (level 2) links fbneo. The old invocation could report
+# 'Nothing to be done' without checking newly pulled DHC source reliably.
+# Treat ONLY the three modified translation units as newer for this TEST.
+# -W does not alter source timestamps, files or the existing object cache.
+MAKELEVEL=1 make -f makefile.sdl2 LSB_FIRST=1 INCLUDE_7Z_SUPPORT=1 \\
+  -j"${XMVSF_BUILD_JOBS:-12}" \\
+  -W src/burn/drv/capcom/cps_run.cpp \\
+  -W src/intf/input/sdl/inp_sdl2.cpp \\
+  -W src/intf/video/sdl/vid_sdl2.cpp all
 
 BUILT=""
 for exe in "$TREE/fbneo.exe" "$TREE/fbneo"; do
@@ -47,9 +56,11 @@ fi
 mkdir -p "$PROJECT/runtime/stable"
 # Only publish after the linked executable passed checks; replace the
 # dedicated 87.138 TEST binary, never XMVSF_Stable.exe.
+# cp exits nonzero on failure (set -e); Bash -s checks copied content
+# exists and is nonempty. Do not depend on an uninstalled 'cmp' binary.
 cp -p "$BUILT" "$PENDING"
-if ! cmp -s "$BUILT" "$PENDING"; then
-  echo "ERROR: Test binary copy verification failed." >&2
+if [[ ! -s "$PENDING" ]]; then
+  echo "ERROR: Copied TEST binary is empty or missing." >&2
   exit 2
 fi
 mv -f "$PENDING" "$DEST"
