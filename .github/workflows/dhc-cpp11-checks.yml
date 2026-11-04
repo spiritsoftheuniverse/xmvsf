@@ -21,6 +21,13 @@ jobs:
           set -euo pipefail
           bash -n dev/dhc/BUILD_TEST.sh
           grep -Fq 'MAKELEVEL=1 make' dev/dhc/BUILD_TEST.sh
+          grep -Fq 'src/burner/sdl/main.cpp' dev/dhc/BUILD_TEST.sh
+          test -f dev/stable/buildtree/src/burner/sdl/xmvsf_stage87_153_training_options.h
+          grep -Fq 'xm257LoadTrainingOptions' dev/stable/buildtree/src/burner/sdl/main.cpp
+          grep -Fq 'xm257SaveTrainingOptions' dev/stable/buildtree/src/burner/sdl/xmvsf_stage23_ui.h
+          grep -Fq 'XM87.153 TRAINING_PLAYER_SELECT_RESTORED' dev/stable/buildtree/src/burner/sdl/xmvsf_stage23_engine.h
+          grep -Fq 'xmvsfu_training_options.cfg' dev/stable/buildtree/src/burner/sdl/xmvsf_stage87_153_training_options.h
+          grep -Fq 'XM87.153 TRAINING_OPTIONS_SAVED' dev/dhc/BUILD_TEST.sh
           if grep -Fq 'cmp -s' dev/dhc/BUILD_TEST.sh; then
             echo 'ERROR: cmp dependency is not installed in user MSYS2' >&2
             exit 1
@@ -38,7 +45,7 @@ jobs:
           assert segment[-1].strip().endswith('all'), segment
           PY
           grep -Fq 'BUILD_TEST.sh' BUILD_TEST.bat
-          grep -Fq 'XMVSF_Test_87_152.exe' RUN_TEST.bat
+          grep -Fq 'XMVSF_Test_87_153.exe' RUN_TEST.bat
           grep -Fq 'XM87139_PROBE_DIR' RUN_TEST.bat
           grep -Fq 'XM87140_CHAT_LOG' RUN_TEST.bat
           grep -Fq 'xm87140ChatOverlay(sdlRenderer);' dev/stable/buildtree/src/intf/video/sdl/vid_sdl2.cpp
@@ -57,7 +64,7 @@ jobs:
             exit 1
           fi
           grep -Fq 'required_markers=(' dev/dhc/BUILD_TEST.sh
-          grep -Fq 'TEST executable is missing compiled 87.152 marker' dev/dhc/BUILD_TEST.sh
+          grep -Fq 'TEST executable is missing compiled 87.153 marker' dev/dhc/BUILD_TEST.sh
           grep -Fq 'DHC_NATIVE_TAG_CONTROLLER_08_ARMED' dev/stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_144_native_handoff.h
           grep -Fq 'NATIVE_CONTROLLER_ACCEPTED_OUTGOING_3200' dev/stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_144_native_handoff.h
           grep -Fq 'NATIVE_TAG_CONTROLLER_REJECTED_12F' dev/stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_144_native_handoff.h
@@ -88,7 +95,7 @@ jobs:
           grep -Fq 'REFERENCE_REAL_ROM_NORMAL_TAG' dev/stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_144_native_handoff.h
           grep -Fq 'DHC_NATIVE_TAG_CONTROLLER_08_ARMED' dev/stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_144_native_handoff.h
           grep -Fq 'NATIVE_TAG_CONTROLLER_REJECTED_12F' dev/stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_144_native_handoff.h
-          # 87.152 accepts BOTH native 2A02 and 2A28 observed on actual
+          # 87.153 accepts BOTH native 2A02 and 2A28 observed on actual
           # Ryu supers, but never forces either mode for incoming Ken.
           grep -Fq 'rw(ram,p+0xA0u)!=0x2A28u' dev/stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_144_native_handoff.h
           grep -Fq 'rw(ram,p+0xA0u)!=0x2A02u' dev/stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_144_native_handoff.h
