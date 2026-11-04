@@ -1,0 +1,468 @@
+{
+  "schema": "xmvsf-dhc-targets-v1",
+  "source_recording": "87.167(2).zip",
+  "recording_sha256": "acfe1469894179c27d40eac7eaa460ab1fb4b0076406b35cf9c9a94b5ee8952a",
+  "policy": {
+    "no_automatic_gameplay_dispatch": true,
+    "requested_moves_are_targets_not_native_script_proof": true,
+    "missing_motion_symbols_in_original_paste": "DO_NOT_INVENT",
+    "excluded_moves": "never enable a matching move without explicit user reversal",
+    "physical_roots": "input correlations only until original 68000 command recognition is independently decoded",
+    "reproducibility": "fresh 29827-frame, 68-checkpoint, 150-event replay is required"
+  },
+  "characters": [
+    {
+      "fighter_id": "1E",
+      "name": "Akuma",
+      "target_moves": [
+        {
+          "name": "Messatsu Gou Hadou",
+          "command": "PENDING_DECOMP_VERIFICATION",
+          "native_script": "UNASSIGNED"
+        },
+        {
+          "name": "Messatsu Gou Shouryuu",
+          "command": "PENDING_DECOMP_VERIFICATION",
+          "native_script": "UNASSIGNED"
+        },
+        {
+          "name": "Shun Goku Satsu",
+          "command": "PENDING_DECOMP_VERIFICATION",
+          "native_script": "UNASSIGNED"
+        }
+      ],
+      "excluded_moves": [
+        "Tenma Gou Zankuu"
+      ],
+      "observed_input_roots": [
+        {
+          "action": "2E",
+          "selector": "00",
+          "script": "0EB42E",
+          "classification": "UNVERIFIED_INPUT_CORRELATED_ROM_ROOT"
+        },
+        {
+          "action": "2E",
+          "selector": "02",
+          "script": "0EB692",
+          "classification": "UNVERIFIED_INPUT_CORRELATED_ROM_ROOT"
+        },
+        {
+          "action": "2E",
+          "selector": "06",
+          "script": "0EB87A",
+          "classification": "UNVERIFIED_INPUT_CORRELATED_ROM_ROOT"
+        },
+        {
+          "action": "2E",
+          "selector": "0C",
+          "script": "0EB986",
+          "classification": "UNVERIFIED_INPUT_CORRELATED_ROM_ROOT"
+        }
+      ],
+      "strong_observation": {
+        "name": "Shun Goku Satsu",
+        "sequence": [
+          "LP",
+          "LP",
+          "Forward",
+          "LK",
+          "HP"
+        ],
+        "repeats": 2,
+        "action": "2E",
+        "selector": "0C",
+        "script": "0EB986",
+        "classification": "SEQUENCE_AND_ROM_ROOT_MATCHED_DECODER_NOT_YET_PROVEN"
+      }
+    },
+    {
+      "fighter_id": "22",
+      "name": "Cammy",
+      "target_moves": [
+        {
+          "name": "Spin Drive Smasher",
+          "command": "PENDING_DECOMP_VERIFICATION",
+          "native_script": "UNASSIGNED"
+        },
+        {
+          "name": "Killer Bee Assault",
+          "command": "PENDING_DECOMP_VERIFICATION",
+          "native_script": "UNASSIGNED"
+        }
+      ],
+      "excluded_moves": [],
+      "observed_input_roots": [
+        {
+          "action": "2E",
+          "selector": "18",
+          "script": "0F3C92",
+          "classification": "UNVERIFIED_INPUT_CORRELATED_ROM_ROOT"
+        }
+      ]
+    },
+    {
+      "fighter_id": "02",
+      "name": "Cyclops",
+      "target_moves": [
+        {
+          "name": "Mega Optic Blast",
+          "command": "PENDING_DECOMP_VERIFICATION",
+          "native_script": "UNASSIGNED"
+        },
+        {
+          "name": "Super Optic Blast",
+          "command": "PENDING_DECOMP_VERIFICATION",
+          "native_script": "UNASSIGNED"
+        }
+      ],
+      "excluded_moves": [],
+      "observed_input_roots": [
+        {
+          "action": "2E",
+          "selector": "00",
+          "script": "0A992E",
+          "classification": "UNVERIFIED_INPUT_CORRELATED_ROM_ROOT"
+        }
+      ]
+    },
+    {
+      "fighter_id": "20",
+      "name": "Charlie",
+      "target_moves": [
+        {
+          "name": "Sonic Break",
+          "command": "PENDING_DECOMP_VERIFICATION",
+          "native_script": "UNASSIGNED"
+        },
+        {
+          "name": "Crossfire Blitz",
+          "command": "PENDING_DECOMP_VERIFICATION",
+          "native_script": "UNASSIGNED"
+        },
+        {
+          "name": "Somersault Justice",
+          "command": "PENDING_DECOMP_VERIFICATION",
+          "native_script": "UNASSIGNED"
+        }
+      ],
+      "excluded_moves": [],
+      "observed_input_roots": [
+        {
+          "action": "2E",
+          "selector": "00",
+          "script": "0EF9B4",
+          "classification": "UNVERIFIED_INPUT_CORRELATED_ROM_ROOT"
+        }
+      ]
+    },
+    {
+      "fighter_id": "16",
+      "name": "Chun-Li",
+      "target_moves": [
+        {
+          "name": "Senretsukyaku",
+          "command": "PENDING_DECOMP_VERIFICATION",
+          "native_script": "UNASSIGNED"
+        },
+        {
+          "name": "Hazan Tenshokyaku",
+          "command": "PENDING_DECOMP_VERIFICATION",
+          "native_script": "UNASSIGNED"
+        }
+      ],
+      "excluded_moves": [],
+      "observed_input_roots": [
+        {
+          "action": "2E",
+          "selector": "00",
+          "script": "0DA7E8",
+          "classification": "UNVERIFIED_INPUT_CORRELATED_ROM_ROOT"
+        },
+        {
+          "action": "2E",
+          "selector": "0A",
+          "script": "0DB1C4",
+          "classification": "UNVERIFIED_INPUT_CORRELATED_ROM_ROOT"
+        },
+        {
+          "action": "2E",
+          "selector": "16",
+          "script": "0DB8F8",
+          "classification": "UNVERIFIED_INPUT_CORRELATED_ROM_ROOT"
+        }
+      ]
+    },
+    {
+      "fighter_id": "18",
+      "name": "Dhalsim",
+      "target_moves": [
+        {
+          "name": "Yoga Inferno",
+          "command": "PENDING_DECOMP_VERIFICATION",
+          "native_script": "UNASSIGNED"
+        },
+        {
+          "name": "Yoga Strike",
+          "command": "PENDING_DECOMP_VERIFICATION",
+          "native_script": "UNASSIGNED"
+        }
+      ],
+      "excluded_moves": [],
+      "observed_input_roots": [
+        {
+          "action": "2E",
+          "selector": "04",
+          "script": "0E0A9E",
+          "classification": "UNVERIFIED_INPUT_CORRELATED_ROM_ROOT"
+        },
+        {
+          "action": "2E",
+          "selector": "06",
+          "script": "0E0DBE",
+          "classification": "UNVERIFIED_INPUT_CORRELATED_ROM_ROOT"
+        }
+      ]
+    },
+    {
+      "fighter_id": "08",
+      "name": "Gambit",
+      "target_moves": [],
+      "excluded_moves": [],
+      "observed_input_roots": [
+        {
+          "action": "2E",
+          "selector": "00",
+          "script": "0BC1D2",
+          "classification": "UNVERIFIED_INPUT_CORRELATED_ROM_ROOT"
+        }
+      ],
+      "note": "Move names were missing from the pasted input descriptions; do not invent target move names."
+    },
+    {
+      "fighter_id": "0C",
+      "name": "Juggernaut",
+      "target_moves": [
+        {
+          "name": "Juggernaut Headcrush",
+          "command": "PENDING_DECOMP_VERIFICATION",
+          "native_script": "UNASSIGNED"
+        }
+      ],
+      "excluded_moves": [],
+      "observed_input_roots": [
+        {
+          "action": "2E",
+          "selector": "00",
+          "script": "0C473E",
+          "classification": "UNVERIFIED_INPUT_CORRELATED_ROM_ROOT"
+        }
+      ]
+    },
+    {
+      "fighter_id": "0E",
+      "name": "Magneto",
+      "target_moves": [
+        {
+          "name": "Magnetic Tempest",
+          "command": "PENDING_DECOMP_VERIFICATION",
+          "native_script": "UNASSIGNED"
+        },
+        {
+          "name": "Magnetic Shockwave",
+          "command": "PENDING_DECOMP_VERIFICATION",
+          "native_script": "UNASSIGNED"
+        }
+      ],
+      "excluded_moves": [],
+      "observed_input_roots": []
+    },
+    {
+      "fighter_id": "1C",
+      "name": "M. Bison",
+      "target_moves": [
+        {
+          "name": "Psycho Crusher",
+          "command": "PENDING_DECOMP_VERIFICATION",
+          "native_script": "UNASSIGNED"
+        },
+        {
+          "name": "Knee Press Nightmare",
+          "command": "PENDING_DECOMP_VERIFICATION",
+          "native_script": "UNASSIGNED"
+        }
+      ],
+      "excluded_moves": [],
+      "observed_input_roots": []
+    },
+    {
+      "fighter_id": "06",
+      "name": "Rogue",
+      "target_moves": [
+        {
+          "name": "Goodnight Sugar",
+          "command": "PENDING_DECOMP_VERIFICATION",
+          "native_script": "UNASSIGNED"
+        }
+      ],
+      "excluded_moves": [],
+      "observed_input_roots": [
+        {
+          "action": "2E",
+          "selector": "00",
+          "script": "0B6774",
+          "classification": "UNVERIFIED_INPUT_CORRELATED_ROM_ROOT"
+        }
+      ]
+    },
+    {
+      "fighter_id": "12",
+      "name": "Ryu",
+      "target_moves": [
+        {
+          "name": "Shinkuu Hadoken",
+          "command": "PENDING_DECOMP_VERIFICATION",
+          "native_script": "UNASSIGNED"
+        },
+        {
+          "name": "Shinkuu Tatsumaki Senpuukyaku",
+          "command": "PENDING_DECOMP_VERIFICATION",
+          "native_script": "UNASSIGNED"
+        }
+      ],
+      "excluded_moves": [],
+      "observed_input_roots": [
+        {
+          "action": "2E",
+          "selector": "00",
+          "script": "0D2CFC",
+          "classification": "UNVERIFIED_INPUT_CORRELATED_ROM_ROOT"
+        },
+        {
+          "action": "2E",
+          "selector": "06",
+          "script": "0D2E7C",
+          "classification": "UNVERIFIED_INPUT_CORRELATED_ROM_ROOT"
+        },
+        {
+          "action": "2E",
+          "selector": "08",
+          "script": "0D3070",
+          "classification": "UNVERIFIED_INPUT_CORRELATED_ROM_ROOT"
+        }
+      ],
+      "previously_verified": [
+        {
+          "name": "Shinkuu Hadoken",
+          "action": "2E",
+          "selector": "08",
+          "script": "0D3070"
+        },
+        {
+          "name": "Shinkuu Tatsumaki Senpuukyaku",
+          "action": "2E",
+          "selector": "00",
+          "script": "0D2CFC"
+        }
+      ]
+    },
+    {
+      "fighter_id": "0A",
+      "name": "Sabretooth",
+      "target_moves": [
+        {
+          "name": "Berserker Claw X",
+          "command": "PENDING_DECOMP_VERIFICATION",
+          "native_script": "UNASSIGNED"
+        },
+        {
+          "name": "Weapon X Dash",
+          "command": "PENDING_DECOMP_VERIFICATION",
+          "native_script": "UNASSIGNED"
+        },
+        {
+          "name": "Heavy Armed Birdie",
+          "command": "PENDING_DECOMP_VERIFICATION",
+          "native_script": "UNASSIGNED"
+        }
+      ],
+      "excluded_moves": [],
+      "observed_input_roots": [
+        {
+          "action": "2E",
+          "selector": "04",
+          "script": "0C0E1E",
+          "classification": "UNVERIFIED_INPUT_CORRELATED_ROM_ROOT"
+        },
+        {
+          "action": "2E",
+          "selector": "12",
+          "script": "0C0012",
+          "classification": "UNVERIFIED_INPUT_CORRELATED_ROM_ROOT"
+        }
+      ]
+    },
+    {
+      "fighter_id": "04",
+      "name": "Storm",
+      "target_moves": [
+        {
+          "name": "Lightning Storm",
+          "command": "PENDING_DECOMP_VERIFICATION",
+          "native_script": "UNASSIGNED"
+        },
+        {
+          "name": "Hail Storm",
+          "command": "PENDING_DECOMP_VERIFICATION",
+          "native_script": "UNASSIGNED"
+        }
+      ],
+      "excluded_moves": [],
+      "observed_input_roots": []
+    },
+    {
+      "fighter_id": "00",
+      "name": "Wolverine",
+      "target_moves": [
+        {
+          "name": "Berserker Barrage X",
+          "command": "PENDING_DECOMP_VERIFICATION",
+          "native_script": "UNASSIGNED"
+        },
+        {
+          "name": "Weapon X",
+          "command": "PENDING_DECOMP_VERIFICATION",
+          "native_script": "UNASSIGNED"
+        }
+      ],
+      "excluded_moves": [],
+      "observed_input_roots": [
+        {
+          "action": "2E",
+          "selector": "00",
+          "script": "0A37DE",
+          "classification": "UNVERIFIED_INPUT_CORRELATED_ROM_ROOT"
+        },
+        {
+          "action": "2E",
+          "selector": "16",
+          "script": "0A364A",
+          "classification": "UNVERIFIED_INPUT_CORRELATED_ROM_ROOT"
+        }
+      ]
+    },
+    {
+      "fighter_id": "1A",
+      "name": "Zangief",
+      "target_moves": [
+        {
+          "name": "Final Atomic Buster",
+          "command": "PENDING_DECOMP_VERIFICATION",
+          "native_script": "UNASSIGNED"
+        }
+      ],
+      "excluded_moves": [],
+      "observed_input_roots": []
+    }
+  ]
+}
