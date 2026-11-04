@@ -81,11 +81,41 @@ static inline const char* motion(const XM87137Input::History& h,bool right,unsig
     if(sequence(h,right,qcb,3u,now))return "QCB";
     return nullptr;
 }
+// Stage 87.141 user-confirmed COMMAND LIST, not an ROM action/dispatch table.
+// Ryu and Ken native fighter IDs from observed point/reserve slots.
+// First super's point facing controls relative input directions.
+struct ListedSuper {unsigned fighter;bool kicks;bool back;const char* name;};
+static inline const ListedSuper* known(unsigned id,unsigned index){
+    static const ListedSuper moves[]={
+      {0x12u,false,false,"RYU SHINKUU HADOKEN"},
+      {0x12u,true,true,"RYU SHINKUU TATSUMAKI"},
+      {0x14u,false,false,"KEN SHORYUREPPA"},
+      {0x14u,true,false,"KEN SHINRYUKEN"}
+    };
+    unsigned found=0;
+    for(unsigned i=0;i<sizeof(moves)/sizeof(moves[0]);++i)
+        if(moves[i].fighter==id && found++==index)return &moves[i];
+    return nullptr;
+}
+static inline const ListedSuper* matchListed(unsigned fighter,
+        const XM87137Input::History& h,bool facingRight,unsigned now,unsigned chordMask){
+    static const unsigned qcf[]={2,3,6},qcb[]={2,1,4};
+    for(unsigned i=0;i<2u;++i){
+        const ListedSuper* m=known(fighter,i);
+        if(!m)continue;
+        const unsigned mask=m->kicks?(chordMask>>3u)&7u:chordMask&7u;
+        if(bc(mask)<2u)continue;
+        if(sequence(h,facingRight,m->back?qcb:qcf,3u,now,40u))
+            return m;
+    }
+    return nullptr;
+}
 struct State {
     Line lines[CHAT_CAPACITY]={};
     unsigned write=0,count=0,lastFrame=~0u;
     unsigned lastMsgFrame=0, chatMessages=0, lastPlayerMask[2]={0,0};
     unsigned lastDirectionMask[2]={0,0};
+    unsigned lastAttackFrame[2]={~0u,~0u},lastMoveFrame[2]={~0u,~0u};
     bool open=false,ready[2]={false,false},candidate[2]={false,false};
     unsigned oldA0[2]={0,0},oldStock[2]={0,0},openAt[2]={0,0};
     unsigned lastCharacter[2]={0,0};
@@ -185,8 +215,16 @@ struct State {
                     unsigned((std::uint32_t(w(ram,reserve+0x34u))<<16u)|
                             w(ram,reserve+0x36u)));
                 log(frame,SYSTEM,m);
-                log(frame,SYSTEM,"ROM-VERIFIED RESERVE SUPER LIST: EMPTY (PROBE CANDIDATES ONLY)");
-                log(frame,SYSTEM,"CANDIDATES: QCF/QCB/DP/HCF + 2P OR 2K; NOT MOVE IDS");
+                // These are user-confirmed move commands, NOT ROM script IDs.
+                for(unsigned mi=0;mi<2u;++mi){
+                    const ListedSuper* m=known(bench,mi);
+                    if(!m)break;
+                    std::snprintf(m,sizeof(m),"P%u RESERVE %02X %s = %s+%s [INPUT MAP]",
+                        side+1u,bench,m->name,m->back?"QCB":"QCF",m->kicks?"KK":"PP");
+                    log(frame,SYSTEM,m);
+                }
+                if(!known(bench,0u))
+                    log(frame,SYSTEM,"NO COMMAND MAP FOR RESERVE ID; ROM MOVE IDS NOT YET VERIFIED");
             }
             const unsigned pressed=buttons[side] & ~lastPlayerMask[side];
             const unsigned rawD=directions[side];
@@ -205,20 +243,33 @@ struct State {
                     chord(buttons[side],held,sizeof(held));
                     const bool facingRight=(b(ram,point+0x4Bu)&1u)==0u;
                     const unsigned rel=relative(keys[side].direction,facingRight);
-                    const char* got=motion(keys[side],facingRight,frame);
                     std::snprintf(text,sizeof(text),
                         "P%u INPUT %s dir=%s(%u) raw=%X superA0=%02X",
                         side+1u,held,dirName(rel),rel,rawD,a0);
                     log(frame,INPUT,text);
-                    if(got&&((bc(buttons[side]&7u)>=2u)||
-                             (bc((buttons[side]>>3u)&7u)>=2u))){
-                        const char* family=bc(buttons[side]&7u)>=2u?"PP":"KK";
+                    lastAttackFrame[side]=frame;
+                }
+                // A button may precede final F/B directional edge by up to
+                // four frames; keep the chord while waiting for completion.
+                if((pressed || directionEdge) && lastAttackFrame[side]!=~0u &&
+                   frame>=lastAttackFrame[side] && frame-lastAttackFrame[side]<=4u &&
+                   (bc(buttons[side]&7u)>=2u || bc((buttons[side]>>3u)&7u)>=2u)){
+                    const bool facingRight=(b(ram,point+0x4Bu)&1u)==0u;
+                    const ListedSuper* found=matchListed(bench,keys[side],
+                                          facingRight,frame,buttons[side]);
+                    char text[CHAT_LENGTH];
+                    if(found && lastMoveFrame[side]!=lastAttackFrame[side]){
                         std::snprintf(text,sizeof(text),
-                            "P%u RESERVE %02X MATCH %s+%s (CANDIDATE NOT VERIFIED)",
-                            side+1u,bench,got,family);
+                            "P%u RESERVE %02X MATCH %s (%s+%s) [INPUT ONLY]",
+                            side+1u,bench,found->name,
+                            found->back?"QCB":"QCF",found->kicks?"KK":"PP");
                         log(frame,MATCH,text);
-                    }else{
-                        std::snprintf(text,sizeof(text),"P%u RESERVE %02X no verified super match",side+1u,bench);
+                        lastMoveFrame[side]=lastAttackFrame[side];
+                    }else if(pressed && !found){
+                        const char* got=motion(keys[side],facingRight,frame);
+                        std::snprintf(text,sizeof(text),
+                            "P%u RESERVE %02X INPUT%s%s; NO LISTED SUPER MATCH",
+                            side+1u,bench,got?" ":"",got?got:"");
                         log(frame,SYSTEM,text);
                     }
                 }
