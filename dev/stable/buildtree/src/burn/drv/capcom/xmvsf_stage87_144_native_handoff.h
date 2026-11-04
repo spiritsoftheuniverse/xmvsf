@@ -123,7 +123,7 @@ struct State {
                    !(superWindowMask&(1u<<side)) ||
                    pointId!=0x12u || reserveId!=0x14u ||
                    rw(ram,p+0x60u)!=0x2E08u ||
-                   rw(ram,p+0xA0u)!=0x2A02u)
+                   rw(ram,p+0xA0u)!=0x2A28u)
                     continue;
                 bool hasScript=false;
                 for(unsigned i=0;i<entry->count;++i)
@@ -137,8 +137,11 @@ struct State {
                 command[side]=entry->known->command;
                 outgoing[side]=pointId;incoming[side]=reserveId;
                 if(!setNativeScript(ram,rom,size,p,pointId,0x32u,0u))continue;
-                // In the captured native tag, +A0=2A00 for all 14 frames.
-                ww(ram,p+0xA0u,0x2A00u);
+                // 87.144 capture proves the native OUTGOING Ryu tag stays
+                // in +A0=2A28. +A0=2A00 appears only AFTER the ROM swaps
+                // ownership and starts Ken's incoming tag. Preserve Ryu's
+                // native outgoing super-family state here.
+                // Do NOT overwrite +A0 on this side of the swap.
                 // The action scheduler starts at step zero.
                 ww(ram,p+0x06u,0u);ww(ram,p+0x08u,0u);
                 phase[side]=WAIT_NATIVE_SWAP;started[side]=now;used[side]=true;
