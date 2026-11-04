@@ -21,7 +21,16 @@ jobs:
           set -euo pipefail
           bash -n dev/dhc/BUILD_TEST.sh
           grep -Fq 'MAKELEVEL=1 make' dev/dhc/BUILD_TEST.sh
-          grep -Fq 'src/burner/sdl/main.cpp' dev/dhc/BUILD_TEST.sh
+          grep -Fq 'DEPEND=1' dev/dhc/BUILD_TEST.sh
+          # Headers are already enumerated by FBNeo's .d dependency graph.
+          # The original 5 -W switches recompiled these source files every run.
+          if grep -Eq -- '-W[[:space:]]+src/' dev/dhc/BUILD_TEST.sh; then
+            echo 'ERROR: unconditional TEST source recompile overrides returned' >&2
+            exit 1
+          fi
+          grep -Fq '$(alldep)' dev/stable/buildtree/makefile.sdl2
+          grep -Fq '%.d:' dev/stable/buildtree/makefile.sdl2
+          grep -Fq 'DEPED' dev/stable/buildtree/makefile.sdl2 || true
           test -f dev/stable/buildtree/src/burner/sdl/xmvsf_stage87_153_training_options.h
           grep -Fq 'xm257LoadTrainingOptions' dev/stable/buildtree/src/burner/sdl/main.cpp
           grep -Fq 'xm257SaveTrainingOptions' dev/stable/buildtree/src/burner/sdl/xmvsf_stage23_ui.h
