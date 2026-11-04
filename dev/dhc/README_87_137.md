@@ -201,3 +201,15 @@ Before actual DHC can be switched on, use the source-backed trace to map every
 reserve fighter's ROM-accepted super entry, associated script, charge/debit and
 first-active signal. The DHC-only portrait animation/timer bypass and
 incoming-fighter selective advancement are still not implemented.
+
+## Repository checkout/build limitation
+
+The current root BUILD_TEST.bat and RUN_TEST.bat reference local historical
+scripts under dev/stable/releases/87_132/. These are NOT present in the
+published GitHub tree after excluding the recursively nested releases folder.
+They may still exist in the authoritative local F:\xmvsf copy. The commands
+shown above work only where that existing local launcher dependency remains.
+A clean clone must first have its standard launchers rewired to a verified
+in-place warm-cache build/run path; do NOT copy back the giant release archive,
+overwrite source files, or fall back to BUILD_STABLE.bat. No launcher or Stable
+change has been made in this DHC branch.
