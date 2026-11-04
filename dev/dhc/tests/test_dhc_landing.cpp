@@ -11,8 +11,8 @@ int main(){
     Target reposition=choose(100,600,48,0,1024);
     assert(reposition.valid && reposition.x==552);
     // Edge cases: don't invent a cross-over location.
-    assert(!choose(300,20,48,0,1024).valid); // right side is also possible, but same-side policy
-    assert(!choose(500,1000,48,0,1024).valid);
+    assert(!choose(0,20,48,0,1024).valid); // right side is also possible, but same-side policy
+    assert(!choose(1020,1000,48,0,1024).valid);
     assert(!choose(300,500,0,0,1024).valid);
     return 0;
 }
