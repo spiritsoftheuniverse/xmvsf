@@ -247,6 +247,10 @@ static int RunFrame(int bDraw, int bPause)
         host.stage=xm77StageChoice;
         host.stageResolved=xm77StageResolved;
         host.tournament=XM8755Mode::tournament()?1:0;
+        host.selectPhase=xm17.phase;host.selectFrames=xm17.frames;
+        host.selectPicks=xm17.picksP1;
+        host.selectCandidates=xm17.combatCandidateFrames;
+        host.selectCarry=xm17.p2CarryMask;
         const XM8764::FrameResult hostReplay=XM8764::beforeFrame(host);
         if(hostReplay==XM8764::DIVERGED ||
            hostReplay==XM8764::END_GAME)return 0;
@@ -268,6 +272,11 @@ static int RunFrame(int bDraw, int bPause)
                     XM8755Mode::tournament()=h.tournament!=0;
                     XM8755Mode::Apply();
                 }
+                xm17.phase=(unsigned char)h.selectPhase;
+                xm17.frames=(unsigned)h.selectFrames;
+                xm17.picksP1=(unsigned)h.selectPicks;
+                xm17.combatCandidateFrames=(unsigned)h.selectCandidates;
+                xm17.p2CarryMask=(unsigned char)h.selectCarry;
                 rec.hostChanged=false;
             }
             XM87162ReplaySync::publish(rec.allFrames-1u); // monotonic across saved-state resets
