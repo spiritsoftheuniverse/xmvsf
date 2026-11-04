@@ -48,6 +48,8 @@ jobs:
           grep -Fq 'DHC QUEUED ' dev/stable/buildtree/src/burner/sdl/xmvsf_stage87_140_super_chat.h
           grep -Fq 'XM87144::state().frame' dev/stable/buildtree/src/burn/drv/capcom/cps_run.cpp
           grep -Fq 'XM87144_DHC_NATIVE_TEST=1' RUN_TEST.bat
+          test -f dev/stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_144_native_handoff.h
+          grep -Fq 'xmvsf_stage87_144_native_handoff.h' dev/dhc/BUILD_TEST.sh
           grep -Fq 'DHC_APPROVED_ROM_OUTGOING_ACTION' dev/stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_144_native_handoff.h
           grep -Fq 'BLOCK_NOT_NATIVE_2A28_SUPER_MODE' dev/stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_144_native_handoff.h
           if grep -Fq 'rw(ram,p+0xA0u)!=0x2A02u' dev/stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_144_native_handoff.h; then
