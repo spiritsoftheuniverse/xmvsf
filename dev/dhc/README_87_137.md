@@ -1,5 +1,8 @@
 # XMVSF DHC — native implementation track (Stage 87.137)
 
+**CURRENT experimental TEST: Stage 87.147.** The 87.146 capture proves controller 8 executes (+256 08→00 and +A0=2A00) but **Ryu's Hadoken action 2E08 remains the owner**. Real normal tag is 3200 with timer 001E. 87.147 bridges that missing tag action **after genuine ROM controller acceptance**, leaving ordinary tags untouched and still requiring a real fighter swap. [Source-grounded analysis and TEST guide](NATIVE_HANDOFF_TEST_87_147.md). Retry without permanent lockout remains. Windows gameplay verification pending; Stable untouched.
+
+
 **CURRENT EXPERIMENTAL TEST: Stage 87.146.** The 87.145 capture proved forced outgoing sprite 3200 is overwritten next frame by Ryu's super controller. Stage 87.146 requests the true native controller 8 (ROM PCs 013B8E, 00C4E6, 011E50), enters the captured tag mode 2A00, waits for ROM-generated 3200, and releases the failed-attempt lock so fresh queued super commands may retry. [See ROM study and test instructions](NATIVE_HANDOFF_TEST_87_146.md). Still limited to Ryu→Ken P1; native Windows result unverified. Stable untouched.
 
 
