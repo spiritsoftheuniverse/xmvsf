@@ -245,7 +245,7 @@ struct State {
             if(candidate[side]){
                 if(directionEdge){
                     char text[CHAT_LENGTH];
-                    const bool facingRight=(b(ram,point+0x4Bu)&1u)==0u;
+                    const bool facingRight=(b(ram,point+0x4Bu)&1u)!=0u; // 87.142 trace verified: 1=RIGHT
                     const unsigned rel=relative(keys[side].direction,facingRight);
                     std::snprintf(text,sizeof(text),"P%u DIR %s abs=%s raw=%X face=%s",
                         side+1u,dirName(rel),physicalDirection(rawD),rawD,
@@ -255,7 +255,7 @@ struct State {
                 if(pressed){
                     char text[CHAT_LENGTH],held[48];
                     chord(buttons[side],held,sizeof(held));
-                    const bool facingRight=(b(ram,point+0x4Bu)&1u)==0u;
+                    const bool facingRight=(b(ram,point+0x4Bu)&1u)!=0u; // 87.142 trace verified: 1=RIGHT
                     const unsigned rel=relative(keys[side].direction,facingRight);
                     std::snprintf(text,sizeof(text),
                         "P%u INPUT %s dir=%s(%u) abs=%s raw=%X superA0=%02X",
@@ -268,7 +268,7 @@ struct State {
                 if((pressed || directionEdge) && lastAttackFrame[side]!=~0u &&
                    frame>=lastAttackFrame[side] && frame-lastAttackFrame[side]<=4u &&
                    (bc(buttons[side]&7u)>=2u || bc((buttons[side]>>3u)&7u)>=2u)){
-                    const bool facingRight=(b(ram,point+0x4Bu)&1u)==0u;
+                    const bool facingRight=(b(ram,point+0x4Bu)&1u)!=0u; // 87.142 trace verified: 1=RIGHT
                     const ListedSuper* found=matchListed(bench,keys[side],
                                           facingRight,frame,buttons[side]);
                     char text[CHAT_LENGTH];
