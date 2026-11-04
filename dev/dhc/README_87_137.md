@@ -34,3 +34,65 @@ Status: **DHC decision layer introduced; gameplay transition not connected yet.*
 - `incomingSuperEnded`: verified event, not elapsed time or portrait-only disappearance.
 
 Do not merge as a playable DHC until these host contracts are supplied and validated.
+
+## Non-negotiable DHC timing — zero visible startup
+
+The request is not "start reserve's super when darkness ends." Its startup is
+**completely advanced while the BLACKOUT IS STILL DRAWN**. The match and the
+departing super remain frozen throughout. On unfreeze the next native game
+frame is **already the incoming super's FIRST active frame**.
+
+Three independent progress domains:
+- World/opponent/outgoing actions, collision and super projectiles: HOLD.
+- Incoming fighter native tag entrance and super startup animation: ADVANCE
+  while black; do not advance a different move.
+- Cinematic renderer: present native super portrait/blackening independent of
+  simulated world-time; keep it until the incoming super is ready.
+
+### Lookahead contract (no move-specific fixed startup timer)
+
+The repository already has FBNeo `StateRunAheadSave/StateRunAheadLoad` in
+`src/burner/sdl/run.cpp`, and the Stage 23 hitbox gather path knows native
+fighter and projectile offensive rectangles. Together they suggest a precise
+solution without guessing 10/20/40-frame startup lengths:
+
+1. At a *safe post-CPU* boundary during DHC blackout, save the complete
+   emulated state **in memory**, with external side effects suppressed.
+2. Speculatively run **one next released native frame** with the requested
+   incoming super. Observe whether this frame enters that move's native
+   first-active state. For strikes this may be a verified offensive hitbox;
+   projectiles, grabs, counters, and install supers need their **own** verified
+   native activation predicate. Do not mistake any hitbox for the incoming move.
+3. Restore the full emulated state and verify restoration. This preview MUST
+   leave no committed gameplay tick, input edge, meter debit, QSound playback,
+   logging side effect, autosave, or fighter state change.
+4. If preview says NOT READY, keep blackout/freeze and advance the incoming
+   fighter's actual native startup one hidden tick, then try again. If READY,
+   stop hiding startup; unfreeze before the next actual native frame.
+5. The first actual visible native frame MUST be the move's first active frame.
+   A missed activation or failed restore triggers a safe rollback, never a
+   guessed startup adjustment or a blind release.
+
+Because the native fighter can have asynchronous effects and object ownership
+data, neither a full ordinary `Cps2Frame` under frozen video nor merely
+swapping `+0x52` character IDs qualifies as selective incoming advancement.
+The actual host must intercept the native **gameplay update ownership** or
+restore all non-incoming state at each hidden tick, prove collision consistency,
+and keep the black cinematic visible. This is the remaining difficult part.
+
+### New isolated source files
+
+- `xmvsf_stage87_137_dhc_timing.h` — explicit blackout/startup/release FSM;
+  cannot release without hidden startup, black presentation and readiness.
+- `xmvsf_stage87_137_dhc_lookahead.h` — speculative one-frame readiness
+  probe with unconditional rollback and restoration check.
+- `tests/test_dhc_timing.cpp` and `tests/test_dhc_lookahead.cpp` — deterministic
+  edge/failure tests. Created but not yet run against a Windows native build.
+- `xmvsf_stage87_137_dhc_arbiter.h` redirects to the new coordinator rather
+  than allowing a premature unlock on incoming action exit.
+
+**Not yet connected to `Cps2Frame` or `RunFrame`; not playable.** The
+repository currently lacks validated native move-specific super command tables,
+first-active predicates and independently-steppable incoming-fighter update.
+These cannot safely be derived from the 87.55 / 87.59 candidate super probes.
+Do not merge into main/Stable until native proof and gameplay tests exist.
