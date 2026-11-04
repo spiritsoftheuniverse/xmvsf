@@ -33,9 +33,9 @@ int main(){
     rw(ram,0x4052u,0x12u);rw(ram,0x4852u,0x14u);
     rw(ram,0x4452u,0x20u);rw(ram,0x4C52u,0x22u);
     one(rom,0x12u,0x2Eu,0x08u,0xD3070u);
-    one(rom,0x14u,0x2Cu,0x00u,0xD5C46u);
-    one(rom,0x14u,0x2Cu,0x04u,0xD5E2Eu);
+    one(rom,0x12u,0x2Eu,0x00u,0xD2CFCu);
     one(rom,0x14u,0x2Eu,0x00u,0xD6722u);
+    one(rom,0x14u,0x2Eu,0x02u,0xD6976u);
     MatchQueue q;
     assert(q.prepare(ram.data(),rom.data(),unsigned(rom.size()),100u));
     assert(q.prepared&&q.generation==1u && q.initializedAt==100u);
@@ -46,11 +46,16 @@ int main(){
     const Entry* kenKick=q.find(0u,0x14u,QCF_KK);
     assert(ryuPunch&&ryuPunch->count==1u&&ryuPunch->scripts[0].resolved);
     assert(ryuPunch->scripts[0].script==0xD3070u);
-    assert(ryuKick&&ryuKick->count==0u); // known input, unknown ROM action
-    assert(kenPunch&&kenPunch->count==2u);
-    assert(kenPunch->scripts[0].resolved && kenPunch->scripts[1].resolved);
+    assert(ryuKick&&ryuKick->count==1u && ryuKick->scripts[0].resolved);
+    assert(ryuKick->scripts[0].script==0xD2CFCu);
+    assert(kenPunch&&kenPunch->count==1u&&kenPunch->scripts[0].resolved);
+    assert(kenPunch->scripts[0].action==0x2Eu);
+    assert(kenPunch->scripts[0].selector==0x00u);
+    assert(kenPunch->scripts[0].script==0xD6722u);
     assert(kenKick&&kenKick->count==1u&&kenKick->scripts[0].resolved);
-    assert(kenKick->scripts[0].script==0xD6722u);
+    assert(kenKick->scripts[0].action==0x2Eu);
+    assert(kenKick->scripts[0].selector==0x02u);
+    assert(kenKick->scripts[0].script==0xD6976u);
     // DHC input chooses a prepared entry, but does not activate the ROM.
     const auto* staged=q.select(0u,0x14u,QCF_KK,111u);
     assert(staged==kenKick && q.selected[0]==kenKick);
