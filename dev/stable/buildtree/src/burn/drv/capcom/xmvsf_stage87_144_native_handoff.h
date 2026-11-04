@@ -57,7 +57,8 @@ static inline bool setNativeScript(std::uint8_t* ram,
 enum Phase{
     IDLE=0,TAG_OUT=1,WAIT_TAG_CONTROLLER=2,WAIT_NATIVE_SWAP=3,
     WAIT_LANDING=4,WAIT_KEN_EXIT=5,SUPER_STARTED=6,FAILED=7,
-    DELIVER_NATIVE_INPUT=8,WAIT_RYU_SUPER_END=9
+    DELIVER_NATIVE_INPUT=8,WAIT_RYU_SUPER_END=9,
+    SEND_ROM_TAG_INPUT=10
 };
 static inline const char* phaseName(Phase p){
     switch(p){
@@ -69,12 +70,13 @@ static inline const char* phaseName(Phase p){
       case SUPER_STARTED:return "NATIVE_KEN_SUPER_START";
       case DELIVER_NATIVE_INPUT:return "NATIVE_KEN_INPUT_SEQUENCE";
       case WAIT_RYU_SUPER_END:return "WAIT_RYU_NATIVE_SUPER_TIMER_08";
+      case SEND_ROM_TAG_INPUT:return "PROOF_SEND_HP_HK_NORMAL_TAG";
       case FAILED:return "FAILED";
       default:return "IDLE";
     }
 }
 struct State {
-    bool initialized=false,enabled=false,chainUsed[2]={false,false};
+    bool initialized=false,enabled=false,proofNative=false,chainUsed[2]={false,false};
     Phase phase[2]={IDLE,IDLE};
     unsigned started[2]={0u,0u},outgoing[2]={0u,0u},incoming[2]={0u,0u};
     unsigned cooldownUntil[2]={0u,0u},lastAcceptedAt[2]={~0u,~0u};
@@ -108,6 +110,8 @@ struct State {
         initialized=true;
         const char* setting=std::getenv("XM87144_DHC_NATIVE_TEST");
         enabled=setting && std::strcmp(setting,"1")==0;
+        const char* proof=std::getenv("XM87156_PROOF_NATIVE");
+        proofNative=enabled && proof && std::strcmp(proof,"1")==0;
         const char* path=std::getenv("XM87144_DHC_LOG");
         if(enabled && path && *path){
             log=std::fopen(path,"wb");
@@ -118,7 +122,9 @@ struct State {
                 "\tx\ty\tdecision\tken2E00_D6722_ready\tken2E02_D6976_ready"
                 "\tken_observed_2E00\tken_observed_2E02\tselected_command\n",log);
         }
-        std::fprintf(stderr,"XM87.144 native DHC proof-of-concept enabled=%d\n",enabled?1:0);
+        std::fprintf(stderr,
+            "XM87.156 native Ken input proof enabled=%d proofMode=%d (legacy tag-writer BYPASSED in proof)\n",
+            enabled?1:0,proofNative?1:0);
     }
     void reset(){
         for(unsigned s=0;s<2u;++s){
@@ -235,24 +241,35 @@ struct State {
     struct InputMask { bool active=false;unsigned directions=0,attacks=0; };
     InputMask inputForFrame(const std::uint8_t*ram,unsigned now)const{
         InputMask m;
-        if(!enabled || !ram || rb(ram,0x5000u)!=8u ||
-           phase[0]!=DELIVER_NATIVE_INPUT ||
+        if(!enabled || !ram || rb(ram,0x5000u)!=8u)return m;
+        if(proofNative && phase[0]==SEND_ROM_TAG_INPUT &&
+           rw(ram,0x4052u)==0x12u && inputBegin[0] &&
+           now>=inputBegin[0]){
+            const unsigned t=now-inputBegin[0];
+            if(t>=6u)return m;
+            m.active=true;
+            // 87.155 user trace: real native P1 change P2 (Ken->Ryu):
+            // held bit 0x24 at 3052; ROM 3200 at 3053. No RAM writes.
+            m.attacks=t<3u?0x24u:0u;
+            return m;
+        }
+        if(phase[0]!=DELIVER_NATIVE_INPUT ||
            rw(ram,0x4052u)!=0x14u || !inputBegin[0] ||
            now<inputBegin[0])return m;
         const unsigned t=now-inputBegin[0];
         if(t>=17u)return m;
         const bool faceRight=(rb(ram,0x404Bu)&1u)!=0u;
         const unsigned forward=faceRight?1u:2u;
-        // CPS-2 native port bits: 0=RIGHT 1=LEFT 2=DOWN 3=UP.
-        // 4f D -> 4f DF -> 3f F -> 3f F+3P/3K -> 3f release.
-        // This matches actual 87.151(1) input chords 07/38, rather than
-        // calling an isolated 2C animation or forging D6/A0 state.
+        // CPS-2 native direction bits: 0=RIGHT 1=LEFT 2=DOWN 3=UP.
+        // This proves *Ken's own* command path after the real ROM tag:
+        // down -> down-forward -> forward + two punches / two kicks.
+        // The 87.155 three-button chord was incorrect: PPP=Dash, KKK=Jump.
         m.active=true;
         if(t<4u)m.directions=4u;
         else if(t<8u)m.directions=4u|forward;
         else if(t<14u)m.directions=forward;
         if(t>=11u && t<14u)
-            m.attacks=command[0]==XM87143Queue::QCF_KK?0x38u:0x07u;
+            m.attacks=command[0]==XM87143Queue::QCF_KK?0x18u:0x03u;
         return m;
     }
     // Call AFTER the ROM has executed a full real frame and the input queue
@@ -340,6 +357,16 @@ struct State {
                 lastAcceptedAt[side]=selectedAt;
                 lastKenTargetAction[side]=0u;
                 XM87143Queue::state().discard(side);
+                if(proofNative){
+                    // Stage 87.156: observe Ryu's *natural* super completion.
+                    // Never write +256/+259/+A0/D6 or fake a 3200 script.
+                    phase[side]=WAIT_RYU_SUPER_END;
+                    started[side]=now;
+                    kenNeutralAt[side]=0u;
+                    event(now,side,ram,
+                          "PROOF_156_RYU_SUPER_TO_NATIVE_TAG_WAIT_NO_RAM_WRITES");
+                    continue;
+                }
                 if(remaining==0u || remaining>60u ||
                    rb(ram,p+0xD6u)!=0x0Au){
                     abort(now,side,ram,
@@ -354,6 +381,24 @@ struct State {
                 continue;
             }
             if(phase[side]==WAIT_RYU_SUPER_END){
+                if(proofNative){
+                    if(pointId!=outgoing[side] || reserveId!=incoming[side]){
+                        abort(now,side,ram,"PROOF_RYU_ROSTER_CHANGED");
+                    }else if(rw(ram,p+0x60u)==0u &&
+                             ((rw(ram,p+0xA0u)&0xFF00u)==0u)){
+                        if(!kenNeutralAt[side])kenNeutralAt[side]=now;
+                        if(now>=kenNeutralAt[side]+2u){
+                            phase[side]=SEND_ROM_TAG_INPUT;
+                            inputBegin[side]=now+2u;
+                            event(now,side,ram,
+                                  "PROOF_156_NATIVE_HP_HK_TAG_INPUT_ARMED");
+                        }
+                    }else if(now>started[side]+340u){
+                        abort(now,side,ram,
+                              "PROOF_RYU_SUPER_NEVER_NATURALLY_ENDED");
+                    }else kenNeutralAt[side]=0u;
+                    continue;
+                }
                 const unsigned left=rw(ram,p+0x4Eu);
                 // All checks are observational until the verified +4E<=8
                 // window. Failure leaves native fighter state untouched.
@@ -368,6 +413,24 @@ struct State {
                 }else if(left<=8u){
                     event(now,side,ram,"DHC_LATE_SUPER_TIMER_WINDOW_ACCEPTED");
                     armOutgoingTag(ram,now,side,lastAcceptedAt[side]);
+                }
+                continue;
+            }
+            if(phase[side]==SEND_ROM_TAG_INPUT){
+                // Only the game's native HP+HK input decoder can choose 3200.
+                // This is a strict, bounded input-only experiment.
+                if(pointId!=outgoing[side] || reserveId!=incoming[side]){
+                    abort(now,side,ram,"PROOF_NATIVE_TAG_ROSTER_CHANGED");
+                }else if(rw(ram,p+0x60u)==0x3200u &&
+                         rw(ram,p+0xA0u)==0x2A00u){
+                    phase[side]=WAIT_NATIVE_SWAP;
+                    started[side]=now;
+                    controllerAcceptedAt[side]=now;
+                    event(now,side,ram,
+                          "PROOF_156_ROM_HP_HK_NATIVE_3200_ACCEPTED");
+                }else if(now>inputBegin[side]+18u){
+                    abort(now,side,ram,
+                          "PROOF_NATIVE_HP_HK_TAG_NOT_ACCEPTED_NO_RAM_WRITES");
                 }
                 continue;
             }
@@ -461,6 +524,10 @@ struct State {
                     kenExitObserved[side]=false;
                     kenSuperConfirmed[side]=false;
                     event(now,side,ram,"REAL_ROM_POINT_RESERVE_SWAP");
+                }else if(proofNative){
+                    if(now>started[side]+120u)
+                        abort(now,side,ram,
+                              "PROOF_NATIVE_ROM_TAG_SWAP_TIMEOUT_NO_RAM_WRITES");
                 }else if(now>controllerAcceptedAt[side]+2u &&
                          rw(ram,p+0x60u)==0x2E08u){
                     // If the game's own super owner reclaims the actor
@@ -510,6 +577,24 @@ struct State {
                 // ROM-confirmed incoming frame. No floor proximity
                 // guesses or waiting until 2A0E has already kicked.
                 const unsigned incomingAction=rw(ram,p+0x60u);
+                if(proofNative){
+                    // Let the genuine Ken entry finish WITHOUT attack,
+                    // location, or controller mutation. When Ken's real
+                    // action returns to normal, the 2P/2K test may begin.
+                    const unsigned a0=rw(ram,p+0xA0u)&0xFF00u;
+                    if((incomingAction==0u && a0==0u) ||
+                       (incomingAction==0x0002u && a0==0x0200u)){
+                        phase[side]=WAIT_KEN_EXIT;
+                        kenExitObserved[side]=true;
+                        kenExitAt[side]=now;
+                        kenNeutralAt[side]=0u;
+                        event(now,side,ram,
+                              "PROOF_156_KEN_NATIVE_INPUT_READY_NO_KICK_OVERRIDES");
+                    }else if(now>started[side]+320u)
+                        abort(now,side,ram,
+                              "PROOF_KEN_NATIVE_ENTRY_STILL_BUSY");
+                    continue;
+                }
                 const bool kenEntry=(incomingAction==0x2A0Cu ||
                                      incomingAction==0x2A0Eu) &&
                                      rb(ram,p+0xD6u)==0x10u;
@@ -570,7 +655,7 @@ struct State {
                 const unsigned kenAction=rw(ram,p+0x60u);
                 const bool originalKick=kenAction==0x2A0Cu ||
                                         kenAction==0x2A0Eu;
-                if(originalKick){
+                if(originalKick && !proofNative){
                     // Protect against one frame of the ROM's pending
                     // tag controller reasserting 2A0C. Do not let this
                     // complete into a second kick, and do not repeat
@@ -644,7 +729,7 @@ struct State {
                 if(now==inputBegin[side])
                     event(now,side,ram,"DHC_KEN_NATIVE_QCF_INPUT_BEGIN");
                 if(now==inputBegin[side]+13u)
-                    event(now,side,ram,"DHC_KEN_NATIVE_THREE_BUTTON_EDGE");
+                    event(now,side,ram,"PROOF_156_KEN_NATIVE_TWO_BUTTON_EDGE");
                 if(now==inputBegin[side]+16u)
                     event(now,side,ram,"DHC_KEN_NATIVE_INPUT_RELEASED");
                 const unsigned act=rw(ram,p+0x60u);
