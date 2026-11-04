@@ -17,7 +17,9 @@ enum Decision { NO_PREVIEW, NOT_READY, READY_NEXT_FRAME, ROLLBACK_FAILED };
 struct Attack {
     bool valid=false;
     bool ownSuper=false;           // exact incoming move/action identity validated
-    bool activeHitbox=false;       // native offensive collision box, not silhouette
+    bool firstActive=false;       // per-move native activation predicate, not silhouette
+    // Strike: validated offensive box. Projectile: validated initial spawn.
+    // Throw/counter/install: validated command-specific activation state.
     bool correctFighter=false;     // source == new point character or its projectile
     unsigned superId=0;
 };
@@ -43,7 +45,7 @@ static inline Outcome preview(const Hooks& h,unsigned expectedSuperId) {
     Attack before,after;
     if(!h.observe(h.ctx,&before) || !before.valid ||
        !before.correctFighter || !before.ownSuper ||
-       before.superId!=expectedSuperId || before.activeHitbox)
+       before.superId!=expectedSuperId || before.firstActive)
         return out;
     if(!h.save(h.ctx))return out;
     // Step and classify only within the speculative state. ALWAYS restore.
@@ -57,7 +59,7 @@ static inline Outcome preview(const Hooks& h,unsigned expectedSuperId) {
        !after.ownSuper || after.superId!=expectedSuperId){
         out.decision=NO_PREVIEW;return out;
     }
-    out.decision=after.activeHitbox?READY_NEXT_FRAME:NOT_READY;
+    out.decision=after.firstActive?READY_NEXT_FRAME:NOT_READY;
     return out;
 }
 } // namespace XM87137Lookahead
