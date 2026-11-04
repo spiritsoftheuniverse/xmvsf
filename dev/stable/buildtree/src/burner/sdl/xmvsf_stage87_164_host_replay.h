@@ -135,6 +135,22 @@ inline bool hostRead(std::istringstream& stream,Host& h){
         h.selectPhase>>h.selectFrames>>h.selectPicks>>
         h.selectCandidates>>h.selectCarry);
 }
+// Only *semantic* host transitions create new native save-state files.
+// selectFrames advances every real frame during character selection,
+// while selectCandidates advances during combat detection. Comparing the
+// entire Host struct (87.164/165) checkpointed EVERY FRAME, which caused
+// thousands of oversized .fs files and interrupted F9 recordings.
+inline bool requiresCheckpoint(const Host& a,const Host& b){
+    return a.training!=b.training || a.versus!=b.versus ||
+        a.owner!=b.owner || a.damage!=b.damage ||
+        a.menu!=b.menu || a.selection!=b.selection ||
+        a.hitboxes!=b.hitboxes || a.display!=b.display ||
+        a.meter!=b.meter || a.dizzy!=b.dizzy ||
+        a.frameData!=b.frameData || a.stage!=b.stage ||
+        a.stageResolved!=b.stageResolved || a.tournament!=b.tournament ||
+        a.selectPhase!=b.selectPhase || a.selectPicks!=b.selectPicks ||
+        a.selectCarry!=b.selectCarry;
+}
 inline bool loadManifest(){
     Context& c=context();
     std::ifstream f((c.folder+"/manifest.tsv").c_str(),std::ios::binary);
@@ -446,8 +462,7 @@ inline FrameResult beforeFrame(const Host& host){
         // The game's host UI consumes SDL gamepad/keyboard events outside
         // BurnDrvGetInputInfo. Snapshot its actual resolved state whenever
         // menu navigation, player ownership, mode or Training options change.
-        if(c.hostRecorded &&
-           std::memcmp(&host,&c.lastRecordedHost,sizeof(Host))!=0){
+        if(c.hostRecorded && requiresCheckpoint(host,c.lastRecordedHost)){
             journal("HOST_MENU_STATE_CHANGED",0);
             c.reason="HOST_MENU_STATE_CHANGED";c.split=true;
         }
