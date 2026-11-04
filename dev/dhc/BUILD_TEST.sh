@@ -21,9 +21,9 @@ if ! command -v tee >/dev/null; then
   exit 2
 fi
 exec > >(tee -a "$LOG_FILE") 2>&1
-printf '\\n========== XMVSF TEST 87.165 BUILD BEGIN %s ==========' "$(date '+%Y-%m-%d %H:%M:%S')"
-printf '\\nProject: %s\\nLog: %s\\n' "$PROJECT" "$LOG_FILE"
-trap 'rc=$?; trap - EXIT; printf "XMVSF BUILD END rc=%s time=%s log=%s\\n" "$rc" "$(date "+%Y-%m-%d %H:%M:%S")" "$LOG_FILE"; exit "$rc"' EXIT
+printf '\n========== XMVSF TEST 87.165 BUILD BEGIN %s ==========' "$(date '+%Y-%m-%d %H:%M:%S')"
+printf '\nProject: %s\nLog: %s\n' "$PROJECT" "$LOG_FILE"
+trap 'rc=$?; trap - EXIT; printf "XMVSF BUILD END rc=%s time=%s log=%s\n" "$rc" "$(date "+%Y-%m-%d %H:%M:%S")" "$LOG_FILE"; exit "$rc"' EXIT
 
 TREE="$PROJECT/dev/stable/buildtree"
 DEST="$PROJECT/runtime/stable/XMVSF_Test_87_165.exe"
