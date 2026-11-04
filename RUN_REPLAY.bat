@@ -167,6 +167,30 @@ pause
 exit /b 1
 
 :run_v2
+REM Read-only preflight. A sealed latest.txt recording needs FINAL;
+REM an explicitly dropped session folder/manifest may be an older
+REM complete-frame UNSEALED PREFIX (not mislabeled as a successful stop).
+REM Preserve both the original input bytes and full native checkpoints.
+if not exist "%PROJECT%\dev\dhc\tools\VERIFY_REPLAY_V2.py" (
+  echo ERROR: Missing read-only verifier dev\dhc\tools\VERIFY_REPLAY_V2.py.
+  goto :fail
+)
+where python.exe >nul 2>nul
+if not errorlevel 1 (
+  echo Validating selected replay session without modifying files:
+  if "%~1"=="" (
+    python.exe "%PROJECT%\dev\dhc\tools\VERIFY_REPLAY_V2.py" "%V2_SESSION%"
+  ) else (
+    echo EXPLICIT legacy selection: allowing an unsealed complete-frame prefix.
+    python.exe "%PROJECT%\dev\dhc\tools\VERIFY_REPLAY_V2.py" "%V2_SESSION%" --allow-unsealed
+  )
+  if errorlevel 1 (
+    echo ERROR: Replay data contract failed. No game or Stable executable launched.
+    goto :fail
+  )
+) else (
+  echo WARNING: Python unavailable. Native V2 manifest and payload validation remains active.
+)
 REM F9 V2: normal XMVSF application shell, recorded host mode choices,
 REM session-by-session DrvInit/DrvExit, checkpointed state/input segments.
 REM NO direct xmvsfu argument: the app's own recorded boot decisions are
