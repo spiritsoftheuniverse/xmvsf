@@ -15,6 +15,8 @@
 
 #include "burner.h"
 #include <cstdio>
+#include <cstdlib>
+#include <cstring>
 #include "xmvsf_stage77_selection.h" // XM86.31 safe-host menu-only stage selection
 int xm77StageChoice=0, xm77StageResolved=0;
 #include "xmvsf_stage14_boot.h" // XMVSF_STAGE14_TRAINING_BOOT
@@ -388,7 +390,7 @@ int main(int argc, char* argv[])
         xm26PersistentShell=false;
         usejoy=1;
         std::fprintf(stderr,
-            "XM87.163 REPLAY_DIRECT_BOOT rom=%s training=%d versus=%d (boot menu bypassed)\\n",
+            "XM87.163 REPLAY_DIRECT_BOOT rom=%s training=%d versus=%d (boot menu bypassed)\n",
             romname,xm14TrainingMode,xm24VersusMode);
         std::fflush(stderr);
     }
