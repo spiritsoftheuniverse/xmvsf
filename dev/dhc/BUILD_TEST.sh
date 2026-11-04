@@ -8,8 +8,8 @@ TREE="$PROJECT/dev/stable/buildtree"
 DEST="$PROJECT/runtime/stable/XMVSF_Test_87_139.exe"
 PENDING="$PROJECT/runtime/stable/.XMVSF_Test_87_139_pending.exe"
 
-if [[ ! -f "$TREE/makefile.sdl2" || ! -f "$TREE/src/burn/drv/capcom/xmvsf_stage87_139_tag_land_test.h" ]]; then
-  echo "ERROR: Current Stage 87.139 source was not pulled into $TREE" >&2
+if [[ ! -f "$TREE/makefile.sdl2" || ! -f "$TREE/src/burner/sdl/xmvsf_stage87_139_probe.h" ]]; then
+  echo "ERROR: Current Stage 87.139 probe source was not pulled into $TREE" >&2
   exit 2
 fi
 if [[ ! -f "$TREE/src/burn/drv/capcom/cps_run.cpp" ||
@@ -28,7 +28,7 @@ echo "XMVSF Stage 87.139 TEST: compiling current local buildtree with warm cache
 # This FBNeo makefile is a two-pass build: MAKELEVEL=1 compiles objects,
 # and the nested make (level 2) links fbneo. The old invocation could report
 # 'Nothing to be done' without checking newly pulled DHC source reliably.
-# Treat ONLY the three modified translation units as newer for this TEST.
+# Treat ONLY the four changed translation units as newer for this TEST.
 # -W does not alter source timestamps, files or the existing object cache.
 MAKELEVEL=1 make -f makefile.sdl2 LSB_FIRST=1 INCLUDE_7Z_SUPPORT=1 \
   -j"${XMVSF_BUILD_JOBS:-12}" \
@@ -47,7 +47,7 @@ if [[ -z "$BUILT" ]]; then
 fi
 
 # Never silently publish a stale 87.132.4 binary. These strings must come
-# from the experimental native tag and capture source actually linked.
+# from the F10 recorder and video status actually linked.
 if ! grep -aFq 'XM87.139 PROBE_START' "$BUILT" ||
    ! grep -aFq 'XM87139_PROBE_DIR' "$BUILT" ||
    ! grep -aFq 'PROBE OFF F10 START' "$BUILT"; then
