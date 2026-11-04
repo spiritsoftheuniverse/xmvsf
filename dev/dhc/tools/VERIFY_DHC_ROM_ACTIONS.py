@@ -150,7 +150,24 @@ def correlate(integrity, segments, frames, observed, catalog, discovery):
     }
 
 
-def compare_trace(reference, directory):
+def compare_trace(reference, directory, expected_frames, expected_segments):
+    # The permanent RUN_REPLAY.bat marks each run in a separate status log.
+    # Require a complete, NEW replay before comparing event data.
+    status_path = Path(directory) / "replay_v2_status.log"
+    require(status_path.is_file(), "Missing fresh replay status: " + str(status_path))
+    log_lines = status_path.read_text(encoding="utf-8", errors="replace").splitlines()
+    starts = [i for i, line in enumerate(log_lines)
+              if line.startswith("===== 87.167 HOST REPLAY START ")]
+    require(starts, "Missing run marker; do not accept stale replay results")
+    current = log_lines[starts[-1] + 1:]
+    require(not any("REPLAY_DIVERGED" in line for line in current),
+            "Runtime reported replay divergence")
+    loaded = sum(line.startswith("CHECKPOINT_LOADED session=") for line in current)
+    require(loaded == expected_segments,
+            "Checkpoint load count mismatch: %d of %d" % (loaded, expected_segments))
+    require(any(line == "PLAY_END complete_frames=" + str(expected_frames)
+                for line in current),
+            "No PLAY_END for all recorded input frames in the latest run")
     trace = Path(directory) / "rom_super_observed.tsv"
     require(trace.is_file(), "Replay ROM diagnostic missing: " + str(trace))
     replayed = rows(trace.read_bytes())
@@ -176,8 +193,9 @@ def main():
     data = load_capture(args.capture)
     report = correlate(*data)
     if args.replay_results:
-        report["playback_comparison"] = compare_trace(data[3], args.replay_results)
-        report["runtime_playback"] = "ROM_TRACE_MATCHED_NOT_CPU_HASHED"
+        report["playback_comparison"] = compare_trace(
+            data[3], args.replay_results, data[0]["frames"], data[0]["segments"])
+        report["runtime_playback"] = "CHECKPOINT_LOADS_AND_ROM_TRACE_MATCHED; NO_CPU_HASH"
     print(json.dumps(report, indent=2))
 
 
