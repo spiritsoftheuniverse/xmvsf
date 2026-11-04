@@ -78,6 +78,7 @@ struct State {
     unsigned captured256[2]={0u,0u},captured259[2]={0u,0u};
     unsigned captured06[2]={0u,0u},captured08[2]={0u,0u},
              captured0A[2]={0u,0u};
+    unsigned controllerAcceptedAt[2]={0u,0u};
     unsigned lastNormalRef[2]={~0u,~0u};
     unsigned originalX[2]={0u,0u},opponentX[2]={0u,0u};
     XM87143Queue::Command command[2]={XM87143Queue::QCF_PP,XM87143Queue::QCF_PP};
@@ -248,7 +249,34 @@ struct State {
                 }else if(rw(ram,p+0x60u)==0x3200u &&
                          rw(ram,p+0xA0u)==0x2A00u){
                     phase[side]=WAIT_NATIVE_SWAP;
+                    controllerAcceptedAt[side]=now;
                     event(now,side,ram,"NATIVE_CONTROLLER_ACCEPTED_OUTGOING_3200");
+                }else if(rw(ram,p+0xA0u)==0x2A00u &&
+                         rb(ram,p+0x256u)==0u &&
+                         rw(ram,p+0x60u)==0x2E08u){
+                    // 87.146 real recording: controller 8 WAS executed by
+                    // 68000 at 1778/2365/2756; A0 switched to 2A00 and
+                    // controller 256 was consumed (08->00), but +60 stayed
+                    // 2E08, +259 stayed 08 and +4E was super timer 0040.
+                    // A natural ROM tag at 2886 instead has +60=3200,
+                    // +A0=2A00, +259=00 and +4E=001E.
+                    //
+                    // This is the DHC-only bridge between the genuine
+                    // ROM-accepted controller and the native outgoing tag
+                    // animation/timer. Never change a normal tag.
+                    if(!setNativeScript(ram,rom,size,p,pointId,0x32u,0u)){
+                        abort(now,side,ram,"NATIVE_3200_SCRIPT_INIT_FAILED");
+                        continue;
+                    }
+                    ww(ram,p+0x06u,0u);
+                    ww(ram,p+0x08u,2u);
+                    ww(ram,p+0x0Au,0u);
+                    ww(ram,p+0x4Eu,0x001Eu);
+                    wb(ram,p+0x259u,0u);
+                    phase[side]=WAIT_NATIVE_SWAP;
+                    controllerAcceptedAt[side]=now;
+                    event(now,side,ram,"DHC_ROM_TAG_3200_AFTER_CONTROLLER_ACCEPT");
+
                 }else if(now-started[side]>12u){
                     // No native tag controller was established. Restore
                     // its command/status bytes only when Ryu is STILL the
@@ -274,6 +302,12 @@ struct State {
                 if(pointId==incoming[side] && reserveId==outgoing[side]){
                     phase[side]=WAIT_LANDING;
                     event(now,side,ram,"REAL_ROM_POINT_RESERVE_SWAP");
+                }else if(now>controllerAcceptedAt[side]+2u &&
+                         rw(ram,p+0x60u)==0x2E08u){
+                    // Catch immediate ROM super-owner restoration; the
+                    // next trace can distinguish this from a failed swap.
+                    abort(now,side,ram,
+                          "ROM_REASSERTED_RYU_HADOKEN_AFTER_TAG_3200");
                 }else if(now-started[side]>60u){
                     abort(now,side,ram,"NO_ROM_OWNERSHIP_SWAP_WITHIN_60_FRAMES");
                 }
