@@ -210,6 +210,9 @@ set "XM8799_GROUND_DEFENSE_TEST=1"
 set "TRACE=%PROJECT%\test\87.167\replay_results"
 if not exist "%TRACE%" mkdir "%TRACE%"
 if not exist "%TRACE%" goto :fail
+REM Keep all replay-time host diagnostics outside the original F9 session.
+set "XM8764_REPLAY_STATUS_FILE=%TRACE%\replay_v2_status.log"
+>>"%XM8764_REPLAY_STATUS_FILE%" echo ===== 87.167 HOST REPLAY START %DATE% %TIME% =====
 set "XM87140_CHAT_DIR=%TRACE%"
 set "XM87139_PROBE_DIR=%TRACE%"
 set "XM87140_CHAT_LOG=%TRACE%\super_chat.tsv"
@@ -227,7 +230,7 @@ echo Application menu, game resets, native savestate reloads and inputs
 echo will follow the recorded session/checkpoint timeline.
 echo HIGH SPEED: %XM8764_FAST_FORWARD% consecutive CPS2 frames per display update.
 echo To change speed, edit XM8764_FAST_FORWARD in this BAT. 0 = normal speed.
-echo Status: "%V2_SESSION%\replay_v2_status.log"
+echo Status: "%XM8764_REPLAY_STATUS_FILE%"
 echo Native diagnostic results: "%TRACE%"
 echo Stable executable and all recorded checkpoints are never overwritten.
 echo.
@@ -237,9 +240,9 @@ set "RC=%ERRORLEVEL%"
 popd
 echo.
 echo HOST-AWARE REPLAY EXIT CODE: %RC%
-if exist "%V2_SESSION%\replay_v2_status.log" (
-  echo Session checkpoint/playback transcript:
-  type "%V2_SESSION%\replay_v2_status.log"
+if exist "%XM8764_REPLAY_STATUS_FILE%" (
+  echo Replay checkpoint/playback transcript (original session log preserved):
+  type "%XM8764_REPLAY_STATUS_FILE%"
 ) else (
   echo ERROR: no host replay status was written. Check executable and manifest.
 )
