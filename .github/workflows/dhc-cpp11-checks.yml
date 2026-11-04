@@ -63,7 +63,19 @@ jobs:
           assert segment[-1].strip().endswith('all'), segment
           PY
           grep -Fq 'BUILD_TEST.sh' BUILD_TEST.bat
-          grep -Fq 'XMVSF_Test_87_164.exe' RUN_TEST.bat
+          # A crashed or rejected Windows TEST build must always leave
+          # the exact native compiler/linker transcript on disk.
+          grep -Fq 'BUILDLOG=%LOGDIR%\BUILD_TEST.log' BUILD_TEST.bat
+          grep -Fq 'BATCH RESULT: FAILURE' BUILD_TEST.bat
+          grep -Fq 'BATCH RESULT: SUCCESS' BUILD_TEST.bat
+          grep -Fq 'exec > >(tee -a "$LOG_FILE") 2>&1' dev/dhc/BUILD_TEST.sh
+          grep -Fq 'XMVSF BUILD END rc=' dev/dhc/BUILD_TEST.sh
+          grep -Fq 'LOG_DIR="$PROJECT/test/build_logs"' dev/dhc/BUILD_TEST.sh
+          if grep -Eq '^\) 2>&1 \| awk' dev/dhc/BUILD_TEST.sh; then
+            echo 'ERROR: awk compiler-warning filter must not truncate build logs' >&2
+            exit 1
+          fi
+          grep -Fq 'XMVSF_Test_87_165.exe' RUN_TEST.bat
           grep -Fq 'XM87139_PROBE_DIR' RUN_TEST.bat
           grep -Fq 'XM87140_CHAT_LOG' RUN_TEST.bat
           grep -Fq 'xm87140ChatOverlay(sdlRenderer);' dev/stable/buildtree/src/intf/video/sdl/vid_sdl2.cpp
@@ -79,7 +91,7 @@ jobs:
           test -f dev/dhc/tests/test_dhc_rom_catalog_160.cpp
           grep -Fq 'XM8761_REPLAY_DIR=' RUN_TEST.bat
           grep -Fq 'XM8761_REPLAY_MODE=off' RUN_TEST.bat
-          grep -Fq 'XMVSF_Test_87_164.exe' RUN_REPLAY.bat
+          grep -Fq 'XMVSF_Test_87_165.exe' RUN_REPLAY.bat
           # The replay launcher is a permanent first-class root entry point.
           # Never let point-version bumps strand it on a stale TEST executable.
           test -f RUN_REPLAY.bat
@@ -161,7 +173,7 @@ jobs:
             exit 1
           fi
           grep -Fq 'required_markers=(' dev/dhc/BUILD_TEST.sh
-          grep -Fq 'TEST executable is missing compiled 87.164 marker' dev/dhc/BUILD_TEST.sh
+          grep -Fq 'TEST executable is missing compiled 87.165 marker' dev/dhc/BUILD_TEST.sh
           grep -Fq 'DHC_NATIVE_TAG_CONTROLLER_08_ARMED' dev/stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_144_native_handoff.h
           grep -Fq 'NATIVE_CONTROLLER_ACCEPTED_OUTGOING_3200' dev/stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_144_native_handoff.h
           grep -Fq 'NATIVE_TAG_CONTROLLER_REJECTED_12F' dev/stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_144_native_handoff.h
