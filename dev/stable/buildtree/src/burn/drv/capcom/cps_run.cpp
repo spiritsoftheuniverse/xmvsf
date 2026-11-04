@@ -18,6 +18,7 @@
 #include "../../../burner/sdl/xmvsf_stage87_139_probe.h" // XM87.139 read-only F10 input/native diagnostic
 #include "../../../burner/sdl/xmvsf_stage87_140_super_chat.h" // XM87.140 native super-input chat (no writes)
 #include "xmvsf_stage87_142_rom_dispatch.h" // 87.142 pure native script table+tag observer
+#include "xmvsf_stage87_144_native_handoff.h" // opt-in DHC-only native action transaction TEST
 #include "xmvsf_stage87_119_cyclops_recovery_probe.h" // XM87.119 read-only recovery state trace
 #include "xmvsf_stage87_121_cyclops_release.h" // XM87.121 restore recorded airborne state after throw // XM87.100 native Training-only KO suppression
 extern int xm14TrainingMode; // native SDL Training mode selection
@@ -709,6 +710,12 @@ INT32 Cps2Frame()
                 e.kind==XM87142::NATIVE_SUPER_ENTRY?XM87140Chat::MATCH:XM87140Chat::SYSTEM,
                 note);
         }
+        // 87.144 gameplay affecting TEST is explicitly opt-in, strictly
+        // Ryu->Ken P1 DHC command in active native super, never normal tags.
+        const unsigned dhcWindow=(XM87140Chat::state().candidate[0]?1u:0u) |
+                                 (XM87140Chat::state().candidate[1]?2u:0u);
+        XM87144::state().frame(CpsRamFF,CpsRom,(unsigned)nCpsRomLen,
+            (unsigned)GetCurrentFrame(),dhcWindow);
     }
     // Read-only after-CPU capture: do not edit fighter RAM or native action.
     XM8795Native::state().after(CpsRamFF,(unsigned)GetCurrentFrame(),
