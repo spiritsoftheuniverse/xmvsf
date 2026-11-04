@@ -319,8 +319,13 @@ struct State {
                     event(now,side,ram,"REAL_ROM_POINT_RESERVE_SWAP");
                 }else if(now>controllerAcceptedAt[side]+2u &&
                          rw(ram,p+0x60u)==0x2E08u){
-                    // Catch immediate ROM super-owner restoration; the
-                    // next trace can distinguish this from a failed swap.
+                    // If the game's own super owner reclaims the actor
+                    // during a failed DHC, do not leave the DHC-only
+                    // outgoing +D6=14 route attached to Ryu's Hadoken.
+                    if(pointId==outgoing[side]&&reserveId==incoming[side]){
+                        wb(ram,p+0xD6u,capturedD6[side]);
+                        ww(ram,p+0xA0u,capturedMode[side]);
+                    }
                     abort(now,side,ram,
                           "ROM_REASSERTED_RYU_HADOKEN_AFTER_TAG_3200");
                 }else if(now-started[side]>60u){
