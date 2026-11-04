@@ -24,6 +24,7 @@
 #include "xmvsf_stage24_engine.h" /* XMVSF_STAGE24_VERSUS */
 #include "xmvsf_stage86_49_camera.h" // XM86.49 opt-in read-only native camera
 #include "xmvsf_stage87_61_replay.h" // XM87.61 opt-in state-anchored input movie
+#include "xmvsf_stage87_139_probe.h" // XM87.139 F10 native/input diagnostic toggle
 #include "xmvsf_stage77_native_stage5.h" // XM86.31 postframe guarded native stage request
 #include "xmvsf_stage29_display.h" /* XMVSF_STAGE29_SCALABLE_DISPLAY */
 #include "xmvsf_stage24_3_menu_poll.h" /* XMVSF_STAGE24_3_LIVE_RESULTS */
@@ -649,9 +650,14 @@ int RunMessageLoop()
                         else XM8761::toggleF9(bDrvOkay!=0);
                     }
                     break;
-				case SDLK_F10:
-					QuickState(1);
-					break;
+                case SDLK_F10: // XM87.139 F10 diagnostics start/stop
+                    if(event.key.repeat==0){
+                        // Prior F10 quick-load is preserved under Shift+F10;
+                        // plain F10 records inputs and native tag/super data.
+                        if(event.key.keysym.mod & KMOD_SHIFT)QuickState(1);
+                        else XM87139Probe::state().toggle(bDrvOkay!=0);
+                    }
+                    break;
 				case SDLK_F11:
 					bAppShowFPS = !bAppShowFPS;
 #ifdef BUILD_SDL2
