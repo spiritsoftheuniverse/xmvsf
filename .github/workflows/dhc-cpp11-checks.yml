@@ -38,7 +38,7 @@ jobs:
           assert segment[-1].strip().endswith('all'), segment
           PY
           grep -Fq 'BUILD_TEST.sh' BUILD_TEST.bat
-          grep -Fq 'XMVSF_Test_87_149.exe' RUN_TEST.bat
+          grep -Fq 'XMVSF_Test_87_150.exe' RUN_TEST.bat
           grep -Fq 'XM87139_PROBE_DIR' RUN_TEST.bat
           grep -Fq 'XM87140_CHAT_LOG' RUN_TEST.bat
           grep -Fq 'xm87140ChatOverlay(sdlRenderer);' dev/stable/buildtree/src/intf/video/sdl/vid_sdl2.cpp
@@ -57,7 +57,7 @@ jobs:
             exit 1
           fi
           grep -Fq 'required_markers=(' dev/dhc/BUILD_TEST.sh
-          grep -Fq 'TEST executable is missing compiled 87.149 marker' dev/dhc/BUILD_TEST.sh
+          grep -Fq 'TEST executable is missing compiled 87.150 marker' dev/dhc/BUILD_TEST.sh
           grep -Fq 'DHC_NATIVE_TAG_CONTROLLER_08_ARMED' dev/stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_144_native_handoff.h
           grep -Fq 'NATIVE_CONTROLLER_ACCEPTED_OUTGOING_3200' dev/stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_144_native_handoff.h
           grep -Fq 'NATIVE_TAG_CONTROLLER_REJECTED_12F' dev/stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_144_native_handoff.h
@@ -65,9 +65,10 @@ jobs:
           grep -Fq 'wb(ram,p+0xD6u,0x14u);' dev/stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_144_native_handoff.h
           grep -Fq 'DHC_NATIVE_EXIT_02_WATCHDOG_RECOVERY' dev/stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_144_native_handoff.h
           grep -Fq 'ROM_REASSERTED_RYU_HADOKEN_AFTER_TAG_3200' dev/stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_144_native_handoff.h
-          grep -Fq 'DHC_KEN_KICKLESS_EXIT_2A08_ARMED' dev/stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_144_native_handoff.h
-          grep -Fq 'KEN_ROM_EXIT_2A08_CONFIRMED' dev/stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_144_native_handoff.h
-          grep -Fq 'DHC_KEN_NATIVE_SUPER_HANDLER_ARMED' dev/stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_144_native_handoff.h
+          grep -Fq 'DHC_KEN_2A0C_ATTACK_SUPPRESSED_IMMEDIATE_2A08' dev/stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_144_native_handoff.h
+          grep -Fq 'KEN_ROM_NONATTACKING_2A08_CONFIRMED' dev/stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_144_native_handoff.h
+          grep -Fq 'DHC_CANCEL_KEN_2A08_EXIT_TO_NATIVE_SUPER' dev/stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_144_native_handoff.h
+          grep -Fq 'KEN_ENTRY_ATTACK_REASSERTED_AFTER_CANCEL' dev/stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_144_native_handoff.h
           grep -Fq 'TOURNAMENT_RULES_INCOMPLETE' dev/stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_149_tournament_rules_audit.h
           grep -Fq 'XM87149Rules::state().frame' dev/stable/buildtree/src/burn/drv/capcom/cps_run.cpp
           grep -Fq 'if(loaded()){Apply();return;}' dev/stable/buildtree/src/burner/sdl/xmvsf_stage87_55_rule_mode.h
