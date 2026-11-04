@@ -78,6 +78,7 @@ struct State {
     unsigned captured256[2]={0u,0u},captured259[2]={0u,0u};
     unsigned captured06[2]={0u,0u},captured08[2]={0u,0u},
              captured0A[2]={0u,0u};
+    unsigned lastNormalRef[2]={~0u,~0u};
     unsigned originalX[2]={0u,0u},opponentX[2]={0u,0u};
     XM87143Queue::Command command[2]={XM87143Queue::QCF_PP,XM87143Queue::QCF_PP};
     unsigned lastFrame=~0u;
@@ -94,6 +95,7 @@ struct State {
             log=std::fopen(path,"wb");
             if(log)std::fputs("frame\tside\tphase\tpointId\treserveId"
                 "\taction\tmodeA0\tstep06\tstep08\tstep0A"
+                "\tcontroller256\tcontroller259\tstep4E\ta4\tpartner214"
                 "\tscript34\tscript38\tpartnerPtr\tpoint210\treserve210"
                 "\tx\ty\tdecision\n",log);
         }
@@ -103,6 +105,7 @@ struct State {
         for(unsigned s=0;s<2u;++s){
             phase[s]=IDLE;chainUsed[s]=false;lastQueuedCheck[s]=~0u;
             lastAcceptedAt[s]=~0u;cooldownUntil[s]=0u;
+            lastNormalRef[s]=~0u;
         }
     }
     // A failed DHC attempt must NEVER use up the whole match. Discard the
@@ -123,12 +126,15 @@ struct State {
         const unsigned reserve=0x4800u+side*0x400u;
         std::fprintf(log,"%u\t%u\t%s\t%04X\t%04X"
             "\t%04X\t%04X\t%04X\t%04X\t%04X"
+            "\t%02X\t%02X\t%04X\t%02X\t%04X"
             "\t%08X\t%08X\t%08X\t%04X\t%04X"
             "\t%u\t%u\t%s\n",
             now,side+1u,phaseName(phase[side]),
             rw(ram,p+0x52u),rw(ram,reserve+0x52u),
             rw(ram,p+0x60u),rw(ram,p+0xA0u),
             rw(ram,p+0x06u),rw(ram,p+0x08u),rw(ram,p+0x0Au),
+            rb(ram,p+0x256u),rb(ram,p+0x259u),
+            rw(ram,p+0x4Eu),rb(ram,p+0xA4u),rw(ram,p+0x214u),
             rl(ram,p+0x34u),rl(ram,p+0x38u),
             rl(ram,p+0x224u),rw(ram,p+0x210u),rw(ram,reserve+0x210u),
             rw(ram,p+0x0Cu),rw(ram,p+0x10u),decision);
@@ -149,6 +155,15 @@ struct State {
             const unsigned reserve=0x4800u+side*0x400u;
             const unsigned pointId=rw(ram,p+0x52u);
             const unsigned reserveId=rw(ram,reserve+0x52u);
+            // Read-only reference from an actual ROM-driven *ordinary*
+            // tag to compare against this DHC controller attempt. These
+            // are never modified by the experiment unless it has a real
+            // queued DHC command and the exact super gate passes.
+            if(phase[side]==IDLE && rw(ram,p+0x60u)==0x3200u &&
+               (lastNormalRef[side]==~0u || now-lastNormalRef[side]>=4u)){
+                event(now,side,ram,"REFERENCE_REAL_ROM_NORMAL_TAG");
+                lastNormalRef[side]=now;
+            }
             if(phase[side]==IDLE){
                 const auto* entry=XM87143Queue::state().selected[side];
                 if(!entry || chainUsed[side] || !entry->known ||
@@ -195,8 +210,11 @@ struct State {
                 captured08[side]=rw(ram,p+0x08u);
                 captured0A[side]=rw(ram,p+0x0Au);
                 // Native 68000 013B8E: partner tag command acceptance
-                // writes controller +256/+259=8. ROM 011B00 then
-                // processes this controller and selects actor 32/00.
+                // writes controller +256/+259=8. The PC 00C4E6
+                // dispatcher routes controller 8 to 011E50, which resets
+                // the state scheduler and selects a fighter-specific tag
+                // routine. Action 32/00 is selected downstream in native
+                // ROM code PC 011B00/011B16. No host sprite-script write.
                 // The 87.145 test wrote script 32/00 but left the actor
                 // in super controller +A0=2A28, so the ROM immediately
                 // rewrote 2E08 on the NEXT frame.
@@ -285,7 +303,8 @@ struct State {
                     // Ryu at trigger, 48 native units away, in stage bounds.
                     const unsigned foe=rw(ram,0x4400u+0x0Cu);
                     int pos=int(foe)+(originalX[side]<opponentX[side]?-48:48);
-                    if(pos<192)pos=192;if(pos>768)pos=768;
+                    if(pos<192)pos=192;
+                    if(pos>768)pos=768;
                     const unsigned current=rl(ram,p+0x0Cu);
                     wl(ram,p+0x0Cu,(unsigned(pos)<<16u)|(current&65535u));
                     wb(ram,p+0x4Bu,originalX[side]<opponentX[side]?1u:0u);
