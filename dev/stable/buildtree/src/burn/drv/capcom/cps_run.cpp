@@ -12,6 +12,7 @@
 #include "xmvsf_stage87_95_native_dizzy_air_collision.h" // XM87.95 dizzy init and per-frame gate/f6 source-backed native opcode override
 #include "xmvsf_stage87_96_tournament_dizzy_handoff.h" // XM87.96 native dizzy stand handoff
 #include "xmvsf_stage87_99_tournament_ground_defense.h" // XM87.99 native Tournament dizzy landing combo/guard
+#include "xmvsf_stage87_149_tournament_rules_audit.h" // 87.149 live rule installation audit
 #include "xmvsf_stage87_125_stun_rearm_lock.h" // XM87.125 Tournament dizzy->landing stun rearm
 #include "xmvsf_stage87_100_training_ko.h"
 #include "xmvsf_stage87_137_dhc_native_capture.h" // XM87.137 opt-in read-only tag/super evidence
@@ -505,6 +506,16 @@ INT32 Cps2Frame()
         XM8799Ground::env("XM8755_TOURNAMENT_MODE"),
         XM8799Ground::env("XM8799_GROUND_DEFENSE_TEST"),
         XM8795Native::state().installed,XM8796Native::state().installed);
+    // Tournament is not just a menu label: verify which actual native
+    // patches and latest grounded-flight rules are enabled at runtime.
+    // Read-only; do not bypass any original-ROM signature verification.
+    if(!bBurnRunAheadFrame)
+        XM87149Rules::state().frame((unsigned)GetCurrentFrame(),
+            BurnDrvGetTextA(DRV_NAME),
+            XM8795Native::env("XM8755_TOURNAMENT_MODE"),
+            XM8795Native::state().installed,
+            XM8796Native::state().installed,
+            XM8799Ground::state().installed);
     // XM87.125: only active when verified native dizzy patches are installed.
     XM87125Stun::state().before(CpsRamFF,(unsigned)GetCurrentFrame(),
         XM8795Native::env("XM8755_TOURNAMENT_MODE") &&
