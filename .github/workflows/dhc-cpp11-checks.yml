@@ -3,6 +3,8 @@ on:
   pull_request:
     paths:
       - 'dev/dhc/**'
+      - 'BUILD_TEST.bat'
+      - 'RUN_TEST.bat'
       - 'dev/stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_13*'
       - 'dev/stable/buildtree/src/intf/input/sdl/xmvsf_stage87_137*'
   push:
@@ -13,6 +15,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Validate TEST launcher routing and build-script syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash -n dev/dhc/BUILD_TEST.sh
+          grep -Fq 'BUILD_TEST.sh' BUILD_TEST.bat
+          grep -Fq 'XMVSF_Test_87_138.exe' RUN_TEST.bat
+          if grep -Fq 'releases\\87_132' BUILD_TEST.bat || grep -Fq 'releases\\87_132' RUN_TEST.bat; then
+            echo 'ERROR: Historical 87.132 launcher dependency remains' >&2
+            exit 1
+          fi
       - name: Compile and execute isolated DHC tests
         shell: bash
         run: |
