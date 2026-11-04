@@ -37,6 +37,13 @@ static bool read32(FILE* f,uint32_t& v){
 }
 static void report(const char* message){
     std::fprintf(stderr,"XM87.61 REPLAY %s\n",message);std::fflush(stderr);
+    // Permanent dedicated playback runner: prove that the native decoder
+    // actually started instead of silently sitting on the boot menu.
+    const char* path=std::getenv("XM8761_REPLAY_STATUS_LOG");
+    if(path && *path){
+        std::FILE* log=std::fopen(path,"ab");
+        if(log){std::fprintf(log,"XM87.61 REPLAY %s\n",message);std::fclose(log);}
+    }
 }
 static bool collect(std::vector<Slot>& slots) {
     slots.clear();
@@ -116,10 +123,29 @@ static bool init(){
                 c.mode=3;report("REFUSED: input layout changed between builds");return false;
             }
         }
+        // Reject malformed movies BEFORE loading their state; the native
+        // recorder used fixed-sized 4-byte frame index + every input slot.
+        const long payloadStart=std::ftell(c.stream);
+        if(payloadStart<0 || std::fseek(c.stream,0,SEEK_END)!=0){
+            c.mode=3;report("REFUSED: cannot seek replay input file");return false;
+        }
+        const long payloadEnd=std::ftell(c.stream);
+        unsigned frameBytes=4u;
+        for(const Slot& slot:c.slots)frameBytes+=slot.width;
+        if(payloadEnd<=payloadStart || !frameBytes ||
+           ((payloadEnd-payloadStart)%long(frameBytes))!=0 ||
+           std::fseek(c.stream,payloadStart,SEEK_SET)!=0){
+            c.mode=3;report("REFUSED: replay payload is empty or truncated");return false;
+        }
+        c.recordedCount=(unsigned)((payloadEnd-payloadStart)/long(frameBytes));
         if(BurnStateLoad(const_cast<char*>(c.statePath.c_str()),1,NULL)!=0){
             c.mode=3;report("REFUSED: full state load failed (incompatible build or missing state)");return false;
         }
-        report("PLAY_READY: full state loaded; emulated inputs will be injected");
+        char ready[256];
+        std::snprintf(ready,sizeof(ready),
+            "PLAY_READY: native state loaded, %u movie frames, ROM=%s; first input next",
+            c.recordedCount,romName);
+        report(ready);
     }
     return true;
 }
@@ -149,7 +175,12 @@ static void afterInput(){
     } else if(c.mode==2){
         uint32_t frame;
         if(!read32(c.stream,frame)){
-            clearInputs();c.mode=4;report("PLAY_END: input stream exhausted; all emulated inputs released");return;
+            clearInputs();c.mode=4;
+            char complete[160];
+            std::snprintf(complete,sizeof(complete),
+                "PLAY_END: %u/%u frames consumed; emulator inputs released",
+                c.index,c.recordedCount);
+            report(complete);return;
         }
         if(frame!=c.index){clearInputs();c.mode=3;report("REFUSED: input frame sequence mismatch");return;}
         // Read whole frame before injecting. Never mix a partial replay frame with live inputs.
@@ -164,7 +195,13 @@ static void afterInput(){
             for(unsigned j=0;j<s.width;j++)s.address[j]=values[offset++];
         }
         ++c.index;
-        if(c.index==1)report("PLAY_FRAME_1 injected");
+        if(c.index==1)report("PLAY_FRAME_1 injected; native movie playback is running");
+        if((c.index%600u)==0u){
+            char progress[160];
+            std::snprintf(progress,sizeof(progress),
+                "PLAY_PROGRESS %u/%u frames",c.index,c.recordedCount);
+            report(progress);
+        }
     }
 }
 // F9 toggles recording from a live game. The state anchor is captured
