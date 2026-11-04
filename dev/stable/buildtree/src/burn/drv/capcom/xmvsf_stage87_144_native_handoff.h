@@ -82,6 +82,7 @@ struct State {
              captured0A[2]={0u,0u};
     unsigned controllerAcceptedAt[2]={0u,0u};
     unsigned kenExitAt[2]={0u,0u},kenSuperAt[2]={0u,0u};
+    unsigned kenKickReassertions[2]={0u,0u};
     bool kenExitObserved[2]={false,false},kenSuperConfirmed[2]={false,false};
     unsigned lastNormalRef[2]={~0u,~0u};
     unsigned originalX[2]={0u,0u},opponentX[2]={0u,0u};
@@ -112,6 +113,7 @@ struct State {
             lastAcceptedAt[s]=~0u;cooldownUntil[s]=0u;
             lastNormalRef[s]=~0u;
             kenExitAt[s]=kenSuperAt[s]=0u;
+            kenKickReassertions[s]=0u;
             kenExitObserved[s]=kenSuperConfirmed[s]=false;
         }
     }
@@ -355,33 +357,38 @@ struct State {
                 continue;
             }
             if(phase[side]==WAIT_LANDING){
-                event(now,side,ram,"NATIVE_LANDING_WAIT_FRAME");
+                event(now,side,ram,"NATIVE_KEN_INCOMING_WAIT_FRAME");
                 if(pointId!=incoming[side] || reserveId!=outgoing[side]){
-                    abort(now,side,ram,"FIGHTER_CHANGED_DURING_DHC_LANDING");
+                    abort(now,side,ram,"FIGHTER_CHANGED_DURING_DHC_ARRIVAL");
                     continue;
                 }
-                // 87.148 native trace:
-                // 3158..3182 Ken incoming entry D6=10 action 2A0C.
-                // 3183 Ken switches to grounded TAG KICK 2A0E; the old
-                // host forced Shoryureppa 2C04 *after* that first kick,
-                // then ROM D6=10 reasserted 2A0C on frame 3184.
+                // User recording 87.149:
+                // 1865 ROM ownership swapped; 1866 incoming Ken 2A0C,
+                // flying attack hitbox already present, still 64px high.
+                // At 1881 Ken was 5px from floor: setting D6=12 alone
+                // left 2A0C active through frame 1890. 2A08 only
+                // appeared on 1891. At 2690-2695 he held Y=461 (11px
+                // above floor) then jumped directly into 2A0E at 2696;
+                // the old 8px trigger missed him entirely.
                 //
-                // Exit the incoming controller BEFORE its kick/2A0E
-                // action. ROM Ken D6=12 -> PC 035EFA/035F0A selects
-                // the native non-attack tag exit action 2A08, then
-                // 035F18 returns to the game's ground control.
+                // For this DHC ONLY: suppress attack on Ken's FIRST
+                // ROM-confirmed incoming frame. No floor proximity
+                // guesses or waiting until 2A0E has already kicked.
+                const unsigned incomingAction=rw(ram,p+0x60u);
+                const bool kenEntry=(incomingAction==0x2A0Cu ||
+                                     incomingAction==0x2A0Eu) &&
+                                     rb(ram,p+0xD6u)==0x10u;
                 const unsigned floor=rw(ram,p+0x254u);
-                const unsigned y=rw(ram,p+0x10u);
-                const bool safeFloor=floor>=128u&&floor<=768u;
-                if(safeFloor && y+8u>=floor &&
-                   rw(ram,p+0x60u)==0x2A0Cu &&
-                   rb(ram,p+0xD6u)==0x10u){
-                    const unsigned exitScript=XM87142::resolve(
-                        rom,size,pointId,0x2Au,0x08u).script;
-                    if(exitScript!=0xD567Eu){
-                        abort(now,side,ram,"KEN_NATIVE_EXIT_2A08_ROM_LOOKUP_FAILED");
+                if(kenEntry && floor>=128u && floor<=768u){
+                    const auto leave=XM87142::resolve(
+                        rom,size,pointId,0x2Au,0x08u);
+                    if(!leave.valid || leave.script!=0xD567Eu){
+                        abort(now,side,ram,"KEN_KICKLESS_2A08_ROM_LOOKUP_FAILED");
                         continue;
                     }
+                    // Place the actor at the original Ryu-side target
+                    // and the actual native floor. The charging streaks
+                    // remain separate and are NOT changed or suppressed.
                     const unsigned foe=rw(ram,0x4400u+0x0Cu);
                     int pos=int(foe)+(originalX[side]<opponentX[side]?-48:48);
                     if(pos<192)pos=192;
@@ -390,29 +397,34 @@ struct State {
                     wl(ram,p+0x0Cu,(unsigned(pos)<<16u)|(current&65535u));
                     ww(ram,p+0x10u,floor);
                     wb(ram,p+0x4Bu,originalX[side]<opponentX[side]?1u:0u);
-                    // Stop entry attack and its velocity on the DHC
-                    // path ONLY, after Ken has physically approached
-                    // landing. Leave ordinary native tag-ins untouched.
                     wl(ram,p+0x14u,0u);wl(ram,p+0x18u,0u);
                     wl(ram,p+0x1Cu,0u);wl(ram,p+0x20u,0u);
+                    // D6=12 by itself DID NOT suppress the kick in
+                    // 87.149. Initialize the *non-attacking native
+                    // animation* immediately, just as Ryu's 3200
+                    // required both ROM action+handler ownership.
+                    if(!setNativeScript(ram,rom,size,p,pointId,0x2Au,0x08u)){
+                        abort(now,side,ram,"KEN_KICKLESS_2A08_INIT_FAILED");
+                        continue;
+                    }
                     wb(ram,p+0xA4u,0u);
                     wb(ram,p+0x256u,0u);wb(ram,p+0x259u,0u);
                     ww(ram,p+0x06u,0u);
-                    ww(ram,p+0x08u,0u);ww(ram,p+0x0Au,0u);
-                    wb(ram,p+0xD6u,0x12u); // KEN native exit; NOT 2A0C
+                    ww(ram,p+0x08u,2u);ww(ram,p+0x0Au,0u);
+                    ww(ram,p+0xA0u,0x2A00u);
+                    wb(ram,p+0xD6u,0x12u);
                     phase[side]=WAIT_KEN_EXIT;
                     kenExitAt[side]=now;
+                    kenKickReassertions[side]=0u;
                     kenExitObserved[side]=false;
-                    event(now,side,ram,"DHC_KEN_KICKLESS_EXIT_2A08_ARMED");
-                }else if(rw(ram,p+0x60u)==0x2A0Eu){
-                    // This should never happen on the experimental
-                    // kickless path. Do not start Ken's super on the
-                    // tag-kick frame, as 87.148 did.
-                    event(now,side,ram,"KEN_TAG_KICK_REACHED_BEFORE_EXIT");
+                    event(now,side,ram,
+                        "DHC_KEN_2A0C_ATTACK_SUPPRESSED_IMMEDIATE_2A08");
+                }else if(incomingAction==0x2A0Eu){
+                    event(now,side,ram,"KEN_LATE_TAG_KICK_FALLBACK_PENDING");
                 }
                 if(phase[side]==WAIT_LANDING &&
                    now-started[side]>135u)
-                    abort(now,side,ram,"KEN_NATIVE_LANDING_TIMEOUT");
+                    abort(now,side,ram,"KEN_ARRIVAL_TIMEOUT");
                 continue;
             }
             if(phase[side]==WAIT_KEN_EXIT){
@@ -421,45 +433,57 @@ struct State {
                     continue;
                 }
                 const unsigned kenAction=rw(ram,p+0x60u);
+                const bool originalKick=kenAction==0x2A0Cu ||
+                                        kenAction==0x2A0Eu;
+                if(originalKick){
+                    // Protect against one frame of the ROM's pending
+                    // tag controller reasserting 2A0C. Do not let this
+                    // complete into a second kick, and do not repeat
+                    // animation overrides indefinitely.
+                    event(now,side,ram,"KEN_ENTRY_ATTACK_REASSERTED_AFTER_CANCEL");
+                    ++kenKickReassertions[side];
+                    if(kenKickReassertions[side]>1u ||
+                       now>kenExitAt[side]+2u ||
+                       !setNativeScript(ram,rom,size,p,pointId,0x2Au,0x08u)){
+                        abort(now,side,ram,"KEN_KICK_SUPPRESSION_REJECTED");
+                        continue;
+                    }
+                    wb(ram,p+0xD6u,0x12u);
+                    wb(ram,p+0x256u,0u);wb(ram,p+0x259u,0u);
+                    wb(ram,p+0xA4u,0u);
+                    ww(ram,p+0x06u,0u);
+                    ww(ram,p+0x08u,2u);ww(ram,p+0x0Au,0u);
+                    event(now,side,ram,"KEN_KICK_REASSERTION_CANCELLED_ONCE");
+                    continue;
+                }
                 if(kenAction==0x2A08u && !kenExitObserved[side]){
                     kenExitObserved[side]=true;
-                    event(now,side,ram,"KEN_ROM_EXIT_2A08_CONFIRMED");
+                    event(now,side,ram,"KEN_ROM_NONATTACKING_2A08_CONFIRMED");
                 }
-                if(kenAction==0x2A0Cu || kenAction==0x2A0Eu){
-                    // If native input reclaims the tag kick despite
-                    // Ken's D6=12 exit request, do not feed it another
-                    // kick through a 2C04 sprite-only injection.
-                    if(now>kenExitAt[side]+2u){
-                        event(now,side,ram,"KEN_ENTRY_KICK_REASSERTED_DURING_EXIT");
-                        wb(ram,p+0xA4u,0u);
-                    }
-                }
-                // Do not mistake a SECOND native entry kick for an
-                // exit-completion event. It was the actual 87.148 bug.
-                // Wait for either the native 2A08 script completion flag
-                // or a transition out of 2A08 into a non-kick action.
-                const bool entryKick=(kenAction==0x2A0Cu ||
-                                      kenAction==0x2A0Eu);
-                const bool nativeExitDone=kenExitObserved[side] &&
-                    !entryKick &&
-                    ((kenAction==0x2A08u && rb(ram,p+0x3Cu)!=0u) ||
-                     (kenAction!=0x2A08u && now>kenExitAt[side]+1u));
-                if(nativeExitDone){
+                // DHC cancels the verified NON-ATTACKING exit pose
+                // directly into the prepared super. Do not wait for
+                // the entire natural 2A08 (~67 frames in 87.149)
+                // or wrongly declare its full completion at 22f.
+                const bool readyToCancel=
+                    kenExitObserved[side] &&
+                    kenAction==0x2A08u &&
+                    rb(ram,p+0xD6u)==0x12u &&
+                    now>=kenExitAt[side]+2u &&
+                    rw(ram,p+0x10u)==rw(ram,p+0x254u) &&
+                    rw(ram,p+0x70u)==0u;
+                if(readyToCancel){
                     const unsigned superAction=
                         command[side]==XM87143Queue::QCF_KK?0x2Eu:0x2Cu;
                     const unsigned lookupSub=
                         command[side]==XM87143Queue::QCF_KK?0x00u:0x04u;
-                    const auto superScript=XM87142::resolve(
+                    const auto sup=XM87142::resolve(
                         rom,size,pointId,superAction,lookupSub);
-                    if(!superScript.valid){
+                    if(!sup.valid){
                         abort(now,side,ram,"KEN_QUEUED_SUPER_ROM_LOOKUP_FAILED");
                         continue;
                     }
-                    // 68000 Ken action controller (D6) is authoritative:
-                    // 0A -> PC 035956, native Shoryureppa (2C family);
-                    // 0C -> PC 0359F6, native Shinryuken (2E family).
-                    // Do NOT force a 2C04 sprite. The ROM's handler
-                    // chooses the actual move, FX and attack hitboxes.
+                    // True native Ken super-family handler owns next
+                    // action. No fake first frame and no second tag kick.
                     wb(ram,p+0xD6u,
                        command[side]==XM87143Queue::QCF_KK?0x0Cu:0x0Au);
                     ww(ram,p+0xA0u,0x2A28u);
@@ -470,9 +494,10 @@ struct State {
                     kenSuperAt[side]=now;
                     kenSuperConfirmed[side]=false;
                     phase[side]=SUPER_STARTED;
-                    event(now,side,ram,"DHC_KEN_NATIVE_SUPER_HANDLER_ARMED");
-                }else if(now>kenExitAt[side]+22u){
-                    abort(now,side,ram,"KEN_ROM_EXIT_2A08_NEVER_CONFIRMED");
+                    event(now,side,ram,
+                        "DHC_CANCEL_KEN_2A08_EXIT_TO_NATIVE_SUPER");
+                }else if(now>kenExitAt[side]+12u){
+                    abort(now,side,ram,"KEN_2A08_SUPER_CANCEL_NOT_READY");
                 }
                 continue;
             }
