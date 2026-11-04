@@ -4,9 +4,9 @@ for %%I in ("%~dp0.") do set "PROJECT=%%~fI"
 set "MSYSTEM=UCRT64"
 set "PATH=C:\msys64\ucrt64\bin;C:\msys64\usr\bin;%PATH%"
 set "XMVSF_PROJECT=%PROJECT%"
-set "EXE=%PROJECT%\runtime\stable\XMVSF_Test_87_159.exe"
+set "EXE=%PROJECT%\runtime\stable\XMVSF_Test_87_160.exe"
 if not exist "%EXE%" (
-  echo ERROR: Stage 87.159 TEST executable is missing.
+  echo ERROR: Stage 87.160 TEST executable is missing.
   echo Run BUILD_TEST.bat first. Will NOT fall back to 87.132.4 or Stable.
   goto :fail
 )
@@ -17,8 +17,8 @@ if not exist "%PROJECT%\FBNeo" (
 REM 87.139 isolation: disable the old 87.138 normal-tag mutation.
 set "XM87138_TAG_LAND_TEST=0"
 set "XM8761_DISABLE_RUNAHEAD=1"
-set "XM87139_PROBE_DIR=%PROJECT%\test\87.159"
-set "XM87140_CHAT_DIR=%PROJECT%\test\87.159"
+set "XM87139_PROBE_DIR=%PROJECT%\test\87.160"
+set "XM87140_CHAT_DIR=%PROJECT%\test\87.160"
 if not exist "%XM87139_PROBE_DIR%" mkdir "%XM87139_PROBE_DIR%"
 if not exist "%XM87139_PROBE_DIR%" (
   echo ERROR: Cannot create diagnostic output directory.
@@ -35,12 +35,12 @@ REM Experimental TEST only: P1 Ryu->Ken native transaction; all P1/P2
 REM directions and six buttons now logged as candidates, but unmapped moves
 REM NEVER dispatch guessed ROM actions or consume meter.
 set "XM87144_DHC_NATIVE_TEST=1"
-REM 87.159: PROOF mode bypasses the forced 87.155 Ryu controller8 RAM
+REM 87.160: PROOF mode bypasses the forced 87.155 Ryu controller8 RAM
 REM mutation. It waits for natural Ryu super exit, issues authentic
 REM HP+HK native tag and Ken QCF+2P/2K through CPS2 input mapper.
 REM This is deliberately sequential; proves move entry BEFORE true DHC.
 set "XM87156_PROOF_NATIVE=0"
-REM 87.159 returns to 87.151 Ryu to Ken transition at super timer 28.
+REM 87.160 returns to 87.151 Ryu to Ken transition at super timer 28.
 REM Ken arrival and his first attack cancellation are from that trace.
 REM The destination is a single Ken hyper move, not a team hyper move.
 set "XM87157_EARLY_CANCEL=1"
@@ -49,6 +49,20 @@ REM DHC-only: outgoing Ryu projectiles remain visible but cannot keep
 REM offensive collision after the native Ryu-to-Ken tag. Track identities
 REM through the verified P1 native projectile object list.
 set "XM87159_PROJECTILE_LOG=%XM87140_CHAT_DIR%\p1_old_projectile_hitboxes.tsv"
+REM 87.160: catalog every candidate native 2E script from original CPS2
+REM ROM tables; log *observed* action/physical-input correlation separately.
+REM Neither file enables an unverified super for gameplay DHC.
+set "XM87160_DISCOVER=1"
+set "XM87160_CATALOG_LOG=%XM87140_CHAT_DIR%\rom_super_catalog.tsv"
+set "XM87160_OBSERVED_LOG=%XM87140_CHAT_DIR%\rom_super_observed.tsv"
+REM Keep raw decrypted opcode/data snapshots out of Git and handoff ZIPs.
+REM These private local files allow 68000 command-handler disassembly.
+set "XM87160_PRIVATE_ROM_DIR=%PROJECT%\local_rom_dump"
+if not exist "%XM87160_PRIVATE_ROM_DIR%" mkdir "%XM87160_PRIVATE_ROM_DIR%"
+if not exist "%XM87160_PRIVATE_ROM_DIR%" (
+  echo ERROR: Cannot create private local ROM analysis directory.
+  goto :fail
+)
 REM Enable the latest Tournament-only rule implementations in TEST.
 REM Native handlers ALSO require the live menu selection tournament=1.
 REM Classic remains ROM-original; do NOT enable retired 80/83/84/85 flight writers.
@@ -57,7 +71,7 @@ set "XM8795_NATIVE_HIT_TEST=1"
 set "XM8796_DIZZY_HANDOFF_TEST=1"
 set "XM8799_GROUND_DEFENSE_TEST=1"
 set "XM87149_TOURNAMENT_AUDIT=%XM87140_CHAT_DIR%\tournament_rules.tsv"
-echo XMVSF Stage 87.159 TEST - KEEP KEN SHORYUREPPA; CUT OUTGOING RYU PROJECTILE HITS
+echo XMVSF Stage 87.160 TEST - KEEP KEN SHORYUREPPA; CUT OUTGOING RYU PROJECTILE HITS
 echo Executable: %EXE%
 echo SAME BUILD, TWO DHC CHOICES:
 echo   During Ryu Shinkuu Hadoken, QCF+LP+MP queues Ken SHORYUREPPA 2E00/D6722.
@@ -92,6 +106,11 @@ echo EXPERIMENT: Ryu-to-Ken 87.151 handoff + independent outgoing projectile off
 echo Original Ryu super projectile stays visible, but its P1 attack hitboxes are disabled after the confirmed DHC tag.
 echo Ken's newly spawned projectiles and P2 projectile hitboxes remain active. No Variable Combination injected.
 echo Native projectile identity log: %XM87159_PROJECTILE_LOG%
+echo ROM native 2E script catalog: %XM87160_CATALOG_LOG%
+echo Live ROM-to-input candidates: %XM87160_OBSERVED_LOG%
+echo Private decrypted code/data analysis copies: %XM87160_PRIVATE_ROM_DIR%
+echo New native move scripts are NOT enabled for DHC until proven in ROM and live input logs.
+echo Existing 87.159 Ryu to Ken cancellation, timings, and projectile collision stay unchanged.
 echo Warning lines containing -winwrite are filtered by the TEST builder; other diagnostics remain.
 echo Stable untouched.
 echo Active Tournament rules audit: %XM87149_TOURNAMENT_AUDIT%
@@ -102,7 +121,7 @@ pushd "%PROJECT%\FBNeo" || goto :fail
 set "RC=%ERRORLEVEL%"
 popd
 echo.
-echo Stage 87.159 TEST exit code: %RC%
+echo Stage 87.160 TEST exit code: %RC%
 echo Probe directory: %XM87139_PROBE_DIR%
 pause
 exit /b %RC%
