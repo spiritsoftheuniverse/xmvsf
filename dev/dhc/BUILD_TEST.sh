@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
-# Stage 87.148 experimental TEST builder. Called ONLY by root BUILD_TEST.bat.
+# Stage 87.149 experimental TEST builder. Called ONLY by root BUILD_TEST.bat.
 # Build the CURRENT local source in place using the warm FBNeo object cache.
 # Never touch Stable executable, Stable manifests, user source, or old TEST binaries.
 set -euo pipefail
 PROJECT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 TREE="$PROJECT/dev/stable/buildtree"
-DEST="$PROJECT/runtime/stable/XMVSF_Test_87_148.exe"
-PENDING="$PROJECT/runtime/stable/.XMVSF_Test_87_148_pending.exe"
+DEST="$PROJECT/runtime/stable/XMVSF_Test_87_149.exe"
+PENDING="$PROJECT/runtime/stable/.XMVSF_Test_87_149_pending.exe"
 
 if [[ ! -f "$TREE/makefile.sdl2" || ! -f "$TREE/src/burn/drv/capcom/xmvsf_stage87_144_native_handoff.h" ]]; then
-  echo "ERROR: Current Stage 87.148 source was not pulled into $TREE" >&2
+  echo "ERROR: Current Stage 87.149 source was not pulled into $TREE" >&2
   exit 2
 fi
 if [[ ! -f "$TREE/src/burn/drv/capcom/cps_run.cpp" ||
@@ -24,7 +24,7 @@ fi
 
 # Preserve warm cache and anything already built on failures. Never run make clean.
 cd "$TREE"
-echo "XMVSF Stage 87.148 TEST: compiling current local buildtree with warm cache"
+echo "XMVSF Stage 87.149 TEST: compiling current local buildtree with warm cache"
 # This FBNeo makefile is a two-pass build: MAKELEVEL=1 compiles objects,
 # and the nested make (level 2) links fbneo. The old invocation could report
 # 'Nothing to be done' without checking newly pulled DHC source reliably.
@@ -46,7 +46,7 @@ if [[ -z "$BUILT" ]]; then
   exit 2
 fi
 
-# The original 87.148 source retired the forced-animation marker
+# The original 87.149 source retired the forced-animation marker
 # DHC_APPROVED_ROM_OUTGOING_ACTION in favor of the *native* controller-8
 # handoff. Never require strings no longer present in compiled source.
 # Emit the exact missing marker to the console, rather than reporting a
@@ -58,13 +58,18 @@ required_markers=(
   "DHC_NATIVE_TAG_CONTROLLER_08_ARMED"
   "NATIVE_CONTROLLER_ACCEPTED_OUTGOING_3200"
   "NATIVE_TAG_CONTROLLER_REJECTED_12F"
-  "DHC_NATIVE_SUPER_REPLACES_KICK__UNVERIFIED_FX"
+  "DHC_KEN_KICKLESS_EXIT_2A08_ARMED"
+  "KEN_ROM_EXIT_2A08_CONFIRMED"
+  "DHC_KEN_NATIVE_SUPER_HANDLER_ARMED"
+  "DHC_KEN_NATIVE_SUPER_ROM_ACTION_CONFIRMED"
+  "TOURNAMENT_RULES_ACTIVE"
+  "TOURNAMENT_RULES_INCOMPLETE"
   "MATCH-START QUEUE"
   "DHC QUEUED "
 )
 for marker in "${required_markers[@]}"; do
   if ! grep -aFq "$marker" "$BUILT"; then
-    echo "ERROR: TEST executable is missing compiled 87.148 marker: $marker" >&2
+    echo "ERROR: TEST executable is missing compiled 87.149 marker: $marker" >&2
     echo "Built file: $BUILT" >&2
     echo "Existing TEST and Stable binaries are preserved." >&2
     exit 2
@@ -72,7 +77,7 @@ for marker in "${required_markers[@]}"; do
 done
 mkdir -p "$PROJECT/runtime/stable"
 # Only publish after the linked executable passed checks; replace the
-# dedicated 87.148 TEST binary, never XMVSF_Stable.exe.
+# dedicated 87.149 TEST binary, never XMVSF_Stable.exe.
 # cp exits nonzero on failure (set -e); Bash -s checks copied content
 # exists and is nonempty. Do not depend on an uninstalled 'cmp' binary.
 cp -p "$BUILT" "$PENDING"
@@ -82,4 +87,4 @@ if [[ ! -s "$PENDING" ]]; then
 fi
 mv -f "$PENDING" "$DEST"
 echo "TEST BUILD READY: $DEST"
-echo "This is Stage 87.148 OPT-IN Ryu->Ken ROM controller 8 + Ryu native tag scheduler D6=14; charged effects retained; safe exit recovery."
+echo "This is Stage 87.149 OPT-IN kickless Ken entry via D6=12 and native queued super D6=0A/0C; Tournament hooks audited; charge FX retained."
