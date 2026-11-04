@@ -26,7 +26,7 @@ python dev\dhc\tools\VERIFY_DHC_ROM_ACTIONS.py test\87.167
 
 The new second script is **read-only**: verifies the archive's ROM-event/catalog/input-byte relationship and optionally compares a fresh replay action trace.
 
-After compiling the existing 87.167 test executable using the permanent `BUILD_TEST.bat`, run permanent `RUN_REPLAY.bat`. The GitHub feature branch itself has only the 87.166 TEST binary; **no executable runtime test was performed in this validation**.
+After compiling the existing 87.167 test executable using the permanent `BUILD_TEST.bat`, run permanent `RUN_REPLAY.bat`. The existing replay launcher now automatically runs the ROM-action verification gate at playback completion and returns a nonzero result if the replay or gate fails. The GitHub feature branch itself had only the 87.166 TEST binary at audit time; **no executable runtime test was performed in this validation**.
 
 Then check the resulting action trace with:
 
