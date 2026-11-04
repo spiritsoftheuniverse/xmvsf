@@ -19,7 +19,11 @@ inline void Apply(){
                  tournament()?"TOURNAMENT":"CLASSIC");
 }
 inline void Load(){
-    if(loaded())return;
+    // The persistent SDL shell enters this selector again on restarts,
+    // rematches and return-to-menu. Reassert the actual environment rule
+    // even if the saved selection has already been loaded once; otherwise
+    // the menu can show TOURNAMENT while the CPS-2 hooks see a stale env.
+    if(loaded()){Apply();return;}
     loaded()=true;
     tournament()=false; // Safe default: current rules in both modes.
     FILE* f=std::fopen("config/games/xmvsfu_rule_mode.ini","rb");
