@@ -7,18 +7,33 @@ set "XMVSF_PROJECT=%PROJECT%"
 REM Dedicated replay channel. Existing BUILD_TEST/RUN_TEST names are unchanged.
 REM Replay the original 87.161 F9 full-state + exact CPS2 inputs without
 REM creating replacement ROM scripts, patching native input, or touching Stable.
-set "EXE=%PROJECT%\runtime\stable\XMVSF_Test_87_162.exe"
+set "EXE=%PROJECT%\runtime\stable\XMVSF_Test_87_163.exe"
 if not exist "%EXE%" (
-  echo ERROR: Need existing XMVSF_Test_87_162.exe. Run BUILD_TEST.bat.
+  echo ERROR: Need existing XMVSF_Test_87_163.exe. Run BUILD_TEST.bat.
   goto :fail
 )
 if not exist "%PROJECT%\FBNeo" (
   echo ERROR: FBNeo runtime game directory is missing.
   goto :fail
 )
-set "XM8761_REPLAY_DIR=%PROJECT%\test\87.161\replays"
-set "MOVIE=%XM8761_REPLAY_DIR%\xm8761_f9_0001_inputs.bin"
-if not "%~1"=="" set "MOVIE=%~f1"
+REM Allow explicit input filename (drag an _inputs.bin onto RUN_REPLAY.bat),
+REM otherwise look for previously recorded F9 pairs in versioned TEST dirs.
+REM The recorder's native _start.fs is always loaded alongside its input.
+set "MOVIE="
+if not "%~1"=="" (
+  set "MOVIE=%~f1"
+) else (
+  for /d %%D in ("%PROJECT%\test\87.*") do (
+    for %%F in ("%%~fD\replays\*_inputs.bin") do (
+      if exist "%%~fF" set "MOVIE=%%~fF"
+    )
+  )
+)
+if not defined MOVIE (
+  echo ERROR: No F9 input movie was found under test\87.*\replays.
+  echo Record with F9 in RUN_TEST.bat, or drag an _inputs.bin onto RUN_REPLAY.bat.
+  goto :fail
+)
 if not exist "%MOVIE%" (
   echo ERROR: Native F9 input stream missing: "%MOVIE%"
   goto :fail
@@ -35,6 +50,11 @@ if not exist "%STATE%" (
   goto :fail
 )
 set "XM8761_REPLAY_MODE=play"
+REM The 87.161 movie was recorded with Training host controls. Bypass
+REM the application's original boot selector and start the CPS2 driver
+REM immediately; otherwise no input movie frame is ever consumed.
+set "XM8761_REPLAY_HOST_MODE=training"
+set "XM8761_REPLAY_DIR=%PROJECT%\test\87.163\replays"
 set "XM8761_REPLAY_INPUT_FILE=%MOVIE%"
 set "XM8761_REPLAY_STATE_FILE=%STATE%"
 set "XM8761_DISABLE_RUNAHEAD=1"
@@ -49,12 +69,15 @@ set "XM8796_DIZZY_HANDOFF_TEST=1"
 set "XM8799_GROUND_DEFENSE_TEST=1"
 REM Fresh replay diagnostics must NEVER overwrite the submitted 87.161
 REM original session logs or the saved movie pair.
-set "TRACE=%PROJECT%\test\87.162\replay_results"
+set "TRACE=%PROJECT%\test\87.163\replay_results"
 if not exist "%TRACE%" mkdir "%TRACE%"
 if not exist "%TRACE%" (
   echo ERROR: Cannot create isolated replay results directory.
   goto :fail
 )
+REM Clear only this one replay-status file, NOT existing session recordings.
+set "XM8761_REPLAY_STATUS_LOG=%TRACE%\replay_status.log"
+if exist "%XM8761_REPLAY_STATUS_LOG%" del /q "%XM8761_REPLAY_STATUS_LOG%"
 set "XM87140_CHAT_DIR=%TRACE%"
 set "XM87139_PROBE_DIR=%TRACE%"
 set "XM87140_CHAT_LOG=%TRACE%\super_chat.tsv"
@@ -69,25 +92,35 @@ REM Raw ROM analysis copies remain private and Git-ignored.
 set "XM87160_PRIVATE_ROM_DIR=%PROJECT%\local_rom_dump"
 if not exist "%XM87160_PRIVATE_ROM_DIR%" mkdir "%XM87160_PRIVATE_ROM_DIR%"
 echo.
-echo XMVSF native F9 REPLAY - existing TEST 87.162; Stable untouched.
+echo XMVSF native F9 REPLAY - TEST 87.163; Stable untouched.
 echo Movie input: "%MOVIE%"
 echo Full-state anchor: "%STATE%"
 echo Native replay results: "%TRACE%"
+echo Replay status log: "%XM8761_REPLAY_STATUS_LOG%"
+echo Starting ROM xmvsfu DIRECTLY in recorded Training mode - no menu.
+echo Replay begins with the recorded save-state and first input frame.
 echo No new DHC move mappings are enabled by this launcher.
 echo LIMITATION: F9 records native CPS2 input ports and one initial state.
 echo Training-menu character swaps / host savestate shortcuts are NOT in
 echo this replay movie and may cause later playback to diverge.
 echo Native ROM input/action correlations from the original capture are
 echo preserved separately in dev\dhc\evidence\REPLAY_87_161_INPUT_NATIVE_ACTIONS.tsv
-echo Let the playback run, then close the game when PLAY_END is reported.
+echo Progress appears in the game window title and replay_status.log.
+echo When PLAY_END is shown, close the game to return to this launcher.
 echo.
 pushd "%PROJECT%\FBNeo" || goto :fail
-"%EXE%"
+"%EXE%" xmvsfu -joy
 set "RC=%ERRORLEVEL%"
 popd
 echo.
 echo Original F9 recording and state anchor are unchanged.
 echo Replay exit code: %RC%
+if exist "%XM8761_REPLAY_STATUS_LOG%" (
+  echo Native replay result:
+  type "%XM8761_REPLAY_STATUS_LOG%"
+) else (
+  echo WARNING: No replay status log produced. Confirm ROM launched and first frame executed.
+)
 echo Output: "%TRACE%"
 pause
 exit /b %RC%
