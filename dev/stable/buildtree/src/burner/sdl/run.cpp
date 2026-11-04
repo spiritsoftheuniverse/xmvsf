@@ -164,7 +164,16 @@ static void DisplayFPS()
 
 
 // Video presenter reads status from the ONE recorder instance in run.cpp.
-extern "C" int xm87132ReplayRecordingFrames(){return XM8761::recordingFrames();}
+// Preserve the original display ABI used by vid_sdl2.cpp. 87.164 moved
+// the F9 hotkey to v2 but left this old-v1-only getter unchanged, so the
+// red RECORDING indicator silently disappeared even while v2 wrote data.
+extern "C" int xm87132ReplayRecordingFrames(){
+    const int v2=XM8764::recordingFrames();
+    return v2>0?v2:XM8761::recordingFrames();
+}
+extern "C" int xm87166ReplayVisualStatus(){
+    return XM8764::visualStatus();
+}
 
 //crappy message system
 void UpdateMessage(char* message)
