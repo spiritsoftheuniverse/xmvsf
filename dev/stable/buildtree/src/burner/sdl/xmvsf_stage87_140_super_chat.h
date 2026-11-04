@@ -81,6 +81,11 @@ static inline const char* motion(const XM87137Input::History& h,bool right,unsig
     static const unsigned qcf[]={2,3,6},qcb[]={2,1,4};
     static const unsigned dpf[]={6,2,3},dpb[]={4,2,1};
     static const unsigned hcf[]={4,1,2,3,6},hcb[]={6,3,2,1,4};
+    static const unsigned dqcf[]={2,3,6,2,3,6},dqcb[]={2,1,4,2,1,4};
+    // Diagnose ALL standard special/super motion families, not only the
+    // presently ROM-verified Ken/Ryu registry. This never injects inputs.
+    if(sequence(h,right,dqcf,6u,now,60u))return "2QCF";
+    if(sequence(h,right,dqcb,6u,now,60u))return "2QCB";
     // longest motions first; one readable best candidate per attack chord.
     if(sequence(h,right,hcf,5u,now))return "HCF";
     if(sequence(h,right,hcb,5u,now))return "HCB";
@@ -100,7 +105,7 @@ static inline const ListedSuper* known(unsigned id,unsigned index){
 static inline const ListedSuper* matchListed(unsigned fighter,
         const XM87137Input::History& h,bool facingRight,unsigned now,unsigned chordMask){
     static const unsigned qcf[]={2,3,6},qcb[]={2,1,4};
-    for(unsigned i=0;i<2u;++i){
+    for(unsigned i=0;i<4u;++i){
         const ListedSuper* m=known(fighter,i);
         if(!m)continue;
         const unsigned mask=m->kicks?(chordMask>>3u)&7u:chordMask&7u;
@@ -284,7 +289,7 @@ struct State {
                 // four frames; keep the chord while waiting for completion.
                 if((pressed || directionEdge) && lastAttackFrame[side]!=~0u &&
                    frame>=lastAttackFrame[side] && frame-lastAttackFrame[side]<=4u &&
-                   (bc(buttons[side]&7u)>=2u || bc((buttons[side]>>3u)&7u)>=2u)){
+                   (buttons[side]&0x3Fu)!=0u){
                     const bool facingRight=(b(ram,point+0x4Bu)&1u)!=0u; // 87.142 trace verified: 1=RIGHT
                     const ListedSuper* found=matchListed(bench,keys[side],
                                           facingRight,frame,buttons[side]);
@@ -325,11 +330,23 @@ struct State {
                         }
                         lastMoveFrame[side]=lastAttackFrame[side];
                     }else if(pressed && !found){
+                        // Record EVERY fresh attack button/chord (LP through HK,
+                        // mixed P+K, and single/2/3-button chords). Unknown
+                        // fighter motions are attempts, NOT authorization to
+                        // drive a guessed native action or spend meter.
                         const char* got=motion(keys[side],facingRight,frame);
-                        std::snprintf(text,sizeof(text),
-                            "P%u RESERVE %02X INPUT%s%s; NO LISTED SUPER MATCH",
-                            side+1u,bench,got?" ":"",got?got:"");
-                        log(frame,SYSTEM,text);
+                        char held[48];chord(buttons[side],held,sizeof(held));
+                        if(got){
+                            std::snprintf(text,sizeof(text),
+                                "P%u DHC INPUT ATTEMPT reserve=%02X %s+%s; NO VERIFIED SUPER MAP",
+                                side+1u,bench,got,held);
+                            log(frame,MATCH,text);
+                        }else{
+                            std::snprintf(text,sizeof(text),
+                                "P%u DHC INPUT ATTEMPT reserve=%02X %s; NO MOTION/MAP",
+                                side+1u,bench,held);
+                            log(frame,SYSTEM,text);
+                        }
                     }
                 }
                 // Candidate gate expires by native action change, but keep a
