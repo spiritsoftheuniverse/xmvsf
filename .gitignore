@@ -2,6 +2,7 @@
 /dev/stable/releases/
 /packed/
 /testdata/
+/test/
 /dev/stable/buildtree/obj/
 *.o
 *.d
