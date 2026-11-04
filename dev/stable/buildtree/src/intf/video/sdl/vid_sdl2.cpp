@@ -23,6 +23,8 @@
 #include "xmvsf_stage87_40_hud_color.h" // Separate portrait and HP source-colored overlay
 #include "../../../burn/drv/capcom/xmvsf_stage87_35_hud_palette.h" // Exact native HUD chroma overlay // Post-Wily HUD
 extern "C" int xm87132ReplayRecordingFrames(); // XM87.132 shared live recorder status
+extern "C" int xm87166ReplayVisualStatus(); // v2 F9 recording/saved/error indicator
+extern "C" int xm87166ReplayVisualPeek(); // reserved banner space without consuming notice frames
 extern UINT8 *CpsRamFF;
 
 extern int vsync;
@@ -88,14 +90,20 @@ static bool xm87132CleanStableVideo(){
 }
 static void xm87132ReplayNotice(SDL_Renderer* renderer){
     if(!renderer)return;
+    const int state=xm87166ReplayVisualStatus();
     const int count=xm87132ReplayRecordingFrames();
-    if(count<=0)return;
+    if(count<=0 && state==0)return;
     int w=0,h=0;
     SDL_RenderGetLogicalSize(renderer,&w,&h);
     if(w<=0 || h<=0)SDL_GetRendererOutputSize(renderer,&w,&h);
     if(w<=0 || h<=0)return;
     char caption[64];
-    std::snprintf(caption,sizeof(caption),"RECORDING %06d  F9 STOP",count-1);
+    if(state<0)
+        std::snprintf(caption,sizeof(caption),"F9 RECORD ERROR  SEE LOG");
+    else if(state==2)
+        std::snprintf(caption,sizeof(caption),"RECORDING SAVED  F9");
+    else
+        std::snprintf(caption,sizeof(caption),"RECORDING %06d  F9 STOP",count-1);
     // The inline font is approximately 8 logical pixels per glyph.
     int x=w-int(std::strlen(caption))*8-20;
     if(x<8)x=8;
@@ -103,7 +111,9 @@ static void xm87132ReplayNotice(SDL_Renderer* renderer){
     Uint8 r=0,g=0,b=0,a=0;
     SDL_GetRenderDrawColor(renderer,&r,&g,&b,&a);
     SDL_Rect dot={x-12,y+3,7,7};
-    SDL_SetRenderDrawColor(renderer,235,45,55,255);
+    if(state<0) SDL_SetRenderDrawColor(renderer,255,172,70,255);
+    else if(state==2) SDL_SetRenderDrawColor(renderer,72,218,143,255);
+    else SDL_SetRenderDrawColor(renderer,235,45,55,255);
     SDL_RenderFillRect(renderer,&dot);
     SDL_SetRenderDrawColor(renderer,r,g,b,a);
     inprint_shadowed(renderer,caption,x,y);
@@ -124,7 +134,9 @@ static void xm87139ProbeNotice(SDL_Renderer* renderer){
     if(w<=0||h<=0)return;
     const int labelWidth=(int)std::strlen(caption)*8;
     const int x=w-labelWidth-15>10?w-labelWidth-15:10;
-    const int y=(xm87132ReplayRecordingFrames()>0 && h>64)?h-46:(h>28?h-24:3);
+    const bool f9Banner=xm87132ReplayRecordingFrames()>0 ||
+                        xm87166ReplayVisualPeek()!=0;
+    const int y=(f9Banner && h>64)?h-46:(h>28?h-24:3);
     Uint8 r=0,g=0,b=0,a=0;SDL_GetRenderDrawColor(renderer,&r,&g,&b,&a);
     SDL_BlendMode blend=SDL_BLENDMODE_NONE;SDL_GetRenderDrawBlendMode(renderer,&blend);
     SDL_SetRenderDrawBlendMode(renderer,SDL_BLENDMODE_BLEND);

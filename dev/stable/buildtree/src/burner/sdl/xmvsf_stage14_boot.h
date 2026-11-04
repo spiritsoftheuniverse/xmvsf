@@ -457,7 +457,41 @@ static int xmvsfBootSelector(bool returningFromGame=false) {
                                pressed>0?245:79,pressed>0?246:91,pressed>0?255:130);
             }
         }
-        xm8656Present(render); /* XM86.56 global final pass */
+        // F9 is also armed at the CUSTOM BOOT MENU, not only in combat.
+        // The legacy indicator lived exclusively in the CPS2 presenter.
+        // Draw the same red timer here and report success/failure in-place,
+        // after menus but BEFORE final presentation.
+        const int v2rec=XM8764::visualStatus();
+        // The menu's Double Feature final pass is applied FIRST, just
+        // as in the gameplay presenter. The red F9 indicator must remain
+        // red and legible even when menu grayscale is enabled.
+        if(v2rec!=0)xm8656FinalPass(render,false);
+        if(v2rec!=0){
+            const unsigned recorded=XM8764::context().allFrames;
+            char caption[80]={};
+            unsigned char red=235,green=45,blue=55;
+            if(v2rec==1)
+                std::snprintf(caption,sizeof(caption),
+                    "RECORDING %06u F9 STOP",recorded);
+            else if(v2rec==2){
+                std::snprintf(caption,sizeof(caption),
+                    "RECORDING SAVED %06u",recorded);
+                red=72;green=218;blue=143;
+            }else{
+                std::snprintf(caption,sizeof(caption),
+                    "F9 RECORD ERROR SEE LOG");
+                red=255;green=172;blue=70;
+            }
+            SDL_Rect badge={618,8,334,33};
+            SDL_SetRenderDrawColor(render,5,10,22,235);
+            SDL_RenderFillRect(render,&badge);
+            SDL_SetRenderDrawColor(render,red,green,blue,255);
+            SDL_Rect dot={632,19,11,11};
+            SDL_RenderFillRect(render,&dot);
+            xmvsfPixelText(render,caption,796,17,2,red,green,blue);
+        }
+        if(v2rec!=0)SDL_RenderPresent(render);
+        else xm8656Present(render); /* XM86.56 global final pass */
         xm8652TrackWindowGeometry(window,false,"boot");
         SDL_Delay(8);
     }

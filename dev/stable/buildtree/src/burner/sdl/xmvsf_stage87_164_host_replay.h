@@ -50,6 +50,11 @@ struct Context {
     std::vector<Segment> segments;
     Host restored,lastRecordedHost;
     bool hostChanged=false,hostRecorded=false;
+    // The user-visible recording indicator must not disappear simply
+    // because v2 replaced the old F9 recorder. 180 render frames of
+    // completion/error feedback survive F9 stop or a failed write.
+    unsigned noticeFrames=0;
+    bool lastSaved=false;
     ~Context(){if(stream)std::fclose(stream);if(journal)std::fclose(journal);}
 };
 inline Context& context(){static Context x;return x;}
@@ -69,6 +74,14 @@ inline void status(const std::string& message){
     Context& c=context();
     std::fprintf(stderr,"XM87.164 HOST_REPLAY %s\n",message.c_str());
     std::fflush(stderr);
+    // A permanent status log OUTSIDE the session folder is essential:
+    // even failing to mkdir/open the very first manifest must leave a
+    // visible reason where RUN_TEST.bat and its packaging expect it.
+    const char* primary=std::getenv("XM8764_REPLAY_STATUS_FILE");
+    if(primary && *primary){
+        std::FILE* f=std::fopen(primary,"ab");
+        if(f){std::fprintf(f,"%s\n",message.c_str());std::fclose(f);}
+    }
     if(!c.folder.empty()){
         const std::string path=c.folder+"/replay_v2_status.log";
         std::FILE* f=std::fopen(path.c_str(),"ab");
@@ -76,7 +89,9 @@ inline void status(const std::string& message){
     }
 }
 inline bool fail(const char* why){
-    Context& c=context();c.mode=FAILED;c.failed=true;c.error=why;
+    Context& c=context();
+    c.mode=FAILED;c.failed=true;c.error=why;
+    c.lastSaved=false;c.noticeFrames=180;
     status(std::string("REPLAY_DIVERGED ")+why);
     return false;
 }
@@ -119,6 +134,22 @@ inline bool hostRead(std::istringstream& stream,Host& h){
         h.dizzy>>h.frameData>>h.stage>>h.stageResolved>>h.tournament>>
         h.selectPhase>>h.selectFrames>>h.selectPicks>>
         h.selectCandidates>>h.selectCarry);
+}
+// Only *semantic* host transitions create new native save-state files.
+// selectFrames advances every real frame during character selection,
+// while selectCandidates advances during combat detection. Comparing the
+// entire Host struct (87.164/165) checkpointed EVERY FRAME, which caused
+// thousands of oversized .fs files and interrupted F9 recordings.
+inline bool requiresCheckpoint(const Host& a,const Host& b){
+    return a.training!=b.training || a.versus!=b.versus ||
+        a.owner!=b.owner || a.damage!=b.damage ||
+        a.menu!=b.menu || a.selection!=b.selection ||
+        a.hitboxes!=b.hitboxes || a.display!=b.display ||
+        a.meter!=b.meter || a.dizzy!=b.dizzy ||
+        a.frameData!=b.frameData || a.stage!=b.stage ||
+        a.stageResolved!=b.stageResolved || a.tournament!=b.tournament ||
+        a.selectPhase!=b.selectPhase || a.selectPicks!=b.selectPicks ||
+        a.selectCarry!=b.selectCarry;
 }
 inline bool loadManifest(){
     Context& c=context();
@@ -180,6 +211,23 @@ inline void initialize(){
 }
 inline bool isPlayback(){initialize();return context().mode==PLAY;}
 inline bool isRecording(){initialize();return context().mode==RECORD;}
+inline int recordingFrames(){
+    initialize();
+    const Context& c=context();
+    if(c.mode!=RECORD)return 0;
+    return c.allFrames<2147483600u?int(c.allFrames)+1:2147483600;
+}
+// 1=recording, 2=success notice, -1=failed notice, 0=off.
+inline int visualStatus(bool advance=true){
+    initialize();Context& c=context();
+    if(c.mode==RECORD)return 1;
+    if(c.mode==FAILED)return -1;
+    if(c.noticeFrames>0u){
+        if(advance)--c.noticeFrames;
+        return c.lastSaved?2:-1;
+    }
+    return 0;
+}
 inline bool active(){initialize();return context().mode==RECORD ||
                                             context().mode==PLAY;}
 inline void journal(const char* event,unsigned x=0,unsigned y=0){
@@ -192,7 +240,16 @@ inline void journal(const char* event,unsigned x=0,unsigned y=0){
 inline bool startRecording(){
     Context& c=context();initialize();
     if(c.root.empty())return fail("V2_RECORD_ROOT_UNSET");
-    makeDir(c.root.c_str());
+    // RUN_TEST.bat pre-creates this directory, but fail visibly if it
+    // cannot be created or has become inaccessible. Never silently
+    // invent success because a previous directory happened to exist.
+    if(makeDir(c.root.c_str())!=0){
+        const std::string marker=c.root+"/_recording_write_test.tmp";
+        std::FILE* probe=std::fopen(marker.c_str(),"wb");
+        if(!probe)return fail("V2_RECORD_ROOT_NOT_WRITABLE");
+        std::fclose(probe);
+        std::remove(marker.c_str());
+    }
     bool found=false;
     for(unsigned n=1;n<=9999;++n){
         char name[48];std::snprintf(name,sizeof(name),"/session_%04u",n);
@@ -206,44 +263,74 @@ inline bool startRecording(){
     c.journalPath=c.folder+"/manifest.tsv";
     c.journal=std::fopen(c.journalPath.c_str(),"wb");
     if(!c.journal)return fail("V2_MANIFEST_CREATE_FAILED");
-    std::fputs("XM8764V2\t1\n",c.journal);
-    std::fflush(c.journal);
+    if(std::fputs("XM8764V2\t1\n",c.journal)==EOF ||
+       std::fflush(c.journal)!=0){
+        std::fclose(c.journal);c.journal=nullptr;
+        return fail("V2_MANIFEST_HEADER_WRITE_FAILED");
+    }
     c.mode=RECORD;c.insideGame=false;c.split=true;c.session=0;c.segment=0;
     c.frames=0;c.allFrames=0;c.reason="SESSION_START";c.failed=false;
-    c.hostRecorded=false;
+    c.hostRecorded=false;c.lastSaved=false;c.noticeFrames=0;
     // Do not point the permanent replay runner at an empty recording
     // until F9 actually finishes a playable multi-session manifest.
     status("RECORD_START "+c.folder);
     return true;
 }
-inline void closeSegment(){
+inline bool closeSegment(){
     Context& c=context();
-    if(!c.stream)return;
-    std::fflush(c.stream);
-    std::fclose(c.stream);c.stream=nullptr;
+    if(!c.stream)return true;
+    const int flushRc=std::fflush(c.stream);
+    const int closeRc=std::fclose(c.stream);
+    c.stream=nullptr;
+    if(flushRc!=0 || closeRc!=0)
+        return fail("V2_INPUT_FLUSH_OR_CLOSE_FAILED");
     if(c.mode==RECORD && c.journal){
-        std::fprintf(c.journal,"DONE\t%u\t%u\t%u\n",
-            c.session,c.segment,c.frames);
-        std::fflush(c.journal);
+        if(std::fprintf(c.journal,"DONE\t%u\t%u\t%u\n",
+                c.session,c.segment,c.frames)<0 ||
+           std::fflush(c.journal)!=0)
+            return fail("V2_MANIFEST_DONE_WRITE_FAILED");
         status("SEGMENT_SAVED session="+std::to_string(c.session)+
             " segment="+std::to_string(c.segment)+
             " frames="+std::to_string(c.frames));
     }
+    return true;
 }
 inline bool toggleF9(){
     initialize();Context& c=context();
     if(c.mode==PLAY){status("F9_REJECTED_PLAYBACK_ACTIVE");return false;}
     if(c.mode==RECORD){
-        closeSegment();
-        if(c.journal){std::fclose(c.journal);c.journal=nullptr;}
-        if(c.allFrames>0u){
-            const std::string latest=c.root+"/latest.txt";
-            std::FILE* pointer=std::fopen(latest.c_str(),"wb");
-            if(pointer){std::fprintf(pointer,"%s\n",c.folder.c_str());
-                std::fclose(pointer);}
+        if(!closeSegment())return false;
+        if(c.journal){
+            const int rc=std::fclose(c.journal);
+            c.journal=nullptr;
+            if(rc!=0)return fail("V2_MANIFEST_FINAL_CLOSE_FAILED");
         }
-        status("RECORD_STOP total_frames="+std::to_string(c.allFrames)+
-            " session_count="+std::to_string(c.session));
+        if(c.allFrames==0u){
+            c.mode=OFF;c.insideGame=false;
+            c.lastSaved=false;c.noticeFrames=180;
+            status("RECORD_EMPTY no emulated frames; recording not published");
+            return false;
+        }
+        const std::string latest=c.root+"/latest.txt";
+        std::FILE* pointer=std::fopen(latest.c_str(),"wb");
+        if(!pointer){
+            c.mode=OFF;c.insideGame=false;
+            c.lastSaved=false;c.noticeFrames=180;
+            status("RECORD_SAVE_ERROR cannot write latest.txt");
+            return false;
+        }
+        const int wrote=std::fprintf(pointer,"%s\n",c.folder.c_str());
+        const int closeCode=std::fclose(pointer);
+        if(wrote<0 || closeCode!=0){
+            c.mode=OFF;c.insideGame=false;
+            c.lastSaved=false;c.noticeFrames=180;
+            status("RECORD_SAVE_ERROR failed writing latest.txt");
+            return false;
+        }
+        c.lastSaved=true;c.noticeFrames=180;
+        status("RECORD_SAVED total_frames="+std::to_string(c.allFrames)+
+            " session_count="+std::to_string(c.session)+
+            " folder="+c.folder);
         c.mode=OFF;c.insideGame=false;return true;
     }
     return startRecording();
@@ -287,7 +374,8 @@ inline void gameBegin(int gameMode){
 inline void gameEnd(){
     Context& c=context();initialize();
     if(c.mode==RECORD && c.insideGame){
-        closeSegment();journal("GAME_END",0);
+        if(!closeSegment()){c.insideGame=false;return;}
+        journal("GAME_END",0);
     }
     if(c.mode==PLAY && c.stream){
         std::fclose(c.stream);c.stream=nullptr;
@@ -296,7 +384,10 @@ inline void gameEnd(){
 }
 inline bool openRecord(const Host& host){
     Context& c=context();
-    if(c.stream){closeSegment();++c.segment;}
+    if(c.stream){
+        if(!closeSegment())return false;
+        ++c.segment;
+    }
     c.frames=0;
     char stem[48];std::snprintf(stem,sizeof(stem),
         "s%04u_seg%04u",c.session,c.segment);
@@ -384,8 +475,7 @@ inline FrameResult beforeFrame(const Host& host){
         // The game's host UI consumes SDL gamepad/keyboard events outside
         // BurnDrvGetInputInfo. Snapshot its actual resolved state whenever
         // menu navigation, player ownership, mode or Training options change.
-        if(c.hostRecorded &&
-           std::memcmp(&host,&c.lastRecordedHost,sizeof(Host))!=0){
+        if(c.hostRecorded && requiresCheckpoint(host,c.lastRecordedHost)){
             journal("HOST_MENU_STATE_CHANGED",0);
             c.reason="HOST_MENU_STATE_CHANGED";c.split=true;
         }
