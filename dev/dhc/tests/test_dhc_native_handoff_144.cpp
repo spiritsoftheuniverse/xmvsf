@@ -65,7 +65,7 @@ int main(){
     s.frame(ram.data(),rom.data(),unsigned(rom.size()),101u,1u);
     assert(s.phase[0]==IDLE && ram==invalidMode);
     ww(ram.data(),0x40A0u,0x2A28u);
-    s.frame(ram.data(),rom.data(),unsigned(rom.size()),103u,1u);
+    s.frame(ram.data(),rom.data(),unsigned(rom.size()),102u,1u);
     assert(s.phase[0]==WAIT_NATIVE_SWAP);
     assert(rw(ram.data(),0x4060u)==0x3200u);
     assert(rl(ram.data(),0x4034u)==0xD1DACu);
@@ -74,7 +74,7 @@ int main(){
     assert(rw(ram.data(),0x4452u)==0x20u); // P2 untouched
     assert(XM87143Queue::state().selected[0]==nullptr);
     // Real ROM must swap fighter IDs. Do not synthesize it.
-    s.frame(ram.data(),rom.data(),unsigned(rom.size()),102u,1u);
+    s.frame(ram.data(),rom.data(),unsigned(rom.size()),103u,1u);
     assert(s.phase[0]==WAIT_NATIVE_SWAP);
     ww(ram.data(),0x4052u,0x14u);
     ww(ram.data(),0x4852u,0x12u);
