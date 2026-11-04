@@ -4,9 +4,9 @@ for %%I in ("%~dp0.") do set "PROJECT=%%~fI"
 set "MSYSTEM=UCRT64"
 set "PATH=C:\msys64\ucrt64\bin;C:\msys64\usr\bin;%PATH%"
 set "XMVSF_PROJECT=%PROJECT%"
-set "EXE=%PROJECT%\runtime\stable\XMVSF_Test_87_164.exe"
+set "EXE=%PROJECT%\runtime\stable\XMVSF_Test_87_165.exe"
 if not exist "%EXE%" (
-  echo ERROR: Stage 87.164 TEST executable is missing.
+  echo ERROR: Stage 87.165 TEST executable is missing.
   echo Run BUILD_TEST.bat first. Will NOT fall back to 87.132.4 or Stable.
   goto :fail
 )
@@ -30,15 +30,15 @@ REM Restore original native state-anchored F9 recorder (XM87.61/XM87.132).
 REM F9 starts/stops each independent full-state + input movie.
 REM The recorder requires an existing replay directory, not an invented
 REM input format or a new launcher.
-set "XM8761_REPLAY_DIR=%PROJECT%\test\87.164\replays"
+set "XM8761_REPLAY_DIR=%PROJECT%\test\87.165\replays"
 if not exist "%XM8761_REPLAY_DIR%" mkdir "%XM8761_REPLAY_DIR%"
 if not exist "%XM8761_REPLAY_DIR%" (
   echo ERROR: Cannot create native input replay directory.
   goto :fail
 )
 set "XM8761_REPLAY_MODE=off"
-set "XM87139_PROBE_DIR=%PROJECT%\test\87.164"
-set "XM87140_CHAT_DIR=%PROJECT%\test\87.164"
+set "XM87139_PROBE_DIR=%PROJECT%\test\87.165"
+set "XM87140_CHAT_DIR=%PROJECT%\test\87.165"
 if not exist "%XM87139_PROBE_DIR%" mkdir "%XM87139_PROBE_DIR%"
 if not exist "%XM87139_PROBE_DIR%" (
   echo ERROR: Cannot create diagnostic output directory.
@@ -55,12 +55,12 @@ REM Experimental TEST only: P1 Ryu->Ken native transaction; all P1/P2
 REM directions and six buttons now logged as candidates, but unmapped moves
 REM NEVER dispatch guessed ROM actions or consume meter.
 set "XM87144_DHC_NATIVE_TEST=1"
-REM 87.164: PROOF mode bypasses the forced 87.155 Ryu controller8 RAM
+REM 87.165: PROOF mode bypasses the forced 87.155 Ryu controller8 RAM
 REM mutation. It waits for natural Ryu super exit, issues authentic
 REM HP+HK native tag and Ken QCF+2P/2K through CPS2 input mapper.
 REM This is deliberately sequential; proves move entry BEFORE true DHC.
 set "XM87156_PROOF_NATIVE=0"
-REM 87.164 returns to 87.151 Ryu to Ken transition at super timer 28.
+REM 87.165 returns to 87.151 Ryu to Ken transition at super timer 28.
 REM Ken arrival and his first attack cancellation are from that trace.
 REM The destination is a single Ken hyper move, not a team hyper move.
 set "XM87157_EARLY_CANCEL=1"
@@ -69,7 +69,7 @@ REM DHC-only: outgoing Ryu projectiles remain visible but cannot keep
 REM offensive collision after the native Ryu-to-Ken tag. Track identities
 REM through the verified P1 native projectile object list.
 set "XM87159_PROJECTILE_LOG=%XM87140_CHAT_DIR%\p1_old_projectile_hitboxes.tsv"
-REM 87.164: catalog every candidate native 2E script from original CPS2
+REM 87.165: catalog every candidate native 2E script from original CPS2
 REM ROM tables; log *observed* action/physical-input correlation separately.
 REM Neither file enables an unverified super for gameplay DHC.
 set "XM87160_DISCOVER=1"
@@ -91,7 +91,7 @@ set "XM8795_NATIVE_HIT_TEST=1"
 set "XM8796_DIZZY_HANDOFF_TEST=1"
 set "XM8799_GROUND_DEFENSE_TEST=1"
 set "XM87149_TOURNAMENT_AUDIT=%XM87140_CHAT_DIR%\tournament_rules.tsv"
-echo XMVSF Stage 87.164 TEST - KEEP KEN SHORYUREPPA; CUT OUTGOING RYU PROJECTILE HITS
+echo XMVSF Stage 87.165 TEST - KEEP KEN SHORYUREPPA; CUT OUTGOING RYU PROJECTILE HITS
 echo Executable: %EXE%
 echo SAME BUILD, TWO DHC CHOICES:
 echo   During Ryu Shinkuu Hadoken, QCF+LP+MP queues Ken SHORYUREPPA 2E00/D6722.
@@ -146,7 +146,7 @@ pushd "%PROJECT%\FBNeo" || goto :fail
 "%EXE%"
 set "RC=%ERRORLEVEL%"
 popd
-REM 87.164: after native play, analyze only PRIVATE locally captured ROM
+REM 87.165: after native play, analyze only PRIVATE locally captured ROM
 REM bytes. ROM binaries are outside Git; the emitted JSON is evidence,
 REM never an instruction to activate unverified DHC moves.
 if exist "%XM87160_PRIVATE_ROM_DIR%\xmvsfu_program_data_host_swapped.bin" (
@@ -159,7 +159,7 @@ if exist "%XM87160_PRIVATE_ROM_DIR%\xmvsfu_program_data_host_swapped.bin" (
   )
 )
 echo.
-echo Stage 87.164 TEST exit code: %RC%
+echo Stage 87.165 TEST exit code: %RC%
 echo Probe directory: %XM87139_PROBE_DIR%
 pause
 exit /b %RC%
