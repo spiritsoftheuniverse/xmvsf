@@ -83,7 +83,9 @@ inline void status(const std::string& message){
         std::FILE* f=std::fopen(primary,"ab");
         if(f){std::fprintf(f,"%s\n",message.c_str());std::fclose(f);}
     }
-    if(!c.folder.empty()){
+    // Playback diagnostics must not modify the capture session journal.
+    const char* replaySession=std::getenv("XM8764_REPLAY_SESSION");
+    if(!c.folder.empty() && !(replaySession && *replaySession)){
         const std::string path=c.folder+"/replay_v2_status.log";
         std::FILE* f=std::fopen(path.c_str(),"ab");
         if(f){std::fprintf(f,"%s\n",message.c_str());std::fclose(f);}
