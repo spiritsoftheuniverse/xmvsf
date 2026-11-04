@@ -226,5 +226,25 @@ int main(){
         XM87143Queue::QCF_PP,436u));
     trial.frame(r2.data(),rom.data(),unsigned(rom.size()),436u,1u);
     assert(trial.phase[0]==WAIT_TAG_CONTROLLER);
+    // Never reuse a Ryu QCF+PP command as Ken's similarly shaped QCF+PP.
+    // The input queue's command owner must equal the actual reserve ID.
+    XM87143Queue::state().reset();
+    std::vector<std::uint8_t> wrong(65536u,0);
+    wb(wrong.data(),0x5000u,8u);
+    ww(wrong.data(),0x4052u,0x12u);
+    ww(wrong.data(),0x4852u,0x14u);
+    ww(wrong.data(),0x4452u,0x20u);
+    ww(wrong.data(),0x4C52u,0x22u);
+    ww(wrong.data(),0x4060u,0x2E08u);
+    ww(wrong.data(),0x40A0u,0x2A28u);
+    assert(XM87143Queue::state().prepare(
+        wrong.data(),rom.data(),unsigned(rom.size()),500u));
+    assert(XM87143Queue::state().select(
+        0u,0x12u,XM87143Queue::QCF_PP,501u));
+    const auto beforeWrong=wrong;
+    State stale;
+    stale.frame(wrong.data(),rom.data(),unsigned(rom.size()),501u,1u);
+    assert(stale.phase[0]==IDLE && wrong==beforeWrong);
+    assert(XM87143Queue::state().selected[0]==nullptr);
     return 0;
 }
