@@ -20,6 +20,21 @@ jobs:
         run: |
           set -euo pipefail
           bash -n dev/dhc/BUILD_TEST.sh
+          grep -Fq 'MAKELEVEL=1 make' dev/dhc/BUILD_TEST.sh
+          if grep -Fq 'cmp -s' dev/dhc/BUILD_TEST.sh; then
+            echo 'ERROR: cmp dependency is not installed in user MSYS2' >&2
+            exit 1
+          fi
+          python3 - <<'PY'
+          from pathlib import Path
+          lines=Path('dev/dhc/BUILD_TEST.sh').read_text().splitlines()
+          starts=[i for i,line in enumerate(lines) if line.startswith('MAKELEVEL=1 make')]
+          assert len(starts)==1, 'Expected single two-pass builder command'
+          segment=lines[starts[0]:starts[0]+5]
+          assert len(segment)==5, segment
+          assert all(line.endswith(chr(92)) and not line.endswith(chr(92)*2) for line in segment[:4]), segment
+          assert segment[-1].strip().endswith('all'), segment
+          PY
           grep -Fq 'BUILD_TEST.sh' BUILD_TEST.bat
           grep -Fq 'XMVSF_Test_87_138.exe' RUN_TEST.bat
           if grep -Fq 'releases\\87_132' BUILD_TEST.bat || grep -Fq 'releases\\87_132' RUN_TEST.bat; then
