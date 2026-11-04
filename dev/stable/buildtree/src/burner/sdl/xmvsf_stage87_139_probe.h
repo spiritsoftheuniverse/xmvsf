@@ -48,7 +48,11 @@ struct State {
     Actor prior[4];
     ~State(){stop();}
     void stop(){
-        if(trace){std::fflush(trace);std::fclose(trace);trace=nullptr;}
+        if(trace){
+            std::fprintf(trace,"# F10_STOP native_frames=%u tag_events=%u%s\n",
+                frames,tagEvents,frames==0u?" NO_COMBAT_FRAMES_SEEN":"");
+            std::fflush(trace);std::fclose(trace);trace=nullptr;
+        }
         if(oam){std::fflush(oam);std::fclose(oam);oam=nullptr;}
         active=false;
     }
@@ -89,6 +93,12 @@ struct State {
           "\tscript34\tscript38\n",trace);
         std::fputs("frame\tslot\tpriority\tpalette\ttile\twidth\theight\trawX\trawY"
           "\tattr\tsourceWord0\tsourceWord1\tpassFrom\tpassTo\n",oam);
+        // Even if a menu handler formerly stole F10 or no combat frames
+        // arrive, starting/stopping is immediately observable on disk.
+        std::fputs("# F10_START armed; awaiting native combat frames\n",trace);
+        std::fflush(trace);
+        std::fputs("# F10_START armed; raw OAM follows a native tag\n",oam);
+        std::fflush(oam);
         active=true;
         std::fprintf(stderr,"XM87.139 PROBE_START inputs=%s nativeOAM=%s\n",
                      tracePath.c_str(),oamPath.c_str());
