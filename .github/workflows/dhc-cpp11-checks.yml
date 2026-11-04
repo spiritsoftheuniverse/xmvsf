@@ -38,7 +38,7 @@ jobs:
           assert segment[-1].strip().endswith('all'), segment
           PY
           grep -Fq 'BUILD_TEST.sh' BUILD_TEST.bat
-          grep -Fq 'XMVSF_Test_87_143.exe' RUN_TEST.bat
+          grep -Fq 'XMVSF_Test_87_144.exe' RUN_TEST.bat
           grep -Fq 'XM87139_PROBE_DIR' RUN_TEST.bat
           grep -Fq 'XM87140_CHAT_LOG' RUN_TEST.bat
           grep -Fq 'xm87140ChatOverlay(sdlRenderer);' dev/stable/buildtree/src/intf/video/sdl/vid_sdl2.cpp
@@ -46,6 +46,9 @@ jobs:
           grep -Fq 'XM87142::state().frame' dev/stable/buildtree/src/burn/drv/capcom/cps_run.cpp
           grep -Fq 'XM87143Queue::state().prepare' dev/stable/buildtree/src/burn/drv/capcom/cps_run.cpp
           grep -Fq 'DHC QUEUED ' dev/stable/buildtree/src/burner/sdl/xmvsf_stage87_140_super_chat.h
+          grep -Fq 'XM87144::state().frame' dev/stable/buildtree/src/burn/drv/capcom/cps_run.cpp
+          grep -Fq 'XM87144_DHC_NATIVE_TEST=1' RUN_TEST.bat
+          grep -Fq 'DHC_APPROVED_ROM_OUTGOING_ACTION' dev/stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_144_native_handoff.h
           grep -Fq 'XM87142_ROM_TRACE' RUN_TEST.bat
           grep -Fq 'mappedNative?nativeStart' dev/stable/buildtree/src/burner/sdl/xmvsf_stage87_140_super_chat.h
           grep -Fq 'RYU SHINKUU TATSUMAKI' dev/stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_143_super_queue.h
