@@ -56,7 +56,8 @@ static inline bool setNativeScript(std::uint8_t* ram,
 }
 enum Phase{
     IDLE=0,TAG_OUT=1,WAIT_TAG_CONTROLLER=2,WAIT_NATIVE_SWAP=3,
-    WAIT_LANDING=4,WAIT_KEN_EXIT=5,SUPER_STARTED=6,FAILED=7
+    WAIT_LANDING=4,WAIT_KEN_EXIT=5,SUPER_STARTED=6,FAILED=7,
+    DELIVER_NATIVE_INPUT=8
 };
 static inline const char* phaseName(Phase p){
     switch(p){
@@ -66,6 +67,7 @@ static inline const char* phaseName(Phase p){
       case WAIT_LANDING:return "WAIT_NATIVE_LANDING";
       case WAIT_KEN_EXIT:return "NATIVE_KEN_KICKLESS_EXIT";
       case SUPER_STARTED:return "NATIVE_KEN_SUPER_START";
+      case DELIVER_NATIVE_INPUT:return "NATIVE_KEN_INPUT_SEQUENCE";
       case FAILED:return "FAILED";
       default:return "IDLE";
     }
@@ -82,6 +84,7 @@ struct State {
              captured0A[2]={0u,0u};
     unsigned controllerAcceptedAt[2]={0u,0u};
     unsigned kenExitAt[2]={0u,0u},kenSuperAt[2]={0u,0u};
+    unsigned kenNeutralAt[2]={0u,0u},inputBegin[2]={0u,0u};
     unsigned kenKickReassertions[2]={0u,0u};
     bool kenExitObserved[2]={false,false},kenSuperConfirmed[2]={false,false};
     // The first ROM action after handoff must belong to the REQUESTED move,
@@ -118,6 +121,7 @@ struct State {
             lastAcceptedAt[s]=~0u;cooldownUntil[s]=0u;
             lastNormalRef[s]=~0u;
             kenExitAt[s]=kenSuperAt[s]=0u;
+            kenNeutralAt[s]=inputBegin[s]=0u;
             kenKickReassertions[s]=0u;
             kenExitObserved[s]=kenSuperConfirmed[s]=false;
             kenExpectedAction[s]=kenExpectedScript[s]=0u;
@@ -138,6 +142,7 @@ struct State {
         kenSuperConfirmed[side]=false;
         kenExpectedAction[side]=kenExpectedScript[side]=0u;
         kenFallbackUsed[side]=false;kenNeutralSince[side]=0u;
+        kenNeutralAt[side]=inputBegin[side]=0u;
         cooldownUntil[side]=now+6u;
         XM87143Queue::state().discard(side);
         event(now,side,ram,"DHC_ABORT_RELEASED_CHAIN_LOCK");
@@ -163,6 +168,34 @@ struct State {
             rl(ram,p+0x224u),rw(ram,p+0x210u),rw(ram,reserve+0x210u),
             rw(ram,p+0x0Cu),rw(ram,p+0x10u),decision);
         std::fflush(log);
+    }
+    // 87.152: one-shot real CPS-2 controller stream. This is consumed
+    // BEFORE CpsRwGetInp in the next real emulation frame, then the host
+    // restores the physical SDL button array immediately after that read.
+    // It does not set a sprite, A0, D6, or script address. The game's own
+    // 68000 command decoder, controller and recovery logic own the super.
+    struct InputMask { bool active=false;unsigned directions=0,attacks=0; };
+    InputMask inputForFrame(const std::uint8_t*ram,unsigned now)const{
+        InputMask m;
+        if(!enabled || !ram || rb(ram,0x5000u)!=8u ||
+           phase[0]!=DELIVER_NATIVE_INPUT ||
+           rw(ram,0x4052u)!=0x14u || !inputBegin[0] ||
+           now<inputBegin[0])return m;
+        const unsigned t=now-inputBegin[0];
+        if(t>=17u)return m;
+        const bool faceRight=(rb(ram,0x404Bu)&1u)!=0u;
+        const unsigned forward=faceRight?1u:2u;
+        // CPS-2 native port bits: 0=RIGHT 1=LEFT 2=DOWN 3=UP.
+        // 4f D -> 4f DF -> 3f F -> 3f F+3P/3K -> 3f release.
+        // This matches actual 87.151(1) input chords 07/38, rather than
+        // calling an isolated 2C animation or forging D6/A0 state.
+        m.active=true;
+        if(t<4u)m.directions=4u;
+        else if(t<8u)m.directions=4u|forward;
+        else if(t<14u)m.directions=forward;
+        if(t>=11u && t<14u)
+            m.attacks=command[0]==XM87143Queue::QCF_KK?0x38u:0x07u;
+        return m;
     }
     // Call AFTER the ROM has executed a full real frame and the input queue
     // was selected. Never run during runahead, never touch a normal tag.
@@ -207,7 +240,8 @@ struct State {
                     blocked="BLOCK_SELECTED_SUPER_NOT_FOR_RESERVE";
                 else if(rw(ram,p+0x60u)!=0x2E08u)
                     blocked="BLOCK_NOT_RYU_2E08_SUPER_ACTION";
-                else if(rw(ram,p+0xA0u)!=0x2A28u)
+                else if(rw(ram,p+0xA0u)!=0x2A28u &&
+                        rw(ram,p+0xA0u)!=0x2A02u)
                     blocked="BLOCK_NOT_NATIVE_2A28_SUPER_MODE";
                 bool hasScript=false;
                 for(unsigned i=0;i<entry->count;++i)
@@ -480,186 +514,104 @@ struct State {
                     kenExitObserved[side]=true;
                     event(now,side,ram,"KEN_ROM_NONATTACKING_2A08_CONFIRMED");
                 }
-                // DHC cancels the verified NON-ATTACKING exit pose
-                // directly into the prepared super. Do not wait for
-                // the entire natural 2A08 (~67 frames in 87.149)
-                // or wrongly declare its full completion at 22f.
-                const bool readyToCancel=
-                    kenExitObserved[side] &&
-                    kenAction==0x2A08u &&
-                    rb(ram,p+0xD6u)==0x12u &&
-                    now>=kenExitAt[side]+2u &&
-                    rw(ram,p+0x10u)==rw(ram,p+0x254u) &&
-                    rw(ram,p+0x70u)==0u;
-                if(readyToCancel){
-                    const unsigned superAction=
-                        command[side]==XM87143Queue::QCF_KK?0x2Eu:0x2Cu;
-                    // 87.150 selected a HANDLER only. The ROM immediately
-                    // jumped to Ken 2C32 (script D667A), a non-hitting dash.
-                    // Prime the real ROM-derived opening action and its
-                    // animator together with D6; no fabricated animation.
-                    const unsigned lookupSub=0x00u;
-                    const unsigned expectedScript=
-                        command[side]==XM87143Queue::QCF_KK?0xD6722u:0xD5C46u;
-                    const auto sup=XM87142::resolve(
-                        rom,size,pointId,superAction,lookupSub);
-                    if(!sup.valid || sup.script!=expectedScript){
-                        abort(now,side,ram,"KEN_QUEUED_SUPER_ROM_LOOKUP_FAILED");
-                        continue;
+                // 87.151(1) proves Ken QCF+PP enters 2E00/D6722,
+                // QCF+KK enters 2E02/D6976, with A0=2A02 via the
+                // normal ROM command parser. Our former 2C00+D6=0A
+                // handoff ran a Hadoken in an infinite animation loop.
+                // Do NOT overwrite D6, A0, or any 2E script here.
+                // Ken must finish native 2A08, return to normal input
+                // control, and execute his own native motion/chord.
+                const bool neutral=kenExitObserved[side] &&
+                   kenAction==0x0000u &&
+                   ((rw(ram,p+0xA0u)&0xFF00u)==0u) &&
+                   now>kenExitAt[side]+2u;
+                if(neutral){
+                    if(!kenNeutralAt[side])kenNeutralAt[side]=now;
+                    if(now>=kenNeutralAt[side]+2u){
+                        const unsigned target=
+                          command[side]==XM87143Queue::QCF_KK?0x02u:0x00u;
+                        const unsigned expected=
+                          command[side]==XM87143Queue::QCF_KK?0xD6976u:0xD6722u;
+                        const auto sup=XM87142::resolve(rom,size,pointId,0x2Eu,target);
+                        if(!sup.valid || sup.script!=expected){
+                            abort(now,side,ram,"KEN_NATIVE_INPUT_SUPER_ROM_UNRESOLVED");
+                            continue;
+                        }
+                        kenExpectedAction[side]=0x2E00u|target;
+                        kenExpectedScript[side]=expected;
+                        kenSuperConfirmed[side]=false;
+                        kenNeutralSince[side]=0u;
+                        inputBegin[side]=now+2u;
+                        phase[side]=DELIVER_NATIVE_INPUT;
+                        event(now,side,ram,"DHC_KEN_NATIVE_NEUTRAL_INPUT_ARMED");
                     }
-                    const unsigned liveFoe=rw(ram,0x4400u+0x0Cu);
-                    int finalPos=int(liveFoe)+
-                        (originalX[side]<opponentX[side]?-48:48);
-                    if(finalPos<192)finalPos=192;
-                    if(finalPos>768)finalPos=768;
-                    const unsigned current=rl(ram,p+0x0Cu);
-                    wl(ram,p+0x0Cu,
-                        (unsigned(finalPos)<<16u)|(current&65535u));
-                    ww(ram,p+0x10u,rw(ram,p+0x254u));
-                    wb(ram,p+0x4Bu,
-                        originalX[side]<opponentX[side]?1u:0u);
-                    wl(ram,p+0x14u,0u);wl(ram,p+0x18u,0u);
-                    wl(ram,p+0x1Cu,0u);wl(ram,p+0x20u,0u);
-                    if(!setNativeScript(ram,rom,size,p,pointId,
-                                        superAction,lookupSub)){
-                        abort(now,side,ram,"KEN_NATIVE_SUPER_STARTUP_INIT_FAILED");
-                        continue;
-                    }
-                    wb(ram,p+0xD6u,
-                       command[side]==XM87143Queue::QCF_KK?0x0Cu:0x0Au);
-                    ww(ram,p+0xA0u,0x2A28u);
-                    ww(ram,p+0x06u,0u);
-                    ww(ram,p+0x08u,2u);ww(ram,p+0x0Au,0u);
-                    wb(ram,p+0xA4u,0u);
-                    wb(ram,p+0x256u,0u);wb(ram,p+0x259u,0u);
-                    kenExpectedAction[side]=(superAction<<8u)|lookupSub;
-                    kenExpectedScript[side]=expectedScript;
-                    kenFallbackUsed[side]=false;
-                    kenNeutralSince[side]=0u;
-                    kenSuperAt[side]=now;
-                    kenSuperConfirmed[side]=false;
+                }else kenNeutralAt[side]=0u;
+                if(phase[side]==WAIT_KEN_EXIT &&
+                   now>kenExitAt[side]+140u)
+                    abort(now,side,ram,"KEN_NATIVE_2A08_NEUTRAL_TIMEOUT");
+                continue;
+            }
+            if(phase[side]==DELIVER_NATIVE_INPUT){
+                if(pointId!=incoming[side] || reserveId!=outgoing[side]){
+                    abort(now,side,ram,"KEN_NATIVE_INPUT_OWNERSHIP_CHANGED");
+                    continue;
+                }
+                if(now==inputBegin[side])
+                    event(now,side,ram,"DHC_KEN_NATIVE_QCF_INPUT_BEGIN");
+                if(now==inputBegin[side]+13u)
+                    event(now,side,ram,"DHC_KEN_NATIVE_THREE_BUTTON_EDGE");
+                if(now==inputBegin[side]+16u)
+                    event(now,side,ram,"DHC_KEN_NATIVE_INPUT_RELEASED");
+                const unsigned act=rw(ram,p+0x60u);
+                const unsigned script=rl(ram,p+0x34u);
+                const unsigned original=kenExpectedScript[side];
+                const bool actualNativeSuper=
+                    act==kenExpectedAction[side] &&
+                    (rw(ram,p+0xA0u)==0x2A02u ||
+                     rw(ram,p+0xA0u)==0x2A28u) &&
+                    script>=original && script-original<0x80u &&
+                    ((script-original)&15u)==0u;
+                if(actualNativeSuper){
                     phase[side]=SUPER_STARTED;
-                    event(now,side,ram,"DHC_KEN_NATIVE_SUPER_OPENING_SCRIPT_PRIMED");
-                    event(now,side,ram,
-                        "DHC_CANCEL_KEN_2A08_EXIT_TO_NATIVE_SUPER");
-                }else if(now>kenExitAt[side]+12u){
-                    abort(now,side,ram,"KEN_2A08_SUPER_CANCEL_NOT_READY");
+                    kenSuperConfirmed[side]=true;
+                    chainUsed[side]=true;
+                    kenSuperAt[side]=now;
+                    kenNeutralSince[side]=0u;
+                    event(now,side,ram,"DHC_KEN_NATIVE_SUPER_ROM_ACTION_CONFIRMED");
+                    event(now,side,ram,"DHC_NATIVE_INPUT_DISPATCH_ACCEPTED");
+                }else if(now>inputBegin[side]+68u){
+                    event(now,side,ram,"DHC_NATIVE_INPUT_NO_SUPER_ROM_ACCEPT");
+                    abort(now,side,ram,"KEN_INPUT_DISPATCH_TIMEOUT_UNLOCKED");
                 }
                 continue;
             }
             if(phase[side]==SUPER_STARTED){
-                if(pointId!=incoming[side]){
-                    if(!kenSuperConfirmed[side]){
-                        abort(now,side,ram,"KEN_SUPER_LOST_POINT_SLOT");
-                    }else{
-                        // A completed native swap/tag must never retain the
-                        // 87.150 match-long chain lock on the old fighter.
-                        phase[side]=IDLE;chainUsed[side]=false;
-                        XM87143Queue::state().discard(side);
-                        event(now,side,ram,"DHC_REARM_ON_NATIVE_POINT_SWAP");
-                    }
+                if(pointId!=incoming[side] || reserveId!=outgoing[side]){
+                    // Native point swaps must unlock without modifying ROM
+                    // fighter ownership or any player's current input.
+                    phase[side]=IDLE;chainUsed[side]=false;
+                    XM87143Queue::state().discard(side);
+                    event(now,side,ram,"DHC_REARM_ON_NATIVE_POINT_SWAP");
                     continue;
                 }
                 const unsigned act=rw(ram,p+0x60u);
-                const unsigned script=rl(ram,p+0x34u);
-                const unsigned expected=kenExpectedAction[side];
-                const unsigned first=kenExpectedScript[side];
-                const bool scriptAdvanced=first && script>first &&
-                    script-first<=0x100u && ((script-first)&15u)==0u;
-                const bool nativeSuper=act==expected && scriptAdvanced &&
-                    rw(ram,p+0xA0u)==0x2A28u &&
-                    rb(ram,p+0xD6u)==
-                      (command[side]==XM87143Queue::QCF_KK?0x0Cu:0x0Au);
-                if(nativeSuper && !kenSuperConfirmed[side]){
-                    kenSuperConfirmed[side]=true;
-                    chainUsed[side]=true;
-                    event(now,side,ram,"DHC_KEN_NATIVE_SUPER_ROM_ACTION_CONFIRMED");
-                }
-                if(!kenSuperConfirmed[side] &&
-                   !kenFallbackUsed[side] &&
-                   command[side]==XM87143Queue::QCF_PP &&
-                   now>kenSuperAt[side] &&
-                   (act==0x2C32u || act==0x2C34u)){
-                    // User's F10 87.150: 2C32/D667A advanced 28 frames
-                    // with hit70=0000. Do not mistake that rush for
-                    // Shoryureppa. Try Ken's OTHER ROM-resolved 2C04
-                    // opening exactly once, preserving D6=0A ownership.
-                    const auto other=XM87142::resolve(
-                        rom,size,pointId,0x2Cu,0x04u);
-                    // A dash may already have added horizontal velocity;
-                    // restore the same opponent-side launch position before
-                    // attempting the second ROM super opening.
-                    const unsigned liveFoe=rw(ram,0x4400u+0x0Cu);
-                    int target=int(liveFoe)+
-                        (originalX[side]<opponentX[side]?-48:48);
-                    if(target<192)target=192;
-                    if(target>768)target=768;
-                    const unsigned current=rl(ram,p+0x0Cu);
-                    wl(ram,p+0x0Cu,
-                        (unsigned(target)<<16u)|(current&65535u));
-                    ww(ram,p+0x10u,rw(ram,p+0x254u));
-                    wb(ram,p+0x4Bu,
-                       originalX[side]<opponentX[side]?1u:0u);
-                    wl(ram,p+0x14u,0u);wl(ram,p+0x18u,0u);
-                    wl(ram,p+0x1Cu,0u);wl(ram,p+0x20u,0u);
-                    if(!other.valid || other.script!=0xD5E2Eu ||
-                       !setNativeScript(ram,rom,size,p,pointId,0x2Cu,0x04u)){
-                        abort(now,side,ram,"KEN_2C32_DASH_ALT_SCRIPT_UNAVAILABLE");
-                        continue;
-                    }
-                    ww(ram,p+0x06u,0u);
-                    ww(ram,p+0x08u,2u);ww(ram,p+0x0Au,0u);
-                    ww(ram,p+0xA0u,0x2A28u);
-                    wb(ram,p+0xD6u,0x0Au);
-                    wb(ram,p+0x256u,0u);wb(ram,p+0x259u,0u);
-                    wb(ram,p+0xA4u,0u);
-                    kenExpectedAction[side]=0x2C04u;
-                    kenExpectedScript[side]=other.script;
-                    kenFallbackUsed[side]=true;
-                    kenSuperAt[side]=now;
-                    event(now,side,ram,"KEN_2C32_DASH_REJECTED_TRY_NATIVE_2C04");
-                    continue;
-                }
-                if(!kenSuperConfirmed[side] &&
-                   (act==0x2A0Cu || act==0x2A0Eu) &&
-                   now>kenSuperAt[side]+1u){
-                    wb(ram,p+0xA4u,0u);
-                    event(now,side,ram,"KEN_TAG_KICK_REASSERTED_AFTER_EXIT");
-                    abort(now,side,ram,"KEN_NATIVE_SUPER_HANDLER_REJECTED");
-                    continue;
-                }
-                if(!kenSuperConfirmed[side] &&
-                   kenFallbackUsed[side] &&
-                   now>kenSuperAt[side]+1u &&
-                   (act==0x2C32u || act==0x2C34u)){
-                    abort(now,side,ram,"KEN_ALT_REVERTED_TO_2C32_DASH");
-                    continue;
-                }
-                // The native super's first script record can last multiple
-                // ROM frames. Do not mistake that animation delay for an
-                // immediate DHC failure (87.150's old short timeouts).
-                if(!kenSuperConfirmed[side] && now>kenSuperAt[side]+24u){
-                    abort(now,side,ram,"KEN_SUPER_NATIVE_OPENING_NOT_ACCEPTED");
-                    continue;
-                }
-                if(kenSuperConfirmed[side]){
-                    const bool returnedToNeutral=
-                       rw(ram,p+0xA0u)!=0x2A28u &&
-                       (act&0xFF00u)!=0x2C00u &&
-                       (act&0xFF00u)!=0x2E00u;
-                    if(returnedToNeutral){
-                        if(!kenNeutralSince[side])kenNeutralSince[side]=now;
-                        if(now>=kenNeutralSince[side]+2u){
-                            phase[side]=IDLE;chainUsed[side]=false;
-                            event(now,side,ram,"DHC_REARM_AFTER_NATIVE_SUPER_NEUTRAL");
-                        }
-                    }else kenNeutralSince[side]=0u;
-                    if(phase[side]!=IDLE && now-started[side]>200u){
-                        // Observation watchdog is a cleanup, not proof
-                        // of super success or another stock debit.
+                const unsigned mode=rw(ram,p+0xA0u);
+                // Native completion: Ken's real 2E00/2E02 script fully
+                // exits to neutral. Never force a script to finish.
+                if(act==0u && (mode&0xFF00u)==0u){
+                    if(!kenNeutralSince[side])kenNeutralSince[side]=now;
+                    if(now>=kenNeutralSince[side]+2u){
                         phase[side]=IDLE;chainUsed[side]=false;
-                        event(now,side,ram,"DHC_REARM_OBSERVATION_WATCHDOG");
+                        XM87143Queue::state().discard(side);
+                        event(now,side,ram,"DHC_REARM_AFTER_NATIVE_SUPER_NEUTRAL");
                     }
+                }else kenNeutralSince[side]=0u;
+                if(phase[side]!=IDLE && now>kenSuperAt[side]+720u){
+                    // Bookkeeping timeout ONLY. Never reinitialize/reset
+                    // the fighter while the ROM is executing gameplay.
+                    phase[side]=IDLE;chainUsed[side]=false;
+                    XM87143Queue::state().discard(side);
+                    event(now,side,ram,"DHC_REARM_OBSERVATION_WATCHDOG");
                 }
             }
             // A terminal DHC exit releases its own lock. Fresh DHCs are
