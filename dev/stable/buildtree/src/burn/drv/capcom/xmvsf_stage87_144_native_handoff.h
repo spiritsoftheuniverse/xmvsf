@@ -203,6 +203,8 @@ struct State {
                     blocked="BLOCK_NO_ACTIVE_SUPER_WINDOW";
                 else if(pointId!=0x12u || reserveId!=0x14u)
                     blocked="BLOCK_NOT_RYU_POINT_KEN_RESERVE";
+                else if(entry->known->fighter!=reserveId)
+                    blocked="BLOCK_SELECTED_SUPER_NOT_FOR_RESERVE";
                 else if(rw(ram,p+0x60u)!=0x2E08u)
                     blocked="BLOCK_NOT_RYU_2E08_SUPER_ACTION";
                 else if(rw(ram,p+0xA0u)!=0x2A28u)
@@ -220,6 +222,10 @@ struct State {
                     blocked="BLOCK_SAME_INPUT_ALREADY_CONSUMED";
                 if(blocked){
                     if(firstCheck)event(now,side,ram,blocked);
+                    // Never replay an old roster slot's super as Ken's
+                    // simply because both use QCF+PP.
+                    if(entry->known->fighter!=reserveId)
+                        XM87143Queue::state().discard(side);
                     continue;
                 }
                 originalX[side]=rw(ram,p+0x0Cu);
@@ -622,7 +628,17 @@ struct State {
                     abort(now,side,ram,"KEN_NATIVE_SUPER_HANDLER_REJECTED");
                     continue;
                 }
-                if(!kenSuperConfirmed[side] && now>kenSuperAt[side]+6u){
+                if(!kenSuperConfirmed[side] &&
+                   kenFallbackUsed[side] &&
+                   now>kenSuperAt[side]+1u &&
+                   (act==0x2C32u || act==0x2C34u)){
+                    abort(now,side,ram,"KEN_ALT_REVERTED_TO_2C32_DASH");
+                    continue;
+                }
+                // The native super's first script record can last multiple
+                // ROM frames. Do not mistake that animation delay for an
+                // immediate DHC failure (87.150's old short timeouts).
+                if(!kenSuperConfirmed[side] && now>kenSuperAt[side]+24u){
                     abort(now,side,ram,"KEN_SUPER_NATIVE_OPENING_NOT_ACCEPTED");
                     continue;
                 }
