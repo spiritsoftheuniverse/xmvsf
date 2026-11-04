@@ -37,7 +37,7 @@ int main() {
  r=x.tick(s);
  assert(x.phase==STARTUP && r.tickIncomingOnly && r.showIncomingFighter);
  // Screen going dark is NOT enough to release.
- s.incomingSuperStarted=true;s.incomingStartupTick=true;
+ s.incomingSuperStarted=true;s.nativePortraitIntroBypassed=true;s.incomingStartupTick=true;
  for(unsigned i=0;i<50;++i){
     r=x.tick(s);assert(!r.releaseBeforeNextNativeFrame);
     assert(r.holdWorld&&r.dimStage&&r.showIncomingFighter&&r.suppressIncomingPortrait);
@@ -71,7 +71,7 @@ int main() {
  z.nativeCommit(true,true,true);
  s=frozen();s.nativeTagComplete=true;s.incomingGrounded=true;
  s.incomingAtTakeoverPosition=true;s.incomingSuperStarted=true;
- s.incomingStartupTick=true;z.tick(s);
+ s.nativePortraitIntroBypassed=true;s.incomingStartupTick=true;z.tick(s);
  s.incomingStartupTick=false;s.firstActiveOnNextTick=true;
  assert(z.tick(s).releaseBeforeNextNativeFrame);
  Signal miss;miss.combat=true;miss.firstActiveNow=false;
@@ -83,7 +83,7 @@ int main() {
  w.nativeCommit(true,true,true);
  s=frozen();s.nativeTagComplete=true;s.incomingGrounded=true;
  s.incomingAtTakeoverPosition=true;s.incomingSuperStarted=true;
- s.firstActiveOnNextTick=true;
+ s.nativePortraitIntroBypassed=true;s.firstActiveOnNextTick=true;
  assert(w.tick(s).rollbackRequired);
 
  // A DHC portrait is a rendering defect: block the transition.
@@ -92,6 +92,15 @@ int main() {
  Signal bad=frozen();bad.incomingPortraitVisible=true;
  r=p.tick(bad);
  assert(r.rollbackRequired && p.phase==FAILED);
+ // Suppression of sprite art ALONE is insufficient; skip native portrait
+ // animation/timer before super startup advances.
+ Coordinator intro;intro.observeFirstSuper(true,true,false);
+ assert(intro.request(good()) && intro.nativeCommit(true,true,true));
+ Signal wrong=frozen();
+ wrong.nativeTagComplete=true;wrong.incomingGrounded=true;
+ wrong.incomingAtTakeoverPosition=true;wrong.incomingSuperStarted=true;
+ assert(intro.tick(wrong).rollbackRequired);
+ assert(intro.phase==FAILED);
  // Ordinary supers are unaffected by this DHC-only presentation gate.
  Coordinator ordinary;ordinary.observeFirstSuper(true,true,false);
  r=ordinary.tick(frozen());
