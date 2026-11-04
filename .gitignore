@@ -6,3 +6,7 @@
 *.o
 *.d
 *.zip
+
+# Local-only decrypted CPS2 program/data bytes for ROM command study.
+# Never upload or commit ROM exports; these are generated on the user's PC.
+/local_rom_dump/
