@@ -5,7 +5,7 @@ set "MSYSTEM=UCRT64"
 set "PATH=C:\msys64\ucrt64\bin;C:\msys64\usr\bin;%PATH%"
 set "XMVSF_PROJECT=%PROJECT%"
 REM 87.175 read-only native state trace. Fails closed if logs cannot be saved.
-set "OBSROOT=%PROJECT%\test\87.179\observer"
+set "OBSROOT=%PROJECT%\test\87.180\observer"
 if not exist "%OBSROOT%" mkdir "%OBSROOT%"
 if not exist "%OBSROOT%" (
   echo ERROR: Cannot create 87.175 native observer log directory.
@@ -13,9 +13,12 @@ if not exist "%OBSROOT%" (
 )
 set "XM87175_DHC_OBSERVER=1"
 set "XM87175_DHC_OBSERVER_LOG=%OBSROOT%\dhc_acceptance_test.tsv"
-set "EXE=%PROJECT%\runtime\stable\XMVSF_Test_87_179.exe"
+REM 87.180: subframe 68000 trace; delayed priming is unsafe by default.
+set "XM87180_NATIVE_SUBFRAME_LOG=%OBSROOT%\native_subframe_test.tsv"
+if not defined XM87180_EXPERIMENTAL_DELAYED_PRIME set "XM87180_EXPERIMENTAL_DELAYED_PRIME=0"
+set "EXE=%PROJECT%\runtime\stable\XMVSF_Test_87_180.exe"
 if not exist "%EXE%" (
-  echo ERROR: Stage 87.179 TEST executable is missing.
+  echo ERROR: Stage 87.180 TEST executable is missing.
   echo Run BUILD_TEST.bat first. Will NOT fall back to 87.132.4 or Stable.
   goto :fail
 )
@@ -32,7 +35,7 @@ REM The original 87.61 recorder remains available when this root is absent.
 REM V2 F9 sessions now live INSIDE the same current TEST replay folder
 REM users already package and inspect, not hidden under test\replay_sessions.
 REM Every F9 recording gets manifest.tsv + .fs + .bin in its own subfolder.
-set "XM8764_REPLAY_ROOT=%PROJECT%\test\87.179\replays"
+set "XM8764_REPLAY_ROOT=%PROJECT%\test\87.180\replays"
 if not exist "%XM8764_REPLAY_ROOT%" mkdir "%XM8764_REPLAY_ROOT%"
 if not exist "%XM8764_REPLAY_ROOT%" (
   echo ERROR: Cannot create permanent app-level replay recording directory.
@@ -41,7 +44,7 @@ if not exist "%XM8764_REPLAY_ROOT%" (
 REM Even an F9 directory or save failure gets a permanent, uploadable
 REM diagnostic next to the new recordings (the game is not a console).
 set "XM8764_REPLAY_STATUS_FILE=%XM8764_REPLAY_ROOT%\F9_status.log"
->>"%XM8764_REPLAY_STATUS_FILE%" echo ===== 87.179 TEST session %DATE% %TIME% =====
+>>"%XM8764_REPLAY_STATUS_FILE%" echo ===== 87.180 TEST session %DATE% %TIME% =====
 echo.
 echo F9 recording root: "%XM8764_REPLAY_ROOT%"
 echo F9 persistent status: "%XM8764_REPLAY_STATUS_FILE%"
@@ -52,15 +55,15 @@ REM Restore original native state-anchored F9 recorder (XM87.61/XM87.132).
 REM F9 starts/stops each independent full-state + input movie.
 REM The recorder requires an existing replay directory, not an invented
 REM input format or a new launcher.
-set "XM8761_REPLAY_DIR=%PROJECT%\test\87.179\replays"
+set "XM8761_REPLAY_DIR=%PROJECT%\test\87.180\replays"
 if not exist "%XM8761_REPLAY_DIR%" mkdir "%XM8761_REPLAY_DIR%"
 if not exist "%XM8761_REPLAY_DIR%" (
   echo ERROR: Cannot create native input replay directory.
   goto :fail
 )
 set "XM8761_REPLAY_MODE=off"
-set "XM87139_PROBE_DIR=%PROJECT%\test\87.179"
-set "XM87140_CHAT_DIR=%PROJECT%\test\87.179"
+set "XM87139_PROBE_DIR=%PROJECT%\test\87.180"
+set "XM87140_CHAT_DIR=%PROJECT%\test\87.180"
 if not exist "%XM87139_PROBE_DIR%" mkdir "%XM87139_PROBE_DIR%"
 if not exist "%XM87139_PROBE_DIR%" (
   echo ERROR: Cannot create diagnostic output directory.
@@ -114,11 +117,12 @@ set "XM8796_DIZZY_HANDOFF_TEST=1"
 set "XM8799_GROUND_DEFENSE_TEST=1"
 set "XM87149_TOURNAMENT_AUDIT=%XM87140_CHAT_DIR%\tournament_rules.tsv"
 echo 87.175 READ-ONLY NATIVE OBSERVER: %XM87175_DHC_OBSERVER_LOG%
-echo 87.179: QCF+LP+MP / LP+HP / MP+HP / 3P triggers Ken, 3P dash suppressed.
-echo 87.179: Ken native QCF+2P and instant, no-charge arrival preserved.
-echo 87.179: delayed DHC pre-primes a native 2P edge before controller 8.
-echo 87.179: immediate 3P/2P paths, Ken no-charge arrival, and F9 stay intact.
-echo XMVSF Stage 87.179 TEST - KEEP KEN SHORYUREPPA; CUT OUTGOING RYU PROJECTILE HITS
+echo 87.180: QCF+LP+MP / LP+HP / MP+HP / 3P triggers Ken, 3P dash suppressed.
+echo 87.180: Ken native QCF+2P and instant, no-charge arrival preserved.
+echo 87.180: delayed DHC pre-primes a native 2P edge before controller 8.
+echo 87.180: immediate 3P/2P paths, Ken no-charge arrival, and F9 stay intact.
+echo 87.180: delayed DHC input priming disabled by default, preserves original ROM state.
+echo XMVSF Stage 87.180 TEST - KEEP KEN SHORYUREPPA; CUT OUTGOING RYU PROJECTILE HITS
 echo Executable: %EXE%
 echo SAME BUILD, TWO DHC CHOICES:
 echo   During Ryu Shinkuu Hadoken, QCF+ANY TWO PUNCHES or QCF+3P queues Ken SHORYUREPPA.
@@ -199,7 +203,7 @@ if exist "%XM87175_DHC_OBSERVER_LOG%" (
 ) else (
   echo WARNING: Native 87.175 observer TSV was not written: "%XM87175_DHC_OBSERVER_LOG%"
 )
-echo Stage 87.179 TEST exit code: %RC%
+echo Stage 87.180 TEST exit code: %RC%
 echo Probe directory: %XM87139_PROBE_DIR%
 pause
 exit /b %RC%
