@@ -18,7 +18,7 @@ set "XM87180_NATIVE_SUBFRAME_LOG=%OBSROOT%\native_subframe_test.tsv"
 REM 87.181 append-only launch health. This marker is created even if
 REM the menu closes without entering a CPS2 driver.
 set "XM87181_DIAGNOSTIC_STATUS=%OBSROOT%\observer_health_test.log"
->>"%XM87181_DIAGNOSTIC_STATUS%" echo RUN_TEST_START^    %DATE% %TIME%
+>>"%XM87181_DIAGNOSTIC_STATUS%" echo RUN_TEST_START date=%DATE% time=%TIME%
 if errorlevel 1 (
   echo ERROR: Cannot append observer health file: "%XM87181_DIAGNOSTIC_STATUS%"
   goto :fail
@@ -186,7 +186,7 @@ pushd "%PROJECT%\FBNeo" || goto :fail
 "%EXE%"
 set "RC=%ERRORLEVEL%"
 popd
->>"%XM87181_DIAGNOSTIC_STATUS%" echo RUN_TEST_EXIT^    code=%RC%
+>>"%XM87181_DIAGNOSTIC_STATUS%" echo RUN_TEST_EXIT code=%RC%
 REM 87.175: after native play, analyze only PRIVATE locally captured ROM
 REM bytes. ROM binaries are outside Git; the emitted JSON is evidence,
 REM never an instruction to activate unverified DHC moves.
