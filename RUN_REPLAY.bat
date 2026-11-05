@@ -198,6 +198,11 @@ if exist "%XM87180_NATIVE_SUBFRAME_LOG%" (
 where python.exe >nul 2>nul
 if not errorlevel 1 (
   python.exe "%PROJECT%\dev\dhc\tools\ANALYZE_OBSERVER_HEALTH_181.py" --health "%XM87181_DIAGNOSTIC_STATUS%" --native "%XM87175_DHC_OBSERVER_LOG%" --subframe "%XM87180_NATIVE_SUBFRAME_LOG%" --out "%OBSROOT%\observer_health_replay_summary.json"
+  REM Native 87.182 PPC trace is independent of the historical ROM verifier.
+  if exist "%XM87182_NATIVE_PC_TRACE_LOG%" (
+    python.exe "%PROJECT%\dev\dhc\tools\ANALYZE_NATIVE_PC_ARBITRATION_182.py" --input "%XM87182_NATIVE_PC_TRACE_LOG%" --out "%OBSROOT%\native_pc_trace_replay_summary.json"
+    if errorlevel 1 echo WARNING: Native PPC summary failed, source TSV retained.
+  )
 )
 echo Output: "%TRACE%"
 pause
@@ -322,6 +327,11 @@ if exist "%XM87180_NATIVE_SUBFRAME_LOG%" (
 where python.exe >nul 2>nul
 if not errorlevel 1 (
   python.exe "%PROJECT%\dev\dhc\tools\ANALYZE_OBSERVER_HEALTH_181.py" --health "%XM87181_DIAGNOSTIC_STATUS%" --native "%XM87175_DHC_OBSERVER_LOG%" --subframe "%XM87180_NATIVE_SUBFRAME_LOG%" --out "%OBSROOT%\observer_health_replay_summary.json"
+  REM Native 87.182 PPC trace is independent of the historical ROM verifier.
+  if exist "%XM87182_NATIVE_PC_TRACE_LOG%" (
+    python.exe "%PROJECT%\dev\dhc\tools\ANALYZE_NATIVE_PC_ARBITRATION_182.py" --input "%XM87182_NATIVE_PC_TRACE_LOG%" --out "%OBSROOT%\native_pc_trace_replay_summary.json"
+    if errorlevel 1 echo WARNING: Native PPC summary failed, source TSV retained.
+  )
 )
 REM Post-replay observer is independent of ROM action verification and exit status.
 if exist "%XM87175_DHC_OBSERVER_LOG%" (
