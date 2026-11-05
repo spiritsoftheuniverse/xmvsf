@@ -14,6 +14,7 @@
 #include "xmvsf_stage87_176_dhc_input_isolation.h" // pure per-frame DHC P1 input gate
 #include "xmvsf_stage87_178_tag_latch_recovery.h" // 87.178 only stale DHC tag latch
 #include "xmvsf_stage87_179_delayed_tag_edge.h" // 87.179 delayed native input edge
+#include "xmvsf_stage87_183_native_edge_preflight.h" // 87.183 native consumed-punch gate
 #include "xmvsf_stage87_177_dhc_punch_chords.h" // explicit 3P host / native 2P helper dependency
 #include <cstdint>
 #include <cstdio>
@@ -83,7 +84,7 @@ static inline const char* phaseName(Phase p){
 }
 struct State {
     bool initialized=false,enabled=false,proofNative=false,earlyCancel=false,
-         delayedPrimeExperimental=false,
+         delayedPrimeExperimental=false,unsafeConsumedPunchReplay=false,
          chainUsed[2]={false,false};
     Phase phase[2]={IDLE,IDLE};
     XM87159Projectile::State oldRyuProjectiles;
@@ -140,6 +141,12 @@ struct State {
         const char* primeTest=std::getenv("XM87180_EXPERIMENTAL_DELAYED_PRIME");
         delayedPrimeExperimental=enabled && earlyCancel && primeTest &&
              std::strcmp(primeTest,"1")==0;
+        // 87.183: only offline F9 diagnostics may explicitly reproduce
+        // the three dangerous 87.182 consumed-edge native attempts.
+        // Normal RUN_TEST leaves this OFF to protect working gameplay.
+        const char* unsafeReplay=std::getenv("XM87183_REPLAY_UNSAFE_CONSUMED_EDGE");
+        unsafeConsumedPunchReplay=enabled && earlyCancel && unsafeReplay &&
+             std::strcmp(unsafeReplay,"1")==0;
         const char* path=std::getenv("XM87144_DHC_LOG");
         if(enabled && path && *path){
             log=std::fopen(path,"wb");
@@ -454,6 +461,33 @@ struct State {
                    !shoryureppaReady[side])blocked="BLOCK_REPPA_2E00_ROM_UNRESOLVED";
                 if(!blocked && entry->known->command==XM87143Queue::QCF_KK &&
                    !shinryukenReady[side])blocked="BLOCK_SHINRYUKEN_2E02_ROM_UNRESOLVED";
+                // 87.183 live 87.182 trace, 23 armed handoffs:
+                // 20 successful: native C0=0001, CA=0000.
+                // 3245/5111/10756 failures: C0=0011/0031 and
+                // CA=0010/0030, i.e. the original CPU already consumed
+                // part/all of the same user's punch chord. Attempting
+                // controller 8 at this point instead selected 2C04,
+                // 2C02, or entered 2A2A and timed out.
+                // Never speculate another synthetic pulse or force 3200.
+                if(!blocked && XM87183Preflight::shouldDecline(
+                        earlyCancel,unsafeConsumedPunchReplay,
+                        rw(ram,p+0xC0u),rw(ram,p+0xCAu))){
+                    // Queue was prepared but must NOT touch +256/+259/A0.
+                    // Keep native super and inputs intact. Requiring a
+                    // fresh deliberate motion for a retry is safer than
+                    // replaying the same partially consumed chord.
+                    event(now,side,ram,
+                          "DHC_183_NATIVE_PUNCH_ALREADY_CONSUMED_SKIP_TAG");
+                    lastAcceptedAt[side]=selectedAt;
+                    XM87143Queue::state().discard(side);
+                    cooldownUntil[side]=now+6u;
+                    continue;
+                }
+                if(!blocked && unsafeConsumedPunchReplay &&
+                   !XM87183Preflight::freshNativeTagEdge(
+                         rw(ram,p+0xC0u),rw(ram,p+0xCAu)))
+                    event(now,side,ram,
+                          "DHC_183_REPLAY_ONLY_UNSAFE_INPUT_TRACE_BYPASS");
                 if(blocked){
                     if(firstCheck)event(now,side,ram,blocked);
                     // Never replay an old roster slot's super as Ken's
