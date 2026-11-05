@@ -13,6 +13,7 @@
 #include "xmvsf_stage87_159_projectile_cutoff.h"
 #include "xmvsf_stage87_176_dhc_input_isolation.h" // pure per-frame DHC P1 input gate
 #include "xmvsf_stage87_178_tag_latch_recovery.h" // 87.178 only stale DHC tag latch
+#include "xmvsf_stage87_179_delayed_tag_edge.h" // 87.179 delayed native input edge
 #include "xmvsf_stage87_177_dhc_punch_chords.h" // explicit 3P host / native 2P helper dependency
 #include <cstdint>
 #include <cstdio>
@@ -62,7 +63,7 @@ enum Phase{
     IDLE=0,TAG_OUT=1,WAIT_TAG_CONTROLLER=2,WAIT_NATIVE_SWAP=3,
     WAIT_LANDING=4,WAIT_KEN_EXIT=5,SUPER_STARTED=6,FAILED=7,
     DELIVER_NATIVE_INPUT=8,WAIT_RYU_SUPER_END=9,
-    SEND_ROM_TAG_INPUT=10
+    SEND_ROM_TAG_INPUT=10,PRIME_DELAYED_TAG_EDGE=11
 };
 static inline const char* phaseName(Phase p){
     switch(p){
@@ -75,6 +76,7 @@ static inline const char* phaseName(Phase p){
       case DELIVER_NATIVE_INPUT:return "NATIVE_KEN_INPUT_SEQUENCE";
       case WAIT_RYU_SUPER_END:return "WAIT_RYU_NATIVE_SUPER_TIMER_08";
       case SEND_ROM_TAG_INPUT:return "PROOF_SEND_HP_HK_NORMAL_TAG";
+      case PRIME_DELAYED_TAG_EDGE:return "PRIME_DELAYED_NATIVE_2P_EDGE";
       case FAILED:return "FAILED";
       default:return "IDLE";
     }
@@ -94,6 +96,8 @@ struct State {
     unsigned controllerAcceptedAt[2]={0u,0u};
     unsigned kenExitAt[2]={0u,0u},kenSuperAt[2]={0u,0u};
     unsigned kenNeutralAt[2]={0u,0u},inputBegin[2]={0u,0u};
+    unsigned primeFrame[2]={0u,0u};
+    bool primeSent[2]={false,false};
     unsigned kenKickReassertions[2]={0u,0u};
     bool kenExitObserved[2]={false,false},kenSuperConfirmed[2]={false,false};
     // The first ROM action after handoff must belong to the REQUESTED move,
@@ -149,6 +153,7 @@ struct State {
             lastNormalRef[s]=~0u;
             kenExitAt[s]=kenSuperAt[s]=0u;
             kenNeutralAt[s]=inputBegin[s]=0u;
+            primeFrame[s]=0u;primeSent[s]=false;
             kenKickReassertions[s]=0u;
             kenExitObserved[s]=kenSuperConfirmed[s]=false;
             kenExpectedAction[s]=kenExpectedScript[s]=0u;
@@ -190,6 +195,7 @@ struct State {
         kenExpectedAction[side]=kenExpectedScript[side]=0u;
         kenFallbackUsed[side]=false;kenNeutralSince[side]=0u;
         kenNeutralAt[side]=inputBegin[side]=0u;
+        primeFrame[side]=0u;primeSent[side]=false;
         cooldownUntil[side]=now+6u;
         XM87143Queue::state().discard(side);
         event(now,side,ram,"DHC_ABORT_RELEASED_CHAIN_LOCK");
@@ -277,10 +283,29 @@ struct State {
     // restores the physical SDL button array immediately after that read.
     // It does not set a sprite, A0, D6, or script address. The game's own
     // 68000 command decoder, controller and recovery logic own the super.
-    struct InputMask { bool active=false,isolated=false;unsigned directions=0,attacks=0; };
-    InputMask inputForFrame(const std::uint8_t*ram,unsigned now)const{
+    struct InputMask { bool active=false,isolated=false,priming=false;unsigned directions=0,attacks=0; };
+    InputMask inputForFrame(const std::uint8_t*ram,unsigned now){
         InputMask m;
         if(!enabled || !ram || rb(ram,0x5000u)!=8u)return m;
+        // CPS2 input sampling precedes the host DHC callback by one native
+        // frame. The failed 87.178 late-window tags had CA=0000 at the
+        // frame AFTER controller 8 was armed; direct tags had a fresh
+        // 0030/0050/0060 punch edge. Prime the original input PORT one
+        // frame BEFORE arming the delayed tag controller, and never write
+        // the native 68000 history or force a super script.
+        if(XM87179Edge::eligible(unsigned(phase[0]),
+                enabled,earlyCancel,proofNative,
+                rw(ram,0x4052u),rw(ram,0x4852u),
+                rw(ram,0x4060u),rw(ram,0x40A0u),
+                rb(ram,0x40D6u),rb(ram,0x4256u),
+                rb(ram,0x4259u),rw(ram,0x40C6u),
+                now,primeFrame[0])){
+            m.active=true;m.priming=true;
+            m.attacks=XM87179Edge::nativePunchPair();
+            m.directions=XM87179Edge::facingForward(rb(ram,0x404Bu));
+            primeSent[0]=true;
+            return m;
+        }
         // 87.175 captured queued QCF+PP at 1865 / 3095 / 3843, but the
         // *native* PP edge only reached Ryu at 1866 / 3096 / 3844.
         // Once that input selects DHC, do NOT let the outgoing fighter
@@ -488,10 +513,42 @@ struct State {
                     event(now,side,ram,earlyCancel?
                           "DHC_158_RYU_TIMER_28_151_ACCEPTED":
                           "DHC_LATE_SUPER_TIMER_WINDOW_ACCEPTED");
-                    armOutgoingTag(ram,now,side,lastAcceptedAt[side]);
-                    if(earlyCancel)
+                    if(earlyCancel){
+                        // Only delayed tags need a fresh native button
+                        // edge. There is no pressed edge left by the time
+                        // the super reaches +4E<=28 (four failures in
+                        // the supplied 87.178 observer trace).
+                        phase[side]=PRIME_DELAYED_TAG_EDGE;
+                        primeFrame[side]=now+1u;
+                        primeSent[side]=false;
                         event(now,side,ram,
-                              "DHC_158_RESTORED_151_KEN_ARRIVAL_HANDOFF");
+                              "DHC_179_DELAYED_TAG_EDGE_PRIME_SCHEDULED");
+                    }else{
+                        armOutgoingTag(ram,now,side,lastAcceptedAt[side]);
+                    }
+                }
+                continue;
+            }
+            if(phase[side]==PRIME_DELAYED_TAG_EDGE){
+                const bool primed=primeSent[side] &&
+                    now==primeFrame[side] &&
+                    pointId==outgoing[side] &&
+                    reserveId==incoming[side] &&
+                    rw(ram,p+0x60u)==0x2E08u &&
+                    (rw(ram,p+0xA0u)==0x2A28u ||
+                     rw(ram,p+0xA0u)==0x2A02u) &&
+                    rb(ram,p+0xD6u)==0x0Au &&
+                    rw(ram,p+0x4Eu)>0u &&
+                    rw(ram,p+0x4Eu)<=0x1Cu;
+                if(!primed){
+                    abort(now,side,ram,
+                          "DHC_179_DELAYED_TAG_EDGE_PRIME_REJECTED");
+                }else{
+                    event(now,side,ram,
+                          "DHC_179_NATIVE_2P_EDGE_PRIMED_BEFORE_CONTROLLER_08");
+                    armOutgoingTag(ram,now,side,lastAcceptedAt[side]);
+                    event(now,side,ram,
+                          "DHC_179_CONTROLLER_08_ARMED_AFTER_INPUT_PRIME");
                 }
                 continue;
             }
