@@ -64,7 +64,10 @@ struct State {
             return;
         // Append: never truncate the user's previous F9/replay evidence.
         log=std::fopen(path,"ab");
-        if(!log)return;
+        if(!log){
+            std::fprintf(stderr,"XM87.175 observer cannot open log: %s\n",path);
+            return;
+        }
         enabled=true;
         std::fprintf(log,"# XM87.175 OBSERVER SESSION: post CPU versus post DHC host; "
             "script ownership is observational only; ROM acceptance not inferred from host writes\n");
