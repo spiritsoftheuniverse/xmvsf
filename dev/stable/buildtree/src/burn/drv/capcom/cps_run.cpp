@@ -21,6 +21,7 @@
 #include "xmvsf_stage87_142_rom_dispatch.h" // 87.142 pure native script table+tag observer
 #include "xmvsf_stage87_175_native_accept_observer.h" // 87.175 read-only native 68000 vs host DHC trace
 #include "xmvsf_stage87_180_subframe_input_observer.h" // 87.180 intra-frame native input clocks
+#include "xmvsf_stage87_181_observer_health.h" // 87.181 startup and combat observer diagnostics
 #include "xmvsf_stage87_144_native_handoff.h" // opt-in DHC-only native action transaction TEST
 #include "xmvsf_stage87_160_super_discovery.h" // read-only roster-wide native 2E ROM/script and input discovery
 #include "../../../burner/sdl/xmvsf_stage87_162_replay_sync.h" // exact F9 movie-frame index for native action logs
@@ -500,6 +501,21 @@ INT32 Cps2Frame()
     const char* dhcGame=BurnDrvGetTextA(DRV_NAME);
     const bool dhcGameMatches=dhcGame &&
          std::strncmp(dhcGame,"xmvsf",5)==0;
+    // 87.181: observer log files must be initialized when the XMVSF
+    // CPS2 driver starts, NOT only from the late post-CPU DHC hook.
+    // Otherwise an early game/menu exit silently creates no TSV at all.
+    // Health also records driver/ROM/RAM/combat gate decisions, without
+    // changing the original game or input processing.
+    if(!bBurnRunAheadFrame){
+        if(dhcGameMatches){
+            XM87175Observer::state().init();
+            XM87180Subframe::state().init();
+        }
+        XM87181Health::state().frame((unsigned)GetCurrentFrame(),
+            dhcGame,CpsRamFF,CpsRom,
+            XM87175Observer::state().enabled,
+            XM87180Subframe::state().enabled);
+    }
     XM87144::State::InputMask dhcInput=
         (!bBurnRunAheadFrame && dhcGameMatches)?
         XM87144::state().inputForFrame(CpsRamFF,(unsigned)GetCurrentFrame()):
