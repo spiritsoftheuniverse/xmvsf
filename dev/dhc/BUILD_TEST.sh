@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Stage 87.183 exact native 68000 PPC diagnostic TEST builder. Called ONLY by root BUILD_TEST.bat.
+# Stage 87.183 native-edge safety gate + exact ROM PPC diagnostic TEST builder. Called ONLY by root BUILD_TEST.bat.
 # Build the CURRENT local source in place using the warm FBNeo object cache.
 # Never touch Stable executable, Stable manifests, user source, or old TEST binaries.
 set -euo pipefail
@@ -126,7 +126,7 @@ required_markers=(
   "XM87.180 SUBFRAME SESSION"
   "ENGINE_HEALTH_INITIALIZED"
   "XMVSF_FIRST_COMBAT"
-  "XM87.183 NATIVE PC SESSION"
+  "XM87.182 NATIVE PC SESSION"
   "DHC_FRAME frame="
   "DHC_183_NATIVE_PUNCH_ALREADY_CONSUMED_SKIP_TAG"
   "DHC_183_REPLAY_ONLY_UNSAFE_INPUT_TRACE_BYPASS"
@@ -176,4 +176,4 @@ if [[ ! -s "$PENDING" ]]; then
 fi
 mv -f "$PENDING" "$DEST"
 echo "TEST BUILD READY: $DEST"
-echo "Stage 87.183: bounded native 68000 PPC trace only for armed DHC, stable 87.181 inputs, F9 multi-session replay, warm cache and Stable preserved."
+echo "Stage 87.183: prevent consumed native punch edges in interactive DHC; exact PPC replay trace; 87.181 controls, F9 and Stable preserved."
