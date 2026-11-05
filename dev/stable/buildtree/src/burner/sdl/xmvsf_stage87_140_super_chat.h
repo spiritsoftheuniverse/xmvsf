@@ -7,6 +7,7 @@
 // The ROM-specific DHC super registry remains unpopulated until demonstrated.
 #include "../../intf/input/sdl/xmvsf_stage87_137_dhc_input_history.h"
 #include "../../burn/drv/capcom/xmvsf_stage87_143_super_queue.h" // prebuilt match-start descriptor queue
+#include "../../burn/drv/capcom/xmvsf_stage87_177_dhc_punch_chords.h" // 87.177 exact 2P/3P DHC-only gate
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
@@ -114,12 +115,12 @@ static inline const ListedSuper* matchListed(unsigned fighter,
     for(unsigned i=0;i<4u;++i){
         const ListedSuper* m=known(fighter,i);
         if(!m)continue;
-        const unsigned mask=m->kicks?(chordMask>>3u)&7u:chordMask&7u;
-        // 87.156: native Hyper Combos use TWO buttons, not three.
-        // 3P=dash and 3K=super jump; mixed P+K can invoke a team
-        // command. Never capture those as Ken QCF+2P / QCF+2K.
-        if(bc(mask)!=2u || (chordMask&0x3Fu)!=(m->kicks?(mask<<3u):mask))
-            continue;
+        // 87.177 DHC host gesture: all three punch buttons OR any exact
+        // punch pair is valid. Original 3P is dash outside DHC; the
+        // dedicated pre-CPU input shield prevents that dash on handoff.
+        // Preserve exact TWO kicks; never treat 3K as superjump or accept
+        // mixed P+K. The native Ken 68000 input still receives 2P.
+        if(!XM87177Chords::valid(m->kicks,chordMask))continue;
         // Anchor to the CURRENT final cardinal direction. Do not reach into
         // an earlier QCB/QCF while the latest stick position is DF/DB from
         // another command; that was the confusing Ryu KK diagnostic.
@@ -321,7 +322,7 @@ struct State {
                             std::snprintf(text,sizeof(text),
                                 "P%u RESERVE %02X MATCH %s (%s+%s) [INPUT ONLY]",
                                 side+1u,bench,found->name,
-                                found->back?"QCB":"QCF",found->kicks?"KK":"PP");
+                                found->back?"QCB":"QCF",found->kicks?"KK":((buttons[side]&7u)==7u?"3P":"2P"));
                             log(frame,MATCH,text);
                             if(queued){
                                 unsigned ready=0u;
