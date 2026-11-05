@@ -7,14 +7,16 @@ int main(){
     unsigned validPunches=0;
     for(unsigned m=0;m<64u;++m){
         const bool validP=(m==0x03u||m==0x05u||m==0x06u||m==0x07u);
-        assert(valid(false,m)==validP);
+        const bool validTwoP=(m==0x03u||m==0x05u||m==0x06u);
+        assert(valid(false,m)==validTwoP); // no 3P outside DHC
+        assert(valid(false,m,true)==validP); // 3P during native DHC only
         if(validP)++validPunches;
         const bool validK=(m==0x18u||m==0x28u||m==0x30u);
         assert(valid(true,m)==validK);
     }
     assert(validPunches==4u);
-    assert(!valid(false,0x47u)); // reject high bits too
-    assert(!valid(false,0x0Fu)); // no mixed P+K
+    assert(!valid(false,0x47u,true)); // reject high bits too
+    assert(!valid(false,0x0Fu,true)); // no mixed P+K
     assert(!valid(true,0x38u)); // 3K superjump not DHC
     assert(nativeKenTwoPunchMask()==0x03u); // verified Ken input, never 3P dash
     assert(shieldPrequeue3P(true,true,0,true,0x12,0x14,0x2E08,0x2A28,7));
