@@ -15,6 +15,10 @@ static inline bool neutralize(unsigned phase, unsigned point, unsigned reserve,
     const bool ryuPoint=point==0x12u && reserve==0x14u;
     const bool kenPoint=point==0x14u && reserve==0x12u;
     if(phase==2u || phase==3u)return ryuPoint || kenPoint;
+    // A DHC selected earlier than the safe tag timer spends frames in
+    // WAIT_RYU_SUPER_END (9). Keep a held 3P from leaking to the 68000
+    // while the outgoing super waits for its native tag window.
+    if(phase==9u)return ryuPoint;
     if(phase==4u || phase==5u)return kenPoint;
     // 87.177: keep the P1 port neutral if a held physical 3P survives
     // beyond Ken's 9-frame native QCF+2P sequence. Otherwise the native
