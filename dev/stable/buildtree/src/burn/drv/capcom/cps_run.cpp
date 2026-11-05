@@ -22,6 +22,7 @@
 #include "xmvsf_stage87_175_native_accept_observer.h" // 87.175 read-only native 68000 vs host DHC trace
 #include "xmvsf_stage87_180_subframe_input_observer.h" // 87.180 intra-frame native input clocks
 #include "xmvsf_stage87_181_observer_health.h" // 87.181 startup and combat observer diagnostics
+#include "xmvsf_stage87_182_native_pc_trace.h" // 87.182 exact native PPC audit, opt-in
 #include "xmvsf_stage87_144_native_handoff.h" // opt-in DHC-only native action transaction TEST
 #include "xmvsf_stage87_160_super_discovery.h" // read-only roster-wide native 2E ROM/script and input discovery
 #include "../../../burner/sdl/xmvsf_stage87_162_replay_sync.h" // exact F9 movie-frame index for native action logs
@@ -516,6 +517,14 @@ INT32 Cps2Frame()
             XM87175Observer::state().enabled,
             XM87180Subframe::state().enabled);
     }
+    // 87.182 opt-in: the original 68000 exposes executed PPC after each
+    // instruction. Hook only the already armed Ryu->Ken native tag frame.
+    // The observer wraps/restores any existing Musashi callback; it never
+    // changes the ROM, input port, actor RAM, or CPU cycle budget.
+    if(dhcGameMatches && !bBurnRunAheadFrame)
+        XM87182PC::state().begin(CpsRamFF,(unsigned)GetCurrentFrame(),
+             (unsigned)XM87144::state().phase[0],
+             XM87144::state().earlyCancel,false);
     XM87144::State::InputMask dhcInput=
         (!bBurnRunAheadFrame && dhcGameMatches)?
         XM87144::state().inputForFrame(CpsRamFF,(unsigned)GetCurrentFrame()):
@@ -763,6 +772,9 @@ INT32 Cps2Frame()
     xm8634Mark("BEFORE QSOUND END FRAME");
 	if (!Cps2DisableQSnd) QsndEndFrame();
     xm8634Mark("AFTER QSOUND END FRAME");
+    // Restore the original instruction callback before closing CPU 0.
+    // Only bounded original-68000 observations were buffered.
+    XM87182PC::state().end();
 
 	SekClose();
     // Live CPS-2 driver controls, not RAM-inferred move-strength labels.
