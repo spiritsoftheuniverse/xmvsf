@@ -13,7 +13,11 @@ def main():
     code = bytearray(0x20000)
 
     def put(pc, op):
-        code[pc:pc + len(op)] = bytes.fromhex(op)
+        payload = bytes.fromhex(op)
+        # A hex string has 2 characters per byte. Using len(op) as the
+        # slice width shrinks the bytearray and corrupts every later PC.
+        code[pc:pc + len(payload)] = payload
+        assert len(code) == 0x20000, "Synthetic ROM size changed"
 
     # Exact real disassembly fixture from 011B1A -> 01038E.
     put(0x11B1A, "4efae872")
