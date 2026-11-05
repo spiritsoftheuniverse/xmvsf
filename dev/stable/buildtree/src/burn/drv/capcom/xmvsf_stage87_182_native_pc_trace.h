@@ -14,7 +14,7 @@
 
 namespace XM87182PC {
 struct Entry {
-    unsigned pc=0,nextPc=0,a6=0,d0=0,cycles=0,ordinal=0,changed=0;
+    unsigned pc=0,fromPc=0,nextPc=0,a6=0,d0=0,d1=0,cycles=0,ordinal=0,changed=0;
     unsigned action=0,mode=0,d6=0,ctrl256=0,ctrl259=0;
     unsigned c0=0,c2=0,c6=0,ca=0;
 };
@@ -40,7 +40,7 @@ struct State {
     const std::uint8_t*ram=nullptr;
     unsigned frame=0,phase=0,count=0,dropped=0,visited=0;
     unsigned lastAction=0,lastMode=0,lastD6=0,last256=0,last259=0;
-    unsigned lastC2=0,lastCA=0;
+    unsigned lastC2=0,lastCA=0,previousExecuted=0;
     int (*prior)(int)=nullptr;
     Entry entries[LIMIT];
     ~State(){
@@ -62,7 +62,7 @@ struct State {
         enabled=true;
         std::fputs("# XM87.182 NATIVE PC SESSION: real executed PPC, "
                    "post-instruction RAM, DHC controller-8 window only\n",log);
-        std::fputs("frame\tphase\tordinal\tregion\tPPC\tPC_next\tA6\tD0"
+        std::fputs("frame\tphase\tordinal\tregion\tPPC\tfromPPC\tPC_next\tA6\tD0\tD1"
                    "\tcycles\tordinalCPU\tchangeMask\tRyuAction\tRyuA0\tRyuD6\tcontroller256"
                    "\tcontroller259\tC0\tC2\tC6\tCA\n",log);
         std::fflush(log);
@@ -72,6 +72,8 @@ struct State {
         // SekGetPPC records the PC of the just executed original 68000
         // instruction, not the next instruction's PC.
         const unsigned pc=SekGetPPC(-1)&0xFFFFFFu;
+        const unsigned previousPC=previousExecuted;
+        previousExecuted=pc;
         // Read-only state deltas pinpoint the *executed instruction*
         // that first changes Ryu's action/mode/D6/input edge, even if
         // its PC is outside the known command-dispatch ranges.
@@ -97,9 +99,9 @@ struct State {
             ++dropped;
             if(!flags)return;
             Entry& e=entries[LIMIT-1];
-            e.pc=pc;e.nextPc=SekGetPC(-1)&0xFFFFFFu;
+            e.pc=pc;e.fromPc=previousPC;e.nextPc=SekGetPC(-1)&0xFFFFFFu;
             e.a6=(unsigned)m68k_get_reg(nullptr,M68K_REG_A6)&0xFFFFFFu;
-            e.d0=(unsigned)m68k_get_reg(nullptr,M68K_REG_D0);
+            e.d0=(unsigned)m68k_get_reg(nullptr,M68K_REG_D0);e.d1=(unsigned)m68k_get_reg(nullptr,M68K_REG_D1);
             e.cycles=(unsigned)cycles;e.ordinal=visited;e.changed=flags;
             e.action=action;e.mode=mode;e.d6=d6;
             e.ctrl256=c256;e.ctrl259=c259;
@@ -108,10 +110,10 @@ struct State {
             return;
         }
         Entry& e=entries[count++];
-        e.pc=pc;e.nextPc=SekGetPC(-1)&0xFFFFFFu;
+        e.pc=pc;e.fromPc=previousPC;e.nextPc=SekGetPC(-1)&0xFFFFFFu;
         e.ordinal=visited;e.changed=flags;
         e.a6=(unsigned)m68k_get_reg(nullptr,M68K_REG_A6)&0xFFFFFFu;
-        e.d0=(unsigned)m68k_get_reg(nullptr,M68K_REG_D0);
+        e.d0=(unsigned)m68k_get_reg(nullptr,M68K_REG_D0);e.d1=(unsigned)m68k_get_reg(nullptr,M68K_REG_D1);
         e.cycles=(unsigned)cycles;
         // Snapshot AFTER the executed instruction: read-only, so the
         // exact PC that modified action/D6/A0 can be correlated.
@@ -132,7 +134,7 @@ struct State {
            XM87142::ramW(source,0x4052u)!=0x12u ||
            XM87142::ramW(source,0x4852u)!=0x14u)return;
         ram=source;frame=now;phase=dhcPhase;
-        count=0;dropped=0;visited=0;
+        count=0;dropped=0;visited=0;previousExecuted=0;
         lastAction=XM87142::ramW(source,0x4060u);
         lastMode=XM87142::ramW(source,0x40A0u);
         lastD6=XM87142::ramB(source,0x40D6u);
@@ -163,10 +165,10 @@ struct State {
                     " allInstructions=%u\n",frame,count,dropped,visited);
             for(unsigned i=0;i<count;++i){
                 const Entry& e=entries[i];
-                std::fprintf(log,"%u\t%u\t%u\t%s\t%06X\t%06X"
-                     "\t%06X\t%08X\t%u\t%u\t%02X\t%04X\t%04X\t%02X"
+                std::fprintf(log,"%u\t%u\t%u\t%s\t%06X\t%06X\t%06X"
+                     "\t%06X\t%08X\t%08X\t%u\t%u\t%02X\t%04X\t%04X\t%02X"
                      "\t%02X\t%02X\t%04X\t%04X\t%04X\t%04X\n",
-                    frame,phase,i,region(e.pc),e.pc,e.nextPc,e.a6,e.d0,
+                    frame,phase,i,region(e.pc),e.pc,e.fromPc,e.nextPc,e.a6,e.d0,e.d1,
                     e.cycles,e.ordinal,e.changed,e.action,e.mode,e.d6,e.ctrl256,e.ctrl259,
                     e.c0,e.c2,e.c6,e.ca);
             }
