@@ -13,7 +13,7 @@ if not exist "%OBSROOT%" (
 )
 set "XM87175_DHC_OBSERVER=1"
 set "XM87175_DHC_OBSERVER_LOG=%OBSROOT%\dhc_acceptance_test.tsv"
-set "EXE=%PROJECT%\runtime\stable\XMVSF_Test_87_176.exe"
+set "EXE=%PROJECT%\runtime\stable\XMVSF_Test_87_177.exe"
 if not exist "%EXE%" (
   echo ERROR: Stage 87.177 TEST executable is missing.
   echo Run BUILD_TEST.bat first. Will NOT fall back to 87.132.4 or Stable.
@@ -114,7 +114,8 @@ set "XM8796_DIZZY_HANDOFF_TEST=1"
 set "XM8799_GROUND_DEFENSE_TEST=1"
 set "XM87149_TOURNAMENT_AUDIT=%XM87140_CHAT_DIR%\tournament_rules.tsv"
 echo 87.175 READ-ONLY NATIVE OBSERVER: %XM87175_DHC_OBSERVER_LOG%
-echo 87.177: QCF+LP+MP / LP+HP / MP+HP / 3P triggers Ken, 3P dash suppressed.\necho 87.177: Ken native QCF+2P and instant, no-charge arrival preserved.
+echo 87.177: QCF+LP+MP / LP+HP / MP+HP / 3P triggers Ken, 3P dash suppressed.
+echo 87.177: Ken native QCF+2P and instant, no-charge arrival preserved.
 echo XMVSF Stage 87.177 TEST - KEEP KEN SHORYUREPPA; CUT OUTGOING RYU PROJECTILE HITS
 echo Executable: %EXE%
 echo SAME BUILD, TWO DHC CHOICES:
