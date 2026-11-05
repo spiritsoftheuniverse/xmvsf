@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Stage 87.182 wrong-action unlock/subframe observer TEST builder. Called ONLY by root BUILD_TEST.bat.
+# Stage 87.182 exact native 68000 PPC diagnostic TEST builder. Called ONLY by root BUILD_TEST.bat.
 # Build the CURRENT local source in place using the warm FBNeo object cache.
 # Never touch Stable executable, Stable manifests, user source, or old TEST binaries.
 set -euo pipefail
@@ -174,4 +174,4 @@ if [[ ! -s "$PENDING" ]]; then
 fi
 mv -f "$PENDING" "$DEST"
 echo "TEST BUILD READY: $DEST"
-echo "Stage 87.182: observer initialized at driver entry; explicit health triage for missing native trace; F9 preserved multi-session recording FINAL seal + normal-exit recovery; DHC, warm cache, and Stable preserved."
+echo "Stage 87.182: bounded native 68000 PPC trace only for armed DHC, stable 87.181 inputs, F9 multi-session replay, warm cache and Stable preserved."
