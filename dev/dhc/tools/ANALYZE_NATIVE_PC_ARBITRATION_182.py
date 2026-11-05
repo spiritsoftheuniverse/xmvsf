@@ -13,7 +13,7 @@ import json
 from collections import Counter
 from pathlib import Path
 
-HEADER = {"frame", "PPC", "PC_next", "A6", "ordinalCPU",
+HEADER = {"frame", "PPC", "fromPPC", "PC_next", "A6", "D0", "D1", "ordinalCPU",
           "changeMask", "RyuAction", "RyuA0", "RyuD6",
           "controller256", "controller259", "C0", "C2", "C6", "CA"}
 FLAG_NAMES = {
@@ -44,11 +44,32 @@ def parse(path):
         first = rows[0]
         action_changes = []
         input_changes = []
+        dispatcher_calls = []
+        for r in rows:
+            if r["PPC"] == "01038E":
+                dispatcher_calls.append({
+                    "ordinal": int(r["ordinalCPU"]),
+                    "caller_last_executed_pc": r["fromPPC"],
+                    "d0_action_family": r["D0"],
+                    "d1_selector": r["D1"],
+                    "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER",
+                })
         for r in rows:
             mask = int(r["changeMask"], 16)
             if mask & 1:
+                # The shared dispatcher at 01038E writes action from
+                # D0/D1; the immediately preceding executed PPC is often
+                # the original JMP/JSR that requested the move.
+                nearest = next((d for d in reversed(dispatcher_calls)
+                          if d["ordinal"] <= int(r["ordinalCPU"])
+                          and int(r["ordinalCPU"]) - d["ordinal"] <= 18), None)
                 action_changes.append({
-                    "executed_pc": r["PPC"], "next_pc": r["PC_next"],
+                    "executed_pc": r["PPC"],
+                    "previous_executed_pc": r["fromPPC"],
+                    "next_pc": r["PC_next"],
+                    "D0_action_family": r["D0"],
+                    "D1_selector": r["D1"],
+                    "nearest_dispatch_request": nearest,
                     "actor_a6": r["A6"], "native_action_after": r["RyuAction"],
                     "native_mode_after": r["RyuA0"],
                     "native_command_d6_after": r["RyuD6"],
@@ -67,6 +88,7 @@ def parse(path):
                 "frame": first["frame"],
                 "tracked_68000_instructions": len(rows),
                 "action_changes": action_changes[:36],
+                "dispatcher_entries_first_36": dispatcher_calls[:36],
                 "input_history_changes": input_changes[:36],
                 "trace_truncated": frames.get((sessions, first["frame"]), {}).get("dropped", 0) > 0,
                 "last_rom_action_sample": rows[-1]["RyuAction"],
