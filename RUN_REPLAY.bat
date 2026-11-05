@@ -12,7 +12,9 @@ set "XM87175_DHC_OBSERVER=1"
 set "XM87175_DHC_OBSERVER_LOG=%OBSROOT%\dhc_acceptance_replay.tsv"
 REM 87.180: native input CPU-stage diagnostic independent of F9 inputs.
 set "XM87180_NATIVE_SUBFRAME_LOG=%OBSROOT%\native_subframe_replay.tsv"
-if not defined XM87180_EXPERIMENTAL_DELAYED_PRIME set "XM87180_EXPERIMENTAL_DELAYED_PRIME=0"
+REM Diagnostic replay re-runs 87.179 priming to capture its failure precisely.
+REM Interactive RUN_TEST keeps priming OFF; no gameplay regression from tracing.
+if not defined XM87180_EXPERIMENTAL_DELAYED_PRIME set "XM87180_EXPERIMENTAL_DELAYED_PRIME=1"
 REM Dedicated replay channel. Existing BUILD_TEST/RUN_TEST names are unchanged.
 REM Replay the original 87.161 F9 full-state + exact CPS2 inputs without
 REM creating replacement ROM scripts, patching native input, or touching Stable.
