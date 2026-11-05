@@ -305,13 +305,15 @@ struct State {
             else if(t<4u)m.directions=4u|forward;  // Down-forward
             else if(t<7u)m.directions=forward;     // Forward
             if(t>=5u && t<7u)
-                m.attacks=command[0]==XM87143Queue::QCF_KK?0x18u:0x03u;
+                m.attacks=command[0]==XM87143Queue::QCF_KK?0x18u:
+                    XM87177Chords::nativeKenTwoPunchMask();
         }else{
             if(t<4u)m.directions=4u;
             else if(t<8u)m.directions=4u|forward;
             else if(t<14u)m.directions=forward;
             if(t>=11u && t<14u)
-                m.attacks=command[0]==XM87143Queue::QCF_KK?0x18u:0x03u;
+                m.attacks=command[0]==XM87143Queue::QCF_KK?0x18u:
+                    XM87177Chords::nativeKenTwoPunchMask();
         }
         return m;
     }
