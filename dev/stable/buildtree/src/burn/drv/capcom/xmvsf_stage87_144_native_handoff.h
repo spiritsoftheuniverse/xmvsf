@@ -83,6 +83,7 @@ static inline const char* phaseName(Phase p){
 }
 struct State {
     bool initialized=false,enabled=false,proofNative=false,earlyCancel=false,
+         delayedPrimeExperimental=false,
          chainUsed[2]={false,false};
     Phase phase[2]={IDLE,IDLE};
     XM87159Projectile::State oldRyuProjectiles;
@@ -131,6 +132,14 @@ struct State {
         // genuine ROM Ken QCF+2P/2K command, never the old guessed 2C dash.
         enabled=requested && (proofNative || earlyCancel ||
                  (legacy && std::strcmp(legacy,"1")==0));
+        // The supplied 87.179 movie proves delayed 2P priming is not
+        // deterministic: 4/16 queued commands reached Ken, while many
+        // primed pulses entered Ryu 0002/2C02/2C04 instead.
+        // Default OFF until within-frame input acceptance is understood.
+        // Explicit opt-in preserves the existing path for isolated audit.
+        const char* primeTest=std::getenv("XM87180_EXPERIMENTAL_DELAYED_PRIME");
+        delayedPrimeExperimental=enabled && earlyCancel && primeTest &&
+             std::strcmp(primeTest,"1")==0;
         const char* path=std::getenv("XM87144_DHC_LOG");
         if(enabled && path && *path){
             log=std::fopen(path,"wb");
@@ -142,8 +151,10 @@ struct State {
                 "\tken_observed_2E00\tken_observed_2E02\tselected_command\n",log);
         }
         std::fprintf(stderr,
-            "XM87.157 Ken DHC enabled=%d proofMode=%d earlyCancel=%d\n",
-            enabled?1:0,proofNative?1:0,earlyCancel?1:0);
+            "XM87.180 Ken DHC enabled=%d proofMode=%d earlyCancel=%d"
+            " experimentalDelayedPrime=%d\n",
+            enabled?1:0,proofNative?1:0,earlyCancel?1:0,
+            delayedPrimeExperimental?1:0);
     }
     void reset(){
         oldRyuProjectiles.reset();
@@ -531,7 +542,18 @@ struct State {
                     event(now,side,ram,earlyCancel?
                           "DHC_158_RYU_TIMER_28_151_ACCEPTED":
                           "DHC_LATE_SUPER_TIMER_WINDOW_ACCEPTED");
-                    if(earlyCancel){
+                    if(earlyCancel && !delayedPrimeExperimental){
+                        // The old 87.179 speculative prime issued attacks
+                        // during Ryu's super and intermittently launched
+                        // native 0002/2C02/2C04 instead of tag 3200.
+                        // Preserve the live super and release DHC-only
+                        // bookkeeping rather than pushing controller 8
+                        // without a verified native acceptance signal.
+                        event(now,side,ram,
+                             "DHC_180_UNVERIFIED_DELAYED_PRIME_SKIPPED");
+                        abort(now,side,ram,
+                             "DHC_180_DELAYED_HANDOFF_RELEASED_NO_NATIVE_EDGE");
+                    }else if(earlyCancel){
                         // Only delayed tags need a fresh native button
                         // edge. There is no pressed edge left by the time
                         // the super reaches +4E<=28 (four failures in
