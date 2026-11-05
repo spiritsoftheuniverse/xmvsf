@@ -11,6 +11,7 @@
 // touching partner, opponent, meter, or Stable.
 #include "xmvsf_stage87_143_super_queue.h"
 #include "xmvsf_stage87_159_projectile_cutoff.h"
+#include "xmvsf_stage87_176_dhc_input_isolation.h" // pure per-frame DHC P1 input gate
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
@@ -258,10 +259,23 @@ struct State {
     // restores the physical SDL button array immediately after that read.
     // It does not set a sprite, A0, D6, or script address. The game's own
     // 68000 command decoder, controller and recovery logic own the super.
-    struct InputMask { bool active=false;unsigned directions=0,attacks=0; };
+    struct InputMask { bool active=false,isolated=false;unsigned directions=0,attacks=0; };
     InputMask inputForFrame(const std::uint8_t*ram,unsigned now)const{
         InputMask m;
         if(!enabled || !ram || rb(ram,0x5000u)!=8u)return m;
+        // 87.175 captured queued QCF+PP at 1865 / 3095 / 3843, but the
+        // *native* PP edge only reached Ryu at 1866 / 3096 / 3844.
+        // Once that input selects DHC, do NOT let the outgoing fighter
+        // interpret the very same physical chord a second time.
+        // Neutralize the P1 CPS input PORT only during a verified DHC
+        // handoff. Do not write the 68000 input-history RAM directly.
+        // Preserve earlyCancel's existing 2/2/3-frame Ken QCF sequence.
+        if(XM87176Input::neutralize(unsigned(phase[0]),
+            rw(ram,0x4052u),rw(ram,0x4852u),enabled,earlyCancel,
+            now,inputBegin[0])){
+            m.active=true;m.isolated=true;
+            return m;
+        }
         if(proofNative && phase[0]==SEND_ROM_TAG_INPUT &&
            rw(ram,0x4052u)==0x12u && inputBegin[0] &&
            now>=inputBegin[0]){
