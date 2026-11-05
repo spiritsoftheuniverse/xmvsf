@@ -1,6 +1,6 @@
 # DHC roster capture audit — 87.167(2), 4 November 2026
 
-**Status: SEALED RECORDING / INPUT-BYTE CORRELATION PASS. RUNTIME PLAYBACK OF THIS NEW CAPTURE NOT YET VERIFIED. 68000 COMMAND RECOGNIZERS NOT YET DECODED.**
+**Status: SEALED RECORDING / INPUT-BYTE CORRELATION PASS / RUNTIME ROM-ACTION REPLAY PASS from `87.167(3).zip`. Full CPU/RAM hashes and 68000 command recognizers remain unverified.**
 
 Source: user-supplied `87.167(2).zip`, SHA-256 `acfe1469894179c27d40eac7eaa460ab1fb4b0076406b35cf9c9a94b5ee8952a`. Do not overwrite it. For baseline replay progress, refer to `REPLAY_87_167_DATA_VERIFICATION.md` (the earlier, shorter 6,395-frame recording).
 
@@ -15,7 +15,7 @@ Source: user-supplied `87.167(2).zip`, SHA-256 `acfe1469894179c27d40eac7eaa460ab
 - **22** distinct roots have physically associated button input and are available for command-recognizer disassembly.
 - **Two** observed roots match the native ROM resolver at runtime but are omitted from both the exported ROM catalog and reverse-engineering JSON: Sabretooth `0A/2E16/0C0E86` and Ryu `12/2E06/0D2E7C`. These are **catalog gaps**, NOT corrupt input and NOT verified command mappings. Revisit selector enumeration bounds or JSON export, never fill the gap by guessing.
 - **Session 8** has 2,058 recorded frames and six checkpoints, but no observed action-2E entry. All eight sessions were recorded; only sessions 1–7 have super-action observations.
-- **No replay_results for this longer recording** are embedded in the archive. Require a fresh `RUN_REPLAY.bat` playback showing `PLAY_END complete_frames=29827`, 68 `CHECKPOINT_LOADED` records, and identical 150-event ROM trace before declaring the multi-roster runtime pipeline validated.
+- **Runtime replay gate PASS from subsequent `87.167(3).zip`:** `PLAY_END complete_frames=29827`, 68/68 `CHECKPOINT_LOADED`, 8 game sessions, 7 session transitions, 0 `REPLAY_DIVERGED`, byte-identical 150-event `rom_super_observed.tsv` plus matching ROM dispatch/catalog/DHC handoff logs. Original capture unchanged. See `REPLAY_87_167_FULL_ROSTER_PLAYBACK_PASS.md` for provenance and diagnostic exceptions.
 
 ## Target roster and actual evidence
 
@@ -50,7 +50,7 @@ ID assignment is cross-checked against known Ryu=12 and Ken=14 native identifier
 
 ## Cast-wide certification rules
 
-1. Treat successful original capture integrity, playback trace equality, and exact 68000 move-command proof as **three different certifications**. Only the first has passed for 29,827-frame capture.
+1. Treat successful original capture integrity, playback trace equality, and exact 68000 move-command proof as **three different certifications**. The first two have passed for the 29,827-frame capture; command-recognizer proof remains pending.
 2. Permanent root `BUILD_TEST.bat`, `RUN_TEST.bat`, and `RUN_REPLAY.bat` names stay unchanged. Existing warm build, Stable runtime, recording files, and native checkpoints are authoritative and untouched.
 3. `VERIFY_DHC_ROM_ACTIONS.py` must validate native input slots and allow zero-frame lag, and report incomplete offline enumeration without falsely labeling it data corruption. A new ROM script is never automatically promoted to an executable DHC command.
 4. Confirm repeatable paired move executions and compare the entire playback `rom_super_observed.tsv` before expanding the gameplay dispatcher.
