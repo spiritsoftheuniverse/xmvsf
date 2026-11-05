@@ -17,9 +17,9 @@ REM 87.183: subframe 68000 trace; delayed priming is unsafe by default.
 set "XM87180_NATIVE_SUBFRAME_LOG=%OBSROOT%\native_subframe_test.tsv"
 REM 87.183: exact 68000 executed-PC trace is opt-in during interactive gameplay.
 REM 87.183: trace only during active native Ryu-Ken handoff.
-if not defined XM87182_NATIVE_PC_TRACE set "XM87182_NATIVE_PC_TRACE=1"
+set "XM87182_NATIVE_PC_TRACE=1"
 REM Safety gate ON for interactive play; no consumed ROM punch edge tags.
-if not defined XM87183_REPLAY_UNSAFE_CONSUMED_EDGE set "XM87183_REPLAY_UNSAFE_CONSUMED_EDGE=0"
+set "XM87183_REPLAY_UNSAFE_CONSUMED_EDGE=0"
 set "XM87182_NATIVE_PC_TRACE_LOG=%OBSROOT%\native_pc_trace_test.tsv"
 REM 87.181 append-only launch health. This marker is created even if
 REM the menu closes without entering a CPS2 driver.
