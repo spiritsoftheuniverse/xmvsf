@@ -7,7 +7,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "tools"))
 from ANALYZE_NATIVE_PC_ARBITRATION_182 import parse
 
 COLUMNS = (
-    "frame phase ordinal region PPC PC_next A6 D0 cycles ordinalCPU changeMask "
+    "frame phase ordinal region PPC fromPPC PC_next A6 D0 D1 cycles ordinalCPU changeMask "
     "RyuAction RyuA0 RyuD6 controller256 controller259 C0 C2 C6 CA"
 ).split()
 
@@ -15,7 +15,8 @@ def row(frame, seq, pc, flags, action, mode, d6, c2, ca):
     d = {
         "frame": str(frame), "phase":"2", "ordinal":str(seq),
         "region":"RYU_COMMAND_DISPATCH", "PPC":f"{pc:06X}",
-        "PC_next":f"{pc+2:06X}", "A6":"FF4000", "D0":"0000000A",
+        "fromPPC":f"{0x020906:06X}", "D1":"00000004",
+        "PC_next":f"{pc+2:06X}", "A6":"FF4000", "D0":"0000002C",
         "cycles":"12", "ordinalCPU":str(seq), "changeMask":f"{flags:02X}",
         "RyuAction":f"{action:04X}", "RyuA0":f"{mode:04X}",
         "RyuD6":f"{d6:02X}", "controller256":"00", "controller259":"08",
@@ -54,6 +55,7 @@ def run():
         assert len(frames)==3, frames
         assert frames[0]["action_changes"][0]["executed_pc"]=="033000"
         assert frames[1]["action_changes"][0]["executed_pc"]=="123456"
+        assert frames[1]["action_changes"][0]["previous_executed_pc"]=="020906"
         assert frames[1]["trace_truncated"] is True
         assert frames[2]["action_changes"]==[]
         print("PASS 87.182: exact native wrong-action writer PCs and bounded trace diagnostics")
