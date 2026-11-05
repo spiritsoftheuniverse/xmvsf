@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# Stage 87.167 experimental TEST builder. Called ONLY by root BUILD_TEST.bat.
+# Stage 87.175 observer-enabled TEST builder. Called ONLY by root BUILD_TEST.bat.
 # Build the CURRENT local source in place using the warm FBNeo object cache.
 # Never touch Stable executable, Stable manifests, user source, or old TEST binaries.
 set -euo pipefail
 PROJECT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
-# Permanent 87.167 build transcript. This starts BEFORE checking toolchains,
+# Permanent 87.175 build transcript. This starts BEFORE checking toolchains,
 # source files or running make. Never hide fatal compiler/linker diagnostics.
 # Tee preserves live console output and an on-disk copy. Logs live outside
 # the buildtree so incremental make objects and Stable remain untouched.
@@ -21,13 +21,13 @@ if ! command -v tee >/dev/null; then
   exit 2
 fi
 exec > >(tee -a "$LOG_FILE") 2>&1
-printf '\n========== XMVSF TEST 87.167 BUILD BEGIN %s ==========' "$(date '+%Y-%m-%d %H:%M:%S')"
+printf '\n========== XMVSF TEST 87.175 BUILD BEGIN %s ==========' "$(date '+%Y-%m-%d %H:%M:%S')"
 printf '\nProject: %s\nLog: %s\n' "$PROJECT" "$LOG_FILE"
 trap 'rc=$?; trap - EXIT; printf "XMVSF BUILD END rc=%s time=%s log=%s\n" "$rc" "$(date "+%Y-%m-%d %H:%M:%S")" "$LOG_FILE"; exit "$rc"' EXIT
 
 TREE="$PROJECT/dev/stable/buildtree"
-DEST="$PROJECT/runtime/stable/XMVSF_Test_87_167.exe"
-PENDING="$PROJECT/runtime/stable/.XMVSF_Test_87_167_pending.exe"
+DEST="$PROJECT/runtime/stable/XMVSF_Test_87_175.exe"
+PENDING="$PROJECT/runtime/stable/.XMVSF_Test_87_175_pending.exe"
 
 if [[ ! -f "$TREE/makefile.sdl2" || ! -f "$TREE/src/burn/drv/capcom/xmvsf_stage87_144_native_handoff.h" ]]; then
   echo "ERROR: Current Stage 87.167 source was not pulled into $TREE" >&2
@@ -45,7 +45,7 @@ fi
 
 # Preserve warm cache and anything already built on failures. Never run make clean.
 cd "$TREE"
-echo "XMVSF Stage 87.167 TEST: incremental build; preserving cached objects"
+echo "XMVSF Stage 87.175 TEST: incremental build; preserving cached objects"
 echo "Dependencies: GNU Make + persistent obj/**/*.d header dependency files"
 # The FBNeo makefile already runs a two-pass dependency-aware build:
 #   MAKELEVEL=1 generates missing/stale .d files and builds changed objects;
@@ -114,6 +114,9 @@ required_markers=(
   "FAST_157_KEN_2A08_CANCEL_TO_VERIFIED_ROM_IDLE"
   "FAST_157_KEN_NATIVE_TWO_BUTTON_EDGE"
   "DHC_NATIVE_INPUT_DISPATCH_ACCEPTED"
+  "XM87.175 OBSERVER SESSION"
+  "POST_CPU_PRE_DHC"
+  "POST_HOST_DHC_CHANGED"
   "DHC_NATIVE_INPUT_NO_SUPER_ROM_ACCEPT"
   "KEN_INPUT_DISPATCH_TIMEOUT_UNLOCKED"
   "XM87.153 TRAINING_OPTIONS_LOADED"
@@ -158,4 +161,4 @@ if [[ ! -s "$PENDING" ]]; then
 fi
 mv -f "$PENDING" "$DEST"
 echo "TEST BUILD READY: $DEST"
-echo "Stage 87.167: F9 multi-session recording FINAL seal + normal-exit recovery; DHC, warm cache, and Stable preserved."
+echo "Stage 87.175: opt-in native acceptance observer; F9 multi-session recording FINAL seal + normal-exit recovery; DHC, warm cache, and Stable preserved."
