@@ -183,6 +183,22 @@ struct State {
             wb(ram,p+0x259u,captured259[side]);
             event(now,side,ram,"DHC_178_STALE_HOST_259_LATCH_CLEARED");
         }
+        // 87.178 showed the leftover host-staged 002A mode surviving
+        // for 10-20 frames after controller-8 timeout. Restore ONLY
+        // the original captured Ryu 2A28/2A02 mode if the same native
+        // 2E08 super action and D6 still own the actor. Never change
+        // a ROM-selected 0002, 3200, or an incoming Ken animation.
+        if(XM87179Edge::canRestoreStagedMode(unsigned(phase[side]),
+                enabled,earlyCancel,rw(ram,p+0x52u),
+                rw(ram,p+0x852u),outgoing[side],incoming[side],
+                rw(ram,p+0x60u),capturedAction[side],
+                rw(ram,p+0xA0u),capturedMode[side],
+                rb(ram,p+0xD6u),capturedD6[side],
+                rb(ram,p+0x256u),0x08u,captured259[side])){
+            ww(ram,p+0xA0u,capturedMode[side]);
+            event(now,side,ram,
+                  "DHC_179_ABANDONED_HOST_002A_RESTORED_TO_CAPTURED_MODE");
+        }
         phase[side]=FAILED;
         event(now,side,ram,reason);
         if(side==0u)oldRyuProjectiles.abort(now,
