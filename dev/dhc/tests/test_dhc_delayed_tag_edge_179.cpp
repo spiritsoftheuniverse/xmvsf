@@ -2,6 +2,7 @@
 // Does not execute original ROM code or claim in-game acceptance.
 #include <cassert>
 #include <cstdio>
+#include <initializer_list>
 #include "../../stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_179_delayed_tag_edge.h"
 #include "../../stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_176_dhc_input_isolation.h"
 #include "../../stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_178_tag_latch_recovery.h"
