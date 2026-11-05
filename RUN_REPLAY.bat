@@ -163,6 +163,14 @@ if exist "%XM8761_REPLAY_STATUS_LOG%" (
 ) else (
   echo WARNING: No replay status log produced. Confirm ROM launched and first frame executed.
 )
+REM Summarize read-only native acceptance trace without changing replay status.
+if exist "%XM87175_DHC_OBSERVER_LOG%" (
+  where python.exe >nul 2>nul
+  if not errorlevel 1 (
+    python.exe "%PROJECT%\dev\dhc\tools\ANALYZE_DHC_NATIVE_OBSERVER_175.py" --input "%XM87175_DHC_OBSERVER_LOG%" --out "%OBSROOT%\dhc_acceptance_replay_summary.json"
+    if errorlevel 1 echo WARNING: Observer report failed, original TSV preserved.
+  )
+)
 echo Output: "%TRACE%"
 pause
 exit /b %RC%
@@ -271,6 +279,14 @@ if "%RC%"=="0" (
   )
 ) else (
   echo ERROR: Replay executable failed; ROM action verification not claimed.
+)
+REM Post-replay observer is independent of ROM action verification and exit status.
+if exist "%XM87175_DHC_OBSERVER_LOG%" (
+  where python.exe >nul 2>nul
+  if not errorlevel 1 (
+    python.exe "%PROJECT%\dev\dhc\tools\ANALYZE_DHC_NATIVE_OBSERVER_175.py" --input "%XM87175_DHC_OBSERVER_LOG%" --out "%OBSROOT%\dhc_acceptance_replay_summary.json"
+    if errorlevel 1 echo WARNING: Observer summary failed, replay result preserved.
+  )
 )
 pause
 exit /b %RC%
