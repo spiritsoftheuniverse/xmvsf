@@ -19,6 +19,7 @@
 #include "../../../burner/sdl/xmvsf_stage87_139_probe.h" // XM87.139 read-only F10 input/native diagnostic
 #include "../../../burner/sdl/xmvsf_stage87_140_super_chat.h" // XM87.140 native super-input chat (no writes)
 #include "xmvsf_stage87_142_rom_dispatch.h" // 87.142 pure native script table+tag observer
+#include "xmvsf_stage87_175_native_accept_observer.h" // 87.175 read-only native 68000 vs host DHC trace
 #include "xmvsf_stage87_144_native_handoff.h" // opt-in DHC-only native action transaction TEST
 #include "xmvsf_stage87_160_super_discovery.h" // read-only roster-wide native 2E ROM/script and input discovery
 #include "../../../burner/sdl/xmvsf_stage87_162_replay_sync.h" // exact F9 movie-frame index for native action logs
@@ -783,8 +784,19 @@ INT32 Cps2Frame()
         const unsigned dhcWindow=(XM87140Chat::state().candidate[0]?1u:0u) |
                                  (XM87140Chat::state().candidate[1]?2u:0u);
         const XM87144::Phase phaseBefore=XM87144::state().phase[0];
+        // 87.175 observer: snapshots AFTER native 68000 CPU execution but
+        // BEFORE DHC's host frame callback can write state. Opt-in only.
+        XM87175Observer::state().postCpu(
+            CpsRamFF,(unsigned)GetCurrentFrame(),
+            XM87162ReplaySync::movieFrame(),XM87144::phaseName(phaseBefore),
+            dhcInput.active,dhcInput.directions,dhcInput.attacks);
         XM87144::state().frame(CpsRamFF,CpsRom,(unsigned)nCpsRomLen,
             (unsigned)GetCurrentFrame(),dhcWindow);
+        XM87175Observer::state().postDhc(
+            CpsRamFF,(unsigned)GetCurrentFrame(),
+            XM87162ReplaySync::movieFrame(),
+            XM87144::phaseName(XM87144::state().phase[0]),
+            dhcInput.active,dhcInput.directions,dhcInput.attacks);
         // ROM may regenerate the detached projectile attack descriptors
         // each frame. Capture late Ryu-spawned objects until Ken swaps;
         // suppress their offense after CPU and before the next CPU frame.
