@@ -790,6 +790,10 @@ INT32 Cps2Frame()
             xm87140_p1_dir,xm87140_p2_dir,
             xm8786_p1_buttons,xm8786_p2_buttons,
             romReport.verifiedSuperMask);
+        if(dhcInput.priming)
+            XM87140Chat::state().log((unsigned)GetCurrentFrame(),
+                XM87140Chat::SYSTEM,
+                "DHC_179_NATIVE_2P_PORT_EDGE_PREPARED_BEFORE_CONTROLLER_08");
         if(xm87177PrequeueThreePunch)
             XM87140Chat::state().log((unsigned)GetCurrentFrame(),
                 XM87140Chat::SYSTEM,
