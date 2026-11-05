@@ -37,12 +37,14 @@ def main():
             "# XM87.175 OBSERVER SESSION: reset",
             "\t".join(HEADER),
             line(5, "POST_CPU_PRE_DHC", "0000"),
+            line(4, "POST_CPU_PRE_DHC", "2E00"),
         ]) + "\n", encoding="utf-8")
         result = consume(p)
         counts = result["counts"]
         assert counts["sessions"] == 2, result
+        assert counts["frame_resets_within_session"] == 1, result
         assert counts["post_cpu_2e_echo_of_host_write"] == 1, result
-        assert counts["post_cpu_2e_action_transitions"] == 1, result
+        assert counts["post_cpu_2e_action_transitions"] == 2, result
         assert counts["host_changed_actor_rows"] == 1, result
         assert counts.get("malformed_rows", 0) == 0, result
         assert counts.get("unparsed_rows", 0) == 0, result
