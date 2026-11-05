@@ -183,6 +183,18 @@ if exist "%XM87160_PRIVATE_ROM_DIR%\xmvsfu_program_data_host_swapped.bin" (
   )
 )
 echo.
+REM After closing the game, derive compact observer results WITHOUT changing the run return code.
+if exist "%XM87175_DHC_OBSERVER_LOG%" (
+  where python.exe >nul 2>nul
+  if not errorlevel 1 (
+    python.exe "%PROJECT%\dev\dhc\tools\ANALYZE_DHC_NATIVE_OBSERVER_175.py" --input "%XM87175_DHC_OBSERVER_LOG%" --out "%OBSROOT%\dhc_acceptance_test_summary.json"
+    if errorlevel 1 echo WARNING: Observer summary failed; original TSV and gameplay result preserved.
+  ) else (
+    echo INFO: Python missing. Observer TSV remains available for upload.
+  )
+) else (
+  echo WARNING: Native 87.175 observer TSV was not written: "%XM87175_DHC_OBSERVER_LOG%"
+)
 echo Stage 87.175 TEST exit code: %RC%
 echo Probe directory: %XM87139_PROBE_DIR%
 pause
