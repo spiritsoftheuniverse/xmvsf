@@ -19,6 +19,10 @@ static inline bool neutralize(unsigned phase, unsigned point, unsigned reserve,
     // WAIT_RYU_SUPER_END (9). Keep a held 3P from leaking to the 68000
     // while the outgoing super waits for its native tag window.
     if(phase==9u)return ryuPoint;
+    // 87.179 priming phase: the generated one-shot LP+MP takes precedence
+    // at the inputForFrame call site; if eligibility is lost, default to
+    // neutral P1 rather than leaking an unrelated physical 3P/dash.
+    if(phase==11u)return ryuPoint;
     if(phase==4u || phase==5u)return kenPoint;
     // 87.177: keep the P1 port neutral if a held physical 3P survives
     // beyond Ken's 9-frame native QCF+2P sequence. Otherwise the native
