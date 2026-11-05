@@ -35,9 +35,10 @@ def main():
         assert info["roots"] == 1
         assert info["akuma_sequence_matches"] == 1
         assert result["events"][0]["lag_frames"] == 0
-        assert result["events"][0]["recent_edges"][0].get("checkpoint_baseline")
-        # Directly verify input history did not fabricate a button at the
-        # first segment frame, and the final HP actually occurred at frame 60.
+        assert not any(e.get("checkpoint_baseline") for e in
+                       result["events"][0]["recent_edges"])
+        # Verify the actual recorded five-input order; unlike a segment-start
+        # snapshot, this window begins with a known prior frame.
         match = result["akuma_shun_goku_satsu_sequences"][0]["sequence_matches"][0]
         assert [button for frame, button in match] == [
             "LP", "LP", "R", "LK", "HP"]
