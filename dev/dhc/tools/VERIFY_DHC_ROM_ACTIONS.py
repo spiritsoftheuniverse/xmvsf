@@ -159,6 +159,138 @@ def correlate(integrity, segments, frames, observed, catalog, discovery):
     }
 
 
+
+def export_command_evidence(data, destination):
+    """Extract native, checkpoint-bounded button edges; never authorize a DHC move."""
+    integrity, segments, frames, observed, catalog, discovery = data
+    root_counts = {}
+    physical_events = []
+    names = ("LP", "MP", "HP", "LK", "MK", "HK")
+
+    def state(row, side):
+        base = 0 if side == 1 else 12
+        direction = "".join(char for index, char in (
+            (2, "U"), (3, "D"), (4, "L"), (5, "R")) if row[base + index])
+        buttons = sum(1 << i for i in range(6) if row[base + i + 6])
+        return direction or "N", buttons
+
+    for obs in observed:
+        if obs["input_origin"] != "PHYSICAL_CANDIDATE":
+            continue
+        movie = int(obs["movie_input_frame"])
+        side = int(obs["side"])
+        seg = next(x for x in segments if x["start"] <= movie < x["end"])
+        lag = int(obs["frame"]) - int(obs["last_input_frame"])
+        input_frame = movie - lag
+        require(0 <= lag <= 18 and input_frame >= seg["start"],
+                "Physical input crossed checkpoint during evidence extraction")
+        start = max(seg["start"], input_frame - 48)
+        edges = []
+        # At the start of a saved segment the previous input is unknown:
+        # the first row is a baseline, NEVER an invented button press.
+        previous = frames[start - 1] if start > seg["start"] else None
+        for frame in range(start, movie + 1):
+            row = frames[frame]
+            direction, buttons = state(row, side)
+            if previous is None:
+                edges.append({"movie_frame": frame, "direction": direction,
+                              "checkpoint_baseline": True})
+            else:
+                old_dir, old_buttons = state(previous, side)
+                press = buttons & ~old_buttons
+                release = old_buttons & ~buttons
+                if press or release or direction != old_dir:
+                    edges.append({"movie_frame": frame,
+                                  "direction": direction,
+                                  "pressed": [name for i, name in enumerate(names)
+                                              if press & (1 << i)],
+                                  "released": [name for i, name in enumerate(names)
+                                               if release & (1 << i)]})
+            previous = row
+        observed_mask = state(frames[input_frame], side)[1]
+        require(observed_mask == int(obs["last_input_mask"], 16),
+                "Extracted event input mismatch")
+        key = (obs["fighter_id"], obs["selector"], obs["native_script"])
+        root_counts[key] = root_counts.get(key, 0) + 1
+        physical_events.append({
+            "fighter_id": key[0], "action": "2E", "selector": key[1],
+            "script": key[2], "side": side,
+            "session": seg["session"], "segment": seg["index"],
+            "movie_frame": movie, "rom_frame": int(obs["frame"]),
+            "physical_input_frame": input_frame, "lag_frames": lag,
+            "chord": "+".join(names[i] for i in range(6)
+                               if observed_mask & (1 << i)),
+            "motion_hint": obs["motion_hint"],
+            "motion_path": obs["motion_path"], "recent_edges": edges,
+            "classification": "INPUT_CORRELATED_NOT_68000_VERIFIED"
+        })
+
+    roots = [{"fighter_id": k[0], "selector": k[1], "script": k[2],
+              "physical_observations": n,
+              "classification": "NATIVE_ROM_ROOT_NOT_COMMAND_RECOGNIZER"}
+             for k, n in sorted(root_counts.items())]
+    demon = []
+    for record in physical_events:
+        if (record["fighter_id"], record["selector"], record["script"]) != (
+                "1E", "0C", "0EB986"):
+            continue
+        tokens = []
+        previous_direction = None
+        for edge in record["recent_edges"]:
+            direction = edge["direction"]
+            if edge.get("checkpoint_baseline"):
+                previous_direction = direction
+                continue
+            if direction == "R" and previous_direction != "R":
+                tokens.append((edge["movie_frame"], "R"))
+            tokens.extend((edge["movie_frame"], button)
+                          for button in edge.get("pressed", []))
+            previous_direction = direction
+        target = ["LP", "LP", "R", "LK", "HP"]
+        matches = [tokens[i:i + 5] for i in range(max(0, len(tokens) - 4))
+                   if [item[1] for item in tokens[i:i + 5]] == target
+                   and tokens[i + 4][0] - tokens[i][0] <= 48]
+        demon.append({
+            "movie_frame": record["movie_frame"],
+            "sequence_matches": matches,
+            "classification": "INPUT_SEQUENCE_MATCHED_DECODER_NOT_DECODED"
+        })
+
+    out = Path(destination)
+    require(out.resolve() != Path(".").resolve(),
+            "Refusing to write evidence into project root")
+    out.mkdir(parents=True, exist_ok=True)
+    report = {
+        "schema": "xmvsf-dhc-command-evidence-v1",
+        "status": "READ_ONLY_INPUT_EVIDENCE",
+        "movie_frames": integrity["frames"],
+        "recorded_action_events": len(observed),
+        "physical_button_matches": len(physical_events),
+        "input_associated_roots": len(roots),
+        "rom_command_recognizer_decoded": False,
+        "akuma_shun_goku_satsu_sequences": demon,
+        "candidate_roots": roots,
+        "events": physical_events
+    }
+    (out / "dhc_command_evidence.json").write_text(
+        json.dumps(report, indent=2) + "\n", encoding="utf-8")
+    with (out / "dhc_command_events.csv").open(
+            "w", newline="", encoding="utf-8") as handle:
+        cols = ("fighter_id", "action", "selector", "script", "side",
+                "session", "segment", "movie_frame", "rom_frame",
+                "physical_input_frame", "lag_frames", "chord",
+                "motion_hint", "motion_path", "recent_edges",
+                "classification")
+        writer = csv.DictWriter(handle, fieldnames=cols)
+        writer.writeheader()
+        for record in physical_events:
+            writer.writerow({k: json.dumps(record[k], separators=(",", ":"))
+                             if k == "recent_edges" else record[k] for k in cols})
+    return {"path": str(out), "physical_events": len(physical_events),
+            "roots": len(roots), "akuma_sequence_matches":
+            sum(bool(x["sequence_matches"]) for x in demon)}
+
+
 def compare_trace(reference, directory, expected_frames, expected_segments):
     # The permanent RUN_REPLAY.bat marks each run in a separate status log.
     # Require a complete, NEW replay before comparing event data.
@@ -198,6 +330,7 @@ def main():
     p.add_argument("capture", help="TEST version folder, session folder, or capture ZIP")
     p.add_argument("--replay-results",
                    help="Fresh RUN_REPLAY.bat replay_results folder")
+    p.add_argument("--evidence-out", help="Write read-only per-input DHC evidence here")
     args = p.parse_args()
     data = load_capture(args.capture)
     report = correlate(*data)
@@ -205,6 +338,8 @@ def main():
         report["playback_comparison"] = compare_trace(
             data[3], args.replay_results, data[0]["frames"], data[0]["segments"])
         report["runtime_playback"] = "CHECKPOINT_LOADS_AND_ROM_TRACE_MATCHED; NO_CPU_HASH"
+    if args.evidence_out:
+        report["evidence_export"] = export_command_evidence(data, args.evidence_out)
     print(json.dumps(report, indent=2))
 
 
