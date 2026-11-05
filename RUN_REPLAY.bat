@@ -4,10 +4,16 @@ for %%I in ("%~dp0.") do set "PROJECT=%%~fI"
 set "MSYSTEM=UCRT64"
 set "PATH=C:\msys64\ucrt64\bin;C:\msys64\usr\bin;%PATH%"
 set "XMVSF_PROJECT=%PROJECT%"
+REM 87.175 replay observer writes outside original replay/checkpoint folders.
+set "OBSROOT=%PROJECT%\test\87.175\observer"
+if not exist "%OBSROOT%" mkdir "%OBSROOT%"
+if not exist "%OBSROOT%" goto :fail
+set "XM87175_DHC_OBSERVER=1"
+set "XM87175_DHC_OBSERVER_LOG=%OBSROOT%\dhc_acceptance_replay.tsv"
 REM Dedicated replay channel. Existing BUILD_TEST/RUN_TEST names are unchanged.
 REM Replay the original 87.161 F9 full-state + exact CPS2 inputs without
 REM creating replacement ROM scripts, patching native input, or touching Stable.
-set "EXE=%PROJECT%\runtime\stable\XMVSF_Test_87_167.exe"
+set "EXE=%PROJECT%\runtime\stable\XMVSF_Test_87_175.exe"
 if not exist "%EXE%" (
   echo ERROR: Need existing XMVSF_Test_87_167.exe. Run BUILD_TEST.bat.
   goto :fail
@@ -26,8 +32,8 @@ if not "%~1"=="" (
 )
 REM Current v2 recordings live alongside the current version's replay
 REM files so they are included in ordinary versioned test ZIPs.
-if not defined V2_SESSION if exist "%PROJECT%\test\87.167\replays\latest.txt" (
-  for /f "usebackq delims=" %%S in ("%PROJECT%\test\87.167\replays\latest.txt") do set "V2_SESSION=%%S"
+if not defined V2_SESSION if exist "%PROJECT%\test\87.175\replays\latest.txt" (
+  for /f "usebackq delims=" %%S in ("%PROJECT%\test\87.175\replays\latest.txt") do set "V2_SESSION=%%S"
 )
 REM Keep replays available even AFTER a version bump: find the latest
 REM completed session in older numbered TEST directories, newest first.
@@ -83,7 +89,7 @@ REM The 87.161 movie was recorded with Training host controls. Bypass
 REM the application's original boot selector and start the CPS2 driver
 REM immediately; otherwise no input movie frame is ever consumed.
 set "XM8761_REPLAY_HOST_MODE=training"
-set "XM8761_REPLAY_DIR=%PROJECT%\test\87.167\replays"
+set "XM8761_REPLAY_DIR=%PROJECT%\test\87.175\replays"
 set "XM8761_REPLAY_INPUT_FILE=%MOVIE%"
 set "XM8761_REPLAY_STATE_FILE=%STATE%"
 set "XM8761_DISABLE_RUNAHEAD=1"
@@ -98,7 +104,7 @@ set "XM8796_DIZZY_HANDOFF_TEST=1"
 set "XM8799_GROUND_DEFENSE_TEST=1"
 REM Fresh replay diagnostics must NEVER overwrite the submitted 87.161
 REM original session logs or the saved movie pair.
-set "TRACE=%PROJECT%\test\87.167\replay_results"
+set "TRACE=%PROJECT%\test\87.175\replay_results"
 if not exist "%TRACE%" mkdir "%TRACE%"
 if not exist "%TRACE%" (
   echo ERROR: Cannot create isolated replay results directory.
@@ -207,7 +213,7 @@ set "XM8786_STORM_BUTTON_TEST=1"
 set "XM8795_NATIVE_HIT_TEST=1"
 set "XM8796_DIZZY_HANDOFF_TEST=1"
 set "XM8799_GROUND_DEFENSE_TEST=1"
-set "TRACE=%PROJECT%\test\87.167\replay_results"
+set "TRACE=%PROJECT%\test\87.175\replay_results"
 if not exist "%TRACE%" mkdir "%TRACE%"
 if not exist "%TRACE%" goto :fail
 REM Keep all replay-time host diagnostics outside the original F9 session.
@@ -224,7 +230,7 @@ set "XM87160_DISCOVER=1"
 set "XM87160_CATALOG_LOG=%TRACE%\rom_super_catalog.tsv"
 set "XM87160_OBSERVED_LOG=%TRACE%\rom_super_observed.tsv"
 echo.
-echo XMVSF HOST-AWARE F9 REPLAY V2 - CURRENT TEST 87.167
+echo XMVSF HOST-AWARE F9 REPLAY V2 - CURRENT TEST 87.175
 echo Manifest: "%V2_SESSION%\manifest.tsv"
 echo Application menu, game resets, native savestate reloads and inputs
 echo will follow the recorded session/checkpoint timeline.
