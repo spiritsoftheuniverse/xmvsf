@@ -124,10 +124,12 @@ set "XM8795_NATIVE_HIT_TEST=1"
 set "XM8796_DIZZY_HANDOFF_TEST=1"
 set "XM8799_GROUND_DEFENSE_TEST=1"
 set "XM87149_TOURNAMENT_AUDIT=%XM87140_CHAT_DIR%\tournament_rules.tsv"
-echo 87.175 READ-ONLY NATIVE OBSERVER: %XM87175_DHC_OBSERVER_LOG%
+echo 87.181 STARTUP HEALTH: %XM87181_DIAGNOSTIC_STATUS%
+echo 87.175 NATIVE OBSERVER: %XM87175_DHC_OBSERVER_LOG%
+echo Native actor rows require a running XMVSF combat session; menu exit writes health only.
 echo 87.181: QCF+LP+MP / LP+HP / MP+HP / 3P triggers Ken, 3P dash suppressed.
 echo 87.181: Ken native QCF+2P and instant, no-charge arrival preserved.
-echo 87.181: delayed DHC pre-primes a native 2P edge before controller 8.
+echo 87.181: UNSAFE delayed native 2P priming stays OFF in interactive TEST.
 echo 87.181: immediate 3P/2P paths, Ken no-charge arrival, and F9 stay intact.
 echo 87.181: delayed DHC input priming disabled by default, preserves original ROM state.
 echo XMVSF Stage 87.181 TEST - KEEP KEN SHORYUREPPA; CUT OUTGOING RYU PROJECTILE HITS
