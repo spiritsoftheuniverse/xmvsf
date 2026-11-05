@@ -12,6 +12,7 @@
 #include "xmvsf_stage87_143_super_queue.h"
 #include "xmvsf_stage87_159_projectile_cutoff.h"
 #include "xmvsf_stage87_176_dhc_input_isolation.h" // pure per-frame DHC P1 input gate
+#include "xmvsf_stage87_177_dhc_punch_chords.h" // explicit 3P host / native 2P helper dependency
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
