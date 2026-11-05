@@ -44,6 +44,20 @@ def main():
             "LP", "LP", "R", "LK", "HP"]
         assert [frame for frame, button in match] == [20,30,40,45,60]
 
+    # A checkpoint's very first input byte is a baseline, NOT a new LP edge.
+    frames[0][6] = 1
+    first = dict(observed[0])
+    first.update({"frame": "0", "movie_input_frame": "0",
+                  "last_input_frame": "0", "last_input_mask": "01"})
+    with TemporaryDirectory(prefix="dhc_segment_baseline_") as temp:
+        export_command_evidence(
+            ({"frames":65}, [{"session":1,"index":0,"start":0,"end":65}],
+             frames,[first],[],{"candidates":[]}), temp)
+        baseline = json.loads((Path(temp)/"dhc_command_evidence.json").read_text())
+        entry = baseline["events"][0]["recent_edges"][0]
+        assert entry["checkpoint_baseline"] is True
+        assert "pressed" not in entry
+
     # Synthetic private data ROM validates the exact original table arithmetic.
     rom = bytearray(0xF0000)
     table, section, script = 0xE8000, 0xE9000, 0xEB986
