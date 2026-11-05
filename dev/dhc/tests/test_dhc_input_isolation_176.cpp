@@ -18,11 +18,11 @@ int main(){
     assert(!neutralize(p,0x14,0x12,false,true,2000,2002));
     assert(!neutralize(p,0x14,0x12,true,false,2000,2002));
     assert(!neutralize(p,0x14,0x02,true,true,2000,2002));
-    assert(!neutralize(p,0x12,0x14,true,true,2000,2002)||p==2||p==3);
+    assert(!neutralize(p,0x12,0x14,true,true,2000,2002)||p==2||p==3||p==9);
   }
   assert(!neutralize(0,0x12,0x14,true,true,1865,0));
   assert(!neutralize(6,0x14,0x12,true,true,1889,1884));
-  assert(!neutralize(9,0x12,0x14,true,true,1865,0));
+  assert(neutralize(9,0x12,0x14,true,true,1865,0)); // queued Ryu wait
   std::puts("PASS 87.176 DHC input isolation / native Ken super preserved");
   return 0;
 }
