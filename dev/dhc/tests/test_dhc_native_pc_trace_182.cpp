@@ -25,7 +25,8 @@ int (*m68k_get_insn_cb(void))(int){return currentCallback;}
 void m68k_set_insn_cb(int (*f)(int)){currentCallback=f;}
 unsigned int m68k_get_reg(void*,m68k_register_t r){
     if(r==M68K_REG_A6)return 0xFF4000u;
-    if(r==M68K_REG_D0)return 0x0000000Au;
+    if(r==M68K_REG_D0)return 0x0000002Cu;
+    if(r==M68K_REG_D1)return 0x00000004u;
     return 0u;
 }
 }
@@ -70,6 +71,8 @@ int main(int argc,char**argv){
     currentCallback(12);
     assert(obs.count==4u && obs.entries[3].pc==0x123456u);
     assert(obs.entries[3].changed&1u);
+    assert(obs.entries[3].fromPc==0x033000u);
+    assert(obs.entries[3].d0==0x2Cu && obs.entries[3].d1==0x04u);
     assert(priorCalled==4u); // wrapped previous callback still ran
     obs.end();
     assert(!obs.active && currentCallback==originalCallback);
