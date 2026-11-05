@@ -5,7 +5,7 @@ set "MSYSTEM=UCRT64"
 set "PATH=C:\msys64\ucrt64\bin;C:\msys64\usr\bin;%PATH%"
 set "XMVSF_PROJECT=%PROJECT%"
 REM 87.175 read-only native state trace. Fails closed if logs cannot be saved.
-set "OBSROOT=%PROJECT%\test\87.181\observer"
+set "OBSROOT=%PROJECT%\test\87.182\observer"
 if not exist "%OBSROOT%" mkdir "%OBSROOT%"
 if not exist "%OBSROOT%" (
   echo ERROR: Cannot create 87.175 native observer log directory.
@@ -13,8 +13,11 @@ if not exist "%OBSROOT%" (
 )
 set "XM87175_DHC_OBSERVER=1"
 set "XM87175_DHC_OBSERVER_LOG=%OBSROOT%\dhc_acceptance_test.tsv"
-REM 87.181: subframe 68000 trace; delayed priming is unsafe by default.
+REM 87.182: subframe 68000 trace; delayed priming is unsafe by default.
 set "XM87180_NATIVE_SUBFRAME_LOG=%OBSROOT%\native_subframe_test.tsv"
+REM 87.182: exact 68000 executed-PC trace is opt-in during interactive gameplay.
+if not defined XM87182_NATIVE_PC_TRACE set "XM87182_NATIVE_PC_TRACE=0"
+set "XM87182_NATIVE_PC_TRACE_LOG=%OBSROOT%\native_pc_trace_test.tsv"
 REM 87.181 append-only launch health. This marker is created even if
 REM the menu closes without entering a CPS2 driver.
 set "XM87181_DIAGNOSTIC_STATUS=%OBSROOT%\observer_health_test.log"
@@ -24,9 +27,9 @@ if errorlevel 1 (
   goto :fail
 )
 if not defined XM87180_EXPERIMENTAL_DELAYED_PRIME set "XM87180_EXPERIMENTAL_DELAYED_PRIME=0"
-set "EXE=%PROJECT%\runtime\stable\XMVSF_Test_87_181.exe"
+set "EXE=%PROJECT%\runtime\stable\XMVSF_Test_87_182.exe"
 if not exist "%EXE%" (
-  echo ERROR: Stage 87.181 TEST executable is missing.
+  echo ERROR: Stage 87.182 TEST executable is missing.
   echo Run BUILD_TEST.bat first. Will NOT fall back to 87.132.4 or Stable.
   goto :fail
 )
@@ -43,7 +46,7 @@ REM The original 87.61 recorder remains available when this root is absent.
 REM V2 F9 sessions now live INSIDE the same current TEST replay folder
 REM users already package and inspect, not hidden under test\replay_sessions.
 REM Every F9 recording gets manifest.tsv + .fs + .bin in its own subfolder.
-set "XM8764_REPLAY_ROOT=%PROJECT%\test\87.181\replays"
+set "XM8764_REPLAY_ROOT=%PROJECT%\test\87.182\replays"
 if not exist "%XM8764_REPLAY_ROOT%" mkdir "%XM8764_REPLAY_ROOT%"
 if not exist "%XM8764_REPLAY_ROOT%" (
   echo ERROR: Cannot create permanent app-level replay recording directory.
@@ -52,7 +55,7 @@ if not exist "%XM8764_REPLAY_ROOT%" (
 REM Even an F9 directory or save failure gets a permanent, uploadable
 REM diagnostic next to the new recordings (the game is not a console).
 set "XM8764_REPLAY_STATUS_FILE=%XM8764_REPLAY_ROOT%\F9_status.log"
->>"%XM8764_REPLAY_STATUS_FILE%" echo ===== 87.181 TEST session %DATE% %TIME% =====
+>>"%XM8764_REPLAY_STATUS_FILE%" echo ===== 87.182 TEST session %DATE% %TIME% =====
 echo.
 echo F9 recording root: "%XM8764_REPLAY_ROOT%"
 echo F9 persistent status: "%XM8764_REPLAY_STATUS_FILE%"
@@ -63,15 +66,15 @@ REM Restore original native state-anchored F9 recorder (XM87.61/XM87.132).
 REM F9 starts/stops each independent full-state + input movie.
 REM The recorder requires an existing replay directory, not an invented
 REM input format or a new launcher.
-set "XM8761_REPLAY_DIR=%PROJECT%\test\87.181\replays"
+set "XM8761_REPLAY_DIR=%PROJECT%\test\87.182\replays"
 if not exist "%XM8761_REPLAY_DIR%" mkdir "%XM8761_REPLAY_DIR%"
 if not exist "%XM8761_REPLAY_DIR%" (
   echo ERROR: Cannot create native input replay directory.
   goto :fail
 )
 set "XM8761_REPLAY_MODE=off"
-set "XM87139_PROBE_DIR=%PROJECT%\test\87.181"
-set "XM87140_CHAT_DIR=%PROJECT%\test\87.181"
+set "XM87139_PROBE_DIR=%PROJECT%\test\87.182"
+set "XM87140_CHAT_DIR=%PROJECT%\test\87.182"
 if not exist "%XM87139_PROBE_DIR%" mkdir "%XM87139_PROBE_DIR%"
 if not exist "%XM87139_PROBE_DIR%" (
   echo ERROR: Cannot create diagnostic output directory.
@@ -124,15 +127,15 @@ set "XM8795_NATIVE_HIT_TEST=1"
 set "XM8796_DIZZY_HANDOFF_TEST=1"
 set "XM8799_GROUND_DEFENSE_TEST=1"
 set "XM87149_TOURNAMENT_AUDIT=%XM87140_CHAT_DIR%\tournament_rules.tsv"
-echo 87.181 STARTUP HEALTH: %XM87181_DIAGNOSTIC_STATUS%
+echo 87.182 STARTUP HEALTH: %XM87181_DIAGNOSTIC_STATUS%
 echo 87.175 NATIVE OBSERVER: %XM87175_DHC_OBSERVER_LOG%
 echo Native actor rows require a running XMVSF combat session; menu exit writes health only.
-echo 87.181: QCF+LP+MP / LP+HP / MP+HP / 3P triggers Ken, 3P dash suppressed.
-echo 87.181: Ken native QCF+2P and instant, no-charge arrival preserved.
-echo 87.181: UNSAFE delayed native 2P priming stays OFF in interactive TEST.
-echo 87.181: immediate 3P/2P paths, Ken no-charge arrival, and F9 stay intact.
-echo 87.181: delayed DHC input priming disabled by default, preserves original ROM state.
-echo XMVSF Stage 87.181 TEST - KEEP KEN SHORYUREPPA; CUT OUTGOING RYU PROJECTILE HITS
+echo 87.182: QCF+LP+MP / LP+HP / MP+HP / 3P triggers Ken, 3P dash suppressed.
+echo 87.182: Ken native QCF+2P and instant, no-charge arrival preserved.
+echo 87.182: UNSAFE delayed native 2P priming stays OFF in interactive TEST.
+echo 87.182: immediate 3P/2P paths, Ken no-charge arrival, and F9 stay intact.
+echo 87.182: delayed DHC input priming disabled by default, preserves original ROM state.
+echo XMVSF Stage 87.182 TEST - KEEP KEN SHORYUREPPA; CUT OUTGOING RYU PROJECTILE HITS
 echo Executable: %EXE%
 echo SAME BUILD, TWO DHC CHOICES:
 echo   During Ryu Shinkuu Hadoken, QCF+ANY TWO PUNCHES or QCF+3P queues Ken SHORYUREPPA.
@@ -222,7 +225,7 @@ if exist "%XM87180_NATIVE_SUBFRAME_LOG%" (
     if errorlevel 1 echo WARNING: 87.180 subframe summary failed, raw TSV retained.
   )
 )
-REM 87.181: report why old/new observer files are absent or empty.
+REM 87.182: report why old/new observer files are absent or empty.
 REM Diagnostic report cannot alter %RC% or overwrite previous traces.
 where python.exe >nul 2>nul
 if not errorlevel 1 (
@@ -231,7 +234,15 @@ if not errorlevel 1 (
 ) else (
   echo WARNING: Python unavailable. Observer health raw log: "%XM87181_DIAGNOSTIC_STATUS%"
 )
-echo Stage 87.181 TEST exit code: %RC%
+REM Exact native executed-PC analysis (only when explicitly enabled).
+if exist "%XM87182_NATIVE_PC_TRACE_LOG%" (
+  where python.exe >nul 2>nul
+  if not errorlevel 1 (
+    python.exe "%PROJECT%\dev\dhc\tools\ANALYZE_NATIVE_PC_ARBITRATION_182.py" --input "%XM87182_NATIVE_PC_TRACE_LOG%" --out "%OBSROOT%\native_pc_trace_test_summary.json"
+    if errorlevel 1 echo WARNING: Native PC summary failed, source TSV preserved.
+  )
+)
+echo Stage 87.182 TEST exit code: %RC%
 echo Probe directory: %XM87139_PROBE_DIR%
 pause
 exit /b %RC%

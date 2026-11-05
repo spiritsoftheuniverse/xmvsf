@@ -471,6 +471,12 @@ void m68k_set_insn_cb(int (*cbf)(int)) {
 	insn_cb = (!cbf) ? dummy_insn_cb : cbf;
 }
 
+/* Stage 87.182: getter only, so focused PC tracing can preserve the
+ * installed callback. No per-instruction core changes or debug hooks. */
+int (*m68k_get_insn_cb(void))(int) {
+	return insn_cb;
+}
+
 /* Interrupt acknowledge */
 static int default_int_ack_callback_data;
 static int default_int_ack_callback(int int_level)

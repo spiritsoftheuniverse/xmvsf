@@ -319,6 +319,9 @@ void m68k_end_timeslice(void);          /* End timeslice now */
 void m68k_burn_until_irq(int enabled);  /* Sleep until INT (speedhacks) */
 
 void m68k_set_insn_cb(int (*cbf)(int));
+/* 87.182: preserve/restore any pre-existing instruction-completion callback.
+ * Read-only getter; does not change Musashi execution or callback timing. */
+int (*m68k_get_insn_cb(void))(int);
 
 /* Set the IPL0-IPL2 pins on the CPU (IRQ).
  * A transition from < 7 to 7 will cause a non-maskable interrupt (NMI).
