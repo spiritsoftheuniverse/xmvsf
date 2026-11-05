@@ -754,6 +754,14 @@ INT32 Cps2Frame()
             xm87140_p1_dir,xm87140_p2_dir,
             xm8786_p1_buttons,xm8786_p2_buttons,
             romReport.verifiedSuperMask);
+        // 87.176: diagnostic only. The queued DHC takes exclusive control
+        // of the P1 CPS input port during tag transfer, shielding the
+        // physical chord from being consumed AGAIN by outgoing Ryu.
+        // The host SDL input arrays are restored after CpsRwGetInp.
+        if(dhcInput.isolated && xm8786_p1_buttons)
+            XM87140Chat::state().log((unsigned)GetCurrentFrame(),
+                XM87140Chat::SYSTEM,
+                "XM87.176 DHC_PHYSICAL_CHORD_SHIELDED_DURING_NATIVE_HANDOFF");
         // Autonomous ROM inventory. No newly enumerated 2E action is
         // permitted to enter the DHC runtime until its command, owner and
         // exact native script are independently verified.
