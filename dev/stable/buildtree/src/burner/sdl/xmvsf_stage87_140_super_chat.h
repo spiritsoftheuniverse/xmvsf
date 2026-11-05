@@ -110,7 +110,8 @@ static inline const ListedSuper* known(unsigned id,unsigned index){
     return XM87143Queue::definition(id,index);
 }
 static inline const ListedSuper* matchListed(unsigned fighter,
-        const XM87137Input::History& h,bool facingRight,unsigned now,unsigned chordMask){
+        const XM87137Input::History& h,bool facingRight,unsigned now,
+        unsigned chordMask,bool allowTriplePunch=false){
     static const unsigned qcf[]={2,3,6},qcb[]={2,1,4};
     for(unsigned i=0;i<4u;++i){
         const ListedSuper* m=known(fighter,i);
@@ -120,7 +121,8 @@ static inline const ListedSuper* matchListed(unsigned fighter,
         // dedicated pre-CPU input shield prevents that dash on handoff.
         // Preserve exact TWO kicks; never treat 3K as superjump or accept
         // mixed P+K. The native Ken 68000 input still receives 2P.
-        if(!XM87177Chords::valid(m->kicks,chordMask))continue;
+        if(!XM87177Chords::valid(m->kicks,chordMask,
+               allowTriplePunch && m->fighter==0x14u))continue;
         // Anchor to the CURRENT final cardinal direction. Do not reach into
         // an earlier QCB/QCF while the latest stick position is DF/DB from
         // another command; that was the confusing Ryu KK diagnostic.
@@ -302,8 +304,15 @@ struct State {
                    frame>=lastAttackFrame[side] && frame-lastAttackFrame[side]<=4u &&
                    (buttons[side]&0x3Fu)!=0u){
                     const bool facingRight=(b(ram,point+0x4Bu)&1u)!=0u; // 87.142 trace verified: 1=RIGHT
+                    // QCF+3P is eligible only DURING Ryu's verified 2E08
+                    // native super, never in the post-super candidate tail.
+                    const unsigned nativeMode=w(ram,point+0xA0u);
+                    const bool triplePunchDhcWindow=side==0u &&
+                        fighter==0x12u && bench==0x14u &&
+                        w(ram,point+0x60u)==0x2E08u &&
+                        (nativeMode==0x2A28u || nativeMode==0x2A02u);
                     const ListedSuper* found=matchListed(bench,keys[side],
-                                          facingRight,frame,buttons[side]);
+                        facingRight,frame,buttons[side],triplePunchDhcWindow);
                     char text[CHAT_LENGTH];
                     if(found && lastMoveFrame[side]!=lastAttackFrame[side]){
                         // Pressing the third kick a frame after LP+MP/ LK+MK
