@@ -101,8 +101,13 @@ def disassemble(codepath: Path, addresses: list[int], count: int) -> dict:
             insns.append(dict(pc=f"{op.address:06X}",
                               bytes=op.bytes.hex(),
                               mnemonic=op.mnemonic, operands=op.op_str))
+            # A linear decode beyond JMP/RTS can turn literal pointer tables
+            # into spurious instructions (e.g. data at 00C4F6).
+            if op.mnemonic.lower() in ("jmp", "bra", "rts", "rte",
+                                       "rtr", "rtd", "stop"):
+                break
         result[f"{pc:06X}"] = insns or {"status": "NO_INSTRUCTIONS_DECODED"}
-    return {"status": "DECODED_OPCODE_WINDOWS_NOT_YET_INPUT_XREFS",
+    return {"status": "DECODED_BASIC_BLOCK_WINDOWS_NOT_YET_INPUT_XREFS",
             "points": result}
 
 
@@ -134,7 +139,7 @@ def audit_live_script_roots(rom: bytes, candidates: list[dict],
             resolved = section + relative if relative else -1
         expected = int(row["native_script"], 16)
         match = resolved == expected
-        duration = w(rom, resolved + 2) if match else None
+        first_word = w(rom, resolved + 2) if match else None
         anim = w(rom, resolved + 6) if match else None
         entry = {
             "fighter_id": key[0], "action": "2E", "selector": key[1],
@@ -142,7 +147,9 @@ def audit_live_script_roots(rom: bytes, candidates: list[dict],
                 f"{resolved:06X}" if resolved >= 0 else None,
             "rom_pointer_match": match,
             "animation_match": anim == int(row["animation"], 16),
-            "first_duration": duration,
+            "first_script_word_hex": f"{first_word:04X}" if first_word is not None else None,
+            "first_word_high_bit": bool(first_word & 0x8000) if first_word is not None else None,
+            "first_word_meaning": "UNDECODED_FLAGS_OR_DURATION",
             "catalog_indexed": key in indexed, "observations": 1,
             "classification": "ROM_TABLE_PROOF_NOT_COMMAND_RECOGNITION"
         }
@@ -188,7 +195,8 @@ def main() -> int:
     # Establish these PCs only as ROM dispatch / tag starting landmarks.
     # They are NOT assumed to be all fighters' command recognizers.
     pc_values = [int(p, 16) for p in args.pc] if args.pc else [
-        0x01038E, 0x013B8E, 0x00C4E6, 0x011B00
+        0x01038E, 0x0103C6, 0x013B8E, 0x013B9E,
+        0x00C4E6, 0x011B00, 0x011B1E, 0x011B46
     ]
     decoded = (disassemble(args.opcodes, pc_values, args.count)
                if args.opcodes and args.opcodes.is_file() else
