@@ -31,8 +31,10 @@ static inline const char* region(unsigned pc) {
     if(pc>=0x032800u && pc<=0x034300u)return "RYU_COMMAND_DISPATCH";
     return "OTHER";
 }
+struct State;
+inline State& state(); // callback needs a forward declaration
 struct State {
-    enum { LIMIT=4096 };
+    enum { LIMIT=8192 };
     bool initialized=false,enabled=false,active=false;
     std::FILE* log=nullptr;
     const std::uint8_t*ram=nullptr;
