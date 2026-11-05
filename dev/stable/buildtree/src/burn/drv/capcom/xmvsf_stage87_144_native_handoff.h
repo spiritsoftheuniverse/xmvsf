@@ -167,34 +167,36 @@ struct State {
     // to stage another queue entry after a short native action settle.
     void abort(unsigned now,unsigned side,std::uint8_t*ram,
                const char*reason){
-        // The 87.177 QCF+3P wrong-action abort at 14302 left +259=08
-        // (staged by our DHC), even though +256 had been consumed and the
-        // native action was 0002 rather than outgoing tag 3200. Subsequent
-        // two-punch DHCs could then re-enter with a stale controller latch.
-        // Clear ONLY that DHC-owned latch if the original captured value
-        // was zero, the same Ryu/Ken own this actor, and no tag was selected.
-        // Never restore native action, animation, A0 or input history.
+        // The failed 87.178 controller-8 attempts consumed +256 and
+        // left the DHC's +259=08 latch, even though no tag action 3200
+        // occurred. Check ownership BEFORE changing either field.
         const unsigned p=0x4000u+side*0x400u;
-        if(XM87178Recovery::staleHostTag259(unsigned(phase[side]),
-               enabled,earlyCancel,rw(ram,p+0x52u),
-               rw(ram,p+0x852u),outgoing[side],incoming[side],
-               rw(ram,p+0x60u),rb(ram,p+0xD6u),
-               rb(ram,p+0x256u),rb(ram,p+0x259u),captured259[side])){
-            wb(ram,p+0x259u,captured259[side]);
-            event(now,side,ram,"DHC_178_STALE_HOST_259_LATCH_CLEARED");
-        }
-        // 87.178 showed the leftover host-staged 002A mode surviving
-        // for 10-20 frames after controller-8 timeout. Restore ONLY
-        // the original captured Ryu 2A28/2A02 mode if the same native
-        // 2E08 super action and D6 still own the actor. Never change
-        // a ROM-selected 0002, 3200, or an incoming Ken animation.
-        if(XM87179Edge::canRestoreStagedMode(unsigned(phase[side]),
+        const bool staleHostLatch=XM87178Recovery::staleHostTag259(
+                unsigned(phase[side]),enabled,earlyCancel,
+                rw(ram,p+0x52u),rw(ram,p+0x852u),
+                outgoing[side],incoming[side],rw(ram,p+0x60u),
+                rb(ram,p+0xD6u),rb(ram,p+0x256u),
+                rb(ram,p+0x259u),captured259[side]);
+        // A0=002A was also written by OUR host when controller 8
+        // was armed; on 87.178 failures that state persisted 10-20
+        // frames. Only restore the captured native mode if BOTH the
+        // DHC-owned stale latch and the exact Ryu super state match.
+        const bool restoreStaged=staleHostLatch &&
+            XM87179Edge::canRestoreStagedMode(unsigned(phase[side]),
                 enabled,earlyCancel,rw(ram,p+0x52u),
                 rw(ram,p+0x852u),outgoing[side],incoming[side],
                 rw(ram,p+0x60u),capturedAction[side],
                 rw(ram,p+0xA0u),capturedMode[side],
                 rb(ram,p+0xD6u),capturedD6[side],
-                rb(ram,p+0x256u),0x08u,captured259[side])){
+                rb(ram,p+0x256u),rb(ram,p+0x259u),
+                captured259[side]);
+        if(staleHostLatch){
+            wb(ram,p+0x259u,captured259[side]);
+            event(now,side,ram,"DHC_178_STALE_HOST_259_LATCH_CLEARED");
+        }
+        if(restoreStaged){
+            // Never rewrite the actual ROM-selected action, D6,
+            // 68000 button history, timers, projectiles, or script.
             ww(ram,p+0xA0u,capturedMode[side]);
             event(now,side,ram,
                   "DHC_179_ABANDONED_HOST_002A_RESTORED_TO_CAPTURED_MODE");
