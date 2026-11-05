@@ -105,6 +105,62 @@ def disassemble(codepath: Path, addresses: list[int], count: int) -> dict:
     return {"status": "DECODED_OPCODE_WINDOWS_NOT_YET_INPUT_XREFS",
             "points": result}
 
+
+def audit_live_script_roots(rom: bytes, candidates: list[dict],
+                            observed: list[dict]) -> dict:
+    """Resolve observed 2E entries against actual ROM tables, including
+    roots excluded by the conservative catalog enumerator. No input claims.
+    """
+    indexed = {(x["fighter_id"], x["selector"], x["script"])
+               for x in candidates}
+    unique = {}
+    for row in observed:
+        if row.get("action") != "2E" or row.get("rom_match") != "1":
+            continue
+        key = (row["fighter_id"], row["selector"], row["native_script"])
+        if key in unique:
+            unique[key]["observations"] += 1
+            continue
+        fighter = int(row["fighter_id"], 16)
+        selector = int(row["selector"], 16)
+        table = l(rom, 0x8A946 + fighter * 2)
+        if table <= 0 or table + 0x38 >= len(rom):
+            resolved = -1
+        else:
+            delta = w(rom, table + 0x2E)
+            section = table + delta
+            relative = w(rom, section + selector) if delta and \
+                       section + selector + 2 <= len(rom) else 0
+            resolved = section + relative if relative else -1
+        expected = int(row["native_script"], 16)
+        match = resolved == expected
+        duration = w(rom, resolved + 2) if match else None
+        anim = w(rom, resolved + 6) if match else None
+        entry = {
+            "fighter_id": key[0], "action": "2E", "selector": key[1],
+            "observed_script": key[2], "resolved_script":
+                f"{resolved:06X}" if resolved >= 0 else None,
+            "rom_pointer_match": match,
+            "animation_match": anim == int(row["animation"], 16),
+            "first_duration": duration,
+            "catalog_indexed": key in indexed, "observations": 1,
+            "classification": "ROM_TABLE_PROOF_NOT_COMMAND_RECOGNITION"
+        }
+        unique[key] = entry
+    values = list(unique.values())
+    return {
+        "unique_observed_roots": len(values),
+        "matched_by_original_rom_table": sum(
+            x["rom_pointer_match"] and x["animation_match"] for x in values),
+        "unindexed_live_roots": [
+            x for x in values if not x["catalog_indexed"]],
+        "rom_resolution_disagreements": [
+            x for x in values if not x["rom_pointer_match"]
+            or not x["animation_match"]],
+        "limitation": "A ROM script pointer is not the 68000 input recognizer"
+    }
+
+
 def observations(path: Path) -> list[dict]:
     if not path.is_file():
         return []
@@ -143,6 +199,7 @@ def main() -> int:
         "data_bytes": len(rom),
         "candidates": candidates,
         "live_2e_events": observed,
+        "live_rom_script_resolution": audit_live_script_roots(rom, candidates, observed),
         "m68k_disassembly": decoded,
         "not_enabled_for_gameplay": True,
     }
@@ -150,6 +207,8 @@ def main() -> int:
     args.out.write_text(json.dumps(report, indent=2), encoding="utf-8")
     print(f"ROM 2E candidate scripts: {len(candidates)}")
     print(f"Live native 2E observations: {len(observed)}")
+    print("Observed ROM roots missing from enumeration: " +
+          str(len(report["live_rom_script_resolution"]["unindexed_live_roots"])))
     print(f"M68K opcode decoding: {decoded['status']}")
     print(f"Read-only evidence report: {args.out}")
     return 0
