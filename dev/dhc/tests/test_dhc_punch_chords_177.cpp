@@ -2,6 +2,7 @@
 #include <cassert>
 #include <cstdio>
 #include "../../stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_177_dhc_punch_chords.h"
+#include "../../stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_176_dhc_input_isolation.h"
 using namespace XM87177Chords;
 int main(){
     unsigned validPunches=0;
@@ -31,6 +32,13 @@ int main(){
     assert(!shieldPrequeue3P(true,true,0,true,0x12,0x14,0x2E08,0x2A00,7));
     assert(!shieldPrequeue3P(true,true,0,true,0x12,0x14,0x2E08,0x2A28,0x0Fu));
     assert(!shieldPrequeue3P(true,true,0,true,0x12,0x14,0x2E08,0x2A28,0x03u));
-    std::puts("PASS 87.177: 4 punch chords; no 3P dash in DHC; original 2P Ken input");
+    // In the generated 9-frame QCF+2P signal, do NOT mask any native
+    // direction or button; resume neutralizing a held physical 3P AFTER.
+    for(unsigned t=0;t<9u;++t)
+        assert(!XM87176Input::neutralize(8,0x14,0x12,true,true,1884+t,1884));
+    for(unsigned t=9;t<69u;++t)
+        assert(XM87176Input::neutralize(8,0x14,0x12,true,true,1884+t,1884));
+    assert(!XM87176Input::neutralize(6,0x14,0x12,true,true,1899,1884));
+    std::puts("PASS 87.177: 4 punch chords; 3P dash suppressed before/after Ken QCF");
     return 0;
 }
