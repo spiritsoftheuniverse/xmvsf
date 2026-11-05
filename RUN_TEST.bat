@@ -13,7 +13,7 @@ if not exist "%OBSROOT%" (
 )
 set "XM87175_DHC_OBSERVER=1"
 set "XM87175_DHC_OBSERVER_LOG=%OBSROOT%\dhc_acceptance_test.tsv"
-set "EXE=%PROJECT%\runtime\stable\XMVSF_Test_87_167.exe"
+set "EXE=%PROJECT%\runtime\stable\XMVSF_Test_87_175.exe"
 if not exist "%EXE%" (
   echo ERROR: Stage 87.175 TEST executable is missing.
   echo Run BUILD_TEST.bat first. Will NOT fall back to 87.132.4 or Stable.
