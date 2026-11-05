@@ -1,2 +1,0 @@
-frame	df	cps_draw_ms	cps_draw_passes	obj_draw_ms	obj_passes	sample_to_latest_candidate_ms	candidate_count	edges	info
-1020	1	2.6277	1	1.6356	15	0.0000	0	7	60_frame_sample

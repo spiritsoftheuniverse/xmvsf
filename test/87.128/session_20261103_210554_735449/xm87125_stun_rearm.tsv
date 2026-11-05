@@ -1,8 +1,0 @@
-frame	event	victim	character_id	locked	pre_remaining	post_remaining	held_remaining	pre_y	post_y	floor	pre_action	post_action	pre_mode	post_mode	pre_air	post_air	air_seen	detail
-3373	DIZZY_STUN_LOCK_ARMED	P2	12	1	1	60	60	472	472	472	1C04	1C38	36	36	0	0	0	Native dizzy action + marker confirmed; hold reset capacity until later landing
-3453	LANDING_CONFIRMED_STUN_REARM	P2	12	0	60	60	60	448	472	472	1C3A	0000	36	00	0	0	0	Observed later air-to-floor crossing AND ROM landing-state transition; next frame may build stun
-4541	DIZZY_STUN_LOCK_ARMED	P2	12	1	1	60	60	392	393	472	1C2A	1C38	36	36	0	0	1	Native dizzy action + marker confirmed; hold reset capacity until later landing
-4625	LANDING_CONFIRMED_STUN_REARM	P2	12	0	60	60	60	463	472	472	1C3A	0000	36	00	0	0	0	Observed later air-to-floor crossing AND ROM landing-state transition; next frame may build stun
-5577	DIZZY_STUN_LOCK_ARMED	P2	12	1	1	60	60	472	472	472	0000	1C38	00	36	0	0	0	Native dizzy action + marker confirmed; hold reset capacity until later landing
-5696	STUN_RESISTANCE_HELD	P2	12	1	60	60	60	390	398	472	1C3C	1C18	1E	36	1	1	1	ROM hit/grab state intact; only native +B8 restored
-5806	LANDING_CONFIRMED_STUN_REARM	P2	12	0	60	60	60	471	472	472	1C16	1C36	36	1E	1	1	0	Observed later air-to-floor crossing AND ROM landing-state transition; next frame may build stun

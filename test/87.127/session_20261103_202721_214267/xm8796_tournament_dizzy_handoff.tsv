@@ -1,2 +1,0 @@
-frame	event	player	mode	patched	previous_action	action	substate	dizzy135	other134	stun_remaining	stun_capacity	f6	gate83	y	life210	detail
-780	TOURNAMENT_NATIVE_HANDOFF_INSTALLED	-	1	1	-	-	-	-	-	-	-	-	-	-	-	-	WORD_SWAP: @12B88 CLR.B (135,A6); JMP $11FC0 native recovery; original @150CE pop flag ST unchanged
