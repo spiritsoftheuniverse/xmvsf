@@ -203,6 +203,14 @@ if exist "%XM87175_DHC_OBSERVER_LOG%" (
 ) else (
   echo WARNING: Native 87.175 observer TSV was not written: "%XM87175_DHC_OBSERVER_LOG%"
 )
+REM 87.180 native subframe diagnostics: read-only and preserves EXE result.
+if exist "%XM87180_NATIVE_SUBFRAME_LOG%" (
+  where python.exe >nul 2>nul
+  if not errorlevel 1 (
+    python.exe "%PROJECT%\dev\dhc\tools\ANALYZE_DHC_SUBFRAME_180.py" --input "%XM87180_NATIVE_SUBFRAME_LOG%" --out "%OBSROOT%\native_subframe_test_summary.json"
+    if errorlevel 1 echo WARNING: 87.180 subframe summary failed, raw TSV retained.
+  )
+)
 echo Stage 87.180 TEST exit code: %RC%
 echo Probe directory: %XM87139_PROBE_DIR%
 pause
