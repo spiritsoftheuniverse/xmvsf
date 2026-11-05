@@ -503,10 +503,12 @@ INT32 Cps2Frame()
         (!bBurnRunAheadFrame && dhcGameMatches)?
         XM87144::state().inputForFrame(CpsRamFF,(unsigned)GetCurrentFrame()):
         XM87144::State::InputMask();
-    // 87.177: 3P is the original dash chord. During an already
-    // recognized Ryu super DHC window, shield it BEFORE the CPU input
-    // read and BEFORE the post-CPU host matcher queues Ken's DHC.
-    // This is strictly a native P1 port filter, not a forced action.
+    // 87.178: the 87.177 complete 3P shield removed the punch edge that
+    // the original 68000 controller-8 tag path requires. In the 87.177
+    // capture, native LP+MP / LP+HP / MP+HP all entered 2A00/3200;
+    // native zero punches on QCF+3P instead entered 0200/0002.
+    // Normalize the prequeue 3P port to canonical LP+MP, NOT neutral.
+    // This keeps the already-proven native edge without exposing 3P dash.
     // The original physical button array is restored after CpsRwGetInp,
     // allowing the host to recognize QCF+3P normally.
     bool xm87177PrequeueThreePunch=false;
@@ -530,8 +532,8 @@ INT32 Cps2Frame()
                 point,bench,action,mode,physicalPunches|physicalKicks);
         if(xm87177PrequeueThreePunch){
             dhcInput.active=true;
-            dhcInput.isolated=true;
-            dhcInput.attacks=0u; // no native dash or second Hadoken
+            dhcInput.isolated=false; // canonical 2P, NOT zeroed input
+            dhcInput.attacks=XM87177Chords::nativeKenTwoPunchMask();
             dhcInput.directions=
                 (CpsInp001[0]&1u)|((CpsInp001[1]&1u)<<1u)|
                 ((CpsInp001[2]&1u)<<2u)|((CpsInp001[3]&1u)<<3u);
@@ -791,7 +793,7 @@ INT32 Cps2Frame()
         if(xm87177PrequeueThreePunch)
             XM87140Chat::state().log((unsigned)GetCurrentFrame(),
                 XM87140Chat::SYSTEM,
-                "XM87.177_PREQUEUE_3P_DASH_SUPPRESSED_BEFORE_NATIVE_INPUT");
+                "XM87.178_PREQUEUE_3P_NORMALIZED_TO_NATIVE_2P");
         // 87.176: diagnostic only. The queued DHC takes exclusive control
         // of the P1 CPS input port during tag transfer, shielding the
         // physical chord from being consumed AGAIN by outgoing Ryu.
