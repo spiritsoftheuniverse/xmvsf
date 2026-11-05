@@ -20,6 +20,7 @@
 #include "../../../burner/sdl/xmvsf_stage87_140_super_chat.h" // XM87.140 native super-input chat (no writes)
 #include "xmvsf_stage87_142_rom_dispatch.h" // 87.142 pure native script table+tag observer
 #include "xmvsf_stage87_175_native_accept_observer.h" // 87.175 read-only native 68000 vs host DHC trace
+#include "xmvsf_stage87_180_subframe_input_observer.h" // 87.180 intra-frame native input clocks
 #include "xmvsf_stage87_144_native_handoff.h" // opt-in DHC-only native action transaction TEST
 #include "xmvsf_stage87_160_super_discovery.h" // read-only roster-wide native 2E ROM/script and input discovery
 #include "../../../burner/sdl/xmvsf_stage87_162_replay_sync.h" // exact F9 movie-frame index for native action logs
@@ -652,6 +653,20 @@ INT32 Cps2Frame()
 	}
 	ScheduleIRQ();
     xm8634Mark("AFTER IRQ SCHEDULE");
+    // 87.180 native intra-frame observation; the previous 87.179
+    // prime occasionally loses its fresh CA between CPU scheduler slices.
+    // Never modify actor RAM, original 68000 opcodes, or controller ports.
+    auto xm87180Sample=[&](const char* stage){
+        if(!bBurnRunAheadFrame && dhcGameMatches && CpsRamFF)
+            XM87180Subframe::state().sample(
+                CpsRamFF,(unsigned)GetCurrentFrame(),
+                (unsigned)SekTotalCycles(),stage,
+                unsigned(XM87144::state().phase[0]),
+                XM87140Chat::state().candidate[0],
+                dhcInput.active,dhcInput.directions,dhcInput.attacks,
+                (unsigned)Cpi01A,(unsigned)Cpi01C,(unsigned)Cpi01E);
+    };
+    xm87180Sample("BEFORE_CPU");
 
 	SekIdle(nCpsCyclesExtra);
 	nCpsCyclesExtra = 0;
@@ -667,6 +682,7 @@ INT32 Cps2Frame()
 	}
 
     xm8634Mark("AFTER PRE-DISPLAY CPU RUN");
+    xm87180Sample("AFTER_PRE_DISPLAY_CPU");
 	CopyCpsReg(0);										// Get inititial copy of registers
 	UnLatchCpsFrg();
 
@@ -685,6 +701,7 @@ INT32 Cps2Frame()
 			DoIRQ();
 		}
 		SekRun(nNext - SekTotalCycles());				// run cpu
+        xm87180Sample(i==0?"AFTER_SCAN_0":(i==1?"AFTER_SCAN_1":"AFTER_SCAN_2"));
 	}
 	
     xm8634Mark("AFTER MAIN CPU SCANLINES");
@@ -723,6 +740,7 @@ INT32 Cps2Frame()
     xm8634Mark("BEFORE CPU VBLANK RUN");
 	SekRun(nCpsCycles - SekTotalCycles());
     xm8634Mark("AFTER CPU VBLANK RUN");
+    xm87180Sample("AFTER_VBLANK_CPU");
 
 	nCpsCyclesExtra = SekTotalCycles() - nCpsCycles;
 
@@ -844,6 +862,7 @@ INT32 Cps2Frame()
             dhcInput.active,dhcInput.directions,dhcInput.attacks);
         XM87144::state().frame(CpsRamFF,CpsRom,(unsigned)nCpsRomLen,
             (unsigned)GetCurrentFrame(),dhcWindow);
+        xm87180Sample("AFTER_DHC_HOST");
         XM87175Observer::state().postDhc(
             CpsRamFF,(unsigned)GetCurrentFrame(),
             XM87162ReplaySync::movieFrame(),
