@@ -174,6 +174,14 @@ if exist "%XM87175_DHC_OBSERVER_LOG%" (
     if errorlevel 1 echo WARNING: Observer report failed, original TSV preserved.
   )
 )
+REM Read-only subframe analysis never overrides original replay status.
+if exist "%XM87180_NATIVE_SUBFRAME_LOG%" (
+  where python.exe >nul 2>nul
+  if not errorlevel 1 (
+    python.exe "%PROJECT%\dev\dhc\tools\ANALYZE_DHC_SUBFRAME_180.py" --input "%XM87180_NATIVE_SUBFRAME_LOG%" --out "%OBSROOT%\native_subframe_replay_summary.json"
+    if errorlevel 1 echo WARNING: 87.180 subframe summary failed.
+  )
+)
 echo Output: "%TRACE%"
 pause
 exit /b %RC%
@@ -282,6 +290,15 @@ if "%RC%"=="0" (
   )
 ) else (
   echo ERROR: Replay executable failed; ROM action verification not claimed.
+)
+REM 87.180 subframe log is useful even when the intentional DHC
+REM gameplay change causes historical ROM-action replay divergence.
+if exist "%XM87180_NATIVE_SUBFRAME_LOG%" (
+  where python.exe >nul 2>nul
+  if not errorlevel 1 (
+    python.exe "%PROJECT%\dev\dhc\tools\ANALYZE_DHC_SUBFRAME_180.py" --input "%XM87180_NATIVE_SUBFRAME_LOG%" --out "%OBSROOT%\native_subframe_replay_summary.json"
+    if errorlevel 1 echo WARNING: 87.180 subframe summary failed.
+  )
 )
 REM Post-replay observer is independent of ROM action verification and exit status.
 if exist "%XM87175_DHC_OBSERVER_LOG%" (
