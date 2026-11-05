@@ -499,10 +499,44 @@ INT32 Cps2Frame()
     const char* dhcGame=BurnDrvGetTextA(DRV_NAME);
     const bool dhcGameMatches=dhcGame &&
          std::strncmp(dhcGame,"xmvsf",5)==0;
-    const XM87144::State::InputMask dhcInput=
+    XM87144::State::InputMask dhcInput=
         (!bBurnRunAheadFrame && dhcGameMatches)?
         XM87144::state().inputForFrame(CpsRamFF,(unsigned)GetCurrentFrame()):
         XM87144::State::InputMask();
+    // 87.177: 3P is the original dash chord. During an already
+    // recognized Ryu super DHC window, shield it BEFORE the CPU input
+    // read and BEFORE the post-CPU host matcher queues Ken's DHC.
+    // This is strictly a native P1 port filter, not a forced action.
+    // The original physical button array is restored after CpsRwGetInp,
+    // allowing the host to recognize QCF+3P normally.
+    bool xm87177PrequeueThreePunch=false;
+    if(!dhcInput.active && !bBurnRunAheadFrame && dhcGameMatches && CpsRamFF){
+        const unsigned physicalPunches=
+            (CpsInp001[4]&1u)|((CpsInp001[5]&1u)<<1u)|
+            ((CpsInp001[6]&1u)<<2u);
+        const unsigned physicalKicks=
+            ((CpsInp011[0]&1u)<<3u)|
+            ((CpsInp011[1]&1u)<<4u)|
+            ((CpsInp011[2]&1u)<<5u);
+        const unsigned point=XM87142::ramW(CpsRamFF,0x4052u);
+        const unsigned bench=XM87142::ramW(CpsRamFF,0x4852u);
+        const unsigned action=XM87142::ramW(CpsRamFF,0x4060u);
+        const unsigned mode=XM87142::ramW(CpsRamFF,0x40A0u);
+        xm87177PrequeueThreePunch=
+            XM87177Chords::shieldPrequeue3P(
+                XM87144::state().enabled,XM87144::state().earlyCancel,
+                unsigned(XM87144::state().phase[0]),
+                XM87140Chat::state().candidate[0],
+                point,bench,action,mode,physicalPunches|physicalKicks);
+        if(xm87177PrequeueThreePunch){
+            dhcInput.active=true;
+            dhcInput.isolated=true;
+            dhcInput.attacks=0u; // no native dash or second Hadoken
+            dhcInput.directions=
+                (CpsInp001[0]&1u)|((CpsInp001[1]&1u)<<1u)|
+                ((CpsInp001[2]&1u)<<2u)|((CpsInp001[3]&1u)<<3u);
+        }
+    }
     UINT8 dhcSavedDir[4]={},dhcSavedPunch[3]={},dhcSavedKick[3]={};
     if(dhcInput.active){
         for(unsigned k=0;k<4u;++k){
@@ -754,6 +788,10 @@ INT32 Cps2Frame()
             xm87140_p1_dir,xm87140_p2_dir,
             xm8786_p1_buttons,xm8786_p2_buttons,
             romReport.verifiedSuperMask);
+        if(xm87177PrequeueThreePunch)
+            XM87140Chat::state().log((unsigned)GetCurrentFrame(),
+                XM87140Chat::SYSTEM,
+                "XM87.177_PREQUEUE_3P_DASH_SUPPRESSED_BEFORE_NATIVE_INPUT");
         // 87.176: diagnostic only. The queued DHC takes exclusive control
         // of the P1 CPS input port during tag transfer, shielding the
         // physical chord from being consumed AGAIN by outgoing Ryu.
