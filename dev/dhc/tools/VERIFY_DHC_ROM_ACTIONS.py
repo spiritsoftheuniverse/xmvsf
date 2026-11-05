@@ -339,6 +339,17 @@ def main():
             data[3], args.replay_results, data[0]["frames"], data[0]["segments"])
         report["runtime_playback"] = "CHECKPOINT_LOADS_AND_ROM_TRACE_MATCHED; NO_CPU_HASH"
     if args.evidence_out:
+        # The original recording directory is immutable. A TEST folder can
+        # contain a separate decomp/ output, but never write under replays/.
+        given = Path(args.capture)
+        base = given.parent if given.name == "manifest.tsv" else given
+        protected = (base / "replays" if (base / "replays").is_dir() else
+                     base if (base / "manifest.tsv").is_file() else None)
+        if protected is not None:
+            target = Path(args.evidence_out).resolve()
+            locked = protected.resolve()
+            require(target != locked and locked not in target.parents,
+                    "Refusing to put evidence output inside original replays")
         report["evidence_export"] = export_command_evidence(data, args.evidence_out)
     print(json.dumps(report, indent=2))
 
