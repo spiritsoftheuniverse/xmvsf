@@ -234,6 +234,14 @@ if not errorlevel 1 (
 ) else (
   echo WARNING: Python unavailable. Observer health raw log: "%XM87181_DIAGNOSTIC_STATUS%"
 )
+REM Exact native executed-PC analysis (only when explicitly enabled).
+if exist "%XM87182_NATIVE_PC_TRACE_LOG%" (
+  where python.exe >nul 2>nul
+  if not errorlevel 1 (
+    python.exe "%PROJECT%\dev\dhc\tools\ANALYZE_NATIVE_PC_ARBITRATION_182.py" --input "%XM87182_NATIVE_PC_TRACE_LOG%" --out "%OBSROOT%\native_pc_trace_test_summary.json"
+    if errorlevel 1 echo WARNING: Native PC summary failed, source TSV preserved.
+  )
+)
 echo Stage 87.182 TEST exit code: %RC%
 echo Probe directory: %XM87139_PROBE_DIR%
 pause
