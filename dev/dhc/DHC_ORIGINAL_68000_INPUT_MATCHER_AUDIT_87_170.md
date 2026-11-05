@@ -15,7 +15,7 @@
 
 | Fighter | Native call PC | Matcher | Original data descriptor PC | Actor history | Data words (host word-swapped program data, interpreted as 68000 words) |
 |---|---|---|---|---|---|
-| Ryu (`12`) | `03298A` | `013C30` | `0344C4` | `+0180` | `0003 1000 0000 0000 0004 0006 0002 0070` |
+| Ryu (`12`) | `03298A` | `013C30` | `0344C6` | `+0180` | `0003 1000 0000 0000 0004 0006 0002 0070` |
 | Akuma (`1E`) | `0412CA` | `013C30` | `0437E0` | `+01B0` | `0003 1000 000C 0000 0002 0004 0006 0770` |
 
 Akuma's captured Shun Goku Satsu reaches native `2E0C / 0EB986`, but **this alone does not identify Akuma's descriptor at `0437E0` as its Shun Goku Satsu recognizer**. The action `2E0C` source at `042C54` and its predecessor input-history branches must still be linked through actual 68000 control flow. Do not equate equal-looking values in different state fields.
