@@ -4,7 +4,7 @@ for %%I in ("%~dp0.") do set "PROJECT=%%~fI"
 set "MSYSTEM=UCRT64"
 set "PATH=C:\msys64\ucrt64\bin;C:\msys64\usr\bin;%PATH%"
 set "XMVSF_PROJECT=%PROJECT%"
-REM 87.180 replay observer stays outside all historical F9 checkpoints.
+REM 87.182 replay and native executed-PC trace stay outside historical F9 checkpoints.
 set "OBSROOT=%PROJECT%\test\87.182\observer"
 if not exist "%OBSROOT%" mkdir "%OBSROOT%"
 if not exist "%OBSROOT%" goto :fail
