@@ -11,11 +11,14 @@ static inline unsigned popcount3(unsigned v) {
 }
 // Host queue acceptance only. Punches: any exact 2 or all 3; no kick bits.
 // Kicks preserve 87.176's exact-two semantics, never turn 3K into superjump.
-static inline bool valid(bool kicks,unsigned chord){
+static inline bool valid(bool kicks,unsigned chord,
+                         bool allowThreePunch=false){
     if(chord & ~0x3Fu) return false;
     if(kicks) return (chord & 7u)==0u &&
         popcount3((chord>>3u)&7u)==2u;
-    return (chord & 0x38u)==0u && popcount3(chord&7u)>=2u;
+    if(chord & 0x38u) return false;
+    const unsigned count=popcount3(chord&7u);
+    return count==2u || (count==3u && allowThreePunch);
 }
 // While Ryu is in his verified Shinkuu Hadoken DHC window and BEFORE the
 // host queue sees the chord (which happens after the 68000 frame), do not
