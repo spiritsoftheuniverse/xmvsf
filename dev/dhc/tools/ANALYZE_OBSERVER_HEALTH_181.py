@@ -40,7 +40,7 @@ def read_latest_launch(path):
     with path.open("r", encoding="utf-8-sig", errors="replace") as source:
         for raw in source:
             line = raw.strip()
-            if line.startswith(("RUN_TEST_START\t", "RUN_REPLAY_START\t")):
+            if line.startswith(("RUN_TEST_START", "RUN_REPLAY_START")):
                 rows = [line]
             elif rows:
                 rows.append(line)
@@ -50,12 +50,12 @@ def read_latest_launch(path):
 def summarize(health, native, subframe):
     events = read_latest_launch(health)
     markers = {
-        "launcher_started": any(s.startswith(("RUN_TEST_START\t", "RUN_REPLAY_START\t")) for s in events),
+        "launcher_started": any(s.startswith(("RUN_TEST_START", "RUN_REPLAY_START")) for s in events),
         "engine_hook": any(s.startswith("ENGINE_HEALTH_INITIALIZED\t") for s in events),
         "cps2_frame": any(s.startswith("CPS2_FIRST_FRAME\t") for s in events),
         "xmvsf_frame": any(s.startswith("XMVSF_FIRST_FRAME\t") for s in events),
         "xmvsf_combat": any(s.startswith("XMVSF_FIRST_COMBAT\t") for s in events),
-        "launcher_exited": any(s.startswith(("RUN_TEST_EXIT\t", "RUN_REPLAY_EXIT\t")) for s in events),
+        "launcher_exited": any(s.startswith(("RUN_TEST_EXIT", "RUN_REPLAY_EXIT")) for s in events),
     }
     old = latest_observer_session(native, "# XM87.175 OBSERVER SESSION")
     new = latest_observer_session(subframe, "# XM87.180 SUBFRAME SESSION")
