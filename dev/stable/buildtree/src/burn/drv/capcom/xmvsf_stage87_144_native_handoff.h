@@ -12,6 +12,7 @@
 #include "xmvsf_stage87_143_super_queue.h"
 #include "xmvsf_stage87_159_projectile_cutoff.h"
 #include "xmvsf_stage87_176_dhc_input_isolation.h" // pure per-frame DHC P1 input gate
+#include "xmvsf_stage87_178_tag_latch_recovery.h" // 87.178 only stale DHC tag latch
 #include "xmvsf_stage87_177_dhc_punch_chords.h" // explicit 3P host / native 2P helper dependency
 #include <cstdint>
 #include <cstdio>
@@ -159,8 +160,24 @@ struct State {
     // A failed DHC attempt must NEVER use up the whole match. Discard the
     // consumed command; the next intentional button/motion press is free
     // to stage another queue entry after a short native action settle.
-    void abort(unsigned now,unsigned side,const std::uint8_t*ram,
+    void abort(unsigned now,unsigned side,std::uint8_t*ram,
                const char*reason){
+        // The 87.177 QCF+3P wrong-action abort at 14302 left +259=08
+        // (staged by our DHC), even though +256 had been consumed and the
+        // native action was 0002 rather than outgoing tag 3200. Subsequent
+        // two-punch DHCs could then re-enter with a stale controller latch.
+        // Clear ONLY that DHC-owned latch if the original captured value
+        // was zero, the same Ryu/Ken own this actor, and no tag was selected.
+        // Never restore native action, animation, A0 or input history.
+        const unsigned p=0x4000u+side*0x400u;
+        if(XM87178Recovery::staleHostTag259(unsigned(phase[side]),
+               enabled,earlyCancel,rw(ram,p+0x52u),
+               rw(ram,p+0x852u),outgoing[side],incoming[side],
+               rw(ram,p+0x60u),rb(ram,p+0xD6u),
+               rb(ram,p+0x256u),rb(ram,p+0x259u),captured259[side])){
+            wb(ram,p+0x259u,captured259[side]);
+            event(now,side,ram,"DHC_178_STALE_HOST_259_LATCH_CLEARED");
+        }
         phase[side]=FAILED;
         event(now,side,ram,reason);
         if(side==0u)oldRyuProjectiles.abort(now,
