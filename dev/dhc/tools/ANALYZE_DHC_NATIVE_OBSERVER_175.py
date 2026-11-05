@@ -20,6 +20,7 @@ def consume(path):
     prior_cpu = {}
     prior_host = {}
     session = 0
+    last_frame = None
     header = None
     for line_number, raw in enumerate(path.open(encoding="utf-8-sig", errors="replace"), 1):
         line = raw.rstrip("\r\n")
@@ -27,6 +28,7 @@ def consume(path):
             session += 1
             prior_cpu.clear()
             prior_host.clear()
+            last_frame = None
             header = None
             counts["sessions"] += 1
             continue
@@ -60,6 +62,16 @@ def consume(path):
             counts["phase_only_actor_rows"] += 1
         if stage != "POST_CPU_PRE_DHC":
             continue
+        try:
+            observed_frame = int(r["frame"])
+        except ValueError:
+            counts["malformed_frames"] += 1
+            continue
+        if last_frame is not None and observed_frame < last_frame:
+            prior_cpu.clear()
+            prior_host.clear()
+            counts["frame_resets_within_session"] += 1
+        last_frame = observed_frame
         key = (session, r["side"], r["slot"])
         current = {k: r[k] for k in ("fighter", "d6", "modeA0", "action", "script34")}
         prior = prior_cpu.get(key)
