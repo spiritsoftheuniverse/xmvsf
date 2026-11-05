@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# Stage 87.177 DHC any-punch-pair/3P TEST builder. Called ONLY by root BUILD_TEST.bat.
+# Stage 87.178 3P-to-2P native edge TEST builder. Called ONLY by root BUILD_TEST.bat.
 # Build the CURRENT local source in place using the warm FBNeo object cache.
 # Never touch Stable executable, Stable manifests, user source, or old TEST binaries.
 set -euo pipefail
 PROJECT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
-# Permanent 87.177 build transcript. This starts BEFORE checking toolchains,
+# Permanent 87.178 build transcript. This starts BEFORE checking toolchains,
 # source files or running make. Never hide fatal compiler/linker diagnostics.
 # Tee preserves live console output and an on-disk copy. Logs live outside
 # the buildtree so incremental make objects and Stable remain untouched.
@@ -21,16 +21,16 @@ if ! command -v tee >/dev/null; then
   exit 2
 fi
 exec > >(tee -a "$LOG_FILE") 2>&1
-printf '\n========== XMVSF TEST 87.177 BUILD BEGIN %s ==========' "$(date '+%Y-%m-%d %H:%M:%S')"
+printf '\n========== XMVSF TEST 87.178 BUILD BEGIN %s ==========' "$(date '+%Y-%m-%d %H:%M:%S')"
 printf '\nProject: %s\nLog: %s\n' "$PROJECT" "$LOG_FILE"
 trap 'rc=$?; trap - EXIT; printf "XMVSF BUILD END rc=%s time=%s log=%s\n" "$rc" "$(date "+%Y-%m-%d %H:%M:%S")" "$LOG_FILE"; exit "$rc"' EXIT
 
 TREE="$PROJECT/dev/stable/buildtree"
-DEST="$PROJECT/runtime/stable/XMVSF_Test_87_177.exe"
-PENDING="$PROJECT/runtime/stable/.XMVSF_Test_87_177_pending.exe"
+DEST="$PROJECT/runtime/stable/XMVSF_Test_87_178.exe"
+PENDING="$PROJECT/runtime/stable/.XMVSF_Test_87_178_pending.exe"
 
-if [[ ! -f "$TREE/makefile.sdl2" || ! -f "$TREE/src/burn/drv/capcom/xmvsf_stage87_177_dhc_punch_chords.h" ]]; then
-  echo "ERROR: Current Stage 87.177 source was not pulled into $TREE" >&2
+if [[ ! -f "$TREE/makefile.sdl2" || ! -f "$TREE/src/burn/drv/capcom/xmvsf_stage87_178_tag_latch_recovery.h" ]]; then
+  echo "ERROR: Current Stage 87.178 source was not pulled into $TREE" >&2
   exit 2
 fi
 if [[ ! -f "$TREE/src/burn/drv/capcom/cps_run.cpp" ||
@@ -45,7 +45,7 @@ fi
 
 # Preserve warm cache and anything already built on failures. Never run make clean.
 cd "$TREE"
-echo "XMVSF Stage 87.177 TEST: incremental build; preserving cached objects"
+echo "XMVSF Stage 87.178 TEST: incremental build; preserving cached objects"
 echo "Dependencies: GNU Make + persistent obj/**/*.d header dependency files"
 # The FBNeo makefile already runs a two-pass dependency-aware build:
 #   MAKELEVEL=1 generates missing/stale .d files and builds changed objects;
@@ -116,7 +116,8 @@ required_markers=(
   "DHC_NATIVE_INPUT_DISPATCH_ACCEPTED"
   "XM87.175 OBSERVER SESSION"
   "DHC_PHYSICAL_CHORD_SHIELDED_DURING_NATIVE_HANDOFF"
-  "XM87.177_PREQUEUE_3P_DASH_SUPPRESSED_BEFORE_NATIVE_INPUT"
+  "XM87.178_PREQUEUE_3P_NORMALIZED_TO_NATIVE_2P"
+  "DHC_178_STALE_HOST_259_LATCH_CLEARED"
   "POST_CPU_PRE_DHC"
   "POST_HOST_DHC_CHANGED"
   "DHC_NATIVE_INPUT_NO_SUPER_ROM_ACCEPT"
@@ -163,4 +164,4 @@ if [[ ! -s "$PENDING" ]]; then
 fi
 mv -f "$PENDING" "$DEST"
 echo "TEST BUILD READY: $DEST"
-echo "Stage 87.177: QCF+any 2P or 3P, native dash suppressed; F9 preserved multi-session recording FINAL seal + normal-exit recovery; DHC, warm cache, and Stable preserved."
+echo "Stage 87.178: native 3P maps to 2P edge, stale 259 recovered; F9 preserved multi-session recording FINAL seal + normal-exit recovery; DHC, warm cache, and Stable preserved."
