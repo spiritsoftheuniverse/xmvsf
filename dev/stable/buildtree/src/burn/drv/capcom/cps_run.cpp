@@ -1052,11 +1052,14 @@ INT32 Cps2Frame()
        Cps==2 && CpsRamFF && CpsSavePal && CpsRam708 &&
        CpsSaveReg[0] && CpsSaveFrg[0]){
         const char* driver=BurnDrvGetTextA(DRV_NAME);
-        if(driver && std::strncmp(driver,"xmvsf",5)==0){
+        if(XM87203Stage::isMarvelVsCapcom(driver)){
             XM87203Stage::Frame f;
             f.frame=(unsigned)GetCurrentFrame();
-            f.phase=(unsigned)CpsRamFF[0x5001u];
-            f.stage=(unsigned)CpsRamFF[0x5112u]&15u;
+            // These two FF5xxx offsets belong to XMVSF and are NOT
+            // source-backed stage/phase addresses for Marvel vs. Capcom.
+            // Record raw CPS2 hardware, defer ROM stage-ID discovery.
+            f.phase=~0u;f.stage=~0u;
+            f.driver=driver;f.captureActive=true;
             f.screenW=nCpsScreenWidth;f.screenH=nCpsScreenHeight;
             f.objectBank=((unsigned)nCpsObjectBank^1u)&1u;
             f.oam=CpsRam708+(f.objectBank<<15u);

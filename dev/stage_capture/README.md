@@ -19,3 +19,27 @@ It checks a stage builder's capture_manifest.json and SHA-256 artifact receipts.
 
 The read-only native recorder is now enabled by default in RUN_TEST.bat ON THIS CAPTURE BRANCH only (XM87203_STAGE_CAPTURE_ENABLE=0 disables it). RUN_REPLAY.bat leaves capture disabled unless explicitly enabled. The new TEST binary is XMVSF_Test_87_203.exe; existing Stable is untouched.
 Native files: frames.tsv, raster.bin (per-slice register snapshots), maps.bin (changing 0x4000 scroll banks), row_scroll.bin (per-row scroll banks), palettes.bin (raw palette RAM changes), oam.bin (buffered original objects). Status shows STAGE_BEGIN and PROGRESS every 300 frames. It never emits PART_DONE/LEVEL_DONE until the offline verifier has certified built artifacts, sealed F9 replay and camera/animation coverage. Final stage reconstruction, decoded tile pixels and effective palette DMA validation are next steps; this is a read-only capture milestone, not a completed automatic builder. Files under test/ remain local and git-ignored.
+
+## Correct source ROM — Marvel vs. Capcom 1, not XMVSF
+
+The Stage44 Wily donor exporter already proved the exact FBNeo driver `mvscur1`.
+Stage87.203 reads **`mvscur1`** by default via `RUN_TEST.bat`; optional
+`RUN_TEST.bat mvsc` selects the base Marvel vs. Capcom ROM. The ROM must
+exist locally in FBNeo's configured ROM search paths; no ROM files are
+committed or copied by this tool. `RUN_TEST.bat xmvsfu` explicitly enters
+the separate XMVSF/DHC TEST path, with stage capture disabled by default.
+The runner does not launch XMVSF when MVC1 ROM loading fails.
+
+Recorder eligibility is the native CPS2 driver prefix `mvsc`, not `xmvsf`.
+The old XMVSF FF5001/FF5112 phase/stage offsets have been **removed** from
+capture gating because they are not verified MVC1 addresses. Hardware
+snapshots start with the MVC1 driver and preserve raw scroll registers,
+raster data, tilemaps, palette and OAM. Source stage IDs remain marked
+**unverified** until the MVC1 CPU stage selector is proved from executed
+code or matching memory traces. Do not report a complete level based on
+an XMVSF memory address or on recording simply stopping.
+
+The original Stage44 `XM44_CAPTURE` donor exporter remains disabled by
+default to prevent duplicate huge pixel exports. The Wily compositor
+remains the *destination* engine, not the donor source. Full animation
+reconstruction is a separate verified post-capture step.

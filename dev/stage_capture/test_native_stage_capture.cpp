@@ -5,7 +5,12 @@
 int main(){
     using namespace XM87203Stage;
     assert(be16((const unsigned char*)"\x01\x02",0)==0x0102u);
+    assert(isMarvelVsCapcom("mvscur1"));
+    assert(isMarvelVsCapcom("mvsc"));
+    assert(isMarvelVsCapcom("mvscj"));
+    assert(!isMarvelVsCapcom("xmvsfu"));
     Frame f; f.frame=100;f.stage=5;f.phase=8;f.sliceCount=1;
+    f.driver="mvscur1";f.captureActive=true;
     unsigned char r[256]={},frg[16]={},m[3][MAP_BYTES]={},row[ROW_BYTES]={},
                   pal[PALETTE_BYTES]={},oam[OAM_BYTES]={};
     f.reg[0]=r;f.frg[0]=frg;f.rasterStart[0]=0u;
@@ -14,6 +19,10 @@ int main(){
     const char* root=std::getenv("XM87203_STAGE_CAPTURE_DIR");
     assert(root && *root);
     Recorder s;
+    Frame wrong=f;wrong.driver="xmvsfu";
+    s.observe(wrong);assert(!s.initialized);
+    wrong.driver="mvscur1";wrong.captureActive=false;
+    s.observe(wrong);assert(!s.initialized);
     s.observe(f);assert(s.enabled&&s.frames==1u&&s.mapWrites==3u&&
                         s.rowWrites==1u&&s.paletteWrites==1u);
     s.observe(f);assert(s.frames==1u);

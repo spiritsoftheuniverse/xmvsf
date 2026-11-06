@@ -4,8 +4,25 @@ for %%I in ("%~dp0.") do set "PROJECT=%%~fI"
 set "MSYSTEM=UCRT64"
 set "PATH=C:\msys64\ucrt64\bin;C:\msys64\usr\bin;%PATH%"
 set "XMVSF_PROJECT=%PROJECT%"
-REM Capture feature branch 87.203 only. Set ENABLE=0 to run without capture overhead.
-if not defined XM87203_STAGE_CAPTURE_ENABLE set "XM87203_STAGE_CAPTURE_ENABLE=1"
+REM Stage 87.203 CAPTURE BRANCH: the input is MVC1 mvscur1, not XMVSF.
+REM Explicit variants: RUN_TEST.bat mvsc / RUN_TEST.bat mvscu.
+REM To run original XMVSF for DHC testing: RUN_TEST.bat xmvsfu.
+set "SOURCE_ROM=%~1"
+if not defined SOURCE_ROM set "SOURCE_ROM=mvscur1"
+if /I not "%SOURCE_ROM:~0,4%"=="mvsc" if /I not "%SOURCE_ROM%"=="xmvsfu" (
+  echo ERROR: Stage capture supports Marvel vs. Capcom mvsc* ROM sets.
+  echo Optional XMVSF mode is xmvsfu; no arbitrary ROM fallback.
+  goto :fail
+)
+if not defined XM87203_STAGE_CAPTURE_ENABLE (
+  if /I "%SOURCE_ROM:~0,4%"=="mvsc" (
+    set "XM87203_STAGE_CAPTURE_ENABLE=1"
+  ) else (
+    set "XM87203_STAGE_CAPTURE_ENABLE=0"
+  )
+)
+REM Old Stage44 donor capture remains opt-in; avoid duplicate huge outputs.
+if not defined XM44_CAPTURE set "XM44_CAPTURE=0"
 if "%XM87203_STAGE_CAPTURE_ENABLE%"=="1" (
   set "XM87203_STAGE_CAPTURE_DIR=%PROJECT%\test\87.203\stage_capture"
   if not exist "%PROJECT%\test\87.203\stage_capture" mkdir "%PROJECT%\test\87.203\stage_capture"
@@ -13,8 +30,10 @@ if "%XM87203_STAGE_CAPTURE_ENABLE%"=="1" (
 ) else (
   set "XM87203_STAGE_CAPTURE_DIR="
 )
+echo Stage 87.203 source ROM: %SOURCE_ROM%
 echo Stage capture: %XM87203_STAGE_CAPTURE_ENABLE%
 echo Existing MSYS live console: bash dev/stage_capture/WATCH_CAPTURE.sh
+echo F9 records the MARVEL VS CAPCOM source session, not XMVSF.
 REM 87.175 read-only native state trace. Fails closed if logs cannot be saved.
 set "OBSROOT=%PROJECT%\test\87.203\observer"
 if not exist "%OBSROOT%" mkdir "%OBSROOT%"
@@ -256,7 +275,8 @@ echo Active Tournament rules audit: %XM87149_TOURNAMENT_AUDIT%
 echo Tournament rules are applied ONLY when selected in the Options menu.
 echo F10 probe files: %XM87139_PROBE_DIR%
 pushd "%PROJECT%\FBNeo" || goto :fail
-"%EXE%"
+echo Launching original CPS2 donor ROM %SOURCE_ROM% with controller support.
+"%EXE%" %SOURCE_ROM% -joy
 set "RC=%ERRORLEVEL%"
 popd
 >>"%XM87181_DIAGNOSTIC_STATUS%" echo RUN_TEST_EXIT code=%RC%

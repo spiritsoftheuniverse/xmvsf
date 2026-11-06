@@ -17,6 +17,9 @@ static const unsigned ROW_BYTES=0x800u;
 static const unsigned OAM_BYTES=0x2000u;
 static const unsigned MAX_FRAMES=36000u; // bounded 10-min recording
 
+inline bool isMarvelVsCapcom(const char* driver){
+    return driver && std::strncmp(driver,"mvsc",4)==0;
+}
 inline unsigned be16(const unsigned char *p,unsigned offset){
     return (unsigned(p[offset])<<8u)|unsigned(p[offset+1u]);
 }
@@ -36,7 +39,9 @@ inline bool put64(std::FILE*f,std::uint64_t n){
            put32(f,static_cast<std::uint32_t>(n>>32));
 }
 struct Frame {
-    unsigned frame=0,phase=0,stage=0,sliceCount=0,objectBank=0;
+    unsigned frame=0,phase=0,stage=~0u,sliceCount=0,objectBank=0;
+    bool captureActive=false; // hardware capture gate, NEVER XMVSF ROM action phase
+    const char* driver=nullptr;
     int screenW=384,screenH=224;
     const unsigned char *reg[MAX_SLICES]={};
     const unsigned char *frg[MAX_SLICES]={};
@@ -96,8 +101,10 @@ struct Recorder {
         failed=true;enabled=false;close();
     }
     void observe(const Frame& f){
-        // Selection/menu is not a valid stage capture.
-        if(f.phase!=8u)return;
+        // The MVC1 stage-phase address has NOT been ROM-verified. Record
+        // original CPS2 registers whenever MVC1 is running, including the
+        // transition frames; offline coverage analysis excludes menus.
+        if(!f.captureActive || !isMarvelVsCapcom(f.driver))return;
         if(!initialized && !openFiles())return;
         if(!enabled || failed || f.sliceCount==0u ||
            f.sliceCount>MAX_SLICES || !f.reg[0] || !f.frg[0] ||
@@ -118,8 +125,16 @@ struct Recorder {
             stage=f.stage;hasStage=true;
             std::memset(mapKnown,0,sizeof(mapKnown));
             std::memset(rowKnown,0,sizeof(rowKnown));palKnown=false;
-            char msg[90];std::snprintf(msg,sizeof(msg),"stage=%u begin",stage);
-            statusLine("STAGE_BEGIN",f.frame,msg);
+            char msg[140];
+            if(stage==~0u){
+                std::snprintf(msg,sizeof(msg),
+                    "source_rom=%s stage_id=unverified native_cps2=1",
+                    f.driver?f.driver:"unknown");
+                statusLine("SOURCE_BEGIN",f.frame,msg);
+            }else{
+                std::snprintf(msg,sizeof(msg),"stage=%u begin",stage);
+                statusLine("STAGE_BEGIN",f.frame,msg);
+            }
         }
         // Frame metadata and every raster slice are kept at their original
         // emulation-frame position. One-frame-lagged OAM is not time-shifted.
@@ -184,8 +199,9 @@ struct Recorder {
         ++frames;++objectWrites;lastFrame=f.frame;
         if((frames%300u)==0u){
             char msg[160];std::snprintf(msg,sizeof(msg),
-                "stage=%u frames=%u map_snapshots=%u row_snapshots=%u palette_snapshots=%u oam_frames=%llu still_recording=1",
-                stage,frames,mapWrites,rowWrites,paletteWrites,objectWrites);
+                "source_rom=%s stage_id=%s frames=%u map_snapshots=%u row_snapshots=%u palette_snapshots=%u oam_frames=%llu still_recording=1",
+                f.driver?f.driver:"unknown",stage==~0u?"unverified":"observed",
+                frames,mapWrites,rowWrites,paletteWrites,objectWrites);
             statusLine("PROGRESS",f.frame,msg);
             if(std::fflush(framesFile)!=0 || std::fflush(registers)!=0 ||
                std::fflush(maps)!=0 || std::fflush(rows)!=0 ||
