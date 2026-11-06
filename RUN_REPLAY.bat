@@ -295,10 +295,27 @@ if not errorlevel 1 (
 ) else (
   echo WARNING: Python unavailable. Native V2 manifest and payload validation remains active.
 )
-REM F9 V2: normal XMVSF application shell, recorded host mode choices,
-REM session-by-session DrvInit/DrvExit, checkpointed state/input segments.
-REM NO direct xmvsfu argument: the app's own recorded boot decisions are
-REM re-created before each emulator session.
+REM Stage87.203: the original Wily donor F9 recording is MVC1, not XMVSF.
+REM Read the REAL ROM identity from the saved F9 native input header.
+REM Fail closed if the detector is missing or the session mixes drivers.
+if not exist "%PROJECT%\dev\stage_capture\DETECT_REPLAY_DRIVER.py" (
+  echo ERROR: Missing v2 donor ROM detector.
+  goto :fail
+)
+where python.exe >nul 2>nul
+if errorlevel 1 (
+  echo ERROR: Python required to verify v2 replay source ROM.
+  goto :fail
+)
+set "V2_DRIVER="
+for /f "usebackq delims=" %%D in (`python.exe "%PROJECT%\dev\stage_capture\DETECT_REPLAY_DRIVER.py" "%V2_SESSION%"`) do set "V2_DRIVER=%%D"
+if not defined V2_DRIVER (
+  echo ERROR: No validated ROM driver found in F9 session input headers.
+  goto :fail
+)
+echo F9 source ROM verified: %V2_DRIVER%
+REM XMVSF multi-menu replay still boots its original application shell.
+REM MVC1 directly boots its recorded ROM without invoking XMVSF's menu.
 set "XM8764_REPLAY_SESSION=%V2_SESSION%"
 set "XM8764_FAST_FORWARD=32"
 set "XM8761_REPLAY_MODE=off"
@@ -340,7 +357,11 @@ echo Native diagnostic results: "%TRACE%"
 echo Stable executable and all recorded checkpoints are never overwritten.
 echo.
 pushd "%PROJECT%\FBNeo" || goto :fail
-"%EXE%" -joy
+if /I "%V2_DRIVER:~0,4%"=="mvsc" (
+  "%EXE%" %V2_DRIVER% -joy
+) else (
+  "%EXE%" -joy
+)
 set "RC=%ERRORLEVEL%"
 popd
 echo.
@@ -354,22 +375,28 @@ if exist "%XM8764_REPLAY_STATUS_FILE%" (
 REM Verify ROM events and complete checkpoint progression after v2 playback.
 REM Use the original record only for read-only input/reference comparison.
 if "%RC%"=="0" (
-  where python.exe >nul 2>nul
-  if errorlevel 1 (
-    echo ERROR: Python missing - replay is NOT verified for cast capture.
-    set "RC=3"
+  if /I "%V2_DRIVER:~0,4%"=="mvsc" (
+    echo MVC1 donor replay: native F9 manifest/input headers validated.
+    echo DHC-specific XMVSF ROM action verifier is not applicable to MVC.
+    echo Check the fresh replay_v2_status.log for PLAY_END; no fabricated stage completion.
   ) else (
-    echo Verifying checkpoint completion and recorded ROM action sequence...
-    python.exe "%PROJECT%\dev\dhc\tools\VERIFY_DHC_ROM_ACTIONS.py" "%V2_SESSION%" --replay-results "%TRACE%"
+    where python.exe >nul 2>nul
     if errorlevel 1 (
-      echo ERROR: ROM action replay verification FAILED. Original capture preserved.
+      echo ERROR: Python missing - XMVSF replay not fully verified.
       set "RC=3"
     ) else (
-      echo PASS: all checkpoint loads, PLAY_END, and ROM action trace match.
+      echo Verifying XMVSF DHC checkpoint/ROM actions...
+      python.exe "%PROJECT%\dev\dhc\tools\VERIFY_DHC_ROM_ACTIONS.py" "%V2_SESSION%" --replay-results "%TRACE%"
+      if errorlevel 1 (
+        echo ERROR: ROM action replay verification FAILED. Original capture preserved.
+        set "RC=3"
+      ) else (
+        echo PASS: XMVSF checkpoint and ROM action trace match.
+      )
     )
   )
 ) else (
-  echo ERROR: Replay executable failed; ROM action verification not claimed.
+  echo ERROR: Replay executable failed; action verification not claimed.
 )
 REM 87.180 subframe log is useful even when the intentional DHC
 REM gameplay change causes historical ROM-action replay divergence.
