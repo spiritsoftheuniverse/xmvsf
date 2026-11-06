@@ -98,8 +98,9 @@ static inline void xm77ApplyNativeStage5(bool gameReady,bool beforeFrame) {
     if(frame==1 && !xm8648Lock.attempted) {
         xm8648Lock.attempted=true;
         const unsigned selector=c->read(0xFF5082u)&255u;
-        const bool optIn=(xm77StageChoice==1 && xm77StageResolved==1 &&
-                          xm14TrainingMode==1 && xm24VersusMode==0 &&
+        const bool optIn=((xm77StageResolved==XM77_WILY ||
+                           xm77StageResolved==XM77_ROCK_CASTLE) &&
+                          (xm14TrainingMode==1 || xm24VersusMode==1) &&
                           std::getenv("XM8648_NATIVE05_OFF")==nullptr);
         if(optIn && status==0 && stageByte==0 && selector==0xFF && c->write) {
             c->write(0xFF5082u,4u);  // ONLY mutation: guest FF5082=04.
