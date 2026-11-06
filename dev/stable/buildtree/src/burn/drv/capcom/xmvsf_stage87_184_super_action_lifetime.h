@@ -15,7 +15,11 @@ enum Phase { OUTSIDE=0, STARTUP=1, ATTACK=2, RECOVERY=3 };
 enum Event { NOTHING=0, ENTER=1, ATTACK_BEGIN=2, RECOVERY_BEGIN=3,
              ACTION_EXIT=4 };
 struct Sample {
-    unsigned fighter=0, action=0, mode=0, step=0, script=0, d6=0;
+    unsigned fighter,action,mode,step,script,d6;
+    // C++11-safe constructor; do not require C++14 aggregate rules.
+    Sample(unsigned f=0,unsigned a=0,unsigned m=0,unsigned st=0,
+           unsigned sc=0,unsigned d=0)
+      : fighter(f),action(a),mode(m),step(st),script(sc),d6(d) {}
 };
 static inline Phase identify(const Sample& s) {
     if(s.fighter!=0x12u || s.d6!=0x0Au ||
