@@ -6,6 +6,7 @@ import struct
 import tempfile
 import unittest
 import zipfile
+import gzip
 
 spec = importlib.util.spec_from_file_location(
     'stage_import', Path(__file__).with_name('BUILD_STAGE_FROM_CAPTURE.py'))
@@ -72,6 +73,15 @@ class StageImporterTests(unittest.TestCase):
             self.assertEqual(manifest['integrity']['oam_frames'], 1)
             self.assertEqual(len(manifest['atlas_layers']), 3)
             self.assertFalse(manifest['level_complete'])
+            self.assertEqual(manifest['camera_preview_raw']['banks'],
+                             [0x908000,0x90c000,0x910000])
+            with gzip.open(Path(td)/'result'/'camera_timeline.tsv.gz','rt') as timeline:
+                entries = timeline.read().splitlines()
+                self.assertEqual(len(entries),2)
+                self.assertIn('bank1',entries[0])
+                self.assertIn('908000',entries[1])
+            self.assertTrue((Path(td)/'result'/
+                'preview_approx_composite_frame000001.png').is_file())
             for item in manifest['atlas_layers'].values():
                 data = (Path(td)/'result'/item['file']).read_bytes()
                 self.assertEqual(data[:4], b'XRGA')
@@ -81,6 +91,26 @@ class StageImporterTests(unittest.TestCase):
                 b'BAD!'+struct.pack('<III', 1, 0xffffffff, 1)+bytes(8192))
             with self.assertRaisesRegex(ValueError, 'OAM'):
                 mod.import_capture(mod.Capture(root,'latest'),Path(td)/'broken')
+
+    def test_stage_viewport_wrap_and_valid_png(self):
+        w=h=512
+        pixels=bytearray(w*h*4)
+        pixels[0:4]=b'\x10\x20\x30\xff'
+        pixels[-4:]=b'\xaa\xbb\xcc\xff'
+        atlas=b'XRGA'+struct.pack('<II',w,h)+pixels
+        actual=mod.crop_native_viewport(atlas,511,511)
+        self.assertEqual(actual[:4],bytes.fromhex('aabbccff'))
+        self.assertEqual(actual[4*(384+1):4*(384+2)],bytes.fromhex('102030ff'))
+        with tempfile.TemporaryDirectory() as td:
+            path=Path(td)/'preview.png'
+            mod.write_png_rgba(path,384,224,actual)
+            png=path.read_bytes()
+            self.assertTrue(png.startswith(b'\x89PNG\r\n\x1a\n'))
+            self.assertEqual(struct.unpack('>II',png[16:24]),(384,224))
+        opaque=bytearray(len(actual))
+        opaque[0:4]=b'\x11\x22\x33\xff'
+        composite=mod.compose_diagnostic_layers({3:actual,1:bytes(opaque)})
+        self.assertEqual(composite[:4],bytes.fromhex('112233ff'))
 
     def test_zip_latest_session_resolution(self):
         with tempfile.TemporaryDirectory() as td:
