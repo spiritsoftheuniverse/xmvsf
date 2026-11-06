@@ -7,6 +7,7 @@ set "XMVSF_PROJECT=%PROJECT%"
 REM Offline artifact review uses Python only. Never reaches ROM checks or EXE.
 if /I "%~1"=="review" goto :offline_clean_review
 if /I "%~1"=="sprites" goto :offline_sprite_factory
+if /I "%~1"=="m68k" goto :offline_m68k_sprite_analysis
 if /I "%~1"=="channels" goto :offline_all_sprite_channels
 REM Stage 87.203 CAPTURE BRANCH: the input is MVC1 mvscur1, not XMVSF.
 REM Explicit variants: RUN_TEST.bat mvsc / RUN_TEST.bat mvscu.
@@ -14,8 +15,8 @@ REM To run original XMVSF for DHC testing: RUN_TEST.bat xmvsfu.
 set "SOURCE_ROM=%~1"
 if not defined SOURCE_ROM set "SOURCE_ROM=mvscur1"
 set "CLEAN_RIP_MODE=%~2"
-if defined CLEAN_RIP_MODE if /I not "%CLEAN_RIP_MODE%"=="clean" (
-  echo ERROR: Unknown second argument. Use clean to enable the CPS2 clean-rip exporter.
+if defined CLEAN_RIP_MODE if /I not "%CLEAN_RIP_MODE%"=="clean" if /I not "%CLEAN_RIP_MODE%"=="trace" (
+  echo ERROR: Unknown second argument. Use clean or trace for MVC1 source capture.
   goto :fail
 )
 if /I "%SOURCE_ROM%"=="xmvsfu" if /I "%CLEAN_RIP_MODE%"=="clean" (
@@ -346,6 +347,27 @@ if /I "%CLEAN_RIP_MODE%"=="clean" (
   echo Clean rip folder: "%PROJECT%\test\87.203\clean_rips"
   echo PNG converter: python dev\stage_capture\EXPORT_CLEAN_RIP.py --input "..." --output "..."
 )
+REM 87.203: opt-in Motorola 68000 writer-PC evidence. Never launch GitHub
+REM Actions or rewrite Stable. The source ROM/decrypted code stays local.
+if /I "%CLEAN_RIP_MODE%"=="trace" set "XM87203_M68K_TRACE=1"
+if "%XM87203_M68K_TRACE%"=="1" if /I "%SOURCE_ROM:~0,4%"=="mvsc" (
+  if not exist "%PROJECT%\test\87.203\m68k_trace" mkdir "%PROJECT%\test\87.203\m68k_trace"
+  for /L %%N in (1,1,9999) do (
+    if not defined XM87203_M68K_DUMP_DIR if not exist "%PROJECT%\test\87.203\m68k_trace\run_%%N" (
+      mkdir "%PROJECT%\test\87.203\m68k_trace\run_%%N"
+      if exist "%PROJECT%\test\87.203\m68k_trace\run_%%N" (
+        set "XM87203_M68K_DUMP_DIR=%PROJECT%\test\87.203\m68k_trace\run_%%N"
+        set "XM8716_SPRITE_WRITES_FILE=%PROJECT%\test\87.203\m68k_trace\run_%%N\sprite_writes.tsv"
+      )
+    )
+  )
+  if not defined XM87203_M68K_DUMP_DIR (
+    echo ERROR: Could not reserve a unique M68K trace directory.
+    goto :fail
+  )
+  echo M68K sprite writer PC capture: %XM87203_M68K_DUMP_DIR%
+  echo Writer source dumps and traces remain LOCAL under ignored test\87.203.
+)
 pushd "%PROJECT%\FBNeo" || goto :fail
 echo Launching original CPS2 donor ROM %SOURCE_ROM% with controller support.
 "%EXE%" %SOURCE_ROM% -joy
@@ -542,3 +564,16 @@ if exist "%PROJECT%\test\87.203\sprite_channels\sprite_all_channels_review_bundl
   exit /b 2
 )
 exit /b 0
+
+:offline_m68k_sprite_analysis
+echo.
+echo STAGE 87.203: OFFLINE MVC MOTOROLA 68000 SPRITE-WRITER ANALYSIS
+where python.exe >nul 2>nul
+if errorlevel 1 (
+  echo ERROR: Python unavailable. Existing traces preserved.
+  exit /b 1
+)
+python.exe "%PROJECT%\dev\stage_capture\ANALYZE_M68K_SPRITES.py" --root "%PROJECT%\test\87.203\m68k_trace" --output "%PROJECT%\test\87.203\m68k_report"
+set "M68K_RC=%ERRORLEVEL%"
+if exist "%PROJECT%\test\87.203\m68k_report\m68k_sprite_report.zip" echo M68K analysis ZIP: "%PROJECT%\test\87.203\m68k_report\m68k_sprite_report.zip"
+exit /b %M68K_RC%
