@@ -1282,6 +1282,8 @@ struct State {
                         XM87192Owner::state().clear(side);
                     }else if(now>inputBegin[side]+
                           ownedCommand[side].duration()+8u){
+                        XM87192Owner::state().rejected(
+                            side,now,ownedCommand[side],observed);
                         event(now,side,ram,
                             "DHC_192_RESERVE_ROM_DID_NOT_SELECT_SUPER_REFUSED");
                         abort(now,side,ram,
