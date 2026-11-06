@@ -8,6 +8,7 @@
 #include "../../intf/input/sdl/xmvsf_stage87_137_dhc_input_history.h"
 #include "../../burn/drv/capcom/xmvsf_stage87_143_super_queue.h" // prebuilt match-start descriptor queue
 #include "../../burn/drv/capcom/xmvsf_stage87_177_dhc_punch_chords.h" // 87.177 exact 2P/3P DHC-only gate
+#include "../../burn/drv/capcom/xmvsf_stage87_184_super_action_lifetime.h" // ROM action beginning, stages, exact exit
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
@@ -146,6 +147,7 @@ struct State {
     unsigned oldA0[2]={0,0},oldStock[2]={0,0},openAt[2]={0,0};
     unsigned lastCharacter[2]={0,0};
     XM87137Input::History keys[2];
+    XM87184Life::Tracker shinkuu[2];
     std::FILE* file=nullptr;
     bool checkedFile=false;
     ~State(){if(file){std::fflush(file);std::fclose(file);}}
@@ -206,12 +208,14 @@ struct State {
         if(lastFrame!=~0u && frame<lastFrame){
             ready[0]=ready[1]=candidate[0]=candidate[1]=false;
             keys[0].clear();keys[1].clear();
+            shinkuu[0].reset();shinkuu[1].reset();
         }
         lastFrame=frame;
         const bool combat=b(ram,0x5000u)==8u;
         if(!combat){
             ready[0]=ready[1]=candidate[0]=candidate[1]=false;
             keys[0].clear();keys[1].clear();
+            shinkuu[0].reset();shinkuu[1].reset();
             XM87143Queue::state().discard(0u);
             XM87143Queue::state().discard(1u);
             return;
@@ -228,7 +232,38 @@ struct State {
             if(!ready[side]||fighter!=lastCharacter[side]){
                 ready[side]=true;oldA0[side]=a0;oldStock[side]=stock;
                 lastCharacter[side]=fighter;candidate[side]=false;
+                shinkuu[side].reset();
                 XM87143Queue::state().discard(side);
+            }
+            // 87.184: original ROM-owned action lifetime, independent
+            // of elapsed frame counts or the short tag-controller timer.
+            // Original Shinkuu action: 2E08/step02 root 0D3070,
+            // 2E08/step04 active 0D30B0..0D30E0, then
+            // 2E0A/step06 recovery 0D30F4..0D3194.
+            // A DIFFERENT action is the exact lifetime end.
+            const XM87184Life::Sample shinkuuNow={
+                fighter,w(ram,point+0x60u),w(ram,point+0xA0u),
+                w(ram,point+0x08u),
+                (w(ram,point+0x34u)<<16u)|w(ram,point+0x36u),
+                b(ram,point+0xD6u)};
+            const XM87184Life::Event lifeEvent=
+                side==0u&&fighter==0x12u?
+                  shinkuu[side].update(frame,shinkuuNow):
+                  XM87184Life::NOTHING;
+            if(lifeEvent==XM87184Life::ENTER)
+                log(frame,MATCH,"DHC_184_RYU_SHINKUU_ACTION_ENTER_2E08_0D3070");
+            else if(lifeEvent==XM87184Life::ATTACK_BEGIN)
+                log(frame,MATCH,"DHC_184_RYU_SHINKUU_ATTACK_PHASE_2E08_STEP04");
+            else if(lifeEvent==XM87184Life::RECOVERY_BEGIN)
+                log(frame,MATCH,"DHC_184_RYU_SHINKUU_RECOVERY_PHASE_2E0A_STEP06");
+            else if(lifeEvent==XM87184Life::ACTION_EXIT)
+                log(frame,SYSTEM,"DHC_184_RYU_SHINKUU_ACTION_EXIT_NATIVE");
+            if(side==0u && fighter==0x12u && candidate[side] &&
+               !shinkuu[side].live){
+                candidate[side]=false;
+                XM87143Queue::state().discard(side);
+                log(frame,SYSTEM,
+                    "DHC_184_CANDIDATE_CLOSED_AT_NATIVE_ACTION_EXIT");
             }
             const bool actionEdge=a0==0x2Au&&oldA0[side]!=0x2Au;
             const bool meterDebit=stock<oldStock[side]&&stock<=3u&&oldStock[side]<=3u;
@@ -241,7 +276,10 @@ struct State {
             // their own ROM script mapping has been captured and verified.
             const bool mappedNative= fighter==0x12u || fighter==0x14u;
             const bool nativeStart=(nativeSuperScriptMask&(1u<<side))!=0u;
-            const bool openedNow=!candidate[side] && (mappedNative?nativeStart:(actionEdge||meterDebit));
+            const bool openedNow=!candidate[side] &&
+                (fighter==0x12u ?
+                    (nativeStart && lifeEvent==XM87184Life::ENTER) :
+                    (mappedNative?nativeStart:(actionEdge||meterDebit)));
             if(openedNow){
                 candidate[side]=true;openAt[side]=frame;
                 // The first-super dispatch may occur while an old motion or
@@ -304,15 +342,19 @@ struct State {
                    frame>=lastAttackFrame[side] && frame-lastAttackFrame[side]<=4u &&
                    (buttons[side]&0x3Fu)!=0u){
                     const bool facingRight=(b(ram,point+0x4Bu)&1u)!=0u; // 87.142 trace verified: 1=RIGHT
-                    // QCF+3P is eligible only DURING Ryu's verified 2E08
-                    // native super, never in the post-super candidate tail.
-                    const unsigned nativeMode=w(ram,point+0xA0u);
-                    const bool triplePunchDhcWindow=side==0u &&
+                    // Do not confuse whole-action lifetime with the
+                    // native tag execution window. Startup is tracked,
+                    // but it is not yet proven safe for controller 8.
+                    // 87.184 can TEST the genuine 2E0A recovery stage
+                    // only before its terminal 0D3194 script.
+                    const bool nativeWindow=side==0u &&
                         fighter==0x12u && bench==0x14u &&
-                        w(ram,point+0x60u)==0x2E08u &&
-                        (nativeMode==0x2A28u || nativeMode==0x2A02u);
-                    const ListedSuper* found=matchListed(bench,keys[side],
-                        facingRight,frame,buttons[side],triplePunchDhcWindow);
+                        shinkuu[side].live &&
+                        XM87184Life::canTag(shinkuuNow,
+                          XM87184Life::recoveryOptIn());
+                    const ListedSuper* found=nativeWindow?
+                        matchListed(bench,keys[side],facingRight,frame,
+                                    buttons[side],true):nullptr;
                     char text[CHAT_LENGTH];
                     if(found && lastMoveFrame[side]!=lastAttackFrame[side]){
                         // Pressing the third kick a frame after LP+MP/ LK+MK
@@ -369,12 +411,14 @@ struct State {
                         }
                     }
                 }
-                // Candidate gate expires by native action change, but keep a
-                // conservative window for move-specific attack scripts we
-                // have not reverse-engineered. No gameplay DHC is triggered.
-                if((frame-openAt[side]>200u)||
-                   (frame-openAt[side]>15u && a0!=0x2Au &&
-                    a0!=0x32u && a0!=0x06u)){
+                // For Ryu, the exact 2E08->2E0A->normal action
+                // lifetime above owns closure. Do NOT substitute an
+                // arbitrary 200-frame chat timeout. Other fighters
+                // retain the provisional legacy observation policy.
+                if(fighter!=0x12u &&
+                   ((frame-openAt[side]>200u)||
+                    (frame-openAt[side]>15u && a0!=0x2Au &&
+                     a0!=0x32u && a0!=0x06u))){
                     candidate[side]=false;
                     XM87143Queue::state().discard(side);
                     char text[CHAT_LENGTH];
