@@ -95,5 +95,23 @@ static inline void armNativeController8(std::uint8_t*ram,unsigned actor){
     wput(ram,actor+0x0Au,0u);
     wput(ram,actor+0xA0u,0x002Au);
 }
+// One entry point for the outgoing 68000 transaction. The caller
+// verifies native super ownership and keeps the reserve command.
+// The actor's original state is saved BEFORE any controller8 writes.
+// The ROM still owns the actual action 3200 and native fighter swap.
+struct Transaction {
+    bool begun=false;
+    unsigned side=0u,actor=0u,reserve=0u;
+    Snapshot before;
+};
+static inline Transaction beginNativeExit(std::uint8_t*ram,unsigned side){
+    Transaction t;
+    if(!ram || side>=2u)return t;
+    t.side=side;t.actor=actorBase(side);t.reserve=reserveBase(side);
+    t.before=capture(ram,t.actor);
+    armNativeController8(ram,t.actor);
+    t.begun=true;
+    return t;
+}
 } // namespace XM87193Exit
 #endif
