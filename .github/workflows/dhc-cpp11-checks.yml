@@ -20,6 +20,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Verify GIF stage camera math (native left/right/up/down and resolution)
+        shell: bash
+        run: |
+          set -euo pipefail
+          g++ -std=c++11 -O2 -Wall -Wextra -pedantic dev/dhc/tests/test_gif_camera_201.cpp -o /tmp/xmvsf-gif-camera-201
+          /tmp/xmvsf-gif-camera-201
       - name: Validate TEST launcher routing and build-script syntax
         shell: bash
         run: |
