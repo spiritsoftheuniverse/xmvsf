@@ -23,7 +23,7 @@ static inline bool canRestoreStagedMode(unsigned phase,bool enabled,bool early,
     return enabled && early && phase==2u &&
        point==0x12u && reserve==0x14u &&
        outgoing==point && incoming==reserve &&
-       action==0x2E08u && expectedAction==action &&
+       (action==0x2E08u || action==0x2E0Au) && expectedAction==action &&
        mode==0x002Au &&
        (oldMode==0x2A28u || oldMode==0x2A02u) &&
        d6==0x0Au && oldD6==d6 &&
