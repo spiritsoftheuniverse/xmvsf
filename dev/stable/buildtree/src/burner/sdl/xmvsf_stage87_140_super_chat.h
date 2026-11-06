@@ -421,6 +421,17 @@ struct State {
                            "DHC_192_RESERVE_OWNS_INPUT id=%02X motion=%u buttons=%02X ROM_SUPER_PENDING",
                             bench,unsigned(proposal.motion),proposal.buttonMask);
                         log(frame,MATCH,text);
+                        // Capture the inactive actor's actual native state
+                        // BEFORE our tag writer runs. We cannot assume its
+                        // 68000 input parser is active just because the
+                        // actor exists in reserve RAM.
+                        std::snprintf(text,sizeof(text),
+                            "DHC_192_INACTIVE_PRETAG act=%04X mode=%04X step=%04X D6=%02X script=%06X",
+                            w(ram,reserve+0x60u),w(ram,reserve+0xA0u),
+                            w(ram,reserve+0x08u),b(ram,reserve+0xD6u),
+                            unsigned((std::uint32_t(w(ram,reserve+0x34u))<<16u)|
+                                      w(ram,reserve+0x36u)));
+                        log(frame,SYSTEM,text);
                         lastMoveFrame[side]=lastAttackFrame[side];
                     }
                     if(found && playableRyuKen &&
