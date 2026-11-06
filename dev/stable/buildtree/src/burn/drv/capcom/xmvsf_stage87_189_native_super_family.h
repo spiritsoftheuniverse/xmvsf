@@ -18,7 +18,8 @@ namespace XM87189Family {
 enum Phase { OUTSIDE=0, STARTUP=1, ATTACK=2, RECOVERY=3, CONTINUATION=4 };
 enum Event { NOTHING=0, ENTER=1, ATTACK_BEGIN=2,
              RECOVERY_BEGIN=3, ACTION_EXIT=4,
-             CONTINUATION_BEGIN=5, REPEATED_ROOT_SCRIPT=6 };
+             CONTINUATION_BEGIN=5, REPEATED_ROOT_SCRIPT=6,
+             CONTINUATION_STAGE_CHANGE=7 };
 struct Tracker {
     bool live=false;
     Phase phase=OUTSIDE;
@@ -26,6 +27,7 @@ struct Tracker {
     unsigned fighter=0u,rootAction=0u,rootScript=0u,nextScript=0u;
     unsigned recoveryAction=0u,recoveryScript=0u,recoveryEnd=0u;
     unsigned stageAction=0u,stageScript=0u,stageEnd=0u;
+    unsigned lastObservedScript=0u;
     unsigned originalD6=0u;
     unsigned beginFrame=0u,attackFrame=0u,exitFrame=0u;
     void reset(){*this=Tracker();}
@@ -104,7 +106,7 @@ struct Tracker {
             recoveryEnd=after.valid && after.script>nextScript?
                 after.script:0u;
             stageAction=s.action;stageScript=s.script;
-            stageEnd=nextScript;
+            stageEnd=nextScript;lastObservedScript=s.script;
             originalD6=s.d6;phase=STARTUP;beginFrame=now;
             attackFrame=exitFrame=0u;
             return ENTER;
@@ -120,11 +122,13 @@ struct Tracker {
             nextScript>rootScript &&
             s.script>=rootScript && s.script<nextScript;
         if(ownAction && s.step==2u){
-            phase=STARTUP;return NOTHING;
+            phase=STARTUP;lastObservedScript=s.script;return NOTHING;
         }
         if(ownAction && s.step>=4u && (s.step&1u)==0u){
             const bool justBegan=phase!=ATTACK;
-            const bool rewound=s.script==rootScript && phase==ATTACK;
+            const bool rewound=s.script==rootScript && phase==ATTACK &&
+                lastObservedScript!=s.script;
+            lastObservedScript=s.script;
             phase=ATTACK;
             if(justBegan){attackFrame=now;return ATTACK_BEGIN;}
             return rewound?REPEATED_ROOT_SCRIPT:NOTHING;
@@ -136,7 +140,8 @@ struct Tracker {
         // Observe it; do not arm controller 8 from an unproven stage.
         if(s.action!=rootAction && s.step>=4u &&
            (s.step&1u)==0u && (s.action&0xFF00u)==0x2E00u){
-            if(s.action!=stageAction){
+            const bool changedStage=s.action!=stageAction;
+            if(changedStage){
                 const auto x=XM87142::resolve(
                     rom,romSize,fighter,0x2Eu,s.action&0xFFu);
                 stageAction=s.action;
@@ -147,8 +152,9 @@ struct Tracker {
             if(stageScript && stageEnd>stageScript &&
                s.script>=stageScript && s.script<stageEnd){
                 const bool first=phase!=CONTINUATION;
-                phase=CONTINUATION;
-                return first?CONTINUATION_BEGIN:NOTHING;
+                phase=CONTINUATION;lastObservedScript=s.script;
+                return first?CONTINUATION_BEGIN:
+                    changedStage?CONTINUATION_STAGE_CHANGE:NOTHING;
             }
         }
         live=false;phase=OUTSIDE;exitFrame=now;return ACTION_EXIT;
