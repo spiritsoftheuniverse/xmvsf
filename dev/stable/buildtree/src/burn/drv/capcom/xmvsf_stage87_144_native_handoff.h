@@ -28,7 +28,8 @@
 #include "xmvsf_stage87_195_tag_latch_guard.h" // clear only our failed controller8 latch
 #include "xmvsf_stage87_196_native_immediate_fall.h" // original 0212 fall, no 67-frame tag lag
 #include "xmvsf_stage87_197_cinematic_opponent_hold.h" // DHC-only opponent freeze
-#include "xmvsf_stage87_198_native_super_freeze_cue.h" // first native Ken offensive activation, not initial 2E
+#include "xmvsf_stage87_198_native_super_freeze_cue.h"
+#include "xmvsf_stage87_202_air_followup_rebound.h" // verified 87.201 air selector rebound // first native Ken offensive activation, not initial 2E
 #include "xmvsf_stage87_177_dhc_punch_chords.h" // explicit 3P host / native 2P helper dependency
 #include <cstdint>
 #include <cstdio>
@@ -106,6 +107,7 @@ struct State {
          reserveOwnershipTest=false,deterministicExitTest=false,
          passiveJumpTest=false,immediateFallTest=false,
          cinematicFreezeTest=false,freezeThroughStartupTest=false,
+         airFollowupReboundTest=false,
          chainUsed[2]={false,false};
     Phase phase[2]={IDLE,IDLE};
     bool armedFromFamily[2]={false,false};
@@ -202,6 +204,9 @@ struct State {
         const char* offense=std::getenv("XM87198_TEST_NATIVE_OFFENSE_RELEASE");
         freezeThroughStartupTest=cinematicFreezeTest && offense &&
             std::strcmp(offense,"1")==0;
+        const char* airLoop=std::getenv("XM87202_TEST_AIR_FOLLOWUP_REBOUND");
+        airFollowupReboundTest=liveLifetimeTest && reserveOwnershipTest &&
+            airLoop && std::strcmp(airLoop,"1")==0;
         const char* firstFour=std::getenv("XM87186_TEST_FIRST_FOUR_ATTACK");
         firstFourAttackTest=enabled && earlyCancel && firstFour &&
              std::strcmp(firstFour,"1")==0;
@@ -981,6 +986,37 @@ struct State {
                        rw(ram,p+0x08u),rl(ram,p+0x34u),
                        rb(ram,p+0xD6u),rb(ram,p+0x256u),
                        rb(ram,p+0x259u),started[side],now);
+                // 87.201: 12 original executed-PC 010392 air-super
+                // rebounds 2E0E -> 2E0C were wrongly aborted. Match
+                // the exact one-frame native signature and ROM root;
+                // refuse ordinary 0212/0214 or an unconsumed input.
+                bool airFollowupRebound=false;
+                if(airFollowupReboundTest){
+                    XM87202Air::Evidence e;
+                    e.phase=unsigned(phase[side]);
+                    e.point=pointId;e.reserve=reserveId;
+                    e.outgoing=outgoing[side];e.incoming=incoming[side];
+                    e.capturedAction=capturedAction[side];
+                    e.capturedMode=capturedMode[side];
+                    e.capturedStep=captured08[side];
+                    e.capturedScript=capturedScript[side];
+                    e.capturedD6=capturedD6[side];
+                    e.captured259=captured259[side];
+                    e.action=rw(ram,p+0x60u);
+                    e.mode=rw(ram,p+0xA0u);
+                    e.step=rw(ram,p+0x08u);
+                    e.script=rl(ram,p+0x34u);
+                    e.d6=rb(ram,p+0xD6u);
+                    e.controller256=rb(ram,p+0x256u);
+                    e.controller259=rb(ram,p+0x259u);
+                    e.started=started[side];e.now=now;
+                    if(XM87202Air::exactNativeAirRebound(e)){
+                        const auto root=XM87142::resolve(
+                            rom,size,pointId,0x2Eu,0x0Cu);
+                        airFollowupRebound=
+                            root.valid && root.script==0x0D31A8u;
+                    }
+                }
                 if(pointId!=outgoing[side] || reserveId!=incoming[side]){
                     abort(now,side,ram,"CONTROLLER_FIGHTER_CHANGED_BEFORE_TAG");
                 }else if(rw(ram,p+0x60u)==0x3200u &&
@@ -998,7 +1034,7 @@ struct State {
                               "DHC_197_OPPONENT_FREEZE_CAPTURE_REFUSED");
                     }
                     event(now,side,ram,"NATIVE_CONTROLLER_ACCEPTED_OUTGOING_3200");
-                }else if(recoveryRebound ||
+                }else if(recoveryRebound || airFollowupRebound ||
                           (rw(ram,p+0xA0u)==0x2A00u &&
                            rb(ram,p+0x256u)==0u &&
                            rw(ram,p+0x60u)==capturedAction[side] &&
@@ -1023,6 +1059,9 @@ struct State {
                     if(recoveryRebound)
                         event(now,side,ram,
                            "DHC_185_NATIVE_RECOVERY_REBOUND_ROM_CHOSE_2E08_HOST_TAG_BRIDGE");
+                    if(airFollowupRebound)
+                        event(now,side,ram,
+                           "DHC_202_MATCHED_87_201_NATIVE_PC010392_AIR_REBOUND");
                     if(!setNativeScript(ram,rom,size,p,pointId,0x32u,0u)){
                         abort(now,side,ram,"NATIVE_3200_SCRIPT_INIT_FAILED");
                         continue;
@@ -1058,6 +1097,8 @@ struct State {
                     }
                     event(now,side,ram,recoveryRebound?
                         "DHC_185_RECOVERY_REBOUND_TO_ORIGINAL_3200_SCRIPT":
+                        airFollowupRebound?
+                        "DHC_202_AIR_REBOUND_TO_ORIGINAL_3200_SCRIPT":
                         "DHC_ROM_TAG_3200_AFTER_CONTROLLER_ACCEPT");
 
                 }else if(rb(ram,p+0x256u)==0u &&
