@@ -72,8 +72,11 @@ struct State {
         if(!enabled || !ram)return;
         if(lastFrame!=~0u && now<lastFrame) {
             lifetime.reset();
-            root=attack=epoch=0u;
-            std::fputs("# FRAME_RESET new native lifecycle epoch\n",log);
+            root=attack=0u;
+            // Keep epoch monotonically increasing across F9 savestate
+            // reloads and host-frame-counter resets within a single
+            // appended log session. Never merge unrelated super roots.
+            std::fputs("# FRAME_RESET original frame counter rewound\n",log);
         }
         lastFrame=now;
         if(rb(ram,0x5000u)!=8u || rw(ram,0x4052u)!=0x12u ||
