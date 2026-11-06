@@ -1,0 +1,1076 @@
+{
+  "schema": "XMVSF_NATIVE_PC_ARBITRATION_87_182_V1",
+  "status": "READ_ONLY_ORIGINAL_ROM_EXECUTED_PC_EVIDENCE",
+  "counts": {
+    "sessions": 1,
+    "traced_frames": 14,
+    "watched_rows": 13953,
+    "native_action_after_2E08": 6,
+    "dropped_filtered_instruction_rows": 0,
+    "frames_with_rows": 14
+  },
+  "frame_summaries_first_1500": [
+    {
+      "session": 1,
+      "frame": "2036",
+      "tracked_68000_instructions": 773,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [
+        {
+          "ordinal": 9507,
+          "caller_last_executed_pc": "033E1A",
+          "d0_action_family": "0000002E",
+          "d1_selector": "00000008",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        },
+        {
+          "ordinal": 11031,
+          "caller_last_executed_pc": "0599C8",
+          "d0_action_family": "00000034",
+          "d1_selector": "0000001E",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        },
+        {
+          "ordinal": 11230,
+          "caller_last_executed_pc": "0599C8",
+          "d0_action_family": "00000034",
+          "d1_selector": "00000020",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        }
+      ],
+      "input_history_changes": [
+        {
+          "executed_pc": "01044A",
+          "native_c2": "0001",
+          "native_ca": "0060",
+          "ordinal": 8916
+        }
+      ],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "2709",
+      "tracked_68000_instructions": 770,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [
+        {
+          "ordinal": 917,
+          "caller_last_executed_pc": "033E1A",
+          "d0_action_family": "0000002E",
+          "d1_selector": "00000008",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        },
+        {
+          "ordinal": 2440,
+          "caller_last_executed_pc": "0599C8",
+          "d0_action_family": "00000034",
+          "d1_selector": "0000002A",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        },
+        {
+          "ordinal": 2573,
+          "caller_last_executed_pc": "0599C8",
+          "d0_action_family": "00000034",
+          "d1_selector": "0000002C",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        }
+      ],
+      "input_history_changes": [
+        {
+          "executed_pc": "01044A",
+          "native_c2": "0001",
+          "native_ca": "0030",
+          "ordinal": 329
+        }
+      ],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "3275",
+      "tracked_68000_instructions": 1775,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [
+        {
+          "ordinal": 912,
+          "caller_last_executed_pc": "033E1A",
+          "d0_action_family": "0000002E",
+          "d1_selector": "00000008",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        },
+        {
+          "ordinal": 2434,
+          "caller_last_executed_pc": "0599C8",
+          "d0_action_family": "00000034",
+          "d1_selector": "00000024",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        },
+        {
+          "ordinal": 2558,
+          "caller_last_executed_pc": "0599C8",
+          "d0_action_family": "00000034",
+          "d1_selector": "00000026",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        },
+        {
+          "ordinal": 2682,
+          "caller_last_executed_pc": "0599C8",
+          "d0_action_family": "00000034",
+          "d1_selector": "00000026",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        },
+        {
+          "ordinal": 2801,
+          "caller_last_executed_pc": "0599C8",
+          "d0_action_family": "00000034",
+          "d1_selector": "00000026",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        },
+        {
+          "ordinal": 2920,
+          "caller_last_executed_pc": "0599C8",
+          "d0_action_family": "00000034",
+          "d1_selector": "00000026",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        },
+        {
+          "ordinal": 3039,
+          "caller_last_executed_pc": "0599C8",
+          "d0_action_family": "00000034",
+          "d1_selector": "00000026",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        },
+        {
+          "ordinal": 3158,
+          "caller_last_executed_pc": "0599C8",
+          "d0_action_family": "00000034",
+          "d1_selector": "00000026",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        },
+        {
+          "ordinal": 3277,
+          "caller_last_executed_pc": "0599C8",
+          "d0_action_family": "00000034",
+          "d1_selector": "00000026",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        },
+        {
+          "ordinal": 3396,
+          "caller_last_executed_pc": "0599C8",
+          "d0_action_family": "00000034",
+          "d1_selector": "00000026",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        },
+        {
+          "ordinal": 3515,
+          "caller_last_executed_pc": "0599C8",
+          "d0_action_family": "00000034",
+          "d1_selector": "00000026",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        },
+        {
+          "ordinal": 3634,
+          "caller_last_executed_pc": "0599C8",
+          "d0_action_family": "00000034",
+          "d1_selector": "00000026",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        },
+        {
+          "ordinal": 3753,
+          "caller_last_executed_pc": "0599C8",
+          "d0_action_family": "00000034",
+          "d1_selector": "00000026",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        },
+        {
+          "ordinal": 14746,
+          "caller_last_executed_pc": "0599C8",
+          "d0_action_family": "00000034",
+          "d1_selector": "00000026",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        },
+        {
+          "ordinal": 14883,
+          "caller_last_executed_pc": "0599C8",
+          "d0_action_family": "00000034",
+          "d1_selector": "00000026",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        }
+      ],
+      "input_history_changes": [
+        {
+          "executed_pc": "01044A",
+          "native_c2": "0001",
+          "native_ca": "0030",
+          "ordinal": 324
+        },
+        {
+          "executed_pc": "010432",
+          "native_c2": "0031",
+          "native_ca": "0030",
+          "ordinal": 13399
+        },
+        {
+          "executed_pc": "01044A",
+          "native_c2": "0031",
+          "native_ca": "0000",
+          "ordinal": 13406
+        }
+      ],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "3738",
+      "tracked_68000_instructions": 928,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [
+        {
+          "ordinal": 11871,
+          "caller_last_executed_pc": "0150B0",
+          "d0_action_family": "0000001C",
+          "d1_selector": "00000018",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        },
+        {
+          "ordinal": 15061,
+          "caller_last_executed_pc": "033E1A",
+          "d0_action_family": "0000002E",
+          "d1_selector": "00000008",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        },
+        {
+          "ordinal": 15915,
+          "caller_last_executed_pc": "0599C8",
+          "d0_action_family": "00000034",
+          "d1_selector": "00000024",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        },
+        {
+          "ordinal": 16039,
+          "caller_last_executed_pc": "0599C8",
+          "d0_action_family": "00000034",
+          "d1_selector": "00000026",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        },
+        {
+          "ordinal": 16163,
+          "caller_last_executed_pc": "0599C8",
+          "d0_action_family": "00000034",
+          "d1_selector": "00000026",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        },
+        {
+          "ordinal": 16282,
+          "caller_last_executed_pc": "0599C8",
+          "d0_action_family": "00000034",
+          "d1_selector": "00000026",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        },
+        {
+          "ordinal": 16401,
+          "caller_last_executed_pc": "0599C8",
+          "d0_action_family": "00000034",
+          "d1_selector": "00000026",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        },
+        {
+          "ordinal": 16520,
+          "caller_last_executed_pc": "0599C8",
+          "d0_action_family": "00000034",
+          "d1_selector": "00000026",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        },
+        {
+          "ordinal": 16639,
+          "caller_last_executed_pc": "0599C8",
+          "d0_action_family": "00000034",
+          "d1_selector": "00000026",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        },
+        {
+          "ordinal": 16758,
+          "caller_last_executed_pc": "0599C8",
+          "d0_action_family": "00000034",
+          "d1_selector": "00000026",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        },
+        {
+          "ordinal": 16877,
+          "caller_last_executed_pc": "0599C8",
+          "d0_action_family": "00000034",
+          "d1_selector": "00000026",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        },
+        {
+          "ordinal": 16996,
+          "caller_last_executed_pc": "0599C8",
+          "d0_action_family": "00000034",
+          "d1_selector": "00000026",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        },
+        {
+          "ordinal": 17436,
+          "caller_last_executed_pc": "0599C8",
+          "d0_action_family": "00000034",
+          "d1_selector": "00000026",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        },
+        {
+          "ordinal": 17555,
+          "caller_last_executed_pc": "0599C8",
+          "d0_action_family": "00000034",
+          "d1_selector": "00000026",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        }
+      ],
+      "input_history_changes": [
+        {
+          "executed_pc": "01044A",
+          "native_c2": "0001",
+          "native_ca": "0060",
+          "ordinal": 14470
+        }
+      ],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "4421",
+      "tracked_68000_instructions": 1775,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [
+        {
+          "ordinal": 1422,
+          "caller_last_executed_pc": "033E1A",
+          "d0_action_family": "0000002E",
+          "d1_selector": "00000008",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        },
+        {
+          "ordinal": 2282,
+          "caller_last_executed_pc": "0599C8",
+          "d0_action_family": "00000034",
+          "d1_selector": "0000001E",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        },
+        {
+          "ordinal": 2401,
+          "caller_last_executed_pc": "0599C8",
+          "d0_action_family": "00000034",
+          "d1_selector": "00000020",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        },
+        {
+          "ordinal": 2525,
+          "caller_last_executed_pc": "0599C8",
+          "d0_action_family": "00000034",
+          "d1_selector": "00000020",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        },
+        {
+          "ordinal": 2644,
+          "caller_last_executed_pc": "0599C8",
+          "d0_action_family": "00000034",
+          "d1_selector": "00000020",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        },
+        {
+          "ordinal": 2763,
+          "caller_last_executed_pc": "0599C8",
+          "d0_action_family": "00000034",
+          "d1_selector": "00000020",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        },
+        {
+          "ordinal": 2882,
+          "caller_last_executed_pc": "0599C8",
+          "d0_action_family": "00000034",
+          "d1_selector": "00000020",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        },
+        {
+          "ordinal": 3001,
+          "caller_last_executed_pc": "0599C8",
+          "d0_action_family": "00000034",
+          "d1_selector": "00000020",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        },
+        {
+          "ordinal": 3120,
+          "caller_last_executed_pc": "0599C8",
+          "d0_action_family": "00000034",
+          "d1_selector": "00000020",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        },
+        {
+          "ordinal": 3239,
+          "caller_last_executed_pc": "0599C8",
+          "d0_action_family": "00000034",
+          "d1_selector": "00000020",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        },
+        {
+          "ordinal": 3358,
+          "caller_last_executed_pc": "0599C8",
+          "d0_action_family": "00000034",
+          "d1_selector": "00000020",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        },
+        {
+          "ordinal": 3477,
+          "caller_last_executed_pc": "0599C8",
+          "d0_action_family": "00000034",
+          "d1_selector": "00000020",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        },
+        {
+          "ordinal": 3596,
+          "caller_last_executed_pc": "0599C8",
+          "d0_action_family": "00000034",
+          "d1_selector": "00000020",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        },
+        {
+          "ordinal": 14362,
+          "caller_last_executed_pc": "0599C8",
+          "d0_action_family": "00000034",
+          "d1_selector": "0000001E",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        },
+        {
+          "ordinal": 14560,
+          "caller_last_executed_pc": "0599C8",
+          "d0_action_family": "00000034",
+          "d1_selector": "00000020",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        }
+      ],
+      "input_history_changes": [
+        {
+          "executed_pc": "01044A",
+          "native_c2": "0001",
+          "native_ca": "0030",
+          "ordinal": 833
+        },
+        {
+          "executed_pc": "010432",
+          "native_c2": "0031",
+          "native_ca": "0030",
+          "ordinal": 12420
+        },
+        {
+          "executed_pc": "01044A",
+          "native_c2": "0031",
+          "native_ca": "0000",
+          "ordinal": 12427
+        }
+      ],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "5049",
+      "tracked_68000_instructions": 770,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [
+        {
+          "ordinal": 837,
+          "caller_last_executed_pc": "033E1A",
+          "d0_action_family": "0000002E",
+          "d1_selector": "00000008",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        },
+        {
+          "ordinal": 2362,
+          "caller_last_executed_pc": "0599C8",
+          "d0_action_family": "00000034",
+          "d1_selector": "0000001E",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        },
+        {
+          "ordinal": 2499,
+          "caller_last_executed_pc": "0599C8",
+          "d0_action_family": "00000034",
+          "d1_selector": "00000020",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        }
+      ],
+      "input_history_changes": [
+        {
+          "executed_pc": "01044A",
+          "native_c2": "0001",
+          "native_ca": "0030",
+          "ordinal": 249
+        }
+      ],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "5504",
+      "tracked_68000_instructions": 910,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [
+        {
+          "ordinal": 1416,
+          "caller_last_executed_pc": "033E1A",
+          "d0_action_family": "0000002E",
+          "d1_selector": "00000008",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        },
+        {
+          "ordinal": 2288,
+          "caller_last_executed_pc": "0599C8",
+          "d0_action_family": "00000034",
+          "d1_selector": "00000024",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        },
+        {
+          "ordinal": 2407,
+          "caller_last_executed_pc": "0599C8",
+          "d0_action_family": "00000034",
+          "d1_selector": "00000026",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        },
+        {
+          "ordinal": 2526,
+          "caller_last_executed_pc": "0599C8",
+          "d0_action_family": "00000034",
+          "d1_selector": "00000026",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        },
+        {
+          "ordinal": 2645,
+          "caller_last_executed_pc": "0599C8",
+          "d0_action_family": "00000034",
+          "d1_selector": "00000026",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        },
+        {
+          "ordinal": 2764,
+          "caller_last_executed_pc": "0599C8",
+          "d0_action_family": "00000034",
+          "d1_selector": "00000026",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        },
+        {
+          "ordinal": 2883,
+          "caller_last_executed_pc": "0599C8",
+          "d0_action_family": "00000034",
+          "d1_selector": "00000026",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        },
+        {
+          "ordinal": 3002,
+          "caller_last_executed_pc": "0599C8",
+          "d0_action_family": "00000034",
+          "d1_selector": "00000026",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        },
+        {
+          "ordinal": 3121,
+          "caller_last_executed_pc": "0599C8",
+          "d0_action_family": "00000034",
+          "d1_selector": "00000026",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        },
+        {
+          "ordinal": 3240,
+          "caller_last_executed_pc": "0599C8",
+          "d0_action_family": "00000034",
+          "d1_selector": "00000026",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        },
+        {
+          "ordinal": 3359,
+          "caller_last_executed_pc": "0599C8",
+          "d0_action_family": "00000034",
+          "d1_selector": "00000026",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        },
+        {
+          "ordinal": 3478,
+          "caller_last_executed_pc": "0599C8",
+          "d0_action_family": "00000034",
+          "d1_selector": "00000026",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        },
+        {
+          "ordinal": 3597,
+          "caller_last_executed_pc": "0599C8",
+          "d0_action_family": "00000034",
+          "d1_selector": "00000026",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        }
+      ],
+      "input_history_changes": [
+        {
+          "executed_pc": "01044A",
+          "native_c2": "0001",
+          "native_ca": "0030",
+          "ordinal": 827
+        }
+      ],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "5985",
+      "tracked_68000_instructions": 774,
+      "action_changes": [
+        {
+          "executed_pc": "010392",
+          "previous_executed_pc": "01038E",
+          "next_pc": "010396",
+          "D0_action_family": "0000002E",
+          "D1_selector": "00000008",
+          "nearest_dispatch_request": {
+            "ordinal": 787,
+            "caller_last_executed_pc": "033E1A",
+            "d0_action_family": "0000002E",
+            "d1_selector": "00000008",
+            "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+          },
+          "actor_a6": "FF4000",
+          "native_action_after": "2E08",
+          "native_mode_after": "2A00",
+          "native_command_d6_after": "0A",
+          "input_c2": "0001",
+          "input_ca": "0060",
+          "ordinal": 788,
+          "source": "EXECUTED_INSTRUCTION_STATE_DELTA"
+        }
+      ],
+      "dispatcher_entries_first_36": [
+        {
+          "ordinal": 787,
+          "caller_last_executed_pc": "033E1A",
+          "d0_action_family": "0000002E",
+          "d1_selector": "00000008",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        },
+        {
+          "ordinal": 1613,
+          "caller_last_executed_pc": "00F0DA",
+          "d0_action_family": "0000001C",
+          "d1_selector": "00000024",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        },
+        {
+          "ordinal": 1671,
+          "caller_last_executed_pc": "00F0FE",
+          "d0_action_family": "0000001C",
+          "d1_selector": "0000002E",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        }
+      ],
+      "input_history_changes": [
+        {
+          "executed_pc": "010432",
+          "native_c2": "0001",
+          "native_ca": "0000",
+          "ordinal": 189
+        },
+        {
+          "executed_pc": "01044A",
+          "native_c2": "0001",
+          "native_ca": "0060",
+          "ordinal": 196
+        }
+      ],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "6491",
+      "tracked_68000_instructions": 1611,
+      "action_changes": [
+        {
+          "executed_pc": "010392",
+          "previous_executed_pc": "01038E",
+          "next_pc": "010396",
+          "D0_action_family": "0000002E",
+          "D1_selector": "00000008",
+          "nearest_dispatch_request": {
+            "ordinal": 889,
+            "caller_last_executed_pc": "033E1A",
+            "d0_action_family": "0000002E",
+            "d1_selector": "00000008",
+            "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+          },
+          "actor_a6": "FF4000",
+          "native_action_after": "2E08",
+          "native_mode_after": "2A00",
+          "native_command_d6_after": "0A",
+          "input_c2": "0001",
+          "input_ca": "0060",
+          "ordinal": 890,
+          "source": "EXECUTED_INSTRUCTION_STATE_DELTA"
+        }
+      ],
+      "dispatcher_entries_first_36": [
+        {
+          "ordinal": 889,
+          "caller_last_executed_pc": "033E1A",
+          "d0_action_family": "0000002E",
+          "d1_selector": "00000008",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        },
+        {
+          "ordinal": 8912,
+          "caller_last_executed_pc": "00F0DA",
+          "d0_action_family": "0000001C",
+          "d1_selector": "00000024",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        },
+        {
+          "ordinal": 8970,
+          "caller_last_executed_pc": "00F0FE",
+          "d0_action_family": "0000001C",
+          "d1_selector": "0000002E",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        }
+      ],
+      "input_history_changes": [
+        {
+          "executed_pc": "010432",
+          "native_c2": "0001",
+          "native_ca": "0000",
+          "ordinal": 291
+        },
+        {
+          "executed_pc": "01044A",
+          "native_c2": "0001",
+          "native_ca": "0060",
+          "ordinal": 298
+        },
+        {
+          "executed_pc": "010432",
+          "native_c2": "0061",
+          "native_ca": "0060",
+          "ordinal": 9173
+        },
+        {
+          "executed_pc": "01044A",
+          "native_c2": "0061",
+          "native_ca": "0000",
+          "ordinal": 9180
+        }
+      ],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "7005",
+      "tracked_68000_instructions": 719,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [
+        {
+          "ordinal": 810,
+          "caller_last_executed_pc": "033E1A",
+          "d0_action_family": "0000002E",
+          "d1_selector": "00000008",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        }
+      ],
+      "input_history_changes": [
+        {
+          "executed_pc": "01044A",
+          "native_c2": "0001",
+          "native_ca": "0060",
+          "ordinal": 219
+        }
+      ],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "7596",
+      "tracked_68000_instructions": 742,
+      "action_changes": [
+        {
+          "executed_pc": "010392",
+          "previous_executed_pc": "01038E",
+          "next_pc": "010396",
+          "D0_action_family": "0000002E",
+          "D1_selector": "00000008",
+          "nearest_dispatch_request": {
+            "ordinal": 7744,
+            "caller_last_executed_pc": "033E1A",
+            "d0_action_family": "0000002E",
+            "d1_selector": "00000008",
+            "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+          },
+          "actor_a6": "FF4000",
+          "native_action_after": "2E08",
+          "native_mode_after": "2A00",
+          "native_command_d6_after": "0A",
+          "input_c2": "0001",
+          "input_ca": "0030",
+          "ordinal": 7745,
+          "source": "EXECUTED_INSTRUCTION_STATE_DELTA"
+        }
+      ],
+      "dispatcher_entries_first_36": [
+        {
+          "ordinal": 7744,
+          "caller_last_executed_pc": "033E1A",
+          "d0_action_family": "0000002E",
+          "d1_selector": "00000008",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        }
+      ],
+      "input_history_changes": [
+        {
+          "executed_pc": "01044A",
+          "native_c2": "0001",
+          "native_ca": "0030",
+          "ordinal": 7156
+        }
+      ],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "8084",
+      "tracked_68000_instructions": 746,
+      "action_changes": [
+        {
+          "executed_pc": "010392",
+          "previous_executed_pc": "01038E",
+          "next_pc": "010396",
+          "D0_action_family": "0000002E",
+          "D1_selector": "00000008",
+          "nearest_dispatch_request": {
+            "ordinal": 1543,
+            "caller_last_executed_pc": "033E1A",
+            "d0_action_family": "0000002E",
+            "d1_selector": "00000008",
+            "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+          },
+          "actor_a6": "FF4000",
+          "native_action_after": "2E08",
+          "native_mode_after": "2A00",
+          "native_command_d6_after": "0A",
+          "input_c2": "0001",
+          "input_ca": "0050",
+          "ordinal": 1544,
+          "source": "EXECUTED_INSTRUCTION_STATE_DELTA"
+        }
+      ],
+      "dispatcher_entries_first_36": [
+        {
+          "ordinal": 1543,
+          "caller_last_executed_pc": "033E1A",
+          "d0_action_family": "0000002E",
+          "d1_selector": "00000008",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        }
+      ],
+      "input_history_changes": [
+        {
+          "executed_pc": "01044A",
+          "native_c2": "0001",
+          "native_ca": "0050",
+          "ordinal": 951
+        }
+      ],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "8563",
+      "tracked_68000_instructions": 914,
+      "action_changes": [
+        {
+          "executed_pc": "010392",
+          "previous_executed_pc": "01038E",
+          "next_pc": "010396",
+          "D0_action_family": "0000002E",
+          "D1_selector": "00000008",
+          "nearest_dispatch_request": {
+            "ordinal": 819,
+            "caller_last_executed_pc": "033E1A",
+            "d0_action_family": "0000002E",
+            "d1_selector": "00000008",
+            "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+          },
+          "actor_a6": "FF4000",
+          "native_action_after": "2E08",
+          "native_mode_after": "2A00",
+          "native_command_d6_after": "0A",
+          "input_c2": "0001",
+          "input_ca": "0060",
+          "ordinal": 820,
+          "source": "EXECUTED_INSTRUCTION_STATE_DELTA"
+        }
+      ],
+      "dispatcher_entries_first_36": [
+        {
+          "ordinal": 819,
+          "caller_last_executed_pc": "033E1A",
+          "d0_action_family": "0000002E",
+          "d1_selector": "00000008",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        },
+        {
+          "ordinal": 2241,
+          "caller_last_executed_pc": "0599C8",
+          "d0_action_family": "00000034",
+          "d1_selector": "00000006",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        },
+        {
+          "ordinal": 2365,
+          "caller_last_executed_pc": "0599C8",
+          "d0_action_family": "00000034",
+          "d1_selector": "00000008",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        },
+        {
+          "ordinal": 2484,
+          "caller_last_executed_pc": "0599C8",
+          "d0_action_family": "00000034",
+          "d1_selector": "00000008",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        },
+        {
+          "ordinal": 2603,
+          "caller_last_executed_pc": "0599C8",
+          "d0_action_family": "00000034",
+          "d1_selector": "00000008",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        },
+        {
+          "ordinal": 2722,
+          "caller_last_executed_pc": "0599C8",
+          "d0_action_family": "00000034",
+          "d1_selector": "00000008",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        },
+        {
+          "ordinal": 2841,
+          "caller_last_executed_pc": "0599C8",
+          "d0_action_family": "00000034",
+          "d1_selector": "00000008",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        },
+        {
+          "ordinal": 2960,
+          "caller_last_executed_pc": "0599C8",
+          "d0_action_family": "00000034",
+          "d1_selector": "00000008",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        },
+        {
+          "ordinal": 3079,
+          "caller_last_executed_pc": "0599C8",
+          "d0_action_family": "00000034",
+          "d1_selector": "00000008",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        },
+        {
+          "ordinal": 3198,
+          "caller_last_executed_pc": "0599C8",
+          "d0_action_family": "00000034",
+          "d1_selector": "00000008",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        },
+        {
+          "ordinal": 3317,
+          "caller_last_executed_pc": "0599C8",
+          "d0_action_family": "00000034",
+          "d1_selector": "00000008",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        },
+        {
+          "ordinal": 3436,
+          "caller_last_executed_pc": "0599C8",
+          "d0_action_family": "00000034",
+          "d1_selector": "00000008",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        },
+        {
+          "ordinal": 3555,
+          "caller_last_executed_pc": "0599C8",
+          "d0_action_family": "00000034",
+          "d1_selector": "00000008",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        }
+      ],
+      "input_history_changes": [
+        {
+          "executed_pc": "01044A",
+          "native_c2": "0001",
+          "native_ca": "0060",
+          "ordinal": 228
+        }
+      ],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "9060",
+      "tracked_68000_instructions": 746,
+      "action_changes": [
+        {
+          "executed_pc": "010392",
+          "previous_executed_pc": "01038E",
+          "next_pc": "010396",
+          "D0_action_family": "0000002E",
+          "D1_selector": "00000008",
+          "nearest_dispatch_request": {
+            "ordinal": 750,
+            "caller_last_executed_pc": "033E1A",
+            "d0_action_family": "0000002E",
+            "d1_selector": "00000008",
+            "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+          },
+          "actor_a6": "FF4000",
+          "native_action_after": "2E08",
+          "native_mode_after": "2A00",
+          "native_command_d6_after": "0A",
+          "input_c2": "0001",
+          "input_ca": "0050",
+          "ordinal": 751,
+          "source": "EXECUTED_INSTRUCTION_STATE_DELTA"
+        }
+      ],
+      "dispatcher_entries_first_36": [
+        {
+          "ordinal": 750,
+          "caller_last_executed_pc": "033E1A",
+          "d0_action_family": "0000002E",
+          "d1_selector": "00000008",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        }
+      ],
+      "input_history_changes": [
+        {
+          "executed_pc": "01044A",
+          "native_c2": "0001",
+          "native_ca": "0050",
+          "ordinal": 159
+        }
+      ],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    }
+  ],
+  "limits": "Executed PPC at each post-instruction native RAM delta pinpoints an instruction, but this is not a proof of why a preceding branch was taken. It does not include host-only changes made after the 68000 CPU returns. No super registry or native actor state is modified."
+}

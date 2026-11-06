@@ -1,0 +1,2003 @@
+{
+  "schema": "XMVSF_87_186_OPENING_LIFECYCLE_V1",
+  "sessions": 1,
+  "actor_rows": 3959,
+  "original_supers": 13,
+  "opening_pc_frames_requested": 304,
+  "episodes": [
+    {
+      "session": 1,
+      "epoch": 1,
+      "root_frame": 1635,
+      "first_attack_frame": 1702,
+      "first_recovery_frame": null,
+      "exit_frame": 1721,
+      "first_observed_punch_age": null,
+      "first_observed_controller8_age": 86,
+      "opening_frames_requested_pc": [
+        {
+          "frame": 1636,
+          "super_age": 1,
+          "attack_age": 0,
+          "native_phase": "STARTUP"
+        },
+        {
+          "frame": 1637,
+          "super_age": 2,
+          "attack_age": 0,
+          "native_phase": "STARTUP"
+        },
+        {
+          "frame": 1638,
+          "super_age": 3,
+          "attack_age": 0,
+          "native_phase": "STARTUP"
+        },
+        {
+          "frame": 1703,
+          "super_age": 68,
+          "attack_age": 1,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 1704,
+          "super_age": 69,
+          "attack_age": 2,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 1705,
+          "super_age": 70,
+          "attack_age": 3,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 1706,
+          "super_age": 71,
+          "attack_age": 4,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 1707,
+          "super_age": 72,
+          "attack_age": 5,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 1708,
+          "super_age": 73,
+          "attack_age": 6,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 1709,
+          "super_age": 74,
+          "attack_age": 7,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 1710,
+          "super_age": 75,
+          "attack_age": 8,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 1711,
+          "super_age": 76,
+          "attack_age": 9,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 1712,
+          "super_age": 77,
+          "attack_age": 10,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 1713,
+          "super_age": 78,
+          "attack_age": 11,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 1714,
+          "super_age": 79,
+          "attack_age": 12,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 1715,
+          "super_age": 80,
+          "attack_age": 13,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 1716,
+          "super_age": 81,
+          "attack_age": 14,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 1717,
+          "super_age": 82,
+          "attack_age": 15,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 1718,
+          "super_age": 83,
+          "attack_age": 16,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 1719,
+          "super_age": 84,
+          "attack_age": 17,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 1720,
+          "super_age": 85,
+          "attack_age": 18,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 1721,
+          "super_age": 86,
+          "attack_age": 19,
+          "native_phase": "ATTACK"
+        }
+      ],
+      "host_tag_interrupt": false
+    },
+    {
+      "session": 1,
+      "epoch": 2,
+      "root_frame": 1854,
+      "first_attack_frame": 1920,
+      "first_recovery_frame": null,
+      "exit_frame": 1947,
+      "first_observed_punch_age": 0,
+      "first_observed_controller8_age": 93,
+      "opening_frames_requested_pc": [
+        {
+          "frame": 1855,
+          "super_age": 1,
+          "attack_age": 0,
+          "native_phase": "STARTUP"
+        },
+        {
+          "frame": 1856,
+          "super_age": 2,
+          "attack_age": 0,
+          "native_phase": "STARTUP"
+        },
+        {
+          "frame": 1857,
+          "super_age": 3,
+          "attack_age": 0,
+          "native_phase": "STARTUP"
+        },
+        {
+          "frame": 1921,
+          "super_age": 67,
+          "attack_age": 1,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 1922,
+          "super_age": 68,
+          "attack_age": 2,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 1923,
+          "super_age": 69,
+          "attack_age": 3,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 1924,
+          "super_age": 70,
+          "attack_age": 4,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 1925,
+          "super_age": 71,
+          "attack_age": 5,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 1926,
+          "super_age": 72,
+          "attack_age": 6,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 1927,
+          "super_age": 73,
+          "attack_age": 7,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 1928,
+          "super_age": 74,
+          "attack_age": 8,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 1929,
+          "super_age": 75,
+          "attack_age": 9,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 1930,
+          "super_age": 76,
+          "attack_age": 10,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 1931,
+          "super_age": 77,
+          "attack_age": 11,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 1932,
+          "super_age": 78,
+          "attack_age": 12,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 1933,
+          "super_age": 79,
+          "attack_age": 13,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 1934,
+          "super_age": 80,
+          "attack_age": 14,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 1935,
+          "super_age": 81,
+          "attack_age": 15,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 1936,
+          "super_age": 82,
+          "attack_age": 16,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 1937,
+          "super_age": 83,
+          "attack_age": 17,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 1938,
+          "super_age": 84,
+          "attack_age": 18,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 1939,
+          "super_age": 85,
+          "attack_age": 19,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 1940,
+          "super_age": 86,
+          "attack_age": 20,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 1941,
+          "super_age": 87,
+          "attack_age": 21,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 1942,
+          "super_age": 88,
+          "attack_age": 22,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 1943,
+          "super_age": 89,
+          "attack_age": 23,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 1944,
+          "super_age": 90,
+          "attack_age": 24,
+          "native_phase": "ATTACK"
+        }
+      ],
+      "host_tag_interrupt": false
+    },
+    {
+      "session": 1,
+      "epoch": 3,
+      "root_frame": 2293,
+      "first_attack_frame": 2360,
+      "first_recovery_frame": null,
+      "exit_frame": 2376,
+      "first_observed_punch_age": null,
+      "first_observed_controller8_age": 83,
+      "opening_frames_requested_pc": [
+        {
+          "frame": 2294,
+          "super_age": 1,
+          "attack_age": 0,
+          "native_phase": "STARTUP"
+        },
+        {
+          "frame": 2295,
+          "super_age": 2,
+          "attack_age": 0,
+          "native_phase": "STARTUP"
+        },
+        {
+          "frame": 2296,
+          "super_age": 3,
+          "attack_age": 0,
+          "native_phase": "STARTUP"
+        },
+        {
+          "frame": 2361,
+          "super_age": 68,
+          "attack_age": 1,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 2362,
+          "super_age": 69,
+          "attack_age": 2,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 2363,
+          "super_age": 70,
+          "attack_age": 3,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 2364,
+          "super_age": 71,
+          "attack_age": 4,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 2365,
+          "super_age": 72,
+          "attack_age": 5,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 2366,
+          "super_age": 73,
+          "attack_age": 6,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 2367,
+          "super_age": 74,
+          "attack_age": 7,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 2368,
+          "super_age": 75,
+          "attack_age": 8,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 2369,
+          "super_age": 76,
+          "attack_age": 9,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 2370,
+          "super_age": 77,
+          "attack_age": 10,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 2371,
+          "super_age": 78,
+          "attack_age": 11,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 2372,
+          "super_age": 79,
+          "attack_age": 12,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 2373,
+          "super_age": 80,
+          "attack_age": 13,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 2374,
+          "super_age": 81,
+          "attack_age": 14,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 2375,
+          "super_age": 82,
+          "attack_age": 15,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 2376,
+          "super_age": 83,
+          "attack_age": 16,
+          "native_phase": "ATTACK"
+        }
+      ],
+      "host_tag_interrupt": false
+    },
+    {
+      "session": 1,
+      "epoch": 4,
+      "root_frame": 2701,
+      "first_attack_frame": 2768,
+      "first_recovery_frame": null,
+      "exit_frame": 2786,
+      "first_observed_punch_age": 0,
+      "first_observed_controller8_age": 85,
+      "opening_frames_requested_pc": [
+        {
+          "frame": 2702,
+          "super_age": 1,
+          "attack_age": 0,
+          "native_phase": "STARTUP"
+        },
+        {
+          "frame": 2703,
+          "super_age": 2,
+          "attack_age": 0,
+          "native_phase": "STARTUP"
+        },
+        {
+          "frame": 2704,
+          "super_age": 3,
+          "attack_age": 0,
+          "native_phase": "STARTUP"
+        },
+        {
+          "frame": 2769,
+          "super_age": 68,
+          "attack_age": 1,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 2770,
+          "super_age": 69,
+          "attack_age": 2,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 2771,
+          "super_age": 70,
+          "attack_age": 3,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 2772,
+          "super_age": 71,
+          "attack_age": 4,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 2773,
+          "super_age": 72,
+          "attack_age": 5,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 2774,
+          "super_age": 73,
+          "attack_age": 6,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 2775,
+          "super_age": 74,
+          "attack_age": 7,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 2776,
+          "super_age": 75,
+          "attack_age": 8,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 2777,
+          "super_age": 76,
+          "attack_age": 9,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 2778,
+          "super_age": 77,
+          "attack_age": 10,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 2779,
+          "super_age": 78,
+          "attack_age": 11,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 2780,
+          "super_age": 79,
+          "attack_age": 12,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 2781,
+          "super_age": 80,
+          "attack_age": 13,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 2782,
+          "super_age": 81,
+          "attack_age": 14,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 2783,
+          "super_age": 82,
+          "attack_age": 15,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 2784,
+          "super_age": 83,
+          "attack_age": 16,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 2785,
+          "super_age": 84,
+          "attack_age": 17,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 2786,
+          "super_age": 85,
+          "attack_age": 18,
+          "native_phase": "ATTACK"
+        }
+      ],
+      "host_tag_interrupt": false
+    },
+    {
+      "session": 1,
+      "epoch": 5,
+      "root_frame": 3133,
+      "first_attack_frame": 3200,
+      "first_recovery_frame": null,
+      "exit_frame": 3217,
+      "first_observed_punch_age": null,
+      "first_observed_controller8_age": 84,
+      "opening_frames_requested_pc": [
+        {
+          "frame": 3134,
+          "super_age": 1,
+          "attack_age": 0,
+          "native_phase": "STARTUP"
+        },
+        {
+          "frame": 3135,
+          "super_age": 2,
+          "attack_age": 0,
+          "native_phase": "STARTUP"
+        },
+        {
+          "frame": 3136,
+          "super_age": 3,
+          "attack_age": 0,
+          "native_phase": "STARTUP"
+        },
+        {
+          "frame": 3201,
+          "super_age": 68,
+          "attack_age": 1,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 3202,
+          "super_age": 69,
+          "attack_age": 2,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 3203,
+          "super_age": 70,
+          "attack_age": 3,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 3204,
+          "super_age": 71,
+          "attack_age": 4,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 3205,
+          "super_age": 72,
+          "attack_age": 5,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 3206,
+          "super_age": 73,
+          "attack_age": 6,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 3207,
+          "super_age": 74,
+          "attack_age": 7,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 3208,
+          "super_age": 75,
+          "attack_age": 8,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 3209,
+          "super_age": 76,
+          "attack_age": 9,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 3210,
+          "super_age": 77,
+          "attack_age": 10,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 3211,
+          "super_age": 78,
+          "attack_age": 11,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 3212,
+          "super_age": 79,
+          "attack_age": 12,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 3213,
+          "super_age": 80,
+          "attack_age": 13,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 3214,
+          "super_age": 81,
+          "attack_age": 14,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 3215,
+          "super_age": 82,
+          "attack_age": 15,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 3216,
+          "super_age": 83,
+          "attack_age": 16,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 3217,
+          "super_age": 84,
+          "attack_age": 17,
+          "native_phase": "ATTACK"
+        }
+      ],
+      "host_tag_interrupt": false
+    },
+    {
+      "session": 1,
+      "epoch": 6,
+      "root_frame": 3577,
+      "first_attack_frame": 3644,
+      "first_recovery_frame": 3701,
+      "exit_frame": 3724,
+      "first_observed_punch_age": 98,
+      "first_observed_controller8_age": 147,
+      "opening_frames_requested_pc": [
+        {
+          "frame": 3578,
+          "super_age": 1,
+          "attack_age": 0,
+          "native_phase": "STARTUP"
+        },
+        {
+          "frame": 3579,
+          "super_age": 2,
+          "attack_age": 0,
+          "native_phase": "STARTUP"
+        },
+        {
+          "frame": 3580,
+          "super_age": 3,
+          "attack_age": 0,
+          "native_phase": "STARTUP"
+        },
+        {
+          "frame": 3645,
+          "super_age": 68,
+          "attack_age": 1,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 3646,
+          "super_age": 69,
+          "attack_age": 2,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 3647,
+          "super_age": 70,
+          "attack_age": 3,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 3648,
+          "super_age": 71,
+          "attack_age": 4,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 3649,
+          "super_age": 72,
+          "attack_age": 5,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 3650,
+          "super_age": 73,
+          "attack_age": 6,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 3651,
+          "super_age": 74,
+          "attack_age": 7,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 3652,
+          "super_age": 75,
+          "attack_age": 8,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 3653,
+          "super_age": 76,
+          "attack_age": 9,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 3654,
+          "super_age": 77,
+          "attack_age": 10,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 3655,
+          "super_age": 78,
+          "attack_age": 11,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 3656,
+          "super_age": 79,
+          "attack_age": 12,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 3657,
+          "super_age": 80,
+          "attack_age": 13,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 3658,
+          "super_age": 81,
+          "attack_age": 14,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 3659,
+          "super_age": 82,
+          "attack_age": 15,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 3660,
+          "super_age": 83,
+          "attack_age": 16,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 3661,
+          "super_age": 84,
+          "attack_age": 17,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 3662,
+          "super_age": 85,
+          "attack_age": 18,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 3663,
+          "super_age": 86,
+          "attack_age": 19,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 3664,
+          "super_age": 87,
+          "attack_age": 20,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 3665,
+          "super_age": 88,
+          "attack_age": 21,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 3666,
+          "super_age": 89,
+          "attack_age": 22,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 3667,
+          "super_age": 90,
+          "attack_age": 23,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 3668,
+          "super_age": 91,
+          "attack_age": 24,
+          "native_phase": "ATTACK"
+        }
+      ],
+      "host_tag_interrupt": false
+    },
+    {
+      "session": 1,
+      "epoch": 7,
+      "root_frame": 4092,
+      "first_attack_frame": 4158,
+      "first_recovery_frame": null,
+      "exit_frame": 4177,
+      "first_observed_punch_age": null,
+      "first_observed_controller8_age": 85,
+      "opening_frames_requested_pc": [
+        {
+          "frame": 4093,
+          "super_age": 1,
+          "attack_age": 0,
+          "native_phase": "STARTUP"
+        },
+        {
+          "frame": 4094,
+          "super_age": 2,
+          "attack_age": 0,
+          "native_phase": "STARTUP"
+        },
+        {
+          "frame": 4095,
+          "super_age": 3,
+          "attack_age": 0,
+          "native_phase": "STARTUP"
+        },
+        {
+          "frame": 4159,
+          "super_age": 67,
+          "attack_age": 1,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 4160,
+          "super_age": 68,
+          "attack_age": 2,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 4161,
+          "super_age": 69,
+          "attack_age": 3,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 4162,
+          "super_age": 70,
+          "attack_age": 4,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 4163,
+          "super_age": 71,
+          "attack_age": 5,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 4164,
+          "super_age": 72,
+          "attack_age": 6,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 4165,
+          "super_age": 73,
+          "attack_age": 7,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 4166,
+          "super_age": 74,
+          "attack_age": 8,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 4167,
+          "super_age": 75,
+          "attack_age": 9,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 4168,
+          "super_age": 76,
+          "attack_age": 10,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 4169,
+          "super_age": 77,
+          "attack_age": 11,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 4170,
+          "super_age": 78,
+          "attack_age": 12,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 4171,
+          "super_age": 79,
+          "attack_age": 13,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 4172,
+          "super_age": 80,
+          "attack_age": 14,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 4173,
+          "super_age": 81,
+          "attack_age": 15,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 4174,
+          "super_age": 82,
+          "attack_age": 16,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 4175,
+          "super_age": 83,
+          "attack_age": 17,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 4176,
+          "super_age": 84,
+          "attack_age": 18,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 4177,
+          "super_age": 85,
+          "attack_age": 19,
+          "native_phase": "ATTACK"
+        }
+      ],
+      "host_tag_interrupt": false
+    },
+    {
+      "session": 1,
+      "epoch": 8,
+      "root_frame": 4680,
+      "first_attack_frame": 4746,
+      "first_recovery_frame": null,
+      "exit_frame": 4766,
+      "first_observed_punch_age": 0,
+      "first_observed_controller8_age": 86,
+      "opening_frames_requested_pc": [
+        {
+          "frame": 4681,
+          "super_age": 1,
+          "attack_age": 0,
+          "native_phase": "STARTUP"
+        },
+        {
+          "frame": 4682,
+          "super_age": 2,
+          "attack_age": 0,
+          "native_phase": "STARTUP"
+        },
+        {
+          "frame": 4683,
+          "super_age": 3,
+          "attack_age": 0,
+          "native_phase": "STARTUP"
+        },
+        {
+          "frame": 4747,
+          "super_age": 67,
+          "attack_age": 1,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 4748,
+          "super_age": 68,
+          "attack_age": 2,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 4749,
+          "super_age": 69,
+          "attack_age": 3,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 4750,
+          "super_age": 70,
+          "attack_age": 4,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 4751,
+          "super_age": 71,
+          "attack_age": 5,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 4752,
+          "super_age": 72,
+          "attack_age": 6,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 4753,
+          "super_age": 73,
+          "attack_age": 7,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 4754,
+          "super_age": 74,
+          "attack_age": 8,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 4755,
+          "super_age": 75,
+          "attack_age": 9,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 4756,
+          "super_age": 76,
+          "attack_age": 10,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 4757,
+          "super_age": 77,
+          "attack_age": 11,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 4758,
+          "super_age": 78,
+          "attack_age": 12,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 4759,
+          "super_age": 79,
+          "attack_age": 13,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 4760,
+          "super_age": 80,
+          "attack_age": 14,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 4761,
+          "super_age": 81,
+          "attack_age": 15,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 4762,
+          "super_age": 82,
+          "attack_age": 16,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 4763,
+          "super_age": 83,
+          "attack_age": 17,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 4764,
+          "super_age": 84,
+          "attack_age": 18,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 4765,
+          "super_age": 85,
+          "attack_age": 19,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 4766,
+          "super_age": 86,
+          "attack_age": 20,
+          "native_phase": "ATTACK"
+        }
+      ],
+      "host_tag_interrupt": false
+    },
+    {
+      "session": 1,
+      "epoch": 9,
+      "root_frame": 5711,
+      "first_attack_frame": 5778,
+      "first_recovery_frame": null,
+      "exit_frame": 5795,
+      "first_observed_punch_age": 0,
+      "first_observed_controller8_age": 84,
+      "opening_frames_requested_pc": [
+        {
+          "frame": 5712,
+          "super_age": 1,
+          "attack_age": 0,
+          "native_phase": "STARTUP"
+        },
+        {
+          "frame": 5713,
+          "super_age": 2,
+          "attack_age": 0,
+          "native_phase": "STARTUP"
+        },
+        {
+          "frame": 5714,
+          "super_age": 3,
+          "attack_age": 0,
+          "native_phase": "STARTUP"
+        },
+        {
+          "frame": 5779,
+          "super_age": 68,
+          "attack_age": 1,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 5780,
+          "super_age": 69,
+          "attack_age": 2,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 5781,
+          "super_age": 70,
+          "attack_age": 3,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 5782,
+          "super_age": 71,
+          "attack_age": 4,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 5783,
+          "super_age": 72,
+          "attack_age": 5,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 5784,
+          "super_age": 73,
+          "attack_age": 6,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 5785,
+          "super_age": 74,
+          "attack_age": 7,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 5786,
+          "super_age": 75,
+          "attack_age": 8,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 5787,
+          "super_age": 76,
+          "attack_age": 9,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 5788,
+          "super_age": 77,
+          "attack_age": 10,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 5789,
+          "super_age": 78,
+          "attack_age": 11,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 5790,
+          "super_age": 79,
+          "attack_age": 12,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 5791,
+          "super_age": 80,
+          "attack_age": 13,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 5792,
+          "super_age": 81,
+          "attack_age": 14,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 5793,
+          "super_age": 82,
+          "attack_age": 15,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 5794,
+          "super_age": 83,
+          "attack_age": 16,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 5795,
+          "super_age": 84,
+          "attack_age": 17,
+          "native_phase": "ATTACK"
+        }
+      ],
+      "host_tag_interrupt": false
+    },
+    {
+      "session": 1,
+      "epoch": 10,
+      "root_frame": 6131,
+      "first_attack_frame": 6198,
+      "first_recovery_frame": null,
+      "exit_frame": 6217,
+      "first_observed_punch_age": 0,
+      "first_observed_controller8_age": 86,
+      "opening_frames_requested_pc": [
+        {
+          "frame": 6132,
+          "super_age": 1,
+          "attack_age": 0,
+          "native_phase": "STARTUP"
+        },
+        {
+          "frame": 6133,
+          "super_age": 2,
+          "attack_age": 0,
+          "native_phase": "STARTUP"
+        },
+        {
+          "frame": 6134,
+          "super_age": 3,
+          "attack_age": 0,
+          "native_phase": "STARTUP"
+        },
+        {
+          "frame": 6199,
+          "super_age": 68,
+          "attack_age": 1,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 6200,
+          "super_age": 69,
+          "attack_age": 2,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 6201,
+          "super_age": 70,
+          "attack_age": 3,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 6202,
+          "super_age": 71,
+          "attack_age": 4,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 6203,
+          "super_age": 72,
+          "attack_age": 5,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 6204,
+          "super_age": 73,
+          "attack_age": 6,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 6205,
+          "super_age": 74,
+          "attack_age": 7,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 6206,
+          "super_age": 75,
+          "attack_age": 8,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 6207,
+          "super_age": 76,
+          "attack_age": 9,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 6208,
+          "super_age": 77,
+          "attack_age": 10,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 6209,
+          "super_age": 78,
+          "attack_age": 11,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 6210,
+          "super_age": 79,
+          "attack_age": 12,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 6211,
+          "super_age": 80,
+          "attack_age": 13,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 6212,
+          "super_age": 81,
+          "attack_age": 14,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 6213,
+          "super_age": 82,
+          "attack_age": 15,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 6214,
+          "super_age": 83,
+          "attack_age": 16,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 6215,
+          "super_age": 84,
+          "attack_age": 17,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 6216,
+          "super_age": 85,
+          "attack_age": 18,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 6217,
+          "super_age": 86,
+          "attack_age": 19,
+          "native_phase": "ATTACK"
+        }
+      ],
+      "host_tag_interrupt": false
+    },
+    {
+      "session": 1,
+      "epoch": 11,
+      "root_frame": 6579,
+      "first_attack_frame": 6646,
+      "first_recovery_frame": 6701,
+      "exit_frame": 6715,
+      "first_observed_punch_age": 0,
+      "first_observed_controller8_age": 136,
+      "opening_frames_requested_pc": [
+        {
+          "frame": 6580,
+          "super_age": 1,
+          "attack_age": 0,
+          "native_phase": "STARTUP"
+        },
+        {
+          "frame": 6581,
+          "super_age": 2,
+          "attack_age": 0,
+          "native_phase": "STARTUP"
+        },
+        {
+          "frame": 6582,
+          "super_age": 3,
+          "attack_age": 0,
+          "native_phase": "STARTUP"
+        },
+        {
+          "frame": 6647,
+          "super_age": 68,
+          "attack_age": 1,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 6648,
+          "super_age": 69,
+          "attack_age": 2,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 6649,
+          "super_age": 70,
+          "attack_age": 3,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 6650,
+          "super_age": 71,
+          "attack_age": 4,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 6651,
+          "super_age": 72,
+          "attack_age": 5,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 6652,
+          "super_age": 73,
+          "attack_age": 6,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 6653,
+          "super_age": 74,
+          "attack_age": 7,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 6654,
+          "super_age": 75,
+          "attack_age": 8,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 6655,
+          "super_age": 76,
+          "attack_age": 9,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 6656,
+          "super_age": 77,
+          "attack_age": 10,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 6657,
+          "super_age": 78,
+          "attack_age": 11,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 6658,
+          "super_age": 79,
+          "attack_age": 12,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 6659,
+          "super_age": 80,
+          "attack_age": 13,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 6660,
+          "super_age": 81,
+          "attack_age": 14,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 6661,
+          "super_age": 82,
+          "attack_age": 15,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 6662,
+          "super_age": 83,
+          "attack_age": 16,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 6663,
+          "super_age": 84,
+          "attack_age": 17,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 6664,
+          "super_age": 85,
+          "attack_age": 18,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 6665,
+          "super_age": 86,
+          "attack_age": 19,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 6666,
+          "super_age": 87,
+          "attack_age": 20,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 6667,
+          "super_age": 88,
+          "attack_age": 21,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 6668,
+          "super_age": 89,
+          "attack_age": 22,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 6669,
+          "super_age": 90,
+          "attack_age": 23,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 6670,
+          "super_age": 91,
+          "attack_age": 24,
+          "native_phase": "ATTACK"
+        }
+      ],
+      "host_tag_interrupt": false
+    },
+    {
+      "session": 1,
+      "epoch": 12,
+      "root_frame": 7072,
+      "first_attack_frame": 7139,
+      "first_recovery_frame": 7194,
+      "exit_frame": 7202,
+      "first_observed_punch_age": 0,
+      "first_observed_controller8_age": 130,
+      "opening_frames_requested_pc": [
+        {
+          "frame": 7073,
+          "super_age": 1,
+          "attack_age": 0,
+          "native_phase": "STARTUP"
+        },
+        {
+          "frame": 7074,
+          "super_age": 2,
+          "attack_age": 0,
+          "native_phase": "STARTUP"
+        },
+        {
+          "frame": 7075,
+          "super_age": 3,
+          "attack_age": 0,
+          "native_phase": "STARTUP"
+        },
+        {
+          "frame": 7140,
+          "super_age": 68,
+          "attack_age": 1,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 7141,
+          "super_age": 69,
+          "attack_age": 2,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 7142,
+          "super_age": 70,
+          "attack_age": 3,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 7143,
+          "super_age": 71,
+          "attack_age": 4,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 7144,
+          "super_age": 72,
+          "attack_age": 5,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 7145,
+          "super_age": 73,
+          "attack_age": 6,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 7146,
+          "super_age": 74,
+          "attack_age": 7,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 7147,
+          "super_age": 75,
+          "attack_age": 8,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 7148,
+          "super_age": 76,
+          "attack_age": 9,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 7149,
+          "super_age": 77,
+          "attack_age": 10,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 7150,
+          "super_age": 78,
+          "attack_age": 11,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 7151,
+          "super_age": 79,
+          "attack_age": 12,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 7152,
+          "super_age": 80,
+          "attack_age": 13,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 7153,
+          "super_age": 81,
+          "attack_age": 14,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 7154,
+          "super_age": 82,
+          "attack_age": 15,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 7155,
+          "super_age": 83,
+          "attack_age": 16,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 7156,
+          "super_age": 84,
+          "attack_age": 17,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 7157,
+          "super_age": 85,
+          "attack_age": 18,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 7158,
+          "super_age": 86,
+          "attack_age": 19,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 7159,
+          "super_age": 87,
+          "attack_age": 20,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 7160,
+          "super_age": 88,
+          "attack_age": 21,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 7161,
+          "super_age": 89,
+          "attack_age": 22,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 7162,
+          "super_age": 90,
+          "attack_age": 23,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 7163,
+          "super_age": 91,
+          "attack_age": 24,
+          "native_phase": "ATTACK"
+        }
+      ],
+      "host_tag_interrupt": false
+    },
+    {
+      "session": 1,
+      "epoch": 13,
+      "root_frame": 7567,
+      "first_attack_frame": 7633,
+      "first_recovery_frame": 7688,
+      "exit_frame": 7693,
+      "first_observed_punch_age": null,
+      "first_observed_controller8_age": 126,
+      "opening_frames_requested_pc": [
+        {
+          "frame": 7568,
+          "super_age": 1,
+          "attack_age": 0,
+          "native_phase": "STARTUP"
+        },
+        {
+          "frame": 7569,
+          "super_age": 2,
+          "attack_age": 0,
+          "native_phase": "STARTUP"
+        },
+        {
+          "frame": 7570,
+          "super_age": 3,
+          "attack_age": 0,
+          "native_phase": "STARTUP"
+        },
+        {
+          "frame": 7634,
+          "super_age": 67,
+          "attack_age": 1,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 7635,
+          "super_age": 68,
+          "attack_age": 2,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 7636,
+          "super_age": 69,
+          "attack_age": 3,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 7637,
+          "super_age": 70,
+          "attack_age": 4,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 7638,
+          "super_age": 71,
+          "attack_age": 5,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 7639,
+          "super_age": 72,
+          "attack_age": 6,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 7640,
+          "super_age": 73,
+          "attack_age": 7,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 7641,
+          "super_age": 74,
+          "attack_age": 8,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 7642,
+          "super_age": 75,
+          "attack_age": 9,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 7643,
+          "super_age": 76,
+          "attack_age": 10,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 7644,
+          "super_age": 77,
+          "attack_age": 11,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 7645,
+          "super_age": 78,
+          "attack_age": 12,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 7646,
+          "super_age": 79,
+          "attack_age": 13,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 7647,
+          "super_age": 80,
+          "attack_age": 14,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 7648,
+          "super_age": 81,
+          "attack_age": 15,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 7649,
+          "super_age": 82,
+          "attack_age": 16,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 7650,
+          "super_age": 83,
+          "attack_age": 17,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 7651,
+          "super_age": 84,
+          "attack_age": 18,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 7652,
+          "super_age": 85,
+          "attack_age": 19,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 7653,
+          "super_age": 86,
+          "attack_age": 20,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 7654,
+          "super_age": 87,
+          "attack_age": 21,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 7655,
+          "super_age": 88,
+          "attack_age": 22,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 7656,
+          "super_age": 89,
+          "attack_age": 23,
+          "native_phase": "ATTACK"
+        },
+        {
+          "frame": 7657,
+          "super_age": 90,
+          "attack_age": 24,
+          "native_phase": "ATTACK"
+        }
+      ],
+      "host_tag_interrupt": false
+    }
+  ],
+  "important_limit": "Controller-8 is the host bridge, not original ROM tag success. An unattempted startup offset remains UNTESTED. A real Ken 2E00 is required to prove a completed DHC. The uploaded 87.185 recording had 14/14 armed Ken successes."
+}

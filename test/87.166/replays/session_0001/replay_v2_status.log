@@ -1,0 +1,17 @@
+RECORD_START F:\xmvsf\test\87.166\replays/session_0001
+CHECKPOINT_SAVED session=1 segment=0 reason=SESSION_START
+SEGMENT_SAVED session=1 segment=0 frames=136
+CHECKPOINT_SAVED session=1 segment=1 reason=HOST_MENU_STATE_CHANGED
+SEGMENT_SAVED session=1 segment=1 frames=97
+CHECKPOINT_SAVED session=1 segment=2 reason=HOST_MENU_STATE_CHANGED
+SEGMENT_SAVED session=1 segment=2 frames=6
+CHECKPOINT_SAVED session=1 segment=3 reason=HOST_MENU_STATE_CHANGED
+SEGMENT_SAVED session=1 segment=3 frames=256
+CHECKPOINT_SAVED session=1 segment=4 reason=HOST_MENU_STATE_CHANGED
+SEGMENT_SAVED session=1 segment=4 frames=2847
+CHECKPOINT_SAVED session=1 segment=5 reason=HOST_MENU_STATE_CHANGED
+SEGMENT_SAVED session=1 segment=5 frames=36
+CHECKPOINT_SAVED session=1 segment=6 reason=HOST_MENU_STATE_CHANGED
+SEGMENT_SAVED session=1 segment=6 frames=11
+CHECKPOINT_SAVED session=1 segment=7 reason=HOST_MENU_STATE_CHANGED
+SEGMENT_SAVED session=1 segment=7 frames=18

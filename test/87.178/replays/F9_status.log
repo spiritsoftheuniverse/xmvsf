@@ -1,0 +1,5 @@
+===== 87.178 TEST session Thu 11/05/2026 15:37:48.95 =====
+RECORD_START F:\xmvsf\test\87.178\replays/session_0001
+CHECKPOINT_SAVED session=1 segment=0 reason=SESSION_START
+SEGMENT_SAVED session=1 segment=0 frames=3445
+RECORD_SAVED total_frames=3445 session_count=1 segments=1 reason=APPLICATION_EXIT folder=F:\xmvsf\test\87.178\replays/session_0001

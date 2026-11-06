@@ -1,0 +1,2030 @@
+{
+  "schema": "XMVSF_87_180_SUBFRAME_TRACE_SUMMARY_V1",
+  "source": "F:/xmvsf/test/87.185/observer/native_subframe_test.tsv",
+  "counts": {
+    "sessions": 1,
+    "sample_rows": 14015,
+    "frames_sampled": 2039,
+    "no_press_edge_in_sampled_cpu_slices": 1983,
+    "press_edges_lost_within_cpu_frame": 21,
+    "press_edges_still_visible_after_cpu": 13,
+    "native_action_changed_within_cpu_frame": 7
+  },
+  "examples_first_512": [
+    {
+      "session": 1,
+      "frame": "1816",
+      "kind": "PRESS_EDGE_APPEARED_THEN_CLEARED",
+      "input_edges_by_cpu_slice": [
+        {
+          "stage": "BEFORE_CPU",
+          "CA_punch": 0
+        },
+        {
+          "stage": "AFTER_PRE_DISPLAY_CPU",
+          "CA_punch": 16
+        },
+        {
+          "stage": "AFTER_SCAN_0",
+          "CA_punch": 16
+        },
+        {
+          "stage": "AFTER_SCAN_1",
+          "CA_punch": 16
+        },
+        {
+          "stage": "AFTER_SCAN_2",
+          "CA_punch": 0
+        },
+        {
+          "stage": "AFTER_VBLANK_CPU",
+          "CA_punch": 0
+        }
+      ],
+      "native_actions": [
+        [
+          "BEFORE_CPU",
+          "2E08"
+        ],
+        [
+          "AFTER_PRE_DISPLAY_CPU",
+          "2E08"
+        ],
+        [
+          "AFTER_SCAN_0",
+          "2E08"
+        ],
+        [
+          "AFTER_SCAN_1",
+          "2E08"
+        ],
+        [
+          "AFTER_SCAN_2",
+          "2E08"
+        ],
+        [
+          "AFTER_VBLANK_CPU",
+          "2E08"
+        ]
+      ],
+      "host_phase": "0"
+    },
+    {
+      "session": 1,
+      "frame": "1817",
+      "kind": "PRESS_EDGE_VISIBLE",
+      "input_edges_by_cpu_slice": [
+        {
+          "stage": "BEFORE_CPU",
+          "CA_punch": 0
+        },
+        {
+          "stage": "AFTER_PRE_DISPLAY_CPU",
+          "CA_punch": 0
+        },
+        {
+          "stage": "AFTER_SCAN_0",
+          "CA_punch": 0
+        },
+        {
+          "stage": "AFTER_SCAN_1",
+          "CA_punch": 32
+        },
+        {
+          "stage": "AFTER_SCAN_2",
+          "CA_punch": 32
+        },
+        {
+          "stage": "AFTER_VBLANK_CPU",
+          "CA_punch": 32
+        }
+      ],
+      "native_actions": [
+        [
+          "BEFORE_CPU",
+          "2E08"
+        ],
+        [
+          "AFTER_PRE_DISPLAY_CPU",
+          "2E08"
+        ],
+        [
+          "AFTER_SCAN_0",
+          "2E08"
+        ],
+        [
+          "AFTER_SCAN_1",
+          "2E08"
+        ],
+        [
+          "AFTER_SCAN_2",
+          "2E08"
+        ],
+        [
+          "AFTER_VBLANK_CPU",
+          "2E08"
+        ]
+      ],
+      "host_phase": "0"
+    },
+    {
+      "session": 1,
+      "frame": "1818",
+      "kind": "PRESS_EDGE_APPEARED_THEN_CLEARED",
+      "input_edges_by_cpu_slice": [
+        {
+          "stage": "BEFORE_CPU",
+          "CA_punch": 32
+        },
+        {
+          "stage": "AFTER_PRE_DISPLAY_CPU",
+          "CA_punch": 0
+        },
+        {
+          "stage": "AFTER_SCAN_0",
+          "CA_punch": 0
+        },
+        {
+          "stage": "AFTER_SCAN_1",
+          "CA_punch": 0
+        },
+        {
+          "stage": "AFTER_SCAN_2",
+          "CA_punch": 0
+        },
+        {
+          "stage": "AFTER_VBLANK_CPU",
+          "CA_punch": 0
+        }
+      ],
+      "native_actions": [
+        [
+          "BEFORE_CPU",
+          "2E08"
+        ],
+        [
+          "AFTER_PRE_DISPLAY_CPU",
+          "2E08"
+        ],
+        [
+          "AFTER_SCAN_0",
+          "2E08"
+        ],
+        [
+          "AFTER_SCAN_1",
+          "2E08"
+        ],
+        [
+          "AFTER_SCAN_2",
+          "2E08"
+        ],
+        [
+          "AFTER_VBLANK_CPU",
+          "2E08"
+        ]
+      ],
+      "host_phase": "0"
+    },
+    {
+      "session": 1,
+      "frame": "2036",
+      "kind": "PRESS_EDGE_VISIBLE",
+      "input_edges_by_cpu_slice": [
+        {
+          "stage": "BEFORE_CPU",
+          "CA_punch": 0
+        },
+        {
+          "stage": "AFTER_PRE_DISPLAY_CPU",
+          "CA_punch": 0
+        },
+        {
+          "stage": "AFTER_SCAN_0",
+          "CA_punch": 0
+        },
+        {
+          "stage": "AFTER_SCAN_1",
+          "CA_punch": 96
+        },
+        {
+          "stage": "AFTER_SCAN_2",
+          "CA_punch": 96
+        },
+        {
+          "stage": "AFTER_VBLANK_CPU",
+          "CA_punch": 96
+        }
+      ],
+      "native_actions": [
+        [
+          "BEFORE_CPU",
+          "2E08"
+        ],
+        [
+          "AFTER_PRE_DISPLAY_CPU",
+          "2E08"
+        ],
+        [
+          "AFTER_SCAN_0",
+          "2E08"
+        ],
+        [
+          "AFTER_SCAN_1",
+          "2E08"
+        ],
+        [
+          "AFTER_SCAN_2",
+          "2E08"
+        ],
+        [
+          "AFTER_VBLANK_CPU",
+          "2E08"
+        ]
+      ],
+      "host_phase": "2"
+    },
+    {
+      "session": 1,
+      "frame": "2037",
+      "kind": "PRESS_EDGE_APPEARED_THEN_CLEARED",
+      "input_edges_by_cpu_slice": [
+        {
+          "stage": "BEFORE_CPU",
+          "CA_punch": 96
+        },
+        {
+          "stage": "AFTER_PRE_DISPLAY_CPU",
+          "CA_punch": 0
+        },
+        {
+          "stage": "AFTER_SCAN_0",
+          "CA_punch": 0
+        },
+        {
+          "stage": "AFTER_SCAN_1",
+          "CA_punch": 0
+        },
+        {
+          "stage": "AFTER_SCAN_2",
+          "CA_punch": 0
+        },
+        {
+          "stage": "AFTER_VBLANK_CPU",
+          "CA_punch": 0
+        }
+      ],
+      "native_actions": [
+        [
+          "BEFORE_CPU",
+          "3200"
+        ],
+        [
+          "AFTER_PRE_DISPLAY_CPU",
+          "3200"
+        ],
+        [
+          "AFTER_SCAN_0",
+          "3200"
+        ],
+        [
+          "AFTER_SCAN_1",
+          "3200"
+        ],
+        [
+          "AFTER_SCAN_2",
+          "3200"
+        ],
+        [
+          "AFTER_VBLANK_CPU",
+          "3200"
+        ]
+      ],
+      "host_phase": "3"
+    },
+    {
+      "session": 1,
+      "frame": "2709",
+      "kind": "PRESS_EDGE_VISIBLE",
+      "input_edges_by_cpu_slice": [
+        {
+          "stage": "BEFORE_CPU",
+          "CA_punch": 0
+        },
+        {
+          "stage": "AFTER_PRE_DISPLAY_CPU",
+          "CA_punch": 48
+        },
+        {
+          "stage": "AFTER_SCAN_0",
+          "CA_punch": 48
+        },
+        {
+          "stage": "AFTER_SCAN_1",
+          "CA_punch": 48
+        },
+        {
+          "stage": "AFTER_SCAN_2",
+          "CA_punch": 48
+        },
+        {
+          "stage": "AFTER_VBLANK_CPU",
+          "CA_punch": 48
+        }
+      ],
+      "native_actions": [
+        [
+          "BEFORE_CPU",
+          "2E08"
+        ],
+        [
+          "AFTER_PRE_DISPLAY_CPU",
+          "2E08"
+        ],
+        [
+          "AFTER_SCAN_0",
+          "2E08"
+        ],
+        [
+          "AFTER_SCAN_1",
+          "2E08"
+        ],
+        [
+          "AFTER_SCAN_2",
+          "2E08"
+        ],
+        [
+          "AFTER_VBLANK_CPU",
+          "2E08"
+        ]
+      ],
+      "host_phase": "2"
+    },
+    {
+      "session": 1,
+      "frame": "2710",
+      "kind": "PRESS_EDGE_APPEARED_THEN_CLEARED",
+      "input_edges_by_cpu_slice": [
+        {
+          "stage": "BEFORE_CPU",
+          "CA_punch": 48
+        },
+        {
+          "stage": "AFTER_PRE_DISPLAY_CPU",
+          "CA_punch": 0
+        },
+        {
+          "stage": "AFTER_SCAN_0",
+          "CA_punch": 0
+        },
+        {
+          "stage": "AFTER_SCAN_1",
+          "CA_punch": 0
+        },
+        {
+          "stage": "AFTER_SCAN_2",
+          "CA_punch": 0
+        },
+        {
+          "stage": "AFTER_VBLANK_CPU",
+          "CA_punch": 0
+        }
+      ],
+      "native_actions": [
+        [
+          "BEFORE_CPU",
+          "3200"
+        ],
+        [
+          "AFTER_PRE_DISPLAY_CPU",
+          "3200"
+        ],
+        [
+          "AFTER_SCAN_0",
+          "3200"
+        ],
+        [
+          "AFTER_SCAN_1",
+          "3200"
+        ],
+        [
+          "AFTER_SCAN_2",
+          "3200"
+        ],
+        [
+          "AFTER_VBLANK_CPU",
+          "3200"
+        ]
+      ],
+      "host_phase": "3"
+    },
+    {
+      "session": 1,
+      "frame": "3275",
+      "kind": "PRESS_EDGE_APPEARED_THEN_CLEARED",
+      "input_edges_by_cpu_slice": [
+        {
+          "stage": "BEFORE_CPU",
+          "CA_punch": 0
+        },
+        {
+          "stage": "AFTER_PRE_DISPLAY_CPU",
+          "CA_punch": 48
+        },
+        {
+          "stage": "AFTER_SCAN_0",
+          "CA_punch": 48
+        },
+        {
+          "stage": "AFTER_SCAN_1",
+          "CA_punch": 48
+        },
+        {
+          "stage": "AFTER_SCAN_2",
+          "CA_punch": 0
+        },
+        {
+          "stage": "AFTER_VBLANK_CPU",
+          "CA_punch": 0
+        }
+      ],
+      "native_actions": [
+        [
+          "BEFORE_CPU",
+          "2E08"
+        ],
+        [
+          "AFTER_PRE_DISPLAY_CPU",
+          "2E08"
+        ],
+        [
+          "AFTER_SCAN_0",
+          "2E08"
+        ],
+        [
+          "AFTER_SCAN_1",
+          "2E08"
+        ],
+        [
+          "AFTER_SCAN_2",
+          "2E08"
+        ],
+        [
+          "AFTER_VBLANK_CPU",
+          "2E08"
+        ]
+      ],
+      "host_phase": "2"
+    },
+    {
+      "session": 1,
+      "frame": "3738",
+      "kind": "PRESS_EDGE_VISIBLE",
+      "input_edges_by_cpu_slice": [
+        {
+          "stage": "BEFORE_CPU",
+          "CA_punch": 0
+        },
+        {
+          "stage": "AFTER_PRE_DISPLAY_CPU",
+          "CA_punch": 0
+        },
+        {
+          "stage": "AFTER_SCAN_0",
+          "CA_punch": 0
+        },
+        {
+          "stage": "AFTER_SCAN_1",
+          "CA_punch": 0
+        },
+        {
+          "stage": "AFTER_SCAN_2",
+          "CA_punch": 96
+        },
+        {
+          "stage": "AFTER_VBLANK_CPU",
+          "CA_punch": 96
+        }
+      ],
+      "native_actions": [
+        [
+          "BEFORE_CPU",
+          "2E08"
+        ],
+        [
+          "AFTER_PRE_DISPLAY_CPU",
+          "2E08"
+        ],
+        [
+          "AFTER_SCAN_0",
+          "2E08"
+        ],
+        [
+          "AFTER_SCAN_1",
+          "2E08"
+        ],
+        [
+          "AFTER_SCAN_2",
+          "2E08"
+        ],
+        [
+          "AFTER_VBLANK_CPU",
+          "2E08"
+        ]
+      ],
+      "host_phase": "2"
+    },
+    {
+      "session": 1,
+      "frame": "3739",
+      "kind": "PRESS_EDGE_APPEARED_THEN_CLEARED",
+      "input_edges_by_cpu_slice": [
+        {
+          "stage": "BEFORE_CPU",
+          "CA_punch": 96
+        },
+        {
+          "stage": "AFTER_PRE_DISPLAY_CPU",
+          "CA_punch": 96
+        },
+        {
+          "stage": "AFTER_SCAN_0",
+          "CA_punch": 96
+        },
+        {
+          "stage": "AFTER_SCAN_1",
+          "CA_punch": 0
+        },
+        {
+          "stage": "AFTER_SCAN_2",
+          "CA_punch": 0
+        },
+        {
+          "stage": "AFTER_VBLANK_CPU",
+          "CA_punch": 0
+        }
+      ],
+      "native_actions": [
+        [
+          "BEFORE_CPU",
+          "3200"
+        ],
+        [
+          "AFTER_PRE_DISPLAY_CPU",
+          "3200"
+        ],
+        [
+          "AFTER_SCAN_0",
+          "3200"
+        ],
+        [
+          "AFTER_SCAN_1",
+          "3200"
+        ],
+        [
+          "AFTER_SCAN_2",
+          "3200"
+        ],
+        [
+          "AFTER_VBLANK_CPU",
+          "3200"
+        ]
+      ],
+      "host_phase": "3"
+    },
+    {
+      "session": 1,
+      "frame": "4305",
+      "kind": "PRESS_EDGE_APPEARED_THEN_CLEARED",
+      "input_edges_by_cpu_slice": [
+        {
+          "stage": "BEFORE_CPU",
+          "CA_punch": 112
+        },
+        {
+          "stage": "AFTER_PRE_DISPLAY_CPU",
+          "CA_punch": 0
+        },
+        {
+          "stage": "AFTER_SCAN_0",
+          "CA_punch": 0
+        },
+        {
+          "stage": "AFTER_SCAN_1",
+          "CA_punch": 0
+        },
+        {
+          "stage": "AFTER_SCAN_2",
+          "CA_punch": 0
+        },
+        {
+          "stage": "AFTER_VBLANK_CPU",
+          "CA_punch": 0
+        }
+      ],
+      "native_actions": [
+        [
+          "BEFORE_CPU",
+          "2E08"
+        ],
+        [
+          "AFTER_PRE_DISPLAY_CPU",
+          "2E08"
+        ],
+        [
+          "AFTER_SCAN_0",
+          "2E08"
+        ],
+        [
+          "AFTER_SCAN_1",
+          "2E08"
+        ],
+        [
+          "AFTER_SCAN_2",
+          "2E08"
+        ],
+        [
+          "AFTER_VBLANK_CPU",
+          "2E08"
+        ]
+      ],
+      "host_phase": "0"
+    },
+    {
+      "session": 1,
+      "frame": "4421",
+      "kind": "PRESS_EDGE_APPEARED_THEN_CLEARED",
+      "input_edges_by_cpu_slice": [
+        {
+          "stage": "BEFORE_CPU",
+          "CA_punch": 0
+        },
+        {
+          "stage": "AFTER_PRE_DISPLAY_CPU",
+          "CA_punch": 48
+        },
+        {
+          "stage": "AFTER_SCAN_0",
+          "CA_punch": 48
+        },
+        {
+          "stage": "AFTER_SCAN_1",
+          "CA_punch": 48
+        },
+        {
+          "stage": "AFTER_SCAN_2",
+          "CA_punch": 0
+        },
+        {
+          "stage": "AFTER_VBLANK_CPU",
+          "CA_punch": 0
+        }
+      ],
+      "native_actions": [
+        [
+          "BEFORE_CPU",
+          "2E08"
+        ],
+        [
+          "AFTER_PRE_DISPLAY_CPU",
+          "2E08"
+        ],
+        [
+          "AFTER_SCAN_0",
+          "2E08"
+        ],
+        [
+          "AFTER_SCAN_1",
+          "2E08"
+        ],
+        [
+          "AFTER_SCAN_2",
+          "2E08"
+        ],
+        [
+          "AFTER_VBLANK_CPU",
+          "2E08"
+        ]
+      ],
+      "host_phase": "2"
+    },
+    {
+      "session": 1,
+      "frame": "4703",
+      "kind": "PRESS_EDGE_APPEARED_THEN_CLEARED",
+      "input_edges_by_cpu_slice": [
+        {
+          "stage": "BEFORE_CPU",
+          "CA_punch": 112
+        },
+        {
+          "stage": "AFTER_PRE_DISPLAY_CPU",
+          "CA_punch": 0
+        },
+        {
+          "stage": "AFTER_SCAN_0",
+          "CA_punch": 0
+        },
+        {
+          "stage": "AFTER_SCAN_1",
+          "CA_punch": 0
+        },
+        {
+          "stage": "AFTER_SCAN_2",
+          "CA_punch": 0
+        },
+        {
+          "stage": "AFTER_VBLANK_CPU",
+          "CA_punch": 0
+        }
+      ],
+      "native_actions": [
+        [
+          "BEFORE_CPU",
+          "2E08"
+        ],
+        [
+          "AFTER_PRE_DISPLAY_CPU",
+          "2E08"
+        ],
+        [
+          "AFTER_SCAN_0",
+          "2E08"
+        ],
+        [
+          "AFTER_SCAN_1",
+          "2E08"
+        ],
+        [
+          "AFTER_SCAN_2",
+          "2E08"
+        ],
+        [
+          "AFTER_VBLANK_CPU",
+          "2E08"
+        ]
+      ],
+      "host_phase": "0"
+    },
+    {
+      "session": 1,
+      "frame": "5049",
+      "kind": "PRESS_EDGE_VISIBLE",
+      "input_edges_by_cpu_slice": [
+        {
+          "stage": "BEFORE_CPU",
+          "CA_punch": 0
+        },
+        {
+          "stage": "AFTER_PRE_DISPLAY_CPU",
+          "CA_punch": 48
+        },
+        {
+          "stage": "AFTER_SCAN_0",
+          "CA_punch": 48
+        },
+        {
+          "stage": "AFTER_SCAN_1",
+          "CA_punch": 48
+        },
+        {
+          "stage": "AFTER_SCAN_2",
+          "CA_punch": 48
+        },
+        {
+          "stage": "AFTER_VBLANK_CPU",
+          "CA_punch": 48
+        }
+      ],
+      "native_actions": [
+        [
+          "BEFORE_CPU",
+          "2E08"
+        ],
+        [
+          "AFTER_PRE_DISPLAY_CPU",
+          "2E08"
+        ],
+        [
+          "AFTER_SCAN_0",
+          "2E08"
+        ],
+        [
+          "AFTER_SCAN_1",
+          "2E08"
+        ],
+        [
+          "AFTER_SCAN_2",
+          "2E08"
+        ],
+        [
+          "AFTER_VBLANK_CPU",
+          "2E08"
+        ]
+      ],
+      "host_phase": "2"
+    },
+    {
+      "session": 1,
+      "frame": "5050",
+      "kind": "PRESS_EDGE_APPEARED_THEN_CLEARED",
+      "input_edges_by_cpu_slice": [
+        {
+          "stage": "BEFORE_CPU",
+          "CA_punch": 48
+        },
+        {
+          "stage": "AFTER_PRE_DISPLAY_CPU",
+          "CA_punch": 0
+        },
+        {
+          "stage": "AFTER_SCAN_0",
+          "CA_punch": 0
+        },
+        {
+          "stage": "AFTER_SCAN_1",
+          "CA_punch": 0
+        },
+        {
+          "stage": "AFTER_SCAN_2",
+          "CA_punch": 0
+        },
+        {
+          "stage": "AFTER_VBLANK_CPU",
+          "CA_punch": 0
+        }
+      ],
+      "native_actions": [
+        [
+          "BEFORE_CPU",
+          "3200"
+        ],
+        [
+          "AFTER_PRE_DISPLAY_CPU",
+          "3200"
+        ],
+        [
+          "AFTER_SCAN_0",
+          "3200"
+        ],
+        [
+          "AFTER_SCAN_1",
+          "3200"
+        ],
+        [
+          "AFTER_SCAN_2",
+          "3200"
+        ],
+        [
+          "AFTER_VBLANK_CPU",
+          "3200"
+        ]
+      ],
+      "host_phase": "3"
+    },
+    {
+      "session": 1,
+      "frame": "5504",
+      "kind": "PRESS_EDGE_VISIBLE",
+      "input_edges_by_cpu_slice": [
+        {
+          "stage": "BEFORE_CPU",
+          "CA_punch": 0
+        },
+        {
+          "stage": "AFTER_PRE_DISPLAY_CPU",
+          "CA_punch": 48
+        },
+        {
+          "stage": "AFTER_SCAN_0",
+          "CA_punch": 48
+        },
+        {
+          "stage": "AFTER_SCAN_1",
+          "CA_punch": 48
+        },
+        {
+          "stage": "AFTER_SCAN_2",
+          "CA_punch": 48
+        },
+        {
+          "stage": "AFTER_VBLANK_CPU",
+          "CA_punch": 48
+        }
+      ],
+      "native_actions": [
+        [
+          "BEFORE_CPU",
+          "2E08"
+        ],
+        [
+          "AFTER_PRE_DISPLAY_CPU",
+          "2E08"
+        ],
+        [
+          "AFTER_SCAN_0",
+          "2E08"
+        ],
+        [
+          "AFTER_SCAN_1",
+          "2E08"
+        ],
+        [
+          "AFTER_SCAN_2",
+          "2E08"
+        ],
+        [
+          "AFTER_VBLANK_CPU",
+          "2E08"
+        ]
+      ],
+      "host_phase": "2"
+    },
+    {
+      "session": 1,
+      "frame": "5505",
+      "kind": "PRESS_EDGE_APPEARED_THEN_CLEARED",
+      "input_edges_by_cpu_slice": [
+        {
+          "stage": "BEFORE_CPU",
+          "CA_punch": 48
+        },
+        {
+          "stage": "AFTER_PRE_DISPLAY_CPU",
+          "CA_punch": 0
+        },
+        {
+          "stage": "AFTER_SCAN_0",
+          "CA_punch": 0
+        },
+        {
+          "stage": "AFTER_SCAN_1",
+          "CA_punch": 0
+        },
+        {
+          "stage": "AFTER_SCAN_2",
+          "CA_punch": 0
+        },
+        {
+          "stage": "AFTER_VBLANK_CPU",
+          "CA_punch": 0
+        }
+      ],
+      "native_actions": [
+        [
+          "BEFORE_CPU",
+          "3200"
+        ],
+        [
+          "AFTER_PRE_DISPLAY_CPU",
+          "3200"
+        ],
+        [
+          "AFTER_SCAN_0",
+          "3200"
+        ],
+        [
+          "AFTER_SCAN_1",
+          "3200"
+        ],
+        [
+          "AFTER_SCAN_2",
+          "3200"
+        ],
+        [
+          "AFTER_VBLANK_CPU",
+          "3200"
+        ]
+      ],
+      "host_phase": "3"
+    },
+    {
+      "session": 1,
+      "frame": "5711",
+      "kind": "NATIVE_ACTION_CHANGED",
+      "input_edges_by_cpu_slice": [
+        {
+          "stage": "AFTER_SCAN_0",
+          "CA_punch": 0
+        },
+        {
+          "stage": "AFTER_SCAN_1",
+          "CA_punch": 0
+        },
+        {
+          "stage": "AFTER_SCAN_2",
+          "CA_punch": 0
+        },
+        {
+          "stage": "AFTER_VBLANK_CPU",
+          "CA_punch": 0
+        }
+      ],
+      "native_actions": [
+        [
+          "AFTER_SCAN_0",
+          "0000"
+        ],
+        [
+          "AFTER_SCAN_1",
+          "0000"
+        ],
+        [
+          "AFTER_SCAN_2",
+          "2A10"
+        ],
+        [
+          "AFTER_VBLANK_CPU",
+          "2A10"
+        ]
+      ],
+      "host_phase": "6"
+    },
+    {
+      "session": 1,
+      "frame": "5945",
+      "kind": "PRESS_EDGE_APPEARED_THEN_CLEARED",
+      "input_edges_by_cpu_slice": [
+        {
+          "stage": "BEFORE_CPU",
+          "CA_punch": 0
+        },
+        {
+          "stage": "AFTER_PRE_DISPLAY_CPU",
+          "CA_punch": 96
+        },
+        {
+          "stage": "AFTER_SCAN_0",
+          "CA_punch": 96
+        },
+        {
+          "stage": "AFTER_SCAN_1",
+          "CA_punch": 96
+        },
+        {
+          "stage": "AFTER_SCAN_2",
+          "CA_punch": 0
+        },
+        {
+          "stage": "AFTER_VBLANK_CPU",
+          "CA_punch": 0
+        }
+      ],
+      "native_actions": [
+        [
+          "BEFORE_CPU",
+          "2E08"
+        ],
+        [
+          "AFTER_PRE_DISPLAY_CPU",
+          "2E08"
+        ],
+        [
+          "AFTER_SCAN_0",
+          "2E08"
+        ],
+        [
+          "AFTER_SCAN_1",
+          "2E08"
+        ],
+        [
+          "AFTER_SCAN_2",
+          "2E08"
+        ],
+        [
+          "AFTER_VBLANK_CPU",
+          "2E08"
+        ]
+      ],
+      "host_phase": "0"
+    },
+    {
+      "session": 1,
+      "frame": "5985",
+      "kind": "PRESS_EDGE_VISIBLE",
+      "input_edges_by_cpu_slice": [
+        {
+          "stage": "BEFORE_CPU",
+          "CA_punch": 0
+        },
+        {
+          "stage": "AFTER_PRE_DISPLAY_CPU",
+          "CA_punch": 96
+        },
+        {
+          "stage": "AFTER_SCAN_0",
+          "CA_punch": 96
+        },
+        {
+          "stage": "AFTER_SCAN_1",
+          "CA_punch": 96
+        },
+        {
+          "stage": "AFTER_SCAN_2",
+          "CA_punch": 96
+        },
+        {
+          "stage": "AFTER_VBLANK_CPU",
+          "CA_punch": 96
+        }
+      ],
+      "native_actions": [
+        [
+          "BEFORE_CPU",
+          "2E0A"
+        ],
+        [
+          "AFTER_PRE_DISPLAY_CPU",
+          "2E08"
+        ],
+        [
+          "AFTER_SCAN_0",
+          "2E08"
+        ],
+        [
+          "AFTER_SCAN_1",
+          "2E08"
+        ],
+        [
+          "AFTER_SCAN_2",
+          "2E08"
+        ],
+        [
+          "AFTER_VBLANK_CPU",
+          "2E08"
+        ]
+      ],
+      "host_phase": "2"
+    },
+    {
+      "session": 1,
+      "frame": "5986",
+      "kind": "PRESS_EDGE_APPEARED_THEN_CLEARED",
+      "input_edges_by_cpu_slice": [
+        {
+          "stage": "BEFORE_CPU",
+          "CA_punch": 96
+        },
+        {
+          "stage": "AFTER_PRE_DISPLAY_CPU",
+          "CA_punch": 0
+        },
+        {
+          "stage": "AFTER_SCAN_0",
+          "CA_punch": 0
+        },
+        {
+          "stage": "AFTER_SCAN_1",
+          "CA_punch": 0
+        },
+        {
+          "stage": "AFTER_SCAN_2",
+          "CA_punch": 0
+        },
+        {
+          "stage": "AFTER_VBLANK_CPU",
+          "CA_punch": 0
+        }
+      ],
+      "native_actions": [
+        [
+          "BEFORE_CPU",
+          "3200"
+        ],
+        [
+          "AFTER_PRE_DISPLAY_CPU",
+          "3200"
+        ],
+        [
+          "AFTER_SCAN_0",
+          "3200"
+        ],
+        [
+          "AFTER_SCAN_1",
+          "3200"
+        ],
+        [
+          "AFTER_SCAN_2",
+          "3200"
+        ],
+        [
+          "AFTER_VBLANK_CPU",
+          "3200"
+        ]
+      ],
+      "host_phase": "3"
+    },
+    {
+      "session": 1,
+      "frame": "6452",
+      "kind": "PRESS_EDGE_VISIBLE",
+      "input_edges_by_cpu_slice": [
+        {
+          "stage": "BEFORE_CPU",
+          "CA_punch": 0
+        },
+        {
+          "stage": "AFTER_PRE_DISPLAY_CPU",
+          "CA_punch": 0
+        },
+        {
+          "stage": "AFTER_SCAN_0",
+          "CA_punch": 96
+        },
+        {
+          "stage": "AFTER_SCAN_1",
+          "CA_punch": 96
+        },
+        {
+          "stage": "AFTER_SCAN_2",
+          "CA_punch": 96
+        },
+        {
+          "stage": "AFTER_VBLANK_CPU",
+          "CA_punch": 96
+        }
+      ],
+      "native_actions": [
+        [
+          "BEFORE_CPU",
+          "2E08"
+        ],
+        [
+          "AFTER_PRE_DISPLAY_CPU",
+          "2E08"
+        ],
+        [
+          "AFTER_SCAN_0",
+          "2E08"
+        ],
+        [
+          "AFTER_SCAN_1",
+          "2E08"
+        ],
+        [
+          "AFTER_SCAN_2",
+          "2E08"
+        ],
+        [
+          "AFTER_VBLANK_CPU",
+          "2E08"
+        ]
+      ],
+      "host_phase": "0"
+    },
+    {
+      "session": 1,
+      "frame": "6453",
+      "kind": "PRESS_EDGE_APPEARED_THEN_CLEARED",
+      "input_edges_by_cpu_slice": [
+        {
+          "stage": "BEFORE_CPU",
+          "CA_punch": 96
+        },
+        {
+          "stage": "AFTER_PRE_DISPLAY_CPU",
+          "CA_punch": 0
+        },
+        {
+          "stage": "AFTER_SCAN_0",
+          "CA_punch": 0
+        },
+        {
+          "stage": "AFTER_SCAN_1",
+          "CA_punch": 0
+        },
+        {
+          "stage": "AFTER_SCAN_2",
+          "CA_punch": 0
+        },
+        {
+          "stage": "AFTER_VBLANK_CPU",
+          "CA_punch": 0
+        }
+      ],
+      "native_actions": [
+        [
+          "BEFORE_CPU",
+          "2E08"
+        ],
+        [
+          "AFTER_PRE_DISPLAY_CPU",
+          "2E08"
+        ],
+        [
+          "AFTER_SCAN_0",
+          "2E08"
+        ],
+        [
+          "AFTER_SCAN_1",
+          "2E08"
+        ],
+        [
+          "AFTER_SCAN_2",
+          "2E08"
+        ],
+        [
+          "AFTER_VBLANK_CPU",
+          "2E08"
+        ]
+      ],
+      "host_phase": "0"
+    },
+    {
+      "session": 1,
+      "frame": "6491",
+      "kind": "PRESS_EDGE_APPEARED_THEN_CLEARED",
+      "input_edges_by_cpu_slice": [
+        {
+          "stage": "BEFORE_CPU",
+          "CA_punch": 0
+        },
+        {
+          "stage": "AFTER_PRE_DISPLAY_CPU",
+          "CA_punch": 96
+        },
+        {
+          "stage": "AFTER_SCAN_0",
+          "CA_punch": 96
+        },
+        {
+          "stage": "AFTER_SCAN_1",
+          "CA_punch": 0
+        },
+        {
+          "stage": "AFTER_SCAN_2",
+          "CA_punch": 0
+        },
+        {
+          "stage": "AFTER_VBLANK_CPU",
+          "CA_punch": 0
+        }
+      ],
+      "native_actions": [
+        [
+          "BEFORE_CPU",
+          "2E0A"
+        ],
+        [
+          "AFTER_PRE_DISPLAY_CPU",
+          "2E08"
+        ],
+        [
+          "AFTER_SCAN_0",
+          "2E08"
+        ],
+        [
+          "AFTER_SCAN_1",
+          "2E08"
+        ],
+        [
+          "AFTER_SCAN_2",
+          "2E08"
+        ],
+        [
+          "AFTER_VBLANK_CPU",
+          "2E08"
+        ]
+      ],
+      "host_phase": "2"
+    },
+    {
+      "session": 1,
+      "frame": "7005",
+      "kind": "PRESS_EDGE_VISIBLE",
+      "input_edges_by_cpu_slice": [
+        {
+          "stage": "BEFORE_CPU",
+          "CA_punch": 0
+        },
+        {
+          "stage": "AFTER_PRE_DISPLAY_CPU",
+          "CA_punch": 96
+        },
+        {
+          "stage": "AFTER_SCAN_0",
+          "CA_punch": 96
+        },
+        {
+          "stage": "AFTER_SCAN_1",
+          "CA_punch": 96
+        },
+        {
+          "stage": "AFTER_SCAN_2",
+          "CA_punch": 96
+        },
+        {
+          "stage": "AFTER_VBLANK_CPU",
+          "CA_punch": 96
+        }
+      ],
+      "native_actions": [
+        [
+          "BEFORE_CPU",
+          "2E08"
+        ],
+        [
+          "AFTER_PRE_DISPLAY_CPU",
+          "2E08"
+        ],
+        [
+          "AFTER_SCAN_0",
+          "2E08"
+        ],
+        [
+          "AFTER_SCAN_1",
+          "2E08"
+        ],
+        [
+          "AFTER_SCAN_2",
+          "2E08"
+        ],
+        [
+          "AFTER_VBLANK_CPU",
+          "2E08"
+        ]
+      ],
+      "host_phase": "2"
+    },
+    {
+      "session": 1,
+      "frame": "7006",
+      "kind": "PRESS_EDGE_APPEARED_THEN_CLEARED",
+      "input_edges_by_cpu_slice": [
+        {
+          "stage": "BEFORE_CPU",
+          "CA_punch": 96
+        },
+        {
+          "stage": "AFTER_PRE_DISPLAY_CPU",
+          "CA_punch": 0
+        },
+        {
+          "stage": "AFTER_SCAN_0",
+          "CA_punch": 0
+        },
+        {
+          "stage": "AFTER_SCAN_1",
+          "CA_punch": 0
+        },
+        {
+          "stage": "AFTER_SCAN_2",
+          "CA_punch": 0
+        },
+        {
+          "stage": "AFTER_VBLANK_CPU",
+          "CA_punch": 0
+        }
+      ],
+      "native_actions": [
+        [
+          "BEFORE_CPU",
+          "3200"
+        ],
+        [
+          "AFTER_PRE_DISPLAY_CPU",
+          "3200"
+        ],
+        [
+          "AFTER_SCAN_0",
+          "3200"
+        ],
+        [
+          "AFTER_SCAN_1",
+          "3200"
+        ],
+        [
+          "AFTER_SCAN_2",
+          "3200"
+        ],
+        [
+          "AFTER_VBLANK_CPU",
+          "3200"
+        ]
+      ],
+      "host_phase": "3"
+    },
+    {
+      "session": 1,
+      "frame": "7596",
+      "kind": "PRESS_EDGE_VISIBLE",
+      "input_edges_by_cpu_slice": [
+        {
+          "stage": "BEFORE_CPU",
+          "CA_punch": 0
+        },
+        {
+          "stage": "AFTER_PRE_DISPLAY_CPU",
+          "CA_punch": 0
+        },
+        {
+          "stage": "AFTER_SCAN_0",
+          "CA_punch": 0
+        },
+        {
+          "stage": "AFTER_SCAN_1",
+          "CA_punch": 48
+        },
+        {
+          "stage": "AFTER_SCAN_2",
+          "CA_punch": 48
+        },
+        {
+          "stage": "AFTER_VBLANK_CPU",
+          "CA_punch": 48
+        }
+      ],
+      "native_actions": [
+        [
+          "BEFORE_CPU",
+          "2E0A"
+        ],
+        [
+          "AFTER_PRE_DISPLAY_CPU",
+          "2E0A"
+        ],
+        [
+          "AFTER_SCAN_0",
+          "2E0A"
+        ],
+        [
+          "AFTER_SCAN_1",
+          "2E08"
+        ],
+        [
+          "AFTER_SCAN_2",
+          "2E08"
+        ],
+        [
+          "AFTER_VBLANK_CPU",
+          "2E08"
+        ]
+      ],
+      "host_phase": "2"
+    },
+    {
+      "session": 1,
+      "frame": "7597",
+      "kind": "PRESS_EDGE_APPEARED_THEN_CLEARED",
+      "input_edges_by_cpu_slice": [
+        {
+          "stage": "BEFORE_CPU",
+          "CA_punch": 48
+        },
+        {
+          "stage": "AFTER_PRE_DISPLAY_CPU",
+          "CA_punch": 0
+        },
+        {
+          "stage": "AFTER_SCAN_0",
+          "CA_punch": 0
+        },
+        {
+          "stage": "AFTER_SCAN_1",
+          "CA_punch": 0
+        },
+        {
+          "stage": "AFTER_SCAN_2",
+          "CA_punch": 0
+        },
+        {
+          "stage": "AFTER_VBLANK_CPU",
+          "CA_punch": 0
+        }
+      ],
+      "native_actions": [
+        [
+          "BEFORE_CPU",
+          "3200"
+        ],
+        [
+          "AFTER_PRE_DISPLAY_CPU",
+          "3200"
+        ],
+        [
+          "AFTER_SCAN_0",
+          "3200"
+        ],
+        [
+          "AFTER_SCAN_1",
+          "3200"
+        ],
+        [
+          "AFTER_SCAN_2",
+          "3200"
+        ],
+        [
+          "AFTER_VBLANK_CPU",
+          "3200"
+        ]
+      ],
+      "host_phase": "3"
+    },
+    {
+      "session": 1,
+      "frame": "8084",
+      "kind": "PRESS_EDGE_VISIBLE",
+      "input_edges_by_cpu_slice": [
+        {
+          "stage": "BEFORE_CPU",
+          "CA_punch": 0
+        },
+        {
+          "stage": "AFTER_PRE_DISPLAY_CPU",
+          "CA_punch": 80
+        },
+        {
+          "stage": "AFTER_SCAN_0",
+          "CA_punch": 80
+        },
+        {
+          "stage": "AFTER_SCAN_1",
+          "CA_punch": 80
+        },
+        {
+          "stage": "AFTER_SCAN_2",
+          "CA_punch": 80
+        },
+        {
+          "stage": "AFTER_VBLANK_CPU",
+          "CA_punch": 80
+        }
+      ],
+      "native_actions": [
+        [
+          "BEFORE_CPU",
+          "2E0A"
+        ],
+        [
+          "AFTER_PRE_DISPLAY_CPU",
+          "2E0A"
+        ],
+        [
+          "AFTER_SCAN_0",
+          "2E08"
+        ],
+        [
+          "AFTER_SCAN_1",
+          "2E08"
+        ],
+        [
+          "AFTER_SCAN_2",
+          "2E08"
+        ],
+        [
+          "AFTER_VBLANK_CPU",
+          "2E08"
+        ]
+      ],
+      "host_phase": "2"
+    },
+    {
+      "session": 1,
+      "frame": "8085",
+      "kind": "PRESS_EDGE_APPEARED_THEN_CLEARED",
+      "input_edges_by_cpu_slice": [
+        {
+          "stage": "BEFORE_CPU",
+          "CA_punch": 80
+        },
+        {
+          "stage": "AFTER_PRE_DISPLAY_CPU",
+          "CA_punch": 0
+        },
+        {
+          "stage": "AFTER_SCAN_0",
+          "CA_punch": 0
+        },
+        {
+          "stage": "AFTER_SCAN_1",
+          "CA_punch": 0
+        },
+        {
+          "stage": "AFTER_SCAN_2",
+          "CA_punch": 0
+        },
+        {
+          "stage": "AFTER_VBLANK_CPU",
+          "CA_punch": 0
+        }
+      ],
+      "native_actions": [
+        [
+          "BEFORE_CPU",
+          "3200"
+        ],
+        [
+          "AFTER_PRE_DISPLAY_CPU",
+          "3200"
+        ],
+        [
+          "AFTER_SCAN_0",
+          "3200"
+        ],
+        [
+          "AFTER_SCAN_1",
+          "3200"
+        ],
+        [
+          "AFTER_SCAN_2",
+          "3200"
+        ],
+        [
+          "AFTER_VBLANK_CPU",
+          "3200"
+        ]
+      ],
+      "host_phase": "3"
+    },
+    {
+      "session": 1,
+      "frame": "8438",
+      "kind": "PRESS_EDGE_APPEARED_THEN_CLEARED",
+      "input_edges_by_cpu_slice": [
+        {
+          "stage": "BEFORE_CPU",
+          "CA_punch": 112
+        },
+        {
+          "stage": "AFTER_PRE_DISPLAY_CPU",
+          "CA_punch": 0
+        },
+        {
+          "stage": "AFTER_SCAN_0",
+          "CA_punch": 0
+        },
+        {
+          "stage": "AFTER_SCAN_1",
+          "CA_punch": 0
+        },
+        {
+          "stage": "AFTER_SCAN_2",
+          "CA_punch": 0
+        },
+        {
+          "stage": "AFTER_VBLANK_CPU",
+          "CA_punch": 0
+        }
+      ],
+      "native_actions": [
+        [
+          "BEFORE_CPU",
+          "2E08"
+        ],
+        [
+          "AFTER_PRE_DISPLAY_CPU",
+          "2E08"
+        ],
+        [
+          "AFTER_SCAN_0",
+          "2E08"
+        ],
+        [
+          "AFTER_SCAN_1",
+          "2E08"
+        ],
+        [
+          "AFTER_SCAN_2",
+          "2E08"
+        ],
+        [
+          "AFTER_VBLANK_CPU",
+          "2E08"
+        ]
+      ],
+      "host_phase": "0"
+    },
+    {
+      "session": 1,
+      "frame": "8563",
+      "kind": "PRESS_EDGE_VISIBLE",
+      "input_edges_by_cpu_slice": [
+        {
+          "stage": "BEFORE_CPU",
+          "CA_punch": 0
+        },
+        {
+          "stage": "AFTER_PRE_DISPLAY_CPU",
+          "CA_punch": 96
+        },
+        {
+          "stage": "AFTER_SCAN_0",
+          "CA_punch": 96
+        },
+        {
+          "stage": "AFTER_SCAN_1",
+          "CA_punch": 96
+        },
+        {
+          "stage": "AFTER_SCAN_2",
+          "CA_punch": 96
+        },
+        {
+          "stage": "AFTER_VBLANK_CPU",
+          "CA_punch": 96
+        }
+      ],
+      "native_actions": [
+        [
+          "BEFORE_CPU",
+          "2E0A"
+        ],
+        [
+          "AFTER_PRE_DISPLAY_CPU",
+          "2E08"
+        ],
+        [
+          "AFTER_SCAN_0",
+          "2E08"
+        ],
+        [
+          "AFTER_SCAN_1",
+          "2E08"
+        ],
+        [
+          "AFTER_SCAN_2",
+          "2E08"
+        ],
+        [
+          "AFTER_VBLANK_CPU",
+          "2E08"
+        ]
+      ],
+      "host_phase": "2"
+    },
+    {
+      "session": 1,
+      "frame": "8564",
+      "kind": "PRESS_EDGE_APPEARED_THEN_CLEARED",
+      "input_edges_by_cpu_slice": [
+        {
+          "stage": "BEFORE_CPU",
+          "CA_punch": 96
+        },
+        {
+          "stage": "AFTER_PRE_DISPLAY_CPU",
+          "CA_punch": 0
+        },
+        {
+          "stage": "AFTER_SCAN_0",
+          "CA_punch": 0
+        },
+        {
+          "stage": "AFTER_SCAN_1",
+          "CA_punch": 0
+        },
+        {
+          "stage": "AFTER_SCAN_2",
+          "CA_punch": 0
+        },
+        {
+          "stage": "AFTER_VBLANK_CPU",
+          "CA_punch": 0
+        }
+      ],
+      "native_actions": [
+        [
+          "BEFORE_CPU",
+          "3200"
+        ],
+        [
+          "AFTER_PRE_DISPLAY_CPU",
+          "3200"
+        ],
+        [
+          "AFTER_SCAN_0",
+          "3200"
+        ],
+        [
+          "AFTER_SCAN_1",
+          "3200"
+        ],
+        [
+          "AFTER_SCAN_2",
+          "3200"
+        ],
+        [
+          "AFTER_VBLANK_CPU",
+          "3200"
+        ]
+      ],
+      "host_phase": "3"
+    },
+    {
+      "session": 1,
+      "frame": "9060",
+      "kind": "PRESS_EDGE_VISIBLE",
+      "input_edges_by_cpu_slice": [
+        {
+          "stage": "BEFORE_CPU",
+          "CA_punch": 0
+        },
+        {
+          "stage": "AFTER_PRE_DISPLAY_CPU",
+          "CA_punch": 80
+        },
+        {
+          "stage": "AFTER_SCAN_0",
+          "CA_punch": 80
+        },
+        {
+          "stage": "AFTER_SCAN_1",
+          "CA_punch": 80
+        },
+        {
+          "stage": "AFTER_SCAN_2",
+          "CA_punch": 80
+        },
+        {
+          "stage": "AFTER_VBLANK_CPU",
+          "CA_punch": 80
+        }
+      ],
+      "native_actions": [
+        [
+          "BEFORE_CPU",
+          "2E0A"
+        ],
+        [
+          "AFTER_PRE_DISPLAY_CPU",
+          "2E08"
+        ],
+        [
+          "AFTER_SCAN_0",
+          "2E08"
+        ],
+        [
+          "AFTER_SCAN_1",
+          "2E08"
+        ],
+        [
+          "AFTER_SCAN_2",
+          "2E08"
+        ],
+        [
+          "AFTER_VBLANK_CPU",
+          "2E08"
+        ]
+      ],
+      "host_phase": "2"
+    },
+    {
+      "session": 1,
+      "frame": "9061",
+      "kind": "PRESS_EDGE_APPEARED_THEN_CLEARED",
+      "input_edges_by_cpu_slice": [
+        {
+          "stage": "BEFORE_CPU",
+          "CA_punch": 80
+        },
+        {
+          "stage": "AFTER_PRE_DISPLAY_CPU",
+          "CA_punch": 80
+        },
+        {
+          "stage": "AFTER_SCAN_0",
+          "CA_punch": 0
+        },
+        {
+          "stage": "AFTER_SCAN_1",
+          "CA_punch": 0
+        },
+        {
+          "stage": "AFTER_SCAN_2",
+          "CA_punch": 0
+        },
+        {
+          "stage": "AFTER_VBLANK_CPU",
+          "CA_punch": 0
+        }
+      ],
+      "native_actions": [
+        [
+          "BEFORE_CPU",
+          "3200"
+        ],
+        [
+          "AFTER_PRE_DISPLAY_CPU",
+          "3200"
+        ],
+        [
+          "AFTER_SCAN_0",
+          "3200"
+        ],
+        [
+          "AFTER_SCAN_1",
+          "3200"
+        ],
+        [
+          "AFTER_SCAN_2",
+          "3200"
+        ],
+        [
+          "AFTER_VBLANK_CPU",
+          "3200"
+        ]
+      ],
+      "host_phase": "3"
+    }
+  ],
+  "limits": "CA is a sampled input edge, not proof that native 68000 controller 8 or action 2E was accepted. Output is read-only."
+}

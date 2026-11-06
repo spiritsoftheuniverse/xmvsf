@@ -1,0 +1,1969 @@
+
+========== XMVSF BUILD_TEST.bat 87.165 START Wed 11/04/2026 17:01:08.79 ==========
+Project: F:\xmvsf
+
+========== XMVSF TEST 87.165 BUILD BEGIN 2026-11-04 17:01:10 ==========
+Project: /f/xmvsf
+Log: /f/xmvsf/test/build_logs/BUILD_TEST.log
+XMVSF Stage 87.165 TEST: incremental build; preserving cached objects
+Dependencies: GNU Make + persistent obj/**/*.d header dependency files
+make[1]: Entering directory '/f/xmvsf/dev/stable/buildtree'
+Making normal build...
+
+
+Warning: Perl is not available on this system.
+src/dep/generated/driverlist.h cannot be updated or created!
+
+make[1]: Leaving directory '/f/xmvsf/dev/stable/buildtree'
+TEST BUILD READY: /f/xmvsf/runtime/stable/XMVSF_Test_87_165.exe
+Stage 87.165: restored 87.151 Ryu native tag timer28 and kickless Ken entry. Verified Ken super inputs; existing warm-cache and Stable preserved.
+XMVSF BUILD END rc=0 time=2026-11-04 17:04:16 log=/f/xmvsf/test/build_logs/BUILD_TEST.log
+BATCH RESULT: SUCCESS Wed 11/04/2026 17:04:16.30
+
+========== XMVSF BUILD_TEST.bat 87.166 START Wed 11/04/2026 17:23:38.77 ==========
+Project: F:\xmvsf
+
+========== XMVSF TEST 87.166 BUILD BEGIN 2026-11-04 17:23:40 ==========
+Project: /f/xmvsf
+Log: /f/xmvsf/test/build_logs/BUILD_TEST.log
+XMVSF Stage 87.166 TEST: incremental build; preserving cached objects
+Dependencies: GNU Make + persistent obj/**/*.d header dependency files
+make[1]: Entering directory '/f/xmvsf/dev/stable/buildtree'
+Making normal build...
+
+
+========== XMVSF BUILD_TEST.bat 87.166 START Wed 11/04/2026 17:27:33.11 ==========
+Project: F:\xmvsf
+
+========== XMVSF TEST 87.166 BUILD BEGIN 2026-11-04 17:27:34 ==========
+Project: /f/xmvsf
+Log: /f/xmvsf/test/build_logs/BUILD_TEST.log
+XMVSF Stage 87.166 TEST: incremental build; preserving cached objects
+Dependencies: GNU Make + persistent obj/**/*.d header dependency files
+make[1]: Entering directory '/f/xmvsf/dev/stable/buildtree'
+Making normal build...
+
+Generating depend file for src/burner/sdl/run.cpp...
+Generating depend file for src/intf/video/sdl/vid_sdl2.cpp...
+Compiling src/burner/sdl/run.cpp...
+Compiling src/intf/video/sdl/vid_sdl2.cpp...
+In file included from src/burn/burnint.h:13,
+                 from src/burner/sdl/xmvsf_stage14_training.h:10,
+                 from src/burner/sdl/run.cpp:15:
+src/burner/sdl/tchar.h:12:9: warning: '__TEXT' redefined
+   12 | #define __TEXT(q)    q
+      |         ^~~~~~
+In file included from C:/msys64/ucrt64/include/minwindef.h:163,
+                 from C:/msys64/ucrt64/include/windef.h:9,
+                 from C:/msys64/ucrt64/include/windows.h:69,
+                 from src/burner/sdl/burner_sdl.h:22,
+                 from src/burner/burner.h:47,
+                 from src/burner/sdl/run.cpp:6:
+C:/msys64/ucrt64/include/winnt.h:412:9: note: this is the location of the previous definition
+  412 | #define __TEXT(quote) quote
+      |         ^~~~~~
+In file included from src/burner/sdl/xmvsf_stage23_ui.h:10,
+                 from src/burner/sdl/xmvsf_stage23_engine.h:3,
+                 from src/burner/sdl/run.cpp:25:
+src/burner/sdl/xmvsf_stage13_controls.h:145:12: warning: 'int xm13ReadInput(const XM13_Settings*, int, int, SDL_Joystick**, SDL_GameController**, int)' defined but not used [-Wunused-function]
+  145 | static int xm13ReadInput(const XM13_Settings* s, int player, int sub,
+      |            ^~~~~~~~~~~~~
+src/burner/sdl/xmvsf_stage13_controls.h:131:12: warning: 'int xm13Assign(XM13_Settings*, int, int)' defined but not used [-Wunused-function]
+  131 | static int xm13Assign(XM13_Settings* settings,int player,int device) {
+      |            ^~~~~~~~~~
+In file included from src/intf/video/sdl/../../../burner/sdl/xmvsf_stage23_ui.h:10,
+                 from src/intf/video/sdl/vid_sdl2.cpp:17:
+src/intf/video/sdl/../../../burner/sdl/xmvsf_stage13_controls.h:145:12: warning: 'int xm13ReadInput(const XM13_Settings*, int, int, SDL_Joystick**, SDL_GameController**, int)' defined but not used [-Wunused-function]
+  145 | static int xm13ReadInput(const XM13_Settings* s, int player, int sub,
+      |            ^~~~~~~~~~~~~
+src/intf/video/sdl/../../../burner/sdl/xmvsf_stage13_controls.h:131:12: warning: 'int xm13Assign(XM13_Settings*, int, int)' defined but not used [-Wunused-function]
+  131 | static int xm13Assign(XM13_Settings* settings,int player,int device) {
+      |            ^~~~~~~~~~
+
+Warning: Perl is not available on this system.
+src/dep/generated/driverlist.h cannot be updated or created!
+
+Compiling src/burner/sdl/main.cpp...
+In file included from src/burn/burnint.h:13,
+                 from src/burner/sdl/xmvsf_stage17_auto.h:6,
+                 from src/burner/sdl/main.cpp:37:
+src/burner/sdl/tchar.h:12:9: warning: '__TEXT' redefined
+   12 | #define __TEXT(q)    q
+      |         ^~~~~~
+In file included from C:/msys64/ucrt64/include/minwindef.h:163,
+                 from C:/msys64/ucrt64/include/windef.h:9,
+                 from C:/msys64/ucrt64/include/windows.h:69,
+                 from src/burner/sdl/burner_sdl.h:22,
+                 from src/burner/burner.h:47,
+                 from src/burner/sdl/main.cpp:16:
+C:/msys64/ucrt64/include/winnt.h:412:9: note: this is the location of the previous definition
+  412 | #define __TEXT(quote) quote
+      |         ^~~~~~
+In file included from src/burner/sdl/xmvsf_stage14_boot.h:82,
+                 from src/burner/sdl/main.cpp:23:
+src/burner/sdl/xmvsf_stage87_33_dizzy_option.h: In function 'void xm8733DizzyLoad()':
+src/burner/sdl/xmvsf_stage87_33_dizzy_option.h:19:24: warning: this 'if' clause does not guard... [-Wmisleading-indentation]
+   19 |     if(f){int flag=-1; if(std::fscanf(f,"dizzy_bar=%d",&flag)==1 && (flag==0||flag==1))
+      |                        ^~
+src/burner/sdl/xmvsf_stage87_33_dizzy_option.h:20:40: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the 'if'
+   20 |         xm8733DizzyEnabled()=(flag==1);std::fclose(f);}
+      |                                        ^~~
+src/burner/sdl/main.cpp: At global scope:
+src/burner/sdl/main.cpp:340:20: warning: 'int AppDebugPrintf(int, TCHAR*, ...)' defined but not used [-Wunused-function]
+  340 | static int __cdecl AppDebugPrintf(int nStatus, TCHAR* pszFormat, ...)
+      |                    ^~~~~~~~~~~~~~
+src/burner/sdl/main.cpp: In function 'int SDL_main(int, char**)':
+src/burner/sdl/main.cpp:467:52: warning: '%s' directive output may be truncated writing up to 2339 bytes into a region of size 260 [-Wformat-truncation=]
+  467 |                 snprintf(currentPath, MAX_PATH, "%s%s", base_path, szDirs[x]);
+      |                                                    ^~
+src/burner/sdl/main.cpp:467:25: note: 'snprintf' output 1 or more bytes (assuming 2340) into a destination of size 260
+  467 |                 snprintf(currentPath, MAX_PATH, "%s%s", base_path, szDirs[x]);
+      |                 ~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Linking executable... fbneo
+make[1]: Leaving directory '/f/xmvsf/dev/stable/buildtree'
+TEST BUILD READY: /f/xmvsf/runtime/stable/XMVSF_Test_87_166.exe
+Stage 87.166: restored 87.151 Ryu native tag timer28 and kickless Ken entry. Verified Ken super inputs; existing warm-cache and Stable preserved.
+XMVSF BUILD END rc=0 time=2026-11-04 17:31:11 log=/f/xmvsf/test/build_logs/BUILD_TEST.log
+BATCH RESULT: SUCCESS Wed 11/04/2026 17:31:11.32
+
+========== XMVSF BUILD_TEST.bat 87.167 START Wed 11/04/2026 17:55:08.22 ==========
+Project: F:\xmvsf
+
+========== XMVSF TEST 87.167 BUILD BEGIN 2026-11-04 17:55:10 ==========
+Project: /f/xmvsf
+Log: /f/xmvsf/test/build_logs/BUILD_TEST.log
+XMVSF Stage 87.167 TEST: incremental build; preserving cached objects
+Dependencies: GNU Make + persistent obj/**/*.d header dependency files
+make[1]: Entering directory '/f/xmvsf/dev/stable/buildtree'
+Making normal build...
+
+Generating depend file for src/burner/sdl/main.cpp...
+Compiling src/burner/sdl/main.cpp...
+In file included from src/burn/burnint.h:13,
+                 from src/burner/sdl/xmvsf_stage17_auto.h:6,
+                 from src/burner/sdl/main.cpp:37:
+src/burner/sdl/tchar.h:12:9: warning: '__TEXT' redefined
+   12 | #define __TEXT(q)    q
+      |         ^~~~~~
+In file included from C:/msys64/ucrt64/include/minwindef.h:163,
+                 from C:/msys64/ucrt64/include/windef.h:9,
+                 from C:/msys64/ucrt64/include/windows.h:69,
+                 from src/burner/sdl/burner_sdl.h:22,
+                 from src/burner/burner.h:47,
+                 from src/burner/sdl/main.cpp:16:
+C:/msys64/ucrt64/include/winnt.h:412:9: note: this is the location of the previous definition
+  412 | #define __TEXT(quote) quote
+      |         ^~~~~~
+In file included from src/burner/sdl/xmvsf_stage14_boot.h:82,
+                 from src/burner/sdl/main.cpp:23:
+src/burner/sdl/xmvsf_stage87_33_dizzy_option.h: In function 'void xm8733DizzyLoad()':
+src/burner/sdl/xmvsf_stage87_33_dizzy_option.h:19:24: warning: this 'if' clause does not guard... [-Wmisleading-indentation]
+   19 |     if(f){int flag=-1; if(std::fscanf(f,"dizzy_bar=%d",&flag)==1 && (flag==0||flag==1))
+      |                        ^~
+src/burner/sdl/xmvsf_stage87_33_dizzy_option.h:20:40: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the 'if'
+   20 |         xm8733DizzyEnabled()=(flag==1);std::fclose(f);}
+      |                                        ^~~
+src/burner/sdl/main.cpp: At global scope:
+src/burner/sdl/main.cpp:340:20: warning: 'int AppDebugPrintf(int, TCHAR*, ...)' defined but not used [-Wunused-function]
+  340 | static int __cdecl AppDebugPrintf(int nStatus, TCHAR* pszFormat, ...)
+      |                    ^~~~~~~~~~~~~~
+src/burner/sdl/main.cpp: In function 'int SDL_main(int, char**)':
+src/burner/sdl/main.cpp:473:52: warning: '%s' directive output may be truncated writing up to 2339 bytes into a region of size 260 [-Wformat-truncation=]
+  473 |                 snprintf(currentPath, MAX_PATH, "%s%s", base_path, szDirs[x]);
+      |                                                    ^~
+src/burner/sdl/main.cpp:473:25: note: 'snprintf' output 1 or more bytes (assuming 2340) into a destination of size 260
+  473 |                 snprintf(currentPath, MAX_PATH, "%s%s", base_path, szDirs[x]);
+      |                 ~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Warning: Perl is not available on this system.
+src/dep/generated/driverlist.h cannot be updated or created!
+
+Compiling src/burner/sdl/run.cpp...
+In file included from src/burn/burnint.h:13,
+                 from src/burner/sdl/xmvsf_stage14_training.h:10,
+                 from src/burner/sdl/run.cpp:15:
+src/burner/sdl/tchar.h:12:9: warning: '__TEXT' redefined
+   12 | #define __TEXT(q)    q
+      |         ^~~~~~
+In file included from C:/msys64/ucrt64/include/minwindef.h:163,
+                 from C:/msys64/ucrt64/include/windef.h:9,
+                 from C:/msys64/ucrt64/include/windows.h:69,
+                 from src/burner/sdl/burner_sdl.h:22,
+                 from src/burner/burner.h:47,
+                 from src/burner/sdl/run.cpp:6:
+C:/msys64/ucrt64/include/winnt.h:412:9: note: this is the location of the previous definition
+  412 | #define __TEXT(quote) quote
+      |         ^~~~~~
+In file included from src/burner/sdl/xmvsf_stage23_ui.h:10,
+                 from src/burner/sdl/xmvsf_stage23_engine.h:3,
+                 from src/burner/sdl/run.cpp:25:
+src/burner/sdl/xmvsf_stage13_controls.h:145:12: warning: 'int xm13ReadInput(const XM13_Settings*, int, int, SDL_Joystick**, SDL_GameController**, int)' defined but not used [-Wunused-function]
+  145 | static int xm13ReadInput(const XM13_Settings* s, int player, int sub,
+      |            ^~~~~~~~~~~~~
+src/burner/sdl/xmvsf_stage13_controls.h:131:12: warning: 'int xm13Assign(XM13_Settings*, int, int)' defined but not used [-Wunused-function]
+  131 | static int xm13Assign(XM13_Settings* settings,int player,int device) {
+      |            ^~~~~~~~~~
+
+Linking executable... fbneo
+make[1]: Leaving directory '/f/xmvsf/dev/stable/buildtree'
+TEST BUILD READY: /f/xmvsf/runtime/stable/XMVSF_Test_87_167.exe
+Stage 87.167: F9 multi-session recording FINAL seal + normal-exit recovery; DHC, warm cache, and Stable preserved.
+XMVSF BUILD END rc=0 time=2026-11-04 17:58:53 log=/f/xmvsf/test/build_logs/BUILD_TEST.log
+BATCH RESULT: SUCCESS Wed 11/04/2026 17:58:53.98
+
+========== XMVSF BUILD_TEST.bat 87.167 START Wed 11/04/2026 18:20:47.72 ==========
+Project: F:\xmvsf
+
+========== XMVSF TEST 87.167 BUILD BEGIN 2026-11-04 18:20:49 ==========
+Project: /f/xmvsf
+Log: /f/xmvsf/test/build_logs/BUILD_TEST.log
+XMVSF Stage 87.167 TEST: incremental build; preserving cached objects
+Dependencies: GNU Make + persistent obj/**/*.d header dependency files
+make[1]: Entering directory '/f/xmvsf/dev/stable/buildtree'
+Making normal build...
+
+
+Warning: Perl is not available on this system.
+src/dep/generated/driverlist.h cannot be updated or created!
+
+Compiling src/burner/sdl/main.cpp...
+Compiling src/burner/sdl/run.cpp...
+In file included from src/burn/burnint.h:13,
+                 from src/burner/sdl/xmvsf_stage17_auto.h:6,
+                 from src/burner/sdl/main.cpp:37:
+src/burner/sdl/tchar.h:12:9: warning: '__TEXT' redefined
+   12 | #define __TEXT(q)    q
+      |         ^~~~~~
+In file included from C:/msys64/ucrt64/include/minwindef.h:163,
+                 from C:/msys64/ucrt64/include/windef.h:9,
+                 from C:/msys64/ucrt64/include/windows.h:69,
+                 from src/burner/sdl/burner_sdl.h:22,
+                 from src/burner/burner.h:47,
+                 from src/burner/sdl/main.cpp:16:
+C:/msys64/ucrt64/include/winnt.h:412:9: note: this is the location of the previous definition
+  412 | #define __TEXT(quote) quote
+      |         ^~~~~~
+In file included from src/burn/burnint.h:13,
+                 from src/burner/sdl/xmvsf_stage14_training.h:10,
+                 from src/burner/sdl/run.cpp:15:
+src/burner/sdl/tchar.h:12:9: warning: '__TEXT' redefined
+   12 | #define __TEXT(q)    q
+      |         ^~~~~~
+In file included from C:/msys64/ucrt64/include/minwindef.h:163,
+                 from C:/msys64/ucrt64/include/windef.h:9,
+                 from C:/msys64/ucrt64/include/windows.h:69,
+                 from src/burner/sdl/burner_sdl.h:22,
+                 from src/burner/burner.h:47,
+                 from src/burner/sdl/run.cpp:6:
+C:/msys64/ucrt64/include/winnt.h:412:9: note: this is the location of the previous definition
+  412 | #define __TEXT(quote) quote
+      |         ^~~~~~
+In file included from src/burner/sdl/xmvsf_stage14_boot.h:82,
+                 from src/burner/sdl/main.cpp:23:
+src/burner/sdl/xmvsf_stage87_33_dizzy_option.h: In function 'void xm8733DizzyLoad()':
+src/burner/sdl/xmvsf_stage87_33_dizzy_option.h:19:24: warning: this 'if' clause does not guard... [-Wmisleading-indentation]
+   19 |     if(f){int flag=-1; if(std::fscanf(f,"dizzy_bar=%d",&flag)==1 && (flag==0||flag==1))
+      |                        ^~
+src/burner/sdl/xmvsf_stage87_33_dizzy_option.h:20:40: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the 'if'
+   20 |         xm8733DizzyEnabled()=(flag==1);std::fclose(f);}
+      |                                        ^~~
+src/burner/sdl/main.cpp: At global scope:
+src/burner/sdl/main.cpp:340:20: warning: 'int AppDebugPrintf(int, TCHAR*, ...)' defined but not used [-Wunused-function]
+  340 | static int __cdecl AppDebugPrintf(int nStatus, TCHAR* pszFormat, ...)
+      |                    ^~~~~~~~~~~~~~
+In file included from src/burner/sdl/xmvsf_stage23_ui.h:10,
+                 from src/burner/sdl/xmvsf_stage23_engine.h:3,
+                 from src/burner/sdl/run.cpp:25:
+src/burner/sdl/xmvsf_stage13_controls.h:145:12: warning: 'int xm13ReadInput(const XM13_Settings*, int, int, SDL_Joystick**, SDL_GameController**, int)' defined but not used [-Wunused-function]
+  145 | static int xm13ReadInput(const XM13_Settings* s, int player, int sub,
+      |            ^~~~~~~~~~~~~
+src/burner/sdl/xmvsf_stage13_controls.h:131:12: warning: 'int xm13Assign(XM13_Settings*, int, int)' defined but not used [-Wunused-function]
+  131 | static int xm13Assign(XM13_Settings* settings,int player,int device) {
+      |            ^~~~~~~~~~
+src/burner/sdl/main.cpp: In function 'int SDL_main(int, char**)':
+src/burner/sdl/main.cpp:473:52: warning: '%s' directive output may be truncated writing up to 2339 bytes into a region of size 260 [-Wformat-truncation=]
+  473 |                 snprintf(currentPath, MAX_PATH, "%s%s", base_path, szDirs[x]);
+      |                                                    ^~
+src/burner/sdl/main.cpp:473:25: note: 'snprintf' output 1 or more bytes (assuming 2340) into a destination of size 260
+  473 |                 snprintf(currentPath, MAX_PATH, "%s%s", base_path, szDirs[x]);
+      |                 ~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Linking executable... fbneo
+make[1]: Leaving directory '/f/xmvsf/dev/stable/buildtree'
+TEST BUILD READY: /f/xmvsf/runtime/stable/XMVSF_Test_87_167.exe
+Stage 87.167: F9 multi-session recording FINAL seal + normal-exit recovery; DHC, warm cache, and Stable preserved.
+XMVSF BUILD END rc=0 time=2026-11-04 18:24:09 log=/f/xmvsf/test/build_logs/BUILD_TEST.log
+BATCH RESULT: SUCCESS Wed 11/04/2026 18:24:09.88
+
+========== XMVSF BUILD_TEST.bat 87.167 START Thu 11/05/2026  9:20:43.94 ==========
+Project: F:\xmvsf
+
+========== XMVSF TEST 87.167 BUILD BEGIN 2026-11-05 09:20:46 ==========
+Project: /f/xmvsf
+Log: /f/xmvsf/test/build_logs/BUILD_TEST.log
+XMVSF Stage 87.167 TEST: incremental build; preserving cached objects
+Dependencies: GNU Make + persistent obj/**/*.d header dependency files
+make[1]: Entering directory '/f/xmvsf/dev/stable/buildtree'
+Making normal build...
+
+
+Warning: Perl is not available on this system.
+src/dep/generated/driverlist.h cannot be updated or created!
+
+make[1]: Leaving directory '/f/xmvsf/dev/stable/buildtree'
+TEST BUILD READY: /f/xmvsf/runtime/stable/XMVSF_Test_87_167.exe
+Stage 87.167: F9 multi-session recording FINAL seal + normal-exit recovery; DHC, warm cache, and Stable preserved.
+XMVSF BUILD END rc=0 time=2026-11-05 09:23:50 log=/f/xmvsf/test/build_logs/BUILD_TEST.log
+BATCH RESULT: SUCCESS Thu 11/05/2026  9:23:50.85
+
+========== XMVSF BUILD_TEST.bat 87.167 START Thu 11/05/2026  9:24:46.61 ==========
+Project: F:\xmvsf
+
+========== XMVSF TEST 87.167 BUILD BEGIN 2026-11-05 09:24:48 ==========
+Project: /f/xmvsf
+Log: /f/xmvsf/test/build_logs/BUILD_TEST.log
+XMVSF Stage 87.167 TEST: incremental build; preserving cached objects
+Dependencies: GNU Make + persistent obj/**/*.d header dependency files
+make[1]: Entering directory '/f/xmvsf/dev/stable/buildtree'
+Making normal build...
+
+
+Warning: Perl is not available on this system.
+src/dep/generated/driverlist.h cannot be updated or created!
+
+make[1]: Leaving directory '/f/xmvsf/dev/stable/buildtree'
+TEST BUILD READY: /f/xmvsf/runtime/stable/XMVSF_Test_87_167.exe
+Stage 87.167: F9 multi-session recording FINAL seal + normal-exit recovery; DHC, warm cache, and Stable preserved.
+XMVSF BUILD END rc=0 time=2026-11-05 09:27:47 log=/f/xmvsf/test/build_logs/BUILD_TEST.log
+BATCH RESULT: SUCCESS Thu 11/05/2026  9:27:47.84
+
+========== XMVSF BUILD_TEST.bat 87.175 START Thu 11/05/2026 12:16:16.24 ==========
+Project: F:\xmvsf
+
+========== XMVSF TEST 87.175 BUILD BEGIN 2026-11-05 12:16:18 ==========
+Project: /f/xmvsf
+Log: /f/xmvsf/test/build_logs/BUILD_TEST.log
+XMVSF Stage 87.175 TEST: incremental build; preserving cached objects
+Dependencies: GNU Make + persistent obj/**/*.d header dependency files
+make[1]: Entering directory '/f/xmvsf/dev/stable/buildtree'
+Making normal build...
+
+Generating depend file for src/burn/drv/capcom/cps_run.cpp...
+Compiling src/burn/drv/capcom/cps_run.cpp...
+
+Warning: Perl is not available on this system.
+src/dep/generated/driverlist.h cannot be updated or created!
+
+
+Linking executable... fbneo
+make[1]: Leaving directory '/f/xmvsf/dev/stable/buildtree'
+TEST BUILD READY: /f/xmvsf/runtime/stable/XMVSF_Test_87_175.exe
+Stage 87.175: opt-in native acceptance observer; F9 multi-session recording FINAL seal + normal-exit recovery; DHC, warm cache, and Stable preserved.
+XMVSF BUILD END rc=0 time=2026-11-05 12:19:40 log=/f/xmvsf/test/build_logs/BUILD_TEST.log
+BATCH RESULT: SUCCESS Thu 11/05/2026 12:19:40.52
+
+========== XMVSF BUILD_TEST.bat 87.177 START Thu 11/05/2026 14:43:31.72 ==========
+Project: F:\xmvsf
+
+========== XMVSF TEST 87.177 BUILD BEGIN 2026-11-05 14:43:33 ==========
+Project: /f/xmvsf
+Log: /f/xmvsf/test/build_logs/BUILD_TEST.log
+XMVSF Stage 87.177 TEST: incremental build; preserving cached objects
+Dependencies: GNU Make + persistent obj/**/*.d header dependency files
+make[1]: Entering directory '/f/xmvsf/dev/stable/buildtree'
+Making normal build...
+
+Generating depend file for src/burn/drv/capcom/cps_run.cpp...
+Compiling src/burn/drv/capcom/cps_run.cpp...
+
+Warning: Perl is not available on this system.
+src/dep/generated/driverlist.h cannot be updated or created!
+
+Compiling src/burner/sdl/run.cpp...
+Compiling src/intf/video/sdl/vid_sdl2.cpp...
+In file included from src/burn/burnint.h:13,
+                 from src/burner/sdl/xmvsf_stage14_training.h:10,
+                 from src/burner/sdl/run.cpp:15:
+src/burner/sdl/tchar.h:12:9: warning: '__TEXT' redefined
+   12 | #define __TEXT(q)    q
+      |         ^~~~~~
+In file included from C:/msys64/ucrt64/include/minwindef.h:163,
+                 from C:/msys64/ucrt64/include/windef.h:9,
+                 from C:/msys64/ucrt64/include/windows.h:69,
+                 from src/burner/sdl/burner_sdl.h:22,
+                 from src/burner/burner.h:47,
+                 from src/burner/sdl/run.cpp:6:
+C:/msys64/ucrt64/include/winnt.h:412:9: note: this is the location of the previous definition
+  412 | #define __TEXT(quote) quote
+      |         ^~~~~~
+In file included from src/burner/sdl/xmvsf_stage23_ui.h:10,
+                 from src/burner/sdl/xmvsf_stage23_engine.h:3,
+                 from src/burner/sdl/run.cpp:25:
+src/burner/sdl/xmvsf_stage13_controls.h:145:12: warning: 'int xm13ReadInput(const XM13_Settings*, int, int, SDL_Joystick**, SDL_GameController**, int)' defined but not used [-Wunused-function]
+  145 | static int xm13ReadInput(const XM13_Settings* s, int player, int sub,
+      |            ^~~~~~~~~~~~~
+src/burner/sdl/xmvsf_stage13_controls.h:131:12: warning: 'int xm13Assign(XM13_Settings*, int, int)' defined but not used [-Wunused-function]
+  131 | static int xm13Assign(XM13_Settings* settings,int player,int device) {
+      |            ^~~~~~~~~~
+In file included from src/intf/video/sdl/../../../burner/sdl/xmvsf_stage23_ui.h:10,
+                 from src/intf/video/sdl/vid_sdl2.cpp:17:
+src/intf/video/sdl/../../../burner/sdl/xmvsf_stage13_controls.h:145:12: warning: 'int xm13ReadInput(const XM13_Settings*, int, int, SDL_Joystick**, SDL_GameController**, int)' defined but not used [-Wunused-function]
+  145 | static int xm13ReadInput(const XM13_Settings* s, int player, int sub,
+      |            ^~~~~~~~~~~~~
+src/intf/video/sdl/../../../burner/sdl/xmvsf_stage13_controls.h:131:12: warning: 'int xm13Assign(XM13_Settings*, int, int)' defined but not used [-Wunused-function]
+  131 | static int xm13Assign(XM13_Settings* settings,int player,int device) {
+      |            ^~~~~~~~~~
+
+Linking executable... fbneo
+make[1]: Leaving directory '/f/xmvsf/dev/stable/buildtree'
+TEST BUILD READY: /f/xmvsf/runtime/stable/XMVSF_Test_87_177.exe
+Stage 87.177: QCF+any 2P or 3P, native dash suppressed; F9 preserved multi-session recording FINAL seal + normal-exit recovery; DHC, warm cache, and Stable preserved.
+XMVSF BUILD END rc=0 time=2026-11-05 14:47:11 log=/f/xmvsf/test/build_logs/BUILD_TEST.log
+BATCH RESULT: SUCCESS Thu 11/05/2026 14:47:11.33
+
+========== XMVSF BUILD_TEST.bat 87.177 START Thu 11/05/2026 15:08:20.12 ==========
+Project: F:\xmvsf
+
+========== XMVSF TEST 87.177 BUILD BEGIN 2026-11-05 15:08:21 ==========
+Project: /f/xmvsf
+Log: /f/xmvsf/test/build_logs/BUILD_TEST.log
+XMVSF Stage 87.177 TEST: incremental build; preserving cached objects
+Dependencies: GNU Make + persistent obj/**/*.d header dependency files
+make[1]: Entering directory '/f/xmvsf/dev/stable/buildtree'
+
+========== XMVSF BUILD_TEST.bat 87.178 START Thu 11/05/2026 15:28:50.73 ==========
+Project: F:\xmvsf
+
+========== XMVSF TEST 87.178 BUILD BEGIN 2026-11-05 15:28:52 ==========
+Project: /f/xmvsf
+Log: /f/xmvsf/test/build_logs/BUILD_TEST.log
+XMVSF Stage 87.178 TEST: incremental build; preserving cached objects
+Dependencies: GNU Make + persistent obj/**/*.d header dependency files
+make[1]: Entering directory '/f/xmvsf/dev/stable/buildtree'
+Making normal build...
+
+Generating depend file for src/burn/drv/capcom/cps_run.cpp...
+Compiling src/burn/drv/capcom/cps_run.cpp...
+
+========== XMVSF BUILD_TEST.bat 87.178 START Thu 11/05/2026 15:34:34.36 ==========
+Project: F:\xmvsf
+
+========== XMVSF TEST 87.178 BUILD BEGIN 2026-11-05 15:34:36 ==========
+Project: /f/xmvsf
+Log: /f/xmvsf/test/build_logs/BUILD_TEST.log
+XMVSF Stage 87.178 TEST: incremental build; preserving cached objects
+Dependencies: GNU Make + persistent obj/**/*.d header dependency files
+make[1]: Entering directory '/f/xmvsf/dev/stable/buildtree'
+Making normal build...
+
+
+Warning: Perl is not available on this system.
+src/dep/generated/driverlist.h cannot be updated or created!
+
+
+Linking executable... fbneo
+make[1]: Leaving directory '/f/xmvsf/dev/stable/buildtree'
+TEST BUILD READY: /f/xmvsf/runtime/stable/XMVSF_Test_87_178.exe
+Stage 87.178: native 3P maps to 2P edge, stale 259 recovered; F9 preserved multi-session recording FINAL seal + normal-exit recovery; DHC, warm cache, and Stable preserved.
+XMVSF BUILD END rc=0 time=2026-11-05 15:37:43 log=/f/xmvsf/test/build_logs/BUILD_TEST.log
+BATCH RESULT: SUCCESS Thu 11/05/2026 15:37:43.50
+
+========== XMVSF BUILD_TEST.bat 87.179 START Thu 11/05/2026 16:01:41.82 ==========
+Project: F:\xmvsf
+
+========== XMVSF TEST 87.179 BUILD BEGIN 2026-11-05 16:01:43 ==========
+Project: /f/xmvsf
+Log: /f/xmvsf/test/build_logs/BUILD_TEST.log
+XMVSF Stage 87.179 TEST: incremental build; preserving cached objects
+Dependencies: GNU Make + persistent obj/**/*.d header dependency files
+make[1]: Entering directory '/f/xmvsf/dev/stable/buildtree'
+Making normal build...
+
+Generating depend file for src/burn/drv/capcom/cps_run.cpp...
+Compiling src/burn/drv/capcom/cps_run.cpp...
+
+Warning: Perl is not available on this system.
+src/dep/generated/driverlist.h cannot be updated or created!
+
+
+Linking executable... fbneo
+make[1]: Leaving directory '/f/xmvsf/dev/stable/buildtree'
+TEST BUILD READY: /f/xmvsf/runtime/stable/XMVSF_Test_87_179.exe
+Stage 87.179: late native 2P edge primed before controller 8, guarded A0 recovery; F9 preserved multi-session recording FINAL seal + normal-exit recovery; DHC, warm cache, and Stable preserved.
+XMVSF BUILD END rc=0 time=2026-11-05 16:05:05 log=/f/xmvsf/test/build_logs/BUILD_TEST.log
+BATCH RESULT: SUCCESS Thu 11/05/2026 16:05:05.77
+
+========== XMVSF BUILD_TEST.bat 87.180 START Thu 11/05/2026 16:40:58.60 ==========
+Project: F:\xmvsf
+
+========== XMVSF TEST 87.180 BUILD BEGIN 2026-11-05 16:41:00 ==========
+Project: /f/xmvsf
+Log: /f/xmvsf/test/build_logs/BUILD_TEST.log
+XMVSF Stage 87.180 TEST: incremental build; preserving cached objects
+Dependencies: GNU Make + persistent obj/**/*.d header dependency files
+make[1]: Entering directory '/f/xmvsf/dev/stable/buildtree'
+Making normal build...
+
+Generating depend file for src/burn/drv/capcom/cps_run.cpp...
+Compiling src/burn/drv/capcom/cps_run.cpp...
+
+Warning: Perl is not available on this system.
+src/dep/generated/driverlist.h cannot be updated or created!
+
+
+Linking executable... fbneo
+make[1]: Leaving directory '/f/xmvsf/dev/stable/buildtree'
+TEST BUILD READY: /f/xmvsf/runtime/stable/XMVSF_Test_87_180.exe
+Stage 87.180: wrong-action 259 unlock, delayed prime default-off, native subframe input observer; F9 preserved multi-session recording FINAL seal + normal-exit recovery; DHC, warm cache, and Stable preserved.
+XMVSF BUILD END rc=0 time=2026-11-05 16:44:22 log=/f/xmvsf/test/build_logs/BUILD_TEST.log
+BATCH RESULT: SUCCESS Thu 11/05/2026 16:44:22.24
+
+========== XMVSF BUILD_TEST.bat 87.181 START Thu 11/05/2026 17:13:40.62 ==========
+Project: F:\xmvsf
+
+========== XMVSF TEST 87.181 BUILD BEGIN 2026-11-05 17:13:42 ==========
+Project: /f/xmvsf
+Log: /f/xmvsf/test/build_logs/BUILD_TEST.log
+XMVSF Stage 87.181 TEST: incremental build; preserving cached objects
+Dependencies: GNU Make + persistent obj/**/*.d header dependency files
+make[1]: Entering directory '/f/xmvsf/dev/stable/buildtree'
+Making normal build...
+
+Generating depend file for src/burn/drv/capcom/cps_run.cpp...
+Compiling src/burn/drv/capcom/cps_run.cpp...
+
+Warning: Perl is not available on this system.
+src/dep/generated/driverlist.h cannot be updated or created!
+
+
+Linking executable... fbneo
+make[1]: Leaving directory '/f/xmvsf/dev/stable/buildtree'
+TEST BUILD READY: /f/xmvsf/runtime/stable/XMVSF_Test_87_181.exe
+Stage 87.181: observer initialized at driver entry; explicit health triage for missing native trace; F9 preserved multi-session recording FINAL seal + normal-exit recovery; DHC, warm cache, and Stable preserved.
+XMVSF BUILD END rc=0 time=2026-11-05 17:17:07 log=/f/xmvsf/test/build_logs/BUILD_TEST.log
+BATCH RESULT: SUCCESS Thu 11/05/2026 17:17:07.87
+
+========== XMVSF BUILD_TEST.bat 87.182 START Thu 11/05/2026 18:28:03.89 ==========
+Project: F:\xmvsf
+
+========== XMVSF TEST 87.182 BUILD BEGIN 2026-11-05 18:28:05 ==========
+Project: /f/xmvsf
+Log: /f/xmvsf/test/build_logs/BUILD_TEST.log
+XMVSF Stage 87.182 TEST: incremental build; preserving cached objects
+Dependencies: GNU Make + persistent obj/**/*.d header dependency files
+make[1]: Entering directory '/f/xmvsf/dev/stable/buildtree'
+Making normal build...
+
+Generating depend file for src/burn/drv/capcom/cps_run.cpp...
+Compiling src/burn/drv/capcom/cps_run.cpp...
+
+Warning: Perl is not available on this system.
+src/dep/generated/driverlist.h cannot be updated or created!
+
+Compiling Musashi MC680x0 core (m68kcpu.c)...
+Compiling Musashi MC680x0 core (m68kops.c)...
+Compiling src/burn/devices/atariic.cpp...
+Compiling src/burn/devices/atarivad.cpp...
+Compiling src/burn/devices/gaelco_crypt.cpp...
+Compiling src/burn/devices/i4x00.cpp...
+Compiling src/burn/devices/nmk004.cpp...
+Compiling src/burn/devices/kaneko_hit.cpp...
+Compiling src/burn/devices/midcsd.cpp...
+In file included from src/cpu/m68k/m68kcpu.c:44:
+src/cpu/m68k/m68kfpu.c: In function 'fpgen_rm_reg':
+src/cpu/m68k/m68kfpu.c:458:52: warning: dereferencing type-punned pointer will break strict-aliasing rules [-Wstrict-aliasing]
+  458 |                                 source = (double)(*(float*)&d);
+      |                                                    ^~~~~~~~~~
+src/cpu/m68k/m68kfpu.c:480:43: warning: dereferencing type-punned pointer will break strict-aliasing rules [-Wstrict-aliasing]
+  480 |                                 source = *(double*)&d;
+      |                                           ^~~~~~~~~~~
+src/cpu/m68k/m68kfpu.c: In function 'fmove_reg_mem':
+src/cpu/m68k/m68kfpu.c:592:37: warning: dereferencing type-punned pointer will break strict-aliasing rules [-Wstrict-aliasing]
+  592 |                         UINT32 d = *(UINT32 *)&f;
+      |                                     ^~~~~~~~~~~~
+Compiling src/burn/devices/midsg.cpp...
+Compiling src/burn/devices/namco_c45.cpp...
+Compiling src/burn/devices/seibucop.cpp...
+Compiling src/burn/devices/slapstic.cpp...
+Compiling src/cpu/m68000_intf.cpp...
+Compiling src/burn/drv/cave/cave.cpp...
+Compiling src/burn/drv/cave/cave_palette.cpp...
+Compiling src/burn/drv/cave/cave_sprite.cpp...
+Compiling src/burn/drv/cave/cave_tile.cpp...
+Compiling src/burn/drv/capcom/cps2_crpt.cpp...
+Compiling src/burn/drv/capcom/cps.cpp...
+Compiling src/burn/drv/capcom/cps_config.cpp...
+Compiling src/burn/drv/capcom/cps_draw.cpp...
+Compiling src/burn/drv/capcom/cps_mem.cpp...
+Compiling src/burn/drv/capcom/cps_obj.cpp...
+Compiling src/burn/drv/capcom/cps_pal.cpp...
+src/burn/drv/cave/cave_tile.cpp: In function 'void Cave16x16Layer_RowSelect(INT32, UINT32)':
+src/burn/drv/cave/cave_tile.cpp:678:19: warning: variable 'by' set but not used [-Wunused-but-set-variable=]
+  678 |         INT32 bx, by, mx;
+      |                   ^~
+Compiling src/burn/drv/capcom/cps_rw.cpp...
+In file included from src/dep/generated/cave_tile_func.h:70,
+                 from src/burn/drv/cave/cave_tile.cpp:46:
+src/burn/drv/cave/cave_tile_render.h: In function 'void RenderTile16_384_ROT0_NOFLIP_NOROWSCROLL_ROWSELECT_CLIP_256()':
+src/burn/drv/cave/cave_tile_render.h:263:49: warning: this statement may fall through [-Wimplicit-fallthrough=]
+  263 |                                         nColour >>= 8;
+      |                                         ~~~~~~~~^~~~~
+src/burn/drv/cave/cave_tile_render.h:264:33: note: here
+  264 |                                 case 1:
+      |                                 ^~~~
+src/burn/drv/cave/cave_tile_render.h:267:49: warning: this statement may fall through [-Wimplicit-fallthrough=]
+  267 |                                         nColour >>= 8;
+      |                                         ~~~~~~~~^~~~~
+src/burn/drv/cave/cave_tile_render.h:268:33: note: here
+  268 |                                 case 2:
+      |                                 ^~~~
+src/burn/drv/cave/cave_tile_render.h:271:49: warning: this statement may fall through [-Wimplicit-fallthrough=]
+  271 |                                         nColour >>= 8;
+      |                                         ~~~~~~~~^~~~~
+src/burn/drv/cave/cave_tile_render.h:272:33: note: here
+  272 |                                 case 3:
+      |                                 ^~~~
+src/burn/drv/cave/cave_tile_render.h:275:49: warning: this statement may fall through [-Wimplicit-fallthrough=]
+  275 |                                         nColour = BURN_ENDIAN_SWAP_INT32(pTileData[1]);
+      |                                                 ^
+src/burn/drv/cave/cave_tile_render.h:276:33: note: here
+  276 |                                 case 4:
+      |                                 ^~~~
+src/burn/drv/cave/cave_tile_render.h:279:49: warning: this statement may fall through [-Wimplicit-fallthrough=]
+  279 |                                         nColour >>= 8;
+      |                                         ~~~~~~~~^~~~~
+src/burn/drv/cave/cave_tile_render.h:280:33: note: here
+  280 |                                 case 5:
+      |                                 ^~~~
+src/burn/drv/cave/cave_tile_render.h:283:49: warning: this statement may fall through [-Wimplicit-fallthrough=]
+  283 |                                         nColour >>= 8;
+      |                                         ~~~~~~~~^~~~~
+src/burn/drv/cave/cave_tile_render.h:284:33: note: here
+  284 |                                 case 6:
+      |                                 ^~~~
+src/burn/drv/cave/cave_tile_render.h:287:49: warning: this statement may fall through [-Wimplicit-fallthrough=]
+  287 |                                         nColour >>= 8;
+      |                                         ~~~~~~~~^~~~~
+src/burn/drv/cave/cave_tile_render.h:288:33: note: here
+  288 |                                 case 7:
+      |                                 ^~~~
+In file included from src/dep/generated/cave_tile_func.h:60:
+src/burn/drv/cave/cave_tile_render.h: In function 'void RenderTile16_384_ROT0_NOFLIP_ROWSCROLL_NOROWSELECT_CLIP_256()':
+src/burn/drv/cave/cave_tile_render.h:263:49: warning: this statement may fall through [-Wimplicit-fallthrough=]
+  263 |                                         nColour >>= 8;
+      |                                         ~~~~~~~~^~~~~
+src/burn/drv/cave/cave_tile_render.h:264:33: note: here
+  264 |                                 case 1:
+      |                                 ^~~~
+src/burn/drv/cave/cave_tile_render.h:267:49: warning: this statement may fall through [-Wimplicit-fallthrough=]
+  267 |                                         nColour >>= 8;
+      |                                         ~~~~~~~~^~~~~
+src/burn/drv/cave/cave_tile_render.h:268:33: note: here
+  268 |                                 case 2:
+      |                                 ^~~~
+src/burn/drv/cave/cave_tile_render.h:271:49: warning: this statement may fall through [-Wimplicit-fallthrough=]
+  271 |                                         nColour >>= 8;
+      |                                         ~~~~~~~~^~~~~
+src/burn/drv/cave/cave_tile_render.h:272:33: note: here
+  272 |                                 case 3:
+      |                                 ^~~~
+src/burn/drv/cave/cave_tile_render.h:275:49: warning: this statement may fall through [-Wimplicit-fallthrough=]
+  275 |                                         nColour = BURN_ENDIAN_SWAP_INT32(pTileData[1]);
+      |                                                 ^
+src/burn/drv/cave/cave_tile_render.h:276:33: note: here
+  276 |                                 case 4:
+      |                                 ^~~~
+src/burn/drv/cave/cave_tile_render.h:279:49: warning: this statement may fall through [-Wimplicit-fallthrough=]
+  279 |                                         nColour >>= 8;
+      |                                         ~~~~~~~~^~~~~
+src/burn/drv/cave/cave_tile_render.h:280:33: note: here
+  280 |                                 case 5:
+      |                                 ^~~~
+src/burn/drv/cave/cave_tile_render.h:283:49: warning: this statement may fall through [-Wimplicit-fallthrough=]
+  283 |                                         nColour >>= 8;
+      |                                         ~~~~~~~~^~~~~
+src/burn/drv/cave/cave_tile_render.h:284:33: note: here
+  284 |                                 case 6:
+      |                                 ^~~~
+src/burn/drv/cave/cave_tile_render.h:287:49: warning: this statement may fall through [-Wimplicit-fallthrough=]
+  287 |                                         nColour >>= 8;
+      |                                         ~~~~~~~~^~~~~
+src/burn/drv/cave/cave_tile_render.h:288:33: note: here
+  288 |                                 case 7:
+      |                                 ^~~~
+In file included from src/dep/generated/cave_tile_func.h:57:
+src/burn/drv/cave/cave_tile_render.h: In function 'void RenderTile16_384_ROT0_NOFLIP_ROWSCROLL_NOROWSELECT_NOCLIP_256()':
+src/burn/drv/cave/cave_tile_render.h:263:49: warning: this statement may fall through [-Wimplicit-fallthrough=]
+  263 |                                         nColour >>= 8;
+      |                                         ~~~~~~~~^~~~~
+src/burn/drv/cave/cave_tile_render.h:264:33: note: here
+  264 |                                 case 1:
+      |                                 ^~~~
+src/burn/drv/cave/cave_tile_render.h:267:49: warning: this statement may fall through [-Wimplicit-fallthrough=]
+  267 |                                         nColour >>= 8;
+      |                                         ~~~~~~~~^~~~~
+src/burn/drv/cave/cave_tile_render.h:268:33: note: here
+  268 |                                 case 2:
+      |                                 ^~~~
+src/burn/drv/cave/cave_tile_render.h:271:49: warning: this statement may fall through [-Wimplicit-fallthrough=]
+  271 |                                         nColour >>= 8;
+      |                                         ~~~~~~~~^~~~~
+src/burn/drv/cave/cave_tile_render.h:272:33: note: here
+  272 |                                 case 3:
+      |                                 ^~~~
+src/burn/drv/cave/cave_tile_render.h:275:49: warning: this statement may fall through [-Wimplicit-fallthrough=]
+  275 |                                         nColour = BURN_ENDIAN_SWAP_INT32(pTileData[1]);
+      |                                                 ^
+src/burn/drv/cave/cave_tile_render.h:276:33: note: here
+  276 |                                 case 4:
+      |                                 ^~~~
+src/burn/drv/cave/cave_tile_render.h:279:49: warning: this statement may fall through [-Wimplicit-fallthrough=]
+  279 |                                         nColour >>= 8;
+      |                                         ~~~~~~~~^~~~~
+src/burn/drv/cave/cave_tile_render.h:280:33: note: here
+  280 |                                 case 5:
+      |                                 ^~~~
+src/burn/drv/cave/cave_tile_render.h:283:49: warning: this statement may fall through [-Wimplicit-fallthrough=]
+  283 |                                         nColour >>= 8;
+      |                                         ~~~~~~~~^~~~~
+src/burn/drv/cave/cave_tile_render.h:284:33: note: here
+  284 |                                 case 6:
+      |                                 ^~~~
+src/burn/drv/cave/cave_tile_render.h:287:49: warning: this statement may fall through [-Wimplicit-fallthrough=]
+  287 |                                         nColour >>= 8;
+      |                                         ~~~~~~~~^~~~~
+src/burn/drv/cave/cave_tile_render.h:288:33: note: here
+  288 |                                 case 7:
+      |                                 ^~~~
+In file included from src/dep/generated/cave_tile_func.h:50:
+src/burn/drv/cave/cave_tile_render.h: In function 'void RenderTile16_384_ROT0_NOFLIP_NOROWSCROLL_NOROWSELECT_CLIP_256()':
+src/burn/drv/cave/cave_tile_render.h:263:49: warning: this statement may fall through [-Wimplicit-fallthrough=]
+  263 |                                         nColour >>= 8;
+      |                                         ~~~~~~~~^~~~~
+src/burn/drv/cave/cave_tile_render.h:264:33: note: here
+  264 |                                 case 1:
+      |                                 ^~~~
+src/burn/drv/cave/cave_tile_render.h:267:49: warning: this statement may fall through [-Wimplicit-fallthrough=]
+  267 |                                         nColour >>= 8;
+      |                                         ~~~~~~~~^~~~~
+src/burn/drv/cave/cave_tile_render.h:268:33: note: here
+  268 |                                 case 2:
+      |                                 ^~~~
+src/burn/drv/cave/cave_tile_render.h:271:49: warning: this statement may fall through [-Wimplicit-fallthrough=]
+  271 |                                         nColour >>= 8;
+      |                                         ~~~~~~~~^~~~~
+src/burn/drv/cave/cave_tile_render.h:272:33: note: here
+  272 |                                 case 3:
+      |                                 ^~~~
+src/burn/drv/cave/cave_tile_render.h:275:49: warning: this statement may fall through [-Wimplicit-fallthrough=]
+  275 |                                         nColour = BURN_ENDIAN_SWAP_INT32(pTileData[1]);
+      |                                                 ^
+src/burn/drv/cave/cave_tile_render.h:276:33: note: here
+  276 |                                 case 4:
+      |                                 ^~~~
+src/burn/drv/cave/cave_tile_render.h:279:49: warning: this statement may fall through [-Wimplicit-fallthrough=]
+  279 |                                         nColour >>= 8;
+      |                                         ~~~~~~~~^~~~~
+src/burn/drv/cave/cave_tile_render.h:280:33: note: here
+  280 |                                 case 5:
+      |                                 ^~~~
+src/burn/drv/cave/cave_tile_render.h:283:49: warning: this statement may fall through [-Wimplicit-fallthrough=]
+  283 |                                         nColour >>= 8;
+      |                                         ~~~~~~~~^~~~~
+src/burn/drv/cave/cave_tile_render.h:284:33: note: here
+  284 |                                 case 6:
+      |                                 ^~~~
+src/burn/drv/cave/cave_tile_render.h:287:49: warning: this statement may fall through [-Wimplicit-fallthrough=]
+  287 |                                         nColour >>= 8;
+      |                                         ~~~~~~~~^~~~~
+src/burn/drv/cave/cave_tile_render.h:288:33: note: here
+  288 |                                 case 7:
+      |                                 ^~~~
+In file included from src/dep/generated/cave_tile_func.h:34:
+src/burn/drv/cave/cave_tile_render.h: In function 'void RenderTile16_320_ROT0_NOFLIP_NOROWSCROLL_ROWSELECT_CLIP_256()':
+src/burn/drv/cave/cave_tile_render.h:263:49: warning: this statement may fall through [-Wimplicit-fallthrough=]
+  263 |                                         nColour >>= 8;
+      |                                         ~~~~~~~~^~~~~
+src/burn/drv/cave/cave_tile_render.h:264:33: note: here
+  264 |                                 case 1:
+      |                                 ^~~~
+src/burn/drv/cave/cave_tile_render.h:267:49: warning: this statement may fall through [-Wimplicit-fallthrough=]
+  267 |                                         nColour >>= 8;
+      |                                         ~~~~~~~~^~~~~
+src/burn/drv/cave/cave_tile_render.h:268:33: note: here
+  268 |                                 case 2:
+      |                                 ^~~~
+src/burn/drv/cave/cave_tile_render.h:271:49: warning: this statement may fall through [-Wimplicit-fallthrough=]
+  271 |                                         nColour >>= 8;
+      |                                         ~~~~~~~~^~~~~
+src/burn/drv/cave/cave_tile_render.h:272:33: note: here
+  272 |                                 case 3:
+      |                                 ^~~~
+src/burn/drv/cave/cave_tile_render.h:275:49: warning: this statement may fall through [-Wimplicit-fallthrough=]
+  275 |                                         nColour = BURN_ENDIAN_SWAP_INT32(pTileData[1]);
+      |                                                 ^
+src/burn/drv/cave/cave_tile_render.h:276:33: note: here
+  276 |                                 case 4:
+      |                                 ^~~~
+src/burn/drv/cave/cave_tile_render.h:279:49: warning: this statement may fall through [-Wimplicit-fallthrough=]
+  279 |                                         nColour >>= 8;
+      |                                         ~~~~~~~~^~~~~
+src/burn/drv/cave/cave_tile_render.h:280:33: note: here
+  280 |                                 case 5:
+      |                                 ^~~~
+src/burn/drv/cave/cave_tile_render.h:283:49: warning: this statement may fall through [-Wimplicit-fallthrough=]
+  283 |                                         nColour >>= 8;
+      |                                         ~~~~~~~~^~~~~
+src/burn/drv/cave/cave_tile_render.h:284:33: note: here
+  284 |                                 case 6:
+      |                                 ^~~~
+src/burn/drv/cave/cave_tile_render.h:287:49: warning: this statement may fall through [-Wimplicit-fallthrough=]
+  287 |                                         nColour >>= 8;
+      |                                         ~~~~~~~~^~~~~
+src/burn/drv/cave/cave_tile_render.h:288:33: note: here
+  288 |                                 case 7:
+      |                                 ^~~~
+In file included from src/dep/generated/cave_tile_func.h:24:
+src/burn/drv/cave/cave_tile_render.h: In function 'void RenderTile16_320_ROT0_NOFLIP_ROWSCROLL_NOROWSELECT_CLIP_256()':
+src/burn/drv/cave/cave_tile_render.h:263:49: warning: this statement may fall through [-Wimplicit-fallthrough=]
+  263 |                                         nColour >>= 8;
+      |                                         ~~~~~~~~^~~~~
+src/burn/drv/cave/cave_tile_render.h:264:33: note: here
+  264 |                                 case 1:
+      |                                 ^~~~
+src/burn/drv/cave/cave_tile_render.h:267:49: warning: this statement may fall through [-Wimplicit-fallthrough=]
+  267 |                                         nColour >>= 8;
+      |                                         ~~~~~~~~^~~~~
+src/burn/drv/cave/cave_tile_render.h:268:33: note: here
+  268 |                                 case 2:
+      |                                 ^~~~
+src/burn/drv/cave/cave_tile_render.h:271:49: warning: this statement may fall through [-Wimplicit-fallthrough=]
+  271 |                                         nColour >>= 8;
+      |                                         ~~~~~~~~^~~~~
+src/burn/drv/cave/cave_tile_render.h:272:33: note: here
+  272 |                                 case 3:
+      |                                 ^~~~
+src/burn/drv/cave/cave_tile_render.h:275:49: warning: this statement may fall through [-Wimplicit-fallthrough=]
+  275 |                                         nColour = BURN_ENDIAN_SWAP_INT32(pTileData[1]);
+      |                                                 ^
+src/burn/drv/cave/cave_tile_render.h:276:33: note: here
+  276 |                                 case 4:
+      |                                 ^~~~
+src/burn/drv/cave/cave_tile_render.h:279:49: warning: this statement may fall through [-Wimplicit-fallthrough=]
+  279 |                                         nColour >>= 8;
+      |                                         ~~~~~~~~^~~~~
+src/burn/drv/cave/cave_tile_render.h:280:33: note: here
+  280 |                                 case 5:
+      |                                 ^~~~
+src/burn/drv/cave/cave_tile_render.h:283:49: warning: this statement may fall through [-Wimplicit-fallthrough=]
+  283 |                                         nColour >>= 8;
+      |                                         ~~~~~~~~^~~~~
+src/burn/drv/cave/cave_tile_render.h:284:33: note: here
+  284 |                                 case 6:
+      |                                 ^~~~
+src/burn/drv/cave/cave_tile_render.h:287:49: warning: this statement may fall through [-Wimplicit-fallthrough=]
+  287 |                                         nColour >>= 8;
+      |                                         ~~~~~~~~^~~~~
+src/burn/drv/cave/cave_tile_render.h:288:33: note: here
+  288 |                                 case 7:
+      |                                 ^~~~
+In file included from src/dep/generated/cave_tile_func.h:21:
+src/burn/drv/cave/cave_tile_render.h: In function 'void RenderTile16_320_ROT0_NOFLIP_ROWSCROLL_NOROWSELECT_NOCLIP_256()':
+src/burn/drv/cave/cave_tile_render.h:263:49: warning: this statement may fall through [-Wimplicit-fallthrough=]
+  263 |                                         nColour >>= 8;
+      |                                         ~~~~~~~~^~~~~
+src/burn/drv/cave/cave_tile_render.h:264:33: note: here
+  264 |                                 case 1:
+      |                                 ^~~~
+src/burn/drv/cave/cave_tile_render.h:267:49: warning: this statement may fall through [-Wimplicit-fallthrough=]
+  267 |                                         nColour >>= 8;
+      |                                         ~~~~~~~~^~~~~
+src/burn/drv/cave/cave_tile_render.h:268:33: note: here
+  268 |                                 case 2:
+      |                                 ^~~~
+src/burn/drv/cave/cave_tile_render.h:271:49: warning: this statement may fall through [-Wimplicit-fallthrough=]
+  271 |                                         nColour >>= 8;
+      |                                         ~~~~~~~~^~~~~
+src/burn/drv/cave/cave_tile_render.h:272:33: note: here
+  272 |                                 case 3:
+      |                                 ^~~~
+src/burn/drv/cave/cave_tile_render.h:275:49: warning: this statement may fall through [-Wimplicit-fallthrough=]
+  275 |                                         nColour = BURN_ENDIAN_SWAP_INT32(pTileData[1]);
+      |                                                 ^
+src/burn/drv/cave/cave_tile_render.h:276:33: note: here
+  276 |                                 case 4:
+      |                                 ^~~~
+src/burn/drv/cave/cave_tile_render.h:279:49: warning: this statement may fall through [-Wimplicit-fallthrough=]
+  279 |                                         nColour >>= 8;
+      |                                         ~~~~~~~~^~~~~
+src/burn/drv/cave/cave_tile_render.h:280:33: note: here
+  280 |                                 case 5:
+      |                                 ^~~~
+src/burn/drv/cave/cave_tile_render.h:283:49: warning: this statement may fall through [-Wimplicit-fallthrough=]
+  283 |                                         nColour >>= 8;
+      |                                         ~~~~~~~~^~~~~
+src/burn/drv/cave/cave_tile_render.h:284:33: note: here
+  284 |                                 case 6:
+      |                                 ^~~~
+src/burn/drv/cave/cave_tile_render.h:287:49: warning: this statement may fall through [-Wimplicit-fallthrough=]
+  287 |                                         nColour >>= 8;
+      |                                         ~~~~~~~~^~~~~
+src/burn/drv/cave/cave_tile_render.h:288:33: note: here
+  288 |                                 case 7:
+      |                                 ^~~~
+In file included from src/dep/generated/cave_tile_func.h:14:
+src/burn/drv/cave/cave_tile_render.h: In function 'void RenderTile16_320_ROT0_NOFLIP_NOROWSCROLL_NOROWSELECT_CLIP_256()':
+src/burn/drv/cave/cave_tile_render.h:263:49: warning: this statement may fall through [-Wimplicit-fallthrough=]
+  263 |                                         nColour >>= 8;
+      |                                         ~~~~~~~~^~~~~
+src/burn/drv/cave/cave_tile_render.h:264:33: note: here
+  264 |                                 case 1:
+      |                                 ^~~~
+src/burn/drv/cave/cave_tile_render.h:267:49: warning: this statement may fall through [-Wimplicit-fallthrough=]
+  267 |                                         nColour >>= 8;
+      |                                         ~~~~~~~~^~~~~
+src/burn/drv/cave/cave_tile_render.h:268:33: note: here
+  268 |                                 case 2:
+      |                                 ^~~~
+src/burn/drv/cave/cave_tile_render.h:271:49: warning: this statement may fall through [-Wimplicit-fallthrough=]
+  271 |                                         nColour >>= 8;
+      |                                         ~~~~~~~~^~~~~
+src/burn/drv/cave/cave_tile_render.h:272:33: note: here
+  272 |                                 case 3:
+      |                                 ^~~~
+src/burn/drv/cave/cave_tile_render.h:275:49: warning: this statement may fall through [-Wimplicit-fallthrough=]
+  275 |                                         nColour = BURN_ENDIAN_SWAP_INT32(pTileData[1]);
+      |                                                 ^
+src/burn/drv/cave/cave_tile_render.h:276:33: note: here
+  276 |                                 case 4:
+      |                                 ^~~~
+src/burn/drv/cave/cave_tile_render.h:279:49: warning: this statement may fall through [-Wimplicit-fallthrough=]
+  279 |                                         nColour >>= 8;
+      |                                         ~~~~~~~~^~~~~
+src/burn/drv/cave/cave_tile_render.h:280:33: note: here
+  280 |                                 case 5:
+      |                                 ^~~~
+src/burn/drv/cave/cave_tile_render.h:283:49: warning: this statement may fall through [-Wimplicit-fallthrough=]
+  283 |                                         nColour >>= 8;
+      |                                         ~~~~~~~~^~~~~
+src/burn/drv/cave/cave_tile_render.h:284:33: note: here
+  284 |                                 case 6:
+      |                                 ^~~~
+src/burn/drv/cave/cave_tile_render.h:287:49: warning: this statement may fall through [-Wimplicit-fallthrough=]
+  287 |                                         nColour >>= 8;
+      |                                         ~~~~~~~~^~~~~
+src/burn/drv/cave/cave_tile_render.h:288:33: note: here
+  288 |                                 case 7:
+      |                                 ^~~~
+Compiling src/burn/drv/capcom/cps_scr.cpp...
+Compiling src/burn/drv/capcom/cpsr.cpp...
+Compiling src/burn/drv/capcom/cpsrd.cpp...
+Compiling src/burn/drv/capcom/cpst.cpp...
+Compiling src/burn/drv/capcom/ctv.cpp...
+Compiling src/burn/drv/capcom/fcrash_snd.cpp...
+Compiling src/burn/drv/capcom/kabuki.cpp...
+Compiling src/burn/drv/capcom/ps.cpp...
+Compiling src/burn/drv/capcom/ps_m.cpp...
+Compiling src/burn/drv/capcom/ps_z.cpp...
+Compiling src/burn/drv/capcom/qs.cpp...
+Compiling src/burn/drv/capcom/qs_c.cpp...
+Compiling src/burn/drv/capcom/qs_z.cpp...
+Compiling src/burn/drv/capcom/sf2mdt_snd.cpp...
+Compiling src/burn/drv/neogeo/neo_decrypt.cpp...
+Compiling src/burn/drv/neogeo/neo_palette.cpp...
+src/burn/drv/capcom/ps_m.cpp: In function 'INT32 PsmInit()':
+src/burn/drv/capcom/ps_m.cpp:12:15: warning: variable 'nRate' set but not used [-Wunused-but-set-variable=]
+   12 |         INT32 nRate, nRet;
+      |               ^~~~~
+Compiling src/burn/drv/neogeo/neo_run.cpp...
+Compiling src/burn/drv/neogeo/neo_sprite.cpp...
+Compiling src/burn/drv/neogeo/neo_text.cpp...
+Compiling src/burn/drv/neogeo/neo_upd4990a.cpp...
+Compiling src/burn/drv/neogeo/neogeo.cpp...
+Compiling src/burn/drv/pgm/pgm_crypt.cpp...
+Compiling src/burn/drv/pgm/pgm_draw.cpp...
+Compiling src/burn/drv/pgm/pgm_run.cpp...
+Compiling src/burn/drv/pgm/pgm_asic3.cpp...
+src/burn/drv/neogeo/neo_run.cpp:241:74: warning: missing initializer for member 'NEO_CALLBACK::pScan' [-Wmissing-field-initializers]
+  241 | NEO_CALLBACK NeoCallback[MAX_SLOT] = { { NULL, NULL, NULL, NULL, NULL }, };
+      |                                                                          ^
+src/burn/drv/neogeo/neo_run.cpp:295:33: warning: missing initializer for member 'NeoReallocInfo::nTextSize' [-Wmissing-field-initializers]
+  295 | static NeoReallocInfo NRI = { 0 };
+      |                                 ^
+src/burn/drv/neogeo/neo_run.cpp:295:33: warning: missing initializer for member 'NeoReallocInfo::nSpriteSize' [-Wmissing-field-initializers]
+src/burn/drv/neogeo/neo_run.cpp:295:33: warning: missing initializer for member 'NeoReallocInfo::nADPCMASize' [-Wmissing-field-initializers]
+src/burn/drv/neogeo/neo_run.cpp:295:33: warning: missing initializer for member 'NeoReallocInfo::nADPCMBSize' [-Wmissing-field-initializers]
+Compiling src/burn/drv/pgm/pgm_asic27a_type1.cpp...
+src/burn/drv/neogeo/neo_run.cpp: In function 'INT32 NeoInitCommon()':
+src/burn/drv/neogeo/neo_run.cpp:4137:45: warning: the address of 'RomDataInfo::szExtraRom' will never be NULL [-Waddress]
+ 4137 |         if ((NULL != pDataRomDesc) && (NULL != pRDI->szExtraRom))
+      |                                             ^
+In file included from src/burn/burnint.h:15,
+                 from src/burn/drv/neogeo/neogeo.h:1,
+                 from src/burn/drv/neogeo/neo_run.cpp:72:
+src/burn/burn.h:218:14: note: 'RomDataInfo::szExtraRom' declared here
+  218 |         char szExtraRom[MAX_PATH];
+      |              ^~~~~~~~~~
+In file included from src/burn/burnint.h:13,
+                 from src/burn/drv/neogeo/neogeo.h:1,
+                 from src/burn/drv/neogeo/neo_text.cpp:1:
+src/burn/drv/neogeo/neo_text.cpp: In function 'void NeoTextBlendInit(INT32)':
+src/burn/drv/neogeo/neo_text.cpp:288:32: warning: '.blde' directive writing 5 bytes into a region of size between 1 and 260 [-Wformat-overflow=]
+  288 |         _stprintf(filename, _T("%s%s.blde"), szAppBlendPath, BurnDrvGetText(DRV_NAME));
+      |                                ^~~~~~~~~~~
+src/burner/sdl/tchar.h:12:22: note: in definition of macro '__TEXT'
+   12 | #define __TEXT(q)    q
+      |                      ^
+src/burn/drv/neogeo/neo_text.cpp:288:29: note: in expansion of macro '_T'
+  288 |         _stprintf(filename, _T("%s%s.blde"), szAppBlendPath, BurnDrvGetText(DRV_NAME));
+      |                             ^~
+src/burn/drv/neogeo/neo_text.cpp:288:37: note: format string is defined here
+  288 |         _stprintf(filename, _T("%s%s.blde"), szAppBlendPath, BurnDrvGetText(DRV_NAME));
+      |                                     ^~~~~
+src/burn/drv/neogeo/neo_text.cpp:288:18: note: 'sprintf' output 6 or more bytes (assuming 265) into a destination of size 260
+  288 |         _stprintf(filename, _T("%s%s.blde"), szAppBlendPath, BurnDrvGetText(DRV_NAME));
+src/burn/drv/neogeo/neo_text.cpp:293:40: warning: '.blde' directive writing 5 bytes into a region of size between 1 and 260 [-Wformat-overflow=]
+  293 |                 _stprintf(filename, _T("%s%s.blde"), szAppBlendPath, BurnDrvGetText(DRV_PARENT));
+      |                                        ^~~~~~~~~~~
+src/burner/sdl/tchar.h:12:22: note: in definition of macro '__TEXT'
+   12 | #define __TEXT(q)    q
+      |                      ^
+src/burn/drv/neogeo/neo_text.cpp:293:37: note: in expansion of macro '_T'
+  293 |                 _stprintf(filename, _T("%s%s.blde"), szAppBlendPath, BurnDrvGetText(DRV_PARENT));
+      |                                     ^~
+src/burn/drv/neogeo/neo_text.cpp:293:45: note: format string is defined here
+  293 |                 _stprintf(filename, _T("%s%s.blde"), szAppBlendPath, BurnDrvGetText(DRV_PARENT));
+      |                                             ^~~~~
+src/burn/drv/neogeo/neo_text.cpp:293:26: note: 'sprintf' output 6 or more bytes (assuming 265) into a destination of size 260
+  293 |                 _stprintf(filename, _T("%s%s.blde"), szAppBlendPath, BurnDrvGetText(DRV_PARENT));
+Compiling src/burn/drv/pgm/pgm_asic27a_type2.cpp...
+Compiling src/burn/drv/pgm/pgm_asic27a_type3.cpp...
+Compiling src/burn/drv/pgm/pgm_asic25.cpp...
+Compiling src/burn/drv/psikyo/psikyo_palette.cpp...
+Compiling src/burn/drv/psikyo/psikyo_sprite.cpp...
+Compiling src/burn/drv/psikyo/psikyo_tile.cpp...
+Compiling src/burn/drv/sega/fd1089.cpp...
+Compiling src/burn/drv/sega/fd1094_intf.cpp...
+Compiling src/burn/drv/sega/sega_315_5195.cpp...
+Compiling src/burn/drv/sega/sys16_fd1094.cpp...
+Compiling src/burn/drv/sega/sys16_gfx.cpp...
+Compiling src/burn/drv/sega/sys16_run.cpp...
+In file included from src/burn/burnint.h:13,
+                 from src/burn/tiles_generic.h:5,
+                 from src/burn/drv/pgm/pgm.h:1,
+                 from src/burn/drv/pgm/pgm_draw.cpp:1:
+src/burn/drv/pgm/pgm_draw.cpp: In function 'void pgmBlendInit()':
+src/burn/drv/pgm/pgm_draw.cpp:1138:32: warning: '.bld' directive writing 4 bytes into a region of size between 1 and 260 [-Wformat-overflow=]
+ 1138 |         _stprintf(filename, _T("%s%s.bld"), szAppBlendPath, BurnDrvGetText(DRV_NAME));
+      |                                ^~~~~~~~~~
+src/burner/sdl/tchar.h:12:22: note: in definition of macro '__TEXT'
+   12 | #define __TEXT(q)    q
+      |                      ^
+src/burn/drv/pgm/pgm_draw.cpp:1138:29: note: in expansion of macro '_T'
+ 1138 |         _stprintf(filename, _T("%s%s.bld"), szAppBlendPath, BurnDrvGetText(DRV_NAME));
+      |                             ^~
+src/burn/drv/pgm/pgm_draw.cpp:1138:37: note: format string is defined here
+ 1138 |         _stprintf(filename, _T("%s%s.bld"), szAppBlendPath, BurnDrvGetText(DRV_NAME));
+      |                                     ^~~~
+src/burn/drv/pgm/pgm_draw.cpp:1138:18: note: 'sprintf' output 5 or more bytes (assuming 264) into a destination of size 260
+ 1138 |         _stprintf(filename, _T("%s%s.bld"), szAppBlendPath, BurnDrvGetText(DRV_NAME));
+src/burn/drv/pgm/pgm_draw.cpp:1144:40: warning: '.bld' directive writing 4 bytes into a region of size between 1 and 260 [-Wformat-overflow=]
+ 1144 |                 _stprintf(filename, _T("%s%s.bld"), szAppBlendPath, BurnDrvGetText(DRV_PARENT));
+      |                                        ^~~~~~~~~~
+src/burner/sdl/tchar.h:12:22: note: in definition of macro '__TEXT'
+   12 | #define __TEXT(q)    q
+      |                      ^
+src/burn/drv/pgm/pgm_draw.cpp:1144:37: note: in expansion of macro '_T'
+ 1144 |                 _stprintf(filename, _T("%s%s.bld"), szAppBlendPath, BurnDrvGetText(DRV_PARENT));
+      |                                     ^~
+src/burn/drv/pgm/pgm_draw.cpp:1144:45: note: format string is defined here
+ 1144 |                 _stprintf(filename, _T("%s%s.bld"), szAppBlendPath, BurnDrvGetText(DRV_PARENT));
+      |                                             ^~~~
+src/burn/drv/pgm/pgm_draw.cpp:1144:26: note: 'sprintf' output 5 or more bytes (assuming 264) into a destination of size 260
+ 1144 |                 _stprintf(filename, _T("%s%s.bld"), szAppBlendPath, BurnDrvGetText(DRV_PARENT));
+Compiling src/burn/drv/taito/cchip.cpp...
+Compiling src/burn/drv/taito/taito.cpp...
+Compiling src/burn/drv/taito/taitof3_snd.cpp...
+Compiling src/burn/drv/toaplan/toa_bcu2.cpp...
+Compiling src/burn/drv/toaplan/toa_extratext.cpp...
+Compiling src/burn/drv/toaplan/toa_gp9001.cpp...
+src/burn/drv/sega/sys16_gfx.cpp: In function 'void BootlegRenderTileLayer(INT32, INT32, INT32)':
+src/burn/drv/sega/sys16_gfx.cpp:1284:16: warning: variable 'EffPage' set but not used [-Wunused-but-set-variable=]
+ 1284 |         UINT16 EffPage, ActPage = 0, xScroll, yScroll;
+      |                ^~~~~~~
+In file included from src/burn/burnint.h:13,
+                 from src/burn/drv/neogeo/neogeo.h:1,
+                 from src/burn/drv/neogeo/neo_sprite.cpp:1:
+src/burn/drv/neogeo/neo_sprite.cpp: In function 'void NeoBlendInit(INT32)':
+src/burn/drv/neogeo/neo_sprite.cpp:255:32: warning: '.bld' directive writing 4 bytes into a region of size between 1 and 260 [-Wformat-overflow=]
+  255 |         _stprintf(filename, _T("%s%s.bld"), szAppBlendPath, BurnDrvGetText(DRV_NAME));
+      |                                ^~~~~~~~~~
+src/burner/sdl/tchar.h:12:22: note: in definition of macro '__TEXT'
+   12 | #define __TEXT(q)    q
+      |                      ^
+src/burn/drv/neogeo/neo_sprite.cpp:255:29: note: in expansion of macro '_T'
+  255 |         _stprintf(filename, _T("%s%s.bld"), szAppBlendPath, BurnDrvGetText(DRV_NAME));
+      |                             ^~
+src/burn/drv/neogeo/neo_sprite.cpp:255:37: note: format string is defined here
+  255 |         _stprintf(filename, _T("%s%s.bld"), szAppBlendPath, BurnDrvGetText(DRV_NAME));
+      |                                     ^~~~
+src/burn/drv/neogeo/neo_sprite.cpp:255:18: note: 'sprintf' output 5 or more bytes (assuming 264) into a destination of size 260
+  255 |         _stprintf(filename, _T("%s%s.bld"), szAppBlendPath, BurnDrvGetText(DRV_NAME));
+src/burn/drv/neogeo/neo_sprite.cpp:260:40: warning: '.bld' directive writing 4 bytes into a region of size between 1 and 260 [-Wformat-overflow=]
+  260 |                 _stprintf(filename, _T("%s%s.bld"), szAppBlendPath, BurnDrvGetText(DRV_PARENT));
+      |                                        ^~~~~~~~~~
+src/burner/sdl/tchar.h:12:22: note: in definition of macro '__TEXT'
+   12 | #define __TEXT(q)    q
+      |                      ^
+src/burn/drv/neogeo/neo_sprite.cpp:260:37: note: in expansion of macro '_T'
+  260 |                 _stprintf(filename, _T("%s%s.bld"), szAppBlendPath, BurnDrvGetText(DRV_PARENT));
+      |                                     ^~
+src/burn/drv/neogeo/neo_sprite.cpp:260:45: note: format string is defined here
+  260 |                 _stprintf(filename, _T("%s%s.bld"), szAppBlendPath, BurnDrvGetText(DRV_PARENT));
+      |                                             ^~~~
+src/burn/drv/neogeo/neo_sprite.cpp:260:26: note: 'sprintf' output 5 or more bytes (assuming 264) into a destination of size 260
+  260 |                 _stprintf(filename, _T("%s%s.bld"), szAppBlendPath, BurnDrvGetText(DRV_PARENT));
+Compiling src/burn/drv/toaplan/toa_palette.cpp...
+Compiling src/burn/drv/toaplan/toaplan1.cpp...
+src/burn/drv/taito/taitof3_snd.cpp: In function 'void TaitoF3Sound68KWriteByte(UINT32, UINT8)':
+src/burn/drv/taito/taitof3_snd.cpp:147:36: warning: this statement may fall through [-Wimplicit-fallthrough=]
+  147 |                         case 0x80: if (d < 0xc0) { TaitoES5510GPRLatch = TaitoES5510GPR[d]; return; }
+      |                                    ^~
+src/burn/drv/taito/taitof3_snd.cpp:149:25: note: here
+  149 |                         case 0xa0: if (d < 0xc0) { TaitoES5510GPR[d] = TaitoF3ES5506Rom[(TaitoES5510GPRLatch >> 8) & (TaitoF3ES5506RomSize - 1)]; return; }
+      |                         ^~~~
+src/burn/drv/taito/taitof3_snd.cpp:161:33: warning: this statement may fall through [-Wimplicit-fallthrough=]
+  161 |                                 switch ((d >> 4) & 0x07) {
+      |                                 ^~~~~~
+src/burn/drv/taito/taitof3_snd.cpp:209:25: note: here
+  209 |                         case 0x05: {
+      |                         ^~~~
+Compiling src/burn/drv/toaplan/toaplan.cpp...
+Compiling src/burn/drv/megadrive/megadrive.cpp...
+Compiling src/burn/drv/megadrive/stm95.cpp...
+In file included from src/burn/drv/megadrive/megadrive.cpp:292:
+src/burn/drv/megadrive/paprium.h: In function 'void paprium_sprite(UINT8)':
+src/burn/drv/megadrive/paprium.h:514:13: warning: variable 'flags2' set but not used [-Wunused-but-set-variable=]
+  514 |         int flags2 = paprium_obj_ram[(spritePtr++)^1];
+      |             ^~~~~~
+src/burn/drv/megadrive/megadrive.cpp: In function 'UINT32 CheckDMA()':
+src/burn/drv/megadrive/megadrive.cpp:702:9: warning: variable 'dma_op1' set but not used [-Wunused-but-set-variable=]
+  702 |   INT32 dma_op1;
+      |         ^~~~~~~
+src/burn/drv/megadrive/megadrive.cpp: In function 'void CommandChange()':
+src/burn/drv/megadrive/megadrive.cpp:958:24: warning: variable 'source' set but not used [-Wunused-but-set-variable=]
+  958 |                 UINT32 source  = RamVReg->reg[0x15];
+      |                        ^~~~~~
+src/burn/drv/megadrive/megadrive.cpp: In function 'void DrawWindow(INT32, INT32, INT32, INT32)':
+src/burn/drv/megadrive/megadrive.cpp:4397:9: warning: variable 'blank' set but not used [-Wunused-but-set-variable=]
+ 4397 |   INT32 blank=-1; // The tile we know is blank
+      |         ^~~~~
+src/burn/drv/megadrive/megadrive.cpp: In function 'void DrawTilesFromCache(UINT32*, INT32, INT32)':
+src/burn/drv/megadrive/megadrive.cpp:4539:11: warning: variable 'blank' set but not used [-Wunused-but-set-variable=]
+ 4539 |     INT16 blank=-1; // The tile we know is blank
+      |           ^~~~~
+src/burn/drv/megadrive/megadrive.cpp: In function 'void sot4w_mp3_writebyte(UINT32, UINT8)':
+src/burn/drv/megadrive/megadrive.cpp:2949:43: warning: this statement may fall through [-Wimplicit-fallthrough=]
+ 2949 |                         vx_cmd[vx_cmdnum] = 0; // clear on the first bit
+      |                         ~~~~~~~~~~~~~~~~~~^~~
+src/burn/drv/megadrive/megadrive.cpp:2951:17: note: here
+ 2951 |                 default:
+      |                 ^~~~~~~
+src/burn/drv/megadrive/megadrive.cpp: In function 'void DrawTilesFromCache(UINT32*, INT32, INT32)':
+src/burn/drv/megadrive/megadrive.cpp:4600:36: warning: this statement may fall through [-Wimplicit-fallthrough=]
+ 4600 |         case 7: t=pack&0x00000f00; if (t) pd[6]=(UINT8)(pal|(t>> 8)); // "break" is left out intentionally
+      |                                    ^~
+src/burn/drv/megadrive/megadrive.cpp:4601:9: note: here
+ 4601 |         case 6: t=pack&0x000000f0; if (t) pd[5]=(UINT8)(pal|(t>> 4));
+      |         ^~~~
+src/burn/drv/megadrive/megadrive.cpp:4601:36: warning: this statement may fall through [-Wimplicit-fallthrough=]
+ 4601 |         case 6: t=pack&0x000000f0; if (t) pd[5]=(UINT8)(pal|(t>> 4));
+      |                                    ^~
+src/burn/drv/megadrive/megadrive.cpp:4602:9: note: here
+ 4602 |         case 5: t=pack&0x0000000f; if (t) pd[4]=(UINT8)(pal|(t    ));
+      |         ^~~~
+src/burn/drv/megadrive/megadrive.cpp:4602:36: warning: this statement may fall through [-Wimplicit-fallthrough=]
+ 4602 |         case 5: t=pack&0x0000000f; if (t) pd[4]=(UINT8)(pal|(t    ));
+      |                                    ^~
+src/burn/drv/megadrive/megadrive.cpp:4603:9: note: here
+ 4603 |         case 4: t=pack&0xf0000000; if (t) pd[3]=(UINT8)(pal|(t>>28));
+      |         ^~~~
+src/burn/drv/megadrive/megadrive.cpp:4603:36: warning: this statement may fall through [-Wimplicit-fallthrough=]
+ 4603 |         case 4: t=pack&0xf0000000; if (t) pd[3]=(UINT8)(pal|(t>>28));
+      |                                    ^~
+src/burn/drv/megadrive/megadrive.cpp:4604:9: note: here
+ 4604 |         case 3: t=pack&0x0f000000; if (t) pd[2]=(UINT8)(pal|(t>>24));
+      |         ^~~~
+src/burn/drv/megadrive/megadrive.cpp:4604:36: warning: this statement may fall through [-Wimplicit-fallthrough=]
+ 4604 |         case 3: t=pack&0x0f000000; if (t) pd[2]=(UINT8)(pal|(t>>24));
+      |                                    ^~
+src/burn/drv/megadrive/megadrive.cpp:4605:9: note: here
+ 4605 |         case 2: t=pack&0x00f00000; if (t) pd[1]=(UINT8)(pal|(t>>20));
+      |         ^~~~
+src/burn/drv/megadrive/megadrive.cpp:4605:36: warning: this statement may fall through [-Wimplicit-fallthrough=]
+ 4605 |         case 2: t=pack&0x00f00000; if (t) pd[1]=(UINT8)(pal|(t>>20));
+      |                                    ^~
+src/burn/drv/megadrive/megadrive.cpp:4606:9: note: here
+ 4606 |         case 1: t=pack&0x000f0000; if (t) pd[0]=(UINT8)(pal|(t>>16));
+      |         ^~~~
+src/burn/drv/megadrive/megadrive.cpp:4614:36: warning: this statement may fall through [-Wimplicit-fallthrough=]
+ 4614 |         case 7: t=pack&0x00f00000; if (t) pd[6]=(UINT8)(pal|(t>>20));
+      |                                    ^~
+src/burn/drv/megadrive/megadrive.cpp:4615:9: note: here
+ 4615 |         case 6: t=pack&0x0f000000; if (t) pd[5]=(UINT8)(pal|(t>>24));
+      |         ^~~~
+src/burn/drv/megadrive/megadrive.cpp:4615:36: warning: this statement may fall through [-Wimplicit-fallthrough=]
+ 4615 |         case 6: t=pack&0x0f000000; if (t) pd[5]=(UINT8)(pal|(t>>24));
+      |                                    ^~
+src/burn/drv/megadrive/megadrive.cpp:4616:9: note: here
+ 4616 |         case 5: t=pack&0xf0000000; if (t) pd[4]=(UINT8)(pal|(t>>28));
+      |         ^~~~
+src/burn/drv/megadrive/megadrive.cpp:4616:36: warning: this statement may fall through [-Wimplicit-fallthrough=]
+ 4616 |         case 5: t=pack&0xf0000000; if (t) pd[4]=(UINT8)(pal|(t>>28));
+      |                                    ^~
+src/burn/drv/megadrive/megadrive.cpp:4617:9: note: here
+ 4617 |         case 4: t=pack&0x0000000f; if (t) pd[3]=(UINT8)(pal|(t    ));
+      |         ^~~~
+src/burn/drv/megadrive/megadrive.cpp:4617:36: warning: this statement may fall through [-Wimplicit-fallthrough=]
+ 4617 |         case 4: t=pack&0x0000000f; if (t) pd[3]=(UINT8)(pal|(t    ));
+      |                                    ^~
+src/burn/drv/megadrive/megadrive.cpp:4618:9: note: here
+ 4618 |         case 3: t=pack&0x000000f0; if (t) pd[2]=(UINT8)(pal|(t>> 4));
+      |         ^~~~
+src/burn/drv/megadrive/megadrive.cpp:4618:36: warning: this statement may fall through [-Wimplicit-fallthrough=]
+ 4618 |         case 3: t=pack&0x000000f0; if (t) pd[2]=(UINT8)(pal|(t>> 4));
+      |                                    ^~
+src/burn/drv/megadrive/megadrive.cpp:4619:9: note: here
+ 4619 |         case 2: t=pack&0x00000f00; if (t) pd[1]=(UINT8)(pal|(t>> 8));
+      |         ^~~~
+src/burn/drv/megadrive/megadrive.cpp:4619:36: warning: this statement may fall through [-Wimplicit-fallthrough=]
+ 4619 |         case 2: t=pack&0x00000f00; if (t) pd[1]=(UINT8)(pal|(t>> 8));
+      |                                    ^~
+src/burn/drv/megadrive/megadrive.cpp:4620:9: note: here
+ 4620 |         case 1: t=pack&0x0000f000; if (t) pd[0]=(UINT8)(pal|(t>>12));
+      |         ^~~~
+
+Linking executable... fbneo
+make[1]: Leaving directory '/f/xmvsf/dev/stable/buildtree'
+TEST BUILD READY: /f/xmvsf/runtime/stable/XMVSF_Test_87_182.exe
+Stage 87.182: bounded native 68000 PPC trace only for armed DHC, stable 87.181 inputs, F9 multi-session replay, warm cache and Stable preserved.
+XMVSF BUILD END rc=0 time=2026-11-05 18:32:34 log=/f/xmvsf/test/build_logs/BUILD_TEST.log
+BATCH RESULT: SUCCESS Thu 11/05/2026 18:32:34.20
+
+========== XMVSF BUILD_TEST.bat 87.183 START Thu 11/05/2026 18:55:59.55 ==========
+Project: F:\xmvsf
+
+========== XMVSF TEST 87.183 BUILD BEGIN 2026-11-05 18:56:01 ==========
+Project: /f/xmvsf
+Log: /f/xmvsf/test/build_logs/BUILD_TEST.log
+XMVSF Stage 87.183 TEST: incremental build; preserving cached objects
+Dependencies: GNU Make + persistent obj/**/*.d header dependency files
+make[1]: Entering directory '/f/xmvsf/dev/stable/buildtree'
+Making normal build...
+
+
+Warning: Perl is not available on this system.
+src/dep/generated/driverlist.h cannot be updated or created!
+
+Compiling src/burn/drv/capcom/cps_run.cpp...
+
+Linking executable... fbneo
+make[1]: Leaving directory '/f/xmvsf/dev/stable/buildtree'
+TEST BUILD READY: /f/xmvsf/runtime/stable/XMVSF_Test_87_183.exe
+Stage 87.183: prevent consumed native punch edges in interactive DHC; exact PPC replay trace; 87.181 controls, F9 and Stable preserved.
+XMVSF BUILD END rc=0 time=2026-11-05 18:59:31 log=/f/xmvsf/test/build_logs/BUILD_TEST.log
+BATCH RESULT: SUCCESS Thu 11/05/2026 18:59:31.96
+
+========== XMVSF BUILD_TEST.bat 87.184 START Thu 11/05/2026 19:37:27.48 ==========
+Project: F:\xmvsf
+
+========== XMVSF TEST 87.184 BUILD BEGIN 2026-11-05 19:37:29 ==========
+Project: /f/xmvsf
+Log: /f/xmvsf/test/build_logs/BUILD_TEST.log
+XMVSF Stage 87.184 TEST: incremental build; preserving cached objects
+Dependencies: GNU Make + persistent obj/**/*.d header dependency files
+make[1]: Entering directory '/f/xmvsf/dev/stable/buildtree'
+Making normal build...
+
+Generating depend file for src/burn/drv/capcom/cps_run.cpp...
+Compiling src/burn/drv/capcom/cps_run.cpp...
+
+Warning: Perl is not available on this system.
+src/dep/generated/driverlist.h cannot be updated or created!
+
+Compiling src/burner/sdl/run.cpp...
+Compiling src/intf/video/sdl/vid_sdl2.cpp...
+In file included from src/burn/burnint.h:13,
+                 from src/burner/sdl/xmvsf_stage14_training.h:10,
+                 from src/burner/sdl/run.cpp:15:
+src/burner/sdl/tchar.h:12:9: warning: '__TEXT' redefined
+   12 | #define __TEXT(q)    q
+      |         ^~~~~~
+In file included from C:/msys64/ucrt64/include/minwindef.h:163,
+                 from C:/msys64/ucrt64/include/windef.h:9,
+                 from C:/msys64/ucrt64/include/windows.h:69,
+                 from src/burner/sdl/burner_sdl.h:22,
+                 from src/burner/burner.h:47,
+                 from src/burner/sdl/run.cpp:6:
+C:/msys64/ucrt64/include/winnt.h:412:9: note: this is the location of the previous definition
+  412 | #define __TEXT(quote) quote
+      |         ^~~~~~
+In file included from src/burner/sdl/xmvsf_stage23_ui.h:10,
+                 from src/burner/sdl/xmvsf_stage23_engine.h:3,
+                 from src/burner/sdl/run.cpp:25:
+src/burner/sdl/xmvsf_stage13_controls.h:145:12: warning: 'int xm13ReadInput(const XM13_Settings*, int, int, SDL_Joystick**, SDL_GameController**, int)' defined but not used [-Wunused-function]
+  145 | static int xm13ReadInput(const XM13_Settings* s, int player, int sub,
+      |            ^~~~~~~~~~~~~
+src/burner/sdl/xmvsf_stage13_controls.h:131:12: warning: 'int xm13Assign(XM13_Settings*, int, int)' defined but not used [-Wunused-function]
+  131 | static int xm13Assign(XM13_Settings* settings,int player,int device) {
+      |            ^~~~~~~~~~
+In file included from src/intf/video/sdl/../../../burner/sdl/xmvsf_stage23_ui.h:10,
+                 from src/intf/video/sdl/vid_sdl2.cpp:17:
+src/intf/video/sdl/../../../burner/sdl/xmvsf_stage13_controls.h:145:12: warning: 'int xm13ReadInput(const XM13_Settings*, int, int, SDL_Joystick**, SDL_GameController**, int)' defined but not used [-Wunused-function]
+  145 | static int xm13ReadInput(const XM13_Settings* s, int player, int sub,
+      |            ^~~~~~~~~~~~~
+src/intf/video/sdl/../../../burner/sdl/xmvsf_stage13_controls.h:131:12: warning: 'int xm13Assign(XM13_Settings*, int, int)' defined but not used [-Wunused-function]
+  131 | static int xm13Assign(XM13_Settings* settings,int player,int device) {
+      |            ^~~~~~~~~~
+
+Linking executable... fbneo
+make[1]: Leaving directory '/f/xmvsf/dev/stable/buildtree'
+ERROR: TEST executable is missing compiled 87.167 marker: DHC_184_RYU_SHINKUU_ACTION_ENTER_2E08_0D3070
+Built file: /f/xmvsf/dev/stable/buildtree/fbneo.exe
+Existing TEST and Stable binaries are preserved.
+XMVSF BUILD END rc=2 time=2026-11-05 19:41:00 log=/f/xmvsf/test/build_logs/BUILD_TEST.log
+BATCH RESULT: FAILURE Thu 11/05/2026 19:41:00.71
+
+========== XMVSF BUILD_TEST.bat 87.184 START Thu 11/05/2026 19:47:18.04 ==========
+Project: F:\xmvsf
+
+========== XMVSF TEST 87.184 BUILD BEGIN 2026-11-05 19:47:20 ==========
+Project: /f/xmvsf
+Log: /f/xmvsf/test/build_logs/BUILD_TEST.log
+XMVSF Stage 87.184 TEST: incremental build; preserving cached objects
+Dependencies: GNU Make + persistent obj/**/*.d header dependency files
+make[1]: Entering directory '/f/xmvsf/dev/stable/buildtree'
+Making normal build...
+
+
+Warning: Perl is not available on this system.
+src/dep/generated/driverlist.h cannot be updated or created!
+
+make[1]: Leaving directory '/f/xmvsf/dev/stable/buildtree'
+Build/link succeeded; publishing TEST binary without brittle debug-string marker gates.
+TEST BUILD READY: /f/xmvsf/runtime/stable/XMVSF_Test_87_184.exe
+Stage 87.184: track exact original Ryu super start, attack, 2E0A recovery and action exit; strict punch safety and Stable preserved.
+XMVSF BUILD END rc=0 time=2026-11-05 19:50:01 log=/f/xmvsf/test/build_logs/BUILD_TEST.log
+BATCH RESULT: SUCCESS Thu 11/05/2026 19:50:01.37
+
+========== XMVSF BUILD_TEST.bat 87.185 START Thu 11/05/2026 20:30:53.15 ==========
+Project: F:\xmvsf
+
+========== XMVSF TEST 87.185 BUILD BEGIN 2026-11-05 20:30:54 ==========
+Project: /f/xmvsf
+Log: /f/xmvsf/test/build_logs/BUILD_TEST.log
+XMVSF Stage 87.185 TEST: incremental build; preserving cached objects
+Dependencies: GNU Make + persistent obj/**/*.d header dependency files
+make[1]: Entering directory '/f/xmvsf/dev/stable/buildtree'
+Making normal build...
+
+Generating depend file for src/burn/drv/capcom/cps_run.cpp...
+Compiling src/burn/drv/capcom/cps_run.cpp...
+
+Warning: Perl is not available on this system.
+src/dep/generated/driverlist.h cannot be updated or created!
+
+Compiling src/burner/sdl/run.cpp...
+Compiling src/intf/video/sdl/vid_sdl2.cpp...
+In file included from src/burn/burnint.h:13,
+                 from src/burner/sdl/xmvsf_stage14_training.h:10,
+                 from src/burner/sdl/run.cpp:15:
+src/burner/sdl/tchar.h:12:9: warning: '__TEXT' redefined
+   12 | #define __TEXT(q)    q
+      |         ^~~~~~
+In file included from C:/msys64/ucrt64/include/minwindef.h:163,
+                 from C:/msys64/ucrt64/include/windef.h:9,
+                 from C:/msys64/ucrt64/include/windows.h:69,
+                 from src/burner/sdl/burner_sdl.h:22,
+                 from src/burner/burner.h:47,
+                 from src/burner/sdl/run.cpp:6:
+C:/msys64/ucrt64/include/winnt.h:412:9: note: this is the location of the previous definition
+  412 | #define __TEXT(quote) quote
+      |         ^~~~~~
+In file included from src/burner/sdl/xmvsf_stage23_ui.h:10,
+                 from src/burner/sdl/xmvsf_stage23_engine.h:3,
+                 from src/burner/sdl/run.cpp:25:
+src/burner/sdl/xmvsf_stage13_controls.h:145:12: warning: 'int xm13ReadInput(const XM13_Settings*, int, int, SDL_Joystick**, SDL_GameController**, int)' defined but not used [-Wunused-function]
+  145 | static int xm13ReadInput(const XM13_Settings* s, int player, int sub,
+      |            ^~~~~~~~~~~~~
+src/burner/sdl/xmvsf_stage13_controls.h:131:12: warning: 'int xm13Assign(XM13_Settings*, int, int)' defined but not used [-Wunused-function]
+  131 | static int xm13Assign(XM13_Settings* settings,int player,int device) {
+      |            ^~~~~~~~~~
+In file included from src/intf/video/sdl/../../../burner/sdl/xmvsf_stage23_ui.h:10,
+                 from src/intf/video/sdl/vid_sdl2.cpp:17:
+src/intf/video/sdl/../../../burner/sdl/xmvsf_stage13_controls.h:145:12: warning: 'int xm13ReadInput(const XM13_Settings*, int, int, SDL_Joystick**, SDL_GameController**, int)' defined but not used [-Wunused-function]
+  145 | static int xm13ReadInput(const XM13_Settings* s, int player, int sub,
+      |            ^~~~~~~~~~~~~
+src/intf/video/sdl/../../../burner/sdl/xmvsf_stage13_controls.h:131:12: warning: 'int xm13Assign(XM13_Settings*, int, int)' defined but not used [-Wunused-function]
+  131 | static int xm13Assign(XM13_Settings* settings,int player,int device) {
+      |            ^~~~~~~~~~
+
+Linking executable... fbneo
+make[1]: Leaving directory '/f/xmvsf/dev/stable/buildtree'
+Build/link succeeded; publishing TEST binary without brittle debug-string marker gates.
+TEST BUILD READY: /f/xmvsf/runtime/stable/XMVSF_Test_87_185.exe
+Stage 87.185: restore whole-super 2P/3P input recognition, test early attack and exact recovery rebound bridge; Stable preserved.
+XMVSF BUILD END rc=0 time=2026-11-05 20:34:15 log=/f/xmvsf/test/build_logs/BUILD_TEST.log
+BATCH RESULT: SUCCESS Thu 11/05/2026 20:34:15.24
+
+========== XMVSF BUILD_TEST.bat 87.186 START Thu 11/05/2026 21:36:58.27 ==========
+Project: F:\xmvsf
+
+========== XMVSF TEST 87.186 BUILD BEGIN 2026-11-05 21:37:00 ==========
+Project: /f/xmvsf
+Log: /f/xmvsf/test/build_logs/BUILD_TEST.log
+XMVSF Stage 87.186 TEST: incremental build; preserving cached objects
+Dependencies: GNU Make + persistent obj/**/*.d header dependency files
+make[1]: Entering directory '/f/xmvsf/dev/stable/buildtree'
+Making normal build...
+
+Generating depend file for src/burn/drv/capcom/cps_run.cpp...
+Compiling src/burn/drv/capcom/cps_run.cpp...
+
+========== XMVSF TEST 87.186 BUILD BEGIN 2026-11-05 21:39:18 ==========
+Project: /f/xmvsf
+Log: /f/xmvsf/test/build_logs/BUILD_TEST.log
+XMVSF Stage 87.186 TEST: incremental build; preserving cached objects
+Dependencies: GNU Make + persistent obj/**/*.d header dependency files
+make[1]: Entering directory '/f/xmvsf/dev/stable/buildtree'
+Making normal build...
+
+
+Warning: Perl is not available on this system.
+src/dep/generated/driverlist.h cannot be updated or created!
+
+
+Linking executable... fbneo
+make[1]: Leaving directory '/f/xmvsf/dev/stable/buildtree'
+Build/link succeeded; publishing TEST binary without brittle debug-string marker gates.
+TEST BUILD READY: /f/xmvsf/runtime/stable/XMVSF_Test_87_186.exe
+Stage 87.186: read-only native startup/first attack PPC, preserve all 87.185 input and recovery bridge logic; Stable untouched.
+XMVSF BUILD END rc=0 time=2026-11-05 21:40:06 log=/f/xmvsf/test/build_logs/BUILD_TEST.log
+
+Warning: Perl is not available on this system.
+src/dep/generated/driverlist.h cannot be updated or created!
+
+make[1]: Leaving directory '/f/xmvsf/dev/stable/buildtree'
+Build/link succeeded; publishing TEST binary without brittle debug-string marker gates.
+TEST BUILD READY: /f/xmvsf/runtime/stable/XMVSF_Test_87_186.exe
+Stage 87.186: read-only native startup/first attack PPC, preserve all 87.185 input and recovery bridge logic; Stable untouched.
+XMVSF BUILD END rc=0 time=2026-11-05 21:42:05 log=/f/xmvsf/test/build_logs/BUILD_TEST.log
+BATCH RESULT: SUCCESS Thu 11/05/2026 21:42:05.44
+
+========== XMVSF BUILD_TEST.bat 87.186 START Thu 11/05/2026 21:56:56.23 ==========
+Project: F:\xmvsf
+
+========== XMVSF TEST 87.186 BUILD BEGIN 2026-11-05 21:56:57 ==========
+Project: /f/xmvsf
+Log: /f/xmvsf/test/build_logs/BUILD_TEST.log
+XMVSF Stage 87.186 TEST: incremental build; preserving cached objects
+Dependencies: GNU Make + persistent obj/**/*.d header dependency files
+make[1]: Entering directory '/f/xmvsf/dev/stable/buildtree'
+Making normal build...
+
+
+Warning: Perl is not available on this system.
+src/dep/generated/driverlist.h cannot be updated or created!
+
+make[1]: Leaving directory '/f/xmvsf/dev/stable/buildtree'
+Build/link succeeded; publishing TEST binary without brittle debug-string marker gates.
+TEST BUILD READY: /f/xmvsf/runtime/stable/XMVSF_Test_87_186.exe
+Stage 87.186: read-only native startup/first attack PPC, preserve all 87.185 input and recovery bridge logic; Stable untouched.
+XMVSF BUILD END rc=0 time=2026-11-05 21:59:44 log=/f/xmvsf/test/build_logs/BUILD_TEST.log
+BATCH RESULT: SUCCESS Thu 11/05/2026 21:59:44.19
+
+========== XMVSF BUILD_TEST.bat 87.186 START Thu 11/05/2026 23:48:19.02 ==========
+Project: F:\xmvsf
+
+========== XMVSF TEST 87.186 BUILD BEGIN 2026-11-05 23:48:20 ==========
+Project: /f/xmvsf
+Log: /f/xmvsf/test/build_logs/BUILD_TEST.log
+XMVSF Stage 87.186 TEST: incremental build; preserving cached objects
+Dependencies: GNU Make + persistent obj/**/*.d header dependency files
+make[1]: Entering directory '/f/xmvsf/dev/stable/buildtree'
+Making normal build...
+
+Build/link succeeded; publishing TEST binary without brittle debug-string marker gates.
+
+========== XMVSF BUILD_TEST.bat 87.186 START Thu 11/05/2026 23:49:11.39 ==========
+Project: F:\xmvsf
+
+========== XMVSF TEST 87.186 BUILD BEGIN 2026-11-05 23:49:13 ==========
+Project: /f/xmvsf
+Log: /f/xmvsf/test/build_logs/BUILD_TEST.log
+XMVSF Stage 87.186 TEST: incremental build; preserving cached objects
+Dependencies: GNU Make + persistent obj/**/*.d header dependency files
+make[1]: Entering directory '/f/xmvsf/dev/stable/buildtree'
+Making normal build...
+Build/link succeeded; publishing TEST binary without brittle debug-string marker gates.
+
+========== XMVSF BUILD_TEST.bat 87.187 START Thu 11/05/2026 23:50:03.77 ==========
+Project: F:\xmvsf
+
+========== XMVSF TEST 87.187 BUILD BEGIN 2026-11-05 23:50:05 ==========
+Project: /f/xmvsf
+Log: /f/xmvsf/test/build_logs/BUILD_TEST.log
+XMVSF Stage 87.187 TEST: incremental build; preserving cached objects
+Dependencies: GNU Make + persistent obj/**/*.d header dependency files
+make[1]: Entering directory '/f/xmvsf/dev/stable/buildtree'
+Making normal build...
+
+
+Warning: Perl is not available on this system.
+src/dep/generated/driverlist.h cannot be updated or created!
+
+Compiling src/burn/drv/capcom/cps_run.cpp...
+
+Linking executable... fbneo
+make[1]: Leaving directory '/f/xmvsf/dev/stable/buildtree'
+Build/link succeeded; publishing TEST binary without brittle debug-string marker gates.
+TEST BUILD READY: /f/xmvsf/runtime/stable/XMVSF_Test_87_187.exe
+Stage 87.187: read-only native startup/first attack PPC, preserve all 87.185 input and recovery bridge logic; Stable untouched.
+XMVSF BUILD END rc=0 time=2026-11-05 23:53:08 log=/f/xmvsf/test/build_logs/BUILD_TEST.log
+BATCH RESULT: SUCCESS Thu 11/05/2026 23:53:08.83
+
+========== XMVSF BUILD_TEST.bat 87.188 START Fri 11/06/2026  0:20:06.93 ==========
+Project: F:\xmvsf
+
+========== XMVSF TEST 87.188 BUILD BEGIN 2026-11-06 00:20:08 ==========
+Project: /f/xmvsf
+Log: /f/xmvsf/test/build_logs/BUILD_TEST.log
+XMVSF Stage 87.188 TEST: incremental build; preserving cached objects
+Dependencies: GNU Make + persistent obj/**/*.d header dependency files
+make[1]: Entering directory '/f/xmvsf/dev/stable/buildtree'
+Making normal build...
+
+
+Warning: Perl is not available on this system.
+src/dep/generated/driverlist.h cannot be updated or created!
+
+Compiling src/burn/drv/capcom/cps_run.cpp...
+
+Linking executable... fbneo
+make[1]: Leaving directory '/f/xmvsf/dev/stable/buildtree'
+Build/link succeeded; publishing TEST binary without brittle debug-string marker gates.
+TEST BUILD READY: /f/xmvsf/runtime/stable/XMVSF_Test_87_188.exe
+Stage 87.188: read-only native startup/first attack PPC, preserve all 87.185 input and recovery bridge logic; Stable untouched.
+XMVSF BUILD END rc=0 time=2026-11-06 00:23:11 log=/f/xmvsf/test/build_logs/BUILD_TEST.log
+BATCH RESULT: SUCCESS Fri 11/06/2026  0:23:11.54
+
+========== XMVSF BUILD_TEST.bat 87.189 START Fri 11/06/2026  1:23:21.65 ==========
+Project: F:\xmvsf
+
+========== XMVSF TEST 87.189 BUILD BEGIN 2026-11-06 01:23:23 ==========
+Project: /f/xmvsf
+Log: /f/xmvsf/test/build_logs/BUILD_TEST.log
+XMVSF Stage 87.189 TEST: incremental build; preserving cached objects
+Dependencies: GNU Make + persistent obj/**/*.d header dependency files
+make[1]: Entering directory '/f/xmvsf/dev/stable/buildtree'
+Making normal build...
+
+Generating depend file for src/burn/drv/capcom/cps_run.cpp...
+Compiling src/burn/drv/capcom/cps_run.cpp...
+
+Warning: Perl is not available on this system.
+src/dep/generated/driverlist.h cannot be updated or created!
+
+Compiling src/burner/sdl/run.cpp...
+Compiling src/intf/video/sdl/vid_sdl2.cpp...
+In file included from src/burn/burnint.h:13,
+                 from src/burner/sdl/xmvsf_stage14_training.h:10,
+                 from src/burner/sdl/run.cpp:15:
+src/burner/sdl/tchar.h:12:9: warning: '__TEXT' redefined
+   12 | #define __TEXT(q)    q
+      |         ^~~~~~
+In file included from C:/msys64/ucrt64/include/minwindef.h:163,
+                 from C:/msys64/ucrt64/include/windef.h:9,
+                 from C:/msys64/ucrt64/include/windows.h:69,
+                 from src/burner/sdl/burner_sdl.h:22,
+                 from src/burner/burner.h:47,
+                 from src/burner/sdl/run.cpp:6:
+C:/msys64/ucrt64/include/winnt.h:412:9: note: this is the location of the previous definition
+  412 | #define __TEXT(quote) quote
+      |         ^~~~~~
+In file included from src/burner/sdl/xmvsf_stage23_ui.h:10,
+                 from src/burner/sdl/xmvsf_stage23_engine.h:3,
+                 from src/burner/sdl/run.cpp:25:
+src/burner/sdl/xmvsf_stage13_controls.h:145:12: warning: 'int xm13ReadInput(const XM13_Settings*, int, int, SDL_Joystick**, SDL_GameController**, int)' defined but not used [-Wunused-function]
+  145 | static int xm13ReadInput(const XM13_Settings* s, int player, int sub,
+      |            ^~~~~~~~~~~~~
+src/burner/sdl/xmvsf_stage13_controls.h:131:12: warning: 'int xm13Assign(XM13_Settings*, int, int)' defined but not used [-Wunused-function]
+  131 | static int xm13Assign(XM13_Settings* settings,int player,int device) {
+      |            ^~~~~~~~~~
+In file included from src/intf/video/sdl/../../../burner/sdl/xmvsf_stage23_ui.h:10,
+                 from src/intf/video/sdl/vid_sdl2.cpp:17:
+src/intf/video/sdl/../../../burner/sdl/xmvsf_stage13_controls.h:145:12: warning: 'int xm13ReadInput(const XM13_Settings*, int, int, SDL_Joystick**, SDL_GameController**, int)' defined but not used [-Wunused-function]
+  145 | static int xm13ReadInput(const XM13_Settings* s, int player, int sub,
+      |            ^~~~~~~~~~~~~
+src/intf/video/sdl/../../../burner/sdl/xmvsf_stage13_controls.h:131:12: warning: 'int xm13Assign(XM13_Settings*, int, int)' defined but not used [-Wunused-function]
+  131 | static int xm13Assign(XM13_Settings* settings,int player,int device) {
+      |            ^~~~~~~~~~
+
+Linking executable... fbneo
+make[1]: Leaving directory '/f/xmvsf/dev/stable/buildtree'
+Build/link succeeded; publishing TEST binary without brittle debug-string marker gates.
+TEST BUILD READY: /f/xmvsf/runtime/stable/XMVSF_Test_87_189.exe
+Stage 87.189: read-only native startup/first attack PPC, preserve all 87.185 input and recovery bridge logic; Stable untouched.
+XMVSF BUILD END rc=0 time=2026-11-06 01:26:43 log=/f/xmvsf/test/build_logs/BUILD_TEST.log
+BATCH RESULT: SUCCESS Fri 11/06/2026  1:26:43.15
+
+========== XMVSF BUILD_TEST.bat 87.189 START Fri 11/06/2026  2:58:30.34 ==========
+Project: F:\xmvsf
+
+========== XMVSF TEST 87.189 BUILD BEGIN 2026-11-06 02:58:32 ==========
+Project: /f/xmvsf
+Log: /f/xmvsf/test/build_logs/BUILD_TEST.log
+XMVSF Stage 87.189 TEST: incremental build; preserving cached objects
+Dependencies: GNU Make + persistent obj/**/*.d header dependency files
+make[1]: Entering directory '/f/xmvsf/dev/stable/buildtree'
+Making normal build...
+
+
+Warning: Perl is not available on this system.
+src/dep/generated/driverlist.h cannot be updated or created!
+
+make[1]: Leaving directory '/f/xmvsf/dev/stable/buildtree'
+Build/link succeeded; publishing TEST binary without brittle debug-string marker gates.
+TEST BUILD READY: /f/xmvsf/runtime/stable/XMVSF_Test_87_189.exe
+Stage 87.189: read-only native startup/first attack PPC, preserve all 87.185 input and recovery bridge logic; Stable untouched.
+XMVSF BUILD END rc=0 time=2026-11-06 03:01:14 log=/f/xmvsf/test/build_logs/BUILD_TEST.log
+BATCH RESULT: SUCCESS Fri 11/06/2026  3:01:14.67
+
+========== XMVSF BUILD_TEST.bat 87.191 START Fri 11/06/2026  3:55:26.74 ==========
+Project: F:\xmvsf
+
+========== XMVSF TEST 87.191 BUILD BEGIN 2026-11-06 03:55:28 ==========
+Project: /f/xmvsf
+Log: /f/xmvsf/test/build_logs/BUILD_TEST.log
+XMVSF Stage 87.191 TEST: incremental build; preserving cached objects
+Dependencies: GNU Make + persistent obj/**/*.d header dependency files
+make[1]: Entering directory '/f/xmvsf/dev/stable/buildtree'
+Making normal build...
+
+
+Warning: Perl is not available on this system.
+src/dep/generated/driverlist.h cannot be updated or created!
+
+Compiling src/burn/drv/capcom/cps_run.cpp...
+Compiling src/burner/sdl/run.cpp...
+Compiling src/intf/video/sdl/vid_sdl2.cpp...
+In file included from src/burn/burnint.h:13,
+                 from src/burner/sdl/xmvsf_stage14_training.h:10,
+                 from src/burner/sdl/run.cpp:15:
+src/burner/sdl/tchar.h:12:9: warning: '__TEXT' redefined
+   12 | #define __TEXT(q)    q
+      |         ^~~~~~
+In file included from C:/msys64/ucrt64/include/minwindef.h:163,
+                 from C:/msys64/ucrt64/include/windef.h:9,
+                 from C:/msys64/ucrt64/include/windows.h:69,
+                 from src/burner/sdl/burner_sdl.h:22,
+                 from src/burner/burner.h:47,
+                 from src/burner/sdl/run.cpp:6:
+C:/msys64/ucrt64/include/winnt.h:412:9: note: this is the location of the previous definition
+  412 | #define __TEXT(quote) quote
+      |         ^~~~~~
+In file included from src/burner/sdl/xmvsf_stage23_ui.h:10,
+                 from src/burner/sdl/xmvsf_stage23_engine.h:3,
+                 from src/burner/sdl/run.cpp:25:
+src/burner/sdl/xmvsf_stage13_controls.h:145:12: warning: 'int xm13ReadInput(const XM13_Settings*, int, int, SDL_Joystick**, SDL_GameController**, int)' defined but not used [-Wunused-function]
+  145 | static int xm13ReadInput(const XM13_Settings* s, int player, int sub,
+      |            ^~~~~~~~~~~~~
+src/burner/sdl/xmvsf_stage13_controls.h:131:12: warning: 'int xm13Assign(XM13_Settings*, int, int)' defined but not used [-Wunused-function]
+  131 | static int xm13Assign(XM13_Settings* settings,int player,int device) {
+      |            ^~~~~~~~~~
+In file included from src/intf/video/sdl/../../../burner/sdl/xmvsf_stage23_ui.h:10,
+                 from src/intf/video/sdl/vid_sdl2.cpp:17:
+src/intf/video/sdl/../../../burner/sdl/xmvsf_stage13_controls.h:145:12: warning: 'int xm13ReadInput(const XM13_Settings*, int, int, SDL_Joystick**, SDL_GameController**, int)' defined but not used [-Wunused-function]
+  145 | static int xm13ReadInput(const XM13_Settings* s, int player, int sub,
+      |            ^~~~~~~~~~~~~
+src/intf/video/sdl/../../../burner/sdl/xmvsf_stage13_controls.h:131:12: warning: 'int xm13Assign(XM13_Settings*, int, int)' defined but not used [-Wunused-function]
+  131 | static int xm13Assign(XM13_Settings* settings,int player,int device) {
+      |            ^~~~~~~~~~
+
+Linking executable... fbneo
+make[1]: Leaving directory '/f/xmvsf/dev/stable/buildtree'
+Build/link succeeded; publishing TEST binary without brittle debug-string marker gates.
+TEST BUILD READY: /f/xmvsf/runtime/stable/XMVSF_Test_87_191.exe
+Stage 87.191: read-only native startup/first attack PPC, preserve all 87.185 input and recovery bridge logic; Stable untouched.
+XMVSF BUILD END rc=0 time=2026-11-06 03:58:34 log=/f/xmvsf/test/build_logs/BUILD_TEST.log
+BATCH RESULT: SUCCESS Fri 11/06/2026  3:58:34.96
+
+========== XMVSF BUILD_TEST.bat 87.192 START Fri 11/06/2026  4:36:06.02 ==========
+Project: F:\xmvsf
+
+========== XMVSF TEST 87.192 BUILD BEGIN 2026-11-06 04:36:07 ==========
+Project: /f/xmvsf
+Log: /f/xmvsf/test/build_logs/BUILD_TEST.log
+XMVSF Stage 87.192 TEST: incremental build; preserving cached objects
+Dependencies: GNU Make + persistent obj/**/*.d header dependency files
+make[1]: Entering directory '/f/xmvsf/dev/stable/buildtree'
+Making normal build...
+
+
+Warning: Perl is not available on this system.
+src/dep/generated/driverlist.h cannot be updated or created!
+
+Compiling src/burn/drv/capcom/cps_run.cpp...
+Compiling src/burner/sdl/run.cpp...
+Compiling src/intf/video/sdl/vid_sdl2.cpp...
+In file included from src/burn/burnint.h:13,
+                 from src/burner/sdl/xmvsf_stage14_training.h:10,
+                 from src/burner/sdl/run.cpp:15:
+src/burner/sdl/tchar.h:12:9: warning: '__TEXT' redefined
+   12 | #define __TEXT(q)    q
+      |         ^~~~~~
+In file included from C:/msys64/ucrt64/include/minwindef.h:163,
+                 from C:/msys64/ucrt64/include/windef.h:9,
+                 from C:/msys64/ucrt64/include/windows.h:69,
+                 from src/burner/sdl/burner_sdl.h:22,
+                 from src/burner/burner.h:47,
+                 from src/burner/sdl/run.cpp:6:
+C:/msys64/ucrt64/include/winnt.h:412:9: note: this is the location of the previous definition
+  412 | #define __TEXT(quote) quote
+      |         ^~~~~~
+In file included from src/burner/sdl/xmvsf_stage23_ui.h:10,
+                 from src/burner/sdl/xmvsf_stage23_engine.h:3,
+                 from src/burner/sdl/run.cpp:25:
+src/burner/sdl/xmvsf_stage13_controls.h:145:12: warning: 'int xm13ReadInput(const XM13_Settings*, int, int, SDL_Joystick**, SDL_GameController**, int)' defined but not used [-Wunused-function]
+  145 | static int xm13ReadInput(const XM13_Settings* s, int player, int sub,
+      |            ^~~~~~~~~~~~~
+src/burner/sdl/xmvsf_stage13_controls.h:131:12: warning: 'int xm13Assign(XM13_Settings*, int, int)' defined but not used [-Wunused-function]
+  131 | static int xm13Assign(XM13_Settings* settings,int player,int device) {
+      |            ^~~~~~~~~~
+In file included from src/intf/video/sdl/../../../burner/sdl/xmvsf_stage23_ui.h:10,
+                 from src/intf/video/sdl/vid_sdl2.cpp:17:
+src/intf/video/sdl/../../../burner/sdl/xmvsf_stage13_controls.h:145:12: warning: 'int xm13ReadInput(const XM13_Settings*, int, int, SDL_Joystick**, SDL_GameController**, int)' defined but not used [-Wunused-function]
+  145 | static int xm13ReadInput(const XM13_Settings* s, int player, int sub,
+      |            ^~~~~~~~~~~~~
+src/intf/video/sdl/../../../burner/sdl/xmvsf_stage13_controls.h:131:12: warning: 'int xm13Assign(XM13_Settings*, int, int)' defined but not used [-Wunused-function]
+  131 | static int xm13Assign(XM13_Settings* settings,int player,int device) {
+      |            ^~~~~~~~~~
+
+Linking executable... fbneo
+make[1]: Leaving directory '/f/xmvsf/dev/stable/buildtree'
+Build/link succeeded; publishing TEST binary without brittle debug-string marker gates.
+TEST BUILD READY: /f/xmvsf/runtime/stable/XMVSF_Test_87_192.exe
+Stage 87.192: read-only native startup/first attack PPC, preserve all 87.185 input and recovery bridge logic; Stable untouched.
+XMVSF BUILD END rc=0 time=2026-11-06 04:39:15 log=/f/xmvsf/test/build_logs/BUILD_TEST.log
+BATCH RESULT: SUCCESS Fri 11/06/2026  4:39:15.16
+
+========== XMVSF BUILD_TEST.bat 87.193 START Fri 11/06/2026  5:06:22.66 ==========
+Project: F:\xmvsf
+
+========== XMVSF TEST 87.193 BUILD BEGIN 2026-11-06 05:06:24 ==========
+Project: /f/xmvsf
+Log: /f/xmvsf/test/build_logs/BUILD_TEST.log
+XMVSF Stage 87.193 TEST: incremental build; preserving cached objects
+Dependencies: GNU Make + persistent obj/**/*.d header dependency files
+make[1]: Entering directory '/f/xmvsf/dev/stable/buildtree'
+Making normal build...
+
+Generating depend file for src/burn/drv/capcom/cps_run.cpp...
+Compiling src/burn/drv/capcom/cps_run.cpp...
+In file included from src/burn/drv/capcom/cps_run.cpp:27:
+src/burn/drv/capcom/xmvsf_stage87_144_native_handoff.h: In member function 'void XM87144::State::armOutgoingTag(uint8_t*, unsigned int, unsigned int, unsigned int)':
+src/burn/drv/capcom/xmvsf_stage87_144_native_handoff.h:331:24: warning: unused variable 'p' [-Wunused-variable]
+  331 |         const unsigned p=0x4000u+side*0x400u;
+      |                        ^
+
+Warning: Perl is not available on this system.
+src/dep/generated/driverlist.h cannot be updated or created!
+
+
+Linking executable... fbneo
+make[1]: Leaving directory '/f/xmvsf/dev/stable/buildtree'
+Build/link succeeded; publishing TEST binary without brittle debug-string marker gates.
+TEST BUILD READY: /f/xmvsf/runtime/stable/XMVSF_Test_87_193.exe
+Stage 87.193: read-only native startup/first attack PPC, preserve all 87.185 input and recovery bridge logic; Stable untouched.
+XMVSF BUILD END rc=0 time=2026-11-06 05:09:28 log=/f/xmvsf/test/build_logs/BUILD_TEST.log
+BATCH RESULT: SUCCESS Fri 11/06/2026  5:09:28.34
+
+========== XMVSF BUILD_TEST.bat 87.193 START Fri 11/06/2026  5:35:07.85 ==========
+Project: F:\xmvsf
+
+========== XMVSF TEST 87.193 BUILD BEGIN 2026-11-06 05:35:09 ==========
+Project: /f/xmvsf
+Log: /f/xmvsf/test/build_logs/BUILD_TEST.log
+XMVSF Stage 87.193 TEST: incremental build; preserving cached objects
+Dependencies: GNU Make + persistent obj/**/*.d header dependency files
+make[1]: Entering directory '/f/xmvsf/dev/stable/buildtree'
+Making normal build...
+
+
+Warning: Perl is not available on this system.
+src/dep/generated/driverlist.h cannot be updated or created!
+
+make[1]: Leaving directory '/f/xmvsf/dev/stable/buildtree'
+Build/link succeeded; publishing TEST binary without brittle debug-string marker gates.
+TEST BUILD READY: /f/xmvsf/runtime/stable/XMVSF_Test_87_193.exe
+Stage 87.193: read-only native startup/first attack PPC, preserve all 87.185 input and recovery bridge logic; Stable untouched.
+XMVSF BUILD END rc=0 time=2026-11-06 05:37:51 log=/f/xmvsf/test/build_logs/BUILD_TEST.log
+BATCH RESULT: SUCCESS Fri 11/06/2026  5:37:51.80
+
+========== XMVSF BUILD_TEST.bat 87.195 START Fri 11/06/2026  6:16:14.70 ==========
+Project: F:\xmvsf
+
+========== XMVSF TEST 87.195 BUILD BEGIN 2026-11-06 06:16:16 ==========
+Project: /f/xmvsf
+Log: /f/xmvsf/test/build_logs/BUILD_TEST.log
+XMVSF Stage 87.195 TEST: incremental build; preserving cached objects
+Dependencies: GNU Make + persistent obj/**/*.d header dependency files
+make[1]: Entering directory '/f/xmvsf/dev/stable/buildtree'
+Making normal build...
+
+
+Warning: Perl is not available on this system.
+src/dep/generated/driverlist.h cannot be updated or created!
+
+Compiling src/burn/drv/capcom/cps_run.cpp...
+Compiling src/burner/sdl/main.cpp...
+In file included from src/burn/drv/capcom/cps_run.cpp:27:
+src/burn/drv/capcom/xmvsf_stage87_144_native_handoff.h: In member function 'void XM87144::State::armOutgoingTag(uint8_t*, unsigned int, unsigned int, unsigned int)':
+src/burn/drv/capcom/xmvsf_stage87_144_native_handoff.h:362:24: warning: unused variable 'p' [-Wunused-variable]
+  362 |         const unsigned p=0x4000u+side*0x400u;
+      |                        ^
+In file included from src/burn/burnint.h:13,
+                 from src/burner/sdl/xmvsf_stage17_auto.h:6,
+                 from src/burner/sdl/main.cpp:37:
+src/burner/sdl/tchar.h:12:9: warning: '__TEXT' redefined
+   12 | #define __TEXT(q)    q
+      |         ^~~~~~
+In file included from C:/msys64/ucrt64/include/minwindef.h:163,
+                 from C:/msys64/ucrt64/include/windef.h:9,
+                 from C:/msys64/ucrt64/include/windows.h:69,
+                 from src/burner/sdl/burner_sdl.h:22,
+                 from src/burner/burner.h:47,
+                 from src/burner/sdl/main.cpp:16:
+C:/msys64/ucrt64/include/winnt.h:412:9: note: this is the location of the previous definition
+  412 | #define __TEXT(quote) quote
+      |         ^~~~~~
+In file included from src/burner/sdl/xmvsf_stage14_boot.h:82,
+                 from src/burner/sdl/main.cpp:23:
+src/burner/sdl/xmvsf_stage87_33_dizzy_option.h: In function 'void xm8733DizzyLoad()':
+src/burner/sdl/xmvsf_stage87_33_dizzy_option.h:19:24: warning: this 'if' clause does not guard... [-Wmisleading-indentation]
+   19 |     if(f){int flag=-1; if(std::fscanf(f,"dizzy_bar=%d",&flag)==1 && (flag==0||flag==1))
+      |                        ^~
+src/burner/sdl/xmvsf_stage87_33_dizzy_option.h:20:40: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the 'if'
+   20 |         xm8733DizzyEnabled()=(flag==1);std::fclose(f);}
+      |                                        ^~~
+src/burner/sdl/main.cpp: At global scope:
+src/burner/sdl/main.cpp:340:20: warning: 'int AppDebugPrintf(int, TCHAR*, ...)' defined but not used [-Wunused-function]
+  340 | static int __cdecl AppDebugPrintf(int nStatus, TCHAR* pszFormat, ...)
+      |                    ^~~~~~~~~~~~~~
+src/burner/sdl/main.cpp: In function 'int SDL_main(int, char**)':
+src/burner/sdl/main.cpp:473:52: warning: '%s' directive output may be truncated writing up to 2339 bytes into a region of size 260 [-Wformat-truncation=]
+  473 |                 snprintf(currentPath, MAX_PATH, "%s%s", base_path, szDirs[x]);
+      |                                                    ^~
+src/burner/sdl/main.cpp:473:25: note: 'snprintf' output 1 or more bytes (assuming 2340) into a destination of size 260
+  473 |                 snprintf(currentPath, MAX_PATH, "%s%s", base_path, szDirs[x]);
+      |                 ~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Linking executable... fbneo
+make[1]: Leaving directory '/f/xmvsf/dev/stable/buildtree'
+Build/link succeeded; publishing TEST binary without brittle debug-string marker gates.
+TEST BUILD READY: /f/xmvsf/runtime/stable/XMVSF_Test_87_195.exe
+Stage 87.195: read-only native startup/first attack PPC, preserve all 87.185 input and recovery bridge logic; Stable untouched.
+XMVSF BUILD END rc=0 time=2026-11-06 06:19:21 log=/f/xmvsf/test/build_logs/BUILD_TEST.log
+BATCH RESULT: SUCCESS Fri 11/06/2026  6:19:21.27
+
+========== XMVSF BUILD_TEST.bat 87.196 START Fri 11/06/2026  6:39:42.23 ==========
+Project: F:\xmvsf
+
+========== XMVSF TEST 87.196 BUILD BEGIN 2026-11-06 06:39:43 ==========
+Project: /f/xmvsf
+Log: /f/xmvsf/test/build_logs/BUILD_TEST.log
+XMVSF Stage 87.196 TEST: incremental build; preserving cached objects
+Dependencies: GNU Make + persistent obj/**/*.d header dependency files
+make[1]: Entering directory '/f/xmvsf/dev/stable/buildtree'
+Making normal build...
+
+
+Warning: Perl is not available on this system.
+src/dep/generated/driverlist.h cannot be updated or created!
+
+Compiling src/burn/drv/capcom/cps_run.cpp...
+In file included from src/burn/drv/capcom/cps_run.cpp:27:
+src/burn/drv/capcom/xmvsf_stage87_144_native_handoff.h: In member function 'void XM87144::State::armOutgoingTag(uint8_t*, unsigned int, unsigned int, unsigned int)':
+src/burn/drv/capcom/xmvsf_stage87_144_native_handoff.h:366:24: warning: unused variable 'p' [-Wunused-variable]
+  366 |         const unsigned p=0x4000u+side*0x400u;
+      |                        ^
+
+Linking executable... fbneo
+make[1]: Leaving directory '/f/xmvsf/dev/stable/buildtree'
+Build/link succeeded; publishing TEST binary without brittle debug-string marker gates.
+TEST BUILD READY: /f/xmvsf/runtime/stable/XMVSF_Test_87_196.exe
+Stage 87.196: read-only native startup/first attack PPC, preserve all 87.185 input and recovery bridge logic; Stable untouched.
+XMVSF BUILD END rc=0 time=2026-11-06 06:42:49 log=/f/xmvsf/test/build_logs/BUILD_TEST.log
+BATCH RESULT: SUCCESS Fri 11/06/2026  6:42:49.20
+
+========== XMVSF BUILD_TEST.bat 87.197 START Fri 11/06/2026  7:04:23.05 ==========
+Project: F:\xmvsf
+
+========== XMVSF TEST 87.197 BUILD BEGIN 2026-11-06 07:04:24 ==========
+Project: /f/xmvsf
+Log: /f/xmvsf/test/build_logs/BUILD_TEST.log
+XMVSF Stage 87.197 TEST: incremental build; preserving cached objects
+Dependencies: GNU Make + persistent obj/**/*.d header dependency files
+make[1]: Entering directory '/f/xmvsf/dev/stable/buildtree'
+Making normal build...
+
+Generating depend file for src/burn/drv/capcom/cps_run.cpp...
+Compiling src/burn/drv/capcom/cps_run.cpp...
+In file included from src/burn/drv/capcom/cps_run.cpp:27:
+src/burn/drv/capcom/xmvsf_stage87_144_native_handoff.h: In member function 'void XM87144::State::armOutgoingTag(uint8_t*, unsigned int, unsigned int, unsigned int)':
+src/burn/drv/capcom/xmvsf_stage87_144_native_handoff.h:385:24: warning: unused variable 'p' [-Wunused-variable]
+  385 |         const unsigned p=0x4000u+side*0x400u;
+      |                        ^
+
+Warning: Perl is not available on this system.
+src/dep/generated/driverlist.h cannot be updated or created!
+
+
+Linking executable... fbneo
+make[1]: Leaving directory '/f/xmvsf/dev/stable/buildtree'
+Build/link succeeded; publishing TEST binary without brittle debug-string marker gates.
+TEST BUILD READY: /f/xmvsf/runtime/stable/XMVSF_Test_87_197.exe
+Stage 87.197: read-only native startup/first attack PPC, preserve all 87.185 input and recovery bridge logic; Stable untouched.
+XMVSF BUILD END rc=0 time=2026-11-06 07:07:29 log=/f/xmvsf/test/build_logs/BUILD_TEST.log
+BATCH RESULT: SUCCESS Fri 11/06/2026  7:07:29.87
+
+========== XMVSF BUILD_TEST.bat 87.198 START Fri 11/06/2026  7:39:36.07 ==========
+Project: F:\xmvsf
+
+========== XMVSF TEST 87.198 BUILD BEGIN 2026-11-06 07:39:37 ==========
+Project: /f/xmvsf
+Log: /f/xmvsf/test/build_logs/BUILD_TEST.log
+XMVSF Stage 87.198 TEST: incremental build; preserving cached objects
+Dependencies: GNU Make + persistent obj/**/*.d header dependency files
+make[1]: Entering directory '/f/xmvsf/dev/stable/buildtree'
+Making normal build...
+
+
+Warning: Perl is not available on this system.
+src/dep/generated/driverlist.h cannot be updated or created!
+
+Compiling src/burn/drv/capcom/cps_run.cpp...
+In file included from src/burn/drv/capcom/cps_run.cpp:27:
+src/burn/drv/capcom/xmvsf_stage87_144_native_handoff.h: In member function 'void XM87144::State::armOutgoingTag(uint8_t*, unsigned int, unsigned int, unsigned int)':
+src/burn/drv/capcom/xmvsf_stage87_144_native_handoff.h:389:24: warning: unused variable 'p' [-Wunused-variable]
+  389 |         const unsigned p=0x4000u+side*0x400u;
+      |                        ^
+
+Linking executable... fbneo
+make[1]: Leaving directory '/f/xmvsf/dev/stable/buildtree'
+Build/link succeeded; publishing TEST binary without brittle debug-string marker gates.
+TEST BUILD READY: /f/xmvsf/runtime/stable/XMVSF_Test_87_198.exe
+Stage 87.198: read-only native startup/first attack PPC, preserve all 87.185 input and recovery bridge logic; Stable untouched.
+XMVSF BUILD END rc=0 time=2026-11-06 07:42:48 log=/f/xmvsf/test/build_logs/BUILD_TEST.log
+BATCH RESULT: SUCCESS Fri 11/06/2026  7:42:48.48

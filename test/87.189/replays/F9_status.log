@@ -1,0 +1,11 @@
+===== 87.186 TEST session Fri 11/06/2026  1:32:58.26 =====
+===== 87.186 TEST session Fri 11/06/2026  1:33:14.91 =====
+RECORD_START F:\xmvsf\test\87.189\replays/session_0001
+CHECKPOINT_SAVED session=1 segment=0 reason=SESSION_START
+SEGMENT_SAVED session=1 segment=0 frames=10768
+RECORD_SAVED total_frames=10768 session_count=1 segments=1 reason=APPLICATION_EXIT folder=F:\xmvsf\test\87.189\replays/session_0001
+===== 87.186 TEST session Fri 11/06/2026  3:02:23.31 =====
+RECORD_START F:\xmvsf\test\87.189\replays/session_0002
+CHECKPOINT_SAVED session=1 segment=0 reason=SESSION_START
+SEGMENT_SAVED session=1 segment=0 frames=19969
+RECORD_SAVED total_frames=19969 session_count=1 segments=1 reason=APPLICATION_EXIT folder=F:\xmvsf\test\87.189\replays/session_0002

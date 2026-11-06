@@ -1,0 +1,15 @@
+RUN_TEST_START date=Thu 11/05/2026 time=23:53:15.81
+ENGINE_HEALTH_INITIALIZED	87.181	CPS2 frame hook entered
+CPS2_FIRST_FRAME	frame=780	driver=xmvsfu	CpsRamFF=1	CpsRom=1	combat=0	oldObserverReady=1	subframeObserverReady=1	cpsFrames=1	xmvsfFrames=1	combatFrames=0
+XMVSF_FIRST_FRAME	frame=780	driver=xmvsfu	CpsRamFF=1	CpsRom=1	combat=0	oldObserverReady=1	subframeObserverReady=1	cpsFrames=1	xmvsfFrames=1	combatFrames=0
+XMVSF_HEARTBEAT	frame=780	driver=xmvsfu	CpsRamFF=1	CpsRom=1	combat=0	oldObserverReady=1	subframeObserverReady=1	cpsFrames=1	xmvsfFrames=1	combatFrames=0
+XMVSF_HEARTBEAT	frame=1380	driver=xmvsfu	CpsRamFF=1	CpsRom=1	combat=0	oldObserverReady=1	subframeObserverReady=1	cpsFrames=601	xmvsfFrames=601	combatFrames=0
+XMVSF_FIRST_COMBAT	frame=1497	driver=xmvsfu	CpsRamFF=1	CpsRom=1	combat=1	oldObserverReady=1	subframeObserverReady=1	cpsFrames=718	xmvsfFrames=718	combatFrames=1
+XMVSF_HEARTBEAT	frame=1980	driver=xmvsfu	CpsRamFF=1	CpsRom=1	combat=1	oldObserverReady=1	subframeObserverReady=1	cpsFrames=1201	xmvsfFrames=1201	combatFrames=484
+XMVSF_HEARTBEAT	frame=2580	driver=xmvsfu	CpsRamFF=1	CpsRom=1	combat=1	oldObserverReady=1	subframeObserverReady=1	cpsFrames=1801	xmvsfFrames=1801	combatFrames=1084
+XMVSF_HEARTBEAT	frame=3180	driver=xmvsfu	CpsRamFF=1	CpsRom=1	combat=1	oldObserverReady=1	subframeObserverReady=1	cpsFrames=2401	xmvsfFrames=2401	combatFrames=1684
+XMVSF_HEARTBEAT	frame=3780	driver=xmvsfu	CpsRamFF=1	CpsRom=1	combat=1	oldObserverReady=1	subframeObserverReady=1	cpsFrames=3001	xmvsfFrames=3001	combatFrames=2284
+XMVSF_HEARTBEAT	frame=4380	driver=xmvsfu	CpsRamFF=1	CpsRom=1	combat=1	oldObserverReady=1	subframeObserverReady=1	cpsFrames=3601	xmvsfFrames=3601	combatFrames=2884
+XMVSF_HEARTBEAT	frame=4980	driver=xmvsfu	CpsRamFF=1	CpsRom=1	combat=1	oldObserverReady=1	subframeObserverReady=1	cpsFrames=4201	xmvsfFrames=4201	combatFrames=3484
+XMVSF_HEARTBEAT	frame=5580	driver=xmvsfu	CpsRamFF=1	CpsRom=1	combat=1	oldObserverReady=1	subframeObserverReady=1	cpsFrames=4801	xmvsfFrames=4801	combatFrames=4084
+RUN_TEST_EXIT code=0

@@ -1,0 +1,2 @@
+frame	event	selectedTournament	stormFlightFlag	hit95Flag	handoff96Flag	ground99Flag	hit95Installed	handoff96Installed	ground99Installed	allTournamentRulesReady
+806	TOURNAMENT_RULES_ACTIVE	1	1	1	1	1	1	1	1	1

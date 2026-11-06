@@ -1,0 +1,137 @@
+===== 87.167 HOST REPLAY START Wed 11/04/2026 19:00:12.20 =====
+V2_MANIFEST_SEALED frames=29827 sessions=8 segments=68 reason=F9_STOP
+V2_MANIFEST_READY segments=68
+GAME_BEGIN session=1 mode=1
+CHECKPOINT_LOADED session=1 segment=0 frames=106 reason=SESSION_START
+PLAY_PROGRESS frame=1 segment=1/68
+CHECKPOINT_LOADED session=1 segment=1 frames=168 reason=HOST_MENU_STATE_CHANGED
+CHECKPOINT_LOADED session=1 segment=2 frames=2 reason=HOST_MENU_STATE_CHANGED
+CHECKPOINT_LOADED session=1 segment=3 frames=306 reason=HOST_MENU_STATE_CHANGED
+CHECKPOINT_LOADED session=1 segment=4 frames=3854 reason=HOST_MENU_STATE_CHANGED
+PLAY_PROGRESS frame=600 segment=5/68
+PLAY_PROGRESS frame=1200 segment=5/68
+PLAY_PROGRESS frame=1800 segment=5/68
+PLAY_PROGRESS frame=2400 segment=5/68
+PLAY_PROGRESS frame=3000 segment=5/68
+PLAY_PROGRESS frame=3600 segment=5/68
+PLAY_PROGRESS frame=4200 segment=5/68
+CHECKPOINT_LOADED session=1 segment=5 frames=40 reason=HOST_MENU_STATE_CHANGED
+CHECKPOINT_LOADED session=1 segment=6 frames=10 reason=HOST_MENU_STATE_CHANGED
+CHECKPOINT_LOADED session=1 segment=7 frames=11 reason=HOST_MENU_STATE_CHANGED
+SESSION_END next_session=2
+GAME_BEGIN session=2 mode=1
+CHECKPOINT_LOADED session=2 segment=0 frames=1 reason=SESSION_START
+CHECKPOINT_LOADED session=2 segment=1 frames=142 reason=HOST_MENU_STATE_CHANGED
+CHECKPOINT_LOADED session=2 segment=2 frames=160 reason=HOST_MENU_STATE_CHANGED
+PLAY_PROGRESS frame=4800 segment=11/68
+CHECKPOINT_LOADED session=2 segment=3 frames=5 reason=HOST_MENU_STATE_CHANGED
+CHECKPOINT_LOADED session=2 segment=4 frames=473 reason=HOST_MENU_STATE_CHANGED
+CHECKPOINT_LOADED session=2 segment=5 frames=5777 reason=HOST_MENU_STATE_CHANGED
+PLAY_PROGRESS frame=5400 segment=14/68
+PLAY_PROGRESS frame=6000 segment=14/68
+PLAY_PROGRESS frame=6600 segment=14/68
+PLAY_PROGRESS frame=7200 segment=14/68
+PLAY_PROGRESS frame=7800 segment=14/68
+PLAY_PROGRESS frame=8400 segment=14/68
+PLAY_PROGRESS frame=9000 segment=14/68
+PLAY_PROGRESS frame=9600 segment=14/68
+PLAY_PROGRESS frame=10200 segment=14/68
+PLAY_PROGRESS frame=10800 segment=14/68
+CHECKPOINT_LOADED session=2 segment=6 frames=34 reason=HOST_MENU_STATE_CHANGED
+CHECKPOINT_LOADED session=2 segment=7 frames=11 reason=HOST_MENU_STATE_CHANGED
+CHECKPOINT_LOADED session=2 segment=8 frames=11 reason=HOST_MENU_STATE_CHANGED
+SESSION_END next_session=3
+GAME_BEGIN session=3 mode=1
+CHECKPOINT_LOADED session=3 segment=0 frames=1 reason=SESSION_START
+CHECKPOINT_LOADED session=3 segment=1 frames=74 reason=HOST_MENU_STATE_CHANGED
+CHECKPOINT_LOADED session=3 segment=2 frames=249 reason=HOST_MENU_STATE_CHANGED
+PLAY_PROGRESS frame=11400 segment=20/68
+CHECKPOINT_LOADED session=3 segment=3 frames=5 reason=HOST_MENU_STATE_CHANGED
+CHECKPOINT_LOADED session=3 segment=4 frames=494 reason=HOST_MENU_STATE_CHANGED
+CHECKPOINT_LOADED session=3 segment=5 frames=3662 reason=HOST_MENU_STATE_CHANGED
+PLAY_PROGRESS frame=12000 segment=23/68
+PLAY_PROGRESS frame=12600 segment=23/68
+PLAY_PROGRESS frame=13200 segment=23/68
+PLAY_PROGRESS frame=13800 segment=23/68
+PLAY_PROGRESS frame=14400 segment=23/68
+PLAY_PROGRESS frame=15000 segment=23/68
+CHECKPOINT_LOADED session=3 segment=6 frames=28 reason=HOST_MENU_STATE_CHANGED
+PLAY_PROGRESS frame=15600 segment=24/68
+CHECKPOINT_LOADED session=3 segment=7 frames=9 reason=HOST_MENU_STATE_CHANGED
+CHECKPOINT_LOADED session=3 segment=8 frames=11 reason=HOST_MENU_STATE_CHANGED
+SESSION_END next_session=4
+GAME_BEGIN session=4 mode=1
+CHECKPOINT_LOADED session=4 segment=0 frames=1 reason=SESSION_START
+CHECKPOINT_LOADED session=4 segment=1 frames=60 reason=HOST_MENU_STATE_CHANGED
+CHECKPOINT_LOADED session=4 segment=2 frames=180 reason=HOST_MENU_STATE_CHANGED
+CHECKPOINT_LOADED session=4 segment=3 frames=3 reason=HOST_MENU_STATE_CHANGED
+CHECKPOINT_LOADED session=4 segment=4 frames=357 reason=HOST_MENU_STATE_CHANGED
+PLAY_PROGRESS frame=16200 segment=31/68
+CHECKPOINT_LOADED session=4 segment=5 frames=1390 reason=HOST_MENU_STATE_CHANGED
+PLAY_PROGRESS frame=16800 segment=32/68
+PLAY_PROGRESS frame=17400 segment=32/68
+CHECKPOINT_LOADED session=4 segment=6 frames=31 reason=HOST_MENU_STATE_CHANGED
+CHECKPOINT_LOADED session=4 segment=7 frames=10 reason=HOST_MENU_STATE_CHANGED
+CHECKPOINT_LOADED session=4 segment=8 frames=8 reason=HOST_MENU_STATE_CHANGED
+SESSION_END next_session=5
+GAME_BEGIN session=5 mode=1
+CHECKPOINT_LOADED session=5 segment=0 frames=1 reason=SESSION_START
+CHECKPOINT_LOADED session=5 segment=1 frames=116 reason=HOST_MENU_STATE_CHANGED
+CHECKPOINT_LOADED session=5 segment=2 frames=118 reason=HOST_MENU_STATE_CHANGED
+CHECKPOINT_LOADED session=5 segment=3 frames=6 reason=HOST_MENU_STATE_CHANGED
+CHECKPOINT_LOADED session=5 segment=4 frames=262 reason=HOST_MENU_STATE_CHANGED
+PLAY_PROGRESS frame=18000 segment=40/68
+CHECKPOINT_LOADED session=5 segment=5 frames=2148 reason=HOST_MENU_STATE_CHANGED
+PLAY_PROGRESS frame=18600 segment=41/68
+PLAY_PROGRESS frame=19200 segment=41/68
+PLAY_PROGRESS frame=19800 segment=41/68
+CHECKPOINT_LOADED session=5 segment=6 frames=34 reason=HOST_MENU_STATE_CHANGED
+CHECKPOINT_LOADED session=5 segment=7 frames=8 reason=HOST_MENU_STATE_CHANGED
+CHECKPOINT_LOADED session=5 segment=8 frames=11 reason=HOST_MENU_STATE_CHANGED
+SESSION_END next_session=6
+GAME_BEGIN session=6 mode=1
+CHECKPOINT_LOADED session=6 segment=0 frames=1 reason=SESSION_START
+CHECKPOINT_LOADED session=6 segment=1 frames=148 reason=HOST_MENU_STATE_CHANGED
+PLAY_PROGRESS frame=20400 segment=46/68
+CHECKPOINT_LOADED session=6 segment=2 frames=132 reason=HOST_MENU_STATE_CHANGED
+CHECKPOINT_LOADED session=6 segment=3 frames=6 reason=HOST_MENU_STATE_CHANGED
+CHECKPOINT_LOADED session=6 segment=4 frames=402 reason=HOST_MENU_STATE_CHANGED
+PLAY_PROGRESS frame=21000 segment=49/68
+CHECKPOINT_LOADED session=6 segment=5 frames=3907 reason=HOST_MENU_STATE_CHANGED
+PLAY_PROGRESS frame=21600 segment=50/68
+PLAY_PROGRESS frame=22200 segment=50/68
+PLAY_PROGRESS frame=22800 segment=50/68
+PLAY_PROGRESS frame=23400 segment=50/68
+PLAY_PROGRESS frame=24000 segment=50/68
+PLAY_PROGRESS frame=24600 segment=50/68
+CHECKPOINT_LOADED session=6 segment=6 frames=28 reason=HOST_MENU_STATE_CHANGED
+CHECKPOINT_LOADED session=6 segment=7 frames=11 reason=HOST_MENU_STATE_CHANGED
+CHECKPOINT_LOADED session=6 segment=8 frames=11 reason=HOST_MENU_STATE_CHANGED
+SESSION_END next_session=7
+GAME_BEGIN session=7 mode=1
+CHECKPOINT_LOADED session=7 segment=0 frames=1 reason=SESSION_START
+CHECKPOINT_LOADED session=7 segment=1 frames=65 reason=HOST_MENU_STATE_CHANGED
+CHECKPOINT_LOADED session=7 segment=2 frames=287 reason=HOST_MENU_STATE_CHANGED
+PLAY_PROGRESS frame=25200 segment=56/68
+CHECKPOINT_LOADED session=7 segment=3 frames=3 reason=HOST_MENU_STATE_CHANGED
+CHECKPOINT_LOADED session=7 segment=4 frames=435 reason=HOST_MENU_STATE_CHANGED
+PLAY_PROGRESS frame=25800 segment=58/68
+CHECKPOINT_LOADED session=7 segment=5 frames=1893 reason=HOST_MENU_STATE_CHANGED
+PLAY_PROGRESS frame=26400 segment=59/68
+PLAY_PROGRESS frame=27000 segment=59/68
+PLAY_PROGRESS frame=27600 segment=59/68
+CHECKPOINT_LOADED session=7 segment=6 frames=32 reason=HOST_MENU_STATE_CHANGED
+CHECKPOINT_LOADED session=7 segment=7 frames=9 reason=HOST_MENU_STATE_CHANGED
+CHECKPOINT_LOADED session=7 segment=8 frames=10 reason=HOST_MENU_STATE_CHANGED
+SESSION_END next_session=8
+GAME_BEGIN session=8 mode=1
+CHECKPOINT_LOADED session=8 segment=0 frames=1 reason=SESSION_START
+CHECKPOINT_LOADED session=8 segment=1 frames=99 reason=HOST_MENU_STATE_CHANGED
+CHECKPOINT_LOADED session=8 segment=2 frames=152 reason=HOST_MENU_STATE_CHANGED
+CHECKPOINT_LOADED session=8 segment=3 frames=5 reason=HOST_MENU_STATE_CHANGED
+CHECKPOINT_LOADED session=8 segment=4 frames=255 reason=HOST_MENU_STATE_CHANGED
+PLAY_PROGRESS frame=28200 segment=67/68
+CHECKPOINT_LOADED session=8 segment=5 frames=1546 reason=HOST_MENU_STATE_CHANGED
+PLAY_PROGRESS frame=28800 segment=68/68
+PLAY_PROGRESS frame=29400 segment=68/68
+PLAY_END complete_frames=29827

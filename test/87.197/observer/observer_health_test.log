@@ -1,0 +1,43 @@
+RUN_TEST_START date=Fri 11/06/2026 time= 7:07:56.27
+ENGINE_HEALTH_INITIALIZED	87.181	CPS2 frame hook entered
+CPS2_FIRST_FRAME	frame=780	driver=xmvsfu	CpsRamFF=1	CpsRom=1	combat=0	oldObserverReady=1	subframeObserverReady=1	cpsFrames=1	xmvsfFrames=1	combatFrames=0
+XMVSF_FIRST_FRAME	frame=780	driver=xmvsfu	CpsRamFF=1	CpsRom=1	combat=0	oldObserverReady=1	subframeObserverReady=1	cpsFrames=1	xmvsfFrames=1	combatFrames=0
+XMVSF_HEARTBEAT	frame=780	driver=xmvsfu	CpsRamFF=1	CpsRom=1	combat=0	oldObserverReady=1	subframeObserverReady=1	cpsFrames=1	xmvsfFrames=1	combatFrames=0
+XMVSF_HEARTBEAT	frame=1380	driver=xmvsfu	CpsRamFF=1	CpsRom=1	combat=0	oldObserverReady=1	subframeObserverReady=1	cpsFrames=601	xmvsfFrames=601	combatFrames=0
+XMVSF_FIRST_COMBAT	frame=1707	driver=xmvsfu	CpsRamFF=1	CpsRom=1	combat=1	oldObserverReady=1	subframeObserverReady=1	cpsFrames=928	xmvsfFrames=928	combatFrames=1
+XMVSF_HEARTBEAT	frame=1980	driver=xmvsfu	CpsRamFF=1	CpsRom=1	combat=1	oldObserverReady=1	subframeObserverReady=1	cpsFrames=1201	xmvsfFrames=1201	combatFrames=274
+XMVSF_HEARTBEAT	frame=2580	driver=xmvsfu	CpsRamFF=1	CpsRom=1	combat=1	oldObserverReady=1	subframeObserverReady=1	cpsFrames=1801	xmvsfFrames=1801	combatFrames=874
+XMVSF_HEARTBEAT	frame=3180	driver=xmvsfu	CpsRamFF=1	CpsRom=1	combat=1	oldObserverReady=1	subframeObserverReady=1	cpsFrames=2401	xmvsfFrames=2401	combatFrames=1474
+XMVSF_HEARTBEAT	frame=3780	driver=xmvsfu	CpsRamFF=1	CpsRom=1	combat=1	oldObserverReady=1	subframeObserverReady=1	cpsFrames=3001	xmvsfFrames=3001	combatFrames=2074
+XMVSF_HEARTBEAT	frame=4380	driver=xmvsfu	CpsRamFF=1	CpsRom=1	combat=1	oldObserverReady=1	subframeObserverReady=1	cpsFrames=3601	xmvsfFrames=3601	combatFrames=2674
+XMVSF_HEARTBEAT	frame=4980	driver=xmvsfu	CpsRamFF=1	CpsRom=1	combat=1	oldObserverReady=1	subframeObserverReady=1	cpsFrames=4201	xmvsfFrames=4201	combatFrames=3274
+XMVSF_HEARTBEAT	frame=5580	driver=xmvsfu	CpsRamFF=1	CpsRom=1	combat=1	oldObserverReady=1	subframeObserverReady=1	cpsFrames=4801	xmvsfFrames=4801	combatFrames=3874
+XMVSF_HEARTBEAT	frame=6180	driver=xmvsfu	CpsRamFF=1	CpsRom=1	combat=1	oldObserverReady=1	subframeObserverReady=1	cpsFrames=5401	xmvsfFrames=5401	combatFrames=4474
+XMVSF_HEARTBEAT	frame=6780	driver=xmvsfu	CpsRamFF=1	CpsRom=1	combat=1	oldObserverReady=1	subframeObserverReady=1	cpsFrames=6001	xmvsfFrames=6001	combatFrames=5074
+XMVSF_HEARTBEAT	frame=7380	driver=xmvsfu	CpsRamFF=1	CpsRom=1	combat=1	oldObserverReady=1	subframeObserverReady=1	cpsFrames=6601	xmvsfFrames=6601	combatFrames=5674
+XMVSF_HEARTBEAT	frame=7980	driver=xmvsfu	CpsRamFF=1	CpsRom=1	combat=1	oldObserverReady=1	subframeObserverReady=1	cpsFrames=7201	xmvsfFrames=7201	combatFrames=6274
+XMVSF_HEARTBEAT	frame=8580	driver=xmvsfu	CpsRamFF=1	CpsRom=1	combat=1	oldObserverReady=1	subframeObserverReady=1	cpsFrames=7801	xmvsfFrames=7801	combatFrames=6874
+XMVSF_HEARTBEAT	frame=9180	driver=xmvsfu	CpsRamFF=1	CpsRom=1	combat=1	oldObserverReady=1	subframeObserverReady=1	cpsFrames=8401	xmvsfFrames=8401	combatFrames=7474
+XMVSF_HEARTBEAT	frame=9780	driver=xmvsfu	CpsRamFF=1	CpsRom=1	combat=1	oldObserverReady=1	subframeObserverReady=1	cpsFrames=9001	xmvsfFrames=9001	combatFrames=8074
+XMVSF_HEARTBEAT	frame=10380	driver=xmvsfu	CpsRamFF=1	CpsRom=1	combat=1	oldObserverReady=1	subframeObserverReady=1	cpsFrames=9601	xmvsfFrames=9601	combatFrames=8674
+XMVSF_HEARTBEAT	frame=10980	driver=xmvsfu	CpsRamFF=1	CpsRom=1	combat=1	oldObserverReady=1	subframeObserverReady=1	cpsFrames=10201	xmvsfFrames=10201	combatFrames=9274
+XMVSF_HEARTBEAT	frame=11580	driver=xmvsfu	CpsRamFF=1	CpsRom=1	combat=1	oldObserverReady=1	subframeObserverReady=1	cpsFrames=10801	xmvsfFrames=10801	combatFrames=9874
+XMVSF_HEARTBEAT	frame=12180	driver=xmvsfu	CpsRamFF=1	CpsRom=1	combat=1	oldObserverReady=1	subframeObserverReady=1	cpsFrames=11401	xmvsfFrames=11401	combatFrames=10474
+XMVSF_HEARTBEAT	frame=12780	driver=xmvsfu	CpsRamFF=1	CpsRom=1	combat=1	oldObserverReady=1	subframeObserverReady=1	cpsFrames=12001	xmvsfFrames=12001	combatFrames=11074
+XMVSF_HEARTBEAT	frame=13380	driver=xmvsfu	CpsRamFF=1	CpsRom=1	combat=1	oldObserverReady=1	subframeObserverReady=1	cpsFrames=12601	xmvsfFrames=12601	combatFrames=11674
+XMVSF_HEARTBEAT	frame=13980	driver=xmvsfu	CpsRamFF=1	CpsRom=1	combat=1	oldObserverReady=1	subframeObserverReady=1	cpsFrames=13201	xmvsfFrames=13201	combatFrames=12274
+XMVSF_HEARTBEAT	frame=14580	driver=xmvsfu	CpsRamFF=1	CpsRom=1	combat=1	oldObserverReady=1	subframeObserverReady=1	cpsFrames=13801	xmvsfFrames=13801	combatFrames=12874
+XMVSF_HEARTBEAT	frame=15180	driver=xmvsfu	CpsRamFF=1	CpsRom=1	combat=1	oldObserverReady=1	subframeObserverReady=1	cpsFrames=14401	xmvsfFrames=14401	combatFrames=13474
+XMVSF_HEARTBEAT	frame=15780	driver=xmvsfu	CpsRamFF=1	CpsRom=1	combat=1	oldObserverReady=1	subframeObserverReady=1	cpsFrames=15001	xmvsfFrames=15001	combatFrames=14074
+XMVSF_HEARTBEAT	frame=16380	driver=xmvsfu	CpsRamFF=1	CpsRom=1	combat=1	oldObserverReady=1	subframeObserverReady=1	cpsFrames=15601	xmvsfFrames=15601	combatFrames=14674
+XMVSF_HEARTBEAT	frame=16980	driver=xmvsfu	CpsRamFF=1	CpsRom=1	combat=1	oldObserverReady=1	subframeObserverReady=1	cpsFrames=16201	xmvsfFrames=16201	combatFrames=15274
+XMVSF_HEARTBEAT	frame=17580	driver=xmvsfu	CpsRamFF=1	CpsRom=1	combat=1	oldObserverReady=1	subframeObserverReady=1	cpsFrames=16801	xmvsfFrames=16801	combatFrames=15874
+XMVSF_HEARTBEAT	frame=18180	driver=xmvsfu	CpsRamFF=1	CpsRom=1	combat=1	oldObserverReady=1	subframeObserverReady=1	cpsFrames=17401	xmvsfFrames=17401	combatFrames=16474
+XMVSF_HEARTBEAT	frame=18780	driver=xmvsfu	CpsRamFF=1	CpsRom=1	combat=1	oldObserverReady=1	subframeObserverReady=1	cpsFrames=18001	xmvsfFrames=18001	combatFrames=17074
+XMVSF_HEARTBEAT	frame=19380	driver=xmvsfu	CpsRamFF=1	CpsRom=1	combat=1	oldObserverReady=1	subframeObserverReady=1	cpsFrames=18601	xmvsfFrames=18601	combatFrames=17674
+XMVSF_HEARTBEAT	frame=19980	driver=xmvsfu	CpsRamFF=1	CpsRom=1	combat=1	oldObserverReady=1	subframeObserverReady=1	cpsFrames=19201	xmvsfFrames=19201	combatFrames=18274
+XMVSF_HEARTBEAT	frame=20580	driver=xmvsfu	CpsRamFF=1	CpsRom=1	combat=1	oldObserverReady=1	subframeObserverReady=1	cpsFrames=19801	xmvsfFrames=19801	combatFrames=18874
+XMVSF_HEARTBEAT	frame=21180	driver=xmvsfu	CpsRamFF=1	CpsRom=1	combat=1	oldObserverReady=1	subframeObserverReady=1	cpsFrames=20401	xmvsfFrames=20401	combatFrames=19474
+XMVSF_HEARTBEAT	frame=21780	driver=xmvsfu	CpsRamFF=1	CpsRom=1	combat=1	oldObserverReady=1	subframeObserverReady=1	cpsFrames=21001	xmvsfFrames=21001	combatFrames=20074
+XMVSF_HEARTBEAT	frame=22380	driver=xmvsfu	CpsRamFF=1	CpsRom=1	combat=1	oldObserverReady=1	subframeObserverReady=1	cpsFrames=21601	xmvsfFrames=21601	combatFrames=20674
+RUN_TEST_EXIT code=0

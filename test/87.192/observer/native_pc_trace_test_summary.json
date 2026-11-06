@@ -1,0 +1,2985 @@
+{
+  "schema": "XMVSF_NATIVE_PC_ARBITRATION_87_182_V1",
+  "status": "READ_ONLY_ORIGINAL_ROM_EXECUTED_PC_EVIDENCE",
+  "counts": {
+    "sessions": 1,
+    "traced_frames": 8,
+    "watched_rows": 24984,
+    "opening_frames": 167,
+    "native_action_after_0002": 2,
+    "original_wrong_action_writer_pcs_captured": 2,
+    "native_action_after_0202": 1,
+    "native_action_after_0214": 1,
+    "native_action_after_0008": 1,
+    "dropped_filtered_instruction_rows": 0,
+    "frames_with_rows": 175
+  },
+  "frame_summaries_first_1500": [
+    {
+      "session": 1,
+      "frame": "1571",
+      "tracked_68000_instructions": 1517,
+      "action_changes": [
+        {
+          "executed_pc": "01038E",
+          "previous_executed_pc": "01299A",
+          "next_pc": "010392",
+          "D0_action_family": "00000000",
+          "D1_selector": "00000002",
+          "nearest_dispatch_request": {
+            "ordinal": 2220,
+            "caller_last_executed_pc": "01299A",
+            "d0_action_family": "00000000",
+            "d1_selector": "00000002",
+            "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+          },
+          "actor_a6": "FF4000",
+          "native_action_after": "0002",
+          "native_mode_after": "0200",
+          "native_command_d6_after": "0C",
+          "input_c2": "0001",
+          "input_ca": "0300",
+          "ordinal": 2220,
+          "source": "EXECUTED_INSTRUCTION_STATE_DELTA"
+        },
+        {
+          "executed_pc": "01038E",
+          "previous_executed_pc": "0127C4",
+          "next_pc": "010392",
+          "D0_action_family": "00000002",
+          "D1_selector": "00000014",
+          "nearest_dispatch_request": {
+            "ordinal": 3350,
+            "caller_last_executed_pc": "0127C4",
+            "d0_action_family": "00000002",
+            "d1_selector": "00000014",
+            "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+          },
+          "actor_a6": "FF4000",
+          "native_action_after": "0202",
+          "native_mode_after": "0602",
+          "native_command_d6_after": "0C",
+          "input_c2": "0301",
+          "input_ca": "0000",
+          "ordinal": 3350,
+          "source": "EXECUTED_INSTRUCTION_STATE_DELTA"
+        },
+        {
+          "executed_pc": "010392",
+          "previous_executed_pc": "01038E",
+          "next_pc": "010396",
+          "D0_action_family": "00000002",
+          "D1_selector": "00000014",
+          "nearest_dispatch_request": {
+            "ordinal": 3350,
+            "caller_last_executed_pc": "0127C4",
+            "d0_action_family": "00000002",
+            "d1_selector": "00000014",
+            "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+          },
+          "actor_a6": "FF4000",
+          "native_action_after": "0214",
+          "native_mode_after": "0602",
+          "native_command_d6_after": "0C",
+          "input_c2": "0301",
+          "input_ca": "0000",
+          "ordinal": 3351,
+          "source": "EXECUTED_INSTRUCTION_STATE_DELTA"
+        }
+      ],
+      "dispatcher_entries_first_36": [
+        {
+          "ordinal": 2220,
+          "caller_last_executed_pc": "01299A",
+          "d0_action_family": "00000000",
+          "d1_selector": "00000002",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        },
+        {
+          "ordinal": 3131,
+          "caller_last_executed_pc": "00C790",
+          "d0_action_family": "00000000",
+          "d1_selector": "00000002",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        },
+        {
+          "ordinal": 3350,
+          "caller_last_executed_pc": "0127C4",
+          "d0_action_family": "00000002",
+          "d1_selector": "00000014",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        }
+      ],
+      "input_history_changes": [
+        {
+          "executed_pc": "01044A",
+          "native_c2": "0001",
+          "native_ca": "0300",
+          "ordinal": 1267
+        },
+        {
+          "executed_pc": "010432",
+          "native_c2": "0301",
+          "native_ca": "0300",
+          "ordinal": 2417
+        },
+        {
+          "executed_pc": "01044A",
+          "native_c2": "0301",
+          "native_ca": "0000",
+          "ordinal": 2424
+        }
+      ],
+      "trace_truncated": false,
+      "last_rom_action_sample": "0214"
+    },
+    {
+      "session": 1,
+      "frame": "2043",
+      "tracked_68000_instructions": 98,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [
+        {
+          "executed_pc": "010432",
+          "native_c2": "0071",
+          "native_ca": "0070",
+          "ordinal": 827
+        },
+        {
+          "executed_pc": "01044A",
+          "native_c2": "0071",
+          "native_ca": "0000",
+          "ordinal": 834
+        }
+      ],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "2044",
+      "tracked_68000_instructions": 97,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [
+        {
+          "executed_pc": "010432",
+          "native_c2": "0001",
+          "native_ca": "0000",
+          "ordinal": 7965
+        }
+      ],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "2045",
+      "tracked_68000_instructions": 96,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "2110",
+      "tracked_68000_instructions": 96,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "2111",
+      "tracked_68000_instructions": 96,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "2112",
+      "tracked_68000_instructions": 96,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "2113",
+      "tracked_68000_instructions": 96,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "2114",
+      "tracked_68000_instructions": 96,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "2115",
+      "tracked_68000_instructions": 96,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "2116",
+      "tracked_68000_instructions": 96,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "2117",
+      "tracked_68000_instructions": 97,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [
+        {
+          "executed_pc": "01044A",
+          "native_c2": "0000",
+          "native_ca": "0004",
+          "ordinal": 309
+        }
+      ],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "2118",
+      "tracked_68000_instructions": 98,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [
+        {
+          "executed_pc": "010432",
+          "native_c2": "0004",
+          "native_ca": "0004",
+          "ordinal": 921
+        },
+        {
+          "executed_pc": "01044A",
+          "native_c2": "0004",
+          "native_ca": "0000",
+          "ordinal": 928
+        }
+      ],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "2119",
+      "tracked_68000_instructions": 96,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "2120",
+      "tracked_68000_instructions": 96,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "2121",
+      "tracked_68000_instructions": 96,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "2122",
+      "tracked_68000_instructions": 96,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "2123",
+      "tracked_68000_instructions": 96,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "2124",
+      "tracked_68000_instructions": 96,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "2125",
+      "tracked_68000_instructions": 96,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "2126",
+      "tracked_68000_instructions": 98,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [
+        {
+          "executed_pc": "01044A",
+          "native_c2": "0004",
+          "native_ca": "0001",
+          "ordinal": 165
+        },
+        {
+          "executed_pc": "01045C",
+          "native_c2": "0004",
+          "native_ca": "0002",
+          "ordinal": 178
+        }
+      ],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "2127",
+      "tracked_68000_instructions": 98,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [
+        {
+          "executed_pc": "010432",
+          "native_c2": "0005",
+          "native_ca": "0002",
+          "ordinal": 1634
+        },
+        {
+          "executed_pc": "01044A",
+          "native_c2": "0005",
+          "native_ca": "0000",
+          "ordinal": 1641
+        }
+      ],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "2128",
+      "tracked_68000_instructions": 97,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [
+        {
+          "executed_pc": "010432",
+          "native_c2": "0001",
+          "native_ca": "0000",
+          "ordinal": 209
+        }
+      ],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "2129",
+      "tracked_68000_instructions": 96,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "2130",
+      "tracked_68000_instructions": 741,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [
+        {
+          "ordinal": 1466,
+          "caller_last_executed_pc": "033E1A",
+          "d0_action_family": "0000002E",
+          "d1_selector": "00000008",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        }
+      ],
+      "input_history_changes": [
+        {
+          "executed_pc": "01044A",
+          "native_c2": "0001",
+          "native_ca": "0030",
+          "ordinal": 877
+        }
+      ],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "2506",
+      "tracked_68000_instructions": 97,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [
+        {
+          "executed_pc": "010432",
+          "native_c2": "0000",
+          "native_ca": "0000",
+          "ordinal": 1077
+        }
+      ],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "2507",
+      "tracked_68000_instructions": 96,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "2508",
+      "tracked_68000_instructions": 96,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "2573",
+      "tracked_68000_instructions": 96,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "2574",
+      "tracked_68000_instructions": 96,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "2575",
+      "tracked_68000_instructions": 96,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "2576",
+      "tracked_68000_instructions": 96,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "2577",
+      "tracked_68000_instructions": 96,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "2578",
+      "tracked_68000_instructions": 96,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "2579",
+      "tracked_68000_instructions": 97,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [
+        {
+          "executed_pc": "01044A",
+          "native_c2": "0000",
+          "native_ca": "0001",
+          "ordinal": 974
+        }
+      ],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "2580",
+      "tracked_68000_instructions": 98,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [
+        {
+          "executed_pc": "010432",
+          "native_c2": "0001",
+          "native_ca": "0001",
+          "ordinal": 231
+        },
+        {
+          "executed_pc": "01044A",
+          "native_c2": "0001",
+          "native_ca": "0000",
+          "ordinal": 238
+        }
+      ],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "2581",
+      "tracked_68000_instructions": 96,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "2582",
+      "tracked_68000_instructions": 97,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [
+        {
+          "executed_pc": "01044A",
+          "native_c2": "0001",
+          "native_ca": "0004",
+          "ordinal": 169
+        }
+      ],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "2583",
+      "tracked_68000_instructions": 98,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [
+        {
+          "executed_pc": "010432",
+          "native_c2": "0005",
+          "native_ca": "0004",
+          "ordinal": 1030
+        },
+        {
+          "executed_pc": "01044A",
+          "native_c2": "0005",
+          "native_ca": "0000",
+          "ordinal": 1037
+        }
+      ],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "2584",
+      "tracked_68000_instructions": 97,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [
+        {
+          "executed_pc": "010432",
+          "native_c2": "0004",
+          "native_ca": "0000",
+          "ordinal": 12266
+        }
+      ],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "2585",
+      "tracked_68000_instructions": 96,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "2586",
+      "tracked_68000_instructions": 96,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "2587",
+      "tracked_68000_instructions": 96,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "2588",
+      "tracked_68000_instructions": 97,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [
+        {
+          "executed_pc": "01044A",
+          "native_c2": "0004",
+          "native_ca": "0002",
+          "ordinal": 1060
+        }
+      ],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "2589",
+      "tracked_68000_instructions": 98,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [
+        {
+          "executed_pc": "010432",
+          "native_c2": "0006",
+          "native_ca": "0002",
+          "ordinal": 159
+        },
+        {
+          "executed_pc": "01044A",
+          "native_c2": "0006",
+          "native_ca": "0000",
+          "ordinal": 166
+        }
+      ],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "2590",
+      "tracked_68000_instructions": 99,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [
+        {
+          "executed_pc": "01044A",
+          "native_c2": "0006",
+          "native_ca": "0030",
+          "ordinal": 1039
+        },
+        {
+          "executed_pc": "010432",
+          "native_c2": "0036",
+          "native_ca": "0030",
+          "ordinal": 12395
+        },
+        {
+          "executed_pc": "01044A",
+          "native_c2": "0036",
+          "native_ca": "0000",
+          "ordinal": 12402
+        }
+      ],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "2591",
+      "tracked_68000_instructions": 96,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "2592",
+      "tracked_68000_instructions": 96,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "2593",
+      "tracked_68000_instructions": 96,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "2594",
+      "tracked_68000_instructions": 97,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [
+        {
+          "executed_pc": "01044A",
+          "native_c2": "0036",
+          "native_ca": "0040",
+          "ordinal": 247
+        }
+      ],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "2595",
+      "tracked_68000_instructions": 98,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [
+        {
+          "executed_pc": "010432",
+          "native_c2": "0052",
+          "native_ca": "0040",
+          "ordinal": 1081
+        },
+        {
+          "executed_pc": "01044A",
+          "native_c2": "0052",
+          "native_ca": "0000",
+          "ordinal": 1089
+        }
+      ],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "2596",
+      "tracked_68000_instructions": 98,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [
+        {
+          "executed_pc": "010432",
+          "native_c2": "0002",
+          "native_ca": "0000",
+          "ordinal": 163
+        },
+        {
+          "executed_pc": "010432",
+          "native_c2": "0000",
+          "native_ca": "0000",
+          "ordinal": 13902
+        }
+      ],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "3351",
+      "tracked_68000_instructions": 98,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [
+        {
+          "executed_pc": "010432",
+          "native_c2": "0071",
+          "native_ca": "0070",
+          "ordinal": 890
+        },
+        {
+          "executed_pc": "01044A",
+          "native_c2": "0071",
+          "native_ca": "0000",
+          "ordinal": 897
+        }
+      ],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "3352",
+      "tracked_68000_instructions": 97,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [
+        {
+          "executed_pc": "010432",
+          "native_c2": "0041",
+          "native_ca": "0000",
+          "ordinal": 7676
+        }
+      ],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "3353",
+      "tracked_68000_instructions": 96,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "3418",
+      "tracked_68000_instructions": 96,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "3419",
+      "tracked_68000_instructions": 96,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "3420",
+      "tracked_68000_instructions": 96,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "3421",
+      "tracked_68000_instructions": 96,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "3422",
+      "tracked_68000_instructions": 96,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "3423",
+      "tracked_68000_instructions": 96,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "3424",
+      "tracked_68000_instructions": 96,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "3425",
+      "tracked_68000_instructions": 96,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "3426",
+      "tracked_68000_instructions": 96,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "3427",
+      "tracked_68000_instructions": 96,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "3428",
+      "tracked_68000_instructions": 96,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "3429",
+      "tracked_68000_instructions": 96,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "3430",
+      "tracked_68000_instructions": 96,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "3431",
+      "tracked_68000_instructions": 96,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "3432",
+      "tracked_68000_instructions": 97,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [
+        {
+          "executed_pc": "01044A",
+          "native_c2": "0000",
+          "native_ca": "0004",
+          "ordinal": 156
+        }
+      ],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "3433",
+      "tracked_68000_instructions": 98,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [
+        {
+          "executed_pc": "010432",
+          "native_c2": "0004",
+          "native_ca": "0004",
+          "ordinal": 897
+        },
+        {
+          "executed_pc": "01044A",
+          "native_c2": "0004",
+          "native_ca": "0000",
+          "ordinal": 904
+        }
+      ],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "3434",
+      "tracked_68000_instructions": 96,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "3435",
+      "tracked_68000_instructions": 96,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "3436",
+      "tracked_68000_instructions": 96,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "3437",
+      "tracked_68000_instructions": 96,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "3438",
+      "tracked_68000_instructions": 96,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "3439",
+      "tracked_68000_instructions": 96,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "3440",
+      "tracked_68000_instructions": 98,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [
+        {
+          "executed_pc": "01044A",
+          "native_c2": "0004",
+          "native_ca": "0001",
+          "ordinal": 895
+        },
+        {
+          "executed_pc": "01045C",
+          "native_c2": "0004",
+          "native_ca": "0002",
+          "ordinal": 908
+        }
+      ],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "3441",
+      "tracked_68000_instructions": 98,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [
+        {
+          "executed_pc": "010432",
+          "native_c2": "0005",
+          "native_ca": "0002",
+          "ordinal": 246
+        },
+        {
+          "executed_pc": "01044A",
+          "native_c2": "0005",
+          "native_ca": "0000",
+          "ordinal": 253
+        }
+      ],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "3446",
+      "tracked_68000_instructions": 888,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [
+        {
+          "ordinal": 753,
+          "caller_last_executed_pc": "033E1A",
+          "d0_action_family": "0000002E",
+          "d1_selector": "00000008",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        },
+        {
+          "ordinal": 2333,
+          "caller_last_executed_pc": "0599C8",
+          "d0_action_family": "00000034",
+          "d1_selector": "0000001E",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        },
+        {
+          "ordinal": 2449,
+          "caller_last_executed_pc": "0599C8",
+          "d0_action_family": "00000034",
+          "d1_selector": "00000020",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        },
+        {
+          "ordinal": 2568,
+          "caller_last_executed_pc": "0599C8",
+          "d0_action_family": "00000034",
+          "d1_selector": "00000020",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        },
+        {
+          "ordinal": 2687,
+          "caller_last_executed_pc": "0599C8",
+          "d0_action_family": "00000034",
+          "d1_selector": "00000020",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        },
+        {
+          "ordinal": 2806,
+          "caller_last_executed_pc": "0599C8",
+          "d0_action_family": "00000034",
+          "d1_selector": "00000020",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        },
+        {
+          "ordinal": 2925,
+          "caller_last_executed_pc": "0599C8",
+          "d0_action_family": "00000034",
+          "d1_selector": "00000020",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        },
+        {
+          "ordinal": 3044,
+          "caller_last_executed_pc": "0599C8",
+          "d0_action_family": "00000034",
+          "d1_selector": "00000020",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        },
+        {
+          "ordinal": 3163,
+          "caller_last_executed_pc": "0599C8",
+          "d0_action_family": "00000034",
+          "d1_selector": "00000020",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        },
+        {
+          "ordinal": 3282,
+          "caller_last_executed_pc": "0599C8",
+          "d0_action_family": "00000034",
+          "d1_selector": "00000020",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        },
+        {
+          "ordinal": 3401,
+          "caller_last_executed_pc": "0599C8",
+          "d0_action_family": "00000034",
+          "d1_selector": "00000020",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        },
+        {
+          "ordinal": 3520,
+          "caller_last_executed_pc": "0599C8",
+          "d0_action_family": "00000034",
+          "d1_selector": "00000020",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        },
+        {
+          "ordinal": 3639,
+          "caller_last_executed_pc": "0599C8",
+          "d0_action_family": "00000034",
+          "d1_selector": "00000020",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        }
+      ],
+      "input_history_changes": [
+        {
+          "executed_pc": "01044A",
+          "native_c2": "0001",
+          "native_ca": "0060",
+          "ordinal": 162
+        }
+      ],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "4147",
+      "tracked_68000_instructions": 97,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [
+        {
+          "executed_pc": "010432",
+          "native_c2": "0001",
+          "native_ca": "0000",
+          "ordinal": 290
+        }
+      ],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "4148",
+      "tracked_68000_instructions": 96,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "4149",
+      "tracked_68000_instructions": 96,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "4214",
+      "tracked_68000_instructions": 96,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "4215",
+      "tracked_68000_instructions": 96,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "4216",
+      "tracked_68000_instructions": 96,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "4217",
+      "tracked_68000_instructions": 96,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "4218",
+      "tracked_68000_instructions": 96,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "4219",
+      "tracked_68000_instructions": 96,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "4220",
+      "tracked_68000_instructions": 96,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "4221",
+      "tracked_68000_instructions": 96,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "4222",
+      "tracked_68000_instructions": 96,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "4223",
+      "tracked_68000_instructions": 96,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [
+        {
+          "ordinal": 6740,
+          "caller_last_executed_pc": "0150B0",
+          "d0_action_family": "0000001C",
+          "d1_selector": "00000018",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        }
+      ],
+      "input_history_changes": [],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "4224",
+      "tracked_68000_instructions": 96,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "4225",
+      "tracked_68000_instructions": 96,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "4226",
+      "tracked_68000_instructions": 97,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [
+        {
+          "executed_pc": "01044A",
+          "native_c2": "0000",
+          "native_ca": "0004",
+          "ordinal": 248
+        }
+      ],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "4227",
+      "tracked_68000_instructions": 98,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [
+        {
+          "executed_pc": "010432",
+          "native_c2": "0004",
+          "native_ca": "0004",
+          "ordinal": 822
+        },
+        {
+          "executed_pc": "01044A",
+          "native_c2": "0004",
+          "native_ca": "0000",
+          "ordinal": 829
+        }
+      ],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "4228",
+      "tracked_68000_instructions": 96,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "4229",
+      "tracked_68000_instructions": 96,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "4230",
+      "tracked_68000_instructions": 96,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "4231",
+      "tracked_68000_instructions": 96,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "4232",
+      "tracked_68000_instructions": 98,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [
+        {
+          "executed_pc": "01044A",
+          "native_c2": "0004",
+          "native_ca": "0001",
+          "ordinal": 874
+        },
+        {
+          "executed_pc": "01045C",
+          "native_c2": "0004",
+          "native_ca": "0002",
+          "ordinal": 887
+        }
+      ],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "4233",
+      "tracked_68000_instructions": 98,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [
+        {
+          "executed_pc": "010432",
+          "native_c2": "0005",
+          "native_ca": "0002",
+          "ordinal": 230
+        },
+        {
+          "executed_pc": "01044A",
+          "native_c2": "0005",
+          "native_ca": "0000",
+          "ordinal": 237
+        }
+      ],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "4234",
+      "tracked_68000_instructions": 97,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [
+        {
+          "executed_pc": "010432",
+          "native_c2": "0001",
+          "native_ca": "0000",
+          "ordinal": 14988
+        }
+      ],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "4235",
+      "tracked_68000_instructions": 96,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [
+        {
+          "ordinal": 11601,
+          "caller_last_executed_pc": "0150B0",
+          "d0_action_family": "0000001C",
+          "d1_selector": "00000018",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        }
+      ],
+      "input_history_changes": [],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "4236",
+      "tracked_68000_instructions": 96,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [
+        {
+          "ordinal": 11017,
+          "caller_last_executed_pc": "0150B0",
+          "d0_action_family": "0000001C",
+          "d1_selector": "00000018",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        }
+      ],
+      "input_history_changes": [],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "4237",
+      "tracked_68000_instructions": 1666,
+      "action_changes": [
+        {
+          "executed_pc": "01038E",
+          "previous_executed_pc": "01299A",
+          "next_pc": "010392",
+          "D0_action_family": "00000000",
+          "D1_selector": "00000002",
+          "nearest_dispatch_request": {
+            "ordinal": 12124,
+            "caller_last_executed_pc": "01299A",
+            "d0_action_family": "00000000",
+            "d1_selector": "00000002",
+            "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+          },
+          "actor_a6": "FF4000",
+          "native_action_after": "0008",
+          "native_mode_after": "0200",
+          "native_command_d6_after": "0A",
+          "input_c2": "0001",
+          "input_ca": "0300",
+          "ordinal": 12124,
+          "source": "EXECUTED_INSTRUCTION_STATE_DELTA"
+        },
+        {
+          "executed_pc": "010392",
+          "previous_executed_pc": "01038E",
+          "next_pc": "010396",
+          "D0_action_family": "00000000",
+          "D1_selector": "00000002",
+          "nearest_dispatch_request": {
+            "ordinal": 12124,
+            "caller_last_executed_pc": "01299A",
+            "d0_action_family": "00000000",
+            "d1_selector": "00000002",
+            "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+          },
+          "actor_a6": "FF4000",
+          "native_action_after": "0002",
+          "native_mode_after": "0200",
+          "native_command_d6_after": "0A",
+          "input_c2": "0001",
+          "input_ca": "0300",
+          "ordinal": 12125,
+          "source": "EXECUTED_INSTRUCTION_STATE_DELTA"
+        }
+      ],
+      "dispatcher_entries_first_36": [
+        {
+          "ordinal": 12124,
+          "caller_last_executed_pc": "01299A",
+          "d0_action_family": "00000000",
+          "d1_selector": "00000002",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        },
+        {
+          "ordinal": 13028,
+          "caller_last_executed_pc": "00C790",
+          "d0_action_family": "00000000",
+          "d1_selector": "00000002",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        },
+        {
+          "ordinal": 14079,
+          "caller_last_executed_pc": "0599C8",
+          "d0_action_family": "00000034",
+          "d1_selector": "00000018",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        },
+        {
+          "ordinal": 14198,
+          "caller_last_executed_pc": "0599C8",
+          "d0_action_family": "00000034",
+          "d1_selector": "0000001A",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        },
+        {
+          "ordinal": 14322,
+          "caller_last_executed_pc": "0599C8",
+          "d0_action_family": "00000034",
+          "d1_selector": "0000001A",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        },
+        {
+          "ordinal": 14441,
+          "caller_last_executed_pc": "0599C8",
+          "d0_action_family": "00000034",
+          "d1_selector": "0000001A",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        },
+        {
+          "ordinal": 14560,
+          "caller_last_executed_pc": "0599C8",
+          "d0_action_family": "00000034",
+          "d1_selector": "0000001A",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        },
+        {
+          "ordinal": 14679,
+          "caller_last_executed_pc": "0599C8",
+          "d0_action_family": "00000034",
+          "d1_selector": "0000001A",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        },
+        {
+          "ordinal": 14798,
+          "caller_last_executed_pc": "0599C8",
+          "d0_action_family": "00000034",
+          "d1_selector": "0000001A",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        },
+        {
+          "ordinal": 14917,
+          "caller_last_executed_pc": "0599C8",
+          "d0_action_family": "00000034",
+          "d1_selector": "0000001A",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        },
+        {
+          "ordinal": 15036,
+          "caller_last_executed_pc": "0599C8",
+          "d0_action_family": "00000034",
+          "d1_selector": "0000001A",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        },
+        {
+          "ordinal": 15155,
+          "caller_last_executed_pc": "0599C8",
+          "d0_action_family": "00000034",
+          "d1_selector": "0000001A",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        },
+        {
+          "ordinal": 15274,
+          "caller_last_executed_pc": "0599C8",
+          "d0_action_family": "00000034",
+          "d1_selector": "0000001A",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        },
+        {
+          "ordinal": 15393,
+          "caller_last_executed_pc": "0599C8",
+          "d0_action_family": "00000034",
+          "d1_selector": "0000001A",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        }
+      ],
+      "input_history_changes": [
+        {
+          "executed_pc": "01044A",
+          "native_c2": "0001",
+          "native_ca": "0300",
+          "ordinal": 11214
+        },
+        {
+          "executed_pc": "010432",
+          "native_c2": "0301",
+          "native_ca": "0300",
+          "ordinal": 12321
+        },
+        {
+          "executed_pc": "01044A",
+          "native_c2": "0301",
+          "native_ca": "0000",
+          "ordinal": 12328
+        }
+      ],
+      "trace_truncated": false,
+      "last_rom_action_sample": "0002"
+    },
+    {
+      "session": 1,
+      "frame": "4686",
+      "tracked_68000_instructions": 98,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [
+        {
+          "executed_pc": "010432",
+          "native_c2": "0071",
+          "native_ca": "0070",
+          "ordinal": 901
+        },
+        {
+          "executed_pc": "01044A",
+          "native_c2": "0071",
+          "native_ca": "0000",
+          "ordinal": 908
+        }
+      ],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "4687",
+      "tracked_68000_instructions": 96,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "4688",
+      "tracked_68000_instructions": 97,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [
+        {
+          "executed_pc": "010432",
+          "native_c2": "0061",
+          "native_ca": "0000",
+          "ordinal": 896
+        }
+      ],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "4753",
+      "tracked_68000_instructions": 96,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "4754",
+      "tracked_68000_instructions": 96,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "4755",
+      "tracked_68000_instructions": 96,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "4756",
+      "tracked_68000_instructions": 96,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "4757",
+      "tracked_68000_instructions": 96,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "4758",
+      "tracked_68000_instructions": 96,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "4759",
+      "tracked_68000_instructions": 96,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "4760",
+      "tracked_68000_instructions": 96,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "4761",
+      "tracked_68000_instructions": 96,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "4762",
+      "tracked_68000_instructions": 96,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "4763",
+      "tracked_68000_instructions": 96,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "4764",
+      "tracked_68000_instructions": 96,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "4765",
+      "tracked_68000_instructions": 96,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "4766",
+      "tracked_68000_instructions": 96,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "4767",
+      "tracked_68000_instructions": 97,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [
+        {
+          "executed_pc": "01044A",
+          "native_c2": "0000",
+          "native_ca": "0004",
+          "ordinal": 837
+        }
+      ],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "4768",
+      "tracked_68000_instructions": 98,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [
+        {
+          "executed_pc": "010432",
+          "native_c2": "0004",
+          "native_ca": "0004",
+          "ordinal": 334
+        },
+        {
+          "executed_pc": "01044A",
+          "native_c2": "0004",
+          "native_ca": "0000",
+          "ordinal": 341
+        }
+      ],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "4769",
+      "tracked_68000_instructions": 96,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "4770",
+      "tracked_68000_instructions": 96,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [
+        {
+          "ordinal": 100,
+          "caller_last_executed_pc": "0150B0",
+          "d0_action_family": "0000001C",
+          "d1_selector": "00000018",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        }
+      ],
+      "input_history_changes": [],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "4771",
+      "tracked_68000_instructions": 96,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "4772",
+      "tracked_68000_instructions": 96,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "4773",
+      "tracked_68000_instructions": 98,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [
+        {
+          "executed_pc": "01044A",
+          "native_c2": "0004",
+          "native_ca": "0001",
+          "ordinal": 163
+        },
+        {
+          "executed_pc": "01045C",
+          "native_c2": "0004",
+          "native_ca": "0002",
+          "ordinal": 176
+        }
+      ],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "4774",
+      "tracked_68000_instructions": 99,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [
+        {
+          "executed_pc": "010432",
+          "native_c2": "0005",
+          "native_ca": "0002",
+          "ordinal": 926
+        },
+        {
+          "executed_pc": "01044A",
+          "native_c2": "0005",
+          "native_ca": "0000",
+          "ordinal": 933
+        },
+        {
+          "executed_pc": "010432",
+          "native_c2": "0001",
+          "native_ca": "0000",
+          "ordinal": 16159
+        }
+      ],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "4775",
+      "tracked_68000_instructions": 96,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [
+        {
+          "ordinal": 785,
+          "caller_last_executed_pc": "0599C8",
+          "d0_action_family": "00000034",
+          "d1_selector": "0000002A",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        },
+        {
+          "ordinal": 939,
+          "caller_last_executed_pc": "0599C8",
+          "d0_action_family": "00000034",
+          "d1_selector": "0000002C",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        },
+        {
+          "ordinal": 1080,
+          "caller_last_executed_pc": "0599C8",
+          "d0_action_family": "00000034",
+          "d1_selector": "0000002C",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        },
+        {
+          "ordinal": 1220,
+          "caller_last_executed_pc": "0599C8",
+          "d0_action_family": "00000034",
+          "d1_selector": "0000002C",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        },
+        {
+          "ordinal": 1360,
+          "caller_last_executed_pc": "0599C8",
+          "d0_action_family": "00000034",
+          "d1_selector": "0000002C",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        },
+        {
+          "ordinal": 1500,
+          "caller_last_executed_pc": "0599C8",
+          "d0_action_family": "00000034",
+          "d1_selector": "0000002C",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        },
+        {
+          "ordinal": 1640,
+          "caller_last_executed_pc": "0599C8",
+          "d0_action_family": "00000034",
+          "d1_selector": "0000002C",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        }
+      ],
+      "input_history_changes": [],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "4776",
+      "tracked_68000_instructions": 96,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "4777",
+      "tracked_68000_instructions": 770,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [
+        {
+          "ordinal": 10472,
+          "caller_last_executed_pc": "033E1A",
+          "d0_action_family": "0000002E",
+          "d1_selector": "00000008",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        },
+        {
+          "ordinal": 11327,
+          "caller_last_executed_pc": "0599C8",
+          "d0_action_family": "00000034",
+          "d1_selector": "0000001E",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        },
+        {
+          "ordinal": 11464,
+          "caller_last_executed_pc": "0599C8",
+          "d0_action_family": "00000034",
+          "d1_selector": "00000020",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        }
+      ],
+      "input_history_changes": [
+        {
+          "executed_pc": "01044A",
+          "native_c2": "0001",
+          "native_ca": "0030",
+          "ordinal": 9884
+        }
+      ],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "5204",
+      "tracked_68000_instructions": 98,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [
+        {
+          "executed_pc": "010432",
+          "native_c2": "0071",
+          "native_ca": "0070",
+          "ordinal": 908
+        },
+        {
+          "executed_pc": "01044A",
+          "native_c2": "0071",
+          "native_ca": "0000",
+          "ordinal": 915
+        }
+      ],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "5205",
+      "tracked_68000_instructions": 96,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "5206",
+      "tracked_68000_instructions": 98,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [
+        {
+          "executed_pc": "010432",
+          "native_c2": "0031",
+          "native_ca": "0000",
+          "ordinal": 958
+        },
+        {
+          "executed_pc": "010432",
+          "native_c2": "0001",
+          "native_ca": "0000",
+          "ordinal": 6988
+        }
+      ],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "5271",
+      "tracked_68000_instructions": 96,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "5272",
+      "tracked_68000_instructions": 96,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "5273",
+      "tracked_68000_instructions": 96,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "5274",
+      "tracked_68000_instructions": 96,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "5275",
+      "tracked_68000_instructions": 96,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "5276",
+      "tracked_68000_instructions": 96,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "5277",
+      "tracked_68000_instructions": 96,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "5278",
+      "tracked_68000_instructions": 96,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "5279",
+      "tracked_68000_instructions": 96,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "5280",
+      "tracked_68000_instructions": 96,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "5281",
+      "tracked_68000_instructions": 96,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "5282",
+      "tracked_68000_instructions": 97,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [
+        {
+          "executed_pc": "01044A",
+          "native_c2": "0000",
+          "native_ca": "0004",
+          "ordinal": 309
+        }
+      ],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "5283",
+      "tracked_68000_instructions": 98,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [
+        {
+          "executed_pc": "010432",
+          "native_c2": "0004",
+          "native_ca": "0004",
+          "ordinal": 822
+        },
+        {
+          "executed_pc": "01044A",
+          "native_c2": "0004",
+          "native_ca": "0000",
+          "ordinal": 829
+        }
+      ],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "5284",
+      "tracked_68000_instructions": 96,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "5285",
+      "tracked_68000_instructions": 96,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "5286",
+      "tracked_68000_instructions": 96,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "5287",
+      "tracked_68000_instructions": 98,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [
+        {
+          "executed_pc": "01044A",
+          "native_c2": "0004",
+          "native_ca": "0001",
+          "ordinal": 156
+        },
+        {
+          "executed_pc": "01045C",
+          "native_c2": "0004",
+          "native_ca": "0002",
+          "ordinal": 169
+        }
+      ],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "5288",
+      "tracked_68000_instructions": 98,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [
+        {
+          "executed_pc": "010432",
+          "native_c2": "0005",
+          "native_ca": "0002",
+          "ordinal": 882
+        },
+        {
+          "executed_pc": "01044A",
+          "native_c2": "0005",
+          "native_ca": "0000",
+          "ordinal": 889
+        }
+      ],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "5289",
+      "tracked_68000_instructions": 97,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [
+        {
+          "executed_pc": "010432",
+          "native_c2": "0001",
+          "native_ca": "0000",
+          "ordinal": 308
+        }
+      ],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "5290",
+      "tracked_68000_instructions": 96,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "5291",
+      "tracked_68000_instructions": 813,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [
+        {
+          "ordinal": 85,
+          "caller_last_executed_pc": "0599C8",
+          "d0_action_family": "00000034",
+          "d1_selector": "00000026",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        },
+        {
+          "ordinal": 225,
+          "caller_last_executed_pc": "0599C8",
+          "d0_action_family": "00000034",
+          "d1_selector": "00000026",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        },
+        {
+          "ordinal": 365,
+          "caller_last_executed_pc": "0599C8",
+          "d0_action_family": "00000034",
+          "d1_selector": "00000026",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        },
+        {
+          "ordinal": 505,
+          "caller_last_executed_pc": "0599C8",
+          "d0_action_family": "00000034",
+          "d1_selector": "00000026",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        },
+        {
+          "ordinal": 645,
+          "caller_last_executed_pc": "0599C8",
+          "d0_action_family": "00000034",
+          "d1_selector": "00000026",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        },
+        {
+          "ordinal": 12574,
+          "caller_last_executed_pc": "033E1A",
+          "d0_action_family": "0000002E",
+          "d1_selector": "00000008",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        }
+      ],
+      "input_history_changes": [
+        {
+          "executed_pc": "01044A",
+          "native_c2": "0001",
+          "native_ca": "0030",
+          "ordinal": 11986
+        }
+      ],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "5717",
+      "tracked_68000_instructions": 96,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "5718",
+      "tracked_68000_instructions": 96,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "5719",
+      "tracked_68000_instructions": 97,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [
+        {
+          "executed_pc": "010432",
+          "native_c2": "0001",
+          "native_ca": "0000",
+          "ordinal": 167
+        }
+      ],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "5783",
+      "tracked_68000_instructions": 97,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [
+        {
+          "executed_pc": "01044A",
+          "native_c2": "0000",
+          "native_ca": "0004",
+          "ordinal": 901
+        }
+      ],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "5784",
+      "tracked_68000_instructions": 98,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [
+        {
+          "executed_pc": "010432",
+          "native_c2": "0004",
+          "native_ca": "0004",
+          "ordinal": 221
+        },
+        {
+          "executed_pc": "01044A",
+          "native_c2": "0004",
+          "native_ca": "0000",
+          "ordinal": 228
+        }
+      ],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "5785",
+      "tracked_68000_instructions": 96,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "5786",
+      "tracked_68000_instructions": 96,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "5787",
+      "tracked_68000_instructions": 96,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "5788",
+      "tracked_68000_instructions": 96,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "5789",
+      "tracked_68000_instructions": 96,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "5790",
+      "tracked_68000_instructions": 98,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [
+        {
+          "executed_pc": "01044A",
+          "native_c2": "0004",
+          "native_ca": "0001",
+          "ordinal": 1120
+        },
+        {
+          "executed_pc": "01045C",
+          "native_c2": "0004",
+          "native_ca": "0002",
+          "ordinal": 1133
+        }
+      ],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "5791",
+      "tracked_68000_instructions": 98,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [
+        {
+          "executed_pc": "010432",
+          "native_c2": "0005",
+          "native_ca": "0002",
+          "ordinal": 233
+        },
+        {
+          "executed_pc": "01044A",
+          "native_c2": "0005",
+          "native_ca": "0000",
+          "ordinal": 240
+        }
+      ],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "5792",
+      "tracked_68000_instructions": 96,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "5793",
+      "tracked_68000_instructions": 97,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [],
+      "input_history_changes": [
+        {
+          "executed_pc": "010432",
+          "native_c2": "0001",
+          "native_ca": "0000",
+          "ordinal": 315
+        }
+      ],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "5794",
+      "tracked_68000_instructions": 1716,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [
+        {
+          "ordinal": 1423,
+          "caller_last_executed_pc": "033E1A",
+          "d0_action_family": "0000002E",
+          "d1_selector": "00000008",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        },
+        {
+          "ordinal": 2280,
+          "caller_last_executed_pc": "0599C8",
+          "d0_action_family": "00000034",
+          "d1_selector": "00000024",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        },
+        {
+          "ordinal": 2417,
+          "caller_last_executed_pc": "0599C8",
+          "d0_action_family": "00000034",
+          "d1_selector": "00000026",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        },
+        {
+          "ordinal": 2786,
+          "caller_last_executed_pc": "0599C8",
+          "d0_action_family": "00000034",
+          "d1_selector": "00000028",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        },
+        {
+          "ordinal": 12812,
+          "caller_last_executed_pc": "0599C8",
+          "d0_action_family": "00000034",
+          "d1_selector": "0000002A",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        },
+        {
+          "ordinal": 12940,
+          "caller_last_executed_pc": "0599C8",
+          "d0_action_family": "00000034",
+          "d1_selector": "0000002C",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        },
+        {
+          "ordinal": 13059,
+          "caller_last_executed_pc": "0599C8",
+          "d0_action_family": "00000034",
+          "d1_selector": "0000002C",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        },
+        {
+          "ordinal": 13178,
+          "caller_last_executed_pc": "0599C8",
+          "d0_action_family": "00000034",
+          "d1_selector": "0000002C",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        },
+        {
+          "ordinal": 13297,
+          "caller_last_executed_pc": "0599C8",
+          "d0_action_family": "00000034",
+          "d1_selector": "0000002C",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        },
+        {
+          "ordinal": 13416,
+          "caller_last_executed_pc": "0599C8",
+          "d0_action_family": "00000034",
+          "d1_selector": "0000002C",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        },
+        {
+          "ordinal": 13535,
+          "caller_last_executed_pc": "0599C8",
+          "d0_action_family": "00000034",
+          "d1_selector": "0000002C",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        },
+        {
+          "ordinal": 13656,
+          "caller_last_executed_pc": "0599C8",
+          "d0_action_family": "00000034",
+          "d1_selector": "0000002E",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        }
+      ],
+      "input_history_changes": [
+        {
+          "executed_pc": "01044A",
+          "native_c2": "0001",
+          "native_ca": "0030",
+          "ordinal": 834
+        },
+        {
+          "executed_pc": "010432",
+          "native_c2": "0031",
+          "native_ca": "0030",
+          "ordinal": 10879
+        },
+        {
+          "executed_pc": "01044A",
+          "native_c2": "0031",
+          "native_ca": "0000",
+          "ordinal": 10886
+        }
+      ],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E08"
+    },
+    {
+      "session": 1,
+      "frame": "6410",
+      "tracked_68000_instructions": 760,
+      "action_changes": [],
+      "dispatcher_entries_first_36": [
+        {
+          "ordinal": 781,
+          "caller_last_executed_pc": "033E1A",
+          "d0_action_family": "0000002E",
+          "d1_selector": "0000000C",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        },
+        {
+          "ordinal": 3009,
+          "caller_last_executed_pc": "0599C8",
+          "d0_action_family": "00000034",
+          "d1_selector": "00000028",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        },
+        {
+          "ordinal": 10690,
+          "caller_last_executed_pc": "0150B0",
+          "d0_action_family": "0000001C",
+          "d1_selector": "00000018",
+          "meaning": "ORIGINAL_ROM_ENTERED_SHARED_ACTION_DISPATCHER"
+        }
+      ],
+      "input_history_changes": [
+        {
+          "executed_pc": "01044A",
+          "native_c2": "0001",
+          "native_ca": "0050",
+          "ordinal": 297
+        }
+      ],
+      "trace_truncated": false,
+      "last_rom_action_sample": "2E0C"
+    }
+  ],
+  "limits": "Executed PPC at each post-instruction native RAM delta pinpoints an instruction, but this is not a proof of why a preceding branch was taken. It does not include host-only changes made after the 68000 CPU returns. No super registry or native actor state is modified."
+}

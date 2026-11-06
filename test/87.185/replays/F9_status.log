@@ -1,0 +1,13 @@
+===== 87.185 TEST session Thu 11/05/2026 20:38:40.18 =====
+RECORD_START F:\xmvsf\test\87.185\replays/session_0001
+CHECKPOINT_SAVED session=1 segment=0 reason=SESSION_START
+SEGMENT_SAVED session=1 segment=0 frames=44
+CHECKPOINT_SAVED session=1 segment=1 reason=HOST_MENU_STATE_CHANGED
+SEGMENT_SAVED session=1 segment=1 frames=79
+CHECKPOINT_SAVED session=1 segment=2 reason=HOST_MENU_STATE_CHANGED
+SEGMENT_SAVED session=1 segment=2 frames=1
+CHECKPOINT_SAVED session=1 segment=3 reason=HOST_MENU_STATE_CHANGED
+SEGMENT_SAVED session=1 segment=3 frames=362
+CHECKPOINT_SAVED session=1 segment=4 reason=HOST_MENU_STATE_CHANGED
+SEGMENT_SAVED session=1 segment=4 frames=8065
+RECORD_SAVED total_frames=8551 session_count=1 segments=5 reason=APPLICATION_EXIT folder=F:\xmvsf\test\87.185\replays/session_0001

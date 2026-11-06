@@ -1,0 +1,4 @@
+RECORD_START F:\xmvsf\test\87.193\replays/session_0001
+CHECKPOINT_SAVED session=1 segment=0 reason=SESSION_START
+SEGMENT_SAVED session=1 segment=0 frames=7960
+RECORD_SAVED total_frames=7960 session_count=1 segments=1 reason=APPLICATION_EXIT folder=F:\xmvsf\test\87.193\replays/session_0001

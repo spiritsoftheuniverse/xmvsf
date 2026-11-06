@@ -1,0 +1,7 @@
+===== 87.186 TEST session Fri 11/06/2026  0:46:52.19 =====
+RECORD_START F:\xmvsf\test\87.188\replays/session_0001
+CHECKPOINT_SAVED session=1 segment=0 reason=SESSION_START
+SEGMENT_SAVED session=1 segment=0 frames=107
+CHECKPOINT_SAVED session=1 segment=1 reason=HOST_MENU_STATE_CHANGED
+SEGMENT_SAVED session=1 segment=1 frames=6781
+RECORD_SAVED total_frames=6888 session_count=1 segments=2 reason=APPLICATION_EXIT folder=F:\xmvsf\test\87.188\replays/session_0001

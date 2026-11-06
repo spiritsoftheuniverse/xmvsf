@@ -1,0 +1,5 @@
+PASS: native 68000 xrefs, action 2E hints, PC-rel branches
+Static dispatch xrefs: 1328
+Nearby action-2E signatures: 103
+Report: test\87.167\decomp\dispatch_callers.json
+STATUS: STATIC XREFS ONLY, command recognizer not proven

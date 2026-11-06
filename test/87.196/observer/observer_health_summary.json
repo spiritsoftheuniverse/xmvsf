@@ -1,0 +1,64 @@
+{
+  "schema": "XMVSF_OBSERVER_HEALTH_87_181_V1",
+  "status": "NATIVE_OBSERVER_CAPTURED",
+  "explanation": "The latest native observer session contains actor rows; inspect the summary for DHC events.",
+  "engine_markers": {
+    "launcher_started": true,
+    "engine_hook": true,
+    "cps2_frame": true,
+    "xmvsf_frame": true,
+    "xmvsf_combat": true,
+    "launcher_exited": true
+  },
+  "readiness_events": [
+    {
+      "frame": "780",
+      "driver": "xmvsfu",
+      "CpsRamFF": "1",
+      "CpsRom": "1",
+      "combat": "0",
+      "oldObserverReady": "1",
+      "subframeObserverReady": "1",
+      "cpsFrames": "1",
+      "xmvsfFrames": "1",
+      "combatFrames": "0"
+    },
+    {
+      "frame": "1446",
+      "driver": "xmvsfu",
+      "CpsRamFF": "1",
+      "CpsRom": "1",
+      "combat": "1",
+      "oldObserverReady": "1",
+      "subframeObserverReady": "1",
+      "cpsFrames": "667",
+      "xmvsfFrames": "667",
+      "combatFrames": "1"
+    }
+  ],
+  "native_87_175": {
+    "exists": true,
+    "sessions": 1,
+    "latest_rows": 3656,
+    "size": 507433
+  },
+  "subframe_87_180": {
+    "exists": true,
+    "sessions": 1,
+    "latest_rows": 1498,
+    "size": 155819
+  },
+  "last_health_events": [
+    "RUN_TEST_START date=Fri 11/06/2026 time= 6:44:51.50",
+    "ENGINE_HEALTH_INITIALIZED\t87.181\tCPS2 frame hook entered",
+    "CPS2_FIRST_FRAME\tframe=780\tdriver=xmvsfu\tCpsRamFF=1\tCpsRom=1\tcombat=0\toldObserverReady=1\tsubframeObserverReady=1\tcpsFrames=1\txmvsfFrames=1\tcombatFrames=0",
+    "XMVSF_FIRST_FRAME\tframe=780\tdriver=xmvsfu\tCpsRamFF=1\tCpsRom=1\tcombat=0\toldObserverReady=1\tsubframeObserverReady=1\tcpsFrames=1\txmvsfFrames=1\tcombatFrames=0",
+    "XMVSF_HEARTBEAT\tframe=780\tdriver=xmvsfu\tCpsRamFF=1\tCpsRom=1\tcombat=0\toldObserverReady=1\tsubframeObserverReady=1\tcpsFrames=1\txmvsfFrames=1\tcombatFrames=0",
+    "XMVSF_HEARTBEAT\tframe=1380\tdriver=xmvsfu\tCpsRamFF=1\tCpsRom=1\tcombat=0\toldObserverReady=1\tsubframeObserverReady=1\tcpsFrames=601\txmvsfFrames=601\tcombatFrames=0",
+    "XMVSF_FIRST_COMBAT\tframe=1446\tdriver=xmvsfu\tCpsRamFF=1\tCpsRom=1\tcombat=1\toldObserverReady=1\tsubframeObserverReady=1\tcpsFrames=667\txmvsfFrames=667\tcombatFrames=1",
+    "XMVSF_HEARTBEAT\tframe=1980\tdriver=xmvsfu\tCpsRamFF=1\tCpsRom=1\tcombat=1\toldObserverReady=1\tsubframeObserverReady=1\tcpsFrames=1201\txmvsfFrames=1201\tcombatFrames=535",
+    "XMVSF_HEARTBEAT\tframe=2580\tdriver=xmvsfu\tCpsRamFF=1\tCpsRom=1\tcombat=1\toldObserverReady=1\tsubframeObserverReady=1\tcpsFrames=1801\txmvsfFrames=1801\tcombatFrames=1135",
+    "XMVSF_HEARTBEAT\tframe=3180\tdriver=xmvsfu\tCpsRamFF=1\tCpsRom=1\tcombat=1\toldObserverReady=1\tsubframeObserverReady=1\tcpsFrames=2401\txmvsfFrames=2401\tcombatFrames=1735",
+    "RUN_TEST_EXIT code=0"
+  ]
+}

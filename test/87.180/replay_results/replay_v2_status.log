@@ -1,0 +1,39 @@
+===== 87.180 HOST REPLAY START Thu 11/05/2026 16:45:03.27 =====
+V2_MANIFEST_SEALED frames=6232 sessions=3 segments=19 reason=APPLICATION_EXIT
+V2_MANIFEST_READY segments=19
+GAME_BEGIN session=1 mode=1
+CHECKPOINT_LOADED session=1 segment=0 frames=1538 reason=SESSION_START
+PLAY_PROGRESS frame=1 segment=1/19
+PLAY_PROGRESS frame=600 segment=1/19
+PLAY_PROGRESS frame=1200 segment=1/19
+CHECKPOINT_LOADED session=1 segment=1 frames=29 reason=HOST_MENU_STATE_CHANGED
+CHECKPOINT_LOADED session=1 segment=2 frames=9 reason=HOST_MENU_STATE_CHANGED
+CHECKPOINT_LOADED session=1 segment=3 frames=22 reason=HOST_MENU_STATE_CHANGED
+SESSION_END next_session=2
+GAME_BEGIN session=2 mode=1
+CHECKPOINT_LOADED session=2 segment=0 frames=1 reason=SESSION_START
+CHECKPOINT_LOADED session=2 segment=1 frames=96 reason=HOST_MENU_STATE_CHANGED
+CHECKPOINT_LOADED session=2 segment=2 frames=73 reason=HOST_MENU_STATE_CHANGED
+CHECKPOINT_LOADED session=2 segment=3 frames=2 reason=HOST_MENU_STATE_CHANGED
+CHECKPOINT_LOADED session=2 segment=4 frames=240 reason=HOST_MENU_STATE_CHANGED
+PLAY_PROGRESS frame=1800 segment=9/19
+CHECKPOINT_LOADED session=2 segment=5 frames=1249 reason=HOST_MENU_STATE_CHANGED
+PLAY_PROGRESS frame=2400 segment=10/19
+PLAY_PROGRESS frame=3000 segment=10/19
+CHECKPOINT_LOADED session=2 segment=6 frames=30 reason=HOST_MENU_STATE_CHANGED
+CHECKPOINT_LOADED session=2 segment=7 frames=9 reason=HOST_MENU_STATE_CHANGED
+CHECKPOINT_LOADED session=2 segment=8 frames=29 reason=HOST_MENU_STATE_CHANGED
+SESSION_END next_session=3
+GAME_BEGIN session=3 mode=1
+CHECKPOINT_LOADED session=3 segment=0 frames=1 reason=SESSION_START
+CHECKPOINT_LOADED session=3 segment=1 frames=47 reason=HOST_MENU_STATE_CHANGED
+CHECKPOINT_LOADED session=3 segment=2 frames=73 reason=HOST_MENU_STATE_CHANGED
+CHECKPOINT_LOADED session=3 segment=3 frames=3 reason=HOST_MENU_STATE_CHANGED
+CHECKPOINT_LOADED session=3 segment=4 frames=403 reason=HOST_MENU_STATE_CHANGED
+PLAY_PROGRESS frame=3600 segment=18/19
+CHECKPOINT_LOADED session=3 segment=5 frames=2378 reason=HOST_MENU_STATE_CHANGED
+PLAY_PROGRESS frame=4200 segment=19/19
+PLAY_PROGRESS frame=4800 segment=19/19
+PLAY_PROGRESS frame=5400 segment=19/19
+PLAY_PROGRESS frame=6000 segment=19/19
+PLAY_END complete_frames=6232

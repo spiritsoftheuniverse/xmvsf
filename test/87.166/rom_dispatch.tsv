@@ -1,0 +1,2 @@
+frame	side	event	pointId	reserveId	action60	subaction61	nativeScript	tableScript	anim	partnerPtr
+2009	1	ROM_POINT_RESERVE_SWAP	001E	000E	00	00	0CE48E	0E8062	4AAE	FF4800
