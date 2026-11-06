@@ -4,6 +4,8 @@ for %%I in ("%~dp0.") do set "PROJECT=%%~fI"
 set "MSYSTEM=UCRT64"
 set "PATH=C:\msys64\ucrt64\bin;C:\msys64\usr\bin;%PATH%"
 set "XMVSF_PROJECT=%PROJECT%"
+REM Offline artifact review uses Python only. Never reaches ROM checks or EXE.
+if /I "%~1"=="review" goto :offline_clean_review
 REM Stage 87.203 CAPTURE BRANCH: the input is MVC1 mvscur1, not XMVSF.
 REM Explicit variants: RUN_TEST.bat mvsc / RUN_TEST.bat mvscu.
 REM To run original XMVSF for DHC testing: RUN_TEST.bat xmvsfu.
@@ -378,24 +380,16 @@ if "%XM87203_STAGE_CAPTURE_ENABLE%"=="1" (
 REM Source-only fast rip audit after game exits. Never changes the native
 REM ROM exit code and never modifies original shot_XXXX files or Stable.
 REM FULL (slow) audit is opt-in through REVIEW_CLEAN_RIPS.py --full.
-if /I "%CLEAN_RIP_MODE%"=="clean" if "%RC%"=="0" (
-  if exist "%PROJECT%\test\87.203\clean_rips\shot_0001\layers.tsv" (
-    where python.exe >nul 2>nul
-    if not errorlevel 1 (
-      echo.
-      echo Checking original CPS2 clean-rip batches and preparing a contact sheet.
-      if defined XM87203_STAGE_CAPTURE_DIR (
-        python.exe "%PROJECT%\dev\stage_capture\REVIEW_CLEAN_RIPS.py" --root "%PROJECT%\test\87.203\clean_rips" --output "%PROJECT%\test\87.203\clean_rips_review" --status-log "%XM87203_STAGE_CAPTURE_DIR%\status.log"
-      ) else (
-        python.exe "%PROJECT%\dev\stage_capture\REVIEW_CLEAN_RIPS.py" --root "%PROJECT%\test\87.203\clean_rips" --output "%PROJECT%\test\87.203\clean_rips_review"
-      )
-      if errorlevel 1 echo WARNING: Clean-rip integrity errors. Inspect clean_rips_review\clean_rips_review.txt.
-      echo Review files: "%PROJECT%\test\87.203\clean_rips_review"
-    ) else (
-      echo WARNING: Python not found. Native clean captures remain preserved.
-    )
+if /I "%CLEAN_RIP_MODE%"=="clean" (
+  where python.exe >nul 2>nul
+  if not errorlevel 1 (
+    echo.
+    echo Reviewing existing clean-rip evidence without requiring a working ROM.
+    python.exe "%PROJECT%\dev\stage_capture\REVIEW_CLEAN_RIPS.py" --root "%PROJECT%\test\87.203\clean_rips" --output "%PROJECT%\test\87.203\clean_rips_review" --status-log "%PROJECT%\test\87.203\stage_capture\status.log"
+    if errorlevel 1 echo NOTE: Review bundle includes missing/corrupt source diagnostics.
+    echo Offline review ZIP: "%PROJECT%\test\87.203\clean_rips_review\clean_rips_review_bundle.zip"
   ) else (
-    echo INFO: No clean-rip shot_0001 available for review yet.
+    echo ERROR: Python unavailable for clean-rip review. Existing captures untouched.
   )
 )
 REM Once MVC capture verification has run, skip XMVSF-only DHC reports.
@@ -468,3 +462,21 @@ echo.
 echo TEST RUN STOPPED. No older executable was launched.
 pause
 exit /b 1
+
+:offline_clean_review
+echo.
+echo STAGE 87.203: OFFLINE CLEAN RIP REVIEW ^(NO ROM LAUNCHED^)
+where python.exe >nul 2>nul
+if errorlevel 1 (
+  echo ERROR: python.exe not available on PATH.
+  exit /b 1
+)
+python.exe "%PROJECT%\dev\stage_capture\REVIEW_CLEAN_RIPS.py" --root "%PROJECT%\test\87.203\clean_rips" --output "%PROJECT%\test\87.203\clean_rips_review" --status-log "%PROJECT%\test\87.203\stage_capture\status.log"
+set "REVIEW_RC=%ERRORLEVEL%"
+if exist "%PROJECT%\test\87.203\clean_rips_review\clean_rips_review_bundle.zip" (
+  echo.
+  echo Review ZIP: "%PROJECT%\test\87.203\clean_rips_review\clean_rips_review_bundle.zip"
+) else (
+  echo ERROR: Review bundle could not be created.
+)
+exit /b %REVIEW_RC%
