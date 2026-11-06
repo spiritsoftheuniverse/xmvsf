@@ -270,6 +270,13 @@ struct State {
                     "DHC_189_NATIVE_2E_ROOT_ROM fighter=%02X action=%04X script=%06X",
                     fighter,nativeFamily.rootAction,nativeFamily.rootScript);
                 log(frame,MATCH,msg);
+                // Observed native ROM roots are learned from the actor
+                // that REALLY owns the point controller. This is a
+                // candidate until the reserve's own input is proven.
+                const char* owned=std::getenv("XM87192_TEST_RESERVE_OWNERSHIP");
+                if(owned && std::strcmp(owned,"1")==0)
+                    XM87192Owner::state().observeNatural(
+                        side,frame,shinkuuNow,rom,romSize);
             }else if(familyEvent==XM87189Family::REPEATED_ROOT_SCRIPT){
                 log(frame,MATCH,
                     "DHC_190_NATIVE_2E_ROOT_SCRIPT_REWIND_STILL_SUPER_ATTACK");
