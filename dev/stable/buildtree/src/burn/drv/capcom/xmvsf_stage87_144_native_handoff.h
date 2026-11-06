@@ -525,8 +525,16 @@ struct State {
                 else if(!familyAttack &&
                         !XM87184Life::canTag(ryuLife,
                              XM87184Life::recoveryOptIn() &&
-                             recoveryReboundTest))
-                    blocked="BLOCK_OUTSIDE_SAFE_ORIGINAL_SUPER_PHASE";
+                             recoveryReboundTest)){
+                    // Native 2E continuation is real super ownership,
+                    // but not automatically a safe tag phase. The
+                    // captured 2E02 Tatsu loop proves selector+2 may
+                    // be active attacks, NOT universal recovery.
+                    blocked=familyTest && originalSuper.live &&
+                            originalSuper.phase==XM87189Family::CONTINUATION?
+                        "DHC_190_ROM_FAMILY_FOLLOWUP_RECOGNIZED_TAG_UNVERIFIED":
+                        "BLOCK_OUTSIDE_SAFE_ORIGINAL_SUPER_PHASE";
+                }
                 else if(!familyAttack &&
                         rw(ram,p+0xA0u)!=0x2A28u &&
                         rw(ram,p+0xA0u)!=0x2A02u)
@@ -579,10 +587,21 @@ struct State {
                           "DHC_183_REPLAY_ONLY_UNSAFE_INPUT_TRACE_BYPASS");
                 if(blocked){
                     if(firstCheck)event(now,side,ram,blocked);
-                    // Never replay an old roster slot's super as Ken's
-                    // simply because both use QCF+PP.
-                    if(entry->known->fighter!=reserveId)
+                    // A fresh command inside an unverified 2E follow-up
+                    // is recognized but NEVER held until the next
+                    // super action: that previously allowed false
+                    // deferred controller-8 handoffs. The player may
+                    // deliberately enter a new command on a verified
+                    // phase instead.
+                    if(entry->known->fighter!=reserveId ||
+                       (familyTest && originalSuper.live &&
+                        originalSuper.phase==XM87189Family::CONTINUATION &&
+                        !XM87184Life::canTag(ryuLife,
+                             XM87184Life::recoveryOptIn() &&
+                             recoveryReboundTest))){
+                        lastAcceptedAt[side]=selectedAt;
                         XM87143Queue::state().discard(side);
+                    }
                     continue;
                 }
                 originalX[side]=rw(ram,p+0x0Cu);

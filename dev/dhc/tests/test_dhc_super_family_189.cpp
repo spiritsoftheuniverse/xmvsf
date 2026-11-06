@@ -23,11 +23,21 @@ static void add(std::vector<std::uint8_t>&rom,unsigned fighter,
 }
 int main(){
     std::vector<std::uint8_t> rom(0xE1000u,0u);
+    // Original 87.189 capture of Ryu's 2E00 Tatsu sequence.
+    // Selector address order is NOT script address order: 2E10
+    // points to D2DF4 before 2E04 points to D2E38.
+    add(rom,0x12u,0xCFCA2u,0x00u,0xD2CFCu);
+    add(rom,0x12u,0xCFCA2u,0x02u,0xD2DB0u);
+    add(rom,0x12u,0xCFCA2u,0x10u,0xD2DF4u);
+    add(rom,0x12u,0xCFCA2u,0x04u,0xD2E38u);
+    add(rom,0x12u,0xCFCA2u,0x06u,0xD2E7Cu);
     add(rom,0x12u,0xCFCA2u,0x08u,0xD3070u);
     add(rom,0x12u,0xCFCA2u,0x0Au,0xD30F4u);
     add(rom,0x12u,0xCFCA2u,0x0Cu,0xD31A8u);
     add(rom,0x12u,0xCFCA2u,0x0Eu,0xD322Cu);
-    add(rom,0x12u,0xCFCA2u,0x10u,0xD32B0u);
+    // No fabricated 2E10=D32B0 air-tail sentinel. Original ROM
+    // resolves 2E10 to D2DF4 (Tatsu). Air 2E0E is the last
+    // ROM-listed script root and is read-only CONTINUATION.
     add(rom,0x14u,0xD3966u,0x00u,0xD6722u);
     add(rom,0x14u,0xD3966u,0x02u,0xD6976u);
     add(rom,0x14u,0xD3966u,0x04u,0xD6A00u);
@@ -40,7 +50,8 @@ int main(){
     assert(g.activeAt(102u,ground));
     assert(!g.activeAt(103u,ground)); // same-frame freshness
     ground.action=0x2E0Au;ground.step=6u;ground.script=0xD30F4u;
-    assert(g.update(130u,ground,rom.data(),rom.size())==RECOVERY_BEGIN);
+    assert(g.update(130u,ground,rom.data(),rom.size())==CONTINUATION_BEGIN);
+    assert(g.phase==CONTINUATION && g.recognizes());
     assert(!g.activeAt(130u,ground));
     ground.action=0u;ground.mode=0u;
     assert(g.update(150u,ground,rom.data(),rom.size())==ACTION_EXIT);
@@ -70,9 +81,14 @@ int main(){
     assert(air.update(5292u,a,rom.data(),rom.size())==NOTHING);
     assert(air.activeAt(5292u,a));
     a.action=0x2E0Eu;a.step=6u;a.script=0xD322Cu;
-    assert(air.update(5326u,a,rom.data(),rom.size())==RECOVERY_BEGIN);
-    assert(!air.activeAt(5326u,a));
-    assert(!air.preCpuActive(5327u,a));
+    assert(air.update(5326u,a,rom.data(),rom.size())==CONTINUATION_BEGIN);
+    assert(air.phase==CONTINUATION && air.recognizes());
+    assert(air.stageScript==0xD322Cu && air.stageEnd==0u);
+    a.script=0xD32BCu; // last seen original ROM air tail
+    assert(air.update(5350u,a,rom.data(),rom.size())==NOTHING);
+    assert(air.phase==CONTINUATION && air.recognizes());
+    assert(!air.activeAt(5350u,a));
+    assert(!air.preCpuActive(5351u,a));
     a.action=0x0002u;a.mode=0x0200u;a.d6=0u;
     assert(air.update(5400u,a,rom.data(),rom.size())==ACTION_EXIT);
     assert(!air.recognizes());
@@ -83,6 +99,62 @@ int main(){
     a.step=4u;a.script=0xD3208u;
     assert(otherAir.update(5550u,a,rom.data(),rom.size())==ATTACK_BEGIN);
     assert(otherAir.activeAt(5550u,a));
+    // Actual 87.189 Ryu Tatsu at 8286. 8352 did NOT exit:
+    // root 2E00/step04 rewound to the original D2CFC ROM script,
+    // then the original 68000 continued 2E02, 2E10, 2E04, 2E06.
+    Tracker tatsu;
+    a=Sample(0x12u,0x2E00u,0x2A28u,2u,0xD2CFCu,0x0Cu);
+    assert(tatsu.update(8286u,a,rom.data(),rom.size())==ENTER);
+    assert(tatsu.phase==STARTUP && tatsu.nextScript==0xD2DB0u);
+    a.step=4u;a.script=0xD2D6Cu;
+    assert(tatsu.update(8347u,a,rom.data(),rom.size())==ATTACK_BEGIN);
+    assert(tatsu.activeAt(8347u,a));
+    a.script=0xD2D9Cu;
+    assert(tatsu.update(8350u,a,rom.data(),rom.size())==NOTHING);
+    a.script=0xD2CFCu; // ROM loops back, still ATTACK.
+    assert(tatsu.update(8352u,a,rom.data(),rom.size())==REPEATED_ROOT_SCRIPT);
+    assert(tatsu.live && tatsu.phase==ATTACK && tatsu.activeAt(8352u,a));
+    a.action=0x2E02u;a.step=6u;a.script=0xD2DB0u;
+    assert(tatsu.update(8354u,a,rom.data(),rom.size())==CONTINUATION_BEGIN);
+    assert(tatsu.phase==CONTINUATION && tatsu.recognizes());
+    assert(!tatsu.activeAt(8354u,a)); // NO unverified tag in follow-up.
+    a.script=0xD2DE0u;
+    assert(tatsu.update(8364u,a,rom.data(),rom.size())==NOTHING);
+    a.script=0xD2DB0u; // looping attack follow-up, NOT action EXIT.
+    assert(tatsu.update(8366u,a,rom.data(),rom.size())==NOTHING);
+    assert(tatsu.live && tatsu.phase==CONTINUATION);
+    a.action=0x2E10u;a.step=8u;a.script=0xD2DF4u;
+    const Event stage8=tatsu.update(8447u,a,rom.data(),rom.size());
+    if(stage8!=CONTINUATION_STAGE_CHANGE){
+       const auto x=XM87142::resolve(rom.data(),rom.size(),
+                                   0x12u,0x2Eu,0x10u);
+       std::fprintf(stderr,"87.190 TROUBLE 2E10: event=%u phase=%u live=%u stage=%04X"
+         " stageRoot=%08X stageEnd=%08X decodedValid=%u decodedRoot=%08X"
+         " nativeAction=%04X nativeScript=%08X D6=%02X\\n",
+         unsigned(stage8),unsigned(tatsu.phase),unsigned(tatsu.live),
+         tatsu.stageAction,tatsu.stageScript,tatsu.stageEnd,
+         unsigned(x.valid),x.script,a.action,a.script,a.d6);
+    }
+    assert(stage8==CONTINUATION_STAGE_CHANGE);
+    assert(tatsu.stageEnd==0xD2E38u);
+    a.action=0x2E04u;a.step=0x0Au;a.script=0xD2E38u;
+    assert(tatsu.update(8466u,a,rom.data(),rom.size())==CONTINUATION_STAGE_CHANGE);
+    a.action=0x2E06u;a.step=0x0Cu;a.script=0xD2E7Cu;
+    assert(tatsu.update(8472u,a,rom.data(),rom.size())==CONTINUATION_STAGE_CHANGE);
+    assert(tatsu.live && tatsu.phase==CONTINUATION);
+    a.action=0x0200u;a.mode=0x0410u;
+    assert(tatsu.update(8476u,a,rom.data(),rom.size())==ACTION_EXIT);
+    assert(!tatsu.live && !tatsu.recognizes());
+    // Invalid ROM script or D6 ownership changes must close immediately,
+    // not widen availability by approximate action-number ranges.
+    Tracker altered;
+    a=Sample(0x12u,0x2E00u,0x2A28u,2u,0xD2CFCu,0x0Cu);
+    assert(altered.update(9628u,a,rom.data(),rom.size())==ENTER);
+    a.step=4u;a.script=0xD2D7Cu;
+    assert(altered.update(9690u,a,rom.data(),rom.size())==ATTACK_BEGIN);
+    a.action=0x2E02u;a.step=6u;a.script=0xD3010u;
+    assert(altered.update(9696u,a,rom.data(),rom.size())==ACTION_EXIT);
+    assert(!altered.live);
     // Ken's genuine native 2E super uses D6=0C and stays in same action.
     Tracker ken;
     a=Sample(0x14u,0x2E00u,0x2A02u,2u,0xD6722u,0x0Cu);
@@ -101,5 +173,5 @@ int main(){
     assert(falseRoot.update(101u,a,rom.data(),rom.size())==NOTHING);
     a.d6=0x0Au;a.action=0x2C0Cu;
     assert(falseRoot.update(102u,a,rom.data(),rom.size())==NOTHING);
-    std::puts("PASS 87.189 original ROM 2E family: ground, both air modes, Ken controller, exact action exit");
+    std::puts("PASS 87.190 ROM 2E lifetime: 87.189 Tatsu rewind and full follow-up stages, ground, air, Ken, exact exit");
 }
