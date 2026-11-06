@@ -425,6 +425,18 @@ if /I "%CLEAN_RIP_MODE%"=="clean" (
     echo ERROR: Python unavailable for clean-rip review. Existing captures untouched.
   )
 )
+REM Generate the SMALL M68K writer-PC review automatically at MVC exit.
+REM Never override the original ROM exit status or include private code bytes.
+if "%XM87203_M68K_TRACE%"=="1" if /I "%SOURCE_ROM:~0,4%"=="mvsc" (
+  where python.exe >nul 2>nul
+  if not errorlevel 1 (
+    python.exe "%PROJECT%\dev\stage_capture\ANALYZE_M68K_SPRITES.py" --root "%PROJECT%\test\87.203\m68k_trace" --output "%PROJECT%\test\87.203\m68k_report"
+    if errorlevel 1 echo WARNING: M68K writer-PC report incomplete. Original trace retained.
+    echo M68K review ZIP: "%PROJECT%\test\87.203\m68k_report\m68k_sprite_report.zip"
+  ) else (
+    echo WARNING: Python missing; original private M68K trace files remain available.
+  )
+)
 REM Once MVC capture verification has run, skip XMVSF-only DHC reports.
 if /I "%SOURCE_ROM:~0,4%"=="mvsc" goto :mvc_donor_post
 REM 87.175: after native play, analyze only PRIVATE locally captured ROM
