@@ -20,6 +20,7 @@ Source: the user's actual F9 and native diagnostic archive 87.189.zip.
 ## Implemented
 
 - `XM87189Family::Tracker` retains root ATTACK through script rewinds (including root script itself at step04) and caches each observed 2E subaction script boundary from the fighter's original ROM table. The next ROM script address is selected by address, not incorrectly inferred from selector order.
+- For the final native 2E subaction with no greater script root (air `2E0E` starts at `0D322C`), the ROM has no next-selector end marker. It remains **read-only CONTINUATION** while the exact actor action, native controller and aligned ROM script still own it; no tag is armed from this tail. The old artificial `2E10=0D32B0` synthetic-test marker is eliminated because the actual ROM resolves `2E10=0D2DF4` (Tatsu).
 - Native `2E` stage transitions are a CONTINUATION until actual action/controller exit. They remain recognized in the super input observer, but are NOT silently tagged via unproven controller-8 logic.
 - A queued DHC gesture in such an unverified follow-up is explicitly logged and discarded. It cannot be carried over into another action and then falsely cause a late tag.
 - Stage changes and root rewinds are visible in the existing super-chat TSV, so another recording can show the exact point where each super remains native and when it truly exits.
