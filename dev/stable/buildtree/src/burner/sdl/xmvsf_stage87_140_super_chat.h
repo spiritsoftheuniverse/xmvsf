@@ -11,6 +11,7 @@
 #include "../../burn/drv/capcom/xmvsf_stage87_184_super_action_lifetime.h" // ROM action beginning, stages, exact exit
 #include "../../burn/drv/capcom/xmvsf_stage87_185_action_gate.h" // recognize all original action stages, separate native execution
 #include "../../burn/drv/capcom/xmvsf_stage87_189_native_super_family.h" // ROM-owned generic 2E lifecycle
+#include "../../burn/drv/capcom/xmvsf_stage87_192_reserve_super_ownership.h" // captured reserve input
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
@@ -213,6 +214,7 @@ struct State {
             keys[0].clear();keys[1].clear();
             shinkuu[0].reset();shinkuu[1].reset();
             XM87189Family::state().reset();
+            XM87192Owner::state().reset();
         }
         lastFrame=frame;
         const bool combat=b(ram,0x5000u)==8u;
@@ -221,6 +223,7 @@ struct State {
             keys[0].clear();keys[1].clear();
             shinkuu[0].reset();shinkuu[1].reset();
             XM87189Family::state().reset();
+            XM87192Owner::state().reset();
             XM87143Queue::state().discard(0u);
             XM87143Queue::state().discard(1u);
             return;
@@ -239,6 +242,7 @@ struct State {
                 lastCharacter[side]=fighter;candidate[side]=false;
                 shinkuu[side].reset();
                 XM87143Queue::state().discard(side);
+                XM87192Owner::state().clear(side);
             }
             // 87.184: original ROM-owned action lifetime, independent
             // of elapsed frame counts or the short tag-controller timer.
@@ -392,11 +396,33 @@ struct State {
                         ((shinkuu[side].live &&
                           XM87185Gate::canRecognize(shinkuuNow)) ||
                          nativeFamily.recognizes());
-                    const ListedSuper* found=(!playableRyuKen ||
-                                                  nativeWindow)?
+                    // 87.192 reserve-owned gesture, no Ken move list.
+                    // Only the incoming actor's ORIGINAL ROM input
+                    // interpreter may ultimately classify it as super.
+                    const char* ownedSetting=std::getenv(
+                        "XM87192_TEST_RESERVE_OWNERSHIP");
+                    const bool ownedMode=ownedSetting &&
+                        std::strcmp(ownedSetting,"1")==0;
+                    const bool ownedReady=ownedMode && playableRyuKen &&
+                        nativeWindow && pressed &&
+                        XM87192Owner::state().propose(
+                            side,bench,frame,
+                            XM87192Owner::parse(
+                                motion(keys[side],facingRight,frame)),
+                            buttons[side]);
+                    const ListedSuper* found=ownedMode?nullptr:
+                        ((!playableRyuKen || nativeWindow)?
                         matchListed(bench,keys[side],facingRight,frame,
-                                    buttons[side],nativeWindow):nullptr;
+                                    buttons[side],nativeWindow):nullptr);
                     char text[CHAT_LENGTH];
+                    if(ownedReady){
+                        const auto& proposal=XM87192Owner::state().pending[side];
+                        std::snprintf(text,sizeof(text),
+                           "DHC_192_RESERVE_OWNS_INPUT id=%02X motion=%u buttons=%02X ROM_SUPER_PENDING",
+                            bench,unsigned(proposal.motion),proposal.buttonMask);
+                        log(frame,MATCH,text);
+                        lastMoveFrame[side]=lastAttackFrame[side];
+                    }
                     if(found && playableRyuKen &&
                        (XM87184Life::identify(shinkuuNow)==XM87184Life::STARTUP ||
                         nativeFamily.phase==XM87189Family::STARTUP))
@@ -437,7 +463,7 @@ struct State {
                             lastReserveMatchId[side]=bench;
                         }
                         lastMoveFrame[side]=lastAttackFrame[side];
-                    }else if(pressed && !found){
+                    }else if(pressed && !found && !ownedReady){
                         // Record EVERY fresh attack button/chord (LP through HK,
                         // mixed P+K, and single/2/3-button chords). Unknown
                         // fighter motions are attempts, NOT authorization to
