@@ -75,6 +75,7 @@ g++ -std=c++11 -Wall -Wextra -Werror -I"$TREE/src/burn/drv/capcom" \
   "$PROJECT/dev/stage_capture/test_native_stage_capture.cpp" \
   -o "$PROJECT/test/87.203/unit_tests/test_native_stage_capture_203.exe"
 XM87203_STAGE_CAPTURE_DIR="$PROJECT/test/87.203/unit_tests/capture_smoke" \
+XM87203_BATCH_FRAMES=300 \
   "$PROJECT/test/87.203/unit_tests/test_native_stage_capture_203.exe"
 
 # Preserve warm cache and anything already built on failures. Never run make clean.
