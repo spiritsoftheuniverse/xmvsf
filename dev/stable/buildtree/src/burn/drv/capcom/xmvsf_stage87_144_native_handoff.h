@@ -1184,7 +1184,8 @@ struct State {
                     if(rb(ram,p+0xD6u)!=0x12u ||
                        rl(ram,p+0x34u)!=0xD567Eu ||
                        !idle.valid || idle.script!=0xD39FAu ||
-                       !sup.valid || sup.script!=expected){
+                       (!reserveOwnershipTest &&
+                        (!sup.valid || sup.script!=expected))){
                         abort(now,side,ram,
                               "FAST_KEN_CANCEL_ROM_STATE_UNVERIFIED_NO_OVERRIDE");
                         continue;
@@ -1207,8 +1208,8 @@ struct State {
                     wl(ram,p+0x18u,0u);
                     wl(ram,p+0x1Cu,0u);
                     wl(ram,p+0x20u,0u);
-                    kenExpectedAction[side]=0x2E00u|target;
-                    kenExpectedScript[side]=expected;
+                    kenExpectedAction[side]=reserveOwnershipTest?0u:(0x2E00u|target);
+                    kenExpectedScript[side]=reserveOwnershipTest?0u:expected;
                     kenSuperConfirmed[side]=false;
                     kenNeutralSince[side]=0u;
                     inputBegin[side]=now+1u;
@@ -1225,12 +1226,13 @@ struct State {
                         const unsigned expected=
                           command[side]==XM87143Queue::QCF_KK?0xD6976u:0xD6722u;
                         const auto sup=XM87142::resolve(rom,size,pointId,0x2Eu,target);
-                        if(!sup.valid || sup.script!=expected){
+                        if(!reserveOwnershipTest &&
+                           (!sup.valid || sup.script!=expected)){
                             abort(now,side,ram,"KEN_NATIVE_INPUT_SUPER_ROM_UNRESOLVED");
                             continue;
                         }
-                        kenExpectedAction[side]=0x2E00u|target;
-                        kenExpectedScript[side]=expected;
+                        kenExpectedAction[side]=reserveOwnershipTest?0u:(0x2E00u|target);
+                        kenExpectedScript[side]=reserveOwnershipTest?0u:expected;
                         kenSuperConfirmed[side]=false;
                         kenNeutralSince[side]=0u;
                         inputBegin[side]=now+2u;
