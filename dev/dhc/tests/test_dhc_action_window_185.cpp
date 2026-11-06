@@ -2,6 +2,7 @@
 // Source-level predicates are NOT native Windows DHC acceptance proof.
 #include <cassert>
 #include <cstdio>
+#include <initializer_list>
 #include "../../stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_185_action_gate.h"
 using XM87184Life::Sample;
 using namespace XM87185Gate;
