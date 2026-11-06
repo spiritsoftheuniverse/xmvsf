@@ -45,7 +45,7 @@ jobs:
           grep -Fq 'xm30NativeAttackFamily' dev/stable/buildtree/src/burner/sdl/xmvsf_stage30_frame_data.h
           grep -Fq 'nativeAction=xm23::r16(c,base+0x60)' dev/stable/buildtree/src/burner/sdl/xmvsf_stage23_engine.h
           test -f dev/dhc/tests/test_dhc_frame_duration_154.cpp
-          grep -Fq 'XMVSF_Test_87_187.exe' dev/dhc/BUILD_TEST.sh
+          grep -Fq 'XMVSF_Test_87_188.exe' dev/dhc/BUILD_TEST.sh
           if grep -Fq 'cmp -s' dev/dhc/BUILD_TEST.sh; then
             echo 'ERROR: cmp dependency is not installed in user MSYS2' >&2
             exit 1
@@ -75,7 +75,7 @@ jobs:
             echo 'ERROR: awk compiler-warning filter must not truncate build logs' >&2
             exit 1
           fi
-          grep -Fq 'XMVSF_Test_87_187.exe' RUN_TEST.bat
+          grep -Fq 'XMVSF_Test_87_188.exe' RUN_TEST.bat
           grep -Fq 'XM87139_PROBE_DIR' RUN_TEST.bat
           grep -Fq 'XM87140_CHAT_LOG' RUN_TEST.bat
           grep -Fq 'xm87140ChatOverlay(sdlRenderer);' dev/stable/buildtree/src/intf/video/sdl/vid_sdl2.cpp
@@ -90,11 +90,14 @@ jobs:
           grep -Fq 'XM87177Chords::nativeKenTwoPunchMask()' dev/stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_144_native_handoff.h
           test -f dev/dhc/tests/test_dhc_rom_catalog_160.cpp
           test -f dev/dhc/tests/test_dhc_opening_front_187.cpp
+          test -f dev/dhc/tests/test_dhc_full_attack_gate_188.cpp
+          grep -Fq 'XM87188_TEST_FULL_ATTACK=1' RUN_REPLAY.bat
+          grep -Fq 'XM87188_TEST_FULL_ATTACK set' RUN_TEST.bat
           grep -Fq 'DHC_187_STARTUP_INPUT_CLOSED_NO_DEFERRED_TAG' dev/stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_187_opening_front.h
           grep -Fq 'DHC_187_STALE_ATTACK_REQUEST_EXPIRED_NO_PHYSICAL_EDGE' dev/stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_187_opening_front.h
           grep -Fq 'XM8761_REPLAY_DIR=' RUN_TEST.bat
           grep -Fq 'XM8761_REPLAY_MODE=off' RUN_TEST.bat
-          grep -Fq 'XMVSF_Test_87_187.exe' RUN_REPLAY.bat
+          grep -Fq 'XMVSF_Test_87_188.exe' RUN_REPLAY.bat
           # The replay launcher is a permanent first-class root entry point.
           # Never let point-version bumps strand it on a stale TEST executable.
           test -f RUN_REPLAY.bat
@@ -123,7 +126,7 @@ jobs:
           grep -Fq 'XM8764_REPLAY_ROOT=' RUN_TEST.bat
           # F9 must keep the SAME red gameplay counter and file-location
           # discoverability as the old recorder, plus show it in boot menu.
-          grep -Fq 'XM8764_REPLAY_ROOT=%PROJECT%\test\87.187\replays' RUN_TEST.bat
+          grep -Fq 'XM8764_REPLAY_ROOT=%PROJECT%\test\87.188\replays' RUN_TEST.bat
           grep -Fq 'XM8764_REPLAY_STATUS_FILE=' RUN_TEST.bat
           grep -Fq 'XM8764::recordingFrames()' dev/stable/buildtree/src/burner/sdl/run.cpp
           grep -Fq 'xm87166ReplayVisualStatus' dev/stable/buildtree/src/intf/video/sdl/vid_sdl2.cpp
@@ -133,7 +136,7 @@ jobs:
           grep -Fq 'requiresCheckpoint(host,c.lastRecordedHost)' dev/stable/buildtree/src/burner/sdl/xmvsf_stage87_164_host_replay.h
           grep -Fq 'recordingFrames()==1' dev/dhc/tests/test_dhc_host_replay_164.cpp
           grep -Fq 'saves==1u' dev/dhc/tests/test_dhc_host_replay_164.cpp
-          grep -Fq '%PROJECT%\test\87.187\replays\latest.txt' RUN_REPLAY.bat
+          grep -Fq '%PROJECT%\test\87.188\replays\latest.txt' RUN_REPLAY.bat
           grep -Fq 'dir /b /ad /o:-n' RUN_REPLAY.bat
           grep -Fq 'RECORD_SAVE_ERROR' dev/stable/buildtree/src/burner/sdl/xmvsf_stage87_164_host_replay.h
           grep -Fq 'V2_INPUT_FLUSH_OR_CLOSE_FAILED' dev/stable/buildtree/src/burner/sdl/xmvsf_stage87_164_host_replay.h
@@ -267,12 +270,24 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p /tmp/xmvsf-dhc-tests
+          failures=0
           for t in dev/dhc/tests/test_dhc_*.cpp; do
             echo "Compiling $t"
             bin="/tmp/xmvsf-dhc-tests/$(basename "$t" .cpp)"
-            g++ -std=c++11 -O2 -Wall -Wextra -pedantic "$t" -o "$bin"
-            "$bin"
+            if ! g++ -std=c++11 -O2 -Wall -Wextra -pedantic "$t" -o "$bin"; then
+              echo "FAILED COMPILE: $t" >&2
+              failures=$((failures+1))
+              continue
+            fi
+            if ! "$bin"; then
+              echo "FAILED REGRESSION: $t" >&2
+              failures=$((failures+1))
+            fi
           done
+          if (( failures > 0 )); then
+            echo "ERROR: $failures DHC tests failed" >&2
+            exit 1
+          fi
           echo "All isolated DHC tests passed"
       - name: Smoke-test private ROM scanner without distributing ROM bytes
         shell: bash
