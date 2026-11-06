@@ -1,8 +1,10 @@
 // 87.158 regression against ACTUAL 87.151 Ken Hadoken arrival trace:
-// frame 1857 Ryu+4E=0x1C controller8, frame 1858 ROM A0=2A00
+// historic frame 1857 Ryu+4E=0x1C controller8, frame 1858 ROM A0=2A00
 // native outgoing 3200, frame1872 real Ken swap, frame1873 kickless
 // cancel 2A0C->2A08. This must remain the entry route for Ken's SUPER.
 // The separate delayed normal tag / variable combo does NOT qualify.
+// Updated 87.188: validate that fresh ATTACK input initiates immediately
+// and the same already-proven ROM handoff follows on the next CPU frame.
 #include "../../stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_144_native_handoff.h"
 #include <cassert>
 #include <cstdint>
@@ -34,6 +36,8 @@ int main(){
     assert(setenv("XM87144_DHC_NATIVE_TEST","1",1)==0);
     assert(setenv("XM87157_EARLY_CANCEL","1",1)==0);
     assert(setenv("XM87156_PROOF_NATIVE","0",1)==0);
+    assert(setenv("XM87185_TEST_EARLY_ACTIVE_TAG","1",1)==0);
+    assert(setenv("XM87188_TEST_FULL_ATTACK","1",1)==0);
     std::vector<std::uint8_t> ram(65536u,0u),rom(0xE1000u,0u);
     entry(rom,0x12u,0x32u,0u,0xD1DACu);
     entry(rom,0x14u,0x2Eu,0u,0xD6722u);
@@ -43,7 +47,9 @@ int main(){
     ww(ram.data(),0x4452u,0x20u);ww(ram.data(),0x4C52u,0x22u);
     ww(ram.data(),0x4060u,0x2E08u);ww(ram.data(),0x40A0u,0x2A28u);
     wb(ram.data(),0x40D6u,0x0Au);
-    ww(ram.data(),0x404Eu,0x25u); // 87.157 input came at 37 frames
+    ww(ram.data(),0x404Eu,0x25u); // original active ATTACK, clean fresh input
+    ww(ram.data(),0x4008u,0x0004u); // original ATTACK step
+    wl(ram.data(),0x4034u,0x0D30D0u); // original Shinkuu ATTACK script
     ww(ram.data(),0x4214u,3u);
     assert(XM87143Queue::state().prepare(ram.data(),rom.data(),
                                         unsigned(rom.size()),99u));
@@ -51,16 +57,13 @@ int main(){
                0u,0x14u,XM87143Queue::QCF_PP,100u));
     State s;s.frame(ram.data(),rom.data(),unsigned(rom.size()),100u,1u);
     assert(s.enabled && s.earlyCancel && !s.proofNative);
-    assert(s.phase[0]==WAIT_RYU_SUPER_END); // not old timer 8
-    assert(rb(ram.data(),0x4256u)==0u);
-    // Verified handoff begins when +4E becomes 28, not 8.
-    ww(ram.data(),0x404Eu,0x001Cu);
-    s.frame(ram.data(),rom.data(),unsigned(rom.size()),101u,1u);
+    // 87.188 requires an actual current-frame native ATTACK command:
+    // never hold a physical press until arbitrary +4E=0x1C.
     assert(s.phase[0]==WAIT_TAG_CONTROLLER);
     assert(rb(ram.data(),0x4256u)==8u);
     assert(rb(ram.data(),0x4259u)==8u);
     assert(rw(ram.data(),0x40A0u)==0x002Au);
-    assert(rw(ram.data(),0x404Eu)==0x001Cu);
+    assert(rw(ram.data(),0x404Eu)==0x0025u);
     // Native emulator invokes controller 8 exactly as in 87.151's trace.
     wb(ram.data(),0x4256u,0u);
     ww(ram.data(),0x40A0u,0x2A00u);
@@ -68,7 +71,7 @@ int main(){
     // need any additional synthetic byte equality check to recognize it.
     wb(ram.data(),0x4259u,0u);
     const unsigned beforeStock=rw(ram.data(),0x4214u);
-    s.frame(ram.data(),rom.data(),unsigned(rom.size()),102u,1u);
+    s.frame(ram.data(),rom.data(),unsigned(rom.size()),101u,1u);
     assert(s.phase[0]==WAIT_NATIVE_SWAP);
     assert(rw(ram.data(),0x4060u)==0x3200u);
     assert(rw(ram.data(),0x40A0u)==0x2A00u);

@@ -28,9 +28,14 @@ int main(){
     tagProxy.frame(r.data(),9u,0,0,0,0,0u);
     assert(!tagProxy.candidate[0]);
     byte(r,0x40A0u,0u);
-    // Native action transition and stock debit open a *candidate*, not a
-    // fictional ROM-verified super ID.
-    byte(r,0x40A0u,0x2Au);byte(r,0x4214u,2u);
+    // 87.184+ no longer opens Ryu's candidate from A0/meter alone.
+    // It must be a REAL native Shinkuu root, including step/script/D6.
+    word(r,0x4060u,0x2E08u); // original Ryu Shinkuu Hadoken
+    word(r,0x40A0u,0x2A28u);
+    word(r,0x4008u,0x0002u);
+    word(r,0x4034u,0x000Du);word(r,0x4036u,0x3070u);
+    byte(r,0x40D6u,0x0Au);
+    byte(r,0x4214u,2u);
     s.frame(r.data(),11u,0,0,0,0,1u);
     assert(s.candidate[0]&&has(s,"FIRST SUPER?"));
     assert(has(s,"NATIVE 68000 ROM-TABLE SCRIPT VERIFIED"));
@@ -59,7 +64,7 @@ int main(){
     s.toggle();assert(!s.open);
     // Delayed expiration: after 180 frames all earlier lines are gone.
     // Keep window from producing new messages by leaving its action idle.
-    byte(r,0x40A0u,0u);
+    byte(r,0x40A0u,0u);word(r,0x4060u,0u); // native action exit
     s.frame(r.data(),50u,0u,0u,0u,0u);
     s.frame(r.data(),260u,0u,0u,0u,0u);
     assert(!s.candidate[0]);

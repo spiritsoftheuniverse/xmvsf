@@ -53,6 +53,8 @@ int main(){
     ww(ram.data(),0x4000u+0x10u,472u);
     ww(ram.data(),0x4000u+0x60u,0x2E08u);
     ww(ram.data(),0x4000u+0xA0u,0x2A28u);
+    ww(ram.data(),0x4008u,4u); // original 87.184 native attack step
+    wl(ram.data(),0x4034u,0x0D30D0u); // real mid-Shinkuu attack script
     wb(ram.data(),0x40D6u,0x0Au); // real outgoing Ryu super controller
     ww(ram.data(),0x404Eu,8u);  // 87.150 proven native late-super entry
     ww(ram.data(),0x4214u,3u);
@@ -74,6 +76,8 @@ int main(){
     s.frame(ram.data(),rom.data(),unsigned(rom.size()),101u,1u);
     assert(s.phase[0]==IDLE && ram==invalidMode);
     ww(ram.data(),0x40A0u,0x2A02u);
+    // Same-frame selected input is required; do not reuse 101 after 102.
+    assert(XM87143Queue::state().select(0u,0x14u,XM87143Queue::QCF_PP,102u));
     s.frame(ram.data(),rom.data(),unsigned(rom.size()),102u,1u);
     assert(s.phase[0]==WAIT_TAG_CONTROLLER);
     assert(s.shoryureppaReady[0] && s.shinryukenReady[0]);
@@ -218,6 +222,8 @@ int main(){
     ww(r2.data(),0x4452u,0x20u);ww(r2.data(),0x4C52u,0x22u);
     ww(r2.data(),0x4060u,0x2E08u);
     ww(r2.data(),0x40A0u,0x2A28u);
+    ww(r2.data(),0x4008u,4u);
+    wl(r2.data(),0x4034u,0x0D30D0u);
     wb(r2.data(),0x40D6u,0x0Au);
     ww(r2.data(),0x404Eu,8u);
     assert(XM87143Queue::state().prepare(r2.data(),rom.data(),
@@ -254,6 +260,9 @@ int main(){
     trial.frame(r2.data(),rom.data(),unsigned(rom.size()),429u,1u);
     assert(trial.phase[0]==IDLE && !trial.chainUsed[0]);
     ww(r2.data(),0x40A0u,0x2A28u);
+    ww(r2.data(),0x4008u,4u);
+    wl(r2.data(),0x4034u,0x0D30D0u);
+    wb(r2.data(),0x40D6u,0x0Au); // new genuine Ryu super native controller
     ww(r2.data(),0x404Eu,8u); // only try after verified late-super timer
     assert(XM87143Queue::state().select(0u,0x14u,
         XM87143Queue::QCF_PP,436u));

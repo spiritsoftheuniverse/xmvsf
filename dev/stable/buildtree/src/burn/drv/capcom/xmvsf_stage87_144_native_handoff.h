@@ -18,6 +18,8 @@
 #include "xmvsf_stage87_184_super_action_lifetime.h" // real ROM super lifetime
 #include "xmvsf_stage87_185_action_gate.h" // 87.185 separate recognition and ROM tag acceptance
 #include "xmvsf_stage87_186_first_attack_gate.h" // TEST-only first four natural attack frames
+#include "xmvsf_stage87_187_opening_front.h" // block stale startup handoff
+#include "xmvsf_stage87_188_full_attack_gate.h" // full native 2E08 ATTACK
 #include "xmvsf_stage87_177_dhc_punch_chords.h" // explicit 3P host / native 2P helper dependency
 #include <cstdint>
 #include <cstdio>
@@ -89,7 +91,7 @@ struct State {
     bool initialized=false,enabled=false,proofNative=false,earlyCancel=false,
          delayedPrimeExperimental=false,unsafeConsumedPunchReplay=false,
          earlyActiveDirectTest=false,recoveryReboundTest=false,
-         firstFourAttackTest=false,
+         firstFourAttackTest=false,fullAttackTest=false,
          chainUsed[2]={false,false};
     Phase phase[2]={IDLE,IDLE};
     XM87159Projectile::State oldRyuProjectiles;
@@ -155,6 +157,9 @@ struct State {
         const char* rebound=std::getenv("XM87185_TEST_RECOVERY_REBOUND");
         recoveryReboundTest=enabled && earlyCancel && rebound &&
              std::strcmp(rebound,"1")==0;
+        const char* full=std::getenv("XM87188_TEST_FULL_ATTACK");
+        fullAttackTest=earlyActiveDirectTest && full &&
+             std::strcmp(full,"1")==0;
         const char* firstFour=std::getenv("XM87186_TEST_FIRST_FOUR_ATTACK");
         firstFourAttackTest=enabled && earlyCancel && firstFour &&
              std::strcmp(firstFour,"1")==0;
@@ -455,6 +460,19 @@ struct State {
                 const unsigned selectedAt=XM87143Queue::state().selectedFrame[side];
                 const bool firstCheck=selectedAt!=lastQueuedCheck[side];
                 lastQueuedCheck[side]=selectedAt;
+                // 87.186: 2524/2565 STARTUP commands were held for
+                // 20/60 frames, then sent with zero physical/native
+                // button edge. Never re-arm that stale request.
+                // The 2A02 RECOVERY rebound remains untouched.
+                const XM87187Front::Disposition front=
+                    XM87187Front::check(ryuLife,now,selectedAt);
+                if(front!=XM87187Front::KEEP){
+                    if(firstCheck)
+                        event(now,side,ram,XM87187Front::reason(front));
+                    lastAcceptedAt[side]=selectedAt;
+                    XM87143Queue::state().discard(side);
+                    continue;
+                }
                 // Explicitly log why a selected command cannot reach the
                 // ROM handoff. Stage 87.144 produced a blank DHC log because
                 // it silently required +A0=2A02 instead of native 2A28.
@@ -576,6 +594,16 @@ struct State {
                 }else if(probeFirstFour){
                     event(now,side,ram,
                           "DHC_186_TEST_FIRST_FOUR_ATTACK_FRESH_EDGE");
+                    armOutgoingTag(ram,now,side,selectedAt);
+                }else if(XM87188Attack::eligible(
+                       ryuLife,fullAttackTest,remaining,
+                       rw(ram,p+0xC0u),rw(ram,p+0xCAu))){
+                    // 2A02 and 2A28 both appear in full genuine super
+                    // ATTACK lifetimes. Preserve fresh current-frame
+                    // input, preflight and wrong native action abort.
+                    event(now,side,ram,ryuLife.mode==0x2A02u?
+                          "DHC_188_NATIVE_ATTACK_2A02_FRESH_EDGE_TEST":
+                          "DHC_188_NATIVE_ATTACK_2A28_FRESH_EDGE_TEST");
                     armOutgoingTag(ram,now,side,selectedAt);
                 }else if(XM87185Gate::directActiveAttack(
                        ryuLife,earlyActiveDirectTest,remaining,
@@ -795,10 +823,10 @@ struct State {
                 }else if(rb(ram,p+0x256u)==0u &&
                           rw(ram,p+0x60u)!=capturedAction[side] &&
                           rw(ram,p+0x60u)!=0x3200u){
-                    // 87.152: controller consumed but Ryu ran 2C04, not
-                    // tag 3200. Never paste stale A0/step values over 2C04.
+                    // Original controller sometimes chose 0002 or 2C02,
+                    // not 3200. Preserve ROM action; log true outcome.
                     abort(now,side,ram,
-                          "DHC_152_ROM_2C04_WRONG_ACTION_ABORT_NO_ROLLBACK");
+                          XM87187Front::wrongAction(rw(ram,p+0x60u)));
                 }else if(now-started[side]>12u){
                     // Restore only a verified UNCONSUMED staging command.
                     // Once ROM selected any action, it owns all state.
