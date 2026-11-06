@@ -35,7 +35,9 @@ int main(){
     add(rom,0x12u,0xCFCA2u,0x0Au,0xD30F4u);
     add(rom,0x12u,0xCFCA2u,0x0Cu,0xD31A8u);
     add(rom,0x12u,0xCFCA2u,0x0Eu,0xD322Cu);
-    add(rom,0x12u,0xCFCA2u,0x10u,0xD32B0u);
+    // No fabricated 2E10=D32B0 air-tail sentinel. Original ROM
+    // resolves 2E10 to D2DF4 (Tatsu). Air 2E0E is the last
+    // ROM-listed script root and is read-only CONTINUATION.
     add(rom,0x14u,0xD3966u,0x00u,0xD6722u);
     add(rom,0x14u,0xD3966u,0x02u,0xD6976u);
     add(rom,0x14u,0xD3966u,0x04u,0xD6A00u);
@@ -81,8 +83,12 @@ int main(){
     a.action=0x2E0Eu;a.step=6u;a.script=0xD322Cu;
     assert(air.update(5326u,a,rom.data(),rom.size())==CONTINUATION_BEGIN);
     assert(air.phase==CONTINUATION && air.recognizes());
-    assert(!air.activeAt(5326u,a));
-    assert(!air.preCpuActive(5327u,a));
+    assert(air.stageScript==0xD322Cu && air.stageEnd==0u);
+    a.script=0xD32BCu; // last seen original ROM air tail
+    assert(air.update(5350u,a,rom.data(),rom.size())==NOTHING);
+    assert(air.phase==CONTINUATION && air.recognizes());
+    assert(!air.activeAt(5350u,a));
+    assert(!air.preCpuActive(5351u,a));
     a.action=0x0002u;a.mode=0x0200u;a.d6=0u;
     assert(air.update(5400u,a,rom.data(),rom.size())==ACTION_EXIT);
     assert(!air.recognizes());
