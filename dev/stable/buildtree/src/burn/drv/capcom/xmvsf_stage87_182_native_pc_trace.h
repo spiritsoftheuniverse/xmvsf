@@ -35,7 +35,8 @@ struct State;
 inline State& state(); // callback needs a forward declaration
 struct State {
     enum { LIMIT=8192 };
-    bool initialized=false,enabled=false,active=false;
+    bool initialized=false,enabled=false,active=false,openingFrame=false;
+    unsigned openingStaticRows=0;
     std::FILE* log=nullptr;
     const std::uint8_t*ram=nullptr;
     unsigned frame=0,phase=0,count=0,dropped=0,visited=0;
@@ -92,6 +93,14 @@ struct State {
         lastAction=action;lastMode=mode;lastD6=d6;
         last256=c256;last259=c259;lastC2=c2;lastCA=ca;
         if(!watch(pc) && !flags)return;
+        // 87.186: during an unarmed startup/early attack sample,
+        // retain all actual native state changes but cap non-changing
+        // watched PCs at 96 per frame. The older armed-controller PPC
+        // trace remains byte-for-byte identical in its selection rules.
+        if(openingFrame && !flags){
+            if(openingStaticRows>=96u)return;
+            ++openingStaticRows;
+        }
         // Keep up to 8192 trace entries per DHC frame. If the detailed
         // filtered PC trace saturates, reserve the final row for the
         // latest native actor-state change. Truncation is explicit.
@@ -127,13 +136,16 @@ struct State {
     // Invoke before native input sampling, after SekOpen(0), only for
     // an already armed, early-cancel Ryu Shinkuu -> Ken DHC.
     void begin(const std::uint8_t*source,unsigned now,unsigned dhcPhase,
-               bool earlyCancel,bool runahead){
+               bool earlyCancel,bool runahead,bool openingRequest=false){
         init();
         if(active || !enabled || runahead || !earlyCancel || !source ||
-           dhcPhase!=2u || XM87142::ramB(source,0x5000u)!=8u ||
+           (dhcPhase!=2u && !openingRequest) ||
+           XM87142::ramB(source,0x5000u)!=8u ||
            XM87142::ramW(source,0x4052u)!=0x12u ||
            XM87142::ramW(source,0x4852u)!=0x14u)return;
         ram=source;frame=now;phase=dhcPhase;
+        openingFrame=(dhcPhase!=2u && openingRequest);
+        openingStaticRows=0u;
         count=0;dropped=0;visited=0;previousExecuted=0;
         lastAction=XM87142::ramW(source,0x4060u);
         lastMode=XM87142::ramW(source,0x40A0u);
@@ -161,8 +173,10 @@ struct State {
         m68k_set_insn_cb(prior);
         prior=nullptr;
         if(log){
-            std::fprintf(log,"# DHC_FRAME frame=%u watched=%u dropped=%u"
-                    " allInstructions=%u\n",frame,count,dropped,visited);
+            std::fprintf(log,openingFrame?
+                    "# OPENING_FRAME frame=%u watched=%u dropped=%u allInstructions=%u\n":
+                    "# DHC_FRAME frame=%u watched=%u dropped=%u allInstructions=%u\n",
+                    frame,count,dropped,visited);
             for(unsigned i=0;i<count;++i){
                 const Entry& e=entries[i];
                 std::fprintf(log,"%u\t%u\t%u\t%s\t%06X\t%06X\t%06X"
@@ -175,6 +189,7 @@ struct State {
             std::fflush(log);
         }
         ram=nullptr;
+        openingFrame=false;
     }
 };
 // Forward declaration for the static callback that references State.
