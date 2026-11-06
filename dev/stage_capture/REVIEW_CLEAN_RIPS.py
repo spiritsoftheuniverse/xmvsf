@@ -20,6 +20,7 @@ import re
 import struct
 import sys
 import zlib
+import zipfile
 
 from EXPORT_CLEAN_RIP import SAFE_RGBA, fnv64, png_bytes
 
@@ -248,6 +249,20 @@ def review(root: Path, output: Path, *, full: bool = False,
     for problem in result['errors']:
         lines.append('ERROR ' + problem['shot'] + ': ' + problem['error'])
     write_atomic(output / 'clean_rips_review.txt', ('\n'.join(lines)+'\n').encode('utf-8'))
+    # The user can attach this compact proof bundle instead of a multi-GiB
+    # set of original ROM pixel captures. Never include source .rgba bytes.
+    bundle = output / 'clean_rips_review_bundle.zip'
+    pending = output / 'clean_rips_review_bundle.zip.tmp'
+    try:
+        with zipfile.ZipFile(pending, 'w', compression=zipfile.ZIP_DEFLATED) as archive:
+            for item in ('clean_rips_review.json', 'clean_rips_review.txt'):
+                archive.write(output / item, arcname=item)
+            if contact.get('file'):
+                archive.write(output / contact['file'], arcname=contact['file'])
+        os.replace(pending, bundle)
+    finally:
+        if pending.exists():
+            pending.unlink()
     if status_log is not None:
         status_log.parent.mkdir(parents=True, exist_ok=True)
         with status_log.open('a', encoding='utf-8') as status:
@@ -258,6 +273,7 @@ def review(root: Path, output: Path, *, full: bool = False,
                          f"errors={len(result['errors'])} review={output}\n")
     for line in lines:
         print(line)
+    print('Small review bundle: ' + str(bundle))
     return result
 
 
