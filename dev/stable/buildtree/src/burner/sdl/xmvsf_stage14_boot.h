@@ -297,7 +297,7 @@ static int xmvsfBootSelector(bool returningFromGame=false) {
             xm256NormalizeBootFaceButtons(ev,accept,back); /* XMVSF_STAGE25_6_MENU_INPUT_TRAINING */ /* XMVSF_STAGE25_6_1_COMPILE_REPAIR */
             if(screen==5) { // Stage selection, before loading the character select save-state.
                 if(back){screen=returnScreen;menuGate.begin();continue;}
-                if(direction){stageRow=1-stageRow;xm25MenuSound(false);}
+                if(direction){stageRow=(stageRow+3+direction)%3;xm25MenuSound(false);}
                 if(accept){
                     xm25MenuSound(true);
                     xm77StageChoice=stageRow;
@@ -402,9 +402,9 @@ static int xmvsfBootSelector(bool returningFromGame=false) {
             xmvsfPixelText(render,"ESC TO QUIT",480,497,2,105,105,129);
         } else if(screen==5) {
             xmvsfPixelText(render,"SELECT STAGE",480,90,5,108,193,255);
-            const char* stages[2]={"RANDOM","WILY FACTORY"};
-            for(int i=0;i<2;++i){
-                const int y=205+i*80;
+            const char* stages[3]={"RANDOM","WILY FACTORY","ROCK CASTLE"};
+            for(int i=0;i<3;++i){
+                const int y=165+i*87;
                 if(i==stageRow){
                     SDL_Rect highlight={175,y-17,610,60};
                     xm8655RenderColor(render,26,37,85,255);SDL_RenderFillRect(render,&highlight);
@@ -412,8 +412,8 @@ static int xmvsfBootSelector(bool returningFromGame=false) {
                 }
                 xmvsfPixelText(render,stages[i],480,y,4,i==stageRow?255:145,i==stageRow?248:164,255);
             }
-            xmvsfPixelText(render,"RANDOM INCLUDES WILY FACTORY",480,405,2,137,177,215);
-            xmvsfPixelText(render,"A SELECT  B BACK",480,465,2,152,192,235);
+            xmvsfPixelText(render,"RANDOM INCLUDES WILY FACTORY",480,441,2,137,177,215);
+            xmvsfPixelText(render,"A SELECT  B BACK",480,489,2,152,192,235);
         } else if(screen==2) { /* XMVSF_STAGE25_5_SCOREBOARD_RESET */
             xm255BootVersus(render);
         } else if(screen==3) {

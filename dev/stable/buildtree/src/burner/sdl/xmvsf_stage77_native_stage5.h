@@ -76,7 +76,7 @@ static inline void xm77ApplyNativeStage5(bool gameReady,bool beforeFrame) {
         xm8648Lock=XM8648EarlyStageLock{};
         xm8648Lock.initialized=true;
         xm8648Lock.lastGeneration=generation;
-        std::fprintf(stderr,"XM86.48 SESSION generation=%u mode=%d WilyChoice=%d WilyResolved=%d\n",
+        std::fprintf(stderr,"XM86.48 SESSION generation=%u mode=%d StageChoice=%d StageResolved=%d\n",
             generation,xm14TrainingMode,xm77StageChoice,xm77StageResolved);
     }
     cpu_core_config* c=GetCpuCoreConfig(0);
@@ -98,9 +98,14 @@ static inline void xm77ApplyNativeStage5(bool gameReady,bool beforeFrame) {
     if(frame==1 && !xm8648Lock.attempted) {
         xm8648Lock.attempted=true;
         const unsigned selector=c->read(0xFF5082u)&255u;
-        const bool optIn=(xm77StageChoice==1 && xm77StageResolved==1 &&
-                          xm14TrainingMode==1 && xm24VersusMode==0 &&
-                          std::getenv("XM8648_NATIVE05_OFF")==nullptr);
+        const bool wily=(xm77StageChoice==XM77_WILY_FACTORY &&
+                           xm77StageResolved==XM77_WILY_FACTORY &&
+                           xm14TrainingMode==1 && xm24VersusMode==0);
+        const bool rock=(xm77StageChoice==XM77_ROCK_CASTLE &&
+                           xm77StageResolved==XM77_ROCK_CASTLE &&
+                           (xm14TrainingMode==1 || xm24VersusMode==1));
+        const bool optIn=(wily || rock) &&
+                           std::getenv("XM8648_NATIVE05_OFF")==nullptr;
         if(optIn && status==0 && stageByte==0 && selector==0xFF && c->write) {
             c->write(0xFF5082u,4u);  // ONLY mutation: guest FF5082=04.
             ++xm8648Lock.selectorWrites;

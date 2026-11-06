@@ -8,6 +8,7 @@
 #include "../../../burner/sdl/xmvsf_stage86_49_state.h"
 #include "xmvsf_stage86_49_wily_art.h"
 #include "xmvsf_stage87_63_super_intro.h"
+#include "../../../burner/sdl/xmvsf_stage77_selection.h" // XM87.199: stage enum visible to video TU
 #include <memory>
 #include <string>
 #include <fstream>
@@ -24,6 +25,7 @@ extern int xm8654FilteredObjects;
 extern int xm8654RetainedObjects;
 extern int xm8654SceneryObjects;
 extern int xm8654FilteredPriority[8];
+#include "xmvsf_stage87_200_rock_castle.h" // XM87.200: full-color animated source GIF stage
 static SDL_Texture* xm8649Target=nullptr;
 static SDL_Texture* xm8649FighterTarget=nullptr;
 static SDL_Texture* xm8757NativeFlashTarget=nullptr;
@@ -111,6 +113,7 @@ static bool xm8649LocateAssets(){
  return false;
 }
 static void xm8649VideoCleanup(){
+ XM87200::state().release(); // release Rock Castle GIF with the native video renderer
  xm8649Preview.reset();xm8649Textures.reset();xm8649World.reset();
  if(xm8649Target)SDL_DestroyTexture(xm8649Target);
  if(xm8649FighterTarget)SDL_DestroyTexture(xm8649FighterTarget);
@@ -121,10 +124,16 @@ static void xm8649VideoCleanup(){
  XM8763::State().Reset();
 }
 static bool xm8649Paint(SDL_Renderer* render,const SDL_Rect& view){
- if(!xm8649Visual.sceneActive ||
-    xm8649Visual.stage!=5 || xm8649Unavailable ||
+ if(!xm8649Visual.sceneActive || xm8649Visual.stage!=5 ||
     !xm77SpriteValid || xm77SpriteWidth!=384 || xm77SpriteHeight!=224 ||
     !xm77SpritePixels())return false;
+ // Rock Castle shares the stage-05 native sprite donor, not the Wily manifest.
+ if(xm77StageResolved==XM77_ROCK_CASTLE)
+   return XM87200::state().paint(render,view,xm8649Visual.nativeCameraX,
+       xm8649Visual.nativeCameraY,
+       xm8649Visual.frames,xm77StageRollGeneration(),
+       xm77SpritePixels(),xm8757FlashPixels());
+ if(xm77StageResolved!=XM77_WILY_FACTORY || xm8649Unavailable)return false;
  SDL_Texture* oldTarget=SDL_GetRenderTarget(render);
  int logicalW=0,logicalH=0;SDL_RenderGetLogicalSize(render,&logicalW,&logicalH);
  SDL_Rect viewport={0,0,0,0},oldClip={0,0,0,0};SDL_RenderGetViewport(render,&viewport);

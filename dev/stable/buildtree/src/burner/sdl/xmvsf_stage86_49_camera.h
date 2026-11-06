@@ -17,10 +17,13 @@ static inline int xm8649SignedWord(cpu_core_config* c, unsigned a){
 static inline void xm8649ObserveCamera(bool gameReady){
  static bool previouslyActive=false;
  if(bRunPause)return; // pausing must never reveal the original stage
- if(!gameReady || bBurnRunAheadFrame ||
-   // Wily stage assignment is independent of Double Feature color grading.
-   xm77StageChoice!=1 || xm77StageResolved!=1 ||
-   xm14TrainingMode!=1 || xm24VersusMode!=0){
+ const bool wily=(xm77StageChoice==XM77_WILY_FACTORY &&
+     xm77StageResolved==XM77_WILY_FACTORY &&
+     xm14TrainingMode==1 && xm24VersusMode==0);
+ const bool rock=(xm77StageChoice==XM77_ROCK_CASTLE &&
+     xm77StageResolved==XM77_ROCK_CASTLE &&
+     (xm14TrainingMode==1 || xm24VersusMode==1));
+ if(!gameReady || bBurnRunAheadFrame || (!wily && !rock)){
   xm8649Visual.sceneActive=false;return;
  }
  const char* name=BurnDrvGetTextA(DRV_NAME);

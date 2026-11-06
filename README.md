@@ -56,6 +56,14 @@ It retains discovery of older TEST-version recordings.
 The launcher filenames never change; version numbers belong inside
 the scripts and diagnostics, not in new launcher names.
 
+## Animated GIF levels
+
+**[GIF stage rendering contract](GIF_STAGE_RENDERING.md)** is the standard
+for all animated GIF levels, including Rock Castle: single-image world-camera
+registration, native fighter/FX compositing, source GIF timing, and normal/DF
+presentation. New GIF stages must follow that pipeline rather than invent a
+new renderer.
+
 ## Handoff and verification
 
 - [Recording, replay, and fast-forward instructions](REPLAY.md)

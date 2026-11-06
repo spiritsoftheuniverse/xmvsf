@@ -19,6 +19,7 @@
 #include <SDL_image.h>
 #include "../../../burner/sdl/xmvsf_stage86_52_window_state.h" /* XM86.52 */
 #include "../../../burner/sdl/xmvsf_stage86_56_final.h" /* XM86.56 global final presentation */
+#include "xmvsf_stage87_201_select_fast.h" // XM87.201 native-size DF selection grayscale, no GPU readback
 #include "../../../burn/drv/capcom/xmvsf_stage87_33_dizzy_hud.h"
 #include "xmvsf_stage87_40_hud_color.h" // Separate portrait and HP source-colored overlay
 #include "../../../burn/drv/capcom/xmvsf_stage87_35_hud_palette.h" // Exact native HUD chroma overlay // Post-Wily HUD
@@ -593,8 +594,19 @@ static int Paint(int bValidate)
     // XM87.132 CLEAN: no automatic framebuffer, GPU, or BMP capture in TEST/Stable.
     SDL_SetRenderDrawColor(sdlRenderer,8,16,36,255); /* XMVSF_STAGE32_NAVY */
 	SDL_RenderClear(sdlRenderer);
-    if (SDL_UpdateTexture(sdlTexture, NULL, pVidImage, nVidImagePitch) < 0) {
-        if (stage12PaintCount <= 3) xmvsfStage12VideoLog("ERROR_UPDATE_TEXTURE");
+    // DF was previously grading the physical output via GPU readback, which
+    // made character select disproportionately slow at high resolutions.
+    // Upload a grayscale copy of the 384x224 (or game-native) CPU image instead.
+    // The source pVidImage remains pristine; game-frame scheduling is unchanged.
+    const bool xm87201SelectionDF=xm8655DoubleFeature() &&
+        xm8658GameStatus>=0 && xm8658GameStatus<2 &&
+        !xm8649Visual.sceneActive;
+    const bool xm87201FastUploaded=xm87201SelectionDF &&
+        XM87201Select::state().Upload(sdlTexture,pVidImage,nVidImageWidth,
+                                     nVidImageHeight,nVidImagePitch,nVidImageBPP);
+    if(!xm87201FastUploaded &&
+       SDL_UpdateTexture(sdlTexture,NULL,pVidImage,nVidImagePitch)<0){
+        if(stage12PaintCount<=3)xmvsfStage12VideoLog("ERROR_UPDATE_TEXTURE");
     }
     xm8657EnsureCurrentSprites(); // stage registered immediately before VidPaint
     // XM87.128: 87.127 displaced the ENTIRE 720x540 display rectangle by
@@ -648,7 +660,9 @@ static int Paint(int bValidate)
         }
         // DF grading FIRST, screen-position evidence SECOND,
         // final-color selection owner indicators LAST.
-        xm8656FinalPass(sdlRenderer,false);
+        // XM87.201: the game canvas is ALREADY grayscale on the GPU.
+        // Do not read the entire physical output back to the CPU each frame.
+        // Native input, HUD controls and final status banners remain responsive.
         // XM87.71: screen recording moved to native CPU framebuffer path.
         // Do not perform GPU readback or file IO in presentation.
         /* XM87.104 removed colored selector overlay */
