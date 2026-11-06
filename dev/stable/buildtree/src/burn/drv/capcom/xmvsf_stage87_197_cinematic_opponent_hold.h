@@ -31,10 +31,11 @@ struct Freeze {
     unsigned held=0u;
     std::uint8_t snapshot[0x400u]={};
     static bool phaseHolds(unsigned phase){
-        // Native exit and real jump/input only. Once ROM accepts
-        // reserve 2E or host aborts, the opponent must run again.
+        // 87.198: include SUPER_STARTED (phase 6). The native action
+        // spends 47-53 additional frames in startup with no offensive
+        // hitbox, so release at its first attack, NOT its first 2E frame.
         return phase==3u || phase==4u || phase==5u ||
-               phase==8u || phase==12u;
+               phase==6u || phase==8u || phase==12u;
     }
     static unsigned opponentBase(unsigned side){
         return 0x4000u+((side^1u)&1u)*0x400u;
@@ -82,9 +83,19 @@ struct Freeze {
         ++held;last=now;
         return true;
     }
-    // Finish when native incoming 2E is verified; copy back the
-    // exact captured opponent object, including original hitbox bytes,
-    // only if the original fighter still owns the same slot.
+    // The first native 2E offensive hitbox is already present AFTER
+    // this emulated CPU frame. Do NOT restore the old 0x400 snapshot
+    // on that one frame: doing so could erase a legitimate first hit,
+    // health deduction or ROM hitstun. The previous 100+ frames were
+    // held; let this actual CPU frame take ownership of the opponent.
+    bool releaseAtNativeOffense(std::uint8_t* ram){
+        if(!active)return false;
+        const bool same=validActor(ram);
+        reset(); // no RAM writes, first real attack/hit survives
+        return same;
+    }
+    // On abort/failure restore the exact captured opponent actor,
+    // including original health/hitbox bytes, if ownership is intact.
     bool release(std::uint8_t* ram){
         if(!active)return false;
         const bool same=validActor(ram);
