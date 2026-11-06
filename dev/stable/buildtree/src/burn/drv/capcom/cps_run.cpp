@@ -20,7 +20,8 @@
 #include "../../../burner/sdl/xmvsf_stage87_140_super_chat.h" // XM87.140 native super-input chat (no writes)
 #include "xmvsf_stage87_142_rom_dispatch.h" // 87.142 pure native script table+tag observer
 #include "xmvsf_stage87_175_native_accept_observer.h" // 87.175 read-only native 68000 vs host DHC trace
-#include "xmvsf_stage87_180_subframe_input_observer.h" // 87.180 intra-frame native input clocks
+#include "xmvsf_stage87_180_subframe_input_observer.h"
+#include "xmvsf_stage87_203_stage_capture.h" // read-only CPS2 stage capture // 87.180 intra-frame native input clocks
 #include "xmvsf_stage87_181_observer_health.h" // 87.181 startup and combat observer diagnostics
 #include "xmvsf_stage87_182_native_pc_trace.h" // 87.182 exact native PPC audit, opt-in
 #include "xmvsf_stage87_186_opening_observer.h" // 87.186 original entry, first attack, and input boundary audit
@@ -1044,6 +1045,46 @@ INT32 Cps2Frame()
           (unsigned)GetCurrentFrame(),xm8786_p1_buttons,xm8786_p2_buttons,
           (unsigned)Cpi01A,(unsigned)Cpi01C,(unsigned)Cpi01E);
     XM87121::state().frame((unsigned)GetCurrentFrame(),CpsRamFF); // XM87.121 cancel only recovery, no new jump
+    // XM87.203: source-accurate, read-only stage telemetry, no framebuffer,
+    // ROM, gameplay, controller, palette or F9 replay modifications.
+    const char* captureDir=std::getenv("XM87203_STAGE_CAPTURE_DIR");
+    if(captureDir && *captureDir && !bBurnRunAheadFrame &&
+       Cps==2 && CpsRamFF && CpsSavePal && CpsRam708 &&
+       CpsSaveReg[0] && CpsSaveFrg[0]){
+        const char* driver=BurnDrvGetTextA(DRV_NAME);
+        if(driver && std::strncmp(driver,"xmvsf",5)==0){
+            XM87203Stage::Frame f;
+            f.frame=(unsigned)GetCurrentFrame();
+            f.phase=(unsigned)CpsRamFF[0x5001u];
+            f.stage=(unsigned)CpsRamFF[0x5112u]&15u;
+            f.screenW=nCpsScreenWidth;f.screenH=nCpsScreenHeight;
+            f.objectBank=((unsigned)nCpsObjectBank^1u)&1u;
+            f.oam=CpsRam708+(f.objectBank<<15u);
+            f.palette=CpsSavePal;
+            unsigned n=1u;
+            while(n<XM87203Stage::MAX_SLICES && nRasterline[n])++n;
+            f.sliceCount=n;
+            const unsigned bankReg[3]={0x02u,0x04u,0x06u};
+            for(unsigned slice=0;slice<n;++slice){
+                const unsigned char* r=CpsSaveReg[slice];
+                f.reg[slice]=r;
+                f.frg[slice]=CpsSaveFrg[0]; // hardware priority, not invented per-slice ownership
+                f.rasterStart[slice]=slice?(unsigned)nRasterline[slice]:0u;
+                if(!r)continue;
+                for(unsigned layer=0;layer<3u;++layer){
+                    const unsigned bank=(XM87203Stage::be16(r,bankReg[layer])<<8u)&0xFFC000u;
+                    f.mapBank[slice][layer]=bank;
+                    f.map[slice][layer]=CpsFindGfxRam((INT32)bank,0x4000);
+                }
+                if((XM87203Stage::be16(r,0x22u)&1u) && !CpsDisableRowScroll){
+                    const unsigned bank=(XM87203Stage::be16(r,0x08u)<<8u)&0xFFF800u;
+                    f.rowBank[slice]=bank;
+                    f.row[slice]=CpsFindGfxRam((INT32)bank,0x0800);
+                }
+            }
+            XM87203Stage::state().observe(f);
+        }
+    }
     xm8634Mark("COMPLETE");
 
 //	bprintf(PRINT_NORMAL, _T("    -\n"));
