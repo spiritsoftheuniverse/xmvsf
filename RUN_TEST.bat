@@ -15,6 +15,9 @@ REM To run original XMVSF for DHC testing: RUN_TEST.bat xmvsfu.
 set "SOURCE_ROM=%~1"
 if not defined SOURCE_ROM set "SOURCE_ROM=mvscur1"
 set "CLEAN_RIP_MODE=%~2"
+REM 68000 trace needs the original MVC frame capture gate for its one-shot
+REM private decrypted-program dump, even if the shell had disabled telemetry.
+if /I "%CLEAN_RIP_MODE%"=="trace" set "XM87203_STAGE_CAPTURE_ENABLE=1"
 if defined CLEAN_RIP_MODE if /I not "%CLEAN_RIP_MODE%"=="clean" if /I not "%CLEAN_RIP_MODE%"=="trace" (
   echo ERROR: Unknown second argument. Use clean or trace for MVC1 source capture.
   goto :fail
@@ -355,6 +358,8 @@ REM 87.203: opt-in Motorola 68000 writer-PC evidence. Never launch GitHub
 REM Actions or rewrite Stable. The source ROM/decrypted code stays local.
 if /I "%CLEAN_RIP_MODE%"=="trace" set "XM87203_M68K_TRACE=1"
 if "%XM87203_M68K_TRACE%"=="1" if /I "%SOURCE_ROM:~0,4%"=="mvsc" (
+  REM Always choose a NEW directory; never trust a stale inherited path.
+  set "XM87203_M68K_DUMP_DIR="
   if not exist "%PROJECT%\test\87.203\m68k_trace" mkdir "%PROJECT%\test\87.203\m68k_trace"
   for /L %%N in (1,1,9999) do (
     if not defined XM87203_M68K_DUMP_DIR if not exist "%PROJECT%\test\87.203\m68k_trace\run_%%N" (
@@ -369,7 +374,7 @@ if "%XM87203_M68K_TRACE%"=="1" if /I "%SOURCE_ROM:~0,4%"=="mvsc" (
     echo ERROR: Could not reserve a unique M68K trace directory.
     goto :fail
   )
-  echo M68K sprite writer PC capture: %XM87203_M68K_DUMP_DIR%
+  echo M68K sprite writer PC capture configured under test\87.203\m68k_trace\run_XXXX
   echo Writer source dumps and traces remain LOCAL under ignored test\87.203.
 )
 pushd "%PROJECT%\FBNeo" || goto :fail
