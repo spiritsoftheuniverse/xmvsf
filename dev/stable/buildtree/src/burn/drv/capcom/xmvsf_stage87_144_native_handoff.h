@@ -555,6 +555,21 @@ struct State {
                     event(now,side,ram,
                           "DHC_184_RECOVERY_PHASE_NATIVE_TAG_EXPERIMENT");
                     armOutgoingTag(ram,now,side,selectedAt);
+                }else if(XM87185Gate::directActiveAttack(
+                       ryuLife,earlyActiveDirectTest,remaining,
+                       rw(ram,p+0xC0u),rw(ram,p+0xCAu))){
+                    // 87.184: seven early active-phase inputs were
+                    // accepted by the matcher but thrown away when the
+                    // arbitrary +4E=28 cutoff arrived. All seven were
+                    // already original 2E08/step04 with a clean native
+                    // punch history at the actual QCF+2P/3P press.
+                    // TEST: arm now while the fresh physical input is
+                    // available. Do NOT generate the unsafe 87.179
+                    // delayed synthetic edge. 87.183 C0/CA preflight
+                    // ran above, and the ROM must still accept controller 8.
+                    event(now,side,ram,
+                          "DHC_185_EARLY_ACTIVE_DIRECT_FRESH_EDGE_TEST");
+                    armOutgoingTag(ram,now,side,selectedAt);
                 }else if(remaining>verifiedWindow){
                     phase[side]=WAIT_RYU_SUPER_END;
                     started[side]=now;
