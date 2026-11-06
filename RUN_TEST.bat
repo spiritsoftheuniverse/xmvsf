@@ -15,9 +15,9 @@ REM To run original XMVSF for DHC testing: RUN_TEST.bat xmvsfu.
 set "SOURCE_ROM=%~1"
 if not defined SOURCE_ROM set "SOURCE_ROM=mvscur1"
 set "CLEAN_RIP_MODE=%~2"
-REM 68000 trace needs the original MVC frame capture gate for its one-shot
-REM private decrypted-program dump, even if the shell had disabled telemetry.
-if /I "%CLEAN_RIP_MODE%"=="trace" set "XM87203_STAGE_CAPTURE_ENABLE=1"
+REM The 68000 program dumper runs independently of full native stage
+REM frame/tilemap telemetry. Default trace mode stays lightweight.
+if /I "%CLEAN_RIP_MODE%"=="trace" set "XM87203_STAGE_CAPTURE_ENABLE=0"
 if defined CLEAN_RIP_MODE if /I not "%CLEAN_RIP_MODE%"=="clean" if /I not "%CLEAN_RIP_MODE%"=="trace" (
   echo ERROR: Unknown second argument. Use clean or trace for MVC1 source capture.
   goto :fail
