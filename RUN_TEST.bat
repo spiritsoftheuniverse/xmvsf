@@ -9,6 +9,15 @@ REM Explicit variants: RUN_TEST.bat mvsc / RUN_TEST.bat mvscu.
 REM To run original XMVSF for DHC testing: RUN_TEST.bat xmvsfu.
 set "SOURCE_ROM=%~1"
 if not defined SOURCE_ROM set "SOURCE_ROM=mvscur1"
+set "CLEAN_RIP_MODE=%~2"
+if defined CLEAN_RIP_MODE if /I not "%CLEAN_RIP_MODE%"=="clean" (
+  echo ERROR: Unknown second argument. Use clean to enable the CPS2 clean-rip exporter.
+  goto :fail
+)
+if /I "%SOURCE_ROM%"=="xmvsfu" if /I "%CLEAN_RIP_MODE%"=="clean" (
+  echo ERROR: Native clean-rip mode only operates on Marvel vs. Capcom donor ROMs.
+  goto :fail
+)
 if /I not "%SOURCE_ROM:~0,4%"=="mvsc" if /I not "%SOURCE_ROM%"=="xmvsfu" (
   echo ERROR: Stage capture supports Marvel vs. Capcom mvsc* ROM sets.
   echo Optional XMVSF mode is xmvsfu; no arbitrary ROM fallback.
@@ -308,6 +317,26 @@ if /I "%SOURCE_ROM:~0,4%"=="mvsc" (
   set "XM87160_DISCOVER=0"
   set "XM8649_WILY_RENDER=0"
   set "XM44_CAPTURE=0"
+)
+REM Opt-in Kawaks-style render-pass isolation: use the EXISTING XM44/CPS2
+REM exporter and the ORIGINAL ROM pixel renderer, not inferred memory atlases.
+REM F9/input replay and the separate 87.203 native telemetry stay unchanged.
+if /I "%CLEAN_RIP_MODE%"=="clean" (
+  set "XM44_CAPTURE=1"
+  set "XM44_CAPTURE_DIR=%PROJECT%\test\87.203\clean_rips"
+  if not exist "%PROJECT%\test\87.203\clean_rips" mkdir "%PROJECT%\test\87.203\clean_rips"
+  if not exist "%PROJECT%\test\87.203\clean_rips" goto :fail
+  if not defined XM44_FRAMES set "XM44_FRAMES=360"
+  if not defined XM44_STEP set "XM44_STEP=2"
+  echo.
+  echo CPS2 CLEAN RIP ARMING: source renderer, Scroll 1/2/3 and no-sprite composite.
+  echo Native color/transparency, no fighters or HUD, zero source ROM changes.
+  echo When the DESIRED stage is visible, open another CMD prompt and run:
+  echo   type nul ^> "%PROJECT%\test\87.203\clean_rips\START.flag"
+  echo Existing open MSYS watcher displays CLEAN_RIP_START and CLEAN_RIP_BURST_DONE.
+  echo After completion create another START.flag for a new separate burst.
+  echo Clean rip outputs are under: "%PROJECT%\test\87.203\clean_rips\shot_XXXX"
+  echo Export transparent PNGs: python dev\stage_capture\EXPORT_CLEAN_RIP.py --input "..." --output "..."
 )
 pushd "%PROJECT%\FBNeo" || goto :fail
 echo Launching original CPS2 donor ROM %SOURCE_ROM% with controller support.
