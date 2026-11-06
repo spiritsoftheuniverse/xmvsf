@@ -2,6 +2,7 @@
 // log. No ROM, game windows, sprites or mutable gameplay state required.
 #include "../../stable/buildtree/src/burner/sdl/xmvsf_stage87_140_super_chat.h"
 #include <cassert>
+#include <cstdio>
 #include <cstring>
 #include <vector>
 #include <cstdint>
@@ -46,7 +47,23 @@ int main(){
     s.frame(r.data(),12u,4u,0,0,0);
     s.frame(r.data(),13u,5u,0,0,0);
     s.frame(r.data(),14u,1u,0,3u,0); // LP+MP pressed
-    assert(has(s,"MATCH KEN SHORYUREPPA (QCF+PP)"));
+    if(!has(s,"MATCH KEN SHORYUREPPA (QCF+2P)")){
+        const auto* matched=matchListed(0x14u,s.keys[0],true,14u,3u,true);
+        std::fprintf(stderr,"87.189 chat fixture: candidate=%u live=%u phase=%u"
+            " nativeWindow=%u match=%s hist=%u direction=%u lastAttack=%u\n",
+            unsigned(s.candidate[0]),unsigned(s.shinkuu[0].live),
+            unsigned(s.shinkuu[0].phase),
+            unsigned(XM87185Gate::canRecognize(XM87184Life::Sample(
+                0x12u,w(r.data(),0x4060u),w(r.data(),0x40A0u),
+                w(r.data(),0x4008u),
+                (w(r.data(),0x4034u)<<16u)|w(r.data(),0x4036u),
+                b(r.data(),0x40D6u)))),
+            matched?matched->name:"NONE",s.keys[0].count,
+            unsigned(s.keys[0].direction),s.lastAttackFrame[0]);
+        for(unsigned i=0;i<s.count;++i)
+            std::fprintf(stderr,"87.189 chat msg: %s\n",s.lines[i].text);
+    }
+    assert(has(s,"MATCH KEN SHORYUREPPA (QCF+2P)"));
     assert(has(s,"P1 INPUT LP+MP"));
     assert(has(s,"[INPUT ONLY]"));
     assert(has(s,"P1 DIR DF"));
@@ -109,8 +126,8 @@ int main(){
     // Facing right (native facingBit=1): QCB is D, D+LEFT, LEFT.
     testMove(0x12u,4u,6u,2u,24u,"MATCH RYU SHINKUU TATSUMAKI (QCB+KK)",true,false);
     testMove(0x12u,4u,5u,1u,24u,"MATCH RYU SHINKUU TATSUMAKI (QCB+KK)",false,false);
-    testMove(0x12u,4u,5u,1u,3u,"MATCH RYU SHINKUU HADOKEN (QCF+PP)",true,false);
-    testMove(0x14u,4u,5u,1u,3u,"MATCH KEN SHORYUREPPA (QCF+PP)",true,false);
+    testMove(0x12u,4u,5u,1u,3u,"MATCH RYU SHINKUU HADOKEN (QCF+2P)",true,false);
+    testMove(0x14u,4u,5u,1u,3u,"MATCH KEN SHORYUREPPA (QCF+2P)",true,false);
     testMove(0x14u,4u,5u,1u,24u,"MATCH KEN SHINRYUKEN (QCF+KK)",true,false);
     // Facing left (native facingBit=0): QCB is D, D+RIGHT, RIGHT.
     testMove(0x12u,4u,5u,1u,24u,"MATCH RYU SHINKUU TATSUMAKI (QCB+KK)",true,true);
