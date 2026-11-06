@@ -11,9 +11,9 @@ if not exist "%LOGDIR%" mkdir "%LOGDIR%"
 if not exist "%LOGDIR%" goto :no_log
 set "BUILDLOG=%LOGDIR%\BUILD_TEST.log"
 >>"%BUILDLOG%" echo.
->>"%BUILDLOG%" echo ========== XMVSF BUILD_TEST.bat 87.191 START %DATE% %TIME% ==========
+>>"%BUILDLOG%" echo ========== XMVSF BUILD_TEST.bat 87.192 START %DATE% %TIME% ==========
 >>"%BUILDLOG%" echo Project: %PROJECT%
-echo XMVSF 87.191 incremental TEST build
+echo XMVSF 87.192 incremental TEST build
 echo Source: "%PROJECT%\dev\stable\buildtree"
 echo Permanent build transcript: "%BUILDLOG%"
 echo All build output is displayed AND appended to the transcript.
@@ -46,7 +46,7 @@ set "RC=%ERRORLEVEL%"
 popd
 if not "%RC%"=="0" goto :fail
 echo.
-echo TEST 87.191 BUILD READY. Run RUN_TEST.bat.
+echo TEST 87.192 BUILD READY. Run RUN_TEST.bat.
 echo Full transcript: "%BUILDLOG%"
 >>"%BUILDLOG%" echo BATCH RESULT: SUCCESS %DATE% %TIME%
 pause
