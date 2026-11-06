@@ -660,6 +660,9 @@ static bool xm44Initialised = false;
 static bool xm44Enabled = false;
 static bool xm44Capturing = false;
 static bool xm44Done = false;
+static bool xm44Auto = false;
+static unsigned long long xm44TotalSamples=0;
+static unsigned xm44Batches=0;
 static int xm44Sample = 0;
 static int xm44RawFrame = 0;
 static int xm44Limit = 180;
@@ -721,6 +724,8 @@ static void xm44Init() {
     }
     xm44Root=dir;
     xm44Dir=xm44Root;
+    const char* automatic=std::getenv("XM44_AUTO");
+    xm44Auto=automatic && std::strcmp(automatic,"1")==0;
     const char* max = std::getenv("XM44_FRAMES");
     if (max && *max) xm44Limit = std::atoi(max);
     if (xm44Limit < 1 || xm44Limit > 1200) xm44Limit = 180;
@@ -737,7 +742,8 @@ static void xm44Init() {
     xm44Status("CLEAN_RIP_ARMED","donor="+std::string(driver)+
         " samples="+std::to_string(xm44Limit)+
         " step="+std::to_string(xm44Step)+
-        " trigger="+xm44Root+"/START.flag");
+        (xm44Auto?" mode=CONTINUOUS_AUTO_BATCH":
+                   " trigger="+xm44Root+"/START.flag"));
 }
 static void xm44Close() {
     if (xm44Index) { std::fclose(xm44Index); xm44Index = NULL; }
@@ -792,9 +798,11 @@ static void xm44CaptureAfterDraw() {
     if (!xm44Enabled || xm44Done) return;
     if (!xm44Capturing) {
         const std::string marker=xm44Root+"/START.flag";
-        FILE* go=std::fopen(marker.c_str(),"rb");
-        if (!go)return;
-        std::fclose(go);
+        if(!xm44Auto){
+            FILE* go=std::fopen(marker.c_str(),"rb");
+            if(!go)return;
+            std::fclose(go);
+        }
         // Shot Factory-style capture: preserve the trigger in an exclusive
         // session directory. Never overwrite existing rip files.
         xm44Dir.clear();
@@ -810,7 +818,19 @@ static void xm44CaptureAfterDraw() {
             xm44Status("ERROR","CLEAN_RIP_NO_FREE_SESSION");
             xm44Enabled=false;return;
         }
-        if(std::rename(marker.c_str(),xm44Path("START.flag").c_str())!=0) {
+        if(xm44Auto){
+            FILE* origin=std::fopen(xm44Path("AUTOMATIC_BATCH.txt").c_str(),"wb");
+            if(!origin){
+                xm44Status("ERROR","CLEAN_RIP_AUTO_PROVENANCE_WRITE_FAILED dir="+xm44Dir);
+                xm44Enabled=false;return;
+            }
+            std::fprintf(origin,"source=mvsc native_renderer\nautomatic=1\nbatch=%u\n",
+                         xm44Batches+1u);
+            if(std::fclose(origin)!=0){
+                xm44Status("ERROR","CLEAN_RIP_AUTO_PROVENANCE_CLOSE_FAILED");
+                xm44Enabled=false;return;
+            }
+        }else if(std::rename(marker.c_str(),xm44Path("START.flag").c_str())!=0) {
             xm44Status("ERROR","CLEAN_RIP_MOVE_TRIGGER_FAILED dir="+xm44Dir);
             xm44Enabled=false;return;
         }
@@ -828,8 +848,10 @@ static void xm44CaptureAfterDraw() {
         std::fprintf(xm44Sprites,"sample\tobject_index\tx\ty\ttile\tattributes\tpriority\tpalette\twidth_tiles\theight_tiles\n");
         XM47ResetCapturedTiles();
         xm44Capturing=true;
-        xm44Status("CLEAN_RIP_START","dir="+xm44Dir+
-            " painter=native_CPS2 layers=0,1,2,3 transparent_two_fill=1");
+        xm44Status("CLEAN_RIP_START","batch="+
+            std::to_string(xm44Batches+1u)+" dir="+xm44Dir+
+            " painter=native_CPS2 layers=0,1,2,3 transparent_two_fill=1"+
+            (xm44Auto?" automatic=1":" manual=1"));
     }
     ++xm44RawFrame;
     if ((xm44RawFrame-1)%xm44Step) return;
@@ -871,14 +893,19 @@ static void xm44CaptureAfterDraw() {
     if (xm47Tiles) std::fflush(xm47Tiles);
     if (xm47Palettes) std::fflush(xm47Palettes);
     ++xm44Sample;
+    ++xm44TotalSamples;
     if (xm44Sample >= xm44Limit) {
         xm44Close(); xm44Done=true;
         FILE* marker = std::fopen(xm44Path("CAPTURE_COMPLETE.txt").c_str(),"wb");
         if (marker) { std::fprintf(marker,"samples=%d\n",xm44Sample); std::fclose(marker); }
+        ++xm44Batches;
         xm44Status("CLEAN_RIP_BURST_DONE","samples="+
-            std::to_string(xm44Sample)+" dir="+xm44Dir+
+            std::to_string(xm44Sample)+" total_samples="+
+            std::to_string(xm44TotalSamples)+" batch="+
+            std::to_string(xm44Batches)+" dir="+xm44Dir+
             " animation_and_world_coverage_unverified=1");
-        // Re-arm for another START.flag without quitting the MVC donor game.
+        // Continuous mode auto-starts next independent batch on the next
+        // original CPS2 draw frame. Manual START.flag remains opt-in.
         xm44Done=false;
         xm44Capturing=false;
     }
