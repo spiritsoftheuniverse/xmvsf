@@ -5,7 +5,7 @@ set "MSYSTEM=UCRT64"
 set "PATH=C:\msys64\ucrt64\bin;C:\msys64\usr\bin;%PATH%"
 set "XMVSF_PROJECT=%PROJECT%"
 REM 87.175 read-only native state trace. Fails closed if logs cannot be saved.
-set "OBSROOT=%PROJECT%\test\87.189\observer"
+set "OBSROOT=%PROJECT%\test\87.190\observer"
 if not exist "%OBSROOT%" mkdir "%OBSROOT%"
 if not exist "%OBSROOT%" (
   echo ERROR: Cannot create 87.175 native observer log directory.
@@ -27,10 +27,10 @@ REM 87.186 TEST-only nonterminal native 2E0A recovery handoff experiment.
 if not defined XM87184_EXPERIMENTAL_RECOVERY_TAG set "XM87184_EXPERIMENTAL_RECOVERY_TAG=1"
 REM 87.186 TEST-only: arm controller 8 while the verified active action edge is fresh.
 if not defined XM87185_TEST_EARLY_ACTIVE_TAG set "XM87185_TEST_EARLY_ACTIVE_TAG=1"
-REM 87.189: clean current-frame DHC throughout original 2A02/2A28 ATTACK.
+REM 87.190: clean current-frame DHC throughout original 2A02/2A28 ATTACK.
 if not defined XM87188_TEST_FULL_ATTACK set "XM87188_TEST_FULL_ATTACK=1"
-REM 87.189: shared original-ROM 2E family outlet; Ryu->Ken only execution.
-REM Set 0 in parent CMD to compare against 87.189 while keeping logs.
+REM 87.190: original 2E script-loop and subaction continuity; Ryu->Ken only.
+REM Set 0 in parent CMD to compare against 87.190 while keeping logs.
 if not defined XM87189_TEST_NATIVE_SUPER_FAMILY set "XM87189_TEST_NATIVE_SUPER_FAMILY=1"
 REM 87.186 TEST-only: after exact 2E0A->2E08 native rebound, use original ROM tag script bridge.
 if not defined XM87185_TEST_RECOVERY_REBOUND set "XM87185_TEST_RECOVERY_REBOUND=1"
@@ -47,9 +47,9 @@ if errorlevel 1 (
   goto :fail
 )
 if not defined XM87180_EXPERIMENTAL_DELAYED_PRIME set "XM87180_EXPERIMENTAL_DELAYED_PRIME=0"
-set "EXE=%PROJECT%\runtime\stable\XMVSF_Test_87_189.exe"
+set "EXE=%PROJECT%\runtime\stable\XMVSF_Test_87_190.exe"
 if not exist "%EXE%" (
-  echo ERROR: Stage 87.189 TEST executable is missing.
+  echo ERROR: Stage 87.190 TEST executable is missing.
   echo Run BUILD_TEST.bat first. Will NOT fall back to 87.132.4 or Stable.
   goto :fail
 )
@@ -66,7 +66,7 @@ REM The original 87.61 recorder remains available when this root is absent.
 REM V2 F9 sessions now live INSIDE the same current TEST replay folder
 REM users already package and inspect, not hidden under test\replay_sessions.
 REM Every F9 recording gets manifest.tsv + .fs + .bin in its own subfolder.
-set "XM8764_REPLAY_ROOT=%PROJECT%\test\87.189\replays"
+set "XM8764_REPLAY_ROOT=%PROJECT%\test\87.190\replays"
 if not exist "%XM8764_REPLAY_ROOT%" mkdir "%XM8764_REPLAY_ROOT%"
 if not exist "%XM8764_REPLAY_ROOT%" (
   echo ERROR: Cannot create permanent app-level replay recording directory.
@@ -86,15 +86,15 @@ REM Restore original native state-anchored F9 recorder (XM87.61/XM87.132).
 REM F9 starts/stops each independent full-state + input movie.
 REM The recorder requires an existing replay directory, not an invented
 REM input format or a new launcher.
-set "XM8761_REPLAY_DIR=%PROJECT%\test\87.189\replays"
+set "XM8761_REPLAY_DIR=%PROJECT%\test\87.190\replays"
 if not exist "%XM8761_REPLAY_DIR%" mkdir "%XM8761_REPLAY_DIR%"
 if not exist "%XM8761_REPLAY_DIR%" (
   echo ERROR: Cannot create native input replay directory.
   goto :fail
 )
 set "XM8761_REPLAY_MODE=off"
-set "XM87139_PROBE_DIR=%PROJECT%\test\87.189"
-set "XM87140_CHAT_DIR=%PROJECT%\test\87.189"
+set "XM87139_PROBE_DIR=%PROJECT%\test\87.190"
+set "XM87140_CHAT_DIR=%PROJECT%\test\87.190"
 if not exist "%XM87139_PROBE_DIR%" mkdir "%XM87139_PROBE_DIR%"
 if not exist "%XM87139_PROBE_DIR%" (
   echo ERROR: Cannot create diagnostic output directory.
@@ -158,7 +158,7 @@ echo 87.185: delayed DHC input priming disabled by default, preserves original R
 echo 87.184 native Shinkuu action lifetime: 2E08 startup/attack, 2E0A recovery, exact exit.
 echo 87.185 exact recovery rebound is EXPERIMENTAL; startup input recognized, startup tag unverified.
 echo Native 2E family: %XM87189_TEST_NATIVE_SUPER_FAMILY% full original attack: %XM87188_TEST_FULL_ATTACK% recovery: %XM87185_TEST_RECOVERY_REBOUND%
-echo XMVSF Stage 87.189 TEST - KEEP KEN SHORYUREPPA; CUT OUTGOING RYU PROJECTILE HITS
+echo XMVSF Stage 87.190 TEST - KEEP KEN SHORYUREPPA; CUT OUTGOING RYU PROJECTILE HITS
 echo Executable: %EXE%
 echo SAME BUILD, TWO DHC CHOICES:
 echo   During Ryu Shinkuu Hadoken, QCF+ANY TWO PUNCHES or QCF+3P queues Ken SHORYUREPPA.
@@ -273,7 +273,7 @@ if exist "%XM87186_OPENING_OBSERVER_LOG%" (
     if errorlevel 1 echo WARNING: opening trace analyzer failed; raw TSV retained.
   )
 )
-echo Stage 87.189 TEST exit code: %RC%
+echo Stage 87.190 TEST exit code: %RC%
 echo Probe directory: %XM87139_PROBE_DIR%
 pause
 exit /b %RC%
