@@ -86,6 +86,12 @@ int main(){
         assert(second.enabled&&!second.failed);
     }
     assert(second.completedBatches==1u);
+    assert(second.gfxReady && second.gfxAttempted);
+    {
+        std::FILE* index=std::fopen((second.sessionDir+"/gfx_index.tsv").c_str(),"rb");
+        assert(index && "new rollover batch must immediately contain decoded gfx");
+        std::fclose(index);
+    }
     assert(second.totalFrames==static_cast<unsigned long long>(limit)+1ull);
     assert(second.frames==1u);
     assert(second.sessionDir!=batch0);
