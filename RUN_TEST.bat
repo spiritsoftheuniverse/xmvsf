@@ -7,6 +7,7 @@ set "XMVSF_PROJECT=%PROJECT%"
 REM Offline artifact review uses Python only. Never reaches ROM checks or EXE.
 if /I "%~1"=="review" goto :offline_clean_review
 if /I "%~1"=="sprites" goto :offline_sprite_factory
+if /I "%~1"=="channels" goto :offline_all_sprite_channels
 REM Stage 87.203 CAPTURE BRANCH: the input is MVC1 mvscur1, not XMVSF.
 REM Explicit variants: RUN_TEST.bat mvsc / RUN_TEST.bat mvscu.
 REM To run original XMVSF for DHC testing: RUN_TEST.bat xmvsfu.
@@ -491,7 +492,8 @@ if errorlevel 1 (
   echo ERROR: Python unavailable. Original files remain unchanged.
   exit /b 1
 )
-if "%~2"=="" goto :offline_sprite_all
+if "%~2"=="" goto :offline_all_sprite_channels
+if /I "%~2"=="channels" goto :offline_all_sprite_channels
 if /I "%~2"=="scenery" goto :offline_sprite_all
 if /I "%~2"=="all" goto :offline_sprite_all_legacy
 echo Direct sprite tile ID: %~2
@@ -516,3 +518,27 @@ if exist "%PROJECT%\test\87.203\sprite_factory\sprite_factory_review_bundle.zip"
   echo ERROR: Sprite Factory review ZIP was not created. Check original capture paths.
 )
 exit /b %SPRITE_RC%
+
+
+:offline_all_sprite_channels
+echo.
+echo STAGE 87.203: OFFLINE ALL CPS2 SPRITE PRIORITIES 0-7 + SCROLL CHANNELS
+echo No game, ROM, build, HUD/fighter filtering or guessed scenery labels.
+where python.exe >nul 2>nul
+if errorlevel 1 (
+  echo ERROR: Python unavailable. Existing captures unchanged.
+  exit /b 1
+)
+python.exe "%PROJECT%\dev\stage_capture\SPRITE_CHANNELS.py" --clean-root "%PROJECT%\test\87.203\clean_rips" --output "%PROJECT%\test\87.203\sprite_channels"
+set "CHANNEL_RC=%ERRORLEVEL%"
+if not "%CHANNEL_RC%"=="0" (
+  echo ERROR: All-channel review failed. Any existing ZIP could be from a prior pass.
+  exit /b %CHANNEL_RC%
+)
+if exist "%PROJECT%\test\87.203\sprite_channels\sprite_all_channels_review_bundle.zip" (
+  echo All-channel review ZIP: "%PROJECT%\test\87.203\sprite_channels\sprite_all_channels_review_bundle.zip"
+) else (
+  echo ERROR: All-channel ZIP not produced.
+  exit /b 2
+)
+exit /b 0
