@@ -133,7 +133,9 @@ static bool xm8649Paint(SDL_Renderer* render,const SDL_Rect& view){
  // player/gameplay loop or speculative ROM stage.
  if(xm77StageResolved==XM77_ROCK_CASTLE){
      return XM87199Rock::state().paint(render,view,
-          xm8649Visual.frames,xm77SpritePixels(),xm8757FlashPixels());
+          xm8649Visual.frames,
+          xm8649Visual.nativeCameraX,xm8649Visual.nativeCameraY,
+          xm77SpritePixels(),xm8757FlashPixels());
  }
  // Wily's proven multilayer manifest pipeline remains untouched.
  SDL_Texture* oldTarget=SDL_GetRenderTarget(render);
