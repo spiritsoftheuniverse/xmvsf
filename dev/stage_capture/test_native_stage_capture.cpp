@@ -80,16 +80,16 @@ int main(){
     const unsigned limit=batchFrameLimit();
     assert(limit>=300u && limit<=36000u);
     const std::string batch0=second.sessionDir;
-    for(unsigned i=1;i<=limit;++i){
+    for(unsigned i=1;i<=limit+1u;++i){
         f2.frame=104u+i;
         second.observe(f2);
         assert(second.enabled&&!second.failed);
     }
     assert(second.completedBatches==1u);
-    assert(second.totalFrames==static_cast<unsigned long long>(limit)+1ull);
+    assert(second.totalFrames==static_cast<unsigned long long>(limit)+2ull);
     assert(second.frames==1u);
     assert(second.sessionDir!=batch0);
-    assert(second.lastFrame==104u+limit);
+    assert(second.lastFrame==105u+limit);
     assert(second.mapWrites==3u);
     second.close();
     std::puts("PASS 87.203 native telemetry + continuous frame-batch rollover, no lost boundary frame or old-session overwrite");
