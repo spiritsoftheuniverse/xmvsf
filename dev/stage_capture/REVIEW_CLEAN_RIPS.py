@@ -4,7 +4,7 @@
 - Read-only raw source; completed shots validated, unfinished shots reported.
 - Fast mode hashes three sample times x four layers per shot, and size-checks
   ALL indexed RGBA frames. --full hashes every original frame/layer.
-- Generates one contact sheet from REAL CPS2-rendered composite frames.
+- Generates paginated contact sheets from REAL CPS2-rendered composite frames.
 - Keeps stage/animation completion UNVERIFIED; no fake green/blue statuses.
 - Uses Python standard library. Never deletes or rewrites source captures.
 """
@@ -25,6 +25,10 @@ import zipfile
 from EXPORT_CLEAN_RIP import SAFE_RGBA, fnv64, png_bytes
 
 FRAME_SIZE = 384 * 224 * 4
+# PNG source helper caps width/height at 2048. Twelve sheet rows yield 1640px.
+# Pagination is essential: 16+ captures exceeded the height cap and aborted
+# before the review ZIP could be written.
+CONTACT_ROWS_PER_PAGE = 12
 REQUIRED = {'sample', 'emulated_frame', 'layer', 'file', 'fnv64',
             'width', 'height', 'scroll_x', 'scroll_y'}
 SHOT = re.compile(r'shot_\d{4}\Z', re.ASCII)
@@ -43,6 +47,8 @@ def sheet_rgba(source_rows: list[tuple[str, list[bytes]]], target: Path) -> dict
     """
     if not source_rows:
         return {'file': None, 'shots': 0, 'legend': []}
+    if len(source_rows) > CONTACT_ROWS_PER_PAGE:
+        raise RipError('contact sheet page exceeds safe 2048-pixel dimensions')
     thumb_w, thumb_h = 192, 112
     gutter, head = 8, 16
     width = 3 * thumb_w + 4 * gutter
@@ -294,8 +300,20 @@ def review(root: Path, output: Path, *, full: bool = False,
                    for i in range(max_rows)] if max_rows > 1 else [len(render_rows)-1]
         render_rows = [render_rows[i] for i in sorted(set(indexes))]
     output.mkdir(parents=True, exist_ok=True)
-    contact = sheet_rgba(render_rows, output / 'clean_rips_contact_sheet.png')
+    contact_pages = []
+    for start in range(0, len(render_rows), CONTACT_ROWS_PER_PAGE):
+        number = start // CONTACT_ROWS_PER_PAGE + 1
+        filename = ('clean_rips_contact_sheet.png' if number == 1 else
+                    f'clean_rips_contact_sheet_{number:03d}.png')
+        page = sheet_rgba(render_rows[start:start + CONTACT_ROWS_PER_PAGE],
+                          output / filename)
+        page['page'] = number
+        page['row_offset'] = start
+        contact_pages.append(page)
+    # Keep the old single-page key for consumers of the original manifest.
+    contact = contact_pages[0] if contact_pages else {'file': None, 'shots': 0, 'legend': []}
     result['contact_sheet'] = contact
+    result['contact_sheets'] = contact_pages
     write_atomic(output / 'clean_rips_review.json',
                  (json.dumps(result, indent=2) + '\n').encode('utf-8'))
     lines = [f"MVC NATIVE CLEAN RIP REVIEW: {result['verification']}",
@@ -308,8 +326,8 @@ def review(root: Path, output: Path, *, full: bool = False,
              f"Samples indexed: {result['indexed_samples']}",
              f"Raw frames verified by FNV: {result['verified_source_bytes']:,} bytes",
              'Full stage coverage: UNVERIFIED',
-             'Contact sheet: ' + (str(output / 'clean_rips_contact_sheet.png') if contact.get('file')
-                                  else 'UNAVAILABLE (no native source images)')]
+             'Contact sheets: ' + (', '.join(page['file'] for page in contact_pages)
+                                    if contact_pages else 'UNAVAILABLE (no native source images)')]
     for warning in result['warnings']:
         lines.append('WARNING ' + warning)
     for problem in result['errors']:
@@ -323,8 +341,8 @@ def review(root: Path, output: Path, *, full: bool = False,
         with zipfile.ZipFile(pending, 'w', compression=zipfile.ZIP_DEFLATED) as archive:
             for item in ('clean_rips_review.json', 'clean_rips_review.txt'):
                 archive.write(output / item, arcname=item)
-            if contact.get('file'):
-                archive.write(output / contact['file'], arcname=contact['file'])
+            for page in contact_pages:
+                archive.write(output / page['file'], arcname=page['file'])
         os.replace(pending, bundle)
     finally:
         if pending.exists():
