@@ -295,6 +295,10 @@ struct Recorder {
         if(failed)return;
         if(frames>=batchFrameLimit()){
             if(!rotateBatch(f.frame))return; // the boundary frame enters NEW batch
+            // A batch that ends immediately after its first source frame must
+            // still contain the graphics index / 32MiB donor tile decoding.
+            if(!gfxAttempted)dumpDecodedGfx(f);
+            if(failed)return;
         }
         if(lastFrame!=~0u && f.frame<lastFrame){
             statusLine("SESSION_RESET",f.frame,"native_frame_counter_rewind_new_segment");
@@ -413,7 +417,9 @@ struct Recorder {
             return fail(f.frame,"oam_write_failed");
         ++frames;++objectWrites;++totalFrames;lastFrame=f.frame;
         if((frames%300u)==0u){
-            char msg[160];std::snprintf(msg,sizeof(msg),
+            // The old 160-byte message clipped field names at every batch
+            // progress event in the uploaded 39,282-frame source archive.
+            char msg[320];std::snprintf(msg,sizeof(msg),
                 "source_rom=%s stage_id=%s batch_frames=%u total_frames=%llu batch=%llu map_snapshots=%u row_snapshots=%u palette_snapshots=%u oam_frames=%llu still_recording=1",
                 f.driver?f.driver:"unknown",stage==~0u?"unverified":"observed",
                 frames,totalFrames,completedBatches+1ull,mapWrites,rowWrites,paletteWrites,objectWrites);
