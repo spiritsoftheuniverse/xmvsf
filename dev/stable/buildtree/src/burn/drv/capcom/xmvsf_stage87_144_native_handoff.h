@@ -445,6 +445,16 @@ struct State {
                 pointId,rw(ram,p+0x60u),rw(ram,p+0xA0u),
                 rw(ram,p+0x08u),rl(ram,p+0x34u),
                 rb(ram,p+0xD6u)};
+            // The original-ROM 2E tracker was updated by the input
+            // observer on this exact post-CPU frame, before DHC runs.
+            const auto& originalSuper=XM87189Family::state().side[side];
+            const bool familyAttack=familyTest &&
+                originalSuper.activeAt(now,ryuLife) &&
+                XM87184Life::identify(ryuLife)==XM87184Life::OUTSIDE;
+            const bool familyStartup=familyTest &&
+                originalSuper.live && originalSuper.lastFrame==now &&
+                originalSuper.phase==XM87189Family::STARTUP &&
+                XM87184Life::identify(ryuLife)==XM87184Life::OUTSIDE;
             // Never re-enable the five-of-five failing 87.184
             // recovery controller route without its exact rebound
             // bridge. Turning that TEST feature OFF must itself be safe.
@@ -471,6 +481,17 @@ struct State {
                 // 20/60 frames, then sent with zero physical/native
                 // button edge. Never re-arm that stale request.
                 // The 2A02 RECOVERY rebound remains untouched.
+                // Startup is recognition only, not a deferred controller
+                // request. A native 2E action needs fresh same-frame
+                // input, including when its mode is 2A1C in the air.
+                if(familyStartup || (familyAttack && selectedAt!=now)){
+                    if(firstCheck)event(now,side,ram,familyStartup?
+                        "DHC_189_FAMILY_STARTUP_NO_DEFERRED_TAG":
+                        "DHC_189_FAMILY_STALE_PUNCH_NOT_ARMED");
+                    lastAcceptedAt[side]=selectedAt;
+                    XM87143Queue::state().discard(side);
+                    continue;
+                }
                 const XM87187Front::Disposition front=
                     XM87187Front::check(ryuLife,now,selectedAt);
                 if(front!=XM87187Front::KEEP){
@@ -490,11 +511,13 @@ struct State {
                     blocked="BLOCK_NOT_RYU_POINT_KEN_RESERVE";
                 else if(entry->known->fighter!=reserveId)
                     blocked="BLOCK_SELECTED_SUPER_NOT_FOR_RESERVE";
-                else if(!XM87184Life::canTag(ryuLife,
+                else if(!familyAttack &&
+                        !XM87184Life::canTag(ryuLife,
                              XM87184Life::recoveryOptIn() &&
                              recoveryReboundTest))
-                    blocked="BLOCK_OUTSIDE_SAFE_SHINKUU_NATIVE_TAG_PHASE";
-                else if(rw(ram,p+0xA0u)!=0x2A28u &&
+                    blocked="BLOCK_OUTSIDE_SAFE_ORIGINAL_SUPER_PHASE";
+                else if(!familyAttack &&
+                        rw(ram,p+0xA0u)!=0x2A28u &&
                         rw(ram,p+0xA0u)!=0x2A02u)
                     blocked="BLOCK_NOT_NATIVE_2A28_SUPER_MODE";
                 bool hasScript=false;
@@ -581,6 +604,18 @@ struct State {
                     kenNeutralAt[side]=0u;
                     event(now,side,ram,
                           "PROOF_156_RYU_SUPER_TO_NATIVE_TAG_WAIT_NO_RAM_WRITES");
+                    continue;
+                }
+                if(familyAttack){
+                    // Shared, original-ROM 2E-family ATTACK inlet.
+                    // Reuses the established Ryu->Ken controller script,
+                    // input isolation, ROM acceptance, and abort path.
+                    // Other fighters remain read-only until their native
+                    // tag-entry contract is captured.
+                    armedFromFamily[side]=true;
+                    event(now,side,ram,
+                        "DHC_189_ROM_SUPER_FAMILY_FRESH_ATTACK_TAG_TEST");
+                    armOutgoingTag(ram,now,side,selectedAt);
                     continue;
                 }
                 if((remaining==0u && !recoveryTest) ||
@@ -780,7 +815,10 @@ struct State {
                           (rw(ram,p+0xA0u)==0x2A00u &&
                            rb(ram,p+0x256u)==0u &&
                            rw(ram,p+0x60u)==capturedAction[side] &&
-                           capturedAction[side]==0x2E08u &&
+                           (capturedAction[side]==0x2E08u ||
+                            (armedFromFamily[side] &&
+                             (capturedAction[side]&0xFF00u)==0x2E00u &&
+                             rb(ram,p+0xD6u)==capturedD6[side])) &&
                            // Keep already working 87.183 attack path.
                            (earlyCancel ||
                             (rb(ram,p+0x259u)==0x08u &&
