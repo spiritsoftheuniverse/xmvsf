@@ -28,12 +28,18 @@ static inline bool valid(bool kicks,unsigned chord,
 static inline bool shieldPrequeue3P(bool enabled,bool earlyCancel,
           unsigned phase,bool nativeSuperCandidate,
           unsigned point,unsigned reserve,unsigned action,unsigned mode,
-          unsigned p1PhysicalButtons,bool verifiedRecovery=false){
-    return enabled && earlyCancel && phase==0u && nativeSuperCandidate &&
-        point==0x12u && reserve==0x14u &&
-        (action==0x2E08u || (verifiedRecovery && action==0x2E0Au)) &&
-        (mode==0x2A28u || mode==0x2A02u) &&
-        (p1PhysicalButtons & 0x3Fu)==0x07u;
+          unsigned p1PhysicalButtons,bool verifiedRecovery=false,
+          bool verifiedOriginal2EFamily=false){
+    if(!enabled || !earlyCancel || phase!=0u || !nativeSuperCandidate ||
+       point!=0x12u || reserve!=0x14u ||
+       (p1PhysicalButtons & 0x3Fu)!=0x07u)return false;
+    // The SAME 3P->2P input port normalization protects any originally
+    // resolved 2E super root. The native family tracker, not a hardcoded
+    // aerial move list, must independently verify this transaction.
+    if(verifiedOriginal2EFamily)return true;
+    return (action==0x2E08u ||
+            (verifiedRecovery && action==0x2E0Au)) &&
+           (mode==0x2A28u || mode==0x2A02u);
 }
 static inline unsigned nativeKenTwoPunchMask(){return 0x03u;}
 } // namespace XM87177Chords
