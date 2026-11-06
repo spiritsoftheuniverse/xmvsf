@@ -128,8 +128,16 @@ struct State {
     void clear(unsigned side){if(side<2u)pending[side]=Proposal();}
     bool propose(unsigned side,unsigned reserve,unsigned now,
                  Motion motion,unsigned buttons){
+        // Before reserve-side ROM preview exists, do not turn every
+        // QCF+single-punch Hadoken into a tag. The initial DHC
+        // gesture must be a fresh two-punch or two-kick chord.
+        // This is NOT a per-character super whitelist; the actual
+        // incoming 68000 ROM action still determines super validity.
+        const bool multiSameKind=
+            countBits(buttons&0x07u)>=2u ||
+            countBits(buttons&0x38u)>=2u;
         if(side>=2u||reserve>0x40u||(reserve&1u)||motion==NONE||
-           !lengthValid(motion)||!(buttons&0x3Fu))return false;
+           !lengthValid(motion)||!multiSameKind)return false;
         Proposal p;p.valid=true;p.frame=now;p.reserve=reserve;
         p.motion=motion;p.buttonMask=buttons&0x3Fu;
         pending[side]=p;
