@@ -6,16 +6,15 @@
 #include "xmvsf_stage87_184_super_action_lifetime.h"
 namespace XM87187Front {
 enum Disposition { KEEP=0, STARTUP_NOT_ARMABLE=1,
-    STALE_ATTACK_INPUT=2, UNVERIFIED_ATTACK_MODE=3 };
+    STALE_ATTACK_INPUT=2 };
 static inline Disposition check(const XM87184Life::Sample& s,
         unsigned now,unsigned selectedAt) {
     const XM87184Life::Phase phase=XM87184Life::identify(s);
     if(phase==XM87184Life::STARTUP)return STARTUP_NOT_ARMABLE;
     if(phase==XM87184Life::ATTACK) {
         if(selectedAt!=now)return STALE_ATTACK_INPUT;
-        // All ten confirmed active DHCs were 2A28. The sole 2A02
-        // ATTACK arm at 10629 went to 2C02/D6=00. Recovery can use 2A02.
-        if(s.mode!=0x2A28u)return UNVERIFIED_ATTACK_MODE;
+        // 87.187: original Shinkuu ATTACK legitimately uses 2A02.
+        // Do not infer a universal veto from one wrong native dispatch.
     }
     return KEEP;
 }
@@ -25,8 +24,6 @@ static inline const char* reason(Disposition d) {
         return "DHC_187_STARTUP_INPUT_CLOSED_NO_DEFERRED_TAG";
     case STALE_ATTACK_INPUT:
         return "DHC_187_STALE_ATTACK_REQUEST_EXPIRED_NO_PHYSICAL_EDGE";
-    case UNVERIFIED_ATTACK_MODE:
-        return "DHC_187_ATTACK_MODE_2A02_NATIVE_2C02_RISK_SKIP";
     default:return "DHC_187_FRESH_INPUT_KEEP";
     }
 }
