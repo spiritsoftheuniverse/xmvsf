@@ -26,6 +26,7 @@
 #include "xmvsf_stage87_193_deterministic_exit_protocol.h" // actor-addressed deterministic native exit
 #include "xmvsf_stage87_194_native_passive_jump_entry.h" // ROM-owned descent, true landing, target steering
 #include "xmvsf_stage87_195_tag_latch_guard.h" // clear only our failed controller8 latch
+#include "xmvsf_stage87_196_native_immediate_fall.h" // original 0212 fall, no 67-frame tag lag
 #include "xmvsf_stage87_177_dhc_punch_chords.h" // explicit 3P host / native 2P helper dependency
 #include <cstdint>
 #include <cstdio>
@@ -101,7 +102,7 @@ struct State {
          earlyActiveDirectTest=false,recoveryReboundTest=false,
          firstFourAttackTest=false,fullAttackTest=false,familyTest=false,liveLifetimeTest=false,
          reserveOwnershipTest=false,deterministicExitTest=false,
-         passiveJumpTest=false,
+         passiveJumpTest=false,immediateFallTest=false,
          chainUsed[2]={false,false};
     Phase phase[2]={IDLE,IDLE};
     bool armedFromFamily[2]={false,false};
@@ -188,6 +189,9 @@ struct State {
         const char* jump=std::getenv("XM87194_TEST_NATIVE_PASSIVE_JUMP");
         passiveJumpTest=deterministicExitTest && jump &&
             std::strcmp(jump,"1")==0;
+        const char* nativeFall=std::getenv("XM87196_TEST_IMMEDIATE_NATIVE_FALL");
+        immediateFallTest=passiveJumpTest && nativeFall &&
+            std::strcmp(nativeFall,"1")==0;
         const char* firstFour=std::getenv("XM87186_TEST_FIRST_FOUR_ATTACK");
         firstFourAttackTest=enabled && earlyCancel && firstFour &&
              std::strcmp(firstFour,"1")==0;
@@ -1109,6 +1113,52 @@ struct State {
                 // non-attacking 2A08 script, but do NOT zero his motion,
                 // force neutral, place him on the floor, or release his
                 // reserve-owned super command before actual landing.
+                // 87.195.zip: five independent native Ken DHCs each
+                // held 2A08 on exactly one Y for 67 frames, then each
+                // entered the original 0212/0600/D3D76 fall and reached
+                // actual ground contact. Skip the lag, NOT the jump.
+                if(passiveJumpTest && immediateFallTest && kenEntry){
+                    const unsigned foe=rw(
+                        ram,0x4000u+(side^1u)*0x400u+0x0Cu);
+                    const unsigned x=rw(ram,p+0x0Cu);
+                    const unsigned y=rw(ram,p+0x10u);
+                    const auto fall=XM87142::resolve(
+                        rom,size,pointId,0x02u,0x12u);
+                    const auto plan=XM87196Fall::choose(
+                        pointId,incomingAction,rb(ram,p+0xD6u),
+                        y,floor,true,fall.valid?fall.script:0u);
+                    if(!plan.valid || !jumpArrival[side].begin(
+                            side,pointId,now,int(x),int(y),int(floor),
+                            int(foe),originalX[side]<opponentX[side])){
+                        abort(now,side,ram,
+                            "DHC_196_NATIVE_FALL_ROM_OR_AIRBORNE_UNVERIFIED");
+                        continue;
+                    }
+                    if(!setNativeScript(ram,rom,size,p,pointId,
+                                        plan.action,plan.selector)){
+                        abort(now,side,ram,
+                            "DHC_196_ORIGINAL_0212_FALL_SCRIPT_INIT_FAILED");
+                        continue;
+                    }
+                    wb(ram,p+0xA4u,0u);
+                    wb(ram,p+0x256u,0u);wb(ram,p+0x259u,0u);
+                    ww(ram,p+0x06u,0u);
+                    ww(ram,p+0x08u,2u);ww(ram,p+0x0Au,0u);
+                    ww(ram,p+0xA0u,plan.mode);
+                    wb(ram,p+0xD6u,plan.d6);
+                    // Original first 0212-frame physics (87.195, 1712):
+                    // +14 Xv=0, +18 Xacc=0, +1C Yv=0,
+                    // +20 gravity=00006000. Preserve both native
+                    // positional longs (+0C X, +10 Y), no floor snap.
+                    wl(ram,p+0x14u,0u);wl(ram,p+0x18u,0u);
+                    wl(ram,p+0x1Cu,plan.verticalVelocity);
+                    wl(ram,p+0x20u,plan.gravity);
+                    kenKickReassertions[side]=0u;
+                    phase[side]=WAIT_NATIVE_PASSIVE_JUMP;
+                    event(now,side,ram,
+                        "DHC_196_TAG_LAG_SKIPPED_NATIVE_0212_FALL");
+                    continue;
+                }
                 if(passiveJumpTest && kenEntry){
                     const unsigned foe=rw(
                         ram,0x4000u+(side^1u)*0x400u+0x0Cu);
@@ -1204,16 +1254,35 @@ struct State {
                     // attack before completing the native descent.
                     // Keep the real, non-attacking 2A08 animation instead
                     // of letting a kick/charge interrupt the arrival.
+                    // If the native tag scheduler reasserts its
+                    // attacking kick, never restart the 67-frame pose.
+                    // Reenter the same ROM 0212 native fall.
+                    const unsigned action=immediateFallTest?0x02u:0x2Au;
+                    const unsigned sub=immediateFallTest?0x12u:0x08u;
+                    const auto verified=XM87142::resolve(
+                        rom,size,pointId,action,sub);
                     if(++kenKickReassertions[side]>2u ||
-                       !setNativeScript(ram,rom,size,p,pointId,0x2Au,0x08u)){
+                       !verified.valid ||
+                       (immediateFallTest &&
+                        verified.script!=0x0D3D76u) ||
+                       !setNativeScript(ram,rom,size,p,pointId,action,sub)){
                         abort(now,side,ram,
-                            "DHC_194_NATIVE_ENTRY_KICK_REASSERTION_UNRESOLVED");
+                            "DHC_196_NATIVE_ENTRY_KICK_REASSERTION_UNRESOLVED");
                         continue;
                     }
                     wb(ram,p+0xD6u,0x12u);
                     wb(ram,p+0xA4u,0u);
                     wb(ram,p+0x256u,0u);wb(ram,p+0x259u,0u);
-                    event(now,side,ram,
+                    if(immediateFallTest){
+                        ww(ram,p+0xA0u,0x0600u);
+                        ww(ram,p+0x06u,0u);
+                        ww(ram,p+0x08u,2u);
+                        ww(ram,p+0x0Au,0u);
+                        wl(ram,p+0x14u,0u);wl(ram,p+0x18u,0u);
+                        wl(ram,p+0x1Cu,0u);wl(ram,p+0x20u,0x6000u);
+                    }
+                    event(now,side,ram,immediateFallTest?
+                        "DHC_196_TAG_KICK_REASSERTED_RESUMED_NATIVE_FALL":
                         "DHC_194_NATIVE_ENTRY_KICK_REASSERTED_SUPPRESSED");
                 }
                 const unsigned y=rw(ram,p+0x10u);
