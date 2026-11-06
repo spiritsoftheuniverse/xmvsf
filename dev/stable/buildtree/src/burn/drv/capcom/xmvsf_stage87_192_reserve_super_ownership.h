@@ -73,14 +73,14 @@ struct Proposal {
         default:return 0u;
         }
     }
-    unsigned duration()const{return 2u*length(motion)+2u;}
+    unsigned duration()const{return 2u*length(motion)+3u;}
     Mask input(unsigned t,bool facingRight)const{
         Mask r;
         const unsigned n=length(motion);
         if(!valid||!n||!buttonMask||t>=duration())return r;
         r.active=true;
         const unsigned step=t/2u<n?t/2u:n-1u;
-        const unsigned dir=direction(motion,step);
+        const unsigned dir=t<=2u*n?direction(motion,step):0u;
         const unsigned f=facingRight?1u:2u,b=facingRight?2u:1u;
         const unsigned side=dir==6u||dir==3u?f:
                             dir==4u||dir==1u?b:0u;
@@ -88,7 +88,7 @@ struct Proposal {
         r.directions=side|down;
         // Preserve the empirically good 87.156 final cardinal-edge
         // timing: two frames per direction; press late and release.
-        if(t>=2u*(n-1u)+1u && t<2u*n)
+        if(t>=2u*(n-1u)+1u && t<=2u*n)
             r.attacks=canonicalButtons(buttonMask);
         return r;
     }
@@ -103,6 +103,24 @@ struct State {
     unsigned learnedCount=0u,lastFrame=~0u;
     std::FILE*log=nullptr;bool checkedLog=false;
     ~State(){if(log){std::fflush(log);std::fclose(log);}}
+    void ensureLog(){
+        if(checkedLog)return;
+        checkedLog=true;
+        const char*name=std::getenv("XM87192_RESERVE_SUPER_LOG");
+        if(name&&*name){
+            log=std::fopen(name,"wb");
+            if(log)std::fputs(
+               "frame\\tside\\treserve\\taction\\trom_root\\tmotion\\tbuttons\\tresult\\n",log);
+        }
+    }
+    void rejected(unsigned side,unsigned now,
+                  const Proposal&p,const XM87184Life::Sample&s){
+        ensureLog();
+        if(log){std::fprintf(log,
+            "%u\\t%u\\t%02X\\t%04X\\t%06X\\t%u\\t%02X\\tNOT_NATIVE_SUPER\\n",
+            now,side+1u,p.reserve,s.action,s.script,unsigned(p.motion),
+            p.buttonMask);std::fflush(log);}
+    }
     void reset(){
         pending[0]=pending[1]=Proposal();
         learnedCount=0u;lastFrame=~0u;
@@ -114,7 +132,13 @@ struct State {
            !lengthValid(motion)||!(buttons&0x3Fu))return false;
         Proposal p;p.valid=true;p.frame=now;p.reserve=reserve;
         p.motion=motion;p.buttonMask=buttons&0x3Fu;
-        pending[side]=p;return true;
+        pending[side]=p;
+        ensureLog();
+        if(log){std::fprintf(log,
+           "%u\\t%u\\t%02X\\t0000\\t000000\\t%u\\t%02X\\tINPUT_PROPOSED\\n",
+           now,side+1u,reserve,unsigned(motion),p.buttonMask);
+           std::fflush(log);}
+        return true;
     }
     static bool lengthValid(Motion motion){
         return Proposal::length(motion)>0u;
@@ -151,15 +175,7 @@ struct State {
         unsigned root=0u;
         if(!p.valid||p.reserve!=s.fighter||
            !nativeSuper(rom,size,s,&root))return false;
-        if(!checkedLog){
-            checkedLog=true;
-            const char*name=std::getenv("XM87192_RESERVE_SUPER_LOG");
-            if(name&&*name){
-                log=std::fopen(name,"wb");
-                if(log)std::fputs(
-                   "frame\tside\treserve\taction\trom_root\tmotion\tbuttons\tresult\n",log);
-            }
-        }
+        ensureLog();
         for(unsigned i=0;i<learnedCount;++i)
             if(learned[i].fighter==s.fighter&&
                learned[i].action==s.action&&
