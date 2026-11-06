@@ -41,7 +41,7 @@ int main(){
     assert(Freeze::phaseHolds(5u));
     assert(Freeze::phaseHolds(8u));
     assert(Freeze::phaseHolds(12u));
-    assert(!Freeze::phaseHolds(6u));
+    assert(Freeze::phaseHolds(6u)); // 87.198 holds actual 2E startup too
     assert(!Freeze::phaseHolds(0u));
     assert(!Freeze::phaseHolds(7u));
     // The original native 68000 mutates the opponent during the frame.
@@ -69,7 +69,7 @@ int main(){
         assert(rb(ram.data(),enemy+0x82u)==0u);
     }
     assert(freeze.held==45u);
-    assert(!freeze.hold(ram.data(),146u,6u)); // super already started
+    assert(freeze.hold(ram.data(),146u,6u)); // 87.198: wait until first ROM live offensive box
     // Only the originally recorded opponent actor resumes with its
     // exact saved original offense, action, animation and health.
     assert(freeze.release(ram.data()));
