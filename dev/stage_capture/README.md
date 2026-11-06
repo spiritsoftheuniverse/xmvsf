@@ -190,3 +190,70 @@ NEVER authorize blue PART_DONE or green LEVEL_DONE.
 Neither this importer nor its tests modify the live Wily renderer or create
 GitHub Actions. Output is local only and original ROM graphics are not
 redistributed through source control.
+
+
+## CPS2 clean-render-pass ripping (the WinKawaks/Shot Factory approach)
+
+Rather than rebuilding every tile and palette by hand, REUSE the original
+Stage44/45 native CPS2 renderer. It already renders through the original
+Cps2Layers drawing path four times, with sprite drawing suppressed:
+
+- layer 0: scroll1/2/3 combined by native hardware priority, NO fighters/HUD
+- layer 1: native 8x8 Scroll1 alone
+- layer 2: native 16x16 Scroll2 alone
+- layer 3: native 32x32 Scroll3 alone
+
+Each layer is rendered twice over different background colors to distinguish
+true opaque black artwork from untouched transparent space. Artwork stays
+true to the source ROM without chroma-key errors, guessed palettes or
+manually tiled panoramas. This matches the documented classic WinKawaks
+Shot Factory method in principle. It does NOT establish precisely how
+The Fighters Generation made its particular GIFs.
+
+To opt in, from the project root use ONLY the existing launchers:
+
+    BUILD_TEST.bat
+    RUN_TEST.bat mvscur1 clean
+
+Play the ORIGINAL Marvel vs Capcom ROM until the DESIRED stage appears.
+While the game remains open, in a second Windows CMD prompt:
+
+    type nul > "F:\xmvsf\test\87.203\clean_rips\START.flag"
+
+The default burst samples 360 frames at two emulated frames per sample.
+XM44_FRAMES and XM44_STEP can be set before RUN_TEST.bat to alter that,
+up to a hard limit of 1200 samples. After CLEAN_RIP_BURST_DONE, create
+another START.flag for the next independent shot_XXXX burst, WITHOUT
+restarting the donor game. The trigger is moved into each shot directory
+rather than deleted; every output directory is unique, so no old rip or
+Stable artifact is overwritten.
+
+The existing open MSYS watcher reports neutral CLEAN_RIP_ARMED,
+CLEAN_RIP_START and CLEAN_RIP_BURST_DONE records via the same
+stage_capture/status.log. The watcher reports ERROR in red. These are
+only CAPTURE events, NOT green whole-stage or blue verified part status.
+
+Each shot directory contains layers.tsv and native unfiltered RGBA for
+scrolls 0, 1, 2, 3, along with original sprite list, tile and palette
+evidence. The source frame, source scroll coordinates and native FNV64
+of every image are retained. CAPTURE_COMPLETE.txt means burst complete,
+NOT entire stage complete.
+
+Use Python standard library to produce lossless, transparent PNGs without
+modifying the original bytes or a preexisting output folder:
+
+    python dev\stage_capture\test_export_clean_rip.py
+    python dev\stage_capture\EXPORT_CLEAN_RIP.py --input "F:\xmvsf\test\87.203\clean_rips\shot_0001" --output "F:\xmvsf\test\87.203\clean_rips_png\shot_0001"
+
+The exporter checks path safety, hashes, exact sizes, chronological frames,
+and four complete layer records per sample. It deduplicates repeated PNG
+artwork while preserving every timestamp in clean_rip_manifest.json and
+timeline.tsv. Raw capture remains intact, entirely local, outside Git.
+
+Limitations: stage actors drawn as sprites do NOT appear in the isolated
+scroll composite; identify them separately from the original native OBJ list,
+avoiding fighters, HUD and projectiles. World coverage, stage transitions,
+true animation periods and verified scenery-OBJ identity are not established
+by a clean screenshot, so no automatic PART_DONE or LEVEL_DONE is allowed.
+Use 87.203 telemetry to guide frame selection, gap analysis and camera
+alignment among multiple clean native bursts.
