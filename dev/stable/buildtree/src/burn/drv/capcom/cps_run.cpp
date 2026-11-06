@@ -878,7 +878,7 @@ INT32 Cps2Frame()
         XM87140Chat::state().frame(CpsRamFF,(unsigned)GetCurrentFrame(),
             xm87140_p1_dir,xm87140_p2_dir,
             xm8786_p1_buttons,xm8786_p2_buttons,
-            romReport.verifiedSuperMask);
+            romReport.verifiedSuperMask,CpsRom,(unsigned)nCpsRomLen);
         if(dhcInput.priming)
             XM87140Chat::state().log((unsigned)GetCurrentFrame(),
                 XM87140Chat::SYSTEM,
