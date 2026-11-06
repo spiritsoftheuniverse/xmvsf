@@ -326,17 +326,21 @@ if /I "%CLEAN_RIP_MODE%"=="clean" (
   set "XM44_CAPTURE_DIR=%PROJECT%\test\87.203\clean_rips"
   if not exist "%PROJECT%\test\87.203\clean_rips" mkdir "%PROJECT%\test\87.203\clean_rips"
   if not exist "%PROJECT%\test\87.203\clean_rips" goto :fail
-  if not defined XM44_FRAMES set "XM44_FRAMES=360"
-  if not defined XM44_STEP set "XM44_STEP=2"
+  REM Default is continuous auto-batching. Existing manual START.flag remains
+  REM available if caller explicitly sets XM44_AUTO=0.
+  if not defined XM44_AUTO set "XM44_AUTO=1"
+  if not defined XM44_FRAMES set "XM44_FRAMES=60"
+  if not defined XM44_STEP set "XM44_STEP=30"
+  if not defined XM87203_BATCH_FRAMES set "XM87203_BATCH_FRAMES=12000"
   echo.
-  echo CPS2 CLEAN RIP ARMING: source renderer, Scroll 1/2/3 and no-sprite composite.
-  echo Native color/transparency, no fighters or HUD, zero source ROM changes.
-  echo When the DESIRED stage is visible, open another CMD prompt and run:
-  echo   type nul ^> "%PROJECT%\test\87.203\clean_rips\START.flag"
-  echo Existing open MSYS watcher displays CLEAN_RIP_START and CLEAN_RIP_BURST_DONE.
-  echo After completion create another START.flag for a new separate burst.
-  echo Clean rip outputs are under: "%PROJECT%\test\87.203\clean_rips\shot_XXXX"
-  echo Export transparent PNGs: python dev\stage_capture\EXPORT_CLEAN_RIP.py --input "..." --output "..."
+  echo CPS2 CLEAN RIP CONTINUOUS BATCHING: auto=%XM44_AUTO% burst_samples=%XM44_FRAMES% step=%XM44_STEP%
+  echo Native renderer Scroll 1/2/3 + scenery composite, fighters/HUD excluded.
+  echo Each burst writes a NEW shot_XXXX directory, no START.flag required in automatic mode.
+  echo Native 87.203 telemetry also rolls into NEW session_XXXX every %XM87203_BATCH_FRAMES% frames.
+  echo The same existing MSYS watcher reports BATCH_DONE and CLEAN_RIP_BURST_DONE.
+  echo Stop by closing the game normally. Files stay intact; do not fill your disk unattended.
+  echo Clean rip folder: "%PROJECT%\test\87.203\clean_rips"
+  echo PNG converter: python dev\stage_capture\EXPORT_CLEAN_RIP.py --input "..." --output "..."
 )
 pushd "%PROJECT%\FBNeo" || goto :fail
 echo Launching original CPS2 donor ROM %SOURCE_ROM% with controller support.
