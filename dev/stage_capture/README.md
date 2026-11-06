@@ -257,3 +257,69 @@ true animation periods and verified scenery-OBJ identity are not established
 by a clean screenshot, so no automatic PART_DONE or LEVEL_DONE is allowed.
 Use 87.203 telemetry to guide frame selection, gap analysis and camera
 alignment among multiple clean native bursts.
+
+
+## 87.203 continuous automatic batches (no terminal frame stop)
+
+Capture via the existing root launchers only:
+
+    BUILD_TEST.bat
+    RUN_TEST.bat mvscur1 clean
+
+This now starts clean, lossless Stage44/45 MVC1 background rendering
+IMMEDIATELY and AUTOMATICALLY. No second terminal, repeated START.flag,
+or user-triggered bursts are required. Each auto burst is held in an
+exclusive clean_rips/shot_XXXX directory, with AUTOMATIC_BATCH.txt,
+source layers.tsv, pixel-exact 0/1/2/3 .rgba streams, effective palettes,
+sprite tiles and metadata, and CAPTURE_COMPLETE.txt upon closure.
+
+Defaults for this opt-in "clean" mode:
+- XM44_AUTO=1: automatically begin the first and every next clean-rip burst
+- XM44_FRAMES=60: limit *each individual disk batch* to 60 layer samples
+- XM44_STEP=30: sample one emulator render every 30 frames (~2 per second)
+- XM87203_BATCH_FRAMES=12000: rotate the source-native telemetry after
+  every 12,000 consecutive emulated frames
+
+The previous 36,000-frame stop in the native CPS2 recorder is gone.
+After reaching the per-file threshold, it closes the batch with
+BATCH_DONE and opens the next session_XXXX with BATCH_NEXT. Crucially,
+the frame exactly at the threshold transition belongs to the new batch,
+without loss or duplication, and its first maps, palettes and native
+graphics are snapshotted afresh. Frame numbers remain ORIGINAL global
+emulator frame numbers, not artificial resets. This allows an indefinite
+stream of independent, valid recordings while the MVC1 session runs.
+
+The automatic clean renderer likewise reports CLEAN_RIP_START and
+CLEAN_RIP_BURST_DONE and rolls to the next shot_XXXX on the following
+native render frame. Neither message proves a complete level; all blue
+PART_DONE and green LEVEL_DONE remain gated on separate verification.
+
+To customize the sampling granularity and batch size before launching:
+
+    set XM44_FRAMES=90
+    set XM44_STEP=20
+    set XM87203_BATCH_FRAMES=6000
+    RUN_TEST.bat mvscur1 clean
+
+To restore the former manual start-marker workflow:
+
+    set XM44_AUTO=0
+    RUN_TEST.bat mvscur1 clean
+
+These control options apply to the current command shell, NOT Stable,
+and the clean ripping engine never modifies MVC gameplay. If no "clean"
+argument is passed, the clean pixel exporter remains OFF; raw Stage87.203
+telemetry still runs and now rotates automatically.
+
+Each pixel burst is approximately 4 * 384 * 224 * 4 * 60 ~= 79 MiB
+before PNG compression, not counting tile/palette metadata. Long
+unattended sessions can use many GiB, and clean rendering adds multiple
+original CPS2 redraws per sampled frame. Keep adequate free F: space;
+exit MVC1 normally to stop. Past sessions, original ROM archives, and
+Stable are never truncated or deleted.
+
+Use the standalone source-only regression in the existing Windows build:
+BUILD_TEST.bat now exercises a boundary with XM87203_BATCH_FRAMES=300,
+so it checks rotation without generating a 12,000-frame test. All
+captured original game art remains under ignored test/; do NOT commit it
+to GitHub.
