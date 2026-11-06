@@ -12,6 +12,7 @@ import struct
 import sys
 import tempfile
 import unittest
+import zipfile
 
 ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT))
@@ -67,6 +68,12 @@ class ReviewTests(unittest.TestCase):
         self.assertEqual(json.loads(
             (self.output/'clean_rips_review.json').read_text())['level_complete'], False)
         self.assertIn('CLEAN_RIP_REVIEW', status.read_text())
+        with zipfile.ZipFile(self.output / 'clean_rips_review_bundle.zip') as bundle:
+            self.assertEqual(set(bundle.namelist()), {
+                'clean_rips_review.json', 'clean_rips_review.txt',
+                'clean_rips_contact_sheet.png'})
+            self.assertIsNone(bundle.testzip())
+            self.assertFalse(any(name.endswith('.rgba') for name in bundle.namelist()))
         full = mod.review(self.root, self.output, full=True)
         self.assertEqual(full['shots'][0]['hash_checked_rgba_files'], 16)
         self.assertEqual(full['shots'][0]['status'], 'FULL_VALIDATED')
