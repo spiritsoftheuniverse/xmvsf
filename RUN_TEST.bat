@@ -326,8 +326,9 @@ if /I "%SOURCE_ROM:~0,4%"=="mvsc" (
       >>"%XM87203_STAGE_CAPTURE_DIR%\status.log" echo RUN_TEST_EXIT	ERROR	donor_ROM_load_or_execution_failed;_no_CPS2_frames_certified
     )
   )
-  goto :mvc_donor_post
+  goto :mvc_capture_verify
 )
+:mvc_capture_verify
 REM Read-only 87.203 capture verification is nonfatal to game exit code.
 REM The builder must attest to camera/animation coverage before LEVEL_DONE.
 if "%XM87203_STAGE_CAPTURE_ENABLE%"=="1" (
@@ -341,6 +342,8 @@ if "%XM87203_STAGE_CAPTURE_ENABLE%"=="1" (
     >>"%XM87203_STAGE_CAPTURE_DIR%\status.log" echo RUN_TEST_EXIT	INCOMPLETE	stage_builder_manifest_not_yet_available
   )
 )
+REM Once MVC capture verification has run, skip XMVSF-only DHC reports.
+if /I "%SOURCE_ROM:~0,4%"=="mvsc" goto :mvc_donor_post
 REM 87.175: after native play, analyze only PRIVATE locally captured ROM
 REM bytes. ROM binaries are outside Git; the emitted JSON is evidence,
 REM never an instruction to activate unverified DHC moves.
