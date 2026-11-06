@@ -612,7 +612,7 @@ INT32 Cps2Frame()
         // One reusable protocol maps 2K/3K -> original native 2P tag
         // edge. Existing punch-pair/3P behavior is unchanged.
         const auto outgoingPlan=XM87193Exit::beforeCpu(
-            XM87144::state().reserveOwnershipTest &&
+            XM87144::state().deterministicExitTest &&
             XM87144::state().enabled && XM87144::state().earlyCancel &&
             point==0x12u && bench==0x14u &&
             XM87140Chat::state().candidate[0],
