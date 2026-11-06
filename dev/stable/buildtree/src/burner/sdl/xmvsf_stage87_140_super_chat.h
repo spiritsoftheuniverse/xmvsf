@@ -266,6 +266,17 @@ struct State {
                     "DHC_189_NATIVE_2E_ROOT_ROM fighter=%02X action=%04X script=%06X",
                     fighter,nativeFamily.rootAction,nativeFamily.rootScript);
                 log(frame,MATCH,msg);
+            }else if(familyEvent==XM87189Family::REPEATED_ROOT_SCRIPT){
+                log(frame,MATCH,
+                    "DHC_190_NATIVE_2E_ROOT_SCRIPT_REWIND_STILL_SUPER_ATTACK");
+            }else if(familyEvent==XM87189Family::CONTINUATION_BEGIN){
+                char msg[CHAT_LENGTH];
+                std::snprintf(msg,sizeof(msg),
+                    "DHC_190_ROM_2E_SUBACTION_CONTINUES_SUPER action=%04X step=%u root=%04X",
+                    shinkuuNow.action,shinkuuNow.step,nativeFamily.rootAction);
+                log(frame,MATCH,msg);
+            }else if(familyEvent==XM87189Family::ACTION_EXIT){
+                log(frame,SYSTEM,"DHC_190_ROM_2E_SUPER_FAMILY_TRUE_NATIVE_EXIT");
             }
             if(lifeEvent==XM87184Life::ENTER)
                 log(frame,MATCH,"DHC_184_RYU_SHINKUU_ACTION_ENTER_2E08_0D3070");
