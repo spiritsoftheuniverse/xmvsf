@@ -29,7 +29,7 @@ int main(){
     assert(mirrored.position(200u,408)==704);
     assert(mirrored.position(201u,380)==704);
     const int leftMiddle=mirrored.position(202u,426);
-    assert(leftMiddle>=500-3 && leftMiddle<=500+3);
+    assert(leftMiddle>=(704+304)/2-3 && leftMiddle<=(704+304)/2+3);
     assert(mirrored.position(203u,450)<leftMiddle);
     assert(mirrored.position(204u,472)==304);
     assert(mirrored.ready(0x12u,472));
