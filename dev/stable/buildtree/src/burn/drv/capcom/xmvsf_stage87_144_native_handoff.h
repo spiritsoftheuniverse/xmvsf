@@ -27,6 +27,7 @@
 #include "xmvsf_stage87_194_native_passive_jump_entry.h" // ROM-owned descent, true landing, target steering
 #include "xmvsf_stage87_195_tag_latch_guard.h" // clear only our failed controller8 latch
 #include "xmvsf_stage87_196_native_immediate_fall.h" // original 0212 fall, no 67-frame tag lag
+#include "xmvsf_stage87_197_cinematic_opponent_hold.h" // DHC-only opponent freeze
 #include "xmvsf_stage87_177_dhc_punch_chords.h" // explicit 3P host / native 2P helper dependency
 #include <cstdint>
 #include <cstdio>
@@ -103,10 +104,12 @@ struct State {
          firstFourAttackTest=false,fullAttackTest=false,familyTest=false,liveLifetimeTest=false,
          reserveOwnershipTest=false,deterministicExitTest=false,
          passiveJumpTest=false,immediateFallTest=false,
+         cinematicFreezeTest=false,
          chainUsed[2]={false,false};
     Phase phase[2]={IDLE,IDLE};
     bool armedFromFamily[2]={false,false};
     XM87159Projectile::State oldRyuProjectiles;
+    XM87197Hold::Freeze cinematicFreeze;
     unsigned started[2]={0u,0u},outgoing[2]={0u,0u},incoming[2]={0u,0u};
     unsigned cooldownUntil[2]={0u,0u},lastAcceptedAt[2]={~0u,~0u};
     unsigned capturedMode[2]={0u,0u},capturedAction[2]={0u,0u};
@@ -192,6 +195,9 @@ struct State {
         const char* nativeFall=std::getenv("XM87196_TEST_IMMEDIATE_NATIVE_FALL");
         immediateFallTest=passiveJumpTest && nativeFall &&
             std::strcmp(nativeFall,"1")==0;
+        const char* cinematic=std::getenv("XM87197_TEST_OPPONENT_FREEZE");
+        cinematicFreezeTest=immediateFallTest && cinematic &&
+            std::strcmp(cinematic,"1")==0;
         const char* firstFour=std::getenv("XM87186_TEST_FIRST_FOUR_ATTACK");
         firstFourAttackTest=enabled && earlyCancel && firstFour &&
              std::strcmp(firstFour,"1")==0;
@@ -210,7 +216,8 @@ struct State {
                 "\tscript34\tscript38\tpartnerPtr\tpoint210\treserve210"
                 "\tx\ty\tdecision\tken2E00_D6722_ready\tken2E02_D6976_ready"
                 "\tken_observed_2E00\tken_observed_2E02\tselected_command"
-                "\traw14\traw18\traw1C\traw20\tfloor254\tjumpApexY\tjumpDescendingFrames\n",log);
+                "\traw14\traw18\traw1C\traw20\tfloor254\tjumpApexY\tjumpDescendingFrames"
+                "\toppFreezeActive\toppFreezeHeld\toppActorId\toppAction\toppX\toppY\n",log);
         }
         std::fprintf(stderr,
             "XM87.180 Ken DHC enabled=%d proofMode=%d earlyCancel=%d"
@@ -220,6 +227,7 @@ struct State {
     }
     void reset(){
         oldRyuProjectiles.reset();
+        cinematicFreeze.reset();
         for(unsigned s=0;s<2u;++s){
             phase[s]=IDLE;chainUsed[s]=false;armedFromFamily[s]=false;
             ownedCommand[s]=XM87192Owner::Proposal();
@@ -300,6 +308,11 @@ struct State {
             event(now,side,ram,
                   "DHC_179_ABANDONED_HOST_002A_RESTORED_TO_CAPTURED_MODE");
         }
+        // An aborted DHC must never strand the opponent frozen.
+        if(cinematicFreeze.active){
+            cinematicFreeze.release(ram);
+            event(now,side,ram,"DHC_197_OPPONENT_FREEZE_RELEASED_ABORT");
+        }
         phase[side]=FAILED;
         event(now,side,ram,reason);
         if(side==0u)oldRyuProjectiles.abort(now,
@@ -334,7 +347,8 @@ struct State {
             "\t%02X\t%02X\t%02X\t%02X\t%04X\t%02X\t%04X"
             "\t%08X\t%08X\t%08X\t%04X\t%04X"
             "\t%u\t%u\t%s\t%u\t%u\t%u\t%u\t%u"
-            "\t%08X\t%08X\t%08X\t%08X\t%04X\t%d\t%u\n",
+            "\t%08X\t%08X\t%08X\t%08X\t%04X\t%d\t%u"
+            "\t%u\t%u\t%04X\t%04X\t%u\t%u\n",
             now,side+1u,phaseName(phase[side]),
             rw(ram,p+0x52u),rw(ram,reserve+0x52u),
             rw(ram,p+0x60u),rw(ram,p+0xA0u),
@@ -354,7 +368,12 @@ struct State {
             rl(ram,p+0x14u),rl(ram,p+0x18u),
             rl(ram,p+0x1Cu),rl(ram,p+0x20u),
             rw(ram,p+0x254u),jumpArrival[side].apexY,
-            jumpArrival[side].nativeDownwardSamples);
+            jumpArrival[side].nativeDownwardSamples,
+            unsigned(cinematicFreeze.active),cinematicFreeze.held,
+            rw(ram,0x4000u+(side^1u)*0x400u+0x52u),
+            rw(ram,0x4000u+(side^1u)*0x400u+0x60u),
+            rw(ram,0x4000u+(side^1u)*0x400u+0x0Cu),
+            rw(ram,0x4000u+(side^1u)*0x400u+0x10u));
         std::fflush(log);
     }
 
@@ -505,6 +524,18 @@ struct State {
         for(unsigned side=0;side<2u;++side){
             // Stage 87.144 confines executable experiment to P1 Ryu->Ken.
             if(side!=0u)continue;
+            // 87.197: native CPU runs freely for Ken; hold only the
+            // opposing actor through the original DHC transfer.
+            // The ownership check is INSIDE the accepted side branch:
+            // evaluating P2 IDLE as a second DHC would release the hold.
+            if(cinematicFreezeTest && cinematicFreeze.active &&
+               cinematicFreeze.side==side){
+                if(!cinematicFreeze.hold(ram,now,unsigned(phase[side]))){
+                    cinematicFreeze.release(ram);
+                    event(now,side,ram,
+                        "DHC_197_OPPONENT_FREEZE_SAFETY_RELEASE");
+                }
+            }
             const unsigned p=0x4000u+side*0x400u;
             const unsigned reserve=0x4800u+side*0x400u;
             const unsigned pointId=rw(ram,p+0x52u);
@@ -931,6 +962,14 @@ struct State {
                         oldRyuProjectiles.activate(ram,now);
                     phase[side]=WAIT_NATIVE_SWAP;
                     controllerAcceptedAt[side]=now;
+                    if(cinematicFreezeTest){
+                        if(cinematicFreeze.capture(ram,side,now,
+                              unsigned(phase[side]),pointId,reserveId))
+                            event(now,side,ram,
+                              "DHC_197_OPPONENT_FREEZE_AT_NATIVE_3200");
+                        else event(now,side,ram,
+                              "DHC_197_OPPONENT_FREEZE_CAPTURE_REFUSED");
+                    }
                     event(now,side,ram,"NATIVE_CONTROLLER_ACCEPTED_OUTGOING_3200");
                 }else if(recoveryRebound ||
                           (rw(ram,p+0xA0u)==0x2A00u &&
@@ -982,6 +1021,14 @@ struct State {
                         oldRyuProjectiles.activate(ram,now);
                     phase[side]=WAIT_NATIVE_SWAP;
                     controllerAcceptedAt[side]=now;
+                    if(cinematicFreezeTest){
+                        if(cinematicFreeze.capture(ram,side,now,
+                              unsigned(phase[side]),pointId,reserveId))
+                            event(now,side,ram,
+                              "DHC_197_OPPONENT_FREEZE_AT_NATIVE_3200");
+                        else event(now,side,ram,
+                              "DHC_197_OPPONENT_FREEZE_CAPTURE_REFUSED");
+                    }
                     event(now,side,ram,recoveryRebound?
                         "DHC_185_RECOVERY_REBOUND_TO_ORIGINAL_3200_SCRIPT":
                         "DHC_ROM_TAG_3200_AFTER_CONTROLLER_ACCEPT");
@@ -1515,6 +1562,12 @@ struct State {
                         event(now,side,ram,
                             "DHC_192_RESERVE_NATIVE_ROM_2E_SUPER_ACCEPTED_AND_CATALOGED");
                         event(now,side,ram,"DHC_NATIVE_INPUT_DISPATCH_ACCEPTED");
+                        // Ken's real ROM super now owns the cinematic.
+                        if(cinematicFreeze.active){
+                            cinematicFreeze.release(ram);
+                            event(now,side,ram,
+                                "DHC_197_OPPONENT_FREEZE_RELEASED_ON_NATIVE_2E");
+                        }
                         XM87192Owner::state().clear(side);
                     }else if(now>inputBegin[side]+
                           ownedCommand[side].duration()+8u){
@@ -1563,6 +1616,11 @@ struct State {
                     kenNeutralSince[side]=0u;
                     event(now,side,ram,"DHC_KEN_NATIVE_SUPER_ROM_ACTION_CONFIRMED");
                     event(now,side,ram,"DHC_NATIVE_INPUT_DISPATCH_ACCEPTED");
+                    if(cinematicFreeze.active){
+                        cinematicFreeze.release(ram);
+                        event(now,side,ram,
+                            "DHC_197_OPPONENT_FREEZE_RELEASED_ON_NATIVE_2E");
+                    }
                 }else if(now>inputBegin[side]+68u){
                     event(now,side,ram,"DHC_NATIVE_INPUT_NO_SUPER_ROM_ACCEPT");
                     abort(now,side,ram,"KEN_INPUT_DISPATCH_TIMEOUT_UNLOCKED");
