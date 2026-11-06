@@ -20,6 +20,7 @@
 #include "xmvsf_stage87_186_first_attack_gate.h" // TEST-only first four natural attack frames
 #include "xmvsf_stage87_187_opening_front.h" // block stale startup handoff
 #include "xmvsf_stage87_188_full_attack_gate.h" // full native 2E08 ATTACK
+#include "xmvsf_stage87_189_native_super_family.h" // original ROM 2E family
 #include "xmvsf_stage87_177_dhc_punch_chords.h" // explicit 3P host / native 2P helper dependency
 #include <cstdint>
 #include <cstdio>
@@ -91,9 +92,10 @@ struct State {
     bool initialized=false,enabled=false,proofNative=false,earlyCancel=false,
          delayedPrimeExperimental=false,unsafeConsumedPunchReplay=false,
          earlyActiveDirectTest=false,recoveryReboundTest=false,
-         firstFourAttackTest=false,fullAttackTest=false,
+         firstFourAttackTest=false,fullAttackTest=false,familyTest=false,
          chainUsed[2]={false,false};
     Phase phase[2]={IDLE,IDLE};
+    bool armedFromFamily[2]={false,false};
     XM87159Projectile::State oldRyuProjectiles;
     unsigned started[2]={0u,0u},outgoing[2]={0u,0u},incoming[2]={0u,0u};
     unsigned cooldownUntil[2]={0u,0u},lastAcceptedAt[2]={~0u,~0u};
@@ -160,6 +162,9 @@ struct State {
         const char* full=std::getenv("XM87188_TEST_FULL_ATTACK");
         fullAttackTest=earlyActiveDirectTest && full &&
              std::strcmp(full,"1")==0;
+        const char* nativeFamily=std::getenv("XM87189_TEST_NATIVE_SUPER_FAMILY");
+        familyTest=enabled && earlyCancel && nativeFamily &&
+             std::strcmp(nativeFamily,"1")==0;
         const char* firstFour=std::getenv("XM87186_TEST_FIRST_FOUR_ATTACK");
         firstFourAttackTest=enabled && earlyCancel && firstFour &&
              std::strcmp(firstFour,"1")==0;
@@ -188,7 +193,8 @@ struct State {
     void reset(){
         oldRyuProjectiles.reset();
         for(unsigned s=0;s<2u;++s){
-            phase[s]=IDLE;chainUsed[s]=false;lastQueuedCheck[s]=~0u;
+            phase[s]=IDLE;chainUsed[s]=false;armedFromFamily[s]=false;
+            lastQueuedCheck[s]=~0u;
             lastAcceptedAt[s]=~0u;cooldownUntil[s]=0u;
             lastNormalRef[s]=~0u;
             kenExitAt[s]=kenSuperAt[s]=0u;
@@ -246,6 +252,7 @@ struct State {
         if(side==0u)oldRyuProjectiles.abort(now,
             rw(ram,0x4052u)==0x14u && rw(ram,0x4852u)==0x12u);
         phase[side]=IDLE;
+        armedFromFamily[side]=false;
         // 87.150 left this true when Ken lost the point slot, so later
         // first supers were queued but could never enter the DHC gate.
         chainUsed[side]=false;
