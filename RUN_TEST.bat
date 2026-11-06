@@ -375,6 +375,29 @@ if "%XM87203_STAGE_CAPTURE_ENABLE%"=="1" (
     >>"%XM87203_STAGE_CAPTURE_DIR%\status.log" echo RUN_TEST_EXIT	INCOMPLETE	stage_builder_manifest_not_yet_available
   )
 )
+REM Source-only fast rip audit after game exits. Never changes the native
+REM ROM exit code and never modifies original shot_XXXX files or Stable.
+REM FULL (slow) audit is opt-in through REVIEW_CLEAN_RIPS.py --full.
+if /I "%CLEAN_RIP_MODE%"=="clean" if "%RC%"=="0" (
+  if exist "%PROJECT%\test\87.203\clean_rips\shot_0001\layers.tsv" (
+    where python.exe >nul 2>nul
+    if not errorlevel 1 (
+      echo.
+      echo Checking original CPS2 clean-rip batches and preparing a contact sheet.
+      if defined XM87203_STAGE_CAPTURE_DIR (
+        python.exe "%PROJECT%\dev\stage_capture\REVIEW_CLEAN_RIPS.py" --root "%PROJECT%\test\87.203\clean_rips" --output "%PROJECT%\test\87.203\clean_rips_review" --status-log "%XM87203_STAGE_CAPTURE_DIR%\status.log"
+      ) else (
+        python.exe "%PROJECT%\dev\stage_capture\REVIEW_CLEAN_RIPS.py" --root "%PROJECT%\test\87.203\clean_rips" --output "%PROJECT%\test\87.203\clean_rips_review"
+      )
+      if errorlevel 1 echo WARNING: Clean-rip integrity errors. Inspect clean_rips_review\clean_rips_review.txt.
+      echo Review files: "%PROJECT%\test\87.203\clean_rips_review"
+    ) else (
+      echo WARNING: Python not found. Native clean captures remain preserved.
+    )
+  ) else (
+    echo INFO: No clean-rip shot_0001 available for review yet.
+  )
+)
 REM Once MVC capture verification has run, skip XMVSF-only DHC reports.
 if /I "%SOURCE_ROM:~0,4%"=="mvsc" goto :mvc_donor_post
 REM 87.175: after native play, analyze only PRIVATE locally captured ROM
