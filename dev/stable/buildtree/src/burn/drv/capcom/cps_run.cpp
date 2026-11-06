@@ -23,6 +23,7 @@
 #include "xmvsf_stage87_180_subframe_input_observer.h" // 87.180 intra-frame native input clocks
 #include "xmvsf_stage87_181_observer_health.h" // 87.181 startup and combat observer diagnostics
 #include "xmvsf_stage87_182_native_pc_trace.h" // 87.182 exact native PPC audit, opt-in
+#include "xmvsf_stage87_186_opening_observer.h" // 87.186 original entry, first attack, and input boundary audit
 #include "xmvsf_stage87_144_native_handoff.h" // opt-in DHC-only native action transaction TEST
 #include "xmvsf_stage87_160_super_discovery.h" // read-only roster-wide native 2E ROM/script and input discovery
 #include "../../../burner/sdl/xmvsf_stage87_162_replay_sync.h" // exact F9 movie-frame index for native action logs
@@ -521,10 +522,21 @@ INT32 Cps2Frame()
     // instruction. Hook only the already armed Ryu->Ken native tag frame.
     // The observer wraps/restores any existing Musashi callback; it never
     // changes the ROM, input port, actor RAM, or CPU cycle budget.
+    // 87.186 records genuine super entry BEFORE the original CPU runs.
+    // On this first sampled full frame, the bounded original PPC
+    // observer may now begin even when controller 8 is NOT armed.
+    // It traces initial startup frames, actual startup punch edges and
+    // the first 25 original attack frames. No command is submitted.
+    if(dhcGameMatches && !bBurnRunAheadFrame)
+        XM87186Opening::state().sample(CpsRamFF,
+            (unsigned)GetCurrentFrame(),"PRE_CPU",
+            (unsigned)XM87144::state().phase[0],0u,0u);
     if(dhcGameMatches && !bBurnRunAheadFrame)
         XM87182PC::state().begin(CpsRamFF,(unsigned)GetCurrentFrame(),
              (unsigned)XM87144::state().phase[0],
-             XM87144::state().earlyCancel,false);
+             XM87144::state().earlyCancel,false,
+             XM87186Opening::state().wantsPcTrace(
+                (unsigned)GetCurrentFrame()));
     XM87144::State::InputMask dhcInput=
         (!bBurnRunAheadFrame && dhcGameMatches)?
         XM87144::state().inputForFrame(CpsRamFF,(unsigned)GetCurrentFrame()):
@@ -850,6 +862,12 @@ INT32 Cps2Frame()
         const XM87142::Report romReport=XM87142::state().frame(
             CpsRamFF,CpsRom,(unsigned)nCpsRomLen,
             (unsigned)GetCurrentFrame(),false);
+        // Exact post-CPU boundary, before host-side command matching
+        // and before a possible DHC controller-8 write.
+        XM87186Opening::state().sample(CpsRamFF,
+            (unsigned)GetCurrentFrame(),"POST_CPU_PRE_HOST",
+            (unsigned)XM87144::state().phase[0],
+            xm87140_p1_dir,xm8786_p1_buttons);
         XM87140Chat::state().frame(CpsRamFF,(unsigned)GetCurrentFrame(),
             xm87140_p1_dir,xm87140_p2_dir,
             xm8786_p1_buttons,xm8786_p2_buttons,
@@ -908,6 +926,10 @@ INT32 Cps2Frame()
             dhcInput.active,dhcInput.directions,dhcInput.attacks);
         XM87144::state().frame(CpsRamFF,CpsRom,(unsigned)nCpsRomLen,
             (unsigned)GetCurrentFrame(),dhcWindow);
+        XM87186Opening::state().sample(CpsRamFF,
+            (unsigned)GetCurrentFrame(),"POST_DHC_HOST",
+            (unsigned)XM87144::state().phase[0],
+            xm87140_p1_dir,xm8786_p1_buttons);
         xm87180Sample("AFTER_DHC_HOST");
         XM87175Observer::state().postDhc(
             CpsRamFF,(unsigned)GetCurrentFrame(),
