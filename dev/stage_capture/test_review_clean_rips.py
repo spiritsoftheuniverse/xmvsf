@@ -78,6 +78,33 @@ class ReviewTests(unittest.TestCase):
         self.assertEqual(full['shots'][0]['hash_checked_rgba_files'], 16)
         self.assertEqual(full['shots'][0]['status'], 'FULL_VALIDATED')
 
+    def test_many_batches_paginate_without_png_dimension_error(self):
+        # The user had 22 completed bursts. 16 or more rows formerly exceeded
+        # the standard PNG helper's 2048-pixel height limit and wrote no ZIP.
+        for n in range(1, 19):
+            self.shot(n, frames=1)
+        result = mod.review(self.root, self.output)
+        self.assertEqual(result['total_bursts'], 18)
+        self.assertEqual(len(result['contact_sheets']), 2)
+        self.assertEqual([p['shots'] for p in result['contact_sheets']], [12, 6])
+        self.assertEqual([p['row_offset'] for p in result['contact_sheets']], [0, 12])
+        self.assertEqual(result['contact_sheet']['file'], 'clean_rips_contact_sheet.png')
+        with zipfile.ZipFile(self.output/'clean_rips_review_bundle.zip') as bundle:
+            self.assertIsNone(bundle.testzip())
+            self.assertEqual(set(bundle.namelist()), {
+                'clean_rips_review.txt', 'clean_rips_review.json',
+                'clean_rips_contact_sheet.png',
+                'clean_rips_contact_sheet_002.png'
+            })
+            for page in result['contact_sheets']:
+                png=bundle.read(page['file'])
+                self.assertEqual(png[:8], b'\\x89PNG\\r\\n\\x1a\\n')
+                width,height=struct.unpack_from('>II',png,16)
+                self.assertEqual(width,608)
+                self.assertLessEqual(height,2048)
+        self.assertFalse(result['errors'])
+        self.assertTrue((self.output/'clean_rips_review_bundle.zip').is_file())
+
     def test_partial_burst_and_corruption_stay_visible(self):
         self.shot(1, frames=2, complete=False)
         damaged = self.shot(2, frames=1)
