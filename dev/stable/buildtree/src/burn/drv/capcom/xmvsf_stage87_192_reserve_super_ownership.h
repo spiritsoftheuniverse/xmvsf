@@ -177,6 +177,32 @@ struct State {
         if(rootOut)*rootOut=r.script;
         return true;
     }
+    // Read-only ROM super inventory when a fighter naturally owns the
+    // point controller. Do not misrepresent this as proof that the
+    // inactive fighter's parser is active or that the move's buttons
+    // are already known. Only the native ROM 2E ROOT becomes a candidate.
+    bool observeNatural(unsigned side,unsigned now,
+                        const XM87184Life::Sample&s,
+                        const std::uint8_t*rom,unsigned size){
+        unsigned root=0u;
+        if(s.step!=2u||!nativeSuper(rom,size,s,&root)||
+           s.script!=root)return false;
+        for(unsigned i=0;i<learnedCount;++i)
+            if(learned[i].fighter==s.fighter &&
+               learned[i].action==s.action &&
+               learned[i].script==root)return false;
+        if(learnedCount>=128u)return false;
+        Seen &item=learned[learnedCount++];
+        item.fighter=s.fighter;item.action=s.action;
+        item.script=root;item.at=now;
+        item.motion=NONE;item.buttons=0u;
+        ensureLog();
+        if(log){std::fprintf(log,
+           "%u\t%u\t%02X\t%04X\t%06X\t0\t00\tNATIVE_2E_ROOT_INPUT_UNMAPPED\n",
+           now,side+1u,s.fighter,s.action,root);
+           std::fflush(log);}
+        return true;
+    }
     bool confirm(unsigned side,unsigned now,const Proposal&p,
                  const XM87184Life::Sample&s,
                  const std::uint8_t*rom,unsigned size){
@@ -188,10 +214,13 @@ struct State {
             if(learned[i].fighter==s.fighter&&
                learned[i].action==s.action&&
                learned[i].script==root){
+                const bool firstInput=learned[i].motion==NONE;
+                learned[i].motion=p.motion;learned[i].buttons=p.buttonMask;
                 if(log){std::fprintf(log,
-                    "%u\t%u\t%02X\t%04X\t%06X\t%u\t%02X\tCONFIRMED_REPEAT\n",
+                    "%u\t%u\t%02X\t%04X\t%06X\t%u\t%02X\t%s\n",
                     now,side+1u,s.fighter,s.action,root,unsigned(p.motion),
-                    p.buttonMask);std::fflush(log);}
+                    p.buttonMask,firstInput?"CONFIRMED_RESERVE_INPUT":"CONFIRMED_REPEAT");
+                    std::fflush(log);}
                 return true;
             }
         if(learnedCount<128u){
