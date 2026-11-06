@@ -416,3 +416,42 @@ not create blue PART_DONE or green LEVEL_DONE merely because screenshots
 look plausible. Full level geography, sprites-as-scenery, animation-cycle
 coverage, and visual comparison against native MVC frames remain separate
 work. No GitHub Actions, added launcher, or Stable modifications.
+
+
+## OFFLINE review without starting MVC, loading ROMs or rebuilding
+
+The previous automatic review had two accidental gates: ROM return code had
+to equal zero AND shot_0001/layers.tsv had to exist. If either failed,
+there was no review ZIP and no explanation. That is fixed.
+
+From F:\xmvsf, AFTER pulling the latest capture feature branch, run:
+
+    RUN_TEST.bat review
+
+This is a new OFFLINE mode of the EXISTING root RUN_TEST.bat (no new
+version-specific launcher). It branches before any EXE validation or ROM
+loading; no BUILD_TEST.bat is needed. Uses only installed Python and
+existing files under test/87.203, then creates or refreshes:
+
+    F:\xmvsf\test\87.203\clean_rips_review\clean_rips_review_bundle.zip
+
+If real clean_rips/shot_XXXX image files exist, it validates samples and
+writes the actual CPS2 clean artwork contact sheet into this ZIP.
+If no clean-rip images are available, it STILL creates a text/JSON
+diagnostic ZIP showing the missing root and source capture status event
+counts (CLEAN_RIP_START / CLEAN_RIP_BURST_DONE, etc.). It cannot turn a
+native telemetry status.log into pixel-exact CPS2 background images, and
+must not claim it did. Missing pixel source returns exit code 2, but the
+bundle is intentionally still written, with no fabricated contact sheet.
+This makes the original failure actionable without entering the game.
+An independent ROM crash no longer blocks producing a review.
+
+Equivalent direct Python command without RUN_TEST.bat:
+
+    python dev\stage_capture\REVIEW_CLEAN_RIPS.py --root "F:\xmvsf\test\87.203\clean_rips" --output "F:\xmvsf\test\87.203\clean_rips_review" --status-log "F:\xmvsf\test\87.203\stage_capture\status.log"
+
+The tool never overwrites shot_XXXX, original ROM assets, warm objects,
+Stable, prior raw captures, or GitHub history. It only refreshes its own
+review JSON/text/ZIP and contact sheet when actual pixel evidence exists.
+The regression test explicitly covers an absent clean_rips directory plus
+a status.log recording completed bursts, without entering MVC.
