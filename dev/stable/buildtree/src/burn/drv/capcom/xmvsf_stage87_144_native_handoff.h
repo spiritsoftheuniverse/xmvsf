@@ -15,6 +15,7 @@
 #include "xmvsf_stage87_178_tag_latch_recovery.h" // 87.178 only stale DHC tag latch
 #include "xmvsf_stage87_179_delayed_tag_edge.h" // 87.179 delayed native input edge
 #include "xmvsf_stage87_183_native_edge_preflight.h" // 87.183 native consumed-punch gate
+#include "xmvsf_stage87_184_super_action_lifetime.h" // real ROM super lifetime
 #include "xmvsf_stage87_177_dhc_punch_chords.h" // explicit 3P host / native 2P helper dependency
 #include <cstdint>
 #include <cstdio>
@@ -411,6 +412,12 @@ struct State {
             const unsigned reserve=0x4800u+side*0x400u;
             const unsigned pointId=rw(ram,p+0x52u);
             const unsigned reserveId=rw(ram,reserve+0x52u);
+            const XM87184Life::Sample ryuLife={
+                pointId,rw(ram,p+0x60u),rw(ram,p+0xA0u),
+                rw(ram,p+0x08u),rl(ram,p+0x34u),
+                rb(ram,p+0xD6u)};
+            const bool recoveryTest=XM87184Life::isRecoveryTag(
+                ryuLife,XM87184Life::recoveryOptIn());
             // Read-only reference from an actual ROM-driven *ordinary*
             // tag to compare against this DHC controller attempt. These
             // are never modified by the experiment unless it has a real
@@ -437,8 +444,9 @@ struct State {
                     blocked="BLOCK_NOT_RYU_POINT_KEN_RESERVE";
                 else if(entry->known->fighter!=reserveId)
                     blocked="BLOCK_SELECTED_SUPER_NOT_FOR_RESERVE";
-                else if(rw(ram,p+0x60u)!=0x2E08u)
-                    blocked="BLOCK_NOT_RYU_2E08_SUPER_ACTION";
+                else if(!XM87184Life::canTag(ryuLife,
+                             XM87184Life::recoveryOptIn()))
+                    blocked="BLOCK_OUTSIDE_REAL_SHINKUU_SCRIPT_PHASE";
                 else if(rw(ram,p+0xA0u)!=0x2A28u &&
                         rw(ram,p+0xA0u)!=0x2A02u)
                     blocked="BLOCK_NOT_NATIVE_2A28_SUPER_MODE";
@@ -521,14 +529,21 @@ struct State {
                           "PROOF_156_RYU_SUPER_TO_NATIVE_TAG_WAIT_NO_RAM_WRITES");
                     continue;
                 }
-                if(remaining==0u || remaining>60u ||
+                if((remaining==0u && !recoveryTest) || remaining>60u ||
                    rb(ram,p+0xD6u)!=0x0Au){
                     abort(now,side,ram,
                         "DHC_BLOCK_RYU_SUPER_TIMER_OR_CONTROLLER_INVALID");
                     continue;
                 }
                 const unsigned verifiedWindow=earlyCancel?0x1Cu:8u;
-                if(remaining>verifiedWindow){
+                if(recoveryTest){
+                    // Experimental recovery branch is *still* the ROM's
+                    // Shinkuu action 2E0A, but never its terminal script.
+                    // Existing native input history guard remains active.
+                    event(now,side,ram,
+                          "DHC_184_RECOVERY_PHASE_NATIVE_TAG_EXPERIMENT");
+                    armOutgoingTag(ram,now,side,selectedAt);
+                }else if(remaining>verifiedWindow){
                     phase[side]=WAIT_RYU_SUPER_END;
                     started[side]=now;
                     event(now,side,ram,earlyCancel?
@@ -659,7 +674,10 @@ struct State {
                     event(now,side,ram,"NATIVE_CONTROLLER_ACCEPTED_OUTGOING_3200");
                 }else if(rw(ram,p+0xA0u)==0x2A00u &&
                           rb(ram,p+0x256u)==0u &&
-                          rw(ram,p+0x60u)==0x2E08u &&
+                          rw(ram,p+0x60u)==capturedAction[side] &&
+                          (capturedAction[side]==0x2E08u ||
+                           (XM87184Life::recoveryOptIn() &&
+                            capturedAction[side]==0x2E0Au)) &&
                           // Exact 87.151 acceptance for the active
                           // early-cancel route, without invented guards.
                           (earlyCancel ||
@@ -703,7 +721,7 @@ struct State {
                     event(now,side,ram,"DHC_ROM_TAG_3200_AFTER_CONTROLLER_ACCEPT");
 
                 }else if(rb(ram,p+0x256u)==0u &&
-                          rw(ram,p+0x60u)!=0x2E08u &&
+                          rw(ram,p+0x60u)!=capturedAction[side] &&
                           rw(ram,p+0x60u)!=0x3200u){
                     // 87.152: controller consumed but Ryu ran 2C04, not
                     // tag 3200. Never paste stale A0/step values over 2C04.
