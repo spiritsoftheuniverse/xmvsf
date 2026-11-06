@@ -22,6 +22,7 @@
 #include "xmvsf_stage87_175_native_accept_observer.h" // 87.175 read-only native 68000 vs host DHC trace
 #include "xmvsf_stage87_180_subframe_input_observer.h"
 #include "xmvsf_stage87_203_stage_capture.h" // read-only CPS2 stage capture // 87.180 intra-frame native input clocks
+#include "xmvsf_stage87_203_m68k_program_snapshot.h" // opt-in private MVC1 68000 source, no guest writes
 #include "xmvsf_stage87_181_observer_health.h" // 87.181 startup and combat observer diagnostics
 #include "xmvsf_stage87_182_native_pc_trace.h" // 87.182 exact native PPC audit, opt-in
 #include "xmvsf_stage87_186_opening_observer.h" // 87.186 original entry, first attack, and input boundary audit
@@ -1089,6 +1090,11 @@ INT32 Cps2Frame()
                 }
             }
             XM87203Stage::state().observe(f);
+            // On the first original MVC frame only, archive both 68000
+            // READ data and decrypted FETCH instructions under an exclusive
+            // local run folder. Never touch guest memory or GitHub artifacts.
+            XM87203M68K::once(driver,f.frame,CpsRom,(unsigned)nCpsRomLen,
+                              CpsCode,(unsigned)nCpsCodeLen);
         }
     }
     xm8634Mark("COMPLETE");
