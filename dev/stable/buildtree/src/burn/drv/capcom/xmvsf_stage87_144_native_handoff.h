@@ -366,7 +366,8 @@ struct State {
                 started[side]=now;
                 lastAcceptedAt[side]=selectedAt;
                 event(now,side,ram,"DHC_NATIVE_TAG_CONTROLLER_08_ARMED");
-                event(now,side,ram,
+                event(now,side,ram,reserveOwnershipTest?
+                      "DHC_192_RESERVE_NATIVE_MOVE_UNSELECTED_ROM_OWNS_SUPER":
                       "DHC_KEN_ALTERNATE_ROM_SUPERS_REPPA_2E00_D6722_SHINRYUKEN_2E02_D6976");
     }
     // 87.152: one-shot real CPS-2 controller stream. This is consumed
@@ -1250,14 +1251,28 @@ struct State {
                     abort(now,side,ram,"KEN_NATIVE_INPUT_OWNERSHIP_CHANGED");
                     continue;
                 }
-                if(now==inputBegin[side])
-                    event(now,side,ram,"DHC_KEN_NATIVE_QCF_INPUT_BEGIN");
-                if(now==inputBegin[side]+(earlyCancel?6u:13u))
-                    event(now,side,ram,earlyCancel?
-                          "FAST_157_KEN_NATIVE_TWO_BUTTON_EDGE":
-                          "PROOF_156_KEN_NATIVE_TWO_BUTTON_EDGE");
-                if(now==inputBegin[side]+(earlyCancel?8u:16u))
-                    event(now,side,ram,"DHC_KEN_NATIVE_INPUT_RELEASED");
+                if(reserveOwnershipTest && ownedCommand[side].valid){
+                    const unsigned d=XM87192Owner::Proposal::length(
+                        ownedCommand[side].motion);
+                    if(now==inputBegin[side])
+                        event(now,side,ram,
+                            "DHC_192_RESERVE_INPUT_NATIVE_PARSER_START");
+                    if(now==inputBegin[side]+2u*(d-1u)+1u)
+                        event(now,side,ram,
+                            "DHC_192_RESERVE_INPUT_NATIVE_BUTTON_EDGE");
+                    if(now==inputBegin[side]+2u*d+1u)
+                        event(now,side,ram,
+                            "DHC_192_RESERVE_INPUT_NATIVE_BUTTON_RELEASE");
+                }else{
+                    if(now==inputBegin[side])
+                        event(now,side,ram,"DHC_KEN_NATIVE_QCF_INPUT_BEGIN");
+                    if(now==inputBegin[side]+(earlyCancel?6u:13u))
+                        event(now,side,ram,earlyCancel?
+                              "FAST_157_KEN_NATIVE_TWO_BUTTON_EDGE":
+                              "PROOF_156_KEN_NATIVE_TWO_BUTTON_EDGE");
+                    if(now==inputBegin[side]+(earlyCancel?8u:16u))
+                        event(now,side,ram,"DHC_KEN_NATIVE_INPUT_RELEASED");
+                }
                 // 87.192: only the reserve's REAL native ROM decision
                 // may enter the super catalog. Nothing selects 2E00,
                 // 2E02 or another assumed hyper on the host's behalf.
