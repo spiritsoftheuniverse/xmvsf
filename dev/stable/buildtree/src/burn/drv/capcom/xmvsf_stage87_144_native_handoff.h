@@ -581,10 +581,10 @@ struct State {
                 // 87.151 +4E=28 early entry or a separate legacy window.
                 if(pointId!=outgoing[side] ||
                    reserveId!=incoming[side] ||
-                   rw(ram,p+0x60u)!=0x2E08u ||
-                   (rw(ram,p+0xA0u)!=0x2A28u &&
-                    rw(ram,p+0xA0u)!=0x2A02u) ||
-                   rb(ram,p+0xD6u)!=0x0Au ||
+                   // Do not carry an aged input into the recovery
+                   // phase. This boundary is exact ROM step/script,
+                   // not a fabricated super duration or tag timer.
+                   !XM87184Life::canTag(ryuLife,false) ||
                    left==0u || now>started[side]+52u){
                     abort(now,side,ram,"DHC_RYU_SUPER_LEFT_SAFE_WINDOW");
                 }else if(left<=(earlyCancel?0x1Cu:8u)){
