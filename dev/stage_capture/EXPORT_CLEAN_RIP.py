@@ -16,7 +16,7 @@ import struct
 import zlib
 
 MAGIC = b"\x89PNG\r\n\x1a\n"
-SAFE_RGBA = re.compile(r"l([0-3])_(\d{6}).rgba\Z", re.ASCII)
+SAFE_RGBA = re.compile(r"l([0-3])_(\d{6})\.rgba\Z", re.ASCII)
 FNV_BASE = 14695981039346656037
 FNV_PRIME = 1099511628211
 
