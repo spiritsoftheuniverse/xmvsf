@@ -26,6 +26,9 @@ REM The original 87.184 native PC trace already proves the old 2E0A->2E08 restar
 set "XM87184_EXPERIMENTAL_RECOVERY_TAG=1"
 set "XM87185_TEST_EARLY_ACTIVE_TAG=1"
 set "XM87185_TEST_RECOVERY_REBOUND=1"
+REM Read-only historical 87.185 F9 replay must NOT inject
+REM a native tag in the previously untested first-four attack frames.
+set "XM87186_TEST_FIRST_FOUR_ATTACK=0"
 set "XM87182_NATIVE_PC_TRACE_LOG=%OBSROOT%\native_pc_trace_replay.tsv"
 REM 87.181 launch marker survives app-menu exits and failed CPS2 boot.
 set "XM87181_DIAGNOSTIC_STATUS=%OBSROOT%\observer_health_replay.log"
