@@ -25,7 +25,6 @@ struct Tracker {
     Phase phase=OUTSIDE;
     unsigned lastFrame=~0u;
     unsigned fighter=0u,rootAction=0u,rootScript=0u,nextScript=0u;
-    unsigned recoveryAction=0u,recoveryScript=0u,recoveryEnd=0u;
     unsigned stageAction=0u,stageScript=0u,stageEnd=0u;
     unsigned lastObservedScript=0u;
     unsigned originalD6=0u;
@@ -89,22 +88,11 @@ struct Tracker {
             root.valid && root.script==s.script;
         if(originalRoot && (!live || s.fighter!=fighter ||
             s.action!=rootAction || phase!=STARTUP)){
-            const unsigned selector=s.action&0xFFu;
-            const auto next=selector<=0x4Cu?
-                XM87142::resolve(rom,romSize,s.fighter,0x2Eu,selector+2u):
-                XM87142::Lookup();
-            const auto after=selector<=0x4Au?
-                XM87142::resolve(rom,romSize,s.fighter,0x2Eu,selector+4u):
-                XM87142::Lookup();
             // Without an ordered, original NEXT script, a root is
             // observable but never executable. No arbitrary +N window.
             live=true;fighter=s.fighter;rootAction=s.action;
             rootScript=s.script;
             nextScript=nextRomScript(rom,romSize,s.fighter,root.script);
-            recoveryAction=nextScript?s.action+2u:0u;
-            recoveryScript=nextScript;
-            recoveryEnd=after.valid && after.script>nextScript?
-                after.script:0u;
             stageAction=s.action;stageScript=s.script;
             stageEnd=nextScript;lastObservedScript=s.script;
             originalD6=s.d6;phase=STARTUP;beginFrame=now;
