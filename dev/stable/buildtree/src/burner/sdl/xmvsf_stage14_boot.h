@@ -86,6 +86,7 @@ static void xmvsfPixelText(SDL_Renderer* render, const char* text, int cx, int y
 #include "xmvsf_stage25_8_menu_gate.h" /* XMVSF_STAGE25_8_MENU_RELEASE */
 #include "xmvsf_stage86_52_window_state.h" /* XM86.52 SAVED_WINDOW_AND_FOCUS */
 #include "xmvsf_stage29_display.h" /* XMVSF_STAGE29_SCALABLE_DISPLAY */
+#include "xmvsf_stage87_195_menu_gif.h" /* animated local _art menu background at 30% brightness */
 #include "xmvsf_stage25_sets.h"
 #include "xmvsf_stage77_selection.h" /* XMVSF_STAGE25_SETS */
 #include "xmvsf_stage20_api.h" /* XMVSF_STAGE20_WASAPI */
@@ -121,6 +122,7 @@ static int xmvsfBootSelector(bool returningFromGame=false) {
     if(!render)render=SDL_CreateRenderer(window,-1,SDL_RENDERER_ACCELERATED|SDL_RENDERER_PRESENTVSYNC);
     if(!render)render=SDL_CreateRenderer(window,-1,SDL_RENDERER_SOFTWARE);
     if(!render){fprintf(stderr,"XMVSF menu renderer: %s\n",SDL_GetError());return -1;}
+    XM87195Menu::Background menuBackground;
     // Stage 27: the video backend can leave a non-default renderer target,
     // viewport, clip, or scale after game teardown. Explicitly restore the
     // presentation canvas and present a clean first frame on the SAME window.
@@ -130,9 +132,11 @@ static int xmvsfBootSelector(bool returningFromGame=false) {
     SDL_RenderSetViewport(render,nullptr);
     SDL_RenderSetClipRect(render,nullptr);
     SDL_SetRenderDrawBlendMode(render,SDL_BLENDMODE_NONE);
+    menuBackground.load(render);
     if (!(SDL_GetWindowFlags(window)&SDL_WINDOW_SHOWN)) SDL_ShowWindow(window);
     xm8655RenderColor(render,8,16,36,255); /* XMVSF_STAGE32_NAVY */
     SDL_RenderClear(render);
+    menuBackground.draw(render,SDL_GetTicks());
     xm8656Present(render); /* XM86.56 global final pass */
     SDL_PumpEvents();
     xm8652FocusWindowOnce(window,returningFromGame?"boot-return":"boot-startup");
@@ -149,6 +153,7 @@ static int xmvsfBootSelector(bool returningFromGame=false) {
         if(recordedChoice<0){
             // No driver should launch if all movie sessions are consumed.
             // Close exactly the resources this selector owns.
+            menuBackground.release();
             SDL_DestroyRenderer(render);
             if(window==sdlWindow)sdlWindow=nullptr;
             SDL_DestroyWindow(window);
@@ -376,6 +381,9 @@ static int xmvsfBootSelector(bool returningFromGame=false) {
             }
         }
         xm8655RenderColor(render,8,16,36,255);SDL_RenderClear(render); /* XMVSF_STAGE32_NAVY */
+        // Full 960x540 animated background, beneath ALL interactive menus.
+        // Frame delays and 30% RGB brightness are owned by the GIF layer.
+        menuBackground.draw(render,SDL_GetTicks());
         if(screen==0) {
             xmvsfPixelText(render,"X-MEN VS STREET FIGHTER",480,82,4,77,178,255);
             xmvsfPixelText(render,"USA 961023",480,140,3,155,150,255);
@@ -513,6 +521,7 @@ static int xmvsfBootSelector(bool returningFromGame=false) {
         SDL_Delay(8);
     }
     xm8652TrackWindowGeometry(window,true,"boot-exit");
+    menuBackground.release(); // lifetime ends before shared SDL renderer changes owner
     std::fprintf(stderr,"XM27: boot selector EXIT mode=%d\n",outcome);
     std::fflush(stderr);
     for(int i=0;i<8;i++) {
