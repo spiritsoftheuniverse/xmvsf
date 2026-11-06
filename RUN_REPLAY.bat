@@ -16,7 +16,7 @@ REM 87.186 read-only startup trace from original 87.185 F9 movie.
 set "XM87186_OPENING_OBSERVER=1"
 set "XM87186_OPENING_OBSERVER_LOG=%OBSROOT%\native_opening_replay.tsv"
 REM 87.182 only: instruction-completion PC trace for armed Ryu-Ken handoff.
-if not defined XM87182_NATIVE_PC_TRACE set "XM87182_NATIVE_PC_TRACE=1"
+set "XM87182_NATIVE_PC_TRACE=1"
 REM Native consumed-punch safety remains ON during 87.185 baseline replay.
 REM 87.184 replay uses 87.183 SAFE handoff, not unsafe forensic bypass.
 set "XM87183_REPLAY_UNSAFE_CONSUMED_EDGE=0"
@@ -39,7 +39,7 @@ if errorlevel 1 (
 )
 REM 87.182 replay matches stable 87.181 native behavior, no guessed prime.
 REM Replay PC tracing only; prior 87.179 speculative prime disabled.
-if not defined XM87180_EXPERIMENTAL_DELAYED_PRIME set "XM87180_EXPERIMENTAL_DELAYED_PRIME=0"
+set "XM87180_EXPERIMENTAL_DELAYED_PRIME=0"
 REM Dedicated replay channel. Existing BUILD_TEST/RUN_TEST names are unchanged.
 REM Replay the original 87.161 F9 full-state + exact CPS2 inputs without
 REM creating replacement ROM scripts, patching native input, or touching Stable.
