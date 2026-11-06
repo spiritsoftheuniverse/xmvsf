@@ -31,13 +31,13 @@ int main(){
     assert(!owner.fresh(0u,0x12u,100u));
     assert(!owner.fresh(0u,0x14u,101u));
     const Proposal p=owner.pending[0];
-    assert(p.valid && p.reserve==0x14u && p.duration()==8u);
+    assert(p.valid && p.reserve==0x14u && p.duration()==9u);
     assert(p.input(0u,true).active && p.input(0u,true).directions==4u);
     assert(p.input(2u,true).directions==5u);
     assert(p.input(4u,true).directions==1u);
     assert(p.input(5u,true).attacks==0x03u); // 3P -> 2P
-    assert(p.input(6u,true).attacks==0u);
-    assert(!p.input(8u,true).active);
+    assert(p.input(6u,true).attacks==0x03u);
+    assert(!p.input(9u,true).active);
     assert(p.input(2u,false).directions==6u);
     // Reserve owns QCB, DPF, HCF and double QCF too; no Ken list.
     assert(owner.propose(0u,0x14u,101u,QCB,0x18u));
@@ -50,9 +50,9 @@ int main(){
     assert(owner.pending[0].input(2u,true).directions==4u);
     assert(owner.pending[0].input(4u,true).directions==5u);
     assert(owner.propose(0u,0x14u,103u,HCF,0x02u));
-    assert(owner.pending[0].duration()==12u);
+    assert(owner.pending[0].duration()==13u);
     assert(owner.propose(0u,0x14u,104u,DOUBLE_QCF,0x03u));
-    assert(owner.pending[0].duration()==14u);
+    assert(owner.pending[0].duration()==15u);
     std::vector<std::uint8_t> rom(0xE1000u,0u);
     add(rom,0x14u,0xD3966u,0x00u,0xD6722u);
     add(rom,0x14u,0xD3966u,0x02u,0xD6976u);
