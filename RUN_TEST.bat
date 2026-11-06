@@ -21,7 +21,7 @@ set "XM87182_NATIVE_PC_TRACE=1"
 REM Safety gate ON for interactive play; no consumed ROM punch edge tags.
 set "XM87183_REPLAY_UNSAFE_CONSUMED_EDGE=0"
 REM 87.185 TEST-only nonterminal native 2E0A recovery handoff experiment.
-set "XM87184_EXPERIMENTAL_RECOVERY_TAG=1"
+if not defined XM87184_EXPERIMENTAL_RECOVERY_TAG set "XM87184_EXPERIMENTAL_RECOVERY_TAG=1"
 REM 87.185 TEST-only: arm controller 8 while the verified active action edge is fresh.
 if not defined XM87185_TEST_EARLY_ACTIVE_TAG set "XM87185_TEST_EARLY_ACTIVE_TAG=1"
 REM 87.185 TEST-only: after exact 2E0A->2E08 native rebound, use original ROM tag script bridge.
