@@ -280,7 +280,14 @@ int main(){
     const auto wrongControllerAction=r2;
     trial.frame(r2.data(),rom.data(),unsigned(rom.size()),437u,1u);
     assert(trial.phase[0]==IDLE && !trial.chainUsed[0]);
-    assert(r2==wrongControllerAction); // no stale 2A28 / step rollback
+    // 87.195 permits exactly ONE cleanup after the original ROM took
+    // a wrong action: the host's OWN stale controller259=08 must be
+    // returned to the captured 00. Every original ROM-selected action,
+    // mode, D6, script, input-history word and every other RAM byte
+    // MUST remain intact. This is not a 2A28/step/script rollback.
+    auto wrongControllerWithReleasedHostLatch=wrongControllerAction;
+    wb(wrongControllerWithReleasedHostLatch.data(),0x4259u,0u);
+    assert(r2==wrongControllerWithReleasedHostLatch);
     assert(XM87143Queue::state().selected[0]==nullptr);
     // Never reuse a Ryu QCF+PP command as Ken's similarly shaped QCF+PP.
     // The input queue's command owner must equal the actual reserve ID.
