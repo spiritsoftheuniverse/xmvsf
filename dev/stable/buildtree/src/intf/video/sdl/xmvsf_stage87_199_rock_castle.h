@@ -50,7 +50,8 @@ struct Renderer {
         // assuming the process was started from the repo directory.
         std::vector<std::string> candidates;
         const char* names[]={
-            "mvc1-rock-castle-stage.gif","rock-castle.gif"
+            "mvc1-rock-castle-stage.gif","rock-castle.gif",
+            "mvc1-rock-castle-stage.png"
         };
         char*base=SDL_GetBasePath();
         std::vector<std::string> dirs={"_art/","../_art/","../../_art/",
@@ -131,22 +132,31 @@ struct Renderer {
         return true;
     }
     bool paint(SDL_Renderer*render,const SDL_Rect&view,
-               unsigned long long nativeFrame,
+               unsigned long long nativeFrame,int nativeCameraX,int nativeCameraY,
                const unsigned char*spritePixels,const unsigned char*flashPixels){
         if(!render || !spritePixels)return false;
         if(owner!=render)reset();
         if(!owner && !load(render,nativeFrame))return false;
         if(missing || !refreshFrame(render,nativeFrame))return false;
-        // Keep the artwork's aspect ratio. At 636x479 the native
-        // 384x224 viewport samples a 636x371 area, bottom anchored
-        // to retain the actual stage floor and characters' grounding.
+        // Same native stage05 camera already used by Wily. Preserve
+        // original RGB aspect ratio: a slight 7% horizontal overlap
+        // supplies bounded camera pan rather than stretching artwork.
+        // Bottom anchor keeps the visible Rock Castle floor near the
+        // actual native fighter ground line; camera elevation is used
+        // when CPS2 follows a jump.
+        const int visibleW=std::max(1,(imageW*93)/100);
+        const int cropW=std::min(visibleW,
+             std::max(1,int((long long)imageH*384/224)));
         const int cropH=std::min(imageH,
-                       std::max(1,int((long long)imageW*224/384)));
-        const int cropW=std::min(imageW,
-                       std::max(1,int((long long)imageH*384/224)));
-        SDL_Rect crop;
-        if(cropH<imageH){crop={0,imageH-cropH,imageW,cropH};}
-        else{crop={(imageW-cropW)/2,0,cropW,imageH};}
+             std::max(1,int((long long)cropW*224/384)));
+        const int spareX=std::max(0,imageW-cropW);
+        const int spareY=std::max(0,imageH-cropH);
+        const int camX=std::max(0,std::min(384,nativeCameraX));
+        const int camRise=std::max(0,std::min(128,256-nativeCameraY));
+        const int x=(spareX*camX+192)/384;
+        const int y=std::max(0,spareY-
+             int((long long)camRise*cropW/384));
+        SDL_Rect crop={x,y,cropW,cropH};
         if(SDL_RenderCopy(render,image,&crop,&view)!=0)return false;
         if(SDL_UpdateTexture(fighters,nullptr,spritePixels,384*4)!=0)return false;
         // Same ordering as Wily: stage RGBA then original native HUD
