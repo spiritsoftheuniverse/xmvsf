@@ -68,7 +68,10 @@ static void testEarly(XM87143Queue::Command command,
     in=s.inputForFrame(ram.data(),109u);
     assert(in.active && !in.attacks);
     in=s.inputForFrame(ram.data(),111u);
-    assert(!in.active);
+    // 87.176 intentionally shields the physical Ken input PORT after the
+    // nine-frame native QCF sequence; this is a neutral isolation frame,
+    // not another generated Ken super or a control-lock regression.
+    assert(in.active && in.isolated && !in.attacks && !in.directions);
     assert(ram==idleState); // input routing doesn't write fighter state
     // Only the ROM command decoder can transition to one of the two 2E
     // super actions. Explicitly never prime a 2C move or fake 2E.
