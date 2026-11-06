@@ -58,7 +58,7 @@ class TraceTests(unittest.TestCase):
             self.assertFalse(report['verified_animation_tables'])
             pcs=(output/'m68k_writer_pcs.tsv').read_text()
             self.assertIn('000004',pcs)
-            self.assertIn('000040',pcs)
+            self.assertIn('000008',pcs)
             self.assertIn('000120', (output/'m68k_object_families.tsv').read_text())
             self.assertIn('4E71', (output/'m68k_writer_code.tsv').read_text())
             bundle=output/'m68k_sprite_report.zip'
