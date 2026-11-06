@@ -216,7 +216,8 @@ struct State {
                 "\tscript34\tscript38\tpartnerPtr\tpoint210\treserve210"
                 "\tx\ty\tdecision\tken2E00_D6722_ready\tken2E02_D6976_ready"
                 "\tken_observed_2E00\tken_observed_2E02\tselected_command"
-                "\traw14\traw18\traw1C\traw20\tfloor254\tjumpApexY\tjumpDescendingFrames\n",log);
+                "\traw14\traw18\traw1C\traw20\tfloor254\tjumpApexY\tjumpDescendingFrames"
+                "\toppFreezeActive\toppFreezeHeld\toppActorId\toppAction\toppX\toppY\n",log);
         }
         std::fprintf(stderr,
             "XM87.180 Ken DHC enabled=%d proofMode=%d earlyCancel=%d"
@@ -346,7 +347,8 @@ struct State {
             "\t%02X\t%02X\t%02X\t%02X\t%04X\t%02X\t%04X"
             "\t%08X\t%08X\t%08X\t%04X\t%04X"
             "\t%u\t%u\t%s\t%u\t%u\t%u\t%u\t%u"
-            "\t%08X\t%08X\t%08X\t%08X\t%04X\t%d\t%u\n",
+            "\t%08X\t%08X\t%08X\t%08X\t%04X\t%d\t%u"
+            "\t%u\t%u\t%04X\t%04X\t%u\t%u\n",
             now,side+1u,phaseName(phase[side]),
             rw(ram,p+0x52u),rw(ram,reserve+0x52u),
             rw(ram,p+0x60u),rw(ram,p+0xA0u),
@@ -366,7 +368,12 @@ struct State {
             rl(ram,p+0x14u),rl(ram,p+0x18u),
             rl(ram,p+0x1Cu),rl(ram,p+0x20u),
             rw(ram,p+0x254u),jumpArrival[side].apexY,
-            jumpArrival[side].nativeDownwardSamples);
+            jumpArrival[side].nativeDownwardSamples,
+            unsigned(cinematicFreeze.active),cinematicFreeze.held,
+            rw(ram,0x4000u+(side^1u)*0x400u+0x52u),
+            rw(ram,0x4000u+(side^1u)*0x400u+0x60u),
+            rw(ram,0x4000u+(side^1u)*0x400u+0x0Cu),
+            rw(ram,0x4000u+(side^1u)*0x400u+0x10u));
         std::fflush(log);
     }
 
