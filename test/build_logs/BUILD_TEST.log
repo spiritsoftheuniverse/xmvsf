@@ -1967,3 +1967,34 @@ TEST BUILD READY: /f/xmvsf/runtime/stable/XMVSF_Test_87_198.exe
 Stage 87.198: read-only native startup/first attack PPC, preserve all 87.185 input and recovery bridge logic; Stable untouched.
 XMVSF BUILD END rc=0 time=2026-11-06 07:42:48 log=/f/xmvsf/test/build_logs/BUILD_TEST.log
 BATCH RESULT: SUCCESS Fri 11/06/2026  7:42:48.48
+
+========== XMVSF BUILD_TEST.bat 87.198 START Fri 11/06/2026  8:05:02.18 ==========
+Project: F:\xmvsf
+
+========== XMVSF TEST 87.198 BUILD BEGIN 2026-11-06 08:05:03 ==========
+Project: /f/xmvsf
+Log: /f/xmvsf/test/build_logs/BUILD_TEST.log
+XMVSF Stage 87.198 TEST: incremental build; preserving cached objects
+Dependencies: GNU Make + persistent obj/**/*.d header dependency files
+make[1]: Entering directory '/f/xmvsf/dev/stable/buildtree'
+Making normal build...
+
+Compiling src/intf/video/sdl/vid_sdl2.cpp...
+In file included from src/intf/video/sdl/../../../burner/sdl/xmvsf_stage23_ui.h:10,
+                 from src/intf/video/sdl/vid_sdl2.cpp:17:
+src/intf/video/sdl/../../../burner/sdl/xmvsf_stage13_controls.h:145:12: warning: 'int xm13ReadInput(const XM13_Settings*, int, int, SDL_Joystick**, SDL_GameController**, int)' defined but not used [-Wunused-function]
+  145 | static int xm13ReadInput(const XM13_Settings* s, int player, int sub,
+      |            ^~~~~~~~~~~~~
+src/intf/video/sdl/../../../burner/sdl/xmvsf_stage13_controls.h:131:12: warning: 'int xm13Assign(XM13_Settings*, int, int)' defined but not used [-Wunused-function]
+  131 | static int xm13Assign(XM13_Settings* settings,int player,int device) {
+      |            ^~~~~~~~~~
+
+make[2]: *** No rule to make target 'src/intf/video/sdl/xmvsf_stage87_199_rock_castle.h', needed by 'obj/intf/video/sdl/vid_sdl2.d'.  Stop.
+make[2]: *** Waiting for unfinished jobs....
+Warning: Perl is not available on this system.
+src/dep/generated/driverlist.h cannot be updated or created!
+
+make[1]: *** [makefile.sdl2:346: all] Error 2
+make[1]: Leaving directory '/f/xmvsf/dev/stable/buildtree'
+XMVSF BUILD END rc=2 time=2026-11-06 08:07:59 log=/f/xmvsf/test/build_logs/BUILD_TEST.log
+BATCH RESULT: FAILURE Fri 11/06/2026  8:07:59.99
