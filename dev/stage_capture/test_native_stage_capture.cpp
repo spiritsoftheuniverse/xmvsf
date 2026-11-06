@@ -73,6 +73,24 @@ int main(){
     second.observe(f2);
     assert(second.enabled&&second.sessionDir!=original);
     assert(second.sessionDir.compare(0,second.root.size()+1u,second.root+"/")==0);
+    // Regression against the historical 36,000 frame silent hard-stop.
+    // Boundaries rotate into a new session *without losing the boundary
+    // frame*, and are tested at the minimum 300-frame batch.
+    // Set XM87203_BATCH_FRAMES=300 for the smoke test from BUILD_TEST.sh.
+    const unsigned limit=batchFrameLimit();
+    assert(limit>=300u && limit<=36000u);
+    const std::string batch0=second.sessionDir;
+    for(unsigned i=1;i<=limit;++i){
+        f2.frame=104u+i;
+        second.observe(f2);
+        assert(second.enabled&&!second.failed);
+    }
+    assert(second.completedBatches==1u);
+    assert(second.totalFrames==static_cast<unsigned long long>(limit)+1ull);
+    assert(second.frames==1u);
+    assert(second.sessionDir!=batch0);
+    assert(second.lastFrame==104u+limit);
+    assert(second.mapWrites==3u);
     second.close();
-    std::puts("PASS 87.203 native telemetry + independent per-run session paths, changing maps/rows and duplicate-frame guard");
+    std::puts("PASS 87.203 native telemetry + continuous frame-batch rollover, no lost boundary frame or old-session overwrite");
 }
