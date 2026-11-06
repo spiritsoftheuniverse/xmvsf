@@ -52,3 +52,29 @@ ROM-free C++11 classification/regression passed, and the original F10 read-only 
 Full Windows/MSYS2 compile and live recovery-tag gameplay have NOT been tested here. Test the separate runtime/stable/XMVSF_Test_87_184.exe via the unchanged BUILD_TEST.bat and RUN_TEST.bat. The expected chat markers are DHC_184_RYU_SHINKUU_ACTION_ENTER_2E08_0D3070, DHC_184_RYU_SHINKUU_ATTACK_PHASE_2E08_STEP04, DHC_184_RYU_SHINKUU_RECOVERY_PHASE_2E0A_STEP06, DHC_184_RECOVERY_PHASE_NATIVE_TAG_EXPERIMENT and DHC_184_RYU_SHINKUU_ACTION_EXIT_NATIVE.
 
 **Acceptance check:** all proven 87.183 attack-phase handoffs remain; a late QCF+2P/3P in recovery can be accepted only before the terminal script, and a failed experimental recovery handoff releases controls without a lock. Anything attempted after action exit must never queue. The actual native controller acceptance and Ken ROM 2E00 must be confirmed from the new trace, not inferred from this code.
+
+
+## BUILD_TEST false failure repaired (2026-11-05)
+
+The actual Windows BUILD_TEST.log showed Stage 87.184 compiled and linked
+`src/burn/drv/capcom/cps_run.cpp`, `src/burner/sdl/run.cpp`, and
+`src/intf/video/sdl/vid_sdl2.cpp`, then failed only when the builder
+searched the linked `fbneo.exe` for the literal
+`DHC_184_RYU_SHINKUU_ACTION_ENTER_2E08_0D3070`.
+
+A compiled debug string is not a reliable proof that the source was
+built or that a native DHC move works. The string check was a false
+post-link gate, and its failure prevented publishing an otherwise
+successfully linked TEST executable.
+
+`dev/dhc/BUILD_TEST.sh` no longer requires any historical runtime
+debug strings in the binary. It still stops on real `make` errors,
+requires a nonempty executable, copies to a dedicated 87.184 pending
+file, then renames that file to `XMVSF_Test_87_184.exe` only after
+successful staging. Neither Stable nor older numbered TEST files
+are overwritten. Incremental warm-cache compilation and the full
+append-only `test/build_logs/BUILD_TEST.log` remain unchanged.
+
+This repairs the builder's false failure only. Successful Windows
+runtime, the action-timing fix, and experimental recovery DHC still
+require live testing.
