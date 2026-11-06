@@ -52,8 +52,9 @@ int main(){
         char line[64]={};
         assert(std::fgets(line,sizeof(line),latest)!=NULL);
         std::fclose(latest);
-        assert(s.sessionDir==s.root+"/"+std::string(line,10u));
-        assert(line[10]=='\n');
+        line[std::strcspn(line,"\r\n")]=0;
+        assert(std::strlen(line)==12u);
+        assert(s.sessionDir==s.root+"/"+std::string(line));
     }
     assert(s.enabled&&s.gfxReady&&s.frames==1u&&s.mapWrites==3u&&
                         s.rowWrites==1u&&s.paletteWrites==1u);
