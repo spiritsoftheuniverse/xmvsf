@@ -274,7 +274,7 @@ jobs:
           for t in dev/dhc/tests/test_dhc_*.cpp; do
             echo "Compiling $t"
             bin="/tmp/xmvsf-dhc-tests/$(basename "$t" .cpp)"
-            if ! g++ -std=c++11 -O2 -Wall -Wextra -pedantic "$t" -o "$bin"; then
+            if ! g++ -std=c++11 -O2 -Wall -Wextra -pedantic -I dev/stable/buildtree/src/burn "$t" -o "$bin"; then
               echo "FAILED COMPILE: $t" >&2
               failures=$((failures+1))
               continue
