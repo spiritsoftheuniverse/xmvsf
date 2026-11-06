@@ -560,7 +560,11 @@ INT32 Cps2Frame()
         const bool genuineRecoveryWindow=
             XM87184Life::isRecoveryTag(stageBeforeCpu,
                                       XM87184Life::recoveryOptIn());
+        // Do not turn startup 3P into native 2P when the actual
+        // action has not entered a DHC-executable ROM phase.
         xm87177PrequeueThreePunch=
+            XM87184Life::canTag(stageBeforeCpu,
+                                XM87184Life::recoveryOptIn()) &&
             XM87177Chords::shieldPrequeue3P(
                 XM87144::state().enabled,XM87144::state().earlyCancel,
                 unsigned(XM87144::state().phase[0]),
