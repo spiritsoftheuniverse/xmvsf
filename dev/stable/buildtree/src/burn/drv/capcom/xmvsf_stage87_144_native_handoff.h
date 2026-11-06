@@ -21,6 +21,7 @@
 #include "xmvsf_stage87_187_opening_front.h" // block stale startup handoff
 #include "xmvsf_stage87_188_full_attack_gate.h" // full native 2E08 ATTACK
 #include "xmvsf_stage87_189_native_super_family.h" // original ROM 2E family
+#include "xmvsf_stage87_191_super_lifetime_gate.h" // no phase-specific DHC availability
 #include "xmvsf_stage87_177_dhc_punch_chords.h" // explicit 3P host / native 2P helper dependency
 #include <cstdint>
 #include <cstdio>
@@ -92,7 +93,7 @@ struct State {
     bool initialized=false,enabled=false,proofNative=false,earlyCancel=false,
          delayedPrimeExperimental=false,unsafeConsumedPunchReplay=false,
          earlyActiveDirectTest=false,recoveryReboundTest=false,
-         firstFourAttackTest=false,fullAttackTest=false,familyTest=false,
+         firstFourAttackTest=false,fullAttackTest=false,familyTest=false,liveLifetimeTest=false,
          chainUsed[2]={false,false};
     Phase phase[2]={IDLE,IDLE};
     bool armedFromFamily[2]={false,false};
@@ -165,6 +166,9 @@ struct State {
         const char* nativeFamily=std::getenv("XM87189_TEST_NATIVE_SUPER_FAMILY");
         familyTest=enabled && earlyCancel && nativeFamily &&
              std::strcmp(nativeFamily,"1")==0;
+        const char* liveLifetime=std::getenv("XM87191_TEST_OPEN_SUPER_LIFETIME");
+        liveLifetimeTest=familyTest && liveLifetime &&
+            std::strcmp(liveLifetime,"1")==0;
         const char* firstFour=std::getenv("XM87186_TEST_FIRST_FOUR_ATTACK");
         firstFourAttackTest=enabled && earlyCancel && firstFour &&
              std::strcmp(firstFour,"1")==0;
@@ -272,7 +276,10 @@ struct State {
         kenFallbackUsed[side]=false;kenNeutralSince[side]=0u;
         kenNeutralAt[side]=inputBegin[side]=0u;
         primeFrame[side]=0u;primeSent[side]=false;
-        cooldownUntil[side]=now+6u;
+        // A brand-new human DHC command is its own debounce. Do not
+        // impose a guessed six-frame retry blackout in full-lifetime
+        // mode; a real new super may begin immediately after an abort.
+        cooldownUntil[side]=liveLifetimeTest?now:now+6u;
         XM87143Queue::state().discard(side);
         event(now,side,ram,"DHC_ABORT_RELEASED_CHAIN_LOCK");
     }
@@ -459,6 +466,11 @@ struct State {
             // The original-ROM 2E tracker was updated by the input
             // observer on this exact post-CPU frame, before DHC runs.
             const auto& originalSuper=XM87189Family::state().side[side];
+            // 87.191: native ROM super START -> true original EXIT.
+            // No timer, low A0 mode, script step or air-state veto.
+            // Only the freshly selected physical DHC command can arm.
+            const bool liveSuperWindow=liveLifetimeTest &&
+                XM87191Lifetime::isOpen(originalSuper,now,ryuLife);
             const bool familyAttack=familyTest &&
                 originalSuper.activeAt(now,ryuLife) &&
                 XM87184Life::identify(ryuLife)==XM87184Life::OUTSIDE;
@@ -495,7 +507,8 @@ struct State {
                 // Startup is recognition only, not a deferred controller
                 // request. A native 2E action needs fresh same-frame
                 // input, including when its mode is 2A1C in the air.
-                if(familyStartup || (familyAttack && selectedAt!=now)){
+                if((!liveSuperWindow && familyStartup) ||
+                   ((liveSuperWindow || familyAttack) && selectedAt!=now)){
                     if(firstCheck)event(now,side,ram,familyStartup?
                         "DHC_189_FAMILY_STARTUP_NO_DEFERRED_TAG":
                         "DHC_189_FAMILY_STALE_PUNCH_NOT_ARMED");
@@ -504,6 +517,7 @@ struct State {
                     continue;
                 }
                 const XM87187Front::Disposition front=
+                    liveSuperWindow?XM87187Front::KEEP:
                     XM87187Front::check(ryuLife,now,selectedAt);
                 if(front!=XM87187Front::KEEP){
                     if(firstCheck)
@@ -522,7 +536,9 @@ struct State {
                     blocked="BLOCK_NOT_RYU_POINT_KEN_RESERVE";
                 else if(entry->known->fighter!=reserveId)
                     blocked="BLOCK_SELECTED_SUPER_NOT_FOR_RESERVE";
-                else if(!familyAttack &&
+                else if(liveLifetimeTest && !liveSuperWindow)
+                    blocked="DHC_191_OUTSIDE_ACTUAL_ROM_SUPER_LIFETIME";
+                else if(!liveSuperWindow && !familyAttack &&
                         !XM87184Life::canTag(ryuLife,
                              XM87184Life::recoveryOptIn() &&
                              recoveryReboundTest)){
@@ -535,7 +551,7 @@ struct State {
                         "DHC_190_ROM_FAMILY_FOLLOWUP_RECOGNIZED_TAG_UNVERIFIED":
                         "BLOCK_OUTSIDE_SAFE_ORIGINAL_SUPER_PHASE";
                 }
-                else if(!familyAttack &&
+                else if(!liveSuperWindow && !familyAttack &&
                         rw(ram,p+0xA0u)!=0x2A28u &&
                         rw(ram,p+0xA0u)!=0x2A02u)
                     blocked="BLOCK_NOT_NATIVE_2A28_SUPER_MODE";
@@ -577,7 +593,7 @@ struct State {
                           "DHC_183_NATIVE_PUNCH_ALREADY_CONSUMED_SKIP_TAG");
                     lastAcceptedAt[side]=selectedAt;
                     XM87143Queue::state().discard(side);
-                    cooldownUntil[side]=now+6u;
+                    cooldownUntil[side]=liveLifetimeTest?now:now+6u;
                     continue;
                 }
                 if(!blocked && unsafeConsumedPunchReplay &&
@@ -594,6 +610,7 @@ struct State {
                     // deliberately enter a new command on a verified
                     // phase instead.
                     if(entry->known->fighter!=reserveId ||
+                       (liveLifetimeTest && !liveSuperWindow) ||
                        (familyTest && originalSuper.live &&
                         originalSuper.phase==XM87189Family::CONTINUATION &&
                         !XM87184Life::canTag(ryuLife,
@@ -634,6 +651,18 @@ struct State {
                     kenNeutralAt[side]=0u;
                     event(now,side,ram,
                           "PROOF_156_RYU_SUPER_TO_NATIVE_TAG_WAIT_NO_RAM_WRITES");
+                    continue;
+                }
+                if(liveSuperWindow &&
+                   XM87191Lifetime::canArm(originalSuper,now,selectedAt,ryuLife)){
+                    // 87.191: ORIGINAL ROM super is still alive. That is
+                    // the sole action-timing condition for a fresh DHC.
+                    // The proven controller 8, original 3200, Ken arrival,
+                    // input isolation and abort remain unchanged.
+                    armedFromFamily[side]=true;
+                    event(now,side,ram,
+                        "DHC_191_NATIVE_SUPER_LIFETIME_FRESH_HANDOFF");
+                    armOutgoingTag(ram,now,side,selectedAt);
                     continue;
                 }
                 if(familyAttack){

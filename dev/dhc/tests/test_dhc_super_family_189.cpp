@@ -6,6 +6,7 @@
 #include <vector>
 #include "../../stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_189_native_super_family.h"
 #include "../../stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_177_dhc_punch_chords.h"
+#include "../../stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_191_super_lifetime_gate.h"
 using XM87184Life::Sample;
 using namespace XM87189Family;
 static void word(std::vector<std::uint8_t>& r,unsigned a,unsigned v){
@@ -45,17 +46,22 @@ int main(){
     Sample ground(0x12u,0x2E08u,0x2A28u,2u,0xD3070u,0x0Au);
     assert(g.update(100u,ground,rom.data(),rom.size())==ENTER);
     assert(g.phase==STARTUP && !g.activeAt(100u,ground));
+    assert(!XM87191Lifetime::isOpen(g,100u,ground));
     ground.step=4u;ground.script=0xD30C0u;
     assert(g.update(102u,ground,rom.data(),rom.size())==ATTACK_BEGIN);
     assert(g.activeAt(102u,ground));
+    assert(XM87191Lifetime::canArm(g,102u,102u,ground));
+    assert(!XM87191Lifetime::canArm(g,102u,101u,ground));
     assert(!g.activeAt(103u,ground)); // same-frame freshness
     ground.action=0x2E0Au;ground.step=6u;ground.script=0xD30F4u;
     assert(g.update(130u,ground,rom.data(),rom.size())==CONTINUATION_BEGIN);
     assert(g.phase==CONTINUATION && g.recognizes());
+    assert(XM87191Lifetime::canArm(g,130u,130u,ground));
     assert(!g.activeAt(130u,ground));
     ground.action=0u;ground.mode=0u;
     assert(g.update(150u,ground,rom.data(),rom.size())==ACTION_EXIT);
     assert(!g.live && !g.activeAt(150u,ground));
+    assert(!XM87191Lifetime::isOpen(g,150u,ground));
     Tracker air;
     Sample a(0x12u,0x2E0Cu,0x2A1Cu,2u,0xD31A8u,0x0Au);
     assert(air.update(5213u,a,rom.data(),rom.size())==ENTER);
@@ -65,6 +71,7 @@ int main(){
     a.step=4u;a.script=0xD31D8u;
     assert(air.update(5260u,a,rom.data(),rom.size())==ATTACK_BEGIN);
     assert(air.activeAt(5260u,a));
+    assert(XM87191Lifetime::canArm(air,5260u,5260u,a));
     assert(air.preCpuActive(5260u,a));
     assert(air.preCpuActive(5261u,a));
     assert(!air.preCpuActive(5262u,a));
@@ -88,10 +95,18 @@ int main(){
     assert(air.update(5350u,a,rom.data(),rom.size())==NOTHING);
     assert(air.phase==CONTINUATION && air.recognizes());
     assert(!air.activeAt(5350u,a));
-    assert(!air.preCpuActive(5351u,a));
+    assert(air.preCpuActive(5351u,a));
+    // Native air mode 2A06 was rejected in the 87.189(1) recording.
+    // The ROM super owns it: native controller 8 must decide the result,
+    // not a guessed fixed air mode whitelist.
+    a.mode=0x2A06u;
+    assert(air.update(5351u,a,rom.data(),rom.size())==NOTHING);
+    assert(XM87191Lifetime::canArm(air,5351u,5351u,a));
+    assert(air.preCpuActive(5352u,a));
     a.action=0x0002u;a.mode=0x0200u;a.d6=0u;
     assert(air.update(5400u,a,rom.data(),rom.size())==ACTION_EXIT);
     assert(!air.recognizes());
+    assert(!XM87191Lifetime::isOpen(air,5400u,a));
     // Second observed air version had 2A28, not 2A1C.
     Tracker otherAir;
     a=Sample(0x12u,0x2E0Cu,0x2A28u,2u,0xD31A8u,0x0Au);
@@ -114,9 +129,12 @@ int main(){
     a.script=0xD2CFCu; // ROM loops back, still ATTACK.
     assert(tatsu.update(8352u,a,rom.data(),rom.size())==REPEATED_ROOT_SCRIPT);
     assert(tatsu.live && tatsu.phase==ATTACK && tatsu.activeAt(8352u,a));
+    assert(XM87191Lifetime::canArm(tatsu,8352u,8352u,a));
     a.action=0x2E02u;a.step=6u;a.script=0xD2DB0u;
     assert(tatsu.update(8354u,a,rom.data(),rom.size())==CONTINUATION_BEGIN);
     assert(tatsu.phase==CONTINUATION && tatsu.recognizes());
+    assert(XM87191Lifetime::canArm(tatsu,8354u,8354u,a));
+    assert(tatsu.preCpuActive(8355u,a));
     assert(!tatsu.activeAt(8354u,a)); // NO unverified tag in follow-up.
     a.script=0xD2DE0u;
     assert(tatsu.update(8364u,a,rom.data(),rom.size())==NOTHING);
@@ -142,9 +160,11 @@ int main(){
     a.action=0x2E06u;a.step=0x0Cu;a.script=0xD2E7Cu;
     assert(tatsu.update(8472u,a,rom.data(),rom.size())==CONTINUATION_STAGE_CHANGE);
     assert(tatsu.live && tatsu.phase==CONTINUATION);
+    assert(XM87191Lifetime::canArm(tatsu,8472u,8472u,a));
     a.action=0x0200u;a.mode=0x0410u;
     assert(tatsu.update(8476u,a,rom.data(),rom.size())==ACTION_EXIT);
     assert(!tatsu.live && !tatsu.recognizes());
+    assert(!XM87191Lifetime::isOpen(tatsu,8476u,a));
     // Invalid ROM script or D6 ownership changes must close immediately,
     // not widen availability by approximate action-number ranges.
     Tracker altered;
@@ -173,5 +193,5 @@ int main(){
     assert(falseRoot.update(101u,a,rom.data(),rom.size())==NOTHING);
     a.d6=0x0Au;a.action=0x2C0Cu;
     assert(falseRoot.update(102u,a,rom.data(),rom.size())==NOTHING);
-    std::puts("PASS 87.190 ROM 2E lifetime: 87.189 Tatsu rewind and full follow-up stages, ground, air, Ken, exact exit");
+    std::puts("PASS 87.191 native DHC lifetime: startup, attacks, ground/air continuations, actual ROM exit, no phase/timer veto");
 }
