@@ -428,8 +428,12 @@ struct State {
                 pointId,rw(ram,p+0x60u),rw(ram,p+0xA0u),
                 rw(ram,p+0x08u),rl(ram,p+0x34u),
                 rb(ram,p+0xD6u)};
+            // Never re-enable the five-of-five failing 87.184
+            // recovery controller route without its exact rebound
+            // bridge. Turning that TEST feature OFF must itself be safe.
             const bool recoveryTest=XM87184Life::isRecoveryTag(
-                ryuLife,XM87184Life::recoveryOptIn());
+                ryuLife,XM87184Life::recoveryOptIn() &&
+                        recoveryReboundTest);
             // Read-only reference from an actual ROM-driven *ordinary*
             // tag to compare against this DHC controller attempt. These
             // are never modified by the experiment unless it has a real
@@ -457,8 +461,9 @@ struct State {
                 else if(entry->known->fighter!=reserveId)
                     blocked="BLOCK_SELECTED_SUPER_NOT_FOR_RESERVE";
                 else if(!XM87184Life::canTag(ryuLife,
-                             XM87184Life::recoveryOptIn()))
-                    blocked="BLOCK_OUTSIDE_REAL_SHINKUU_SCRIPT_PHASE";
+                             XM87184Life::recoveryOptIn() &&
+                             recoveryReboundTest))
+                    blocked="BLOCK_OUTSIDE_SAFE_SHINKUU_NATIVE_TAG_PHASE";
                 else if(rw(ram,p+0xA0u)!=0x2A28u &&
                         rw(ram,p+0xA0u)!=0x2A02u)
                     blocked="BLOCK_NOT_NATIVE_2A28_SUPER_MODE";
