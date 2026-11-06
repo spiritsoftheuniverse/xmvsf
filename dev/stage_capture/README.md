@@ -565,3 +565,46 @@ capture generated 64 separate direct-address sprite previews offline with
 the raw-palette fallback; it passed source-only tests. Native effective-color
 exports from the local clean_rips are still awaiting their first user-run
 visual check and must not be asserted fully pixel matched.
+
+
+## HUD correction to native Sprite Factory (user-confirmed 2026-11-06)
+
+The user's actual effective-palette Sprite Factory output had correctly
+decoded graphics but the 96 highest-frequency images were mostly priority-7,
+screen-stationary HUD assets such as FREE PLAY and blue interface pieces.
+Their uploaded indexed evidence contained 198,050 object observations and
+28,937 unique object variants across 17 shots. Native tile decoding, flips,
+transparency and palettes were functioning; the GALLERY SELECTION was wrong.
+
+The corrected offline selection now scores objects by original native
+priority, sprite area, frame persistence, screen-position variability and
+reuse of the *same tile/palette/size/flip signature across shots*. Repeated,
+fixed-screen priority-7 objects are marked INTERFACE_LIKELY and deferred.
+Review candidates are diversified across shots AND tile signatures; recurring
+HUD pieces no longer consume the first 96 slots. This is a conservative
+HEURISTIC, not automatic verification of a stage prop or fighter identity.
+A priority alone must never permanently discard sprite source artwork.
+
+Offline after pulling feature/stage-87-203-native-layer-recorder:
+
+    RUN_TEST.bat sprites
+
+This defaults to --focus scenery: a gallery of potential non-HUD objects
+with a complete unsuppressed sprite_catalog.tsv. The catalog adds
+cross_shot_count, candidate_role and scene_score columns so every
+ranking decision can be audited. The output is still the existing
+test/87.203/sprite_factory/sprite_factory_review_bundle.zip.
+
+For the old interface-inclusive view:
+
+    RUN_TEST.bat sprites all
+
+For EXACT hardware tile addressing, even when the tile is flagged HUD:
+
+    RUN_TEST.bat sprites 0x16ca0
+
+The --tile selection bypasses scene-guess filtering. The direct-address
+pixel assembly algorithm is unchanged. Original clean_rips/shot_XXXX,
+palette samples, sprite observations and generated previews remain intact.
+Both output modes update ONLY sprite_factory review artifacts.
+No ROM execution, native recompilation or scene installation is required.
