@@ -276,7 +276,10 @@ struct State {
         kenFallbackUsed[side]=false;kenNeutralSince[side]=0u;
         kenNeutralAt[side]=inputBegin[side]=0u;
         primeFrame[side]=0u;primeSent[side]=false;
-        cooldownUntil[side]=now+6u;
+        // A brand-new human DHC command is its own debounce. Do not
+        // impose a guessed six-frame retry blackout in full-lifetime
+        // mode; a real new super may begin immediately after an abort.
+        cooldownUntil[side]=liveLifetimeTest?now:now+6u;
         XM87143Queue::state().discard(side);
         event(now,side,ram,"DHC_ABORT_RELEASED_CHAIN_LOCK");
     }
@@ -533,6 +536,8 @@ struct State {
                     blocked="BLOCK_NOT_RYU_POINT_KEN_RESERVE";
                 else if(entry->known->fighter!=reserveId)
                     blocked="BLOCK_SELECTED_SUPER_NOT_FOR_RESERVE";
+                else if(liveLifetimeTest && !liveSuperWindow)
+                    blocked="DHC_191_OUTSIDE_ACTUAL_ROM_SUPER_LIFETIME";
                 else if(!liveSuperWindow && !familyAttack &&
                         !XM87184Life::canTag(ryuLife,
                              XM87184Life::recoveryOptIn() &&
@@ -588,7 +593,7 @@ struct State {
                           "DHC_183_NATIVE_PUNCH_ALREADY_CONSUMED_SKIP_TAG");
                     lastAcceptedAt[side]=selectedAt;
                     XM87143Queue::state().discard(side);
-                    cooldownUntil[side]=now+6u;
+                    cooldownUntil[side]=liveLifetimeTest?now:now+6u;
                     continue;
                 }
                 if(!blocked && unsafeConsumedPunchReplay &&
@@ -605,6 +610,7 @@ struct State {
                     // deliberately enter a new command on a verified
                     // phase instead.
                     if(entry->known->fighter!=reserveId ||
+                       (liveLifetimeTest && !liveSuperWindow) ||
                        (familyTest && originalSuper.live &&
                         originalSuper.phase==XM87189Family::CONTINUATION &&
                         !XM87184Life::canTag(ryuLife,
