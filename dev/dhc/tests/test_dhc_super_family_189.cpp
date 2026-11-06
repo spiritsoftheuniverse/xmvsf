@@ -118,12 +118,12 @@ int main(){
     assert(tatsu.update(8366u,a,rom.data(),rom.size())==NOTHING);
     assert(tatsu.live && tatsu.phase==CONTINUATION);
     a.action=0x2E10u;a.step=8u;a.script=0xD2DF4u;
-    assert(tatsu.update(8447u,a,rom.data(),rom.size())==NOTHING);
+    assert(tatsu.update(8447u,a,rom.data(),rom.size())==CONTINUATION_STAGE_CHANGE);
     assert(tatsu.stageEnd==0xD2E38u);
     a.action=0x2E04u;a.step=0x0Au;a.script=0xD2E38u;
-    assert(tatsu.update(8466u,a,rom.data(),rom.size())==NOTHING);
+    assert(tatsu.update(8466u,a,rom.data(),rom.size())==CONTINUATION_STAGE_CHANGE);
     a.action=0x2E06u;a.step=0x0Cu;a.script=0xD2E7Cu;
-    assert(tatsu.update(8472u,a,rom.data(),rom.size())==NOTHING);
+    assert(tatsu.update(8472u,a,rom.data(),rom.size())==CONTINUATION_STAGE_CHANGE);
     assert(tatsu.live && tatsu.phase==CONTINUATION);
     a.action=0x0200u;a.mode=0x0410u;
     assert(tatsu.update(8476u,a,rom.data(),rom.size())==ACTION_EXIT);
