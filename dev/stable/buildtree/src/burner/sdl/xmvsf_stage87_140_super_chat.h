@@ -10,6 +10,7 @@
 #include "../../burn/drv/capcom/xmvsf_stage87_177_dhc_punch_chords.h" // 87.177 exact 2P/3P DHC-only gate
 #include "../../burn/drv/capcom/xmvsf_stage87_184_super_action_lifetime.h" // ROM action beginning, stages, exact exit
 #include "../../burn/drv/capcom/xmvsf_stage87_185_action_gate.h" // recognize all original action stages, separate native execution
+#include "../../burn/drv/capcom/xmvsf_stage87_189_native_super_family.h" // ROM-owned generic 2E lifecycle
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
@@ -204,12 +205,14 @@ struct State {
     void frame(const std::uint8_t* ram,unsigned frame,
                unsigned p1directions,unsigned p2directions,
                unsigned p1buttons,unsigned p2buttons,
-               unsigned nativeSuperScriptMask=0u){
+               unsigned nativeSuperScriptMask=0u,
+               const std::uint8_t*rom=nullptr,unsigned romSize=0u){
         if(!ram||lastFrame==frame)return;
         if(lastFrame!=~0u && frame<lastFrame){
             ready[0]=ready[1]=candidate[0]=candidate[1]=false;
             keys[0].clear();keys[1].clear();
             shinkuu[0].reset();shinkuu[1].reset();
+            XM87189Family::state().reset();
         }
         lastFrame=frame;
         const bool combat=b(ram,0x5000u)==8u;
@@ -217,6 +220,7 @@ struct State {
             ready[0]=ready[1]=candidate[0]=candidate[1]=false;
             keys[0].clear();keys[1].clear();
             shinkuu[0].reset();shinkuu[1].reset();
+            XM87189Family::state().reset();
             XM87143Queue::state().discard(0u);
             XM87143Queue::state().discard(1u);
             return;
@@ -251,6 +255,18 @@ struct State {
                 side==0u&&fighter==0x12u?
                   shinkuu[side].update(frame,shinkuuNow):
                   XM87184Life::NOTHING;
+            // The original 2E ROM root / native step controller is the
+            // shared inlet. No move-specific air action checks here.
+            auto& nativeFamily=XM87189Family::state().side[side];
+            const XM87189Family::Event familyEvent=
+                nativeFamily.update(frame,shinkuuNow,rom,romSize);
+            if(familyEvent==XM87189Family::ENTER){
+                char msg[CHAT_LENGTH];
+                std::snprintf(msg,sizeof(msg),
+                    "DHC_189_NATIVE_2E_ROOT_ROM fighter=%02X action=%04X script=%06X",
+                    fighter,nativeFamily.rootAction,nativeFamily.rootScript);
+                log(frame,MATCH,msg);
+            }
             if(lifeEvent==XM87184Life::ENTER)
                 log(frame,MATCH,"DHC_184_RYU_SHINKUU_ACTION_ENTER_2E08_0D3070");
             else if(lifeEvent==XM87184Life::ATTACK_BEGIN)
@@ -260,7 +276,7 @@ struct State {
             else if(lifeEvent==XM87184Life::ACTION_EXIT)
                 log(frame,SYSTEM,"DHC_184_RYU_SHINKUU_ACTION_EXIT_NATIVE");
             if(side==0u && fighter==0x12u && candidate[side] &&
-               !shinkuu[side].live){
+               !shinkuu[side].live && !nativeFamily.live){
                 candidate[side]=false;
                 XM87143Queue::state().discard(side);
                 log(frame,SYSTEM,
@@ -277,10 +293,13 @@ struct State {
             // their own ROM script mapping has been captured and verified.
             const bool mappedNative= fighter==0x12u || fighter==0x14u;
             const bool nativeStart=(nativeSuperScriptMask&(1u<<side))!=0u;
+            const bool familyRoot=familyEvent==XM87189Family::ENTER;
             const bool openedNow=!candidate[side] &&
                 (fighter==0x12u ?
-                    (nativeStart && lifeEvent==XM87184Life::ENTER) :
-                    (mappedNative?nativeStart:(actionEdge||meterDebit)));
+                    ((nativeStart && lifeEvent==XM87184Life::ENTER) ||
+                     familyRoot) :
+                    (mappedNative?(nativeStart||familyRoot):
+                                  (familyRoot||actionEdge||meterDebit)));
             if(openedNow){
                 candidate[side]=true;openAt[side]=frame;
                 // The first-super dispatch may occur while an old motion or
@@ -358,15 +377,17 @@ struct State {
                     // excluding terminal recovery, then apply the
                     // independent safety gate in XM87144.
                     const bool nativeWindow=playableRyuKen &&
-                        shinkuu[side].live &&
-                        XM87185Gate::canRecognize(shinkuuNow);
+                        ((shinkuu[side].live &&
+                          XM87185Gate::canRecognize(shinkuuNow)) ||
+                         nativeFamily.recognizes());
                     const ListedSuper* found=(!playableRyuKen ||
                                                   nativeWindow)?
                         matchListed(bench,keys[side],facingRight,frame,
                                     buttons[side],nativeWindow):nullptr;
                     char text[CHAT_LENGTH];
                     if(found && playableRyuKen &&
-                       XM87184Life::identify(shinkuuNow)==XM87184Life::STARTUP)
+                       (XM87184Life::identify(shinkuuNow)==XM87184Life::STARTUP ||
+                        nativeFamily.phase==XM87189Family::STARTUP))
                         log(frame,SYSTEM,
                             "DHC_185_STARTUP_INPUT_RECOGNIZED_NATIVE_TAG_NOT_YET_VERIFIED");
                     if(found && lastMoveFrame[side]!=lastAttackFrame[side]){
