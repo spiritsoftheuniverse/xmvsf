@@ -9,6 +9,7 @@
 #include "../../burn/drv/capcom/xmvsf_stage87_143_super_queue.h" // prebuilt match-start descriptor queue
 #include "../../burn/drv/capcom/xmvsf_stage87_177_dhc_punch_chords.h" // 87.177 exact 2P/3P DHC-only gate
 #include "../../burn/drv/capcom/xmvsf_stage87_184_super_action_lifetime.h" // ROM action beginning, stages, exact exit
+#include "../../burn/drv/capcom/xmvsf_stage87_185_action_gate.h" // recognize all original action stages, separate native execution
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
@@ -347,22 +348,27 @@ struct State {
                     // but it is not yet proven safe for controller 8.
                     // 87.184 can TEST the genuine 2E0A recovery stage
                     // only before its terminal 0D3194 script.
-                    const bool nativeWindow=side==0u &&
-                        fighter==0x12u && bench==0x14u &&
-                        shinkuu[side].live &&
-                        XM87184Life::canTag(shinkuuNow,
-                          XM87184Life::recoveryOptIn());
-                    // Apply the newly proven lifetime restriction
-                    // ONLY to the playable P1 Ryu->Ken DHC experiment.
-                    // All other fighters retain their prior read-only
-                    // matcher/inventory behavior without new 3P privileges.
                     const bool playableRyuKen=side==0u &&
                         fighter==0x12u && bench==0x14u;
+                    // 87.184 conflated *recognizing the user's command*
+                    // with *whether the native controller 8 can safely
+                    // tag right now*. This silently rejected 3P/2P
+                    // gestures during the real 2E08 startup.
+                    // Recognize intent for the whole native action,
+                    // excluding terminal recovery, then apply the
+                    // independent safety gate in XM87144.
+                    const bool nativeWindow=playableRyuKen &&
+                        shinkuu[side].live &&
+                        XM87185Gate::canRecognize(shinkuuNow);
                     const ListedSuper* found=(!playableRyuKen ||
                                                   nativeWindow)?
                         matchListed(bench,keys[side],facingRight,frame,
                                     buttons[side],nativeWindow):nullptr;
                     char text[CHAT_LENGTH];
+                    if(found && playableRyuKen &&
+                       XM87184Life::identify(shinkuuNow)==XM87184Life::STARTUP)
+                        log(frame,SYSTEM,
+                            "DHC_185_STARTUP_INPUT_RECOGNIZED_NATIVE_TAG_NOT_YET_VERIFIED");
                     if(found && lastMoveFrame[side]!=lastAttackFrame[side]){
                         // Pressing the third kick a frame after LP+MP/ LK+MK
                         // is still one chord (frame 4674 and 4675 in trace).
