@@ -292,7 +292,8 @@ void DoGame(int gameToRun)
     std::fflush(stderr);
     const int driverResult=DrvInit(gameToRun, 0);
     const char* donorCapture=std::getenv("XM87203_STAGE_CAPTURE_DIR");
-    if(driverResult!=0 && donorCapture && *donorCapture){
+    const bool donorRequested=romname && std::strncmp(romname,"mvsc",4)==0;
+    if(driverResult!=0 && (donorRequested || (donorCapture && *donorCapture))){
         xm87203DonorRomLoadFailure=1;
         std::fprintf(stderr,
             "XM87.203 ERROR: DONOR_ROM_LOAD_FAILED rc=%d. No CPS2 frames, F9 movie or stage capture possible.\n",
