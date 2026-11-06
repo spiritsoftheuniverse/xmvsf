@@ -16,6 +16,7 @@ import json
 from pathlib import Path
 import struct
 import zipfile
+import zlib
 
 MAP_LEN = 0x4000
 PAL_LEN = 0x1800
@@ -182,6 +183,59 @@ def write_xrga(path: Path, layer: int, page: bytes, gfx: bytes, mask: int,
             'sha256': hashlib.sha256(path.read_bytes()).hexdigest()}
 
 
+def crop_native_viewport(atlas: bytes, x: int, y: int,
+                         screen_w: int = 384, screen_h: int = 224) -> bytes:
+    """Crop a circular CPS2 page by its *raw* scroll; no guessed parallax.
+
+    The preview deliberately omits unknown global/driver offsets, raster
+    bands, row-scroll and priority. The native camera timeline preserves those
+    facts for later renderer verification.
+    """
+    if len(atlas) < 12 or atlas[:4] != b'XRGA':
+        raise ValueError('bad Stage75/76 XRGA source')
+    page_w, page_h = struct.unpack_from('<II', atlas, 4)
+    if page_w < screen_w or page_h < screen_h or len(atlas) != 12 + page_w*page_h*4:
+        raise ValueError('XRGA dimensions or length inconsistent')
+    pixels = memoryview(atlas)[12:]
+    out = bytearray(screen_w*screen_h*4)
+    x %= page_w
+    for row in range(screen_h):
+        src_y = (y+row) % page_h
+        dst = row*screen_w*4
+        src = src_y*page_w*4
+        left = min(screen_w,page_w-x)
+        out[dst:dst+left*4] = pixels[src+x*4:src+(x+left)*4]
+        if left < screen_w:
+            out[dst+left*4:dst+screen_w*4] = pixels[src:src+(screen_w-left)*4]
+    return bytes(out)
+
+
+def write_png_rgba(path: Path, width: int, height: int, pixels: bytes) -> None:
+    """Small dependency-free PNG for diagnostic previews, not stage artwork."""
+    if len(pixels) != width*height*4:
+        raise ValueError('invalid RGBA preview size')
+    def chunk(tag: bytes, value: bytes) -> bytes:
+        body = tag+value
+        return struct.pack('>I',len(value))+body+struct.pack('>I',zlib.crc32(body)&0xffffffff)
+    raw = b''.join(b'\0'+pixels[row*width*4:(row+1)*width*4] for row in range(height))
+    path.write_bytes(b'\x89PNG\r\n\x1a\n'+
+                     chunk(b'IHDR',struct.pack('>IIBBBBB',width,height,8,6,0,0,0))+
+                     chunk(b'IDAT',zlib.compress(raw,6))+chunk(b'IEND',b''))
+
+
+def compose_diagnostic_layers(layers: dict[int, bytes]) -> bytes:
+    """Illustrative back-to-front 3->2->1; NOT hardware priority certification."""
+    result = bytearray(384*224*4)
+    for layer in (3,2,1):
+        source = layers.get(layer)
+        if source is None:
+            continue
+        for at in range(0,len(source),4):
+            if source[at+3]:
+                result[at:at+4]=source[at:at+4]
+    return bytes(result)
+
+
 def import_capture(capture: Capture, output: Path, preview_frame: int | None = None):
     with capture.open('frames.tsv') as fp:
         rows = list(csv.DictReader((line.decode('utf-8') for line in fp), delimiter='\t'))
@@ -229,7 +283,15 @@ def import_capture(capture: Capture, output: Path, preview_frame: int | None = N
     active_banks = {}
     row_enabled = 0
     raster_count = 0
-    with capture.open('raster.bin') as fp:
+    camera_raw = {}
+    camera_extents = {layer: {'x_min': 65535, 'x_max': 0,
+                             'y_min': 65535, 'y_max': 0} for layer in TILE_PX}
+    with gzip.open(output/'camera_timeline.tsv.gz','wt',encoding='utf-8',newline='') as cam_fp, \
+         capture.open('raster.bin') as fp:
+        cw = csv.writer(cam_fp,delimiter='\t')
+        cw.writerow(['frame','slice','raster_start','scroll1x','scroll1y',
+                     'scroll2x','scroll2y','scroll3x','scroll3y',
+                     'bank1','bank2','bank3','ctrl20','rows22','ctrl26'])
         while True:
             header = fp.read(16)
             if not header:
@@ -242,15 +304,39 @@ def import_capture(capture: Capture, output: Path, preview_frame: int | None = N
             for sl in range(nslices):
                 data = read_exact(fp, 4 + 256 + 16, 'raster slice')
                 reg = data[4:260]
+                scroll = [native16(reg,offs) for offs in (0x0c,0x0e,0x10,0x12,0x14,0x16)]
+                banks = [bank_from_reg(reg,offs) for offs in (2,4,6)]
+                raster_start = struct.unpack_from('<I',data,0)[0]
+                cw.writerow([frame,sl,raster_start,*scroll,
+                             *(f'{b:06x}' for b in banks),
+                             native16(reg,0x20),native16(reg,0x22),native16(reg,0x26)])
+                if sl == 0:
+                    for layer in TILE_PX:
+                        ext = camera_extents[layer]
+                        x,y = scroll[(layer-1)*2:(layer-1)*2+2]
+                        ext['x_min']=min(ext['x_min'],x)
+                        ext['x_max']=max(ext['x_max'],x)
+                        ext['y_min']=min(ext['y_min'],y)
+                        ext['y_max']=max(ext['y_max'],y)
                 if native16(reg, 0x22) & 1:
                     row_enabled += 1
                 if frame == target and sl == 0:
+                    camera_raw = {'scroll': scroll, 'banks': banks,
+                                  'ctrl20': native16(reg,0x20),
+                                  'rows22': native16(reg,0x22),
+                                  'ctrl26': native16(reg,0x26),
+                                  'raster_slices': nslices}
                     for layer, reg_off in [(1, 2), (2, 4), (3, 6)]:
                         active_banks[layer] = bank_from_reg(reg, reg_off)
             raster_count += 1
     if raster_count != len(frames):
         raise ValueError(f'raster frames {raster_count} != timeline {len(frames)}')
     overview['integrity']['raster_frames'] = raster_count
+    overview['camera_timeline'] = 'camera_timeline.tsv.gz'
+    overview['camera_preview_raw'] = camera_raw
+    overview['camera_extents_raw_all_scenes'] = camera_extents
+    overview['unresolved_gaps'].append(
+        'raw preview scroll omits unverified CPS global and driver-specific alignment')
     overview['integrity']['row_scroll_enabled_slices'] = row_enabled
     overview['preview_banks'] = {str(k): f'0x{v:06x}' for k, v in active_banks.items()}
     if row_enabled and capture.size('row_scroll.bin') == 0:
@@ -355,6 +441,7 @@ def import_capture(capture: Capture, output: Path, preview_frame: int | None = N
         raise ValueError('OAM data has missing/duplicate native frames')
     overview['integrity']['oam_frames'] = oam_count
     # Use the actual XRGA texture format the old Wily Stage75/76 renderer knows.
+    diagnostic_viewports = {}
     for layer in TILE_PX:
         if layer not in selected_pages:
             overview['unresolved_gaps'].append(f'no active Scroll{layer} page at frame {target}')
@@ -368,6 +455,22 @@ def import_capture(capture: Capture, output: Path, preview_frame: int | None = N
                        'tile_size_px': TILE_PX[layer],
                        'gfx_offset':gfx_offsets[layer], 'palette_source': 'raw_cps2_ram_unverified_RGB'})
         overview['atlas_layers'][str(layer)] = detail
+        # Unlike full VRAM pages, this is the portion aligned to the actual
+        # register scroll coordinates on the selected frame. Export separately
+        # from stage textures to avoid conflating image data with verification.
+        raw_x,raw_y = camera_raw['scroll'][(layer-1)*2:(layer-1)*2+2]
+        viewport = crop_native_viewport((output/name).read_bytes(),raw_x,raw_y)
+        diagnostic_viewports[layer] = viewport
+        preview_name = f'preview_scroll{layer}_frame{target:06d}.png'
+        write_png_rgba(output/preview_name,384,224,viewport)
+        detail['diagnostic_raw_scroll_viewport'] = preview_name
+    if len(diagnostic_viewports)==3:
+        diagnostic = compose_diagnostic_layers(diagnostic_viewports)
+        diagnostic_name = f'preview_approx_composite_frame{target:06d}.png'
+        write_png_rgba(output/diagnostic_name,384,224,diagnostic)
+        overview['approximate_composite_png'] = diagnostic_name
+        overview['unresolved_gaps'].append(
+            'diagnostic 3->2->1 compositing does not prove actual CPS2 sprite/layer priority')
     # Carry the Wily atlas conventions without reusing Stage75's fake bounds.
     with (output / 'stage76_import_manifest.tsv').open('w', encoding='utf-8') as fp:
         fp.write('# Native MVC source; XRGA uses Stage75/76 texture format.\n')
