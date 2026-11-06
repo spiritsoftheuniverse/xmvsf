@@ -662,6 +662,13 @@ INT32 Cps2Frame()
     if(!bBurnRunAheadFrame && dhcGameMatches && CpsRamFF)
         XM87144::state().oldRyuProjectiles.beforeCPU(
             CpsRamFF,(unsigned)GetCurrentFrame());
+    // 87.197: freeze only the non-incoming fighter while Ken's native
+    // ROM 0212 fall and stored 2E input keep running at full CPS speed.
+    // No global CPU pause, guessed CPS-wide freeze flag or audio reset.
+    if(!bBurnRunAheadFrame && dhcGameMatches && CpsRamFF &&
+       XM87144::state().cinematicFreezeTest)
+        XM87144::state().cinematicFreeze.beforeCPU(
+            CpsRamFF,unsigned(XM87144::state().phase[0]));
     // XM87.95 Tournament-only native dizzy initializer AND per-frame state handler bypass.
     XM8795Native::state().before(CpsCode,(unsigned)nCpsCodeLen,
         BurnDrvGetTextA(DRV_NAME),(unsigned)GetCurrentFrame(),
@@ -992,7 +999,7 @@ INT32 Cps2Frame()
         if(phaseAfter!=phaseBefore && XM87144::state().enabled){
             char status[XM87140Chat::CHAT_LENGTH];
             std::snprintf(status,sizeof(status),
-                "P1 DHC ROM HANDOFF: %s (native test, no stock/freeze yet)",
+                "P1 DHC ROM HANDOFF: %s (native test, opponent hold opt-in)",
                 XM87144::phaseName(phaseAfter));
             XM87140Chat::state().log((unsigned)GetCurrentFrame(),
                 phaseAfter==XM87144::FAILED?XM87140Chat::ALERT:XM87140Chat::MATCH,
