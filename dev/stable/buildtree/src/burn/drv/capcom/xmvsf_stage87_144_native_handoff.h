@@ -28,6 +28,7 @@
 #include "xmvsf_stage87_195_tag_latch_guard.h" // clear only our failed controller8 latch
 #include "xmvsf_stage87_196_native_immediate_fall.h" // original 0212 fall, no 67-frame tag lag
 #include "xmvsf_stage87_197_cinematic_opponent_hold.h" // DHC-only opponent freeze
+#include "xmvsf_stage87_198_native_super_freeze_cue.h" // first native Ken offensive activation, not initial 2E
 #include "xmvsf_stage87_177_dhc_punch_chords.h" // explicit 3P host / native 2P helper dependency
 #include <cstdint>
 #include <cstdio>
@@ -104,7 +105,7 @@ struct State {
          firstFourAttackTest=false,fullAttackTest=false,familyTest=false,liveLifetimeTest=false,
          reserveOwnershipTest=false,deterministicExitTest=false,
          passiveJumpTest=false,immediateFallTest=false,
-         cinematicFreezeTest=false,
+         cinematicFreezeTest=false,freezeThroughStartupTest=false,
          chainUsed[2]={false,false};
     Phase phase[2]={IDLE,IDLE};
     bool armedFromFamily[2]={false,false};
@@ -198,6 +199,9 @@ struct State {
         const char* cinematic=std::getenv("XM87197_TEST_OPPONENT_FREEZE");
         cinematicFreezeTest=immediateFallTest && cinematic &&
             std::strcmp(cinematic,"1")==0;
+        const char* offense=std::getenv("XM87198_TEST_NATIVE_OFFENSE_RELEASE");
+        freezeThroughStartupTest=cinematicFreezeTest && offense &&
+            std::strcmp(offense,"1")==0;
         const char* firstFour=std::getenv("XM87186_TEST_FIRST_FOUR_ATTACK");
         firstFourAttackTest=enabled && earlyCancel && firstFour &&
              std::strcmp(firstFour,"1")==0;
@@ -524,19 +528,42 @@ struct State {
         for(unsigned side=0;side<2u;++side){
             // Stage 87.144 confines executable experiment to P1 Ryu->Ken.
             if(side!=0u)continue;
-            // 87.197: native CPU runs freely for Ken; hold only the
-            // opposing actor through the original DHC transfer.
-            // The ownership check is INSIDE the accepted side branch:
-            // evaluating P2 IDLE as a second DHC would release the hold.
+            const unsigned p=0x4000u+side*0x400u;
+            // 87.198: action 2E is just Ken's native SUPER STARTUP.
+            // The 87.197 trace proves 47-53 further frames before
+            // the ROM opens his first genuine offensive hitbox. Keep
+            // the opponent held during those frames, then release on
+            // that ORIGINAL native collision state instead of guessing
+            // a blackout length. No CPU pause: Ken still animates.
             if(cinematicFreezeTest && cinematicFreeze.active &&
                cinematicFreeze.side==side){
-                if(!cinematicFreeze.hold(ram,now,unsigned(phase[side]))){
+                const bool superStarted=phase[side]==SUPER_STARTED;
+                const bool attackCue=superStarted &&
+                    freezeThroughStartupTest &&
+                    XM87198Cue::realKenSuperOffense(
+                        rw(ram,p+0x52u),rw(ram,p+0x60u),
+                        rw(ram,p+0xA0u),rw(ram,p+0x08u),
+                        rw(ram,p+0x70u));
+                if(attackCue){
+                    // Post-CPU trigger: preserve any real first hit
+                    // inflicted this frame rather than restoring the
+                    // old opponent snapshot over native hitstun/health.
+                    cinematicFreeze.releaseAtNativeOffense(ram);
+                    event(now,side,ram,
+                        "DHC_198_FREEZE_RELEASED_ON_NATIVE_KEN_FIRST_ATTACK");
+                }else if(superStarted && freezeThroughStartupTest &&
+                         (rw(ram,p+0x52u)!=incoming[side] ||
+                          (rw(ram,p+0x60u)&0xFF00u)!=0x2E00u)){
+                    cinematicFreeze.release(ram);
+                    event(now,side,ram,
+                        "DHC_198_SUPER_ACTION_LOST_FREEZE_RELEASED");
+                }else if(!cinematicFreeze.hold(
+                                ram,now,unsigned(phase[side]))){
                     cinematicFreeze.release(ram);
                     event(now,side,ram,
                         "DHC_197_OPPONENT_FREEZE_SAFETY_RELEASE");
                 }
             }
-            const unsigned p=0x4000u+side*0x400u;
             const unsigned reserve=0x4800u+side*0x400u;
             const unsigned pointId=rw(ram,p+0x52u);
             const unsigned reserveId=rw(ram,reserve+0x52u);
@@ -1562,11 +1589,18 @@ struct State {
                         event(now,side,ram,
                             "DHC_192_RESERVE_NATIVE_ROM_2E_SUPER_ACCEPTED_AND_CATALOGED");
                         event(now,side,ram,"DHC_NATIVE_INPUT_DISPATCH_ACCEPTED");
-                        // Ken's real ROM super now owns the cinematic.
+                        // The accepted 2E is startup, not attack.
+                        // 87.198 retains the opponent hold until Ken's
+                        // first ROM-owned offensive collision descriptor.
                         if(cinematicFreeze.active){
-                            cinematicFreeze.release(ram);
-                            event(now,side,ram,
-                                "DHC_197_OPPONENT_FREEZE_RELEASED_ON_NATIVE_2E");
+                            if(freezeThroughStartupTest)
+                                event(now,side,ram,
+                                    "DHC_198_NATIVE_2E_STARTUP_FREEZE_RETAINED");
+                            else{
+                                cinematicFreeze.release(ram);
+                                event(now,side,ram,
+                                    "DHC_197_OPPONENT_FREEZE_RELEASED_ON_NATIVE_2E");
+                            }
                         }
                         XM87192Owner::state().clear(side);
                     }else if(now>inputBegin[side]+
@@ -1617,9 +1651,14 @@ struct State {
                     event(now,side,ram,"DHC_KEN_NATIVE_SUPER_ROM_ACTION_CONFIRMED");
                     event(now,side,ram,"DHC_NATIVE_INPUT_DISPATCH_ACCEPTED");
                     if(cinematicFreeze.active){
-                        cinematicFreeze.release(ram);
-                        event(now,side,ram,
-                            "DHC_197_OPPONENT_FREEZE_RELEASED_ON_NATIVE_2E");
+                        if(freezeThroughStartupTest)
+                            event(now,side,ram,
+                                "DHC_198_NATIVE_2E_STARTUP_FREEZE_RETAINED");
+                        else{
+                            cinematicFreeze.release(ram);
+                            event(now,side,ram,
+                                "DHC_197_OPPONENT_FREEZE_RELEASED_ON_NATIVE_2E");
+                        }
                     }
                 }else if(now>inputBegin[side]+68u){
                     event(now,side,ram,"DHC_NATIVE_INPUT_NO_SUPER_ROM_ACCEPT");
