@@ -45,7 +45,7 @@ jobs:
           grep -Fq 'xm30NativeAttackFamily' dev/stable/buildtree/src/burner/sdl/xmvsf_stage30_frame_data.h
           grep -Fq 'nativeAction=xm23::r16(c,base+0x60)' dev/stable/buildtree/src/burner/sdl/xmvsf_stage23_engine.h
           test -f dev/dhc/tests/test_dhc_frame_duration_154.cpp
-          grep -Fq 'XM87.153 TRAINING_OPTIONS_SAVED' dev/dhc/BUILD_TEST.sh
+          grep -Fq 'XMVSF_Test_87_187.exe' dev/dhc/BUILD_TEST.sh
           if grep -Fq 'cmp -s' dev/dhc/BUILD_TEST.sh; then
             echo 'ERROR: cmp dependency is not installed in user MSYS2' >&2
             exit 1
@@ -75,7 +75,7 @@ jobs:
             echo 'ERROR: awk compiler-warning filter must not truncate build logs' >&2
             exit 1
           fi
-          grep -Fq 'XMVSF_Test_87_167.exe' RUN_TEST.bat
+          grep -Fq 'XMVSF_Test_87_187.exe' RUN_TEST.bat
           grep -Fq 'XM87139_PROBE_DIR' RUN_TEST.bat
           grep -Fq 'XM87140_CHAT_LOG' RUN_TEST.bat
           grep -Fq 'xm87140ChatOverlay(sdlRenderer);' dev/stable/buildtree/src/intf/video/sdl/vid_sdl2.cpp
@@ -87,11 +87,14 @@ jobs:
           grep -Fq 'XM87144_DHC_NATIVE_TEST=1' RUN_TEST.bat
           grep -Fq 'XM87157_EARLY_CANCEL=1' RUN_TEST.bat
           grep -Fq 'PROOF_156_ROM_HP_HK_NATIVE_3200_ACCEPTED' dev/stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_144_native_handoff.h
-          grep -Fq '0x18u:0x03u' dev/stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_144_native_handoff.h
+          grep -Fq 'XM87177Chords::nativeKenTwoPunchMask()' dev/stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_144_native_handoff.h
           test -f dev/dhc/tests/test_dhc_rom_catalog_160.cpp
+          test -f dev/dhc/tests/test_dhc_opening_front_187.cpp
+          grep -Fq 'DHC_187_STARTUP_INPUT_CLOSED_NO_DEFERRED_TAG' dev/stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_187_opening_front.h
+          grep -Fq 'DHC_187_STALE_ATTACK_REQUEST_EXPIRED_NO_PHYSICAL_EDGE' dev/stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_187_opening_front.h
           grep -Fq 'XM8761_REPLAY_DIR=' RUN_TEST.bat
           grep -Fq 'XM8761_REPLAY_MODE=off' RUN_TEST.bat
-          grep -Fq 'XMVSF_Test_87_167.exe' RUN_REPLAY.bat
+          grep -Fq 'XMVSF_Test_87_187.exe' RUN_REPLAY.bat
           # The replay launcher is a permanent first-class root entry point.
           # Never let point-version bumps strand it on a stale TEST executable.
           test -f RUN_REPLAY.bat
@@ -120,7 +123,7 @@ jobs:
           grep -Fq 'XM8764_REPLAY_ROOT=' RUN_TEST.bat
           # F9 must keep the SAME red gameplay counter and file-location
           # discoverability as the old recorder, plus show it in boot menu.
-          grep -Fq 'XM8764_REPLAY_ROOT=%PROJECT%\test\87.167\replays' RUN_TEST.bat
+          grep -Fq 'XM8764_REPLAY_ROOT=%PROJECT%\test\87.187\replays' RUN_TEST.bat
           grep -Fq 'XM8764_REPLAY_STATUS_FILE=' RUN_TEST.bat
           grep -Fq 'XM8764::recordingFrames()' dev/stable/buildtree/src/burner/sdl/run.cpp
           grep -Fq 'xm87166ReplayVisualStatus' dev/stable/buildtree/src/intf/video/sdl/vid_sdl2.cpp
@@ -130,7 +133,7 @@ jobs:
           grep -Fq 'requiresCheckpoint(host,c.lastRecordedHost)' dev/stable/buildtree/src/burner/sdl/xmvsf_stage87_164_host_replay.h
           grep -Fq 'recordingFrames()==1' dev/dhc/tests/test_dhc_host_replay_164.cpp
           grep -Fq 'saves==1u' dev/dhc/tests/test_dhc_host_replay_164.cpp
-          grep -Fq '%PROJECT%\test\87.167\replays\latest.txt' RUN_REPLAY.bat
+          grep -Fq '%PROJECT%\test\87.187\replays\latest.txt' RUN_REPLAY.bat
           grep -Fq 'dir /b /ad /o:-n' RUN_REPLAY.bat
           grep -Fq 'RECORD_SAVE_ERROR' dev/stable/buildtree/src/burner/sdl/xmvsf_stage87_164_host_replay.h
           grep -Fq 'V2_INPUT_FLUSH_OR_CLOSE_FAILED' dev/stable/buildtree/src/burner/sdl/xmvsf_stage87_164_host_replay.h
@@ -189,21 +192,21 @@ jobs:
           grep -Fq 'FAST_157_KEN_2A08_CANCEL_TO_VERIFIED_ROM_IDLE' dev/stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_144_native_handoff.h
           grep -Fq 'FAST_157_KEN_NATIVE_TWO_BUTTON_EDGE' dev/stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_144_native_handoff.h
           test -f dev/dhc/tests/test_dhc_dual_ken_supers_155.cpp
-          grep -Fq 'QCF+LP+MP queues Ken SHORYUREPPA' RUN_TEST.bat
+          grep -Fq 'QCF+ANY TWO PUNCHES or QCF+3P queues Ken SHORYUREPPA' RUN_TEST.bat
           grep -Fq 'QCF+LK+MK queues Ken SHINRYUKEN' RUN_TEST.bat
-          grep -Fq 'DHC_152_ROM_2C04_WRONG_ACTION_ABORT_NO_ROLLBACK' dev/stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_144_native_handoff.h
+          grep -Fq 'XM87187Front::wrongAction(rw(ram,p+0x60u))' dev/stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_144_native_handoff.h
           grep -Fq 'ken2E00_D6722_ready' dev/stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_144_native_handoff.h
           grep -Fq 'ken2E02_D6976_ready' dev/stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_144_native_handoff.h
           test -f dev/stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_144_native_handoff.h
-          grep -Fq 'xmvsf_stage87_144_native_handoff.h' dev/dhc/BUILD_TEST.sh
+          grep -Fq 'xmvsf_stage87_187_opening_front.h' dev/dhc/BUILD_TEST.sh
           # 87.146 retired the forced outgoing animation; the builder
           # must not require that old binary marker after a successful link.
           if grep -Fq "'DHC_APPROVED_ROM_OUTGOING_ACTION' \"\$BUILT\"" dev/dhc/BUILD_TEST.sh; then
             echo 'ERROR: obsolete forced-tag marker still blocks a successful build' >&2
             exit 1
           fi
-          grep -Fq 'required_markers=(' dev/dhc/BUILD_TEST.sh
-          grep -Fq 'TEST executable is missing compiled 87.167 marker' dev/dhc/BUILD_TEST.sh
+          grep -Fq 'Build/link succeeded; publishing TEST binary' dev/dhc/BUILD_TEST.sh
+          grep -Fq 'TEST BUILD READY: $DEST' dev/dhc/BUILD_TEST.sh
           grep -Fq 'DHC_NATIVE_TAG_CONTROLLER_08_ARMED' dev/stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_144_native_handoff.h
           grep -Fq 'NATIVE_CONTROLLER_ACCEPTED_OUTGOING_3200' dev/stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_144_native_handoff.h
           grep -Fq 'NATIVE_TAG_CONTROLLER_REJECTED_12F' dev/stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_144_native_handoff.h
