@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <vector>
 #include "../../stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_189_native_super_family.h"
+#include "../../stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_177_dhc_punch_chords.h"
 using XM87184Life::Sample;
 using namespace XM87189Family;
 static void word(std::vector<std::uint8_t>& r,unsigned a,unsigned v){
@@ -53,12 +54,25 @@ int main(){
     a.step=4u;a.script=0xD31D8u;
     assert(air.update(5260u,a,rom.data(),rom.size())==ATTACK_BEGIN);
     assert(air.activeAt(5260u,a));
+    assert(air.preCpuActive(5260u,a));
+    assert(air.preCpuActive(5261u,a));
+    assert(!air.preCpuActive(5262u,a));
+    assert(XM87177Chords::shieldPrequeue3P(
+        true,true,0u,true,0x12u,0x14u,0x2E0Cu,0x2A1Cu,
+        0x07u,false,air.preCpuActive(5261u,a)));
+    assert(!XM87177Chords::shieldPrequeue3P(
+        true,true,0u,true,0x12u,0x14u,0x2E0Cu,0x2A1Cu,
+        0x07u,false,false));
+    assert(!XM87177Chords::shieldPrequeue3P(
+        true,true,0u,true,0x12u,0x14u,0x2E0Cu,0x2A1Cu,
+        0x27u,false,true)); // mixed kick cannot be a punch DHC
     a.script=0xD3208u;
     assert(air.update(5292u,a,rom.data(),rom.size())==NOTHING);
     assert(air.activeAt(5292u,a));
     a.action=0x2E0Eu;a.step=6u;a.script=0xD322Cu;
     assert(air.update(5326u,a,rom.data(),rom.size())==RECOVERY_BEGIN);
     assert(!air.activeAt(5326u,a));
+    assert(!air.preCpuActive(5327u,a));
     a.action=0x0002u;a.mode=0x0200u;a.d6=0u;
     assert(air.update(5400u,a,rom.data(),rom.size())==ACTION_EXIT);
     assert(!air.recognizes());
