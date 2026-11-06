@@ -96,7 +96,7 @@ struct State {
          delayedPrimeExperimental=false,unsafeConsumedPunchReplay=false,
          earlyActiveDirectTest=false,recoveryReboundTest=false,
          firstFourAttackTest=false,fullAttackTest=false,familyTest=false,liveLifetimeTest=false,
-         reserveOwnershipTest=false,
+         reserveOwnershipTest=false,deterministicExitTest=false,
          chainUsed[2]={false,false};
     Phase phase[2]={IDLE,IDLE};
     bool armedFromFamily[2]={false,false};
@@ -176,6 +176,9 @@ struct State {
         const char* owned=std::getenv("XM87192_TEST_RESERVE_OWNERSHIP");
         reserveOwnershipTest=liveLifetimeTest && owned &&
             std::strcmp(owned,"1")==0;
+        const char* exitProtocol=std::getenv("XM87193_TEST_DETERMINISTIC_EXIT");
+        deterministicExitTest=reserveOwnershipTest && exitProtocol &&
+            std::strcmp(exitProtocol,"1")==0;
         const char* firstFour=std::getenv("XM87186_TEST_FIRST_FOUR_ATTACK");
         firstFourAttackTest=enabled && earlyCancel && firstFour &&
              std::strcmp(firstFour,"1")==0;
