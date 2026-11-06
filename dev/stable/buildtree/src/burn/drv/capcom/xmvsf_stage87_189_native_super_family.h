@@ -149,8 +149,19 @@ struct Tracker {
                 stageEnd=stageScript?
                     nextRomScript(rom,romSize,fighter,stageScript):0u;
             }
-            if(stageScript && stageEnd>stageScript &&
-               s.script>=stageScript && s.script<stageEnd){
+            // A terminal 2E selector may have NO higher ROM-script
+            // root in this fighter's 2E table (Ryu air 2E0E/D322C).
+            // Observe such a terminal stage ONLY as read-only super
+            // CONTINUATION while the original action/D6 still owns it.
+            // Require valid, 16-byte-aligned original script records;
+            // NEVER allow direct native DHC from this tail. No guessed
+            // max-frame count or fabricated next-selector sentinel.
+            const bool terminalTail=stageScript && !stageEnd &&
+               s.script>=stageScript && (s.script-stageScript)%16u==0u &&
+               s.script<=romSize && romSize-s.script>=16u;
+            const bool boundedStage=stageScript && stageEnd>stageScript &&
+               s.script>=stageScript && s.script<stageEnd;
+            if(boundedStage || terminalTail){
                 const bool first=phase!=CONTINUATION;
                 phase=CONTINUATION;lastObservedScript=s.script;
                 return first?CONTINUATION_BEGIN:
