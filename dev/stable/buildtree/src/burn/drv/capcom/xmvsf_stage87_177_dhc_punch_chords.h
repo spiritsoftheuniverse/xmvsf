@@ -28,9 +28,10 @@ static inline bool valid(bool kicks,unsigned chord,
 static inline bool shieldPrequeue3P(bool enabled,bool earlyCancel,
           unsigned phase,bool nativeSuperCandidate,
           unsigned point,unsigned reserve,unsigned action,unsigned mode,
-          unsigned p1PhysicalButtons){
+          unsigned p1PhysicalButtons,bool verifiedRecovery=false){
     return enabled && earlyCancel && phase==0u && nativeSuperCandidate &&
-        point==0x12u && reserve==0x14u && action==0x2E08u &&
+        point==0x12u && reserve==0x14u &&
+        (action==0x2E08u || (verifiedRecovery && action==0x2E0Au)) &&
         (mode==0x2A28u || mode==0x2A02u) &&
         (p1PhysicalButtons & 0x3Fu)==0x07u;
 }
