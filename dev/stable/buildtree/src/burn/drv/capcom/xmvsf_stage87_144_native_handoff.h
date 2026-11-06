@@ -22,6 +22,7 @@
 #include "xmvsf_stage87_188_full_attack_gate.h" // full native 2E08 ATTACK
 #include "xmvsf_stage87_189_native_super_family.h" // original ROM 2E family
 #include "xmvsf_stage87_191_super_lifetime_gate.h" // no phase-specific DHC availability
+#include "xmvsf_stage87_192_reserve_super_ownership.h" // incoming reserve owns captured gesture
 #include "xmvsf_stage87_177_dhc_punch_chords.h" // explicit 3P host / native 2P helper dependency
 #include <cstdint>
 #include <cstdio>
@@ -94,6 +95,7 @@ struct State {
          delayedPrimeExperimental=false,unsafeConsumedPunchReplay=false,
          earlyActiveDirectTest=false,recoveryReboundTest=false,
          firstFourAttackTest=false,fullAttackTest=false,familyTest=false,liveLifetimeTest=false,
+         reserveOwnershipTest=false,
          chainUsed[2]={false,false};
     Phase phase[2]={IDLE,IDLE};
     bool armedFromFamily[2]={false,false};
@@ -124,6 +126,7 @@ struct State {
     unsigned lastNormalRef[2]={~0u,~0u};
     unsigned originalX[2]={0u,0u},opponentX[2]={0u,0u};
     XM87143Queue::Command command[2]={XM87143Queue::QCF_PP,XM87143Queue::QCF_PP};
+    XM87192Owner::Proposal ownedCommand[2];
     unsigned lastFrame=~0u;
     unsigned lastQueuedCheck[2]={~0u,~0u};
     std::FILE* log=nullptr;
@@ -169,6 +172,9 @@ struct State {
         const char* liveLifetime=std::getenv("XM87191_TEST_OPEN_SUPER_LIFETIME");
         liveLifetimeTest=familyTest && liveLifetime &&
             std::strcmp(liveLifetime,"1")==0;
+        const char* owned=std::getenv("XM87192_TEST_RESERVE_OWNERSHIP");
+        reserveOwnershipTest=liveLifetimeTest && owned &&
+            std::strcmp(owned,"1")==0;
         const char* firstFour=std::getenv("XM87186_TEST_FIRST_FOUR_ATTACK");
         firstFourAttackTest=enabled && earlyCancel && firstFour &&
              std::strcmp(firstFour,"1")==0;
@@ -198,6 +204,7 @@ struct State {
         oldRyuProjectiles.reset();
         for(unsigned s=0;s<2u;++s){
             phase[s]=IDLE;chainUsed[s]=false;armedFromFamily[s]=false;
+            ownedCommand[s]=XM87192Owner::Proposal();
             lastQueuedCheck[s]=~0u;
             lastAcceptedAt[s]=~0u;cooldownUntil[s]=0u;
             lastNormalRef[s]=~0u;
@@ -418,6 +425,15 @@ struct State {
            rw(ram,0x4052u)!=0x14u || !inputBegin[0] ||
            now<inputBegin[0])return m;
         const unsigned t=now-inputBegin[0];
+        if(reserveOwnershipTest && ownedCommand[0].valid){
+            // The reserve owns this captured gesture once the ROM swaps.
+            // Let the original 68000 parser choose the actual action.
+            const bool faceRight=(rb(ram,0x404Bu)&1u)!=0u;
+            const auto x=ownedCommand[0].input(t,faceRight);
+            m.active=x.active;m.directions=x.directions;
+            m.attacks=x.attacks;
+            return m;
+        }
         const unsigned maxFrames=earlyCancel?9u:17u;
         if(t>=maxFrames)return m;
         const bool faceRight=(rb(ram,0x404Bu)&1u)!=0u;
