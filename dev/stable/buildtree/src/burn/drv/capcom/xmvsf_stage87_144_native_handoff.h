@@ -236,11 +236,22 @@ struct State {
                 rb(ram,p+0xD6u),capturedD6[side],
                 rb(ram,p+0x256u),rb(ram,p+0x259u),
                 captured259[side]);
+        // Controller 8 may have been consumed while leaving the DHC's
+        // temporary 002A host mode behind. Restore only our captured
+        // mode when the exact original super action/D6 still owns RAM.
+        // Never rewind a different ROM-selected action (0002/2C02/etc).
+        const bool restoreFamily=staleHostLatch && armedFromFamily[side] &&
+            rw(ram,p+0x60u)==capturedAction[side] &&
+            rw(ram,p+0xA0u)==0x002Au &&
+            rb(ram,p+0xD6u)==capturedD6[side] &&
+            rb(ram,p+0x256u)==0u &&
+            captured256[side]==0u && captured259[side]==0u &&
+            (capturedMode[side]&0xFF00u)==0x2A00u;
         if(staleHostLatch){
             wb(ram,p+0x259u,captured259[side]);
             event(now,side,ram,"DHC_178_STALE_HOST_259_LATCH_CLEARED");
         }
-        if(restoreStaged){
+        if(restoreStaged || restoreFamily){
             // Never rewrite the actual ROM-selected action, D6,
             // 68000 button history, timers, projectiles, or script.
             ww(ram,p+0xA0u,capturedMode[side]);
