@@ -30,7 +30,7 @@ if not defined XM87185_TEST_EARLY_ACTIVE_TAG set "XM87185_TEST_EARLY_ACTIVE_TAG=
 REM 87.190: clean current-frame DHC throughout original 2A02/2A28 ATTACK.
 if not defined XM87188_TEST_FULL_ATTACK set "XM87188_TEST_FULL_ATTACK=1"
 REM 87.190: original 2E script-loop and subaction continuity; Ryu->Ken only.
-REM Set 0 in parent CMD to compare against 87.190 while keeping logs.
+REM Set 0 in parent CMD to compare against 87.189 while keeping logs.
 if not defined XM87189_TEST_NATIVE_SUPER_FAMILY set "XM87189_TEST_NATIVE_SUPER_FAMILY=1"
 REM 87.186 TEST-only: after exact 2E0A->2E08 native rebound, use original ROM tag script bridge.
 if not defined XM87185_TEST_RECOVERY_REBOUND set "XM87185_TEST_RECOVERY_REBOUND=1"

@@ -27,7 +27,7 @@ set "XM87184_EXPERIMENTAL_RECOVERY_TAG=1"
 set "XM87185_TEST_EARLY_ACTIVE_TAG=1"
 REM 87.190 full original ATTACK window (both 2A02 and 2A28).
 set "XM87188_TEST_FULL_ATTACK=1"
-REM Reproduce original 87.190 air-super inputs through common ROM 2E family.
+REM Replay captured 87.189 air-super inputs through 87.190 continuous native lifecycle.
 set "XM87189_TEST_NATIVE_SUPER_FAMILY=1"
 set "XM87185_TEST_RECOVERY_REBOUND=1"
 REM Read-only historical 87.185 F9 replay must NOT inject
