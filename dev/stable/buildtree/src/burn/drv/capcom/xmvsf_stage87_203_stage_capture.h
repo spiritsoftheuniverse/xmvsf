@@ -9,6 +9,11 @@
 #include <algorithm>
 #include <cstdint>
 #include <string>
+#ifdef _WIN32
+#include <direct.h>
+#else
+#include <sys/stat.h>
+#endif
 
 namespace XM87203Stage {
 static const unsigned MAX_SLICES=10u;
@@ -18,6 +23,13 @@ static const unsigned ROW_BYTES=0x800u;
 static const unsigned OAM_BYTES=0x2000u;
 static const unsigned MAX_FRAMES=36000u; // bounded 10-min recording
 
+inline int mkdirExclusive(const char* path){
+#ifdef _WIN32
+    return _mkdir(path);
+#else
+    return mkdir(path,0755);
+#endif
+}
 inline bool isMarvelVsCapcom(const char* driver){
     return driver && std::strncmp(driver,"mvsc",4)==0;
 }
@@ -77,7 +89,7 @@ struct Recorder {
     bool mapKnown[MAX_SLICES][3]={},rowKnown[MAX_SLICES]={},palKnown=false;
     std::FILE *status=nullptr,*framesFile=nullptr,*registers=nullptr;
     std::FILE *maps=nullptr,*rows=nullptr,*palettes=nullptr,*objects=nullptr;
-    std::string root;
+    std::string root,sessionDir;
     ~Recorder(){close();}
     void close(){
         std::FILE *all[]={framesFile,registers,maps,rows,palettes,objects,status};
@@ -97,19 +109,57 @@ struct Recorder {
         if(!path || !*path)return false;
         root=path;
         status=std::fopen((root+"/status.log").c_str(),"ab");
-        framesFile=std::fopen((root+"/frames.tsv").c_str(),"ab");
-        registers=std::fopen((root+"/raster.bin").c_str(),"ab");
-        maps=std::fopen((root+"/maps.bin").c_str(),"ab");
-        rows=std::fopen((root+"/row_scroll.bin").c_str(),"ab");
-        palettes=std::fopen((root+"/palettes.bin").c_str(),"ab");
-        objects=std::fopen((root+"/oam.bin").c_str(),"ab");
+        if(!status){
+            std::fprintf(stderr,"XM87.203 ERROR cannot_open_root_status=%s\n",root.c_str());
+            failed=true;return false;
+        }
+        // Never append a second ROM run to an older capture's raw streams.
+        // mkdir is exclusive, so interrupted/incomplete sessions are never
+        // reused or silently destroyed, including the uploaded 24k-frame run.
+        for(unsigned serial=1u;serial<=9999u;++serial){
+            char name[32];std::snprintf(name,sizeof(name),"session_%04u",serial);
+            const std::string candidate=sessionDir+"/"+name;
+            if(mkdirExclusive(candidate.c_str())==0){
+                sessionDir=candidate;break;
+            }
+        }
+        if(sessionDir.empty()){
+            statusLine("ERROR",0u,"no_available_session_directory");
+            failed=true;close();return false;
+        }
+        framesFile=std::fopen((sessionDir+"/frames.tsv").c_str(),"wb");
+        registers=std::fopen((sessionDir+"/raster.bin").c_str(),"wb");
+        maps=std::fopen((sessionDir+"/maps.bin").c_str(),"wb");
+        rows=std::fopen((sessionDir+"/row_scroll.bin").c_str(),"wb");
+        palettes=std::fopen((sessionDir+"/palettes.bin").c_str(),"wb");
+        objects=std::fopen((sessionDir+"/oam.bin").c_str(),"wb");
         enabled=status&&framesFile&&registers&&maps&&rows&&palettes&&objects;
         if(!enabled){
             std::fprintf(stderr,"XM87.203 ERROR could_not_open_capture_files dir=%s\n",root.c_str());
             failed=true;close();return false;
         }
-        std::fputs("frame\tstage\tphase\tslices\tscroll1x\tscroll1y\tscroll2x\tscroll2y\tscroll3x\tscroll3y\tobjectBank\n",framesFile);
-        statusLine("CAPTURE_START",0u,"read_only=1 format=XM87203A1 no_level_complete_without_verification");
+        if(std::fputs("frame\tstage\tphase\tslices\tscroll1x\tscroll1y\tscroll2x\tscroll2y\tscroll3x\tscroll3y\tobjectBank\n",framesFile)==EOF){
+            statusLine("ERROR",0u,"frames_header_write_failed");
+            failed=true;close();return false;
+        }
+        // The root status.log remains the single source for the open MSYS
+        // terminal; latest.txt points the offline verifier to this run.
+        std::FILE* latest=std::fopen((root+"/latest.txt").c_str(),"wb");
+        if(!latest){
+            statusLine("ERROR",0u,"capture_latest_pointer_open_failed");
+            failed=true;close();return false;
+        }
+        const size_t prefix=root.size()+1u;
+        const std::string relative=sessionDir.substr(prefix);
+        const int wrote=std::fprintf(latest,"%s\n",relative.c_str());
+        const int closed=std::fclose(latest);
+        if(wrote<=0 || closed!=0){
+            statusLine("ERROR",0u,"capture_latest_pointer_write_failed");
+            failed=true;close();return false;
+        }
+        statusLine("CAPTURE_START",0u,
+            "read_only=1 format=XM87203A1 no_level_complete_without_verification");
+        statusLine("SESSION_DIR",0u,sessionDir.c_str());
         return true;
     }
     void fail(unsigned frame,const char*why){
@@ -136,7 +186,7 @@ struct Recorder {
         char name[100];
         std::snprintf(name,sizeof(name),"mvc1_decoded_gfx_%08X_%016llX.bin",
             f.gfxSize,static_cast<unsigned long long>(signature));
-        const std::string dest=root+"/"+name;
+        const std::string dest=sessionDir+"/"+name;
         std::FILE* stream=std::fopen(dest.c_str(),"rb");
         if(stream){
             // Immutable hash-named local artifact; never truncate an older run.
@@ -165,7 +215,7 @@ struct Recorder {
                 fail(f.frame,"decoded_gfx_close_failed");return false;
             }
         }
-        std::FILE* idx=std::fopen((root+"/gfx_index.tsv").c_str(),"ab");
+        std::FILE* idx=std::fopen((sessionDir+"/gfx_index.tsv").c_str(),"ab");
         if(!idx){fail(f.frame,"gfx_index_open_failed");return false;}
         const int n=std::fprintf(idx,"%u\t%s\t%u\t%08X\t%u\t%u\t%u\t%016llX\t%s\n",
             f.frame,f.driver?f.driver:"unknown",f.gfxSize,f.gfxMask,

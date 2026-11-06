@@ -46,8 +46,21 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--root', type=Path, required=True)
     root = parser.parse_args().root.resolve()
-    root.mkdir(parents=True, exist_ok=True)
-    path = root / 'capture_manifest.json'
+    # Root is the watched parent. The actual immutable capture files live in
+    # its most recent session_NNNN folder, never appended to previous files.
+    data_root = root
+    latest = root / 'latest.txt'
+    if latest.is_file():
+        value = latest.read_text(encoding='utf-8').strip()
+        if not value:
+            print('ERROR: latest.txt is empty')
+            return 2
+        target = Path(value)
+        data_root = (target if target.is_absolute() else root / target).resolve()
+        if not data_root.is_relative_to(root) or not data_root.is_dir():
+            print('ERROR: latest.txt escaped stage capture root or folder missing')
+            return 2
+    path = data_root / 'capture_manifest.json'
     if not path.exists():
         print('INCOMPLETE: stage builder has not produced capture_manifest.json')
         return 2
@@ -60,6 +73,7 @@ def main():
         print('ERROR: malformed capture manifest:', exc)
         return 2
     log = root / 'status.log'
+    session_label = data_root.name if data_root != root else 'legacy_root'
     seen = set()
     if log.exists():
         for line in log.read_text(encoding='utf-8', errors='replace').splitlines():
@@ -69,11 +83,11 @@ def main():
     good = []
     for name in PARTS:
         try:
-            verified = valid_part(root, parts.get(name))
+            verified = valid_part(data_root, parts.get(name))
         except OSError:
             verified = False
         if verified:
-            emit(log, seen, 'PART_DONE', name)
+            emit(log, seen, 'PART_DONE', session_label + ' ' + name)
             good.append(name)
         else:
             print('INCOMPLETE:', name, 'not yet artifact-verified')
@@ -83,7 +97,8 @@ def main():
                  manifest.get('unresolved_gaps') == [] and
                  len(good) == len(PARTS))
     if certified:
-        emit(log, seen, 'LEVEL_DONE', str(manifest.get('level_id', 'unknown')))
+        emit(log, seen, 'LEVEL_DONE',
+             session_label + ' ' + str(manifest.get('level_id', 'unknown')))
         print('LEVEL_DONE: all five verified parts; sealed replay and certified coverage')
         return 0
     print('INCOMPLETE: level not certified; green withheld')

@@ -331,7 +331,7 @@ if /I "%SOURCE_ROM:~0,4%"=="mvsc" (
 REM Read-only 87.203 capture verification is nonfatal to game exit code.
 REM The builder must attest to camera/animation coverage before LEVEL_DONE.
 if "%XM87203_STAGE_CAPTURE_ENABLE%"=="1" (
-  if exist "%XM87203_STAGE_CAPTURE_DIR%\capture_manifest.json" (
+  if exist "%XM87203_STAGE_CAPTURE_DIR%\latest.txt" (
     where python.exe >nul 2>nul
     if not errorlevel 1 (
       python.exe "%PROJECT%\dev\stage_capture\VERIFY_CAPTURE_STATUS.py" --root "%XM87203_STAGE_CAPTURE_DIR%"
