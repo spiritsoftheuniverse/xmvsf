@@ -4,7 +4,7 @@ for %%I in ("%~dp0.") do set "PROJECT=%%~fI"
 set "MSYSTEM=UCRT64"
 set "PATH=C:\msys64\ucrt64\bin;C:\msys64\usr\bin;%PATH%"
 set "XMVSF_PROJECT=%PROJECT%"
-REM 87.183 replay captures 87.182 unsafe native arbitration, original checkpoints untouched.
+REM 87.186 traces early native Shinkuu action without changing F9 inputs.
 set "OBSROOT=%PROJECT%\test\87.186\observer"
 if not exist "%OBSROOT%" mkdir "%OBSROOT%"
 if not exist "%OBSROOT%" goto :fail
@@ -17,7 +17,7 @@ set "XM87186_OPENING_OBSERVER=1"
 set "XM87186_OPENING_OBSERVER_LOG=%OBSROOT%\native_opening_replay.tsv"
 REM 87.182 only: instruction-completion PC trace for armed Ryu-Ken handoff.
 if not defined XM87182_NATIVE_PC_TRACE set "XM87182_NATIVE_PC_TRACE=1"
-REM Replay ONLY: deliberately reproduce old 87.182 bad action for PPC audit.
+REM Native consumed-punch safety remains ON during 87.185 baseline replay.
 REM 87.184 replay uses 87.183 SAFE handoff, not unsafe forensic bypass.
 set "XM87183_REPLAY_UNSAFE_CONSUMED_EDGE=0"
 REM Baseline replay retains old 2E08 timing while TEST can probe recovery.
@@ -207,6 +207,15 @@ if exist "%XM87180_NATIVE_SUBFRAME_LOG%" (
   )
 )
 >>"%XM87181_DIAGNOSTIC_STATUS%" echo RUN_REPLAY_EXIT code=%RC%
+REM 87.186: summarize after EXE returns, never before the replay begins.
+if exist "%XM87186_OPENING_OBSERVER_LOG%" (
+  where python.exe >nul 2>nul
+  if not errorlevel 1 (
+    python.exe "%PROJECT%\dev\dhc\tools\ANALYZE_NATIVE_OPENING_TRACE_186.py" --input "%XM87186_OPENING_OBSERVER_LOG%" --out "%OBSROOT%\native_opening_replay_summary.json"
+    if errorlevel 1 echo WARNING: opening summary failed; raw TSV retained.
+  )
+)
+
 where python.exe >nul 2>nul
 if not errorlevel 1 (
   python.exe "%PROJECT%\dev\dhc\tools\ANALYZE_OBSERVER_HEALTH_181.py" --health "%XM87181_DIAGNOSTIC_STATUS%" --native "%XM87175_DHC_OBSERVER_LOG%" --subframe "%XM87180_NATIVE_SUBFRAME_LOG%" --out "%OBSROOT%\observer_health_replay_summary.json"
@@ -284,14 +293,6 @@ set "XM87160_DISCOVER=1"
 set "XM87160_CATALOG_LOG=%TRACE%\rom_super_catalog.tsv"
 set "XM87160_OBSERVED_LOG=%TRACE%\rom_super_observed.tsv"
 echo.
-REM 87.186 opening trace summary; never rewrites F9 source input.
-if exist "%XM87186_OPENING_OBSERVER_LOG%" (
-  where python.exe >nul 2>nul
-  if not errorlevel 1 (
-    python.exe "%PROJECT%\dev\dhc\tools\ANALYZE_NATIVE_OPENING_TRACE_186.py" --input "%XM87186_OPENING_OBSERVER_LOG%" --out "%OBSROOT%\native_opening_replay_summary.json"
-    if errorlevel 1 echo WARNING: opening trace analyzer failed; original TSV retained.
-  )
-)
 echo XMVSF HOST-AWARE F9 REPLAY V2 - CURRENT TEST 87.186
 echo Manifest: "%V2_SESSION%\manifest.tsv"
 echo Application menu, game resets, native savestate reloads and inputs
@@ -344,6 +345,15 @@ if exist "%XM87180_NATIVE_SUBFRAME_LOG%" (
   )
 )
 >>"%XM87181_DIAGNOSTIC_STATUS%" echo RUN_REPLAY_EXIT code=%RC%
+REM 87.186: summarize after EXE returns, never before the replay begins.
+if exist "%XM87186_OPENING_OBSERVER_LOG%" (
+  where python.exe >nul 2>nul
+  if not errorlevel 1 (
+    python.exe "%PROJECT%\dev\dhc\tools\ANALYZE_NATIVE_OPENING_TRACE_186.py" --input "%XM87186_OPENING_OBSERVER_LOG%" --out "%OBSROOT%\native_opening_replay_summary.json"
+    if errorlevel 1 echo WARNING: opening summary failed; raw TSV retained.
+  )
+)
+
 where python.exe >nul 2>nul
 if not errorlevel 1 (
   python.exe "%PROJECT%\dev\dhc\tools\ANALYZE_OBSERVER_HEALTH_181.py" --health "%XM87181_DIAGNOSTIC_STATUS%" --native "%XM87175_DHC_OBSERVER_LOG%" --subframe "%XM87180_NATIVE_SUBFRAME_LOG%" --out "%OBSROOT%\observer_health_replay_summary.json"
