@@ -110,14 +110,14 @@ struct State {
         if(name&&*name){
             log=std::fopen(name,"wb");
             if(log)std::fputs(
-               "frame\\tside\\treserve\\taction\\trom_root\\tmotion\\tbuttons\\tresult\\n",log);
+               "frame\tside\treserve\taction\trom_root\tmotion\tbuttons\tresult\n",log);
         }
     }
     void rejected(unsigned side,unsigned now,
                   const Proposal&p,const XM87184Life::Sample&s){
         ensureLog();
         if(log){std::fprintf(log,
-            "%u\\t%u\\t%02X\\t%04X\\t%06X\\t%u\\t%02X\\tNOT_NATIVE_SUPER\\n",
+            "%u\t%u\t%02X\t%04X\t%06X\t%u\t%02X\tNOT_NATIVE_SUPER\n",
             now,side+1u,p.reserve,s.action,s.script,unsigned(p.motion),
             p.buttonMask);std::fflush(log);}
     }
@@ -135,7 +135,7 @@ struct State {
         pending[side]=p;
         ensureLog();
         if(log){std::fprintf(log,
-           "%u\\t%u\\t%02X\\t0000\\t000000\\t%u\\t%02X\\tINPUT_PROPOSED\\n",
+           "%u\t%u\t%02X\t0000\t000000\t%u\t%02X\tINPUT_PROPOSED\n",
            now,side+1u,reserve,unsigned(motion),p.buttonMask);
            std::fflush(log);}
         return true;
