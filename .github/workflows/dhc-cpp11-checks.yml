@@ -45,7 +45,7 @@ jobs:
           grep -Fq 'xm30NativeAttackFamily' dev/stable/buildtree/src/burner/sdl/xmvsf_stage30_frame_data.h
           grep -Fq 'nativeAction=xm23::r16(c,base+0x60)' dev/stable/buildtree/src/burner/sdl/xmvsf_stage23_engine.h
           test -f dev/dhc/tests/test_dhc_frame_duration_154.cpp
-          grep -Fq 'XMVSF_Test_87_197.exe' dev/dhc/BUILD_TEST.sh
+          grep -Fq 'XMVSF_Test_87_198.exe' dev/dhc/BUILD_TEST.sh
           if grep -Fq 'cmp -s' dev/dhc/BUILD_TEST.sh; then
             echo 'ERROR: cmp dependency is not installed in user MSYS2' >&2
             exit 1
@@ -75,7 +75,7 @@ jobs:
             echo 'ERROR: awk compiler-warning filter must not truncate build logs' >&2
             exit 1
           fi
-          grep -Fq 'XMVSF_Test_87_197.exe' RUN_TEST.bat
+          grep -Fq 'XMVSF_Test_87_198.exe' RUN_TEST.bat
           grep -Fq 'XM87139_PROBE_DIR' RUN_TEST.bat
           grep -Fq 'XM87140_CHAT_LOG' RUN_TEST.bat
           grep -Fq 'xm87140ChatOverlay(sdlRenderer);' dev/stable/buildtree/src/intf/video/sdl/vid_sdl2.cpp
@@ -99,6 +99,14 @@ jobs:
           test -f dev/dhc/tests/test_dhc_host_latch_cleanup_195.cpp
           test -f dev/dhc/tests/test_dhc_native_immediate_fall_196.cpp
           test -f dev/dhc/tests/test_dhc_cinematic_opponent_hold_197.cpp
+          test -f dev/dhc/tests/test_dhc_ken_rom_owned_input_and_freeze_198.cpp
+          grep -Fq 'XM87198_TEST_KEN_HCF_PRETAG_REJECTION set' RUN_TEST.bat
+          grep -Fq 'XM87198_TEST_NATIVE_OFFENSE_RELEASE set' RUN_TEST.bat
+          grep -Fq 'XM87198_TEST_KEN_HCF_PRETAG_REJECTION=1' RUN_REPLAY.bat
+          grep -Fq 'XM87198_TEST_NATIVE_OFFENSE_RELEASE=1' RUN_REPLAY.bat
+          grep -Fq 'xmvsf_stage87_198_native_super_freeze_cue.h' dev/dhc/BUILD_TEST.sh
+          grep -Fq 'DHC_198_FREEZE_RELEASED_ON_NATIVE_KEN_FIRST_ATTACK' dev/stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_144_native_handoff.h
+          grep -Fq 'KEN_HCF_ROM_PROVEN_0006_DHC_REFUSED_PRETAG' dev/stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_192_reserve_super_ownership.h
           grep -Fq 'XM87197_TEST_OPPONENT_FREEZE set' RUN_TEST.bat
           grep -Fq 'XM87197_TEST_OPPONENT_FREEZE=1' RUN_REPLAY.bat
           grep -Fq 'xmvsf_stage87_197_cinematic_opponent_hold.h' dev/dhc/BUILD_TEST.sh
@@ -140,7 +148,7 @@ jobs:
           grep -Fq 'DHC_187_STALE_ATTACK_REQUEST_EXPIRED_NO_PHYSICAL_EDGE' dev/stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_187_opening_front.h
           grep -Fq 'XM8761_REPLAY_DIR=' RUN_TEST.bat
           grep -Fq 'XM8761_REPLAY_MODE=off' RUN_TEST.bat
-          grep -Fq 'XMVSF_Test_87_197.exe' RUN_REPLAY.bat
+          grep -Fq 'XMVSF_Test_87_198.exe' RUN_REPLAY.bat
           # The replay launcher is a permanent first-class root entry point.
           # Never let point-version bumps strand it on a stale TEST executable.
           test -f RUN_REPLAY.bat
@@ -169,7 +177,7 @@ jobs:
           grep -Fq 'XM8764_REPLAY_ROOT=' RUN_TEST.bat
           # F9 must keep the SAME red gameplay counter and file-location
           # discoverability as the old recorder, plus show it in boot menu.
-          grep -Fq 'XM8764_REPLAY_ROOT=%PROJECT%\test\87.197\replays' RUN_TEST.bat
+          grep -Fq 'XM8764_REPLAY_ROOT=%PROJECT%\test\87.198\replays' RUN_TEST.bat
           grep -Fq 'XM8764_REPLAY_STATUS_FILE=' RUN_TEST.bat
           grep -Fq 'XM8764::recordingFrames()' dev/stable/buildtree/src/burner/sdl/run.cpp
           grep -Fq 'xm87166ReplayVisualStatus' dev/stable/buildtree/src/intf/video/sdl/vid_sdl2.cpp
@@ -179,7 +187,7 @@ jobs:
           grep -Fq 'requiresCheckpoint(host,c.lastRecordedHost)' dev/stable/buildtree/src/burner/sdl/xmvsf_stage87_164_host_replay.h
           grep -Fq 'recordingFrames()==1' dev/dhc/tests/test_dhc_host_replay_164.cpp
           grep -Fq 'saves==1u' dev/dhc/tests/test_dhc_host_replay_164.cpp
-          grep -Fq '%PROJECT%\test\87.197\replays\latest.txt' RUN_REPLAY.bat
+          grep -Fq '%PROJECT%\test\87.198\replays\latest.txt' RUN_REPLAY.bat
           grep -Fq 'dir /b /ad /o:-n' RUN_REPLAY.bat
           grep -Fq 'RECORD_SAVE_ERROR' dev/stable/buildtree/src/burner/sdl/xmvsf_stage87_164_host_replay.h
           grep -Fq 'V2_INPUT_FLUSH_OR_CLOSE_FAILED' dev/stable/buildtree/src/burner/sdl/xmvsf_stage87_164_host_replay.h
