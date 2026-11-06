@@ -5,7 +5,7 @@ set "MSYSTEM=UCRT64"
 set "PATH=C:\msys64\ucrt64\bin;C:\msys64\usr\bin;%PATH%"
 set "XMVSF_PROJECT=%PROJECT%"
 REM 87.175 read-only native state trace. Fails closed if logs cannot be saved.
-set "OBSROOT=%PROJECT%\test\87.184\observer"
+set "OBSROOT=%PROJECT%\test\87.185\observer"
 if not exist "%OBSROOT%" mkdir "%OBSROOT%"
 if not exist "%OBSROOT%" (
   echo ERROR: Cannot create 87.175 native observer log directory.
@@ -13,15 +13,19 @@ if not exist "%OBSROOT%" (
 )
 set "XM87175_DHC_OBSERVER=1"
 set "XM87175_DHC_OBSERVER_LOG=%OBSROOT%\dhc_acceptance_test.tsv"
-REM 87.184: subframe 68000 trace; delayed priming is unsafe by default.
+REM 87.185: subframe 68000 trace; delayed priming is unsafe by default.
 set "XM87180_NATIVE_SUBFRAME_LOG=%OBSROOT%\native_subframe_test.tsv"
-REM 87.184: exact 68000 executed-PC trace is opt-in during interactive gameplay.
-REM 87.184: trace only during active native Ryu-Ken handoff.
+REM 87.185: exact 68000 executed-PC trace is opt-in during interactive gameplay.
+REM 87.185: trace only during active native Ryu-Ken handoff.
 set "XM87182_NATIVE_PC_TRACE=1"
 REM Safety gate ON for interactive play; no consumed ROM punch edge tags.
 set "XM87183_REPLAY_UNSAFE_CONSUMED_EDGE=0"
-REM 87.184 TEST-only nonterminal native 2E0A recovery handoff experiment.
+REM 87.185 TEST-only nonterminal native 2E0A recovery handoff experiment.
 set "XM87184_EXPERIMENTAL_RECOVERY_TAG=1"
+REM 87.185 TEST-only: arm controller 8 while the verified active action edge is fresh.
+if not defined XM87185_TEST_EARLY_ACTIVE_TAG set "XM87185_TEST_EARLY_ACTIVE_TAG=1"
+REM 87.185 TEST-only: after exact 2E0A->2E08 native rebound, use original ROM tag script bridge.
+if not defined XM87185_TEST_RECOVERY_REBOUND set "XM87185_TEST_RECOVERY_REBOUND=1"
 set "XM87182_NATIVE_PC_TRACE_LOG=%OBSROOT%\native_pc_trace_test.tsv"
 REM 87.181 append-only launch health. This marker is created even if
 REM the menu closes without entering a CPS2 driver.
@@ -32,9 +36,9 @@ if errorlevel 1 (
   goto :fail
 )
 if not defined XM87180_EXPERIMENTAL_DELAYED_PRIME set "XM87180_EXPERIMENTAL_DELAYED_PRIME=0"
-set "EXE=%PROJECT%\runtime\stable\XMVSF_Test_87_184.exe"
+set "EXE=%PROJECT%\runtime\stable\XMVSF_Test_87_185.exe"
 if not exist "%EXE%" (
-  echo ERROR: Stage 87.184 TEST executable is missing.
+  echo ERROR: Stage 87.185 TEST executable is missing.
   echo Run BUILD_TEST.bat first. Will NOT fall back to 87.132.4 or Stable.
   goto :fail
 )
@@ -51,7 +55,7 @@ REM The original 87.61 recorder remains available when this root is absent.
 REM V2 F9 sessions now live INSIDE the same current TEST replay folder
 REM users already package and inspect, not hidden under test\replay_sessions.
 REM Every F9 recording gets manifest.tsv + .fs + .bin in its own subfolder.
-set "XM8764_REPLAY_ROOT=%PROJECT%\test\87.184\replays"
+set "XM8764_REPLAY_ROOT=%PROJECT%\test\87.185\replays"
 if not exist "%XM8764_REPLAY_ROOT%" mkdir "%XM8764_REPLAY_ROOT%"
 if not exist "%XM8764_REPLAY_ROOT%" (
   echo ERROR: Cannot create permanent app-level replay recording directory.
@@ -60,7 +64,7 @@ if not exist "%XM8764_REPLAY_ROOT%" (
 REM Even an F9 directory or save failure gets a permanent, uploadable
 REM diagnostic next to the new recordings (the game is not a console).
 set "XM8764_REPLAY_STATUS_FILE=%XM8764_REPLAY_ROOT%\F9_status.log"
->>"%XM8764_REPLAY_STATUS_FILE%" echo ===== 87.184 TEST session %DATE% %TIME% =====
+>>"%XM8764_REPLAY_STATUS_FILE%" echo ===== 87.185 TEST session %DATE% %TIME% =====
 echo.
 echo F9 recording root: "%XM8764_REPLAY_ROOT%"
 echo F9 persistent status: "%XM8764_REPLAY_STATUS_FILE%"
@@ -71,15 +75,15 @@ REM Restore original native state-anchored F9 recorder (XM87.61/XM87.132).
 REM F9 starts/stops each independent full-state + input movie.
 REM The recorder requires an existing replay directory, not an invented
 REM input format or a new launcher.
-set "XM8761_REPLAY_DIR=%PROJECT%\test\87.184\replays"
+set "XM8761_REPLAY_DIR=%PROJECT%\test\87.185\replays"
 if not exist "%XM8761_REPLAY_DIR%" mkdir "%XM8761_REPLAY_DIR%"
 if not exist "%XM8761_REPLAY_DIR%" (
   echo ERROR: Cannot create native input replay directory.
   goto :fail
 )
 set "XM8761_REPLAY_MODE=off"
-set "XM87139_PROBE_DIR=%PROJECT%\test\87.184"
-set "XM87140_CHAT_DIR=%PROJECT%\test\87.184"
+set "XM87139_PROBE_DIR=%PROJECT%\test\87.185"
+set "XM87140_CHAT_DIR=%PROJECT%\test\87.185"
 if not exist "%XM87139_PROBE_DIR%" mkdir "%XM87139_PROBE_DIR%"
 if not exist "%XM87139_PROBE_DIR%" (
   echo ERROR: Cannot create diagnostic output directory.
@@ -132,17 +136,17 @@ set "XM8795_NATIVE_HIT_TEST=1"
 set "XM8796_DIZZY_HANDOFF_TEST=1"
 set "XM8799_GROUND_DEFENSE_TEST=1"
 set "XM87149_TOURNAMENT_AUDIT=%XM87140_CHAT_DIR%\tournament_rules.tsv"
-echo 87.184 STARTUP HEALTH: %XM87181_DIAGNOSTIC_STATUS%
+echo 87.185 STARTUP HEALTH: %XM87181_DIAGNOSTIC_STATUS%
 echo 87.175 NATIVE OBSERVER: %XM87175_DHC_OBSERVER_LOG%
 echo Native actor rows require a running XMVSF combat session; menu exit writes health only.
-echo 87.184: QCF+LP+MP / LP+HP / MP+HP / 3P triggers Ken, 3P dash suppressed.
-echo 87.184: Ken native QCF+2P and instant, no-charge arrival preserved.
-echo 87.184: UNSAFE delayed native 2P priming stays OFF in interactive TEST.
-echo 87.184: immediate 3P/2P paths, Ken no-charge arrival, and F9 stay intact.
-echo 87.184: delayed DHC input priming disabled by default, preserves original ROM state.
+echo 87.185: QCF+LP+MP / LP+HP / MP+HP / 3P triggers Ken, 3P dash suppressed.
+echo 87.185: Ken native QCF+2P and instant, no-charge arrival preserved.
+echo 87.185: UNSAFE delayed native 2P priming stays OFF in interactive TEST.
+echo 87.185: immediate 3P/2P paths, Ken no-charge arrival, and F9 stay intact.
+echo 87.185: delayed DHC input priming disabled by default, preserves original ROM state.
 echo 87.184 native Shinkuu action lifetime: 2E08 startup/attack, 2E0A recovery, exact exit.
-echo 87.184 TEST recovery tag enabled before terminal ROM script; 87.183 guard preserved.
-echo XMVSF Stage 87.184 TEST - KEEP KEN SHORYUREPPA; CUT OUTGOING RYU PROJECTILE HITS
+echo 87.185 TEST recovery tag enabled before terminal ROM script; 87.183 guard preserved.
+echo XMVSF Stage 87.185 TEST - KEEP KEN SHORYUREPPA; CUT OUTGOING RYU PROJECTILE HITS
 echo Executable: %EXE%
 echo SAME BUILD, TWO DHC CHOICES:
 echo   During Ryu Shinkuu Hadoken, QCF+ANY TWO PUNCHES or QCF+3P queues Ken SHORYUREPPA.
@@ -232,7 +236,7 @@ if exist "%XM87180_NATIVE_SUBFRAME_LOG%" (
     if errorlevel 1 echo WARNING: 87.180 subframe summary failed, raw TSV retained.
   )
 )
-REM 87.184: report why old/new observer files are absent or empty.
+REM 87.185: report why old/new observer files are absent or empty.
 REM Diagnostic report cannot alter %RC% or overwrite previous traces.
 where python.exe >nul 2>nul
 if not errorlevel 1 (
@@ -249,7 +253,7 @@ if exist "%XM87182_NATIVE_PC_TRACE_LOG%" (
     if errorlevel 1 echo WARNING: Native PC summary failed, source TSV preserved.
   )
 )
-echo Stage 87.184 TEST exit code: %RC%
+echo Stage 87.185 TEST exit code: %RC%
 echo Probe directory: %XM87139_PROBE_DIR%
 pause
 exit /b %RC%
