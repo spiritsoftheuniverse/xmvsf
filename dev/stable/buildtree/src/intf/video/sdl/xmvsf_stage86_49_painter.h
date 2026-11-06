@@ -130,6 +130,7 @@ static bool xm8649Paint(SDL_Renderer* render,const SDL_Rect& view){
  // Rock Castle shares the stage-05 native sprite donor, not the Wily manifest.
  if(xm77StageResolved==XM77_ROCK_CASTLE)
    return XM87200::state().paint(render,view,xm8649Visual.nativeCameraX,
+       xm8649Visual.nativeCameraY,
        xm8649Visual.frames,xm77StageRollGeneration(),
        xm77SpritePixels(),xm8757FlashPixels());
  if(xm77StageResolved!=XM77_WILY_FACTORY || xm8649Unavailable)return false;
