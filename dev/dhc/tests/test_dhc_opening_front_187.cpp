@@ -15,7 +15,8 @@ int main(){
  assert(check(attack,2625u,2565u)==STALE_ATTACK_INPUT);
  assert(check(attack,2544u,2544u)==KEEP);
  assert(check(attack,1640u,1640u)==KEEP);
- assert(check(badMode,10629u,10629u)==UNVERIFIED_ATTACK_MODE);
+ assert(check(badMode,10629u,10629u)==KEEP); // actual 2A02 ATTACK
+ assert(check(badMode,10629u,10628u)==STALE_ATTACK_INPUT);
  assert(check(recovery,10126u,10126u)==KEEP);
  assert(check(recovery,10126u,10091u)==KEEP);
  assert(std::strstr(wrongAction(0x0002u),"0002"));
