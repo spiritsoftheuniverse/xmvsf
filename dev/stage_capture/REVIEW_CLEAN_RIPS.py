@@ -187,24 +187,83 @@ def scan_shot(directory: Path, full: bool) -> tuple[dict, list[bytes]]:
     return info, [previews[sample] for sample in positions]
 
 
+def inspect_capture_status(root: Path, status_log: Path | None) -> dict:
+    """Read existing log evidence offline; do not pretend it is pixel evidence."""
+    origin = status_log or (root.parent / 'stage_capture' / 'status.log')
+    evidence = {
+        'status_log': str(origin),
+        'status_log_exists': origin.is_file(),
+        'status_bytes_scanned': 0,
+        'status_truncated_to_tail': False,
+        'CLEAN_RIP_ARMED': 0,
+        'CLEAN_RIP_START': 0,
+        'CLEAN_RIP_BURST_DONE': 0,
+        'BATCH_DONE': 0,
+        'ERROR': 0,
+        'logged_completed_shots': [],
+    }
+    if origin.is_file():
+        with origin.open('rb') as fp:
+            fp.seek(0, 2)
+            length = fp.tell()
+            limit = 4 * 1024 * 1024
+            clipped = length > limit
+            if clipped:
+                fp.seek(length - limit)
+                fp.readline()  # ignore one partial first line
+            else:
+                fp.seek(0)
+            data = fp.read().decode('utf-8', errors='replace')
+        evidence['status_bytes_scanned'] = len(data.encode('utf-8'))
+        evidence['status_truncated_to_tail'] = clipped
+        for line in data.splitlines():
+            columns = line.split('\t', 2)
+            if len(columns) < 2:
+                continue
+            event = columns[1]
+            if event in evidence and isinstance(evidence[event], int):
+                evidence[event] += 1
+            if event == 'CLEAN_RIP_BURST_DONE':
+                found = re.search(r'shot_\d{4}\b', line)
+                if found:
+                    evidence['logged_completed_shots'].append(found.group())
+    capture = root.parent / 'stage_capture'
+    if capture.is_dir():
+        evidence['native_session_directories'] = sorted(
+            p.name for p in capture.iterdir()
+            if p.is_dir() and re.fullmatch(r'session_\d{4}', p.name))
+    else:
+        evidence['native_session_directories'] = []
+    return evidence
+
+
 def review(root: Path, output: Path, *, full: bool = False,
            max_rows: int = 36, status_log: Path | None = None) -> dict:
     root, output = root.resolve(), output.resolve()
-    if not root.is_dir():
-        raise RipError('missing clean_rips root')
     if output == root or root in output.parents or output in root.parents:
         raise RipError('review output must be a sibling of source clean_rips, not nested')
     if not 1 <= max_rows <= 150:
         raise RipError('max_rows must be 1..150')
     dirs = sorted((p for p in root.iterdir() if p.is_dir() and SHOT.fullmatch(p.name)),
-                  key=lambda p: int(p.name[-4:]))
-    if not dirs:
-        raise RipError('no shot_XXXX directories to review')
+                  key=lambda p: int(p.name[-4:])) if root.is_dir() else []
+    evidence = inspect_capture_status(root, status_log)
     result = {'format': 'XM87203_NATIVE_CLEAN_RIP_REVIEW_V1',
               'input_root': str(root), 'verification': 'FULL' if full else 'SAMPLED',
               'level_complete': False, 'stage_identity_verified': False,
               'animation_cycles_verified': False, 'shots': [],
-              'warnings': [], 'errors': []}
+              'warnings': [], 'errors': [],
+              'source_root_exists': root.is_dir(),
+              'capture_log_evidence': evidence}
+    if not dirs:
+        result['warnings'].append(
+            'NO_NATIVE_CLEAN_RIP_ARTWORK: no shot_XXXX folders found under ' +
+            str(root) + '. No source pixel image can be generated from the '
+            'telemetry status log alone.')
+    elif evidence['CLEAN_RIP_BURST_DONE'] > len(dirs):
+        result['warnings'].append(
+            'The status log records more completed bursts than the current '
+            'clean_rips directory contains; check the configured capture '
+            'root or include the raw shot_XXXX folders.')
     render_rows = []
     previous_last = None
     for directory in dirs:
@@ -240,12 +299,19 @@ def review(root: Path, output: Path, *, full: bool = False,
     write_atomic(output / 'clean_rips_review.json',
                  (json.dumps(result, indent=2) + '\n').encode('utf-8'))
     lines = [f"MVC NATIVE CLEAN RIP REVIEW: {result['verification']}",
+             f"Native clean-rip source: {'PRESENT' if dirs else 'NOT FOUND'}",
+             f"Source path: {root}",
+             f"Capture status log: {evidence['status_log']}",
+             f"Source log clean bursts: {evidence['CLEAN_RIP_BURST_DONE']} completed, {evidence['CLEAN_RIP_START']} started",
              f"Bursts: {result['finished_bursts']} finished, {result['incomplete_bursts']} incomplete, "
              f"{len(result['errors'])} errors",
              f"Samples indexed: {result['indexed_samples']}",
              f"Raw frames verified by FNV: {result['verified_source_bytes']:,} bytes",
              'Full stage coverage: UNVERIFIED',
-             'Contact sheet: ' + str(output / 'clean_rips_contact_sheet.png')]
+             'Contact sheet: ' + (str(output / 'clean_rips_contact_sheet.png') if contact.get('file')
+                                  else 'UNAVAILABLE (no native source images)')]
+    for warning in result['warnings']:
+        lines.append('WARNING ' + warning)
     for problem in result['errors']:
         lines.append('ERROR ' + problem['shot'] + ': ' + problem['error'])
     write_atomic(output / 'clean_rips_review.txt', ('\n'.join(lines)+'\n').encode('utf-8'))
@@ -266,7 +332,7 @@ def review(root: Path, output: Path, *, full: bool = False,
     if status_log is not None:
         status_log.parent.mkdir(parents=True, exist_ok=True)
         with status_log.open('a', encoding='utf-8') as status:
-            event = 'ERROR' if result['errors'] else ('INCOMPLETE' if result['incomplete_bursts']
+            event = 'ERROR' if result['errors'] else ('INCOMPLETE' if not dirs or result['incomplete_bursts']
                                                      else 'CLEAN_RIP_REVIEW')
             status.write(f"frame=0\t{event}\tclean_rip_review={result['verification']} "
                          f"finished={result['finished_bursts']} partial={result['incomplete_bursts']} "
@@ -288,7 +354,7 @@ def main() -> int:
     try:
         report = review(args.root, args.output, full=args.full,
                         max_rows=args.max_rows, status_log=args.status_log)
-        return 2 if report['errors'] else 0
+        return 2 if report['errors'] or not report['shots'] else 0
     except (RipError, OSError, ValueError) as exc:
         print('CLEAN_RIP_REVIEW ERROR: ' + str(exc), file=sys.stderr)
         return 2
