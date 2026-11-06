@@ -19,8 +19,9 @@ static inline void xm8649ObserveCamera(bool gameReady){
  if(bRunPause)return; // pausing must never reveal the original stage
  if(!gameReady || bBurnRunAheadFrame ||
    // Wily stage assignment is independent of Double Feature color grading.
-   xm77StageChoice!=1 || xm77StageResolved!=1 ||
-   xm14TrainingMode!=1 || xm24VersusMode!=0){
+   (xm77StageResolved!=XM77_WILY &&
+    xm77StageResolved!=XM77_ROCK_CASTLE) ||
+   (!xm14TrainingMode && !xm24VersusMode)){
   xm8649Visual.sceneActive=false;return;
  }
  const char* name=BurnDrvGetTextA(DRV_NAME);

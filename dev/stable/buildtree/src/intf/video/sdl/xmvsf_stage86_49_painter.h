@@ -8,6 +8,7 @@
 #include "../../../burner/sdl/xmvsf_stage86_49_state.h"
 #include "xmvsf_stage86_49_wily_art.h"
 #include "xmvsf_stage87_63_super_intro.h"
+#include "xmvsf_stage87_199_rock_castle.h" // Reuses Wily native stage05 and sprite compositing path
 #include <memory>
 #include <string>
 #include <fstream>
@@ -111,6 +112,7 @@ static bool xm8649LocateAssets(){
  return false;
 }
 static void xm8649VideoCleanup(){
+ XM87199Rock::state().reset(); // release Rock GIF/actor textures with Wily renderer
  xm8649Preview.reset();xm8649Textures.reset();xm8649World.reset();
  if(xm8649Target)SDL_DestroyTexture(xm8649Target);
  if(xm8649FighterTarget)SDL_DestroyTexture(xm8649FighterTarget);
@@ -125,6 +127,17 @@ static bool xm8649Paint(SDL_Renderer* render,const SDL_Rect& view){
     xm8649Visual.stage!=5 || xm8649Unavailable ||
     !xm77SpriteValid || xm77SpriteWidth!=384 || xm77SpriteHeight!=224 ||
     !xm77SpritePixels())return false;
+ // 87.199: a second CUSTOM STAGE in the same native stage05 Wily
+ // presentation owner. The ROM camera, fighter sprite extraction,
+ // HUD and original CPS2 FX are SHARED; Rock needs no duplicated
+ // player/gameplay loop or speculative ROM stage.
+ if(xm77StageResolved==XM77_ROCK_CASTLE){
+     return XM87199Rock::state().paint(render,view,
+          xm8649Visual.frames,
+          xm8649Visual.nativeCameraX,xm8649Visual.nativeCameraY,
+          xm77SpritePixels(),xm8757FlashPixels());
+ }
+ // Wily's proven multilayer manifest pipeline remains untouched.
  SDL_Texture* oldTarget=SDL_GetRenderTarget(render);
  int logicalW=0,logicalH=0;SDL_RenderGetLogicalSize(render,&logicalW,&logicalH);
  SDL_Rect viewport={0,0,0,0},oldClip={0,0,0,0};SDL_RenderGetViewport(render,&viewport);
