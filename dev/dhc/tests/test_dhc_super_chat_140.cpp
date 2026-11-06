@@ -2,6 +2,7 @@
 // log. No ROM, game windows, sprites or mutable gameplay state required.
 #include "../../stable/buildtree/src/burner/sdl/xmvsf_stage87_140_super_chat.h"
 #include <cassert>
+#include <cstdio>
 #include <cstring>
 #include <vector>
 #include <cstdint>
@@ -46,6 +47,22 @@ int main(){
     s.frame(r.data(),12u,4u,0,0,0);
     s.frame(r.data(),13u,5u,0,0,0);
     s.frame(r.data(),14u,1u,0,3u,0); // LP+MP pressed
+    if(!has(s,"MATCH KEN SHORYUREPPA (QCF+PP)")){
+        const auto* matched=matchListed(0x14u,s.keys[0],true,14u,3u,true);
+        std::fprintf(stderr,"87.189 chat fixture: candidate=%u live=%u phase=%u"
+            " nativeWindow=%u match=%s hist=%u direction=%u lastAttack=%u\n",
+            unsigned(s.candidate[0]),unsigned(s.shinkuu[0].live),
+            unsigned(s.shinkuu[0].phase),
+            unsigned(XM87185Gate::canRecognize(XM87184Life::Sample(
+                0x12u,w(r.data(),0x4060u),w(r.data(),0x40A0u),
+                w(r.data(),0x4008u),
+                (w(r.data(),0x4034u)<<16u)|w(r.data(),0x4036u),
+                b(r.data(),0x40D6u)))),
+            matched?matched->name:"NONE",s.keys[0].count,
+            unsigned(s.keys[0].direction),s.lastAttackFrame[0]);
+        for(unsigned i=0;i<s.count;++i)
+            std::fprintf(stderr,"87.189 chat msg: %s\n",s.lines[i].text);
+    }
     assert(has(s,"MATCH KEN SHORYUREPPA (QCF+PP)"));
     assert(has(s,"P1 INPUT LP+MP"));
     assert(has(s,"[INPUT ONLY]"));
