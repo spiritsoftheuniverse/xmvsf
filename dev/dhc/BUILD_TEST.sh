@@ -56,6 +56,20 @@ if ! command -v make >/dev/null || ! command -v gcc >/dev/null; then
   exit 2
 fi
 
+# XM87.200: Repair ONLY the stale Rock Castle dependency manifest left
+# behind by the local 87.199 experiment. The orphaned header was removed
+# between versions, but its old .d still names it as a prerequisite.  Make
+# cannot re-enter the dependency generator while that target is unresolved.
+# Archive the single obsolete .d; the standard -MM pass regenerates it.
+# Never remove or invalidate any .o object, source, or Stable executable.
+ROCK_DEP="$TREE/obj/intf/video/sdl/vid_sdl2.d"
+ROCK_OLD="$TREE/src/intf/video/sdl/xmvsf_stage87_199_rock_castle.h"
+if [[ -f "$ROCK_DEP" && ! -e "$ROCK_OLD" ]] &&
+   grep -Fq 'xmvsf_stage87_199_rock_castle.h' "$ROCK_DEP"; then
+  echo "XM87.200 STALE_DEP_REPAIR archiving only obj/intf/video/sdl/vid_sdl2.d"
+  mv -f "$ROCK_DEP" "$ROCK_DEP.before_87_200"
+fi
+
 # Preserve warm cache and anything already built on failures. Never run make clean.
 cd "$TREE"
 echo "XMVSF Stage 87.200 TEST: incremental build; preserving cached objects"
