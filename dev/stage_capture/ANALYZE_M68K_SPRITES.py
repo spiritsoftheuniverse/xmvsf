@@ -20,7 +20,7 @@ COLUMNS = {'frame','bank','slot','address','size','pc','a0','a1','a2',
            'a3','a4','a5','xword','yword','tileword','attrword'}
 HEX = ('pc','a0','a1','a2','a3','a4','a5','xword','yword',
        'tileword','attrword','address')
-RUN = re.compile(r'run_\\d+\\Z')
+RUN = re.compile(r'run_\d+\Z')
 OPCODE_NAME='mvc_opcodes_decrypted_host_words.bin'
 DATA_NAME='mvc_program_data_host_words.bin'
 FILE_NAMES=('m68k_writer_pcs.tsv','m68k_object_families.tsv',
@@ -79,7 +79,7 @@ def asm_window(opcodes:bytes,pc:int)->str:
 
 def write_tsv(path:Path,fields:tuple[str,...],rows):
     with path.open('w',encoding='utf-8',newline='') as fp:
-        wr=csv.writer(fp,delimiter='\\t')
+        wr=csv.writer(fp,delimiter='\t')
         wr.writerow(fields)
         for row in rows: wr.writerow(row)
 
@@ -117,7 +117,7 @@ def analyze(root:Path,output:Path,pc_limit:int=600)->dict:
         else:
             warnings.append('No private decrypted opcode dump; writer PCs can still be grouped, but code bytes are unavailable.')
         with (run/'sprite_writes.tsv').open('r',encoding='utf-8',newline='') as fp:
-            reader=csv.DictReader(fp,delimiter='\\t')
+            reader=csv.DictReader(fp,delimiter='\t')
             if not reader.fieldnames or not COLUMNS.issubset(reader.fieldnames):
                 raise TraceError('missing original XM87.16 writer columns')
             for row in reader:
@@ -213,7 +213,7 @@ def analyze(root:Path,output:Path,pc_limit:int=600)->dict:
             'interleaving_verified_by_this_tool':False,
             'confidence_note':'Only writer-PC and object fields are observed. A-register ROM pointers and same-slot transitions are correlation candidates, not proven source tables or animation scripts.',
             'rom_binaries_in_report':False}
-    (output/'m68k_manifest.json').write_text(json.dumps(report,indent=2)+'\\n',encoding='utf-8')
+    (output/'m68k_manifest.json').write_text(json.dumps(report,indent=2)+'\n',encoding='utf-8')
     summary=[f'MVC1 M68K WRITER PROVENANCE: {writer_count} events',
              f'Source trace: {run or "NOT FOUND"}',
              f'Unique 68000 writer PCs: {len(pcs)}',
@@ -223,13 +223,13 @@ def analyze(root:Path,output:Path,pc_limit:int=600)->dict:
              'No ROM/decrypted opcode bytes are included in the review bundle.',
              'Animation-script and scene-actor ownership NOT verified.']
     summary.extend('WARNING '+w for w in warnings)
-    (output/'m68k_summary.txt').write_text('\\n'.join(summary)+'\\n',encoding='utf-8')
+    (output/'m68k_summary.txt').write_text('\n'.join(summary)+'\n',encoding='utf-8')
     archive=output/'m68k_sprite_report.zip'
     with zipfile.ZipFile(archive.with_suffix('.zip.tmp'),'w',zipfile.ZIP_DEFLATED) as fp:
         for name in FILE_NAMES:
             fp.write(output/name,arcname=name)
     archive.with_suffix('.zip.tmp').replace(archive)
-    print('\\n'.join(summary))
+    print('\n'.join(summary))
     print('M68K_REPORT '+str(archive))
     return report
 
