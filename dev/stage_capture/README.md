@@ -365,3 +365,50 @@ on the very FIRST rollover frame (not one frame later), and PROGRESS event
 buffers are large enough to preserve all counters in the MSYS watcher.
 BUILD_TEST.bat regression checks the graphics index exists immediately
 after rotating at the test-only 300-frame batch threshold.
+
+
+## Batch review of REAL native clean-rip frames (Stage87.203)
+
+The uploaded stage_capture(2).zip verified 39,282 consecutive native CPS2
+frames but did NOT contain clean_rips/shot_XXXX raw artwork. A CPS2 camera
+telemetry archive alone cannot establish that Stage44's isolated render
+passes have correct pixels. The clean artwork must be checked on the PC,
+without uploading gigabytes of raw RGBA frames.
+
+After pulling this feature branch, the EXISTING launcher runs a quick
+read-only review AUTOMATICALLY after the MVC donor exits successfully:
+
+    BUILD_TEST.bat
+    RUN_TEST.bat mvscur1 clean
+
+It scans all numbered shots under test/87.203/clean_rips/ and writes to
+test/87.203/clean_rips_review/:
+
+- clean_rips_contact_sheet.png: actual native no-fighter MVC background
+  composites, first/middle/last selected samples per burst, with checkerboard
+  indicating originally transparent pixels; up to 36 representative shots.
+- clean_rips_review.json: each shot's count, source frame range, 4 native
+  layers, verified hash count, sampled visible-pixel coverage and the row
+  index/shot name mapping for the contact sheet.
+- clean_rips_review.txt: a small summary with corrupt or missing source
+  files highlighted. The review summary and contact-sheet previews can be
+  replaced by a later review; original clean-rip RGBA shots remain untouched.
+
+Default SAMPLED verification checks the size/presence of EVERY indexed
+native RGBA image plus native FNV64 hashes at the first, middle, last
+sample of each shot, all four layers. It requires a valid completed burst
+count and exact four-layer frames. Unfinished bursts are called INCOMPLETE,
+and missing/truncated/hash-mismatched frames produce ERROR. This is NOT
+a blanket statement that all raw pixels were verified.
+
+For a FULL integrity review of every file, run manually after closing MVC:
+
+    python dev\stage_capture\test_review_clean_rips.py
+    python dev\stage_capture\REVIEW_CLEAN_RIPS.py --root "F:\xmvsf\test\87.203\clean_rips" --output "F:\xmvsf\test\87.203\clean_rips_review" --full --status-log "F:\xmvsf\test\87.203\stage_capture\status.log"
+
+The automatic sampled review does not change RUN_TEST's original ROM exit
+code. Its result is appended to the same existing MSYS status.log. It does
+not create blue PART_DONE or green LEVEL_DONE merely because screenshots
+look plausible. Full level geography, sprites-as-scenery, animation-cycle
+coverage, and visual comparison against native MVC frames remain separate
+work. No GitHub Actions, added launcher, or Stable modifications.
