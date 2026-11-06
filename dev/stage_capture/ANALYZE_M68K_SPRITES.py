@@ -24,8 +24,8 @@ RUN = re.compile(r'run_\d+\Z')
 OPCODE_NAME='mvc_opcodes_decrypted_host_words.bin'
 DATA_NAME='mvc_program_data_host_words.bin'
 FILE_NAMES=('m68k_writer_pcs.tsv','m68k_object_families.tsv',
-            'm68k_tile_transitions.tsv','m68k_writer_code.tsv',
-            'm68k_manifest.json','m68k_summary.txt')
+            'm68k_tile_transitions.tsv','m68k_manifest.json','m68k_summary.txt')
+# Raw opcode bytes in m68k_writer_code.tsv are intentionally LOCAL ONLY.
 
 class TraceError(ValueError):
     pass
@@ -212,7 +212,9 @@ def analyze(root:Path,output:Path,pc_limit:int=600)->dict:
             'verified_stage_sprite_identity':False,
             'interleaving_verified_by_this_tool':False,
             'confidence_note':'Only writer-PC and object fields are observed. A-register ROM pointers and same-slot transitions are correlation candidates, not proven source tables or animation scripts.',
-            'rom_binaries_in_report':False}
+            'rom_binaries_in_report':False,
+            'raw_opcode_windows_in_report':False,
+            'local_private_opcode_windows_file':'m68k_writer_code.tsv'}
     (output/'m68k_manifest.json').write_text(json.dumps(report,indent=2)+'\n',encoding='utf-8')
     summary=[f'MVC1 M68K WRITER PROVENANCE: {writer_count} events',
              f'Source trace: {run or "NOT FOUND"}',
