@@ -6,6 +6,7 @@ set "PATH=C:\msys64\ucrt64\bin;C:\msys64\usr\bin;%PATH%"
 set "XMVSF_PROJECT=%PROJECT%"
 REM Offline artifact review uses Python only. Never reaches ROM checks or EXE.
 if /I "%~1"=="review" goto :offline_clean_review
+if /I "%~1"=="sprites" goto :offline_sprite_factory
 REM Stage 87.203 CAPTURE BRANCH: the input is MVC1 mvscur1, not XMVSF.
 REM Explicit variants: RUN_TEST.bat mvsc / RUN_TEST.bat mvscu.
 REM To run original XMVSF for DHC testing: RUN_TEST.bat xmvsfu.
@@ -480,3 +481,30 @@ if exist "%PROJECT%\test\87.203\clean_rips_review\clean_rips_review_bundle.zip" 
   echo ERROR: Review bundle could not be created.
 )
 exit /b %REVIEW_RC%
+
+
+:offline_sprite_factory
+echo.
+echo STAGE 87.203: OFFLINE CPS2 DIRECT-TILE SPRITE FACTORY (NO ROM LAUNCHED)
+where python.exe >nul 2>nul
+if errorlevel 1 (
+  echo ERROR: Python unavailable. Original files remain unchanged.
+  exit /b 1
+)
+if "%~2"=="" goto :offline_sprite_all
+echo Direct sprite tile ID: %~2
+python.exe "%PROJECT%\dev\stage_capture\SPRITE_FACTORY.py" --clean-root "%PROJECT%\test\87.203\clean_rips" --capture "%PROJECT%\test\87.203\stage_capture" --output "%PROJECT%\test\87.203\sprite_factory" --tile "%~2"
+goto :offline_sprite_finished
+
+:offline_sprite_all
+python.exe "%PROJECT%\dev\stage_capture\SPRITE_FACTORY.py" --clean-root "%PROJECT%\test\87.203\clean_rips" --capture "%PROJECT%\test\87.203\stage_capture" --output "%PROJECT%\test\87.203\sprite_factory"
+
+:offline_sprite_finished
+set "SPRITE_RC=%ERRORLEVEL%"
+if exist "%PROJECT%\test\87.203\sprite_factory\sprite_factory_review_bundle.zip" (
+  echo.
+  echo Sprite review ZIP: "%PROJECT%\test\87.203\sprite_factory\sprite_factory_review_bundle.zip"
+) else (
+  echo ERROR: Sprite Factory review ZIP was not created. Check original capture paths.
+)
+exit /b %SPRITE_RC%
