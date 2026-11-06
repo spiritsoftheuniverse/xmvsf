@@ -81,6 +81,8 @@ def analyze(probe, chat, handoff):
     for age in range(165):
         stages = set()
         for ep in episodes:
+            if ep["exit"] is not None and age>=ep["exit"]-ep["root"]:
+                continue  # Interrupted super cannot prove its later natural stages.
             if ep["attack"] is None or age<ep["attack"]-ep["root"]:
                 stages.add("STARTUP")
             elif ep["recovery"] is None or age<ep["recovery"]-ep["root"]:
@@ -89,7 +91,7 @@ def analyze(probe, chat, handoff):
                 stages.add("RECOVERY")
         actual = tested.get(age,[])
         matrix.append({
-            "offset":age,"native_phase_observed":"/".join(sorted(stages)),
+            "offset":age,"native_phase_observed":("/".join(sorted(stages)) if stages else "NO_ACTION_OBSERVED"),
             "observed_attempts":len(actual),
             "native_ken_successes":sum(x["outcome"]=="CONFIRMED_NATIVE_KEN_2E00"
                                       for x in actual),
