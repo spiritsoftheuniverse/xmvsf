@@ -1258,6 +1258,38 @@ struct State {
                           "PROOF_156_KEN_NATIVE_TWO_BUTTON_EDGE");
                 if(now==inputBegin[side]+(earlyCancel?8u:16u))
                     event(now,side,ram,"DHC_KEN_NATIVE_INPUT_RELEASED");
+                // 87.192: only the reserve's REAL native ROM decision
+                // may enter the super catalog. Nothing selects 2E00,
+                // 2E02 or another assumed hyper on the host's behalf.
+                // Wrong specials/normals do not count as a super, and
+                // the existing abort/chain release handles rejection.
+                if(reserveOwnershipTest && ownedCommand[side].valid){
+                    const XM87184Life::Sample observed={
+                        pointId,rw(ram,p+0x60u),rw(ram,p+0xA0u),
+                        rw(ram,p+0x08u),rl(ram,p+0x34u),
+                        rb(ram,p+0xD6u)};
+                    if(XM87192Owner::state().confirm(
+                          side,now,ownedCommand[side],
+                          observed,rom,size)){
+                        phase[side]=SUPER_STARTED;
+                        kenSuperConfirmed[side]=true;
+                        chainUsed[side]=true;
+                        kenSuperAt[side]=now;
+                        kenNeutralSince[side]=0u;
+                        event(now,side,ram,
+                            "DHC_192_RESERVE_NATIVE_ROM_2E_SUPER_ACCEPTED_AND_CATALOGED");
+                        event(now,side,ram,"DHC_NATIVE_INPUT_DISPATCH_ACCEPTED");
+                        XM87192Owner::state().clear(side);
+                    }else if(now>inputBegin[side]+
+                          ownedCommand[side].duration()+8u){
+                        event(now,side,ram,
+                            "DHC_192_RESERVE_ROM_DID_NOT_SELECT_SUPER_REFUSED");
+                        abort(now,side,ram,
+                            "DHC_192_NON_SUPER_NATIVE_ACTION_NOT_ACCEPTED");
+                        XM87192Owner::state().clear(side);
+                    }
+                    continue;
+                }
                 const unsigned act=rw(ram,p+0x60u);
                 const unsigned script=rl(ram,p+0x34u);
                 const unsigned original=kenExpectedScript[side];
