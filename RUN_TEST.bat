@@ -159,7 +159,7 @@ echo 87.185: UNSAFE delayed native 2P priming stays OFF in interactive TEST.
 echo 87.185: immediate 3P/2P paths, Ken no-charge arrival, and F9 stay intact.
 echo 87.185: delayed DHC input priming disabled by default, preserves original ROM state.
 echo 87.184 native Shinkuu action lifetime: 2E08 startup/attack, 2E0A recovery, exact exit.
-echo 87.185 exact recovery rebound is EXPERIMENTAL; startup input recognized, startup tag unverified.
+echo 87.191 ROM super start-to-real-exit DHC: %XM87191_TEST_OPEN_SUPER_LIFETIME%  (no phase/timer/air-mode availability veto)
 echo Native 2E family: %XM87189_TEST_NATIVE_SUPER_FAMILY% full original attack: %XM87188_TEST_FULL_ATTACK% recovery: %XM87185_TEST_RECOVERY_REBOUND%
 echo XMVSF Stage 87.191 TEST - KEEP KEN SHORYUREPPA; CUT OUTGOING RYU PROJECTILE HITS
 echo Executable: %EXE%
