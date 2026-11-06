@@ -29,6 +29,9 @@ REM 87.186 TEST-only: arm controller 8 while the verified active action edge is 
 if not defined XM87185_TEST_EARLY_ACTIVE_TAG set "XM87185_TEST_EARLY_ACTIVE_TAG=1"
 REM 87.186 TEST-only: after exact 2E0A->2E08 native rebound, use original ROM tag script bridge.
 if not defined XM87185_TEST_RECOVERY_REBOUND set "XM87185_TEST_RECOVERY_REBOUND=1"
+REM 87.186 TEST-only: first four real ATTACK frames (+4E=40..3D).
+REM To isolate stable 87.185 behavior, set this to 0 in parent CMD.
+if not defined XM87186_TEST_FIRST_FOUR_ATTACK set "XM87186_TEST_FIRST_FOUR_ATTACK=1"
 set "XM87182_NATIVE_PC_TRACE_LOG=%OBSROOT%\native_pc_trace_test.tsv"
 REM 87.181 append-only launch health. This marker is created even if
 REM the menu closes without entering a CPS2 driver.
