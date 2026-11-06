@@ -68,7 +68,7 @@ public:
                 }
                 start_=SDL_GetTicks();
                 std::fprintf(stderr,
-                    "XM87.195 MENU GIF frames=%d size=%dx%d bright=30%% file=%s\\n",
+                    "XM87.195 MENU GIF frames=%d size=%dx%d bright=30%% file=%s\n",
                     animation_->count,width_,height_,file.c_str());
                 return true;
             }
@@ -79,7 +79,7 @@ public:
                 width_=single_->w;height_=single_->h;
                 start_=SDL_GetTicks();totalMs_=100u;ends_.push_back(100u);
                 std::fprintf(stderr,
-                    "XM87.195 MENU GIF static fallback: SDL2_image <2.6 file=%s\\n",
+                    "XM87.195 MENU GIF static fallback: SDL2_image <2.6 file=%s\n",
                     file.c_str());
                 return true;
             }
@@ -88,7 +88,7 @@ public:
         // Missing local asset is not a reason to block the game.
         // Never substitute another art or create fake GIF frames.
         std::fprintf(stderr,
-            "XM87.195 MENU GIF absent: put %s in F:/xmvsf/_art (or repo _art). Menu remains normal.\\n",
+            "XM87.195 MENU GIF absent: put %s in F:/xmvsf/_art (or repo _art). Menu remains normal.\n",
             filename);
         return false;
     }
@@ -113,7 +113,7 @@ public:
             texture_=SDL_CreateTextureFromSurface(renderer,surface);
             if(!texture_ && !reported_){
                 std::fprintf(stderr,
-                    "XM87.195 MENU GIF texture failed: %s\\n",SDL_GetError());
+                    "XM87.195 MENU GIF texture failed: %s\n",SDL_GetError());
                 reported_=true;
             }
             if(!texture_)return;
