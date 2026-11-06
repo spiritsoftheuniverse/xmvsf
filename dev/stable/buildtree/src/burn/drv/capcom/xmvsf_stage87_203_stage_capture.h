@@ -21,7 +21,15 @@ static const unsigned MAP_BYTES=0x4000u;
 static const unsigned PALETTE_BYTES=0x1800u;
 static const unsigned ROW_BYTES=0x800u;
 static const unsigned OAM_BYTES=0x2000u;
-static const unsigned MAX_FRAMES=36000u; // bounded 10-min recording
+static const unsigned DEFAULT_BATCH_FRAMES=12000u; // per-file limit, NOT a session limit
+inline unsigned batchFrameLimit(){
+    const char* value=std::getenv("XM87203_BATCH_FRAMES");
+    if(!value || !*value)return DEFAULT_BATCH_FRAMES;
+    char*end=nullptr;
+    const unsigned long n=std::strtoul(value,&end,10);
+    return end!=value && *end==0 && n>=300ul && n<=36000ul?
+        static_cast<unsigned>(n):DEFAULT_BATCH_FRAMES;
+}
 
 inline int mkdirExclusive(const char* path){
 #ifdef _WIN32
@@ -90,7 +98,36 @@ struct Recorder {
     std::FILE *status=nullptr,*framesFile=nullptr,*registers=nullptr;
     std::FILE *maps=nullptr,*rows=nullptr,*palettes=nullptr,*objects=nullptr;
     std::string root,sessionDir;
+    unsigned long long totalFrames=0,completedBatches=0;
     ~Recorder(){close();}
+    void resetBatch(){
+        close();
+        initialized=false;enabled=false;hasStage=false;
+        gfxReady=false;gfxAttempted=false;
+        stage=0;lastFrame=~0u;frames=mapWrites=rowWrites=paletteWrites=0u;
+        objectWrites=0;activeBankFrames=missingBankFrames=0;
+        mapSetComplete=false;palHash=0;palKnown=false;
+        std::memset(mapHash,0,sizeof(mapHash));
+        std::memset(rowHash,0,sizeof(rowHash));
+        std::memset(mapKnown,0,sizeof(mapKnown));
+        std::memset(rowKnown,0,sizeof(rowKnown));
+        sessionDir.clear();
+    }
+    bool rotateBatch(unsigned currentFrame){
+        const unsigned count=frames;
+        const std::string finished=sessionDir;
+        char msg[240];
+        std::snprintf(msg,sizeof(msg),
+            "session=%s frames=%u final_frame=%u total_frames=%llu all_batches_unverified=1",
+            finished.c_str(),count,lastFrame,totalFrames);
+        statusLine("BATCH_DONE",currentFrame,msg);
+        // Close files before making next independent immutable session.
+        ++completedBatches;
+        resetBatch();
+        if(!openFiles())return false;
+        statusLine("BATCH_NEXT",currentFrame,sessionDir.c_str());
+        return enabled && !failed;
+    }
     void close(){
         std::FILE *all[]={framesFile,registers,maps,rows,palettes,objects,status};
         for(std::FILE *f:all)if(f)std::fclose(f);
@@ -256,9 +293,8 @@ struct Recorder {
            !f.palette || !f.oam || f.frame==lastFrame)return;
         if(!gfxAttempted)dumpDecodedGfx(f);
         if(failed)return;
-        if(frames>=MAX_FRAMES){
-            statusLine("INCOMPLETE",f.frame,"capture_frame_limit_reached;_no_completion_claim");
-            enabled=false;close();return;
+        if(frames>=batchFrameLimit()){
+            if(!rotateBatch(f.frame))return; // the boundary frame enters NEW batch
         }
         if(lastFrame!=~0u && f.frame<lastFrame){
             statusLine("SESSION_RESET",f.frame,"native_frame_counter_rewind_new_segment");
@@ -375,12 +411,12 @@ struct Recorder {
            !put32(objects,f.objectBank)||
            std::fwrite(f.oam,1,OAM_BYTES,objects)!=OAM_BYTES)
             return fail(f.frame,"oam_write_failed");
-        ++frames;++objectWrites;lastFrame=f.frame;
+        ++frames;++objectWrites;++totalFrames;lastFrame=f.frame;
         if((frames%300u)==0u){
             char msg[160];std::snprintf(msg,sizeof(msg),
-                "source_rom=%s stage_id=%s frames=%u map_snapshots=%u row_snapshots=%u palette_snapshots=%u oam_frames=%llu still_recording=1",
+                "source_rom=%s stage_id=%s batch_frames=%u total_frames=%llu batch=%llu map_snapshots=%u row_snapshots=%u palette_snapshots=%u oam_frames=%llu still_recording=1",
                 f.driver?f.driver:"unknown",stage==~0u?"unverified":"observed",
-                frames,mapWrites,rowWrites,paletteWrites,objectWrites);
+                frames,totalFrames,completedBatches+1ull,mapWrites,rowWrites,paletteWrites,objectWrites);
             statusLine("PROGRESS",f.frame,msg);
             if(std::fflush(framesFile)!=0 || std::fflush(registers)!=0 ||
                std::fflush(maps)!=0 || std::fflush(rows)!=0 ||
