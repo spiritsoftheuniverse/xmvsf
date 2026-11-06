@@ -23,6 +23,7 @@
 #include "xmvsf_stage87_189_native_super_family.h" // original ROM 2E family
 #include "xmvsf_stage87_191_super_lifetime_gate.h" // no phase-specific DHC availability
 #include "xmvsf_stage87_192_reserve_super_ownership.h" // incoming reserve owns captured gesture
+#include "xmvsf_stage87_193_deterministic_exit_protocol.h" // actor-addressed deterministic native exit
 #include "xmvsf_stage87_177_dhc_punch_chords.h" // explicit 3P host / native 2P helper dependency
 #include <cstdint>
 #include <cstdio>
@@ -95,7 +96,7 @@ struct State {
          delayedPrimeExperimental=false,unsafeConsumedPunchReplay=false,
          earlyActiveDirectTest=false,recoveryReboundTest=false,
          firstFourAttackTest=false,fullAttackTest=false,familyTest=false,liveLifetimeTest=false,
-         reserveOwnershipTest=false,
+         reserveOwnershipTest=false,deterministicExitTest=false,
          chainUsed[2]={false,false};
     Phase phase[2]={IDLE,IDLE};
     bool armedFromFamily[2]={false,false};
@@ -175,6 +176,9 @@ struct State {
         const char* owned=std::getenv("XM87192_TEST_RESERVE_OWNERSHIP");
         reserveOwnershipTest=liveLifetimeTest && owned &&
             std::strcmp(owned,"1")==0;
+        const char* exitProtocol=std::getenv("XM87193_TEST_DETERMINISTIC_EXIT");
+        deterministicExitTest=reserveOwnershipTest && exitProtocol &&
+            std::strcmp(exitProtocol,"1")==0;
         const char* firstFour=std::getenv("XM87186_TEST_FIRST_FOUR_ATTACK");
         firstFourAttackTest=enabled && earlyCancel && firstFour &&
              std::strcmp(firstFour,"1")==0;
@@ -330,38 +334,28 @@ struct State {
         if(side==0u && earlyCancel &&
            rw(ram,0x4052u)==0x12u && rw(ram,0x4852u)==0x14u)
             oldRyuProjectiles.arm(ram,now);
-                capturedMode[side]=rw(ram,p+0xA0u);
-                capturedAction[side]=rw(ram,p+0x60u);
-                capturedScript[side]=rl(ram,p+0x34u);
-                captured256[side]=rb(ram,p+0x256u);
-                captured259[side]=rb(ram,p+0x259u);
-                capturedD6[side]=rb(ram,p+0xD6u);
-                captured06[side]=rw(ram,p+0x06u);
-                captured08[side]=rw(ram,p+0x08u);
-                captured0A[side]=rw(ram,p+0x0Au);
-                // Native 68000 013B8E: partner tag command acceptance
-                // writes controller +256/+259=8. The PC 00C4E6
-                // dispatcher routes controller 8 to 011E50, which resets
-                // the state scheduler and selects a fighter-specific tag
-                // routine. Action 32/00 is selected downstream in native
-                // ROM code PC 011B00/011B16. No host sprite-script write.
-                // The 87.145 test wrote script 32/00 but left the actor
-                // in super controller +A0=2A28, so the ROM immediately
-                // rewrote 2E08 on the NEXT frame.
-                //
-                // Real native frames 2758->2759:
-                //   PRE-TAG Ryu +A0=002A -> TAG Ryu +A0=2A00.
-                // At PC 033762 Ryu's controller 8 copies current A0
-                // high byte to A1 then sets A0 high=2A. We must enter
-                // with high=0, or the native code would produce 2A2A.
-                // Do not force the final 2A00 too early. Prepare the
-                // observed PRE-TAG state and let the ROM perform 2A00.
-                wb(ram,p+0x256u,0x08u);
-                wb(ram,p+0x259u,0x08u);
-                ww(ram,p+0x06u,0u);
-                ww(ram,p+0x08u,0u);
-                ww(ram,p+0x0Au,0u);
-                ww(ram,p+0xA0u,0x002Au);
+                // Capture the ORIGINAL actor state once. The exit
+                // protocol is identical for either side and does not
+                // know which outgoing/incoming character owns a super.
+                const XM87193Exit::Transaction exit=
+                    XM87193Exit::beginNativeExit(ram,side);
+                if(!exit.begun){
+                    abort(now,side,ram,"DHC_193_NATIVE_EXIT_TRANSACTION_FAILED");
+                    return;
+                }
+                const XM87193Exit::Snapshot& original=exit.before;
+                capturedMode[side]=original.mode;
+                capturedAction[side]=original.action;
+                capturedScript[side]=original.script;
+                captured256[side]=original.controller256;
+                captured259[side]=original.controller259;
+                capturedD6[side]=original.d6;
+                captured06[side]=original.step06;
+                captured08[side]=original.step08;
+                captured0A[side]=original.step0A;
+                // beginNativeExit already armed controller8. All
+                // mirrored exit writes and the snapshot are indivisible
+                // in this host callback; the ROM still selects 3200.
                 phase[side]=WAIT_TAG_CONTROLLER;
                 started[side]=now;
                 lastAcceptedAt[side]=selectedAt;

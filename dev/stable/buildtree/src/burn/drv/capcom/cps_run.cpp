@@ -557,6 +557,7 @@ INT32 Cps2Frame()
     // The original physical button array is restored after CpsRwGetInp,
     // allowing the host to recognize QCF+3P normally.
     bool xm87177PrequeueThreePunch=false;
+    bool xm87193PrequeueKickToTagPunch=false;
     if(!dhcInput.active && !bBurnRunAheadFrame && dhcGameMatches && CpsRamFF){
         const unsigned physicalPunches=
             (CpsInp001[4]&1u)|((CpsInp001[5]&1u)<<1u)|
@@ -601,10 +602,31 @@ INT32 Cps2Frame()
                 XM87140Chat::state().candidate[0],
                 point,bench,action,mode,physicalPunches|physicalKicks,
                 genuineRecoveryWindow,nativeFamilyPreCpu);
-        if(xm87177PrequeueThreePunch){
+        // 87.193: 87.192.zip shows 6/6 PP DHC handoffs but both
+        // reserve-owned KK requests fail before Ryu exits. Native C0
+        // becomes 0301 (LK+MK) and selects 0214 / 0002, even though
+        // the FOLLOWING frame's host port is neutralized. Thus the
+        // outgoing controller's input MUST be normalized BEFORE the
+        // current native CpsRwGetInp; the host/reserve still sees the
+        // untouched original QCF+KK after temporary port restoration.
+        // One reusable protocol maps 2K/3K -> original native 2P tag
+        // edge. Existing punch-pair/3P behavior is unchanged.
+        const auto outgoingPlan=XM87193Exit::beforeCpu(
+            XM87144::state().deterministicExitTest &&
+            XM87144::state().enabled && XM87144::state().earlyCancel &&
+            point==0x12u && bench==0x14u &&
+            XM87140Chat::state().candidate[0],
+            XM87144::state().phase[0]==XM87144::IDLE,
+            nativeFamilyPreCpu,physicalPunches|physicalKicks);
+        xm87193PrequeueKickToTagPunch=outgoingPlan.active &&
+            (outgoingPlan.originalButtons&0x38u)!=0u &&
+            (outgoingPlan.originalButtons&0x07u)==0u;
+        if(xm87177PrequeueThreePunch || xm87193PrequeueKickToTagPunch){
             dhcInput.active=true;
-            dhcInput.isolated=false; // canonical 2P, NOT zeroed input
-            dhcInput.attacks=XM87177Chords::nativeKenTwoPunchMask();
+            dhcInput.isolated=false; // canonical native 2P, not neutral
+            dhcInput.attacks=xm87193PrequeueKickToTagPunch?
+                outgoingPlan.nativeButtons:
+                XM87177Chords::nativeKenTwoPunchMask();
             dhcInput.directions=
                 (CpsInp001[0]&1u)|((CpsInp001[1]&1u)<<1u)|
                 ((CpsInp001[2]&1u)<<2u)|((CpsInp001[3]&1u)<<3u);
@@ -895,6 +917,10 @@ INT32 Cps2Frame()
             XM87140Chat::state().log((unsigned)GetCurrentFrame(),
                 XM87140Chat::SYSTEM,
                 "XM87.178_PREQUEUE_3P_NORMALIZED_TO_NATIVE_2P");
+        if(xm87193PrequeueKickToTagPunch)
+            XM87140Chat::state().log((unsigned)GetCurrentFrame(),
+                XM87140Chat::MATCH,
+                "DHC_193_OUTGOING_2K_TO_NATIVE_2P_BEFORE_CPU_RESERVE_KEEPS_ORIGINAL_KK");
         // 87.176: diagnostic only. The queued DHC takes exclusive control
         // of the P1 CPS input port during tag transfer, shielding the
         // physical chord from being consumed AGAIN by outgoing Ryu.
