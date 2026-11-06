@@ -47,6 +47,13 @@ struct Arrival {
         }
         lastY=nativeY;
         if(nativeY>maxY)maxY=nativeY;
+        if(!descended){
+            // A single host/ROM jump straight to floor is not a
+            // physically observed native jump. Keep the native spawn
+            // X instead of silently recreating the old teleport.
+            positionX=startX;
+            return positionX;
+        }
         int progress=nativeY-startY;
         const int span=floorY-startY;
         if(progress<0)progress=0;
