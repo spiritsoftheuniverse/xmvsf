@@ -97,3 +97,53 @@ Each new 87.203 donor run now creates a **new `session_XXXX/` directory** under 
 ### 87.203 build smoke-test crash fix
 
 The 2026-11-06 build stopped before native compilation when `test_native_stage_capture_203.exe` raised `std::out_of_range: basic_string::substr` (position 46 beyond a 13-character path). The session creator accidentally used `sessionDir+"/"+name` while `sessionDir` was empty. The correct path is `root+"/"+name`. The writer now validates the root prefix before extracting `latest.txt`, and the smoke test asserts that the directory lives under the configured capture root and that two runs never reuse the same session directory. No Stable binaries, warm objects or old recordings are deleted.
+
+## Offline MVC scene reconstruction: Stage 75/76 Wily model
+
+The strongest old reconstruction implementation is the Stage75/76 Wily
+SDL2 importer/painter in src/intf/video/sdl/xmvsf_stage76_wily.h, together
+with runtime/stable/assets/xmvsf/wily75/manifest.tsv. The original
+Stage44/47 exporter captures donor pixels but is not a complete scene
+reconstruction model. Stage75/76 has independent layered XRGA textures,
+animation states and actor timelines, so it is the reference foundation.
+Its Wily-specific camera bounds, factory stops, and 28/45-frame clocks
+are never copied into another stage.
+
+The new standard-library-only Python importer is:
+
+    dev/stage_capture/BUILD_STAGE_FROM_CAPTURE.py
+
+Run the isolated regression locally, without any GitHub Actions:
+
+    cd /d F:\xmvsf
+    python dev\stage_capture\test_build_stage_from_capture.py
+
+Build a selected MVC native frame into three independent Wily-format
+XRGA texture atlases, retaining the complete tile-change timeline:
+
+    python dev\stage_capture\BUILD_STAGE_FROM_CAPTURE.py --capture "F:\xmvsf\test\87.203\stage_capture" --session latest --frame 18000 --output "F:\xmvsf\test\87.203\reconstruction_18000"
+
+A ZIP can also be supplied as --capture with --session session_0002.
+Always choose a NEW --output directory: existing results are never
+overwritten, and no source ROM / gfx is committed.
+
+Generated output:
+
+- layer1_*.xrga (512x512, native 8px tiles)
+- layer2_*.xrga (1024x1024, native 16px tiles)
+- layer3_*.xrga (2048x2048, native 32px tiles)
+- map_snapshots.tsv: every map snapshot's frame/bank/native hash
+- cell_changes.tsv.gz: all observed per-cell tile, palette, flip changes
+- animation_candidates.tsv: observed changed cells, not verified loops
+- stage76_import_manifest.tsv: Wily-style atlas/size records for generic
+  import; not yet compatible with Stage75's hard-coded scene contract
+- stage_manifest.json: provenance, asset hashes, verification gaps
+
+The old compositor and the live native gameplay code are not modified.
+This is an offline atlas and observation builder, not a complete automatic
+stage installation. It does not claim any blue PART_DONE or green LEVEL_DONE
+until independently verified. Stage ID, actual camera world bounds,
+raster priority, true CpsPal effective colors, sealed F9 replay, full
+actor classification and animation cycle completion remain unverified.
+Only the source captured tilemap pages, not a guessed stage panorama,
+are drawn; visual preview colors need comparison with native frames.
