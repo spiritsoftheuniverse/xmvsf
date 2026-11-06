@@ -85,3 +85,7 @@ process/TEST exit status. `RUN_TEST.bat` reports the missing-ROM cause
 with an `ERROR` event in the existing MSYS watcher and skips irrelevant
 XMVSF DHC observers/disassembly. A failed ROM cannot produce native
 layer coverage or any `PART_DONE`/`LEVEL_DONE` status.
+
+## 87.203 MVC donor tilemap byte-order correction (from real 24,058-frame capture)
+
+Actual `stage_capture.zip` recorded valid little-endian CPS2 register bytes: register offsets 0x02, 0x04, 0x06 contain 0x9080, 0x90C0, 0x9100 and therefore map to `0x908000`, `0x90C000`, and `0x910000` after shifting. The prior `be16` helper incorrectly decoded them outside CPS2 graphics RAM, producing a **zero-byte maps.bin** even after 24,058 frames. We now read native registers with `le16` consistently for tilemap addresses, camera columns, row-scroll enable and row base. The new regression asserts original recorded register bytes, and the runtime stops after five consecutive unmapped graphics-bank frames or 180 frames without any map snapshots. It NEVER reports level completion from those checks alone. `row_scroll.bin` was correctly empty: MVC register 0x22 was `0x000e` (row-scroll bit 0 clear) throughout the actual capture. The earlier archived camera/ OAM / palette / decoded-gfx evidence remains useful; a new play sweep is needed for missing tiles.

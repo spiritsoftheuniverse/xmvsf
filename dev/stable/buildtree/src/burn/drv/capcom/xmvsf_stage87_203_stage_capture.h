@@ -21,8 +21,17 @@ static const unsigned MAX_FRAMES=36000u; // bounded 10-min recording
 inline bool isMarvelVsCapcom(const char* driver){
     return driver && std::strncmp(driver,"mvsc",4)==0;
 }
-inline unsigned be16(const unsigned char *p,unsigned offset){
-    return (unsigned(p[offset])<<8u)|unsigned(p[offset+1u]);
+// FBNeo CPS2 RAM/register bytes are host-ordered under LSB_FIRST.
+// The old big-endian interpretation converted valid 0x908000 tilemaps
+// into unmapped 0x808000 addresses; stage_capture.zip proved this.
+inline unsigned le16(const unsigned char *p,unsigned offset){
+    return unsigned(p[offset])|(unsigned(p[offset+1u])<<8u);
+}
+inline unsigned gfxMapBank(const unsigned char *p,unsigned regOffset){
+    return (le16(p,regOffset)<<8u)&0xFFC000u;
+}
+inline unsigned rowBank(const unsigned char *p,unsigned regOffset){
+    return (le16(p,regOffset)<<8u)&0xFFF800u;
 }
 inline std::uint64_t hash64(const unsigned char *p,unsigned n){
     std::uint64_t h=UINT64_C(14695981039346656037);
@@ -62,6 +71,8 @@ struct Recorder {
     bool gfxReady=false,gfxAttempted=false;
     unsigned stage=0,lastFrame=~0u,frames=0u,mapWrites=0u,rowWrites=0u,paletteWrites=0u;
     unsigned long long objectWrites=0;
+    unsigned activeBankFrames=0,missingBankFrames=0;
+    bool mapSetComplete=false;
     std::uint64_t mapHash[MAX_SLICES][3]={},rowHash[MAX_SLICES]={},palHash=0u;
     bool mapKnown[MAX_SLICES][3]={},rowKnown[MAX_SLICES]={},palKnown=false;
     std::FILE *status=nullptr,*framesFile=nullptr,*registers=nullptr;
@@ -209,12 +220,44 @@ struct Recorder {
                 statusLine("STAGE_BEGIN",f.frame,msg);
             }
         }
+        // Real MVC registers must point into 0x900000..0x930000.
+        // This checks source-backed graphics RAM, not a guessed ROM stage ID.
+        unsigned validBanks=0,missingBanks=0;
+        for(unsigned s=0;s<f.sliceCount;++s){
+            for(unsigned l=0;l<3u;++l){
+                const unsigned addr=f.mapBank[s][l];
+                if(addr==0u)continue; // original ROM boot/reset frame
+                if(addr>=0x900000u && addr+MAP_BYTES<=0x930000u){
+                    ++validBanks;
+                    if(!f.map[s][l])++missingBanks;
+                }else{
+                    ++missingBanks;
+                }
+            }
+        }
+        if(validBanks>0u || missingBanks>0u){
+            ++activeBankFrames;
+            if(missingBanks>0u)++missingBankFrames;
+            else missingBankFrames=0u;
+        }
+        if(missingBankFrames>=5u){
+            fail(f.frame,"MVC_TILEMAP_ADDRESS_INVALID_OR_UNMAPPED_check_CPS2_register_byte_order");
+            return;
+        }
+        if(frames>180u && mapWrites==0u){
+            fail(f.frame,"MVC_TILEMAPS_EMPTY_after_180_frames_stop_before_more_data_lost");
+            return;
+        }
+        if(!mapSetComplete && mapKnown[0][0] && mapKnown[0][1] && mapKnown[0][2]){
+            mapSetComplete=true;
+            statusLine("MAP_SOURCE_READY",f.frame,"scroll1_scroll2_scroll3_native_banks_observed_not_yet_builder_verified");
+        }
         // Frame metadata and every raster slice are kept at their original
         // emulation-frame position. One-frame-lagged OAM is not time-shifted.
         if(std::fprintf(framesFile,"%u\t%u\t%u\t%u\t%u\t%u\t%u\t%u\t%u\t%u\t%u\n",
-            f.frame,f.stage,f.phase,f.sliceCount,be16(f.reg[0],0x0c),
-            be16(f.reg[0],0x0e),be16(f.reg[0],0x10),be16(f.reg[0],0x12),
-            be16(f.reg[0],0x14),be16(f.reg[0],0x16),f.objectBank)<0)
+            f.frame,f.stage,f.phase,f.sliceCount,le16(f.reg[0],0x0c),
+            le16(f.reg[0],0x0e),le16(f.reg[0],0x10),le16(f.reg[0],0x12),
+            le16(f.reg[0],0x14),le16(f.reg[0],0x16),f.objectBank)<0)
             return fail(f.frame,"frame_tsv_write_failed");
         if(std::fwrite("FRM1",1,4,registers)!=4 ||
            !put32(registers,f.frame)||!put32(registers,f.stage)||

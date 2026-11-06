@@ -1078,12 +1078,12 @@ INT32 Cps2Frame()
                 f.rasterStart[slice]=slice?(unsigned)nRasterline[slice]:0u;
                 if(!r)continue;
                 for(unsigned layer=0;layer<3u;++layer){
-                    const unsigned bank=(XM87203Stage::be16(r,bankReg[layer])<<8u)&0xFFC000u;
+                    const unsigned bank=XM87203Stage::gfxMapBank(r,bankReg[layer]);
                     f.mapBank[slice][layer]=bank;
                     f.map[slice][layer]=CpsFindGfxRam((INT32)bank,0x4000);
                 }
-                if((XM87203Stage::be16(r,0x22u)&1u) && !CpsDisableRowScroll){
-                    const unsigned bank=(XM87203Stage::be16(r,0x08u)<<8u)&0xFFF800u;
+                if((XM87203Stage::le16(r,0x22u)&1u) && !CpsDisableRowScroll){
+                    const unsigned bank=XM87203Stage::rowBank(r,0x08u);
                     f.rowBank[slice]=bank;
                     f.row[slice]=CpsFindGfxRam((INT32)bank,0x0800);
                 }
