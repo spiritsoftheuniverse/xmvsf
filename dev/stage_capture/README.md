@@ -492,3 +492,76 @@ Source-only regression tests now include an 18-shot paginated ZIP case;
 a separate 22-shot synthetic replay of the failure condition also passed
 locally. Native Windows testing against the user's actual clean-rip
 directory remains outstanding until the regenerated ZIP is inspected.
+
+
+## Offline CPS2 Sprite Factory: address actual decoded object graphics
+
+The MVC donor already gives us the proper pixel addresses; sprite ripping
+does NOT require re-entering the game or keying out a character screenshot.
+Stage44/47 stores original native object records (sprites.tsv), source 16x16
+packed-4bpp tiles (tiles.bin) and the emulator-effective 512-word 32-bit
+sprite palette for each clean sample (palettes.bin). The source nibbles are
+decoded with the same low-level layout as ctv_do.h; object width, height,
+flips, palette and original tile-address wrap are retained. This yields
+independent transparent sprites in their native object dimensions.
+
+Pull feature/stage-87-203-native-layer-recorder and run ONLY the existing
+launcher; BUILD_TEST.bat is NOT necessary for offline source processing:
+
+    cd /d F:\xmvsf
+    RUN_TEST.bat sprites
+
+This checks test/87.203/clean_rips/shot_XXXX first. When source clean shots
+exist, these are preferred because palettes.bin contains the actual
+CpsPal effective 32-bit color cache. It does NOT need a working emulator.
+Without clean shot sources, it falls back to the existing original native
+stage_capture/session_XXXX data: OAM, decoded gfx, and raw palette RAM. Raw
+palette RAM does not prove the effective output of per-page CPS2 palette DMA,
+so this fallback is clearly flagged as color-PROVISIONAL. It still decodes
+genuine original sprite tile bytes, never invented artwork.
+
+The offline runner writes:
+
+    F:\xmvsf\test\87.203\sprite_factory\sprite_factory_review_bundle.zip
+
+The bundle contains sprite_factory_manifest.json, sprite_catalog.tsv,
+paginated sprite_contact_001.png and following contact sheets, plus the
+actual decoded sprites/*.png at native dimensions. The sibling output
+folder also retains sprite_observations.tsv.gz with original object index,
+emulation frame, position, priority, palette, tile number, dimensions and
+flips. The review images are only examples selected from all catalogued
+variants. A direct tile address is represented in hexadecimal in the PNG
+filename: Txxxxx_Pyy_Wn_Hn_Fn.
+
+To query one logical CPS2 object tile ID exactly without entering MVC:
+
+    RUN_TEST.bat sprites 0x12345
+
+More choices are available through the source-only script:
+
+    python dev\stage_capture\test_sprite_factory.py
+
+    python dev\stage_capture\SPRITE_FACTORY.py --clean-root "F:\xmvsf\test\87.203\clean_rips" --output "F:\xmvsf\test\87.203\sprite_factory" --shot shot_0010 --tile 0x12345 --palette 3
+
+    python dev\stage_capture\SPRITE_FACTORY.py --capture "F:\xmvsf\test\87.203\stage_capture" --source telemetry --step 120 --output "F:\xmvsf\test\87.203\sprite_factory"
+
+The tile addressing reproduces the existing CPS2 object's bank wrap, sprite
+width/height and native horizontal/vertical flip rules. It never strips
+black pixels using chroma keys. A missing referenced tile is reported, not
+silently substituted by a fabricated colored rectangle. Gallery paging
+has at most 16 independent sprites per contact sheet, so it avoids the
+older 2048px single-sheet review overflow. It does not touch the prior
+clean-rip images, ROM, source game or Stable. The source remains local
+inside ignored test/ (only the converter code is committed to Git).
+
+CRITICAL: Individual object sprites are not always whole fighter animations.
+MVC draws character bodies, HUD, FX and some scenery as separate original
+CPS2 objects. A tile ID reliably identifies graphical pixels and their
+address; it does NOT identify semantic ownership. Gallery entries remain
+UNCLASSIFIED and false stage completion is prohibited. Animation-track
+grouping, scenery-vs-fighter identification, blending and accurate in-engine
+priority are future verification steps. The real 39,282-frame uploaded OAM
+capture generated 64 separate direct-address sprite previews offline with
+the raw-palette fallback; it passed source-only tests. Native effective-color
+exports from the local clean_rips are still awaiting their first user-run
+visual check and must not be asserted fully pixel matched.
