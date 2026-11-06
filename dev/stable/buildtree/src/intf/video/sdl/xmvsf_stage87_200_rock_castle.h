@@ -7,6 +7,8 @@
 // Native fighters/FX and the source game's flash stay above the full-color art.
 #include <SDL.h>
 #include <SDL_image.h>
+#include "xmvsf_stage87_201_gif_camera.h"
+#include "../../../burner/sdl/xmvsf_stage86_55_options.h"
 #include <algorithm>
 #include <cstdio>
 #include <string>
@@ -138,7 +140,7 @@ public:
 
     // Caller has already verified the stage-05 visual gate and the native
     // 384x224 sprite-capture layer. Never write to CPS2 memory or alter combat.
-    bool paint(SDL_Renderer* r, const SDL_Rect& view, int cameraX,
+    bool paint(SDL_Renderer* r, const SDL_Rect& view, int cameraX, int cameraY,
                unsigned long long gameFrame, unsigned generation,
                const UINT8* spritePixels, const UINT8* flashPixels) {
         if(!r || !spritePixels)return false;
@@ -182,19 +184,22 @@ public:
             }
             return false;
         }
-        // Pixel-art aspect ratio is preserved: crop instead of stretching.
-        // Wide strips follow the verified native stage-05 horizontal camera.
-        SDL_Rect src={0,0,width_,height_};
-        const long long nativeAspect=384LL*height_;
-        const long long gifAspect=224LL*width_;
-        if(gifAspect>nativeAspect){
-            src.w=std::max(1,std::min(width_,int(nativeAspect/224LL)));
-            const int pan=std::max(0,std::min(384,cameraX));
-            src.x=int((long long)(width_-src.w)*pan/384LL);
-        }else if(gifAspect<nativeAspect){
-            src.h=std::max(1,std::min(height_,int((long long)width_*224LL/384LL)));
-            src.y=(height_-src.h)/2;
-        }
+        // Stage86.29/86.49 native camera registration, now in BOTH axes.
+        // Source GIF is ONE complete world picture, never a Wily tile manifest:
+        // 384x224 native view + 381px X travel + 270px Y travel.
+        const XM87201GifCamera::Rect crop=
+            XM87201GifCamera::crop(width_,height_,cameraX,cameraY);
+        if(crop.w<1 || crop.h<1)return false;
+        SDL_Rect src={crop.x,crop.y,crop.w,crop.h};
+        // Wily-compatible DF: dim only the stage art (30%), preserving
+        // untouched native fighters/HUD/FX. No expensive screen readback.
+        const Uint8 backgroundLevel=xm8655DoubleFeature()?77:255;
+        SDL_SetTextureColorMod(image_,backgroundLevel,backgroundLevel,backgroundLevel);
+        if(gameFrame%300u==0u)
+            std::fprintf(stderr,
+                "XM87.201 GIF_CAMERA native=%d,%d world=%d,%d crop=%d,%d,%d,%d source=%dx%d df=%d\\n",
+                cameraX,cameraY,XM87201GifCamera::worldCameraX(cameraX),cameraY,
+                crop.x,crop.y,crop.w,crop.h,width_,height_,int(xm8655DoubleFeature()));
         if(SDL_RenderCopy(r,image_,&src,&view)!=0)return false;
         // Identical depth order to the existing Wily painter: custom stage,
         // dizzy underlay, native fighter/FX sprite extraction, native flashes.
