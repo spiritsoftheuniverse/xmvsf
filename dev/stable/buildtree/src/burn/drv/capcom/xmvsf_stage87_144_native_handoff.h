@@ -337,8 +337,13 @@ struct State {
                 // Capture the ORIGINAL actor state once. The exit
                 // protocol is identical for either side and does not
                 // know which outgoing/incoming character owns a super.
-                const XM87193Exit::Snapshot original=
-                    XM87193Exit::capture(ram,p);
+                const XM87193Exit::Transaction exit=
+                    XM87193Exit::beginNativeExit(ram,side);
+                if(!exit.begun){
+                    abort(now,side,ram,"DHC_193_NATIVE_EXIT_TRANSACTION_FAILED");
+                    return;
+                }
+                const XM87193Exit::Snapshot& original=exit.before;
                 capturedMode[side]=original.mode;
                 capturedAction[side]=original.action;
                 capturedScript[side]=original.script;
@@ -348,9 +353,9 @@ struct State {
                 captured06[side]=original.step06;
                 captured08[side]=original.step08;
                 captured0A[side]=original.step0A;
-                // Original ROM owns controller8 -> action 3200 next
-                // frame. Preserve the exact 87.192 native writes.
-                XM87193Exit::armNativeController8(ram,p);
+                // beginNativeExit already armed controller8. All
+                // mirrored exit writes and the snapshot are indivisible
+                // in this host callback; the ROM still selects 3200.
                 phase[side]=WAIT_TAG_CONTROLLER;
                 started[side]=now;
                 lastAcceptedAt[side]=selectedAt;
