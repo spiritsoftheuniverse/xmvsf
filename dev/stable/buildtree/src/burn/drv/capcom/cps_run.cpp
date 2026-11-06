@@ -1048,6 +1048,16 @@ INT32 Cps2Frame()
     XM87121::state().frame((unsigned)GetCurrentFrame(),CpsRamFF); // XM87.121 cancel only recovery, no new jump
     // XM87.203: source-accurate, read-only stage telemetry, no framebuffer,
     // ROM, gameplay, controller, palette or F9 replay modifications.
+    // This private one-shot 68000 source dump is independent of the heavy
+    // frame/tilemap recorder. RUN_TEST.bat mvscur1 trace needs NO stage capture.
+    // The helper is inert unless an exclusive trace path was configured.
+    if(!bBurnRunAheadFrame && Cps==2 && CpsCode && CpsRom){
+        const char* programDriver=BurnDrvGetTextA(DRV_NAME);
+        if(XM87203Stage::isMarvelVsCapcom(programDriver))
+            XM87203M68K::once(programDriver,(unsigned)GetCurrentFrame(),
+                              CpsRom,(unsigned)nCpsRomLen,
+                              CpsCode,(unsigned)nCpsCodeLen);
+    }
     const char* captureDir=std::getenv("XM87203_STAGE_CAPTURE_DIR");
     if(captureDir && *captureDir && !bBurnRunAheadFrame &&
        Cps==2 && CpsRamFF && CpsSavePal && CpsRam708 &&
@@ -1090,11 +1100,6 @@ INT32 Cps2Frame()
                 }
             }
             XM87203Stage::state().observe(f);
-            // On the first original MVC frame only, archive both 68000
-            // READ data and decrypted FETCH instructions under an exclusive
-            // local run folder. Never touch guest memory or GitHub artifacts.
-            XM87203M68K::once(driver,f.frame,CpsRom,(unsigned)nCpsRomLen,
-                              CpsCode,(unsigned)nCpsCodeLen);
         }
     }
     xm8634Mark("COMPLETE");
