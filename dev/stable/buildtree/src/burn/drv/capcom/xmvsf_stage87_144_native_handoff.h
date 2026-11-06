@@ -16,6 +16,7 @@
 #include "xmvsf_stage87_179_delayed_tag_edge.h" // 87.179 delayed native input edge
 #include "xmvsf_stage87_183_native_edge_preflight.h" // 87.183 native consumed-punch gate
 #include "xmvsf_stage87_184_super_action_lifetime.h" // real ROM super lifetime
+#include "xmvsf_stage87_185_action_gate.h" // 87.185 separate recognition and ROM tag acceptance
 #include "xmvsf_stage87_177_dhc_punch_chords.h" // explicit 3P host / native 2P helper dependency
 #include <cstdint>
 #include <cstdio>
@@ -86,12 +87,14 @@ static inline const char* phaseName(Phase p){
 struct State {
     bool initialized=false,enabled=false,proofNative=false,earlyCancel=false,
          delayedPrimeExperimental=false,unsafeConsumedPunchReplay=false,
+         earlyActiveDirectTest=false,recoveryReboundTest=false,
          chainUsed[2]={false,false};
     Phase phase[2]={IDLE,IDLE};
     XM87159Projectile::State oldRyuProjectiles;
     unsigned started[2]={0u,0u},outgoing[2]={0u,0u},incoming[2]={0u,0u};
     unsigned cooldownUntil[2]={0u,0u},lastAcceptedAt[2]={~0u,~0u};
     unsigned capturedMode[2]={0u,0u},capturedAction[2]={0u,0u};
+    unsigned capturedScript[2]={0u,0u};
     unsigned captured256[2]={0u,0u},captured259[2]={0u,0u};
     unsigned capturedD6[2]={0u,0u};
     unsigned captured06[2]={0u,0u},captured08[2]={0u,0u},
@@ -142,6 +145,14 @@ struct State {
         const char* primeTest=std::getenv("XM87180_EXPERIMENTAL_DELAYED_PRIME");
         delayedPrimeExperimental=enabled && earlyCancel && primeTest &&
              std::strcmp(primeTest,"1")==0;
+        // Two 87.185 TEST-only hypotheses. Never active without a
+        // Ryu->Ken early-cancel transaction and dedicated env flag.
+        const char* earlyDirect=std::getenv("XM87185_TEST_EARLY_ACTIVE_TAG");
+        earlyActiveDirectTest=enabled && earlyCancel && earlyDirect &&
+             std::strcmp(earlyDirect,"1")==0;
+        const char* rebound=std::getenv("XM87185_TEST_RECOVERY_REBOUND");
+        recoveryReboundTest=enabled && earlyCancel && rebound &&
+             std::strcmp(rebound,"1")==0;
         // 87.183: only offline F9 diagnostics may explicitly reproduce
         // the three dangerous 87.182 consumed-edge native attempts.
         // Normal RUN_TEST leaves this OFF to protect working gameplay.
@@ -279,6 +290,7 @@ struct State {
             oldRyuProjectiles.arm(ram,now);
                 capturedMode[side]=rw(ram,p+0xA0u);
                 capturedAction[side]=rw(ram,p+0x60u);
+                capturedScript[side]=rl(ram,p+0x34u);
                 captured256[side]=rb(ram,p+0x256u);
                 captured259[side]=rb(ram,p+0x259u);
                 capturedD6[side]=rb(ram,p+0xD6u);
