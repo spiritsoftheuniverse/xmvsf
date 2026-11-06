@@ -147,3 +147,46 @@ raster priority, true CpsPal effective colors, sealed F9 replay, full
 actor classification and animation cycle completion remain unverified.
 Only the source captured tilemap pages, not a guessed stage panorama,
 are drawn; visual preview colors need comparison with native frames.
+
+
+## Camera-aligned MVC verification pass (frame 18000)
+
+The Stage75/76 importer now retains BOTH native page atlases and a distinct
+camera-facing diagnostic. This is based on the user-supplied reconstruction
+and the corresponding 36,000-frame mvscur1 donor capture. The original archive
+had valid XRGA pages, but full 64-by-64 tilemap pages include unoccupied and
+recycled RAM; they are NOT stage vistas.
+
+Run the existing source-only regressions:
+
+    python dev/stage_capture/test_build_stage_from_capture.py
+
+Import the recorded source again into a NEW directory, leaving old runs,
+Stable, and the donor archive untouched:
+
+    python dev/stage_capture/BUILD_STAGE_FROM_CAPTURE.py --capture F:/xmvsf/test/87.203/stage_capture --session latest --frame 18000 --output F:/xmvsf/test/87.203/reconstruction_camera_18000
+
+The resulting artifacts include:
+
+- camera_timeline.tsv.gz: all native frames and raster slices; original
+  per-layer raw hardware scroll, map-bank and control-register words, without
+  invented parallax ratios or world bounds.
+- preview_scroll1/2/3_frame018000.png: transparent 384-by-224 previews of
+  the camera-aligned portion of each independently decoded tilemap.
+- preview_approx_composite_frame018000.png: an explicitly APPROXIMATE
+  three-layer composite in 3->2->1 draw order, NOT a native pixel match.
+- All original full-page XRGA atlases, cell_changes.tsv.gz, candidates,
+  and manifest files from the earlier importer.
+
+The PNG writer needs only the Python standard library. The camera viewport
+respects tilemap-page wrapping but does NOT yet apply verified CPS2 global
+offset corrections, hardware layer-priority masks, raster-band slices,
+row-scroll, or effective RGB palette DMA state. Those remain unresolved gaps,
+as do exact stage identity, boundaries, and actor ownership. All 13,300
+changed-cell animation candidates are UNVERIFIED: stage transitions and bulk
+tilemap repaints can produce false candidates. A sample scene preview must
+NEVER authorize blue PART_DONE or green LEVEL_DONE.
+
+Neither this importer nor its tests modify the live Wily renderer or create
+GitHub Actions. Output is local only and original ROM graphics are not
+redistributed through source control.
