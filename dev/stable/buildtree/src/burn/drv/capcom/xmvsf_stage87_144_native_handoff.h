@@ -511,9 +511,13 @@ struct State {
             }
             if(phase[side]==IDLE){
                 const auto* entry=XM87143Queue::state().selected[side];
-                if(!entry || chainUsed[side] || !entry->known ||
-                   now<cooldownUntil[side])continue;
-                const unsigned selectedAt=XM87143Queue::state().selectedFrame[side];
+                const bool ownedSelected=reserveOwnershipTest &&
+                    XM87192Owner::state().fresh(side,reserveId,now);
+                if((!ownedSelected && (!entry||!entry->known)) ||
+                   chainUsed[side] || now<cooldownUntil[side])continue;
+                const unsigned selectedAt=ownedSelected?
+                    XM87192Owner::state().pending[side].frame:
+                    XM87143Queue::state().selectedFrame[side];
                 const bool firstCheck=selectedAt!=lastQueuedCheck[side];
                 lastQueuedCheck[side]=selectedAt;
                 // 87.186: 2524/2565 STARTUP commands were held for
@@ -550,7 +554,7 @@ struct State {
                     blocked="BLOCK_NO_ACTIVE_SUPER_WINDOW";
                 else if(pointId!=0x12u || reserveId!=0x14u)
                     blocked="BLOCK_NOT_RYU_POINT_KEN_RESERVE";
-                else if(entry->known->fighter!=reserveId)
+                else if(!ownedSelected && entry->known->fighter!=reserveId)
                     blocked="BLOCK_SELECTED_SUPER_NOT_FOR_RESERVE";
                 else if(liveLifetimeTest && !liveSuperWindow)
                     blocked="DHC_191_OUTSIDE_ACTUAL_ROM_SUPER_LIFETIME";
@@ -571,8 +575,8 @@ struct State {
                         rw(ram,p+0xA0u)!=0x2A28u &&
                         rw(ram,p+0xA0u)!=0x2A02u)
                     blocked="BLOCK_NOT_NATIVE_2A28_SUPER_MODE";
-                bool hasScript=false;
-                for(unsigned i=0;i<entry->count;++i)
+                bool hasScript=ownedSelected;
+                if(!ownedSelected)for(unsigned i=0;i<entry->count;++i)
                     hasScript |= entry->scripts[i].resolved;
                 if(!blocked && !hasScript)
                     blocked="BLOCK_SELECTED_SUPER_HAS_NO_RESOLVED_ROM_SCRIPT";
@@ -586,9 +590,9 @@ struct State {
                 const auto ryu=XM87142::resolve(rom,size,0x14u,0x2Eu,0x02u);
                 shoryureppaReady[side]=rep.valid && rep.script==0xD6722u;
                 shinryukenReady[side]=ryu.valid && ryu.script==0xD6976u;
-                if(!blocked && entry->known->command==XM87143Queue::QCF_PP &&
+                if(!blocked && !ownedSelected && entry->known->command==XM87143Queue::QCF_PP &&
                    !shoryureppaReady[side])blocked="BLOCK_REPPA_2E00_ROM_UNRESOLVED";
-                if(!blocked && entry->known->command==XM87143Queue::QCF_KK &&
+                if(!blocked && !ownedSelected && entry->known->command==XM87143Queue::QCF_KK &&
                    !shinryukenReady[side])blocked="BLOCK_SHINRYUKEN_2E02_ROM_UNRESOLVED";
                 // 87.183 live 87.182 trace, 23 armed handoffs:
                 // 20 successful: native C0=0001, CA=0000.
@@ -625,7 +629,7 @@ struct State {
                     // deferred controller-8 handoffs. The player may
                     // deliberately enter a new command on a verified
                     // phase instead.
-                    if(entry->known->fighter!=reserveId ||
+                    if((!ownedSelected && entry->known->fighter!=reserveId) ||
                        (liveLifetimeTest && !liveSuperWindow) ||
                        (familyTest && originalSuper.live &&
                         originalSuper.phase==XM87189Family::CONTINUATION &&
@@ -639,7 +643,15 @@ struct State {
                 }
                 originalX[side]=rw(ram,p+0x0Cu);
                 opponentX[side]=rw(ram,0x4400u+0x0Cu);
-                command[side]=entry->known->command;
+                if(ownedSelected){
+                    ownedCommand[side]=XM87192Owner::state().pending[side];
+                    // This is only a legacy display fallback, never a
+                    // super selector in reserve-owned 87.192 mode.
+                    command[side]=(ownedCommand[side].buttonMask&0x38u)?
+                        XM87143Queue::QCF_KK:XM87143Queue::QCF_PP;
+                    event(now,side,ram,
+                        "DHC_192_RESERVE_INPUT_OWNER_SELECTED_NO_SUPER_LIST");
+                }else command[side]=entry->known->command;
                 outgoing[side]=pointId;incoming[side]=reserveId;
                 // 87.158 restore the *actual* 87.151 Ken-Hadoken route.
                 // 87.151 armed controller 8 at 1857 (+4E=28), ROM 3200
