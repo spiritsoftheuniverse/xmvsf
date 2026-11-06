@@ -23,6 +23,10 @@ if /I "%SOURCE_ROM%"=="xmvsfu" if /I "%CLEAN_RIP_MODE%"=="clean" (
   echo ERROR: Native clean-rip mode only operates on Marvel vs. Capcom donor ROMs.
   goto :fail
 )
+if /I "%SOURCE_ROM%"=="xmvsfu" if /I "%CLEAN_RIP_MODE%"=="trace" (
+  echo ERROR: Motorola 68000 source sprite tracing is scoped to MVC1 only.
+  goto :fail
+)
 if /I not "%SOURCE_ROM:~0,4%"=="mvsc" if /I not "%SOURCE_ROM%"=="xmvsfu" (
   echo ERROR: Stage capture supports Marvel vs. Capcom mvsc* ROM sets.
   echo Optional XMVSF mode is xmvsfu; no arbitrary ROM fallback.
