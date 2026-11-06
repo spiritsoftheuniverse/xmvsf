@@ -274,6 +274,31 @@ echo Stable untouched.
 echo Active Tournament rules audit: %XM87149_TOURNAMENT_AUDIT%
 echo Tournament rules are applied ONLY when selected in the Options menu.
 echo F10 probe files: %XM87139_PROBE_DIR%
+REM MVC1 is the donor, not the DHC host. Disable all XMVSF-only test
+REM mutations/lighting before starting original MVC1 execution.
+if /I "%SOURCE_ROM:~0,4%"=="mvsc" (
+  set "XM87144_DHC_NATIVE_TEST=0"
+  set "XM87156_PROOF_NATIVE=0"
+  set "XM87157_EARLY_CANCEL=0"
+  set "XM87184_EXPERIMENTAL_RECOVERY_TAG=0"
+  set "XM87185_TEST_EARLY_ACTIVE_TAG=0"
+  set "XM87189_TEST_NATIVE_SUPER_FAMILY=0"
+  set "XM87191_TEST_OPEN_SUPER_LIFETIME=0"
+  set "XM87192_TEST_RESERVE_OWNERSHIP=0"
+  set "XM87193_TEST_DETERMINISTIC_EXIT=0"
+  set "XM87194_TEST_NATIVE_PASSIVE_JUMP=0"
+  set "XM87196_TEST_IMMEDIATE_NATIVE_FALL=0"
+  set "XM87197_TEST_OPPONENT_FREEZE=0"
+  set "XM87198_TEST_NATIVE_OFFENSE_RELEASE=0"
+  set "XM87202_TEST_AIR_FOLLOWUP_REBOUND=0"
+  set "XM8786_STORM_BUTTON_TEST=0"
+  set "XM8795_NATIVE_HIT_TEST=0"
+  set "XM8796_DIZZY_HANDOFF_TEST=0"
+  set "XM8799_GROUND_DEFENSE_TEST=0"
+  set "XM87160_DISCOVER=0"
+  set "XM8649_WILY_RENDER=0"
+  set "XM44_CAPTURE=0"
+)
 pushd "%PROJECT%\FBNeo" || goto :fail
 echo Launching original CPS2 donor ROM %SOURCE_ROM% with controller support.
 "%EXE%" %SOURCE_ROM% -joy

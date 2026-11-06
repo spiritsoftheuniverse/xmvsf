@@ -148,7 +148,9 @@ struct Recorder {
                 }
                 written+=block;
             }
-            if(std::fflush(stream)!=0 || std::fclose(stream)!=0){
+            const int flushResult=std::fflush(stream);
+            const int closeResult=std::fclose(stream);
+            if(flushResult!=0 || closeResult!=0){
                 fail(f.frame,"decoded_gfx_close_failed");return false;
             }
         }

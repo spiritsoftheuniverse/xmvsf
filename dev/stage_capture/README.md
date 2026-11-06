@@ -58,3 +58,12 @@ does not alter any ROM, GFX, palette, or actor memory. Existing hash-named
 files are never truncated. Set `XM87203_EXPORT_GFX=0` to disable it (which
 must keep art coverage incomplete). Both artifacts remain under git-ignored
 `test/`; do not upload the decoded original ROM artwork to GitHub.
+
+## Donor execution isolation
+
+When RUN_TEST.bat runs `mvsc*`, it disables the preexisting experimental
+XMVSF DHC, tag, tournament-flight and Wily replacement-renderer switches
+inside that donor process. Original MVC1 inputs and emulation run through the
+normal FBNeo CPS2 driver; only source capture/replay flags remain. MVC F9
+replays do the same. The earlier XMVSF DHC tests stay available by launching
+`RUN_TEST.bat xmvsfu`.
