@@ -66,14 +66,17 @@ struct Tracker {
     // Prevent the 3P dash from stealing a valid DHC chord, without
     // applying any protection after the native super has ended.
     bool preCpuActive(unsigned now,const XM87184Life::Sample&s)const{
-        return live && (phase==STARTUP || phase==ATTACK) &&
-            lastFrame!=~0u && now>=lastFrame && now-lastFrame<=1u &&
-            s.fighter==fighter && s.action==rootAction &&
+        // The original 68000 input port is read BEFORE this frame's
+        // post-CPU native lifecycle sample. Reuse the immediately
+        // preceding, exact ROM-owned action/script and controller as
+        // evidence. Apply the same 3P->2P protection to startup,
+        // attacking root, and every observed 2E continuation stage.
+        // No move ID, animation mode, fixed timer, or air/ground test.
+        return live && recognizes() && lastFrame!=~0u &&
+            now>=lastFrame && now-lastFrame<=1u &&
+            s.fighter==fighter && s.action==stageAction &&
             s.d6==originalD6 && originalSuperController(s) &&
-            s.script>=rootScript &&
-            nextScript>rootScript && s.script<nextScript &&
-            ((phase==STARTUP && s.step==2u) ||
-             (phase==ATTACK && s.step>=4u && (s.step&1u)==0u));
+            s.script==lastObservedScript;
     }
     Event update(unsigned now,const XM87184Life::Sample& s,
                  const std::uint8_t*rom,unsigned romSize){
@@ -113,6 +116,9 @@ struct Tracker {
             phase=STARTUP;lastObservedScript=s.script;return NOTHING;
         }
         if(ownAction && s.step>=4u && (s.step&1u)==0u){
+            // If the ROM loops from a continuation into the root,
+            // the pre-CPU shield must follow its actual action again.
+            stageAction=rootAction;
             const bool justBegan=phase!=ATTACK;
             const bool rewound=s.script==rootScript && phase==ATTACK &&
                 lastObservedScript!=s.script;
