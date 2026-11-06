@@ -118,7 +118,18 @@ int main(){
     assert(tatsu.update(8366u,a,rom.data(),rom.size())==NOTHING);
     assert(tatsu.live && tatsu.phase==CONTINUATION);
     a.action=0x2E10u;a.step=8u;a.script=0xD2DF4u;
-    assert(tatsu.update(8447u,a,rom.data(),rom.size())==CONTINUATION_STAGE_CHANGE);
+    const Event stage8=tatsu.update(8447u,a,rom.data(),rom.size());
+    if(stage8!=CONTINUATION_STAGE_CHANGE){
+       const auto x=XM87142::resolve(rom.data(),rom.size(),
+                                   0x12u,0x2Eu,0x10u);
+       std::fprintf(stderr,"87.190 TROUBLE 2E10: event=%u phase=%u live=%u stage=%04X"
+         " stageRoot=%08X stageEnd=%08X decodedValid=%u decodedRoot=%08X"
+         " nativeAction=%04X nativeScript=%08X D6=%02X\\n",
+         unsigned(stage8),unsigned(tatsu.phase),unsigned(tatsu.live),
+         tatsu.stageAction,tatsu.stageScript,tatsu.stageEnd,
+         unsigned(x.valid),x.script,a.action,a.script,a.d6);
+    }
+    assert(stage8==CONTINUATION_STAGE_CHANGE);
     assert(tatsu.stageEnd==0xD2E38u);
     a.action=0x2E04u;a.step=0x0Au;a.script=0xD2E38u;
     assert(tatsu.update(8466u,a,rom.data(),rom.size())==CONTINUATION_STAGE_CHANGE);
