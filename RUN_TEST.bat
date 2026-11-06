@@ -492,12 +492,20 @@ if errorlevel 1 (
   exit /b 1
 )
 if "%~2"=="" goto :offline_sprite_all
+if /I "%~2"=="scenery" goto :offline_sprite_all
+if /I "%~2"=="all" goto :offline_sprite_all_legacy
 echo Direct sprite tile ID: %~2
 python.exe "%PROJECT%\dev\stage_capture\SPRITE_FACTORY.py" --clean-root "%PROJECT%\test\87.203\clean_rips" --capture "%PROJECT%\test\87.203\stage_capture" --output "%PROJECT%\test\87.203\sprite_factory" --tile "%~2"
 goto :offline_sprite_finished
 
 :offline_sprite_all
-python.exe "%PROJECT%\dev\stage_capture\SPRITE_FACTORY.py" --clean-root "%PROJECT%\test\87.203\clean_rips" --capture "%PROJECT%\test\87.203\stage_capture" --output "%PROJECT%\test\87.203\sprite_factory"
+echo Selecting diverse non-HUD scene candidates; identities remain unverified.
+python.exe "%PROJECT%\dev\stage_capture\SPRITE_FACTORY.py" --clean-root "%PROJECT%\test\87.203\clean_rips" --capture "%PROJECT%\test\87.203\stage_capture" --output "%PROJECT%\test\87.203\sprite_factory" --focus scenery
+goto :offline_sprite_finished
+
+:offline_sprite_all_legacy
+echo Selecting ALL source sprite objects, including fighters and HUD.
+python.exe "%PROJECT%\dev\stage_capture\SPRITE_FACTORY.py" --clean-root "%PROJECT%\test\87.203\clean_rips" --capture "%PROJECT%\test\87.203\stage_capture" --output "%PROJECT%\test\87.203\sprite_factory" --focus all
 
 :offline_sprite_finished
 set "SPRITE_RC=%ERRORLEVEL%"
