@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# Stage 87.200 native-edge safety gate + exact ROM PPC diagnostic TEST builder. Called ONLY by root BUILD_TEST.bat.
+# Stage 87.201 native-edge safety gate + exact ROM PPC diagnostic TEST builder. Called ONLY by root BUILD_TEST.bat.
 # Build the CURRENT local source in place using the warm FBNeo object cache.
 # Never touch Stable executable, Stable manifests, user source, or old TEST binaries.
 set -euo pipefail
 PROJECT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
-# Permanent 87.200 build transcript. This starts BEFORE checking toolchains,
+# Permanent 87.201 build transcript. This starts BEFORE checking toolchains,
 # source files or running make. Never hide fatal compiler/linker diagnostics.
 # Tee preserves live console output and an on-disk copy. Logs live outside
 # the buildtree so incremental make objects and Stable remain untouched.
@@ -21,13 +21,13 @@ if ! command -v tee >/dev/null; then
   exit 2
 fi
 exec > >(tee -a "$LOG_FILE") 2>&1
-printf '\n========== XMVSF TEST 87.200 BUILD BEGIN %s ==========' "$(date '+%Y-%m-%d %H:%M:%S')"
+printf '\n========== XMVSF TEST 87.201 BUILD BEGIN %s ==========' "$(date '+%Y-%m-%d %H:%M:%S')"
 printf '\nProject: %s\nLog: %s\n' "$PROJECT" "$LOG_FILE"
 trap 'rc=$?; trap - EXIT; printf "XMVSF BUILD END rc=%s time=%s log=%s\n" "$rc" "$(date "+%Y-%m-%d %H:%M:%S")" "$LOG_FILE"; exit "$rc"' EXIT
 
 TREE="$PROJECT/dev/stable/buildtree"
-DEST="$PROJECT/runtime/stable/XMVSF_Test_87_200.exe"
-PENDING="$PROJECT/runtime/stable/.XMVSF_Test_87_200_pending.exe"
+DEST="$PROJECT/runtime/stable/XMVSF_Test_87_201.exe"
+PENDING="$PROJECT/runtime/stable/.XMVSF_Test_87_201_pending.exe"
 
 if [[ ! -f "$TREE/makefile.sdl2" ||
       ! -f "$TREE/src/burn/drv/capcom/xmvsf_stage87_186_opening_observer.h" ||
@@ -43,7 +43,7 @@ if [[ ! -f "$TREE/makefile.sdl2" ||
       ! -f "$TREE/src/burn/drv/capcom/xmvsf_stage87_197_cinematic_opponent_hold.h" ||
       ! -f "$TREE/src/burn/drv/capcom/xmvsf_stage87_198_native_super_freeze_cue.h" ||
       ! -f "$TREE/src/burner/sdl/xmvsf_stage87_195_menu_gif.h" ]]; then
-  echo "ERROR: Current Stage 87.200 source was not pulled into $TREE" >&2
+  echo "ERROR: Current Stage 87.201 source was not pulled into $TREE" >&2
   exit 2
 fi
 if [[ ! -f "$TREE/src/burn/drv/capcom/cps_run.cpp" ||
@@ -56,7 +56,7 @@ if ! command -v make >/dev/null || ! command -v gcc >/dev/null; then
   exit 2
 fi
 
-# XM87.200: Repair ONLY the stale Rock Castle dependency manifest left
+# XM87.201: Repair ONLY the stale Rock Castle dependency manifest left
 # behind by the local 87.199 experiment. The orphaned header was removed
 # between versions, but its old .d still names it as a prerequisite.  Make
 # cannot re-enter the dependency generator while that target is unresolved.
@@ -66,13 +66,13 @@ ROCK_DEP="$TREE/obj/intf/video/sdl/vid_sdl2.d"
 ROCK_OLD="$TREE/src/intf/video/sdl/xmvsf_stage87_199_rock_castle.h"
 if [[ -f "$ROCK_DEP" && ! -e "$ROCK_OLD" ]] &&
    grep -Fq 'xmvsf_stage87_199_rock_castle.h' "$ROCK_DEP"; then
-  echo "XM87.200 STALE_DEP_REPAIR archiving only obj/intf/video/sdl/vid_sdl2.d"
-  mv -f "$ROCK_DEP" "$ROCK_DEP.before_87_200"
+  echo "XM87.201 STALE_DEP_REPAIR archiving only obj/intf/video/sdl/vid_sdl2.d"
+  mv -f "$ROCK_DEP" "$ROCK_DEP.before_87_201"
 fi
 
 # Preserve warm cache and anything already built on failures. Never run make clean.
 cd "$TREE"
-echo "XMVSF Stage 87.200 TEST: incremental build; preserving cached objects"
+echo "XMVSF Stage 87.201 TEST: incremental build; preserving cached objects"
 echo "Dependencies: GNU Make + persistent obj/**/*.d header dependency files"
 # The FBNeo makefile already runs a two-pass dependency-aware build:
 #   MAKELEVEL=1 generates missing/stale .d files and builds changed objects;
@@ -102,7 +102,7 @@ if [[ -z "$BUILT" ]]; then
 fi
 
 # The compiler and linker are the authoritative success gates.
-# Stage 87.200 demonstrated why scanning a linked FBNeo executable for
+# Stage 87.201 demonstrated why scanning a linked FBNeo executable for
 # every historical debug string is not a valid freshness or correctness test:
 # GCC may fold/omit string literals, or only some modules may reference them.
 # The 87.184 log shows make/link SUCCESS followed by an erroneous marker
@@ -123,4 +123,4 @@ if [[ ! -s "$PENDING" ]]; then
 fi
 mv -f "$PENDING" "$DEST"
 echo "TEST BUILD READY: $DEST"
-echo "Stage 87.200: Rock Castle GIF stage; DHC and existing incremental build policy retained; Stable untouched."
+echo "Stage 87.201: Rock Castle GIF stage; DHC and existing incremental build policy retained; Stable untouched."
