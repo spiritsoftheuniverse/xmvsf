@@ -17,6 +17,7 @@
 #include "xmvsf_stage87_183_native_edge_preflight.h" // 87.183 native consumed-punch gate
 #include "xmvsf_stage87_184_super_action_lifetime.h" // real ROM super lifetime
 #include "xmvsf_stage87_185_action_gate.h" // 87.185 separate recognition and ROM tag acceptance
+#include "xmvsf_stage87_186_first_attack_gate.h" // TEST-only first four natural attack frames
 #include "xmvsf_stage87_177_dhc_punch_chords.h" // explicit 3P host / native 2P helper dependency
 #include <cstdint>
 #include <cstdio>
@@ -88,6 +89,7 @@ struct State {
     bool initialized=false,enabled=false,proofNative=false,earlyCancel=false,
          delayedPrimeExperimental=false,unsafeConsumedPunchReplay=false,
          earlyActiveDirectTest=false,recoveryReboundTest=false,
+         firstFourAttackTest=false,
          chainUsed[2]={false,false};
     Phase phase[2]={IDLE,IDLE};
     XM87159Projectile::State oldRyuProjectiles;
@@ -153,6 +155,9 @@ struct State {
         const char* rebound=std::getenv("XM87185_TEST_RECOVERY_REBOUND");
         recoveryReboundTest=enabled && earlyCancel && rebound &&
              std::strcmp(rebound,"1")==0;
+        const char* firstFour=std::getenv("XM87186_TEST_FIRST_FOUR_ATTACK");
+        firstFourAttackTest=enabled && earlyCancel && firstFour &&
+             std::strcmp(firstFour,"1")==0;
         // 87.183: only offline F9 diagnostics may explicitly reproduce
         // the three dangerous 87.182 consumed-edge native attempts.
         // Normal RUN_TEST leaves this OFF to protect working gameplay.
@@ -533,6 +538,13 @@ struct State {
                 // Do not replace these genuine observations with a
                 // guessed late-super or variable-combination command.
                 const unsigned remaining=rw(ram,p+0x4Eu);
+                // The 87.185 source begins the actual attack at +4E=40
+                // but prior 87.185 TEST only allows early tag <=3C.
+                // This is a separate, opt-in four-frame ROM acceptance
+                // experiment, NEVER startup or recovery or reused input.
+                const bool probeFirstFour=firstFourAttackTest &&
+                    XM87186FirstAttack::eligible(ryuLife,remaining,
+                        rw(ram,p+0xC0u),rw(ram,p+0xCAu));
                 lastAcceptedAt[side]=selectedAt;
                 lastKenTargetAction[side]=0u;
                 XM87143Queue::state().discard(side);
@@ -546,7 +558,8 @@ struct State {
                           "PROOF_156_RYU_SUPER_TO_NATIVE_TAG_WAIT_NO_RAM_WRITES");
                     continue;
                 }
-                if((remaining==0u && !recoveryTest) || remaining>60u ||
+                if((remaining==0u && !recoveryTest) ||
+                   (remaining>60u && !probeFirstFour) ||
                    rb(ram,p+0xD6u)!=0x0Au){
                     abort(now,side,ram,
                         "DHC_BLOCK_RYU_SUPER_TIMER_OR_CONTROLLER_INVALID");
@@ -559,6 +572,10 @@ struct State {
                     // Existing native input history guard remains active.
                     event(now,side,ram,
                           "DHC_184_RECOVERY_PHASE_NATIVE_TAG_EXPERIMENT");
+                    armOutgoingTag(ram,now,side,selectedAt);
+                }else if(probeFirstFour){
+                    event(now,side,ram,
+                          "DHC_186_TEST_FIRST_FOUR_ATTACK_FRESH_EDGE");
                     armOutgoingTag(ram,now,side,selectedAt);
                 }else if(XM87185Gate::directActiveAttack(
                        ryuLife,earlyActiveDirectTest,remaining,
