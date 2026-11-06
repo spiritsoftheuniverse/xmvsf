@@ -126,8 +126,37 @@ struct State {
         learnedCount=0u;lastFrame=~0u;
     }
     void clear(unsigned side){if(side<2u)pending[side]=Proposal();}
+    // 87.197.zip: 9/9 HCF+2P/2K motions for reserve Ken (id14)
+    // dispatched into native 0006/D3A4A, never an original 2E
+    // super. 5/5 QCF+2P/2K started native 2E00 or 2E02.
+    // Do not TAG OUT Ryu for a gesture that has been repeatedly
+    // ROM-proven not to be a Ken super. This is a narrow Ken-only
+    // pre-tag reject, TEST-gated; HCF remains available elsewhere.
+    static bool provenKenNonSuper(unsigned reserve,Motion motion,
+                                  unsigned buttons){
+        const unsigned p=buttons&0x07u,k=buttons&0x38u;
+        return reserve==0x14u && motion==HCF &&
+             ((p && !k && countBits(p)>=2u) ||
+              (k && !p && countBits(k)>=2u));
+    }
     bool propose(unsigned side,unsigned reserve,unsigned now,
                  Motion motion,unsigned buttons){
+        const char* guard=std::getenv("XM87198_TEST_KEN_HCF_PRETAG_REJECTION");
+        if(side<2u && guard && std::strcmp(guard,"1")==0 &&
+           provenKenNonSuper(reserve,motion,buttons)){
+            // Don't rewrite a requested HCF into a fictitious QCF super.
+            // Leave original physical input and Ryu's ongoing super
+            // entirely untouched; no controller8/3200 or freeze.
+            clear(side);
+            ensureLog();
+            if(log){
+                std::fprintf(log,
+                    "%u\t%u\t%02X\t0000\t000000\t%u\t%02X\tKEN_HCF_ROM_PROVEN_0006_DHC_REFUSED_PRETAG\n",
+                    now,side+1u,reserve,unsigned(motion),buttons&0x3Fu);
+                std::fflush(log);
+            }
+            return false;
+        }
         // Before reserve-side ROM preview exists, do not turn every
         // QCF+single-punch Hadoken into a tag. The initial DHC
         // gesture must be a fresh two-punch or two-kick chord.
