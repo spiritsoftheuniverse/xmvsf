@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# Stage 87.186 native-edge safety gate + exact ROM PPC diagnostic TEST builder. Called ONLY by root BUILD_TEST.bat.
+# Stage 87.187 native-edge safety gate + exact ROM PPC diagnostic TEST builder. Called ONLY by root BUILD_TEST.bat.
 # Build the CURRENT local source in place using the warm FBNeo object cache.
 # Never touch Stable executable, Stable manifests, user source, or old TEST binaries.
 set -euo pipefail
 PROJECT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
-# Permanent 87.186 build transcript. This starts BEFORE checking toolchains,
+# Permanent 87.187 build transcript. This starts BEFORE checking toolchains,
 # source files or running make. Never hide fatal compiler/linker diagnostics.
 # Tee preserves live console output and an on-disk copy. Logs live outside
 # the buildtree so incremental make objects and Stable remain untouched.
@@ -21,16 +21,18 @@ if ! command -v tee >/dev/null; then
   exit 2
 fi
 exec > >(tee -a "$LOG_FILE") 2>&1
-printf '\n========== XMVSF TEST 87.186 BUILD BEGIN %s ==========' "$(date '+%Y-%m-%d %H:%M:%S')"
+printf '\n========== XMVSF TEST 87.187 BUILD BEGIN %s ==========' "$(date '+%Y-%m-%d %H:%M:%S')"
 printf '\nProject: %s\nLog: %s\n' "$PROJECT" "$LOG_FILE"
 trap 'rc=$?; trap - EXIT; printf "XMVSF BUILD END rc=%s time=%s log=%s\n" "$rc" "$(date "+%Y-%m-%d %H:%M:%S")" "$LOG_FILE"; exit "$rc"' EXIT
 
 TREE="$PROJECT/dev/stable/buildtree"
-DEST="$PROJECT/runtime/stable/XMVSF_Test_87_186.exe"
-PENDING="$PROJECT/runtime/stable/.XMVSF_Test_87_186_pending.exe"
+DEST="$PROJECT/runtime/stable/XMVSF_Test_87_187.exe"
+PENDING="$PROJECT/runtime/stable/.XMVSF_Test_87_187_pending.exe"
 
-if [[ ! -f "$TREE/makefile.sdl2" || ! -f "$TREE/src/burn/drv/capcom/xmvsf_stage87_186_opening_observer.h" ]]; then
-  echo "ERROR: Current Stage 87.186 source was not pulled into $TREE" >&2
+if [[ ! -f "$TREE/makefile.sdl2" ||
+      ! -f "$TREE/src/burn/drv/capcom/xmvsf_stage87_186_opening_observer.h" ||
+      ! -f "$TREE/src/burn/drv/capcom/xmvsf_stage87_187_opening_front.h" ]]; then
+  echo "ERROR: Current Stage 87.187 source was not pulled into $TREE" >&2
   exit 2
 fi
 if [[ ! -f "$TREE/src/burn/drv/capcom/cps_run.cpp" ||
@@ -45,7 +47,7 @@ fi
 
 # Preserve warm cache and anything already built on failures. Never run make clean.
 cd "$TREE"
-echo "XMVSF Stage 87.186 TEST: incremental build; preserving cached objects"
+echo "XMVSF Stage 87.187 TEST: incremental build; preserving cached objects"
 echo "Dependencies: GNU Make + persistent obj/**/*.d header dependency files"
 # The FBNeo makefile already runs a two-pass dependency-aware build:
 #   MAKELEVEL=1 generates missing/stale .d files and builds changed objects;
@@ -75,7 +77,7 @@ if [[ -z "$BUILT" ]]; then
 fi
 
 # The compiler and linker are the authoritative success gates.
-# Stage 87.186 demonstrated why scanning a linked FBNeo executable for
+# Stage 87.187 demonstrated why scanning a linked FBNeo executable for
 # every historical debug string is not a valid freshness or correctness test:
 # GCC may fold/omit string literals, or only some modules may reference them.
 # The 87.184 log shows make/link SUCCESS followed by an erroneous marker
@@ -96,4 +98,4 @@ if [[ ! -s "$PENDING" ]]; then
 fi
 mv -f "$PENDING" "$DEST"
 echo "TEST BUILD READY: $DEST"
-echo "Stage 87.186: read-only native startup/first attack PPC, preserve all 87.185 input and recovery bridge logic; Stable untouched."
+echo "Stage 87.187: read-only native startup/first attack PPC, preserve all 87.185 input and recovery bridge logic; Stable untouched."
