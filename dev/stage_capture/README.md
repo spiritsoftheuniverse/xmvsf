@@ -608,3 +608,53 @@ pixel assembly algorithm is unchanged. Original clean_rips/shot_XXXX,
 palette samples, sprite observations and generated previews remain intact.
 Both output modes update ONLY sprite_factory review artifacts.
 No ROM execution, native recompilation or scene installation is required.
+
+
+## Offline eight-priority CPS2 sprite review
+
+The November 6 capture contains 198,050 object occurrences across ALL
+CPS2 object priorities (0=928, 1=816, 2=2368, 3=2856, 4=2076,
+5=5963, 6=52946, 7=130097). The old Sprite Factory collapsed each tile
+signature to its most frequent priority and therefore hid priority 0/1.
+The new exporter never guesses HUD, fighter, effect, or scenery identity.
+
+Offline (NO ROM, native build, or gameplay), after pulling this branch:
+
+    RUN_TEST.bat sprites
+    REM aliases: RUN_TEST.bat channels / RUN_TEST.bat sprites channels
+
+This runs dev/stage_capture/SPRITE_CHANNELS.py against existing original
+test/87.203/clean_rips/shot_XXXX files and creates:
+
+    test/87.203/sprite_channels/sprite_all_channels_review_bundle.zip
+
+The ZIP contains priority_0 through priority_7 directories with separate
+contact sheets, individual transparent sprite previews reconstructed using
+original decoded tiles and effective palettes, and COMPLETE priority-specific
+tile/palette/source-frame catalogs. The full all_priority_observations.tsv.gz
+includes EVERY occurrence at its actual recorded priority; not even a HUD
+sprite is dropped from the index. PNG previews are sampled (32 by default
+per channel) to bound disk usage, NOT a cap on the source addresses. For
+more preview images (96 per channel):
+
+    python dev/stage_capture/SPRITE_CHANNELS.py --clean-root "F:\xmvsf\test\87.203\clean_rips" --output "F:\xmvsf\test\87.203\sprite_channels" --max-per-priority 96
+
+Also exported: original native scroll channel 1/2/3 and scroll0
+(original no-sprite, scroll-only composite), for three representative
+source shots. Those are checksum-verified source-rendered 384x224 pixels.
+
+The sprite previews are original assembled tile pixels with source colors,
+but native occlusion, sprite blending, verified scenery ownership, stage
+boundaries and animation-loop completion remain unknown. Scroll0 is a
+composite, not a fourth scroll layer. Existing optional selectors remain:
+
+    RUN_TEST.bat sprites scenery
+    RUN_TEST.bat sprites all
+    RUN_TEST.bat sprites 0x12345
+
+Run all-channel source-only tests with:
+
+    python dev/stage_capture/test_sprite_channels.py
+
+No source shots are overwritten, no ROM runs, no new launcher and no
+GitHub Actions. Stable is unchanged.
