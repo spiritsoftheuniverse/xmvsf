@@ -690,6 +690,26 @@ struct State {
                 // ROM scheduler must select outgoing action 3200 itself,
                 // not merely display Ryu's 3200 sprite for one frame.
                 event(now,side,ram,"NATIVE_TAG_CONTROLLER_WAIT_FRAME");
+                // All five 87.184 experimental 2E0A handoffs executed
+                // the SAME genuine 68000 path: +256 08->00,
+                // +A0 002A->2A00, then PC 010392 reselected 2E08
+                // from script 0D3070 (D0=2E/D1=08). The old bridge
+                // rejected the action change and left a restarted
+                // Shinkuu instead of tagging. This TEST-only route
+                // recognizes that exact one-frame rebound, then
+                // reuses the already resolved original tag script
+                // 32/00. It is a HOST bridge after ROM command
+                // consumption, not a claim that ROM selected 3200.
+                const bool recoveryRebound=
+                    XM87185Gate::exactRecoveryRebound(
+                       recoveryReboundTest && XM87184Life::recoveryOptIn(),
+                       unsigned(phase[side]),pointId,reserveId,
+                       capturedAction[side],captured08[side],
+                       capturedScript[side],
+                       rw(ram,p+0x60u),rw(ram,p+0xA0u),
+                       rw(ram,p+0x08u),rl(ram,p+0x34u),
+                       rb(ram,p+0xD6u),rb(ram,p+0x256u),
+                       rb(ram,p+0x259u),started[side],now);
                 if(pointId!=outgoing[side] || reserveId!=incoming[side]){
                     abort(now,side,ram,"CONTROLLER_FIGHTER_CHANGED_BEFORE_TAG");
                 }else if(rw(ram,p+0x60u)==0x3200u &&
@@ -699,17 +719,15 @@ struct State {
                     phase[side]=WAIT_NATIVE_SWAP;
                     controllerAcceptedAt[side]=now;
                     event(now,side,ram,"NATIVE_CONTROLLER_ACCEPTED_OUTGOING_3200");
-                }else if(rw(ram,p+0xA0u)==0x2A00u &&
-                          rb(ram,p+0x256u)==0u &&
-                          rw(ram,p+0x60u)==capturedAction[side] &&
-                          (capturedAction[side]==0x2E08u ||
-                           (XM87184Life::recoveryOptIn() &&
-                            capturedAction[side]==0x2E0Au)) &&
-                          // Exact 87.151 acceptance for the active
-                          // early-cancel route, without invented guards.
-                          (earlyCancel ||
-                           (rb(ram,p+0x259u)==0x08u &&
-                            rb(ram,p+0xD6u)==capturedD6[side]))){
+                }else if(recoveryRebound ||
+                          (rw(ram,p+0xA0u)==0x2A00u &&
+                           rb(ram,p+0x256u)==0u &&
+                           rw(ram,p+0x60u)==capturedAction[side] &&
+                           capturedAction[side]==0x2E08u &&
+                           // Keep already working 87.183 attack path.
+                           (earlyCancel ||
+                            (rb(ram,p+0x259u)==0x08u &&
+                             rb(ram,p+0xD6u)==capturedD6[side])))){
                     // 87.146 real recording: controller 8 WAS executed by
                     // 68000 at 1778/2365/2756; A0 switched to 2A00 and
                     // controller 256 was consumed (08->00), but +60 stayed
@@ -720,6 +738,9 @@ struct State {
                     // This is the DHC-only bridge between the genuine
                     // ROM-accepted controller and the native outgoing tag
                     // animation/timer. Never change a normal tag.
+                    if(recoveryRebound)
+                        event(now,side,ram,
+                           "DHC_185_NATIVE_RECOVERY_REBOUND_ROM_CHOSE_2E08_HOST_TAG_BRIDGE");
                     if(!setNativeScript(ram,rom,size,p,pointId,0x32u,0u)){
                         abort(now,side,ram,"NATIVE_3200_SCRIPT_INIT_FAILED");
                         continue;
@@ -745,7 +766,9 @@ struct State {
                         oldRyuProjectiles.activate(ram,now);
                     phase[side]=WAIT_NATIVE_SWAP;
                     controllerAcceptedAt[side]=now;
-                    event(now,side,ram,"DHC_ROM_TAG_3200_AFTER_CONTROLLER_ACCEPT");
+                    event(now,side,ram,recoveryRebound?
+                        "DHC_185_RECOVERY_REBOUND_TO_ORIGINAL_3200_SCRIPT":
+                        "DHC_ROM_TAG_3200_AFTER_CONTROLLER_ACCEPT");
 
                 }else if(rb(ram,p+0x256u)==0u &&
                           rw(ram,p+0x60u)!=capturedAction[side] &&
