@@ -25,6 +25,7 @@
 #include "xmvsf_stage87_192_reserve_super_ownership.h" // incoming reserve owns captured gesture
 #include "xmvsf_stage87_193_deterministic_exit_protocol.h" // actor-addressed deterministic native exit
 #include "xmvsf_stage87_194_native_passive_jump_entry.h" // ROM-owned descent, true landing, target steering
+#include "xmvsf_stage87_195_tag_latch_guard.h" // clear only our failed controller8 latch
 #include "xmvsf_stage87_177_dhc_punch_chords.h" // explicit 3P host / native 2P helper dependency
 #include <cstdint>
 #include <cstdio>
@@ -274,6 +275,18 @@ struct State {
         if(staleHostLatch){
             wb(ram,p+0x259u,captured259[side]);
             event(now,side,ram,"DHC_178_STALE_HOST_259_LATCH_CLEARED");
+        }else if(XM87195Latch::shouldReleaseWrongAction(
+            unsigned(phase[side]),rw(ram,p+0x52u),
+            rw(ram,p+0x852u),outgoing[side],incoming[side],
+            rw(ram,p+0x60u),capturedAction[side],
+            rb(ram,p+0x256u),rb(ram,p+0x259u),captured259[side])){
+            // 87.193(2) frame 5703: a real wrong 2C26 action was
+            // left with OUR 259=08 even after the failed handoff.
+            // Release only that stale latch. Preserve the native ROM
+            // action, animation, mode and consumed input history.
+            wb(ram,p+0x259u,captured259[side]);
+            event(now,side,ram,
+                "DHC_195_WRONG_ACTION_HOST_259_LATCH_RELEASED");
         }
         if(restoreStaged || restoreFamily){
             // Never rewrite the actual ROM-selected action, D6,
