@@ -122,6 +122,37 @@ class SpriteFactoryTests(unittest.TestCase):
             with self.assertRaisesRegex(sf.SpriteError,'no clean'):
                 sf.create_factory(Path(td)/'missing',None,Path(td)/'missing_output',source='clean')
 
+    def test_hud_repetition_deprioritized_but_addresses_preserved(self):
+        # Synthetic equivalents of uploaded 17-shot evidence: a persistent
+        # fixed-screen priority-7 panel versus diverse stage actor candidates.
+        catalog=[]
+        for shot_idx in range(1,18):
+            shot=f'shot_{shot_idx:04d}'
+            catalog.extend([
+                {'shot':shot,'tile':0x16ca0,'palette':31,
+                 'width_tiles':6,'height_tiles':2,'flip':0,
+                 'priority_mode':7,'sample_count':50,'positions_count':1,
+                 'observations':50},
+                {'shot':shot,'tile':0x12000+shot_idx*0x10,'palette':3,
+                 'width_tiles':4,'height_tiles':3,'flip':0,
+                 'priority_mode':4,'sample_count':20,'positions_count':12,
+                 'observations':20},
+            ])
+        sf.annotate_gallery_roles(catalog)
+        hud=[c for c in catalog if c['tile']==0x16ca0]
+        self.assertTrue(all(c['candidate_role']=='INTERFACE_LIKELY' for c in hud))
+        self.assertEqual(hud[0]['cross_shot_count'],17)
+        scene=sf.gallery_candidates(catalog,96,8,None,None,'scenery')
+        self.assertTrue(scene)
+        self.assertEqual([c['tile'] for c in scene[:17]],
+                         [0x12000+i*0x10 for i in range(1,18)])
+        # Exact tile addressing and original all-objects view do not remove
+        # any source tile, even when it is confidently a HUD element.
+        exact=sf.gallery_candidates(catalog,96,8,0x16ca0,31,'scenery')
+        self.assertEqual(len(exact),17)
+        legacy=sf.gallery_candidates(catalog,96,8,None,None,'all')
+        self.assertTrue(any(c['tile']==0x16ca0 for c in legacy[:17]))
+
     def test_missing_tile_never_fabricated(self):
         with tempfile.TemporaryDirectory() as td:
             root=Path(td)/'clean_rips'
