@@ -82,7 +82,7 @@ int main(){
         assert(XM87142::ramW(ram.data(),base+0x0Au)==0u);
         for(unsigned i=0;i<65536u;++i){
             const bool touched=
-                i==(base+0x256u)^1u || i==(base+0x259u)^1u ||
+                i==((base+0x256u)^1u) || i==((base+0x259u)^1u) ||
                 i==((base+0x06u)^1u) || i==((base+0x07u)^1u) ||
                 i==((base+0x08u)^1u) || i==((base+0x09u)^1u) ||
                 i==((base+0x0Au)^1u) || i==((base+0x0Bu)^1u) ||
