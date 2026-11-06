@@ -550,12 +550,23 @@ INT32 Cps2Frame()
         const unsigned bench=XM87142::ramW(CpsRamFF,0x4852u);
         const unsigned action=XM87142::ramW(CpsRamFF,0x4060u);
         const unsigned mode=XM87142::ramW(CpsRamFF,0x40A0u);
+        const XM87184Life::Sample stageBeforeCpu={
+            point,action,mode,XM87142::ramW(CpsRamFF,0x4008u),
+            XM87142::ramL(CpsRamFF,0x4034u),
+            XM87142::ramB(CpsRamFF,0x40D6u)};
+        // On a verified *nonterminal* Shinkuu recovery script,
+        // 3P must also normalize to native 2P. Never normalize it
+        // after the actual action has ended or at terminal 0D3194.
+        const bool genuineRecoveryWindow=
+            XM87184Life::isRecoveryTag(stageBeforeCpu,
+                                      XM87184Life::recoveryOptIn());
         xm87177PrequeueThreePunch=
             XM87177Chords::shieldPrequeue3P(
                 XM87144::state().enabled,XM87144::state().earlyCancel,
                 unsigned(XM87144::state().phase[0]),
                 XM87140Chat::state().candidate[0],
-                point,bench,action,mode,physicalPunches|physicalKicks);
+                point,bench,action,mode,physicalPunches|physicalKicks,
+                genuineRecoveryWindow);
         if(xm87177PrequeueThreePunch){
             dhcInput.active=true;
             dhcInput.isolated=false; // canonical 2P, NOT zeroed input
