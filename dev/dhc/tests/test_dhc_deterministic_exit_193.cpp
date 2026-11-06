@@ -65,12 +65,13 @@ int main(){
         wset(ram,base+0x08u,6u);
         wset(ram,base+0x0Au,0u);
         const auto before=ram;
-        const Snapshot snap=capture(ram.data(),base);
+        const Transaction exit=beginNativeExit(ram.data(),side);
+        assert(exit.begun && exit.actor==base && exit.reserve==reserve);
+        const Snapshot& snap=exit.before;
         assert(snap.action==0x2E02u&&snap.mode==0x2A28u);
         assert(snap.script==0xD2DD0u&&snap.d6==0x0Cu);
         assert(snap.controller256==0u&&snap.controller259==0u);
         assert(snap.step06==2u&&snap.step08==6u);
-        armNativeController8(ram.data(),base);
         assert(XM87142::ramW(ram.data(),base+0x60u)==0x2E02u);
         assert(XM87142::ramW(ram.data(),base+0xA0u)==0x002Au);
         assert(XM87142::ramL(ram.data(),base+0x34u)==0xD2DD0u);
@@ -91,6 +92,9 @@ int main(){
         }
         assert(ram[reserve+0x100u]==before[reserve+0x100u]);
     }
+    assert(!beginNativeExit(nullptr,0u).begun);
+    std::vector<std::uint8_t> invalidRam(65536u,0u);
+    assert(!beginNativeExit(invalidRam.data(),2u).begun);
     // End-to-end ownership: reserve QCF+2K keeps native KK on Ken
     // even though outgoing Ryu received LP+MP tag edge.
     XM87192Owner::Proposal owned;
