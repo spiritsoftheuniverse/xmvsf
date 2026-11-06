@@ -24,6 +24,7 @@
 #include "xmvsf_stage87_191_super_lifetime_gate.h" // no phase-specific DHC availability
 #include "xmvsf_stage87_192_reserve_super_ownership.h" // incoming reserve owns captured gesture
 #include "xmvsf_stage87_193_deterministic_exit_protocol.h" // actor-addressed deterministic native exit
+#include "xmvsf_stage87_194_native_passive_jump_entry.h" // ROM-owned descent, true landing, target steering
 #include "xmvsf_stage87_177_dhc_punch_chords.h" // explicit 3P host / native 2P helper dependency
 #include <cstdint>
 #include <cstdio>
@@ -73,7 +74,8 @@ enum Phase{
     IDLE=0,TAG_OUT=1,WAIT_TAG_CONTROLLER=2,WAIT_NATIVE_SWAP=3,
     WAIT_LANDING=4,WAIT_KEN_EXIT=5,SUPER_STARTED=6,FAILED=7,
     DELIVER_NATIVE_INPUT=8,WAIT_RYU_SUPER_END=9,
-    SEND_ROM_TAG_INPUT=10,PRIME_DELAYED_TAG_EDGE=11
+    SEND_ROM_TAG_INPUT=10,PRIME_DELAYED_TAG_EDGE=11,
+    WAIT_NATIVE_PASSIVE_JUMP=12
 };
 static inline const char* phaseName(Phase p){
     switch(p){
@@ -81,6 +83,7 @@ static inline const char* phaseName(Phase p){
       case WAIT_TAG_CONTROLLER:return "WAIT_NATIVE_TAG_CONTROLLER";
       case WAIT_NATIVE_SWAP:return "WAIT_NATIVE_SWAP";
       case WAIT_LANDING:return "WAIT_NATIVE_LANDING";
+      case WAIT_NATIVE_PASSIVE_JUMP:return "WAIT_NATIVE_PASSIVE_JUMP";
       case WAIT_KEN_EXIT:return "NATIVE_KEN_KICKLESS_EXIT";
       case SUPER_STARTED:return "NATIVE_KEN_SUPER_START";
       case DELIVER_NATIVE_INPUT:return "NATIVE_KEN_INPUT_SEQUENCE";
@@ -97,6 +100,7 @@ struct State {
          earlyActiveDirectTest=false,recoveryReboundTest=false,
          firstFourAttackTest=false,fullAttackTest=false,familyTest=false,liveLifetimeTest=false,
          reserveOwnershipTest=false,deterministicExitTest=false,
+         passiveJumpTest=false,
          chainUsed[2]={false,false};
     Phase phase[2]={IDLE,IDLE};
     bool armedFromFamily[2]={false,false};
@@ -128,6 +132,7 @@ struct State {
     unsigned originalX[2]={0u,0u},opponentX[2]={0u,0u};
     XM87143Queue::Command command[2]={XM87143Queue::QCF_PP,XM87143Queue::QCF_PP};
     XM87192Owner::Proposal ownedCommand[2];
+    XM87194Jump::Arrival jumpArrival[2];
     unsigned lastFrame=~0u;
     unsigned lastQueuedCheck[2]={~0u,~0u};
     std::FILE* log=nullptr;
@@ -179,6 +184,9 @@ struct State {
         const char* exitProtocol=std::getenv("XM87193_TEST_DETERMINISTIC_EXIT");
         deterministicExitTest=reserveOwnershipTest && exitProtocol &&
             std::strcmp(exitProtocol,"1")==0;
+        const char* jump=std::getenv("XM87194_TEST_NATIVE_PASSIVE_JUMP");
+        passiveJumpTest=deterministicExitTest && jump &&
+            std::strcmp(jump,"1")==0;
         const char* firstFour=std::getenv("XM87186_TEST_FIRST_FOUR_ATTACK");
         firstFourAttackTest=enabled && earlyCancel && firstFour &&
              std::strcmp(firstFour,"1")==0;
@@ -209,6 +217,7 @@ struct State {
         for(unsigned s=0;s<2u;++s){
             phase[s]=IDLE;chainUsed[s]=false;armedFromFamily[s]=false;
             ownedCommand[s]=XM87192Owner::Proposal();
+            jumpArrival[s].reset();
             lastQueuedCheck[s]=~0u;
             lastAcceptedAt[s]=~0u;cooldownUntil[s]=0u;
             lastNormalRef[s]=~0u;
@@ -284,6 +293,8 @@ struct State {
         chainUsed[side]=false;
         kenSuperConfirmed[side]=false;
         kenExpectedAction[side]=kenExpectedScript[side]=0u;
+        jumpArrival[side].reset();
+        ownedCommand[side]=XM87192Owner::Proposal();
         kenFallbackUsed[side]=false;kenNeutralSince[side]=0u;
         kenNeutralAt[side]=inputBegin[side]=0u;
         primeFrame[side]=0u;primeSent[side]=false;
@@ -1063,6 +1074,50 @@ struct State {
                                      incomingAction==0x2A0Eu) &&
                                      rb(ram,p+0xD6u)==0x10u;
                 const unsigned floor=rw(ram,p+0x254u);
+                // 87.194: retain the authentic native airborne launch
+                // Y, fractional positions and native X/Y velocity. The
+                // previous path set Y=floor and cleared motion on this
+                // very frame; that TELEPORTED Ken and left spurious entry
+                // sounds/interactions. Sabretooth's captured native entry
+                // naturally hands over to 0000/0000 and stands.
+                //
+                // Suppress Ken's attacking 2A0C art by selecting his real
+                // non-attacking 2A08 script, but do NOT zero his motion,
+                // force neutral, place him on the floor, or release his
+                // reserve-owned super command before actual landing.
+                if(passiveJumpTest && kenEntry){
+                    const unsigned foe=rw(ram,0x4400u+0x0Cu);
+                    const unsigned x=rw(ram,p+0x0Cu);
+                    const unsigned y=rw(ram,p+0x10u);
+                    if(!jumpArrival[side].begin(
+                           side,pointId,now,int(x),int(y),int(floor),
+                           int(foe),originalX[side]<opponentX[side])){
+                        abort(now,side,ram,
+                              "DHC_194_ROM_AIRBORNE_ENTRY_NOT_CONFIRMED");
+                        continue;
+                    }
+                    const auto leave=XM87142::resolve(
+                        rom,size,pointId,0x2Au,0x08u);
+                    if(!leave.valid || leave.script!=0xD567Eu ||
+                       !setNativeScript(ram,rom,size,p,pointId,0x2Au,0x08u)){
+                        abort(now,side,ram,
+                              "DHC_194_NONATTACKING_NATIVE_ENTRY_ROM_UNRESOLVED");
+                        continue;
+                    }
+                    wb(ram,p+0xA4u,0u);
+                    wb(ram,p+0x256u,0u);wb(ram,p+0x259u,0u);
+                    ww(ram,p+0x06u,0u);
+                    ww(ram,p+0x08u,2u);ww(ram,p+0x0Au,0u);
+                    ww(ram,p+0xA0u,0x2A00u);
+                    wb(ram,p+0xD6u,0x12u);
+                    // Intentionally leave +0C X, +10 Y and +14..+20
+                    // velocity/acceleration EXACTLY as the ROM produced.
+                    kenKickReassertions[side]=0u;
+                    phase[side]=WAIT_NATIVE_PASSIVE_JUMP;
+                    event(now,side,ram,
+                        "DHC_194_ROM_AIRBORNE_ARRIVAL_MOTION_PRESERVED");
+                    continue;
+                }
                 if(kenEntry && floor>=128u && floor<=768u){
                     const auto leave=XM87142::resolve(
                         rom,size,pointId,0x2Au,0x08u);
@@ -1109,6 +1164,79 @@ struct State {
                 if(phase[side]==WAIT_LANDING &&
                    now-started[side]>135u)
                     abort(now,side,ram,"KEN_ARRIVAL_TIMEOUT");
+                continue;
+            }
+            if(phase[side]==WAIT_NATIVE_PASSIVE_JUMP){
+                if(pointId!=incoming[side] || reserveId!=outgoing[side] ||
+                   !jumpArrival[side].active ||
+                   jumpArrival[side].fighter!=pointId){
+                    abort(now,side,ram,"DHC_194_NATIVE_JUMP_ACTOR_LOST");
+                    continue;
+                }
+                const unsigned actualAction=rw(ram,p+0x60u);
+                if(actualAction==0x2A0Cu || actualAction==0x2A0Eu){
+                    // The original tag-in scheduler may repeat the entry
+                    // attack before completing the native descent.
+                    // Keep the real, non-attacking 2A08 animation instead
+                    // of letting a kick/charge interrupt the arrival.
+                    if(++kenKickReassertions[side]>2u ||
+                       !setNativeScript(ram,rom,size,p,pointId,0x2Au,0x08u)){
+                        abort(now,side,ram,
+                            "DHC_194_NATIVE_ENTRY_KICK_REASSERTION_UNRESOLVED");
+                        continue;
+                    }
+                    wb(ram,p+0xD6u,0x12u);
+                    wb(ram,p+0xA4u,0u);
+                    wb(ram,p+0x256u,0u);wb(ram,p+0x259u,0u);
+                    event(now,side,ram,
+                        "DHC_194_NATIVE_ENTRY_KICK_REASSERTED_SUPPRESSED");
+                }
+                const unsigned y=rw(ram,p+0x10u);
+                const bool wasDescending=jumpArrival[side].descended;
+                const int targetX=jumpArrival[side].position(now,int(y));
+                if(jumpArrival[side].descended && !wasDescending)
+                    event(now,side,ram,
+                        "DHC_194_NATIVE_INCOMING_JUMP_DESCENT_OBSERVED");
+                const unsigned priorX=rl(ram,p+0x0Cu);
+                if(int(priorX>>16u)!=targetX)
+                    wl(ram,p+0x0Cu,
+                        (unsigned(targetX)<<16u)|(priorX&65535u));
+                if(jumpArrival[side].ready(pointId,int(y))){
+                    // The original game, not a fabricated elapsed frame
+                    // count, confirms Y reached the native floor. Only
+                    // NOW enter the original ROM idle script, matching
+                    // Sabretooth's passive stand-after-entry contract.
+                    const auto idle=XM87142::resolve(rom,size,pointId,0u,0u);
+                    if(!idle.valid || idle.script!=0xD39FAu ||
+                       !setNativeScript(ram,rom,size,p,pointId,0u,0u)){
+                        abort(now,side,ram,
+                            "DHC_194_NATIVE_LANDING_IDLE_ROM_UNRESOLVED");
+                        continue;
+                    }
+                    ww(ram,p+0xA0u,0x002Au);
+                    wb(ram,p+0xD6u,0x10u);
+                    wb(ram,p+0xA4u,0u);
+                    wb(ram,p+0x256u,0u);wb(ram,p+0x259u,0u);
+                    ww(ram,p+0x06u,0u);
+                    ww(ram,p+0x08u,0u);
+                    ww(ram,p+0x0Au,0u);
+                    // Clearing velocity AT GROUND contact is safe;
+                    // the preceding airborne native motion was intact.
+                    wl(ram,p+0x14u,0u);wl(ram,p+0x18u,0u);
+                    wl(ram,p+0x1Cu,0u);wl(ram,p+0x20u,0u);
+                    kenExpectedAction[side]=kenExpectedScript[side]=0u;
+                    kenSuperConfirmed[side]=false;
+                    kenNeutralSince[side]=0u;
+                    inputBegin[side]=now+1u;
+                    phase[side]=DELIVER_NATIVE_INPUT;
+                    event(now,side,ram,
+                        "DHC_194_REAL_NATIVE_LANDING_IDLE_BEFORE_RESERVE_SUPER");
+                }else if(now>jumpArrival[side].startFrame+135u){
+                    // Only a watchdog, NEVER fake a descent or floor.
+                    event(now,side,ram,
+                        "DHC_194_NATIVE_ENTRY_NO_DESCENT_DID_NOT_FORCE_LANDING");
+                    abort(now,side,ram,"DHC_194_NATIVE_JUMP_WATCHDOG_ABORT");
+                }
                 continue;
             }
             if(phase[side]==WAIT_KEN_EXIT){
