@@ -26,6 +26,7 @@ int main(){
     State owner;
     assert(!owner.propose(0u,0x14u,100u,NONE,0x03u));
     assert(!owner.propose(0u,0x14u,100u,QCF,0u));
+    assert(!owner.propose(0u,0x14u,100u,QCF,0x01u)); // ordinary special, no swap
     assert(owner.propose(0u,0x14u,100u,QCF,0x07u));
     assert(owner.fresh(0u,0x14u,100u));
     assert(!owner.fresh(0u,0x12u,100u));
@@ -45,11 +46,11 @@ int main(){
     assert(owner.pending[0].input(2u,true).directions==6u);
     assert(owner.pending[0].input(4u,true).directions==2u);
     assert(owner.pending[0].input(5u,true).attacks==0x18u);
-    assert(owner.propose(0u,0x14u,102u,DPF,0x01u));
+    assert(owner.propose(0u,0x14u,102u,DPF,0x03u));
     assert(owner.pending[0].input(0u,true).directions==1u);
     assert(owner.pending[0].input(2u,true).directions==4u);
     assert(owner.pending[0].input(4u,true).directions==5u);
-    assert(owner.propose(0u,0x14u,103u,HCF,0x02u));
+    assert(owner.propose(0u,0x14u,103u,HCF,0x03u));
     assert(owner.pending[0].duration()==13u);
     assert(owner.propose(0u,0x14u,104u,DOUBLE_QCF,0x03u));
     assert(owner.pending[0].duration()==15u);
