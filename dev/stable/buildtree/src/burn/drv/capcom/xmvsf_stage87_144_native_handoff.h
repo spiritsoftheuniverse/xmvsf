@@ -25,6 +25,7 @@
 #include "xmvsf_stage87_192_reserve_super_ownership.h" // incoming reserve owns captured gesture
 #include "xmvsf_stage87_193_deterministic_exit_protocol.h" // actor-addressed deterministic native exit
 #include "xmvsf_stage87_194_native_passive_jump_entry.h" // ROM-owned descent, true landing, target steering
+#include "xmvsf_stage87_195_tag_latch_guard.h" // clear only our failed controller8 latch
 #include "xmvsf_stage87_177_dhc_punch_chords.h" // explicit 3P host / native 2P helper dependency
 #include <cstdint>
 #include <cstdio>
@@ -204,7 +205,8 @@ struct State {
                 "\tcontroller256\tcontroller259\tnativeD6\tscriptFlag3C\tstep4E\ta4\tpartner214"
                 "\tscript34\tscript38\tpartnerPtr\tpoint210\treserve210"
                 "\tx\ty\tdecision\tken2E00_D6722_ready\tken2E02_D6976_ready"
-                "\tken_observed_2E00\tken_observed_2E02\tselected_command\n",log);
+                "\tken_observed_2E00\tken_observed_2E02\tselected_command"
+                "\traw14\traw18\traw1C\traw20\tfloor254\tjumpApexY\tjumpDescendingFrames\n",log);
         }
         std::fprintf(stderr,
             "XM87.180 Ken DHC enabled=%d proofMode=%d earlyCancel=%d"
@@ -274,6 +276,18 @@ struct State {
         if(staleHostLatch){
             wb(ram,p+0x259u,captured259[side]);
             event(now,side,ram,"DHC_178_STALE_HOST_259_LATCH_CLEARED");
+        }else if(XM87195Latch::shouldReleaseWrongAction(
+            unsigned(phase[side]),rw(ram,p+0x52u),
+            rw(ram,p+0x852u),outgoing[side],incoming[side],
+            rw(ram,p+0x60u),capturedAction[side],
+            rb(ram,p+0x256u),rb(ram,p+0x259u),captured259[side])){
+            // 87.193(2) frame 5703: a real wrong 2C26 action was
+            // left with OUR 259=08 even after the failed handoff.
+            // Release only that stale latch. Preserve the native ROM
+            // action, animation, mode and consumed input history.
+            wb(ram,p+0x259u,captured259[side]);
+            event(now,side,ram,
+                "DHC_195_WRONG_ACTION_HOST_259_LATCH_RELEASED");
         }
         if(restoreStaged || restoreFamily){
             // Never rewrite the actual ROM-selected action, D6,
@@ -315,7 +329,8 @@ struct State {
             "\t%04X\t%04X\t%04X\t%04X\t%04X"
             "\t%02X\t%02X\t%02X\t%02X\t%04X\t%02X\t%04X"
             "\t%08X\t%08X\t%08X\t%04X\t%04X"
-            "\t%u\t%u\t%s\t%u\t%u\t%u\t%u\t%u\n",
+            "\t%u\t%u\t%s\t%u\t%u\t%u\t%u\t%u"
+            "\t%08X\t%08X\t%08X\t%08X\t%04X\t%d\t%u\n",
             now,side+1u,phaseName(phase[side]),
             rw(ram,p+0x52u),rw(ram,reserve+0x52u),
             rw(ram,p+0x60u),rw(ram,p+0xA0u),
@@ -331,7 +346,11 @@ struct State {
                      rl(ram,p+0x34u)>=0xD6722u && rl(ram,p+0x34u)<0xD67A2u),
             unsigned(rw(ram,p+0x52u)==0x14u && rw(ram,p+0x60u)==0x2E02u &&
                      rl(ram,p+0x34u)>=0xD6976u && rl(ram,p+0x34u)<0xD69F6u),
-            unsigned(command[side]));
+            unsigned(command[side]),
+            rl(ram,p+0x14u),rl(ram,p+0x18u),
+            rl(ram,p+0x1Cu),rl(ram,p+0x20u),
+            rw(ram,p+0x254u),jumpArrival[side].apexY,
+            jumpArrival[side].nativeDownwardSamples);
         std::fflush(log);
     }
 

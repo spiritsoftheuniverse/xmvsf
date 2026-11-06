@@ -20,14 +20,14 @@ struct Arrival {
     bool active=false,descended=false,landed=false;
     unsigned side=0u,fighter=0u,startFrame=0u,landingFrame=0u;
     int startX=0,startY=0,floorY=0,targetX=0;
-    int maxY=0,lastY=0,positionX=0;
+    int maxY=0,apexY=0,lastY=0,positionX=0;
     unsigned nativeDownwardSamples=0u;
     bool begin(unsigned owner,unsigned id,unsigned frame,int x,int y,
                int floor,int foeX,bool outgoingWasLeft){
         if(active || owner>=2u || floor<=y || floor>768 ||
            floor<128 || y<0 || x<0)return false;
         side=owner;fighter=id;startFrame=frame;landingFrame=0u;
-        startX=x;startY=y;floorY=floor;lastY=y;maxY=y;
+        startX=x;startY=y;floorY=floor;lastY=y;maxY=y;apexY=y;
         targetX=foeX+(outgoingWasLeft?-48:48);
         if(targetX<192)targetX=192;
         if(targetX>768)targetX=768;
@@ -41,6 +41,7 @@ struct Arrival {
     // If the ROM never descends, do NOT claim the fighter arrived.
     int position(unsigned frame,int nativeY){
         if(!active||landed||frame<startFrame)return positionX;
+        if(nativeY<apexY)apexY=nativeY;
         if(nativeY>lastY && nativeY<floorY){
             descended=true;
             ++nativeDownwardSamples;
@@ -54,12 +55,19 @@ struct Arrival {
             positionX=startX;
             return positionX;
         }
-        int progress=nativeY-startY;
-        const int span=floorY-startY;
+        // Track the ROM-owned jump apex. Starting X travel only when
+        // the ROM truly descends, but use the FULL descent arc, not
+        // just the last startY..floorY pixels of the drop.
+        int progress=nativeY-apexY;
+        const int span=floorY-apexY;
         if(progress<0)progress=0;
         if(progress>span)progress=span;
         const int delta=targetX-startX;
         positionX=startX+(delta*progress + (delta>=0?span/2:-span/2))/span;
+        if(delta>=0){if(positionX<startX)positionX=startX;
+                     if(positionX>targetX)positionX=targetX;}
+        else {if(positionX>startX)positionX=startX;
+              if(positionX<targetX)positionX=targetX;}
         // A natural native ground contact is authoritative, not elapsed
         // frames. Require multiple actual airborne Y samples to prevent
         // a one-frame teleported floor from counting as a jump.
