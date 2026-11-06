@@ -585,14 +585,22 @@ INT32 Cps2Frame()
         // leaked physical 3P (dash) during startup. Still reject
         // terminal 0D3194 and action exit. This is input shielding;
         // whether a tag is safe is separately decided in XM87144.
+        // Original-ROM 2E super on either ground or in air: the
+        // pre-CPU controller port should see canonical native 2P,
+        // never the 3P dash. Match the same actor, root, script and
+        // current/previous host frame; do not shield after super exit.
+        const bool nativeFamilyPreCpu=XM87144::state().familyTest &&
+            XM87189Family::state().side[0].preCpuActive(
+                (unsigned)GetCurrentFrame(),stageBeforeCpu);
         xm87177PrequeueThreePunch=
-            XM87185Gate::canRecognize(stageBeforeCpu) &&
+            (XM87185Gate::canRecognize(stageBeforeCpu) ||
+             nativeFamilyPreCpu) &&
             XM87177Chords::shieldPrequeue3P(
                 XM87144::state().enabled,XM87144::state().earlyCancel,
                 unsigned(XM87144::state().phase[0]),
                 XM87140Chat::state().candidate[0],
                 point,bench,action,mode,physicalPunches|physicalKicks,
-                genuineRecoveryWindow);
+                genuineRecoveryWindow,nativeFamilyPreCpu);
         if(xm87177PrequeueThreePunch){
             dhcInput.active=true;
             dhcInput.isolated=false; // canonical 2P, NOT zeroed input
