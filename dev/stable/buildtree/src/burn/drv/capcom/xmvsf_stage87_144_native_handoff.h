@@ -22,6 +22,7 @@
 #include "xmvsf_stage87_188_full_attack_gate.h" // full native 2E08 ATTACK
 #include "xmvsf_stage87_189_native_super_family.h" // original ROM 2E family
 #include "xmvsf_stage87_191_super_lifetime_gate.h" // no phase-specific DHC availability
+#include "xmvsf_stage87_192_reserve_super_ownership.h" // incoming reserve owns captured gesture
 #include "xmvsf_stage87_177_dhc_punch_chords.h" // explicit 3P host / native 2P helper dependency
 #include <cstdint>
 #include <cstdio>
@@ -94,6 +95,7 @@ struct State {
          delayedPrimeExperimental=false,unsafeConsumedPunchReplay=false,
          earlyActiveDirectTest=false,recoveryReboundTest=false,
          firstFourAttackTest=false,fullAttackTest=false,familyTest=false,liveLifetimeTest=false,
+         reserveOwnershipTest=false,
          chainUsed[2]={false,false};
     Phase phase[2]={IDLE,IDLE};
     bool armedFromFamily[2]={false,false};
@@ -124,6 +126,7 @@ struct State {
     unsigned lastNormalRef[2]={~0u,~0u};
     unsigned originalX[2]={0u,0u},opponentX[2]={0u,0u};
     XM87143Queue::Command command[2]={XM87143Queue::QCF_PP,XM87143Queue::QCF_PP};
+    XM87192Owner::Proposal ownedCommand[2];
     unsigned lastFrame=~0u;
     unsigned lastQueuedCheck[2]={~0u,~0u};
     std::FILE* log=nullptr;
@@ -169,6 +172,9 @@ struct State {
         const char* liveLifetime=std::getenv("XM87191_TEST_OPEN_SUPER_LIFETIME");
         liveLifetimeTest=familyTest && liveLifetime &&
             std::strcmp(liveLifetime,"1")==0;
+        const char* owned=std::getenv("XM87192_TEST_RESERVE_OWNERSHIP");
+        reserveOwnershipTest=liveLifetimeTest && owned &&
+            std::strcmp(owned,"1")==0;
         const char* firstFour=std::getenv("XM87186_TEST_FIRST_FOUR_ATTACK");
         firstFourAttackTest=enabled && earlyCancel && firstFour &&
              std::strcmp(firstFour,"1")==0;
@@ -198,6 +204,7 @@ struct State {
         oldRyuProjectiles.reset();
         for(unsigned s=0;s<2u;++s){
             phase[s]=IDLE;chainUsed[s]=false;armedFromFamily[s]=false;
+            ownedCommand[s]=XM87192Owner::Proposal();
             lastQueuedCheck[s]=~0u;
             lastAcceptedAt[s]=~0u;cooldownUntil[s]=0u;
             lastNormalRef[s]=~0u;
@@ -359,7 +366,8 @@ struct State {
                 started[side]=now;
                 lastAcceptedAt[side]=selectedAt;
                 event(now,side,ram,"DHC_NATIVE_TAG_CONTROLLER_08_ARMED");
-                event(now,side,ram,
+                event(now,side,ram,reserveOwnershipTest?
+                      "DHC_192_RESERVE_NATIVE_MOVE_UNSELECTED_ROM_OWNS_SUPER":
                       "DHC_KEN_ALTERNATE_ROM_SUPERS_REPPA_2E00_D6722_SHINRYUKEN_2E02_D6976");
     }
     // 87.152: one-shot real CPS-2 controller stream. This is consumed
@@ -418,6 +426,15 @@ struct State {
            rw(ram,0x4052u)!=0x14u || !inputBegin[0] ||
            now<inputBegin[0])return m;
         const unsigned t=now-inputBegin[0];
+        if(reserveOwnershipTest && ownedCommand[0].valid){
+            // The reserve owns this captured gesture once the ROM swaps.
+            // Let the original 68000 parser choose the actual action.
+            const bool faceRight=(rb(ram,0x404Bu)&1u)!=0u;
+            const auto x=ownedCommand[0].input(t,faceRight);
+            m.active=x.active;m.directions=x.directions;
+            m.attacks=x.attacks;
+            return m;
+        }
         const unsigned maxFrames=earlyCancel?9u:17u;
         if(t>=maxFrames)return m;
         const bool faceRight=(rb(ram,0x404Bu)&1u)!=0u;
@@ -495,9 +512,13 @@ struct State {
             }
             if(phase[side]==IDLE){
                 const auto* entry=XM87143Queue::state().selected[side];
-                if(!entry || chainUsed[side] || !entry->known ||
-                   now<cooldownUntil[side])continue;
-                const unsigned selectedAt=XM87143Queue::state().selectedFrame[side];
+                const bool ownedSelected=reserveOwnershipTest &&
+                    XM87192Owner::state().fresh(side,reserveId,now);
+                if((!ownedSelected && (!entry||!entry->known)) ||
+                   chainUsed[side] || now<cooldownUntil[side])continue;
+                const unsigned selectedAt=ownedSelected?
+                    XM87192Owner::state().pending[side].frame:
+                    XM87143Queue::state().selectedFrame[side];
                 const bool firstCheck=selectedAt!=lastQueuedCheck[side];
                 lastQueuedCheck[side]=selectedAt;
                 // 87.186: 2524/2565 STARTUP commands were held for
@@ -534,7 +555,7 @@ struct State {
                     blocked="BLOCK_NO_ACTIVE_SUPER_WINDOW";
                 else if(pointId!=0x12u || reserveId!=0x14u)
                     blocked="BLOCK_NOT_RYU_POINT_KEN_RESERVE";
-                else if(entry->known->fighter!=reserveId)
+                else if(!ownedSelected && entry->known->fighter!=reserveId)
                     blocked="BLOCK_SELECTED_SUPER_NOT_FOR_RESERVE";
                 else if(liveLifetimeTest && !liveSuperWindow)
                     blocked="DHC_191_OUTSIDE_ACTUAL_ROM_SUPER_LIFETIME";
@@ -555,8 +576,8 @@ struct State {
                         rw(ram,p+0xA0u)!=0x2A28u &&
                         rw(ram,p+0xA0u)!=0x2A02u)
                     blocked="BLOCK_NOT_NATIVE_2A28_SUPER_MODE";
-                bool hasScript=false;
-                for(unsigned i=0;i<entry->count;++i)
+                bool hasScript=ownedSelected;
+                if(!ownedSelected)for(unsigned i=0;i<entry->count;++i)
                     hasScript |= entry->scripts[i].resolved;
                 if(!blocked && !hasScript)
                     blocked="BLOCK_SELECTED_SUPER_HAS_NO_RESOLVED_ROM_SCRIPT";
@@ -570,9 +591,9 @@ struct State {
                 const auto ryu=XM87142::resolve(rom,size,0x14u,0x2Eu,0x02u);
                 shoryureppaReady[side]=rep.valid && rep.script==0xD6722u;
                 shinryukenReady[side]=ryu.valid && ryu.script==0xD6976u;
-                if(!blocked && entry->known->command==XM87143Queue::QCF_PP &&
+                if(!blocked && !ownedSelected && entry->known->command==XM87143Queue::QCF_PP &&
                    !shoryureppaReady[side])blocked="BLOCK_REPPA_2E00_ROM_UNRESOLVED";
-                if(!blocked && entry->known->command==XM87143Queue::QCF_KK &&
+                if(!blocked && !ownedSelected && entry->known->command==XM87143Queue::QCF_KK &&
                    !shinryukenReady[side])blocked="BLOCK_SHINRYUKEN_2E02_ROM_UNRESOLVED";
                 // 87.183 live 87.182 trace, 23 armed handoffs:
                 // 20 successful: native C0=0001, CA=0000.
@@ -609,7 +630,7 @@ struct State {
                     // deferred controller-8 handoffs. The player may
                     // deliberately enter a new command on a verified
                     // phase instead.
-                    if(entry->known->fighter!=reserveId ||
+                    if((!ownedSelected && entry->known->fighter!=reserveId) ||
                        (liveLifetimeTest && !liveSuperWindow) ||
                        (familyTest && originalSuper.live &&
                         originalSuper.phase==XM87189Family::CONTINUATION &&
@@ -623,7 +644,15 @@ struct State {
                 }
                 originalX[side]=rw(ram,p+0x0Cu);
                 opponentX[side]=rw(ram,0x4400u+0x0Cu);
-                command[side]=entry->known->command;
+                if(ownedSelected){
+                    ownedCommand[side]=XM87192Owner::state().pending[side];
+                    // This is only a legacy display fallback, never a
+                    // super selector in reserve-owned 87.192 mode.
+                    command[side]=(ownedCommand[side].buttonMask&0x38u)?
+                        XM87143Queue::QCF_KK:XM87143Queue::QCF_PP;
+                    event(now,side,ram,
+                        "DHC_192_RESERVE_INPUT_OWNER_SELECTED_NO_SUPER_LIST");
+                }else command[side]=entry->known->command;
                 outgoing[side]=pointId;incoming[side]=reserveId;
                 // 87.158 restore the *actual* 87.151 Ken-Hadoken route.
                 // 87.151 armed controller 8 at 1857 (+4E=28), ROM 3200
@@ -1156,7 +1185,8 @@ struct State {
                     if(rb(ram,p+0xD6u)!=0x12u ||
                        rl(ram,p+0x34u)!=0xD567Eu ||
                        !idle.valid || idle.script!=0xD39FAu ||
-                       !sup.valid || sup.script!=expected){
+                       (!reserveOwnershipTest &&
+                        (!sup.valid || sup.script!=expected))){
                         abort(now,side,ram,
                               "FAST_KEN_CANCEL_ROM_STATE_UNVERIFIED_NO_OVERRIDE");
                         continue;
@@ -1179,8 +1209,8 @@ struct State {
                     wl(ram,p+0x18u,0u);
                     wl(ram,p+0x1Cu,0u);
                     wl(ram,p+0x20u,0u);
-                    kenExpectedAction[side]=0x2E00u|target;
-                    kenExpectedScript[side]=expected;
+                    kenExpectedAction[side]=reserveOwnershipTest?0u:(0x2E00u|target);
+                    kenExpectedScript[side]=reserveOwnershipTest?0u:expected;
                     kenSuperConfirmed[side]=false;
                     kenNeutralSince[side]=0u;
                     inputBegin[side]=now+1u;
@@ -1197,12 +1227,13 @@ struct State {
                         const unsigned expected=
                           command[side]==XM87143Queue::QCF_KK?0xD6976u:0xD6722u;
                         const auto sup=XM87142::resolve(rom,size,pointId,0x2Eu,target);
-                        if(!sup.valid || sup.script!=expected){
+                        if(!reserveOwnershipTest &&
+                           (!sup.valid || sup.script!=expected)){
                             abort(now,side,ram,"KEN_NATIVE_INPUT_SUPER_ROM_UNRESOLVED");
                             continue;
                         }
-                        kenExpectedAction[side]=0x2E00u|target;
-                        kenExpectedScript[side]=expected;
+                        kenExpectedAction[side]=reserveOwnershipTest?0u:(0x2E00u|target);
+                        kenExpectedScript[side]=reserveOwnershipTest?0u:expected;
                         kenSuperConfirmed[side]=false;
                         kenNeutralSince[side]=0u;
                         inputBegin[side]=now+2u;
@@ -1220,14 +1251,62 @@ struct State {
                     abort(now,side,ram,"KEN_NATIVE_INPUT_OWNERSHIP_CHANGED");
                     continue;
                 }
-                if(now==inputBegin[side])
-                    event(now,side,ram,"DHC_KEN_NATIVE_QCF_INPUT_BEGIN");
-                if(now==inputBegin[side]+(earlyCancel?6u:13u))
-                    event(now,side,ram,earlyCancel?
-                          "FAST_157_KEN_NATIVE_TWO_BUTTON_EDGE":
-                          "PROOF_156_KEN_NATIVE_TWO_BUTTON_EDGE");
-                if(now==inputBegin[side]+(earlyCancel?8u:16u))
-                    event(now,side,ram,"DHC_KEN_NATIVE_INPUT_RELEASED");
+                if(reserveOwnershipTest && ownedCommand[side].valid){
+                    const unsigned d=XM87192Owner::Proposal::length(
+                        ownedCommand[side].motion);
+                    if(now==inputBegin[side])
+                        event(now,side,ram,
+                            "DHC_192_RESERVE_INPUT_NATIVE_PARSER_START");
+                    if(now==inputBegin[side]+2u*(d-1u)+1u)
+                        event(now,side,ram,
+                            "DHC_192_RESERVE_INPUT_NATIVE_BUTTON_EDGE");
+                    if(now==inputBegin[side]+2u*d+1u)
+                        event(now,side,ram,
+                            "DHC_192_RESERVE_INPUT_NATIVE_BUTTON_RELEASE");
+                }else{
+                    if(now==inputBegin[side])
+                        event(now,side,ram,"DHC_KEN_NATIVE_QCF_INPUT_BEGIN");
+                    if(now==inputBegin[side]+(earlyCancel?6u:13u))
+                        event(now,side,ram,earlyCancel?
+                              "FAST_157_KEN_NATIVE_TWO_BUTTON_EDGE":
+                              "PROOF_156_KEN_NATIVE_TWO_BUTTON_EDGE");
+                    if(now==inputBegin[side]+(earlyCancel?8u:16u))
+                        event(now,side,ram,"DHC_KEN_NATIVE_INPUT_RELEASED");
+                }
+                // 87.192: only the reserve's REAL native ROM decision
+                // may enter the super catalog. Nothing selects 2E00,
+                // 2E02 or another assumed hyper on the host's behalf.
+                // Wrong specials/normals do not count as a super, and
+                // the existing abort/chain release handles rejection.
+                if(reserveOwnershipTest && ownedCommand[side].valid){
+                    const XM87184Life::Sample observed={
+                        pointId,rw(ram,p+0x60u),rw(ram,p+0xA0u),
+                        rw(ram,p+0x08u),rl(ram,p+0x34u),
+                        rb(ram,p+0xD6u)};
+                    if(XM87192Owner::state().confirm(
+                          side,now,ownedCommand[side],
+                          observed,rom,size)){
+                        phase[side]=SUPER_STARTED;
+                        kenSuperConfirmed[side]=true;
+                        chainUsed[side]=true;
+                        kenSuperAt[side]=now;
+                        kenNeutralSince[side]=0u;
+                        event(now,side,ram,
+                            "DHC_192_RESERVE_NATIVE_ROM_2E_SUPER_ACCEPTED_AND_CATALOGED");
+                        event(now,side,ram,"DHC_NATIVE_INPUT_DISPATCH_ACCEPTED");
+                        XM87192Owner::state().clear(side);
+                    }else if(now>inputBegin[side]+
+                          ownedCommand[side].duration()+8u){
+                        XM87192Owner::state().rejected(
+                            side,now,ownedCommand[side],observed);
+                        event(now,side,ram,
+                            "DHC_192_RESERVE_ROM_DID_NOT_SELECT_SUPER_REFUSED");
+                        abort(now,side,ram,
+                            "DHC_192_NON_SUPER_NATIVE_ACTION_NOT_ACCEPTED");
+                        XM87192Owner::state().clear(side);
+                    }
+                    continue;
+                }
                 const unsigned act=rw(ram,p+0x60u);
                 const unsigned script=rl(ram,p+0x34u);
                 const unsigned original=kenExpectedScript[side];

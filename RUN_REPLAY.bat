@@ -5,7 +5,7 @@ set "MSYSTEM=UCRT64"
 set "PATH=C:\msys64\ucrt64\bin;C:\msys64\usr\bin;%PATH%"
 set "XMVSF_PROJECT=%PROJECT%"
 REM 87.186 traces early native Shinkuu action without changing F9 inputs.
-set "OBSROOT=%PROJECT%\test\87.191\observer"
+set "OBSROOT=%PROJECT%\test\87.192\observer"
 if not exist "%OBSROOT%" mkdir "%OBSROOT%"
 if not exist "%OBSROOT%" goto :fail
 set "XM87175_DHC_OBSERVER=1"
@@ -25,12 +25,14 @@ REM 87.186 replay reproduces the stable 87.185 early attack and recovery handoff
 REM The original 87.184 native PC trace already proves the old 2E0A->2E08 restart.
 set "XM87184_EXPERIMENTAL_RECOVERY_TAG=1"
 set "XM87185_TEST_EARLY_ACTIVE_TAG=1"
-REM 87.191 full original ATTACK window (both 2A02 and 2A28).
+REM 87.192 full original ATTACK window (both 2A02 and 2A28).
 set "XM87188_TEST_FULL_ATTACK=1"
-REM Replay captured 87.189 air-super inputs through 87.191 continuous native lifecycle.
+REM Replay captured 87.189 air-super inputs through 87.192 continuous native lifecycle.
 set "XM87189_TEST_NATIVE_SUPER_FAMILY=1"
-REM 87.191 replay native full super lifetime without separate stage gates.
+REM 87.192 replay native full super lifetime without separate stage gates.
 set "XM87191_TEST_OPEN_SUPER_LIFETIME=1"
+REM 87.192 original incoming fighter command ownership, no named super list.
+set "XM87192_TEST_RESERVE_OWNERSHIP=1"
 set "XM87185_TEST_RECOVERY_REBOUND=1"
 REM Read-only historical 87.185 F9 replay must NOT inject
 REM a native tag in the previously untested first-four attack frames.
@@ -49,9 +51,9 @@ set "XM87180_EXPERIMENTAL_DELAYED_PRIME=0"
 REM Dedicated replay channel. Existing BUILD_TEST/RUN_TEST names are unchanged.
 REM Replay the original 87.161 F9 full-state + exact CPS2 inputs without
 REM creating replacement ROM scripts, patching native input, or touching Stable.
-set "EXE=%PROJECT%\runtime\stable\XMVSF_Test_87_191.exe"
+set "EXE=%PROJECT%\runtime\stable\XMVSF_Test_87_192.exe"
 if not exist "%EXE%" (
-  echo ERROR: Need XMVSF_Test_87_191.exe. Run BUILD_TEST.bat.
+  echo ERROR: Need XMVSF_Test_87_192.exe. Run BUILD_TEST.bat.
   goto :fail
 )
 if not exist "%PROJECT%\FBNeo" (
@@ -68,8 +70,8 @@ if not "%~1"=="" (
 )
 REM Current v2 recordings live alongside the current version's replay
 REM files so they are included in ordinary versioned test ZIPs.
-if not defined V2_SESSION if exist "%PROJECT%\test\87.191\replays\latest.txt" (
-  for /f "usebackq delims=" %%S in ("%PROJECT%\test\87.191\replays\latest.txt") do set "V2_SESSION=%%S"
+if not defined V2_SESSION if exist "%PROJECT%\test\87.192\replays\latest.txt" (
+  for /f "usebackq delims=" %%S in ("%PROJECT%\test\87.192\replays\latest.txt") do set "V2_SESSION=%%S"
 )
 REM Keep replays available even AFTER a version bump: find the latest
 REM completed session in older numbered TEST directories, newest first.
@@ -125,7 +127,7 @@ REM The 87.161 movie was recorded with Training host controls. Bypass
 REM the application's original boot selector and start the CPS2 driver
 REM immediately; otherwise no input movie frame is ever consumed.
 set "XM8761_REPLAY_HOST_MODE=training"
-set "XM8761_REPLAY_DIR=%PROJECT%\test\87.191\replays"
+set "XM8761_REPLAY_DIR=%PROJECT%\test\87.192\replays"
 set "XM8761_REPLAY_INPUT_FILE=%MOVIE%"
 set "XM8761_REPLAY_STATE_FILE=%STATE%"
 set "XM8761_DISABLE_RUNAHEAD=1"
@@ -140,7 +142,7 @@ set "XM8796_DIZZY_HANDOFF_TEST=1"
 set "XM8799_GROUND_DEFENSE_TEST=1"
 REM Fresh replay diagnostics must NEVER overwrite the submitted 87.161
 REM original session logs or the saved movie pair.
-set "TRACE=%PROJECT%\test\87.191\replay_results"
+set "TRACE=%PROJECT%\test\87.192\replay_results"
 if not exist "%TRACE%" mkdir "%TRACE%"
 if not exist "%TRACE%" (
   echo ERROR: Cannot create isolated replay results directory.
@@ -156,6 +158,7 @@ set "XM87139_PROBE_DIR=%TRACE%"
 set "XM87140_CHAT_LOG=%TRACE%\super_chat.tsv"
 set "XM87142_ROM_TRACE=%TRACE%\rom_dispatch.tsv"
 set "XM87144_DHC_LOG=%TRACE%\dhc_native_handoff.tsv"
+set "XM87192_RESERVE_SUPER_LOG=%TRACE%\reserve_owned_supers.tsv"
 set "XM87159_PROJECTILE_LOG=%TRACE%\p1_old_projectile_hitboxes.tsv"
 set "XM87149_TOURNAMENT_AUDIT=%TRACE%\tournament_rules.tsv"
 set "XM87160_DISCOVER=1"
@@ -285,7 +288,7 @@ set "XM8786_STORM_BUTTON_TEST=1"
 set "XM8795_NATIVE_HIT_TEST=1"
 set "XM8796_DIZZY_HANDOFF_TEST=1"
 set "XM8799_GROUND_DEFENSE_TEST=1"
-set "TRACE=%PROJECT%\test\87.191\replay_results"
+set "TRACE=%PROJECT%\test\87.192\replay_results"
 if not exist "%TRACE%" mkdir "%TRACE%"
 if not exist "%TRACE%" goto :fail
 REM Keep all replay-time host diagnostics outside the original F9 session.
@@ -296,13 +299,14 @@ set "XM87139_PROBE_DIR=%TRACE%"
 set "XM87140_CHAT_LOG=%TRACE%\super_chat.tsv"
 set "XM87142_ROM_TRACE=%TRACE%\rom_dispatch.tsv"
 set "XM87144_DHC_LOG=%TRACE%\dhc_native_handoff.tsv"
+set "XM87192_RESERVE_SUPER_LOG=%TRACE%\reserve_owned_supers.tsv"
 set "XM87159_PROJECTILE_LOG=%TRACE%\p1_old_projectile_hitboxes.tsv"
 set "XM87149_TOURNAMENT_AUDIT=%TRACE%\tournament_rules.tsv"
 set "XM87160_DISCOVER=1"
 set "XM87160_CATALOG_LOG=%TRACE%\rom_super_catalog.tsv"
 set "XM87160_OBSERVED_LOG=%TRACE%\rom_super_observed.tsv"
 echo.
-echo XMVSF HOST-AWARE F9 REPLAY V2 - CURRENT TEST 87.191
+echo XMVSF HOST-AWARE F9 REPLAY V2 - CURRENT TEST 87.192
 echo Manifest: "%V2_SESSION%\manifest.tsv"
 echo Application menu, game resets, native savestate reloads and inputs
 echo will follow the recorded session/checkpoint timeline.

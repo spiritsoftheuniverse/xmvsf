@@ -5,7 +5,7 @@ set "MSYSTEM=UCRT64"
 set "PATH=C:\msys64\ucrt64\bin;C:\msys64\usr\bin;%PATH%"
 set "XMVSF_PROJECT=%PROJECT%"
 REM 87.175 read-only native state trace. Fails closed if logs cannot be saved.
-set "OBSROOT=%PROJECT%\test\87.191\observer"
+set "OBSROOT=%PROJECT%\test\87.192\observer"
 if not exist "%OBSROOT%" mkdir "%OBSROOT%"
 if not exist "%OBSROOT%" (
   echo ERROR: Cannot create 87.175 native observer log directory.
@@ -27,14 +27,17 @@ REM 87.186 TEST-only nonterminal native 2E0A recovery handoff experiment.
 if not defined XM87184_EXPERIMENTAL_RECOVERY_TAG set "XM87184_EXPERIMENTAL_RECOVERY_TAG=1"
 REM 87.186 TEST-only: arm controller 8 while the verified active action edge is fresh.
 if not defined XM87185_TEST_EARLY_ACTIVE_TAG set "XM87185_TEST_EARLY_ACTIVE_TAG=1"
-REM 87.191: clean current-frame DHC throughout original 2A02/2A28 ATTACK.
+REM 87.192: clean current-frame DHC throughout original 2A02/2A28 ATTACK.
 if not defined XM87188_TEST_FULL_ATTACK set "XM87188_TEST_FULL_ATTACK=1"
-REM 87.191: original 2E script-loop and subaction continuity; Ryu->Ken only.
+REM 87.192: original 2E script-loop and subaction continuity; Ryu->Ken only.
 REM Set 0 in parent CMD to compare against 87.189 while keeping logs.
 if not defined XM87189_TEST_NATIVE_SUPER_FAMILY set "XM87189_TEST_NATIVE_SUPER_FAMILY=1"
-REM 87.191: actual native super start-to-end is the whole DHC window.
+REM 87.192: actual native super start-to-end is the whole DHC window.
 REM Set 0 before launching to compare the historical 87.190 gates.
 if not defined XM87191_TEST_OPEN_SUPER_LIFETIME set "XM87191_TEST_OPEN_SUPER_LIFETIME=1"
+REM 87.192: incoming fighter's real ROM parser owns a generic motion/chord.
+REM Unset to compare legacy named-super selection and fixed Ken 2E scripts.
+if not defined XM87192_TEST_RESERVE_OWNERSHIP set "XM87192_TEST_RESERVE_OWNERSHIP=1"
 REM 87.186 TEST-only: after exact 2E0A->2E08 native rebound, use original ROM tag script bridge.
 if not defined XM87185_TEST_RECOVERY_REBOUND set "XM87185_TEST_RECOVERY_REBOUND=1"
 REM 87.186 TEST-only: first four real ATTACK frames (+4E=40..3D).
@@ -50,9 +53,9 @@ if errorlevel 1 (
   goto :fail
 )
 if not defined XM87180_EXPERIMENTAL_DELAYED_PRIME set "XM87180_EXPERIMENTAL_DELAYED_PRIME=0"
-set "EXE=%PROJECT%\runtime\stable\XMVSF_Test_87_191.exe"
+set "EXE=%PROJECT%\runtime\stable\XMVSF_Test_87_192.exe"
 if not exist "%EXE%" (
-  echo ERROR: Stage 87.191 TEST executable is missing.
+  echo ERROR: Stage 87.192 TEST executable is missing.
   echo Run BUILD_TEST.bat first. Will NOT fall back to 87.132.4 or Stable.
   goto :fail
 )
@@ -69,7 +72,7 @@ REM The original 87.61 recorder remains available when this root is absent.
 REM V2 F9 sessions now live INSIDE the same current TEST replay folder
 REM users already package and inspect, not hidden under test\replay_sessions.
 REM Every F9 recording gets manifest.tsv + .fs + .bin in its own subfolder.
-set "XM8764_REPLAY_ROOT=%PROJECT%\test\87.191\replays"
+set "XM8764_REPLAY_ROOT=%PROJECT%\test\87.192\replays"
 if not exist "%XM8764_REPLAY_ROOT%" mkdir "%XM8764_REPLAY_ROOT%"
 if not exist "%XM8764_REPLAY_ROOT%" (
   echo ERROR: Cannot create permanent app-level replay recording directory.
@@ -89,15 +92,15 @@ REM Restore original native state-anchored F9 recorder (XM87.61/XM87.132).
 REM F9 starts/stops each independent full-state + input movie.
 REM The recorder requires an existing replay directory, not an invented
 REM input format or a new launcher.
-set "XM8761_REPLAY_DIR=%PROJECT%\test\87.191\replays"
+set "XM8761_REPLAY_DIR=%PROJECT%\test\87.192\replays"
 if not exist "%XM8761_REPLAY_DIR%" mkdir "%XM8761_REPLAY_DIR%"
 if not exist "%XM8761_REPLAY_DIR%" (
   echo ERROR: Cannot create native input replay directory.
   goto :fail
 )
 set "XM8761_REPLAY_MODE=off"
-set "XM87139_PROBE_DIR=%PROJECT%\test\87.191"
-set "XM87140_CHAT_DIR=%PROJECT%\test\87.191"
+set "XM87139_PROBE_DIR=%PROJECT%\test\87.192"
+set "XM87140_CHAT_DIR=%PROJECT%\test\87.192"
 if not exist "%XM87139_PROBE_DIR%" mkdir "%XM87139_PROBE_DIR%"
 if not exist "%XM87139_PROBE_DIR%" (
   echo ERROR: Cannot create diagnostic output directory.
@@ -124,6 +127,7 @@ REM Ken arrival and his first attack cancellation are from that trace.
 REM The destination is a single Ken hyper move, not a team hyper move.
 set "XM87157_EARLY_CANCEL=1"
 set "XM87144_DHC_LOG=%XM87140_CHAT_DIR%\dhc_native_handoff.tsv"
+set "XM87192_RESERVE_SUPER_LOG=%OBSROOT%\reserve_owned_supers.tsv"
 REM DHC-only: outgoing Ryu projectiles remain visible but cannot keep
 REM offensive collision after the native Ryu-to-Ken tag. Track identities
 REM through the verified P1 native projectile object list.
@@ -159,9 +163,9 @@ echo 87.185: UNSAFE delayed native 2P priming stays OFF in interactive TEST.
 echo 87.185: immediate 3P/2P paths, Ken no-charge arrival, and F9 stay intact.
 echo 87.185: delayed DHC input priming disabled by default, preserves original ROM state.
 echo 87.184 native Shinkuu action lifetime: 2E08 startup/attack, 2E0A recovery, exact exit.
-echo 87.191 ROM super start-to-real-exit DHC: %XM87191_TEST_OPEN_SUPER_LIFETIME%  (no phase/timer/air-mode availability veto)
+echo 87.192 ROM super start-to-real-exit DHC: %XM87191_TEST_OPEN_SUPER_LIFETIME%  (no phase/timer/air-mode availability veto)
 echo Native 2E family: %XM87189_TEST_NATIVE_SUPER_FAMILY% full original attack: %XM87188_TEST_FULL_ATTACK% recovery: %XM87185_TEST_RECOVERY_REBOUND%
-echo XMVSF Stage 87.191 TEST - KEEP KEN SHORYUREPPA; CUT OUTGOING RYU PROJECTILE HITS
+echo XMVSF Stage 87.192 TEST - KEEP KEN SHORYUREPPA; CUT OUTGOING RYU PROJECTILE HITS
 echo Executable: %EXE%
 echo SAME BUILD, TWO DHC CHOICES:
 echo   During Ryu Shinkuu Hadoken, QCF+ANY TWO PUNCHES or QCF+3P queues Ken SHORYUREPPA.
@@ -276,7 +280,7 @@ if exist "%XM87186_OPENING_OBSERVER_LOG%" (
     if errorlevel 1 echo WARNING: opening trace analyzer failed; raw TSV retained.
   )
 )
-echo Stage 87.191 TEST exit code: %RC%
+echo Stage 87.192 TEST exit code: %RC%
 echo Probe directory: %XM87139_PROBE_DIR%
 pause
 exit /b %RC%
