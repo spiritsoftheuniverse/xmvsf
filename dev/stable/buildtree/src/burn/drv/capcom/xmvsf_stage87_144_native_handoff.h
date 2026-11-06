@@ -341,6 +341,10 @@ struct State {
     void armOutgoingTag(std::uint8_t*ram,unsigned now,unsigned side,
                         unsigned selectedAt){
         const unsigned p=0x4000u+side*0x400u;
+        // A new native controller transaction must not inherit the
+        // previous partner's landing/lock state. This was otherwise a
+        // persistent active=true after the first successful 87.194 jump.
+        jumpArrival[side].reset();
         // Original 87.151 Ryu->Ken handoff: capture the independent
         // P1 projectile objects, not the outgoing Ryu actor's hitboxes.
         if(side==0u && earlyCancel &&
@@ -1087,7 +1091,8 @@ struct State {
                 // force neutral, place him on the floor, or release his
                 // reserve-owned super command before actual landing.
                 if(passiveJumpTest && kenEntry){
-                    const unsigned foe=rw(ram,0x4400u+0x0Cu);
+                    const unsigned foe=rw(
+                        ram,0x4000u+(side^1u)*0x400u+0x0Cu);
                     const unsigned x=rw(ram,p+0x0Cu);
                     const unsigned y=rw(ram,p+0x10u);
                     if(!jumpArrival[side].begin(
