@@ -278,6 +278,10 @@ void generateDats()
 }
 
 
+// Stage87.203: remember a real ROM initialization failure in donor mode.
+// Prior host code discarded DrvInit's nonzero result, then main returned 0.
+// Only this opt-in donor path changes exit status; legacy XMVSF mode untouched.
+static int xm87203DonorRomLoadFailure=0;
 void DoGame(int gameToRun)
 {
     // Restore the user's Training MENU choices once for each Training
@@ -287,6 +291,14 @@ void DoGame(int gameToRun)
     std::fprintf(stderr,"XM86.32 HOST ENTER DoGame id=%d modeTraining=%d modeVersus=%d stageChoice=%d resolved=%d\n",gameToRun,xm14TrainingMode,xm24VersusMode,xm77StageChoice,xm77StageResolved);
     std::fflush(stderr);
     const int driverResult=DrvInit(gameToRun, 0);
+    const char* donorCapture=std::getenv("XM87203_STAGE_CAPTURE_DIR");
+    if(driverResult!=0 && donorCapture && *donorCapture){
+        xm87203DonorRomLoadFailure=1;
+        std::fprintf(stderr,
+            "XM87.203 ERROR: DONOR_ROM_LOAD_FAILED rc=%d. No CPS2 frames, F9 movie or stage capture possible.\n",
+            driverResult);
+        std::fflush(stderr);
+    }
     std::fprintf(stderr,"XM86.32 HOST DrvInit return=%d\n",driverResult);
     std::fflush(stderr);
 	if (!driverResult)
@@ -605,7 +617,7 @@ int main(int argc, char* argv[])
     }
     if(XM8764::isRecording())
         XM8764::finalizeRecording("APPLICATION_EXIT");
-    return XM8764::context().failed?1:0;
+    return (xm87203DonorRomLoadFailure || XM8764::context().failed)?1:0;
 }
 
 /* const */ TCHAR* ANSIToTCHAR(const char* pszInString, TCHAR* pszOutString, int nOutSize)

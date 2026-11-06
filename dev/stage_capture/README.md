@@ -67,3 +67,21 @@ inside that donor process. Original MVC1 inputs and emulation run through the
 normal FBNeo CPS2 driver; only source capture/replay flags remain. MVC F9
 replays do the same. The earlier XMVSF DHC tests stay available by launching
 `RUN_TEST.bat xmvsfu`.
+
+## Missing donor ROMs and nonzero exit codes
+
+If FBNeo says `Loading program (mvce.03a)... (not found)` while
+launching `RUN_TEST.bat mvsc`, the **Europe `mvsc` parent set** failed
+loading. This is neither a native build failure nor a stage-capture error.
+Per this repository's `d_cps2.cpp`, `mvsc` requires `mvce.03a` (0x80000
+bytes, CRC32 `824e4a90`) while the original Wily donor `mvscur1`
+requires `mvcu.03` (0x80000, CRC32 `13f2be57`). `mvscur1` is
+declared a `mvsc` clone and may also need shared data from its parent.
+The ROM archives must contain the correct files in FBNeo's configured
+search paths; the launcher must never invent files or silently fall back.
+
+The donor `DrvInit` failure is now propagated as a **nonzero** native
+process/TEST exit status. `RUN_TEST.bat` reports the missing-ROM cause
+with an `ERROR` event in the existing MSYS watcher and skips irrelevant
+XMVSF DHC observers/disassembly. A failed ROM cannot produce native
+layer coverage or any `PART_DONE`/`LEVEL_DONE` status.

@@ -211,6 +211,8 @@ set "XM8795_NATIVE_HIT_TEST=1"
 set "XM8796_DIZZY_HANDOFF_TEST=1"
 set "XM8799_GROUND_DEFENSE_TEST=1"
 set "XM87149_TOURNAMENT_AUDIT=%XM87140_CHAT_DIR%\tournament_rules.tsv"
+REM Marvel vs. Capcom capture should not print XMVSF DHC instructions.
+if /I "%SOURCE_ROM:~0,4%"=="mvsc" goto :mvc_source_banner
 echo 87.186 STARTUP HEALTH: %XM87181_DIAGNOSTIC_STATUS%
 echo 87.175 NATIVE OBSERVER: %XM87175_DHC_OBSERVER_LOG%
 echo Native actor rows require a running XMVSF combat session; menu exit writes health only.
@@ -274,6 +276,14 @@ echo Stable untouched.
 echo Active Tournament rules audit: %XM87149_TOURNAMENT_AUDIT%
 echo Tournament rules are applied ONLY when selected in the Options menu.
 echo F10 probe files: %XM87139_PROBE_DIR%
+:mvc_source_banner
+if /I "%SOURCE_ROM:~0,4%"=="mvsc" (
+  echo Marvel vs. Capcom 1 native donor: %SOURCE_ROM%
+  echo Stage capture: "%XM87203_STAGE_CAPTURE_DIR%"
+  echo Live MSYS console: bash dev/stage_capture/WATCH_CAPTURE.sh
+  echo F9 records actual MVC inputs and savestates.
+  echo No XMVSF DHC diagnostic analysis is needed for this ROM.
+)
 REM MVC1 is the donor, not the DHC host. Disable all XMVSF-only test
 REM mutations/lighting before starting original MVC1 execution.
 if /I "%SOURCE_ROM:~0,4%"=="mvsc" (
@@ -305,6 +315,19 @@ echo Launching original CPS2 donor ROM %SOURCE_ROM% with controller support.
 set "RC=%ERRORLEVEL%"
 popd
 >>"%XM87181_DIAGNOSTIC_STATUS%" echo RUN_TEST_EXIT code=%RC%
+if /I "%SOURCE_ROM:~0,4%"=="mvsc" (
+  if not "%RC%"=="0" (
+    echo ERROR: Marvel vs. Capcom donor ROM failed to load or execute.
+    echo FBNeo requires the EXACT program files specified by its driver.
+    echo mvsc uses mvce.03a; mvscur1 uses mvcu.03 and shared parent data.
+    echo Check the configured FBNeo ROM search paths and ROM archive contents.
+    echo No stage-capture success will be reported.
+    if "%XM87203_STAGE_CAPTURE_ENABLE%"=="1" (
+      >>"%XM87203_STAGE_CAPTURE_DIR%\status.log" echo RUN_TEST_EXIT	ERROR	donor_ROM_load_or_execution_failed;_no_CPS2_frames_certified
+    )
+  )
+  goto :mvc_donor_post
+)
 REM Read-only 87.203 capture verification is nonfatal to game exit code.
 REM The builder must attest to camera/animation coverage before LEVEL_DONE.
 if "%XM87203_STAGE_CAPTURE_ENABLE%"=="1" (
@@ -376,6 +399,7 @@ if exist "%XM87186_OPENING_OBSERVER_LOG%" (
     if errorlevel 1 echo WARNING: opening trace analyzer failed; raw TSV retained.
   )
 )
+:mvc_donor_post
 echo Stage 87.203 TEST exit code: %RC%
 echo Probe directory: %XM87139_PROBE_DIR%
 pause
