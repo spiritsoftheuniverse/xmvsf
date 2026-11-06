@@ -295,6 +295,7 @@ struct State {
         kenExpectedAction[side]=kenExpectedScript[side]=0u;
         jumpArrival[side].reset();
         ownedCommand[side]=XM87192Owner::Proposal();
+        XM87192Owner::state().clear(side);
         kenFallbackUsed[side]=false;kenNeutralSince[side]=0u;
         kenNeutralAt[side]=inputBegin[side]=0u;
         primeFrame[side]=0u;primeSent[side]=false;
@@ -1201,6 +1202,11 @@ struct State {
                 if(int(priorX>>16u)!=targetX)
                     wl(ram,p+0x0Cu,
                         (unsigned(targetX)<<16u)|(priorX&65535u));
+                // Frame-by-frame X/Y/actions in the existing handoff
+                // TSV reveal whether original 2A08 keeps descending.
+                // Never hide a stalled ROM entry by forcing Y=floor.
+                event(now,side,ram,
+                    "DHC_194_ORIGINAL_ROM_JUMP_POSITION_AND_ACTION");
                 if(jumpArrival[side].ready(pointId,int(y))){
                     // The original game, not a fabricated elapsed frame
                     // count, confirms Y reached the native floor. Only
