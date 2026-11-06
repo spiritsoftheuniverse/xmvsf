@@ -98,6 +98,26 @@ int main(){
     assert(owner.confirm(0u,113u,p,observed,
         rom.data(),unsigned(rom.size())));
     assert(owner.learnedCount==3u);
+    // Native super list is discovered from original ROM *point*
+    // actions, regardless of character name, even before any DHC.
+    // It remains an INPUT-UNMAPPED candidate until reserve ownership
+    // confirms a real outgoing command after the native swap.
+    State natural;
+    const Sample root(0x14u,0x2E00u,0x2A28u,2u,0xD6722u,0x0Cu);
+    assert(natural.observeNatural(0u,120u,root,
+                                 rom.data(),unsigned(rom.size())));
+    assert(natural.learnedCount==1u &&
+           natural.learned[0].motion==NONE);
+    assert(!natural.observeNatural(0u,121u,root,
+                                  rom.data(),unsigned(rom.size())));
+    assert(!natural.observeNatural(0u,122u,
+        Sample(0x14u,0x2C00u,0x2A28u,2u,0xD6722u,0x0Cu),
+        rom.data(),unsigned(rom.size())));
+    assert(natural.confirm(0u,123u,p,root,
+                           rom.data(),unsigned(rom.size())));
+    assert(natural.learnedCount==1u);
+    assert(natural.learned[0].motion==QCF &&
+           natural.learned[0].buttons==0x07u);
     owner.clear(0u);
     assert(!owner.fresh(0u,0x14u,104u));
     std::puts("PASS 87.192 reserve-owned motion, 68000 2E super discovery, non-super refused");
