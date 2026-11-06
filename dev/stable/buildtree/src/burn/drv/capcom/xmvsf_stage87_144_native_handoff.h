@@ -522,17 +522,20 @@ struct State {
         lastFrame=now;
         if(rb(ram,0x5000u)!=8u){reset();return;}
         for(unsigned side=0;side<2u;++side){
+            // Stage 87.144 confines executable experiment to P1 Ryu->Ken.
+            if(side!=0u)continue;
             // 87.197: native CPU runs freely for Ken; hold only the
             // opposing actor through the original DHC transfer.
-            if(cinematicFreezeTest && cinematicFreeze.active){
+            // The ownership check is INSIDE the accepted side branch:
+            // evaluating P2 IDLE as a second DHC would release the hold.
+            if(cinematicFreezeTest && cinematicFreeze.active &&
+               cinematicFreeze.side==side){
                 if(!cinematicFreeze.hold(ram,now,unsigned(phase[side]))){
                     cinematicFreeze.release(ram);
                     event(now,side,ram,
                         "DHC_197_OPPONENT_FREEZE_SAFETY_RELEASE");
                 }
             }
-            // Stage 87.144 confines executable experiment to P1 Ryu->Ken.
-            if(side!=0u)continue;
             const unsigned p=0x4000u+side*0x400u;
             const unsigned reserve=0x4800u+side*0x400u;
             const unsigned pointId=rw(ram,p+0x52u);
