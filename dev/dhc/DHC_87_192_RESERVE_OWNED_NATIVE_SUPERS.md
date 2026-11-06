@@ -15,7 +15,7 @@ The first TEST implementation is intentionally Ryu→Ken only because the outgoi
 
 **Post-tag refusal is NOT pre-tag refusal.** The reserve's normal input parser does not execute for an inactive actor. This version can reject an unrelated action as a super, but it may have already allowed the native Ryu→Ken swap. It cannot correctly promise to leave Ryu in place for an unknown non-super until a true reserve-side preview/shadow dispatcher or ROM-proven learned input association exists. Do not call this a final roster-general DHC validator.
 
-The proposal parser currently carries standard directional motions, not every charge, mash, 360-degree, SPD, SGS, custom-command or follow-up pattern. Its contract is no hardcoded super selection; expanding command capture must be based on actual user-controlled inputs and native ROM outcomes, not a fabricated move mapping.
+The proposal parser currently carries standard directional motions, not every charge, mash, 360-degree, SPD, SGS, custom-command or follow-up pattern. For safety, initial active tag proposals also require a fresh two-punch or two-kick chord: QCF+single-punch must remain a normal special, NOT an unsolicited DHC swap. This chord test does not declare anything a super; the incoming 68000 ROM still decides. Expanding command capture must be based on actual user-controlled inputs and native ROM outcomes, not a fabricated move mapping. The existing super-chat now records the inactive actor's read-only action, mode, step, D6 and script on each proposed command to evaluate future *pre-tag* reserve parsing.
 
 ## Regression/logging
 
