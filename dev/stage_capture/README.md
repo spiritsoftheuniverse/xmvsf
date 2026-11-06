@@ -323,3 +323,45 @@ BUILD_TEST.bat now exercises a boundary with XM87203_BATCH_FRAMES=300,
 so it checks rotation without generating a 12,000-frame test. All
 captured original game art remains under ignored test/; do NOT commit it
 to GitHub.
+
+
+## November 6: real 39,282-frame continuous-batch audit
+
+The submitted stage_capture(2).zip contains old independent sessions 0001
+(5,509 frames) and 0002 (36,000 frames), then one continuous MVC donor run:
+0003 1..12000, 0004 12001..24000, 0005 24001..36000,
+0006 36001..39282. All 39,282 new-run native frames are consecutive, each
+session's native OAM/raster packets are valid, the ZIP CRC check passed,
+all MAP1 addresses and headers were valid, and no capture ERROR was emitted.
+
+Live status reports 3 BATCH_DONE / BATCH_NEXT pairs and 22 completed
+CLEAN_RIP_BURST_DONE events (23rd started). The uploaded archive does NOT
+include clean_rips/shot_XXXX, so actual clean-pixel frames are NOT validated
+by this audit. Reaching a batch limit does not establish stage completion.
+
+To avoid silently reconstructing only the latest 3,282 frames, the
+Stage75/76-based importer NOW automatically identifies the maximal
+contiguous suffix of session_XXXX batches when --session latest is passed.
+It selects exactly sessions 0003 through 0006 for this archive and excludes
+old sessions 0001/0002, whose original frame counters overlap this run.
+This selection is driven by proven consecutive native frame numbers and
+matching source gfx identity. It streams maps/raster/OAM/palette records
+without materializing a multi-GiB concatenated blob. Repeated TSV headers
+are skipped and the original immutable files remain untouched.
+
+Example with the already uploaded archive or the local source root:
+
+    python dev/stage_capture/BUILD_STAGE_FROM_CAPTURE.py --capture "F:/xmvsf/test/87.203/stage_capture" --session latest --frame 18000 --output "F:/xmvsf/test/87.203/reconstructed_all_batches_18000"
+
+The manifest's source_batches list documents exactly which sessions joined.
+Pass --session session_0006 to intentionally restrict the importer to the
+final isolated batch; pass --session continuous to require two or more
+contiguous batches, failing closed instead of selecting one silently.
+It is still a diagnostic tile/camera reconstruction, not a native visual
+certification or an installed playable stage.
+
+Additional capture corrections: per-batch decoded graphics are now exported
+on the very FIRST rollover frame (not one frame later), and PROGRESS event
+buffers are large enough to preserve all counters in the MSYS watcher.
+BUILD_TEST.bat regression checks the graphics index exists immediately
+after rotating at the test-only 300-frame batch threshold.
