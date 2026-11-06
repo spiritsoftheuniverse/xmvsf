@@ -96,13 +96,20 @@ struct Recorder {
         failed=true;enabled=false;close();
     }
     void observe(const Frame& f){
+        // Selection/menu is not a valid stage capture.
+        if(f.phase!=8u)return;
         if(!initialized && !openFiles())return;
-        if(!enabled || failed || f.phase!=8u || f.sliceCount==0u ||
+        if(!enabled || failed || f.sliceCount==0u ||
            f.sliceCount>MAX_SLICES || !f.reg[0] || !f.frg[0] ||
            !f.palette || !f.oam || f.frame==lastFrame)return;
         if(frames>=MAX_FRAMES){
             statusLine("INCOMPLETE",f.frame,"capture_frame_limit_reached;_no_completion_claim");
             enabled=false;close();return;
+        }
+        if(lastFrame!=~0u && f.frame<lastFrame){
+            statusLine("SESSION_RESET",f.frame,"native_frame_counter_rewind_new_segment");
+            std::memset(mapKnown,0,sizeof(mapKnown));
+            std::memset(rowKnown,0,sizeof(rowKnown));palKnown=false;
         }
         if(!hasStage || stage!=f.stage){
             if(hasStage){

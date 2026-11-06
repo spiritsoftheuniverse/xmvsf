@@ -260,6 +260,19 @@ pushd "%PROJECT%\FBNeo" || goto :fail
 set "RC=%ERRORLEVEL%"
 popd
 >>"%XM87181_DIAGNOSTIC_STATUS%" echo RUN_TEST_EXIT code=%RC%
+REM Read-only 87.203 capture verification is nonfatal to game exit code.
+REM The builder must attest to camera/animation coverage before LEVEL_DONE.
+if "%XM87203_STAGE_CAPTURE_ENABLE%"=="1" (
+  if exist "%XM87203_STAGE_CAPTURE_DIR%\capture_manifest.json" (
+    where python.exe >nul 2>nul
+    if not errorlevel 1 (
+      python.exe "%PROJECT%\dev\stage_capture\VERIFY_CAPTURE_STATUS.py" --root "%XM87203_STAGE_CAPTURE_DIR%"
+      if errorlevel 1 >>"%XM87203_STAGE_CAPTURE_DIR%\status.log" echo RUN_TEST_EXIT	INCOMPLETE	stage_capture_not_yet_certified
+    )
+  ) else (
+    >>"%XM87203_STAGE_CAPTURE_DIR%\status.log" echo RUN_TEST_EXIT	INCOMPLETE	stage_builder_manifest_not_yet_available
+  )
+)
 REM 87.175: after native play, analyze only PRIVATE locally captured ROM
 REM bytes. ROM binaries are outside Git; the emitted JSON is evidence,
 REM never an instruction to activate unverified DHC moves.
