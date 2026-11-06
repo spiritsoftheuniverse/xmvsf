@@ -8,11 +8,12 @@ from __future__ import annotations
 
 import argparse
 from collections import Counter, defaultdict
-from contextlib import contextmanager
+from contextlib import contextmanager, ExitStack
 import csv
 import gzip
 import hashlib
 import json
+import re
 from pathlib import Path
 import struct
 import zipfile
@@ -100,6 +101,173 @@ class Capture:
     def close(self):
         if self.archive:
             self.archive.close()
+
+
+class ConcatenatedReader:
+    """Stream complete immutable batch records without loading multi-GiB data."""
+    def __init__(self, parts):
+        self.parts = parts
+        self.index = 0
+
+    def read(self, length=-1):
+        if length is None or length < 0:
+            out = []
+            while (chunk := self.read(1024 * 1024)):
+                out.append(chunk)
+            return b''.join(out)
+        out = bytearray()
+        while len(out) < length and self.index < len(self.parts):
+            got = self.parts[self.index].read(length - len(out))
+            if got:
+                out.extend(got)
+            else:
+                self.index += 1
+        return bytes(out)
+
+    def readline(self):
+        while self.index < len(self.parts):
+            result = self.parts[self.index].readline()
+            if result:
+                return result
+            self.index += 1
+        return b''
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        result = self.readline()
+        if not result:
+            raise StopIteration
+        return result
+
+
+class ContinuousCapture:
+    """One logical session from contiguous 87.203 session_XXXX batches.
+
+    Disconnected or overlapping previous ROM runs are NEVER coalesced.
+    Each underlying session's binary packet stream stays byte-for-byte intact.
+    """
+    def __init__(self, source: Path, sessions: list[str]):
+        if len(sessions) < 2:
+            raise ValueError('continuous capture requires at least two batches')
+        self.parts = [Capture(source, session) for session in sessions]
+        self.sessions = sessions
+        self.session = sessions[0] + '..' + sessions[-1]
+        self.source = source
+
+        # The 1st field of gfx_index.tsv is the local frame when the dump
+        # occurred. All later fields must identify identical source graphics.
+        identities = []
+        for part in self.parts:
+            with part.open('gfx_index.tsv') as fp:
+                entries = fp.read().decode('utf-8').strip().split('\t')
+            if len(entries) != 9:
+                raise ValueError('bad decoded MVC graphics identity')
+            identities.append(entries[1:])
+        if len({tuple(i) for i in identities}) != 1:
+            raise ValueError('decoded graphics differ between continuous batches')
+
+    @contextmanager
+    def open(self, name: str):
+        # One shared graphics ROM image / metadata is enough: its 32MiB
+        # payload is identical across these sessions, verified by gfx_index.
+        if name == 'gfx_index.tsv' or name.startswith('mvc1_decoded_gfx_'):
+            with self.parts[-1].open(name) as handle:
+                yield handle
+            return
+        with ExitStack() as stack:
+            handles = [stack.enter_context(part.open(name)) for part in self.parts]
+            if name == 'frames.tsv':
+                for handle in handles[1:]:
+                    header = handle.readline()
+                    if not header.startswith(b'frame\t'):
+                        raise ValueError('subsequent frame batch missing TSV header')
+            yield ConcatenatedReader(handles)
+
+    def size(self, name: str) -> int:
+        if name == 'gfx_index.tsv' or name.startswith('mvc1_decoded_gfx_'):
+            return self.parts[-1].size(name)
+        return sum(part.size(name) for part in self.parts)
+
+    def close(self):
+        for part in self.parts:
+            part.close()
+
+
+def native_frame_bounds(cap: Capture) -> tuple[int, int]:
+    """Check each batch's first/last original emulation frame, fail closed."""
+    first = last = None
+    with cap.open('frames.tsv') as fp:
+        header = fp.readline()
+        if not header.startswith(b'frame\t'):
+            raise ValueError('missing native frame TSV header')
+        for line in fp:
+            frame = int(line.split(b'\t', 1)[0])
+            if last is not None and frame != last + 1:
+                raise ValueError(f'nonconsecutive native frames in {cap.session}')
+            if first is None:
+                first = frame
+            last = frame
+    if first is None:
+        raise ValueError('empty capture session ' + cap.session)
+    return first, last
+
+
+def open_reconstruction_capture(source: Path, session: str):
+    """For latest/continuous, use the maximal contiguous suffix ending latest.
+
+    A previous old full capture (e.g. session_0002 frame 1..36000) MUST
+    not overlap the new continuous batches (0003 frame 1..12000 etc.).
+    Explicit session_XXXX selects just that session.
+    """
+    if session not in ('latest', 'continuous'):
+        return Capture(source, session)
+    latest = Capture(source, 'latest')
+    selected = [latest.session]
+    first, last = native_frame_bounds(latest)
+    if latest.archive:
+        prefix = latest.base.rsplit('/', 1)[0] + '/'
+        candidates = []
+        for name in latest.archive.namelist():
+            if name.startswith(prefix) and name.endswith('/frames.tsv'):
+                segment = name[len(prefix):-len('/frames.tsv')]
+                if re.fullmatch(r'session_\d{4}', segment):
+                    candidates.append(segment)
+    else:
+        candidates = [p.name for p in source.glob('session_????')
+                      if (p / 'frames.tsv').is_file() and
+                      re.fullmatch(r'session_\d{4}', p.name)]
+    cursor = int(latest.session.split('_')[1])
+    known = set(candidates)
+    while cursor > 1:
+        preceding = f'session_{cursor-1:04d}'
+        if preceding not in known:
+            break
+        candidate = Capture(source, preceding)
+        try:
+            pfirst, plast = native_frame_bounds(candidate)
+            if plast + 1 != first:
+                break
+            # Also protect against joining two independent donor versions.
+            with candidate.open('gfx_index.tsv') as fp:
+                index_pre = fp.read().decode().strip().split('\t')[1:]
+            with latest.open('gfx_index.tsv') as fp:
+                index_latest = fp.read().decode().strip().split('\t')[1:]
+            if index_pre != index_latest:
+                break
+            selected.insert(0, preceding)
+            first = pfirst
+            cursor -= 1
+        finally:
+            candidate.close()
+    if len(selected) < 2:
+        if session == 'continuous':
+            latest.close()
+            raise ValueError('no contiguous MVC source batches found')
+        return latest
+    latest.close()
+    return ContinuousCapture(source, selected)
 
 
 def read_exact(f, size: int, what: str) -> bytes:
@@ -264,6 +432,7 @@ def import_capture(capture: Capture, output: Path, preview_frame: int | None = N
     if len(gfx) > 256 * 1024 * 1024:
         raise ValueError('graphics export exceeds capture limit')
     overview = {'format': 'WILY_STAGE76_NATIVE_IMPORT_V1', 'source_driver': gfx_entry[1],
+                'source_batches': list(getattr(capture,'sessions',[capture.session])),
                 'source_session': capture.session, 'native_frame_count': len(frames),
                 'first_frame': frames[0], 'last_frame': last, 'selected_preview_frame': target,
                 'original_gfx_sha256': hashlib.sha256(gfx).hexdigest(),
@@ -494,11 +663,11 @@ def import_capture(capture: Capture, output: Path, preview_frame: int | None = N
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument('--capture',type=Path,required=True,help='ZIP archive or stage_capture directory')
-    ap.add_argument('--session',default='latest',help='session_XXXX or latest')
+    ap.add_argument('--session',default='latest',help='latest auto-stitches contiguous batches; explicit session_XXXX selects only that batch; continuous requires 2+ batches')
     ap.add_argument('--output',type=Path,required=True,help='NEW directory, never overwrite source or Stable')
     ap.add_argument('--frame',type=int,help='frame to reconstruct as 3 independent native tile atlases')
     args = ap.parse_args()
-    source = Capture(args.capture,args.session)
+    source = open_reconstruction_capture(args.capture,args.session)
     try:
         import_capture(source,args.output,args.frame)
     finally:
