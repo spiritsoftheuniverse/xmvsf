@@ -98,7 +98,7 @@ class ReviewTests(unittest.TestCase):
             })
             for page in result['contact_sheets']:
                 png=bundle.read(page['file'])
-                self.assertEqual(png[:8], b'\\x89PNG\\r\\n\\x1a\\n')
+                self.assertEqual(png[:8], bytes.fromhex('89504e470d0a1a0a'))
                 width,height=struct.unpack_from('>II',png,16)
                 self.assertEqual(width,608)
                 self.assertLessEqual(height,2048)
