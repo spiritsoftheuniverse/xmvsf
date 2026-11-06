@@ -527,10 +527,17 @@ INT32 Cps2Frame()
     // observer may now begin even when controller 8 is NOT armed.
     // It traces initial startup frames, actual startup punch edges and
     // the first 25 original attack frames. No command is submitted.
-    if(dhcGameMatches && !bBurnRunAheadFrame)
+    if(dhcGameMatches && !bBurnRunAheadFrame){
+        // Physical punch state is available before CpsRwGetInp.
+        // Do not infer it from native C0/CA one frame too late.
+        const unsigned physicalOpeningPunches=
+            (CpsInp001[4]&1u)|((CpsInp001[5]&1u)<<1u)|
+            ((CpsInp001[6]&1u)<<2u);
         XM87186Opening::state().sample(CpsRamFF,
             (unsigned)GetCurrentFrame(),"PRE_CPU",
-            (unsigned)XM87144::state().phase[0],0u,0u);
+            (unsigned)XM87144::state().phase[0],
+            0u,physicalOpeningPunches);
+    }
     if(dhcGameMatches && !bBurnRunAheadFrame)
         XM87182PC::state().begin(CpsRamFF,(unsigned)GetCurrentFrame(),
              (unsigned)XM87144::state().phase[0],
