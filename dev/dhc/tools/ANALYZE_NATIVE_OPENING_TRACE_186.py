@@ -78,8 +78,8 @@ def analyze(path):
         "important_limit":
           "Controller-8 is the host bridge, not original ROM tag success. "
           "An unattempted startup offset remains UNTESTED. A real Ken "
-          "2E00 is required to prove a completed DHC. The prior 87.185 "
-          "15/15? no: actual 14 armed Ken successes must remain intact.",
+          "2E00 is required to prove a completed DHC. The uploaded "
+          "87.185 recording had 14/14 armed Ken successes.",
     }
 
 
