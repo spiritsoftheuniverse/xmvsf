@@ -197,7 +197,7 @@ public:
         SDL_SetTextureColorMod(image_,backgroundLevel,backgroundLevel,backgroundLevel);
         if(gameFrame%300u==0u)
             std::fprintf(stderr,
-                "XM87.201 GIF_CAMERA native=%d,%d world=%d,%d crop=%d,%d,%d,%d source=%dx%d df=%d\\n",
+                "XM87.201 GIF_CAMERA native=%d,%d world=%d,%d crop=%d,%d,%d,%d source=%dx%d df=%d\n",
                 cameraX,cameraY,XM87201GifCamera::worldCameraX(cameraX),cameraY,
                 crop.x,crop.y,crop.w,crop.h,width_,height_,int(xm8655DoubleFeature()));
         if(SDL_RenderCopy(r,image_,&src,&view)!=0)return false;
