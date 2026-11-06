@@ -104,7 +104,7 @@ def parse(path):
                 errors["sessions"] += 1
                 header = None
                 continue
-            if line.startswith("# DHC_FRAME "):
+            if line.startswith(("# DHC_FRAME ", "# OPENING_FRAME ")):
                 fields = {}
                 for item in line[2:].split():
                     if "=" in item:
@@ -116,7 +116,10 @@ def parse(path):
                         "dropped": int(fields.get("dropped", "0")),
                         "all_instructions": int(fields.get("allInstructions", "0")),
                     }
-                errors["traced_frames"] += 1
+                if line.startswith("# OPENING_FRAME "):
+                    errors["opening_frames"] += 1
+                else:
+                    errors["traced_frames"] += 1
                 continue
             if line.startswith("frame\tphase\tordinal\tregion\t"):
                 header = line.split("\t")
@@ -179,6 +182,7 @@ def main():
     args.out.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
     counts = report["counts"]
     print("87.182 traced controller-8 CPU frames:",counts.get("traced_frames",0))
+    print("87.186 traced native opening CPU frames:",counts.get("opening_frames",0))
     print("Native action writer PCs:",sum(v for k,v in counts.items()
           if k.startswith("native_action_after_")))
     print("Wrong-action writer PCs:",counts.get("original_wrong_action_writer_pcs_captured",0))
