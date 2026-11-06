@@ -658,3 +658,72 @@ Run all-channel source-only tests with:
 
 No source shots are overwritten, no ROM runs, no new launcher and no
 GitHub Actions. Stable is unchanged.
+
+
+## Stage87.203 Motorola 68000 sprite-writer provenance
+
+The MVC1 hardware write origin can be captured WITHOUT replacing the
+CPU or changing the game's 68000 instructions. Existing Stage87.16
+CPS2 0x708000..0x70FFFF WRITE handlers collect the actual SekGetPC(-1)
+when an object attribute word is committed. Hardware bank, raw slot,
+A0-A5/D0-D1, original sprite tile/attribute/palette/priority and
+emulation frame are recorded. Reads and opcode fetches remain native.
+
+The trace is OPT IN, not enabled for ordinary RUN_TEST or Stable.
+From the existing feature branch, using root Windows launchers:
+
+    BUILD_TEST.bat
+    RUN_TEST.bat mvscur1 trace
+
+The second command runs MVC1 and writes a NEW unique local directory:
+
+    F:\xmvsf\test\87.203\m68k_trace\run_XXXX\
+        sprite_writes.tsv
+        mvc_program_data_host_words.bin
+        mvc_opcodes_decrypted_host_words.bin
+        program_source.tsv
+
+The two private 68000 files are host-word-swapped emulator ROM data
+and decrypted instruction-fetch bytes. They remain LOCAL and are NEVER
+committed to GitHub or included in the shareable analysis ZIP.
+The snapshot is once per run; Stage87.16 writer capture is bounded
+to 1,500,000 attribute-write records. Later writes are not certified.
+
+To collect clean scroll background layers AND 68000 writer provenance
+in the same run, request the additional trace explicitly:
+
+    set XM87203_M68K_TRACE=1
+    RUN_TEST.bat mvscur1 clean
+
+Offline analysis, no emulator/game required:
+
+    RUN_TEST.bat m68k
+
+Output:
+
+    F:\xmvsf\test\87.203\m68k_report\m68k_sprite_report.zip
+
+The ZIP includes m68k_writer_pcs.tsv, m68k_object_families.tsv,
+m68k_tile_transitions.tsv, a JSON manifest and summary. It excludes
+all private ROM data, decrypted program files and raw opcode hex.
+A separate LOCAL m68k_writer_code.tsv contains PC-addressed 68000
+opcode windows; install Python Capstone optionally for M68K mnemonics.
+Without Capstone, native writer-PC correlations still work.
+
+CONFIRMED evidence: executing 68000 PC at object-attribute write,
+object bank/slot, tile, palette/priority, frame and CPU registers.
+UNVERIFIED candidates: grouped 16-tile graphics families, possible
+ROM table pointers (A0-A5) and nearby same-slot tile changes. A
+reused slot is NOT evidence of a single game-animation script.
+
+The old stage_capture(2).zip contains OAM history but no original
+writer-PC trace. An offline scan cannot reconstruct the missing PCs
+or prove ROM animation-table ownership. RUN_TEST.bat m68k produces an
+explicit diagnostic bundle when no trace exists.
+
+Standalone local tests:
+
+    python dev\stage_capture\test_analyze_m68k_sprites.py
+
+No GitHub Actions, no extra numbered launchers, no native gameplay
+writes, no Stable overwrite, no automatic writer hook for XMVSF.
