@@ -727,3 +727,24 @@ Standalone local tests:
 
 No GitHub Actions, no extra numbered launchers, no native gameplay
 writes, no Stable overwrite, no automatic writer hook for XMVSF.
+
+
+### Trace-only vs clean + trace
+
+The MVC program snapshot now operates independently of the heavy original
+stage telemetry, so the simple RUN_TEST.bat mvscur1 trace command disables
+87.203 raster/OAM/tilemap capture and only collects the 68000 writer PC TSV
+and 68000 program bytes. It does not require START.flag or an additional
+clean background session, and therefore avoids several GiB of redundant
+scene capture. The two command launchers remain exactly BUILD_TEST.bat and
+RUN_TEST.bat.
+
+If both sources are wanted simultaneously, explicitly set
+XM87203_M68K_TRACE=1 in the caller's CMD and run
+RUN_TEST.bat mvscur1 clean. The clean-rip recorder retains its existing
+bounded bursts and independently preserves its session logs.
+
+When the MVC process exits, RUN_TEST.bat automatically runs the small
+68000 report generator if this trace was enabled. The existing original
+game exit code remains authoritative; reporting never overwrites Stable.
+The alternate RUN_TEST.bat m68k is a fully offline repeat of that report.
