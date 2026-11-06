@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# Stage 87.183 native-edge safety gate + exact ROM PPC diagnostic TEST builder. Called ONLY by root BUILD_TEST.bat.
+# Stage 87.184 native-edge safety gate + exact ROM PPC diagnostic TEST builder. Called ONLY by root BUILD_TEST.bat.
 # Build the CURRENT local source in place using the warm FBNeo object cache.
 # Never touch Stable executable, Stable manifests, user source, or old TEST binaries.
 set -euo pipefail
 PROJECT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
-# Permanent 87.183 build transcript. This starts BEFORE checking toolchains,
+# Permanent 87.184 build transcript. This starts BEFORE checking toolchains,
 # source files or running make. Never hide fatal compiler/linker diagnostics.
 # Tee preserves live console output and an on-disk copy. Logs live outside
 # the buildtree so incremental make objects and Stable remain untouched.
@@ -21,16 +21,16 @@ if ! command -v tee >/dev/null; then
   exit 2
 fi
 exec > >(tee -a "$LOG_FILE") 2>&1
-printf '\n========== XMVSF TEST 87.183 BUILD BEGIN %s ==========' "$(date '+%Y-%m-%d %H:%M:%S')"
+printf '\n========== XMVSF TEST 87.184 BUILD BEGIN %s ==========' "$(date '+%Y-%m-%d %H:%M:%S')"
 printf '\nProject: %s\nLog: %s\n' "$PROJECT" "$LOG_FILE"
 trap 'rc=$?; trap - EXIT; printf "XMVSF BUILD END rc=%s time=%s log=%s\n" "$rc" "$(date "+%Y-%m-%d %H:%M:%S")" "$LOG_FILE"; exit "$rc"' EXIT
 
 TREE="$PROJECT/dev/stable/buildtree"
-DEST="$PROJECT/runtime/stable/XMVSF_Test_87_183.exe"
-PENDING="$PROJECT/runtime/stable/.XMVSF_Test_87_183_pending.exe"
+DEST="$PROJECT/runtime/stable/XMVSF_Test_87_184.exe"
+PENDING="$PROJECT/runtime/stable/.XMVSF_Test_87_184_pending.exe"
 
-if [[ ! -f "$TREE/makefile.sdl2" || ! -f "$TREE/src/burn/drv/capcom/xmvsf_stage87_183_native_edge_preflight.h" ]]; then
-  echo "ERROR: Current Stage 87.183 source was not pulled into $TREE" >&2
+if [[ ! -f "$TREE/makefile.sdl2" || ! -f "$TREE/src/burn/drv/capcom/xmvsf_stage87_184_super_action_lifetime.h" ]]; then
+  echo "ERROR: Current Stage 87.184 source was not pulled into $TREE" >&2
   exit 2
 fi
 if [[ ! -f "$TREE/src/burn/drv/capcom/cps_run.cpp" ||
@@ -45,7 +45,7 @@ fi
 
 # Preserve warm cache and anything already built on failures. Never run make clean.
 cd "$TREE"
-echo "XMVSF Stage 87.183 TEST: incremental build; preserving cached objects"
+echo "XMVSF Stage 87.184 TEST: incremental build; preserving cached objects"
 echo "Dependencies: GNU Make + persistent obj/**/*.d header dependency files"
 # The FBNeo makefile already runs a two-pass dependency-aware build:
 #   MAKELEVEL=1 generates missing/stale .d files and builds changed objects;
@@ -130,6 +130,9 @@ required_markers=(
   "DHC_FRAME frame="
   "DHC_183_NATIVE_PUNCH_ALREADY_CONSUMED_SKIP_TAG"
   "DHC_183_REPLAY_ONLY_UNSAFE_INPUT_TRACE_BYPASS"
+  "DHC_184_RYU_SHINKUU_ACTION_ENTER_2E08_0D3070"
+  "DHC_184_RYU_SHINKUU_ACTION_EXIT_NATIVE"
+  "DHC_184_RECOVERY_PHASE_NATIVE_TAG_EXPERIMENT"
   "POST_CPU_PRE_DHC"
   "POST_HOST_DHC_CHANGED"
   "DHC_NATIVE_INPUT_NO_SUPER_ROM_ACCEPT"
@@ -176,4 +179,4 @@ if [[ ! -s "$PENDING" ]]; then
 fi
 mv -f "$PENDING" "$DEST"
 echo "TEST BUILD READY: $DEST"
-echo "Stage 87.183: prevent consumed native punch edges in interactive DHC; exact PPC replay trace; 87.181 controls, F9 and Stable preserved."
+echo "Stage 87.184: track exact original Ryu super start, attack, 2E0A recovery and action exit; strict punch safety and Stable preserved."
