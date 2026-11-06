@@ -558,13 +558,16 @@ INT32 Cps2Frame()
         // 3P must also normalize to native 2P. Never normalize it
         // after the actual action has ended or at terminal 0D3194.
         const bool genuineRecoveryWindow=
-            XM87184Life::isRecoveryTag(stageBeforeCpu,
-                                      XM87184Life::recoveryOptIn());
-        // Do not turn startup 3P into native 2P when the actual
-        // action has not entered a DHC-executable ROM phase.
+            XM87184Life::identify(stageBeforeCpu)==XM87184Life::RECOVERY &&
+            XM87185Gate::canRecognize(stageBeforeCpu);
+        // Preserve the original 87.177 3P-as-2P input normalization
+        // during the ENTIRE actual native Shinkuu action, not only
+        // the short controller-8 handoff window. 87.184 accidentally
+        // leaked physical 3P (dash) during startup. Still reject
+        // terminal 0D3194 and action exit. This is input shielding;
+        // whether a tag is safe is separately decided in XM87144.
         xm87177PrequeueThreePunch=
-            XM87184Life::canTag(stageBeforeCpu,
-                                XM87184Life::recoveryOptIn()) &&
+            XM87185Gate::canRecognize(stageBeforeCpu) &&
             XM87177Chords::shieldPrequeue3P(
                 XM87144::state().enabled,XM87144::state().earlyCancel,
                 unsigned(XM87144::state().phase[0]),
