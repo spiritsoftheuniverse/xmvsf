@@ -47,8 +47,9 @@ int main(){
     Arrival right;
     assert(right.begin(1u,0x12u,100u,704,384,472,256,false));
     assert(right.targetX==304);
-    assert(right.position(101u,394)<704);
-    assert(right.position(102u,415)<right.position(101u,394));
+    const int right1=right.position(101u,394);
+    const int right2=right.position(102u,415);
+    assert(right1<704 && right2<right1);
     assert(right.position(103u,472)==304);
     assert(right.ready(0x12u,472));
     Arrival clamped;
