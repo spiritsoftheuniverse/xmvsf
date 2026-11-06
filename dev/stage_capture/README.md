@@ -43,3 +43,18 @@ The original Stage44 `XM44_CAPTURE` donor exporter remains disabled by
 default to prevent duplicate huge pixel exports. The Wily compositor
 remains the *destination* engine, not the donor source. Full animation
 reconstruction is a separate verified post-capture step.
+
+## Original ROM artwork
+
+The capture branch also saves a **local-only immutable** image of the
+emulator-decoded CPS2 `CpsGfx` data for the MVC1 ROM, in a hash-named
+`mvc1_decoded_gfx_*.bin` file. `gfx_index.tsv` records its source driver,
+decoded length, mask and Scroll1/2/3 tile offsets. This gives the offline
+builder actual decoded 4-bit pixel sources for scroll tiles and sprite
+compositions, rather than relying solely on tile IDs and screen pixels.
+
+The export is attempted once per source run, capped at 256 MiB, and
+does not alter any ROM, GFX, palette, or actor memory. Existing hash-named
+files are never truncated. Set `XM87203_EXPORT_GFX=0` to disable it (which
+must keep art coverage incomplete). Both artifacts remain under git-ignored
+`test/`; do not upload the decoded original ROM artwork to GitHub.

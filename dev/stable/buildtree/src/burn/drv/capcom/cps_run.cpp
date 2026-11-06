@@ -1060,6 +1060,9 @@ INT32 Cps2Frame()
             // Record raw CPS2 hardware, defer ROM stage-ID discovery.
             f.phase=~0u;f.stage=~0u;
             f.driver=driver;f.captureActive=true;
+            f.gfx=CpsGfx;f.gfxSize=(unsigned)nCpsGfxLen;
+            f.gfxMask=(unsigned)nCpsGfxMask;
+            for(unsigned l=0;l<4u;++l)f.gfxScrollOffset[l]=(unsigned)nCpsGfxScroll[l];
             f.screenW=nCpsScreenWidth;f.screenH=nCpsScreenHeight;
             f.objectBank=((unsigned)nCpsObjectBank^1u)&1u;
             f.oam=CpsRam708+(f.objectBank<<15u);

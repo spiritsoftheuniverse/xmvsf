@@ -16,6 +16,9 @@ int main(){
     f.reg[0]=r;f.frg[0]=frg;f.rasterStart[0]=0u;
     for(unsigned x=0;x<3u;++x){f.map[0][x]=m[x];f.mapBank[0][x]=x*0x4000u;}
     f.row[0]=row;f.rowBank[0]=0x8000u;f.palette=pal;f.oam=oam;
+    unsigned char decoded[2048]={};
+    decoded[5]=0xA0;f.gfx=decoded;f.gfxSize=sizeof(decoded);
+    f.gfxMask=0x7FF;f.gfxScrollOffset[1]=0x100;
     const char* root=std::getenv("XM87203_STAGE_CAPTURE_DIR");
     assert(root && *root);
     Recorder s;
@@ -23,7 +26,7 @@ int main(){
     s.observe(wrong);assert(!s.initialized);
     wrong.driver="mvscur1";wrong.captureActive=false;
     s.observe(wrong);assert(!s.initialized);
-    s.observe(f);assert(s.enabled&&s.frames==1u&&s.mapWrites==3u&&
+    s.observe(f);assert(s.enabled&&s.gfxReady&&s.frames==1u&&s.mapWrites==3u&&
                         s.rowWrites==1u&&s.paletteWrites==1u);
     s.observe(f);assert(s.frames==1u);
     f.frame=101;s.observe(f);assert(s.frames==2u&&s.mapWrites==3u);

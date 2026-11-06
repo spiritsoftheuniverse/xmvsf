@@ -6,6 +6,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <algorithm>
 #include <cstdint>
 #include <string>
 
@@ -42,6 +43,10 @@ struct Frame {
     unsigned frame=0,phase=0,stage=~0u,sliceCount=0,objectBank=0;
     bool captureActive=false; // hardware capture gate, NEVER XMVSF ROM action phase
     const char* driver=nullptr;
+    // Original Marvel vs. Capcom CPS2 ROM graphics, decoded by FBNeo.
+    // Stored privately under test/ for authentic atlas and sprite extraction.
+    const unsigned char* gfx=nullptr;
+    unsigned gfxSize=0,gfxMask=0,gfxScrollOffset[4]={};
     int screenW=384,screenH=224;
     const unsigned char *reg[MAX_SLICES]={};
     const unsigned char *frg[MAX_SLICES]={};
@@ -54,6 +59,7 @@ struct Frame {
 };
 struct Recorder {
     bool initialized=false,enabled=false,failed=false,hasStage=false;
+    bool gfxReady=false,gfxAttempted=false;
     unsigned stage=0,lastFrame=~0u,frames=0u,mapWrites=0u,rowWrites=0u,paletteWrites=0u;
     unsigned long long objectWrites=0;
     std::uint64_t mapHash[MAX_SLICES][3]={},rowHash[MAX_SLICES]={},palHash=0u;
@@ -100,6 +106,69 @@ struct Recorder {
         statusLine("ERROR",frame,why);
         failed=true;enabled=false;close();
     }
+    bool dumpDecodedGfx(const Frame& f){
+        if(gfxAttempted)return gfxReady;
+        const char* opt=std::getenv("XM87203_EXPORT_GFX");
+        if(opt && std::strcmp(opt,"0")==0){
+            gfxAttempted=true;
+            statusLine("INCOMPLETE",f.frame,"decoded_gfx_export_disabled;_sprite_art_missing");
+            return false;
+        }
+        if(!f.gfx || !f.gfxSize)return false; // allow ROM initialization to finish
+        gfxAttempted=true;
+        // Bounded to prevent a corrupted driver length from filling disk.
+        if(f.gfxSize>256u*1024u*1024u){
+            fail(f.frame,"decoded_gfx_size_out_of_range");
+            return false;
+        }
+        const std::uint64_t signature=hash64(f.gfx,f.gfxSize);
+        char name[100];
+        std::snprintf(name,sizeof(name),"mvc1_decoded_gfx_%08X_%016llX.bin",
+            f.gfxSize,static_cast<unsigned long long>(signature));
+        const std::string dest=root+"/"+name;
+        std::FILE* stream=std::fopen(dest.c_str(),"rb");
+        if(stream){
+            // Immutable hash-named local artifact; never truncate an older run.
+            if(std::fseek(stream,0,SEEK_END)!=0 ||
+               std::ftell(stream)!=static_cast<long>(f.gfxSize)){
+                std::fclose(stream);
+                fail(f.frame,"existing_decoded_gfx_artifact_length_mismatch");
+                return false;
+            }
+            std::fclose(stream);
+        }else{
+            stream=std::fopen(dest.c_str(),"wb");
+            if(!stream){fail(f.frame,"decoded_gfx_open_failed");return false;}
+            unsigned written=0;
+            while(written<f.gfxSize){
+                const unsigned block=std::min(1024u*1024u,f.gfxSize-written);
+                if(std::fwrite(f.gfx+written,1,block,stream)!=block){
+                    std::fclose(stream);
+                    fail(f.frame,"decoded_gfx_write_failed");return false;
+                }
+                written+=block;
+            }
+            if(std::fflush(stream)!=0 || std::fclose(stream)!=0){
+                fail(f.frame,"decoded_gfx_close_failed");return false;
+            }
+        }
+        std::FILE* idx=std::fopen((root+"/gfx_index.tsv").c_str(),"ab");
+        if(!idx){fail(f.frame,"gfx_index_open_failed");return false;}
+        const int n=std::fprintf(idx,"%u\t%s\t%u\t%08X\t%u\t%u\t%u\t%016llX\t%s\n",
+            f.frame,f.driver?f.driver:"unknown",f.gfxSize,f.gfxMask,
+            f.gfxScrollOffset[1],f.gfxScrollOffset[2],f.gfxScrollOffset[3],
+            static_cast<unsigned long long>(signature),name);
+        const bool valid=n>0 && std::fflush(idx)==0;
+        const int closed=std::fclose(idx);
+        if(!valid || closed!=0){fail(f.frame,"gfx_index_write_failed");return false;}
+        gfxReady=true;
+        char info[192];
+        std::snprintf(info,sizeof(info),"rom=%s decoded_bytes=%u fnv64=%016llX file=%s",
+            f.driver?f.driver:"unknown",f.gfxSize,
+            static_cast<unsigned long long>(signature),name);
+        statusLine("GFX_READY",f.frame,info);
+        return true;
+    }
     void observe(const Frame& f){
         // The MVC1 stage-phase address has NOT been ROM-verified. Record
         // original CPS2 registers whenever MVC1 is running, including the
@@ -109,6 +178,8 @@ struct Recorder {
         if(!enabled || failed || f.sliceCount==0u ||
            f.sliceCount>MAX_SLICES || !f.reg[0] || !f.frg[0] ||
            !f.palette || !f.oam || f.frame==lastFrame)return;
+        if(!gfxAttempted)dumpDecodedGfx(f);
+        if(failed)return;
         if(frames>=MAX_FRAMES){
             statusLine("INCOMPLETE",f.frame,"capture_frame_limit_reached;_no_completion_claim");
             enabled=false;close();return;
