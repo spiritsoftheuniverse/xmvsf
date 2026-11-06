@@ -50,7 +50,8 @@ struct Freeze {
            rb(ram,0x5000u)!=8u)return false;
         const unsigned actor=opponentBase(actorSide);
         const unsigned id=rw(ram,actor+0x52u);
-        if(!id || id>0x40u || (id&1u))return false;
+        // Fighter 00 is Wolverine: zero is a VALID native ID.
+        if(id>0x40u || (id&1u))return false;
         side=actorSide;base=actor;fighter=id;
         start=now;last=~0u;held=0u;
         std::memcpy(snapshot,ram+base,0x400u);
