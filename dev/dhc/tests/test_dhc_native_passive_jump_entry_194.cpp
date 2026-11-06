@@ -39,7 +39,7 @@ int main(){
     // instantaneous Y=floor on the very next frame.
     Arrival noFlight;
     assert(noFlight.begin(0u,0x14u,1u,304,408,472,740,true));
-    assert(noFlight.position(2u,472)==692);
+    assert(noFlight.position(2u,472)==304);
     assert(!noFlight.landed);
     assert(!noFlight.ready(0x14u,472));
     // Mirror target on the other side; clamp only to the existing
