@@ -40,6 +40,21 @@ struct Tracker {
     bool recognizes()const {
         return live && (phase==STARTUP || phase==ATTACK || phase==RECOVERY);
     }
+    // Pre-CPU CPS input is sampled at the current host frame before this
+    // frame's post-CPU observer callback. It must belong to the same
+    // original ROM actor/2E root observed on the preceding frame.
+    // Prevent the 3P dash from stealing a valid DHC chord, without
+    // applying any protection after the native super has ended.
+    bool preCpuActive(unsigned now,const XM87184Life::Sample&s)const{
+        return live && (phase==STARTUP || phase==ATTACK) &&
+            lastFrame!=~0u && now>=lastFrame && now-lastFrame<=1u &&
+            s.fighter==fighter && s.action==rootAction &&
+            s.d6==originalD6 && originalSuperController(s) &&
+            s.script>=rootScript &&
+            nextScript>rootScript && s.script<nextScript &&
+            ((phase==STARTUP && s.step==2u) ||
+             (phase==ATTACK && s.step>=4u && (s.step&1u)==0u));
+    }
     Event update(unsigned now,const XM87184Life::Sample& s,
                  const std::uint8_t*rom,unsigned romSize){
         if(lastFrame==now)return NOTHING;
