@@ -352,9 +352,16 @@ struct State {
                         shinkuu[side].live &&
                         XM87184Life::canTag(shinkuuNow,
                           XM87184Life::recoveryOptIn());
-                    const ListedSuper* found=nativeWindow?
+                    // Apply the newly proven lifetime restriction
+                    // ONLY to the playable P1 Ryu->Ken DHC experiment.
+                    // All other fighters retain their prior read-only
+                    // matcher/inventory behavior without new 3P privileges.
+                    const bool playableRyuKen=side==0u &&
+                        fighter==0x12u && bench==0x14u;
+                    const ListedSuper* found=(!playableRyuKen ||
+                                                  nativeWindow)?
                         matchListed(bench,keys[side],facingRight,frame,
-                                    buttons[side],true):nullptr;
+                                    buttons[side],nativeWindow):nullptr;
                     char text[CHAT_LENGTH];
                     if(found && lastMoveFrame[side]!=lastAttackFrame[side]){
                         // Pressing the third kick a frame after LP+MP/ LK+MK
