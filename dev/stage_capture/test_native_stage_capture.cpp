@@ -40,7 +40,22 @@ int main(){
     s.observe(wrong);assert(!s.initialized);
     wrong.driver="mvscur1";wrong.captureActive=false;
     s.observe(wrong);assert(!s.initialized);
-    s.observe(f);assert(s.enabled&&s.gfxReady&&s.frames==1u&&s.mapWrites==3u&&
+    s.observe(f);
+    // Regression: the first capture must create an ABSOLUTE root/session_NNNN
+    // directory, not a relative session_NNNN under the current working dir.
+    assert(s.sessionDir.size()>s.root.size()+1u);
+    assert(s.sessionDir.compare(0,s.root.size()+1u,s.root+"/")==0);
+    assert(s.sessionDir.find('/',s.root.size()+1u)==std::string::npos);
+    {
+        std::FILE* latest=std::fopen((s.root+"/latest.txt").c_str(),"rb");
+        assert(latest);
+        char line[64]={};
+        assert(std::fgets(line,sizeof(line),latest)!=NULL);
+        std::fclose(latest);
+        assert(s.sessionDir==s.root+"/"+std::string(line,10u));
+        assert(line[10]=='\n');
+    }
+    assert(s.enabled&&s.gfxReady&&s.frames==1u&&s.mapWrites==3u&&
                         s.rowWrites==1u&&s.paletteWrites==1u);
     s.observe(f);assert(s.frames==1u);
     f.frame=101;s.observe(f);assert(s.frames==2u&&s.mapWrites==3u);
@@ -49,5 +64,14 @@ int main(){
     f.stage=6;f.frame=103;s.observe(f);
     assert(s.mapWrites==7u&&s.rowWrites==3u&&s.paletteWrites==2u);
     s.close();
-    std::puts("PASS 87.203 read-only stage telemetry, changed maps/rows, duplicate-frame guard, stage reset");
+    // Another recorder in the same process must not reuse or overwrite the
+    // previous session's raw data.
+    const std::string original=s.sessionDir;
+    Recorder second;
+    Frame f2=f;f2.frame=104u;
+    second.observe(f2);
+    assert(second.enabled&&second.sessionDir!=original);
+    assert(second.sessionDir.compare(0,second.root.size()+1u,second.root+"/")==0);
+    second.close();
+    std::puts("PASS 87.203 native telemetry + independent per-run session paths, changing maps/rows and duplicate-frame guard");
 }

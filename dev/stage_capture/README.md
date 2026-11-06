@@ -93,3 +93,7 @@ Actual `stage_capture.zip` recorded valid little-endian CPS2 register bytes: reg
 ## Immutable runs and MSYS root log
 
 Each new 87.203 donor run now creates a **new `session_XXXX/` directory** under `test/87.203/stage_capture/`; never append new frame/binary streams to an earlier sweep. `latest.txt` identifies the newest session. The existing `stage_capture/status.log` remains the root MSYS watcher target, including its historical lines. The offline checker resolves `latest.txt`, validates artifacts in that session directory and posts blue `PART_DONE` and green `LEVEL_DONE` into the common root status with the session ID. If there is no certified manifest, it stays incomplete. Existing root-level capture files remain unchanged and useful for earlier camera/OAM/palette recovery.
+
+### 87.203 build smoke-test crash fix
+
+The 2026-11-06 build stopped before native compilation when `test_native_stage_capture_203.exe` raised `std::out_of_range: basic_string::substr` (position 46 beyond a 13-character path). The session creator accidentally used `sessionDir+"/"+name` while `sessionDir` was empty. The correct path is `root+"/"+name`. The writer now validates the root prefix before extracting `latest.txt`, and the smoke test asserts that the directory lives under the configured capture root and that two runs never reuse the same session directory. No Stable binaries, warm objects or old recordings are deleted.

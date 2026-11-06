@@ -118,7 +118,10 @@ struct Recorder {
         // reused or silently destroyed, including the uploaded 24k-frame run.
         for(unsigned serial=1u;serial<=9999u;++serial){
             char name[32];std::snprintf(name,sizeof(name),"session_%04u",serial);
-            const std::string candidate=sessionDir+"/"+name;
+            // Build the *first* candidate from capture root, not the
+            // not-yet-initialized sessionDir. Otherwise it creates an
+            // orphan ./session_XXXX and substr(root.size()) throws.
+            const std::string candidate=root+"/"+name;
             if(mkdirExclusive(candidate.c_str())==0){
                 sessionDir=candidate;break;
             }
@@ -150,6 +153,16 @@ struct Recorder {
             failed=true;close();return false;
         }
         const size_t prefix=root.size()+1u;
+        // Guard against malformed paths without throwing or corrupting the
+        // persistent latest.txt pointer. No arbitrary substr() offsets.
+        if(sessionDir.size()<=prefix ||
+           sessionDir.compare(0,root.size(),root)!=0 ||
+           sessionDir[root.size()]!='/' ||
+           sessionDir.find('/',prefix)!=std::string::npos){
+            std::fclose(latest);
+            statusLine("ERROR",0u,"invalid_capture_session_directory");
+            failed=true;close();return false;
+        }
         const std::string relative=sessionDir.substr(prefix);
         const int wrote=std::fprintf(latest,"%s\n",relative.c_str());
         const int closed=std::fclose(latest);
