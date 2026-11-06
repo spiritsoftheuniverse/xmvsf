@@ -647,6 +647,11 @@ static void DoDraw(INT32 Recalc)
 #include <vector>
 #include <string>
 #include <cstdint>
+#ifdef _WIN32
+#include <direct.h>
+#else
+#include <sys/stat.h>
+#endif
 
 extern void XM44WriteBufferedSprites(FILE*, int);
 extern void XM47ResetCapturedTiles();
@@ -660,6 +665,27 @@ static int xm44RawFrame = 0;
 static int xm44Limit = 180;
 static int xm44Step = 1;
 static std::string xm44Dir;
+static std::string xm44Root;
+static void xm44Status(const char* event,const std::string& detail) {
+    const char* statusRoot=std::getenv("XM87203_STAGE_CAPTURE_DIR");
+    if(statusRoot && *statusRoot) {
+        const std::string path=std::string(statusRoot)+"/status.log";
+        FILE* f=std::fopen(path.c_str(),"ab");
+        if(f) {
+            std::fprintf(f,"frame=%d\t%s\t%s\n",GetCurrentFrame(),event,detail.c_str());
+            std::fclose(f);
+        }
+    }
+    std::fprintf(stderr,"XM44 CLEAN_RIP %s frame=%d %s\n",
+        event,GetCurrentFrame(),detail.c_str());
+}
+static int xm44Mkdir(const char* path) {
+#ifdef _WIN32
+    return _mkdir(path);
+#else
+    return mkdir(path,0755);
+#endif
+}
 static FILE* xm44Index = NULL;
 static FILE* xm44Sprites = NULL;
 static FILE* xm47Tiles = NULL;
@@ -687,16 +713,17 @@ static void xm44Init() {
     if (!enabled || std::strcmp(enabled,"1") != 0 || Cps != 2) return;
     const char* driver = BurnDrvGetTextA(DRV_NAME);
     // Donor-only: never capture normal XMVSF play.
-    if (!driver || std::strcmp(driver,"mvscur1") != 0) return;
+    if (!driver || std::strncmp(driver,"mvsc",4) != 0) return;
     const char* dir = std::getenv("XM44_CAPTURE_DIR");
     if (!dir || !*dir) {
         std::fprintf(stderr,"XM44: set XM44_CAPTURE_DIR to an existing directory\n");
         return;
     }
-    xm44Dir = dir;
+    xm44Root=dir;
+    xm44Dir=xm44Root;
     const char* max = std::getenv("XM44_FRAMES");
     if (max && *max) xm44Limit = std::atoi(max);
-    if (xm44Limit < 1 || xm44Limit > 1000) xm44Limit = 180;
+    if (xm44Limit < 1 || xm44Limit > 1200) xm44Limit = 180;
     const char* step = std::getenv("XM44_STEP");
     if (step && *step) xm44Step = std::atoi(step);
     if (xm44Step < 1 || xm44Step > 30) xm44Step = 1;
@@ -705,7 +732,12 @@ static void xm44Init() {
         return;
     }
     xm44Enabled = true;
-    std::fprintf(stderr,"XM44: ARMED donor=mvscur1 dir=%s max=%d step=%d\n",xm44Dir.c_str(),xm44Limit,xm44Step);
+    std::fprintf(stderr,"XM44: ARMED donor=%s dir=%s max=%d step=%d\n",
+        driver,xm44Dir.c_str(),xm44Limit,xm44Step);
+    xm44Status("CLEAN_RIP_ARMED","donor="+std::string(driver)+
+        " samples="+std::to_string(xm44Limit)+
+        " step="+std::to_string(xm44Step)+
+        " trigger="+xm44Root+"/START.flag");
 }
 static void xm44Close() {
     if (xm44Index) { std::fclose(xm44Index); xm44Index = NULL; }
@@ -759,9 +791,31 @@ static void xm44CaptureAfterDraw() {
     xm44Init();
     if (!xm44Enabled || xm44Done) return;
     if (!xm44Capturing) {
-        FILE* go = std::fopen(xm44Path("START.flag").c_str(),"rb");
-        if (!go) return;
+        const std::string marker=xm44Root+"/START.flag";
+        FILE* go=std::fopen(marker.c_str(),"rb");
+        if (!go)return;
         std::fclose(go);
+        // Shot Factory-style capture: preserve the trigger in an exclusive
+        // session directory. Never overwrite existing rip files.
+        xm44Dir.clear();
+        for(unsigned n=1;n<=9999u;++n) {
+            char name[32];
+            std::snprintf(name,sizeof(name),"shot_%04u",n);
+            const std::string candidate=xm44Root+"/"+name;
+            if(xm44Mkdir(candidate.c_str())==0) {
+                xm44Dir=candidate;break;
+            }
+        }
+        if(xm44Dir.empty()) {
+            xm44Status("ERROR","CLEAN_RIP_NO_FREE_SESSION");
+            xm44Enabled=false;return;
+        }
+        if(std::rename(marker.c_str(),xm44Path("START.flag").c_str())!=0) {
+            xm44Status("ERROR","CLEAN_RIP_MOVE_TRIGGER_FAILED dir="+xm44Dir);
+            xm44Enabled=false;return;
+        }
+        xm44Sample=0;
+        xm44RawFrame=0;
         xm44Index = std::fopen(xm44Path("layers.tsv").c_str(),"wb");
         xm44Sprites = std::fopen(xm44Path("sprites.tsv").c_str(),"wb");
         xm47Tiles = std::fopen(xm44Path("tiles.bin").c_str(),"wb");
@@ -774,7 +828,8 @@ static void xm44CaptureAfterDraw() {
         std::fprintf(xm44Sprites,"sample\tobject_index\tx\ty\ttile\tattributes\tpriority\tpalette\twidth_tiles\theight_tiles\n");
         XM47ResetCapturedTiles();
         xm44Capturing=true;
-        std::fprintf(stderr,"XM44: CAPTURE_STARTED %s\n", xm44Dir.c_str());
+        xm44Status("CLEAN_RIP_START","dir="+xm44Dir+
+            " painter=native_CPS2 layers=0,1,2,3 transparent_two_fill=1");
     }
     ++xm44RawFrame;
     if ((xm44RawFrame-1)%xm44Step) return;
@@ -820,7 +875,12 @@ static void xm44CaptureAfterDraw() {
         xm44Close(); xm44Done=true;
         FILE* marker = std::fopen(xm44Path("CAPTURE_COMPLETE.txt").c_str(),"wb");
         if (marker) { std::fprintf(marker,"samples=%d\n",xm44Sample); std::fclose(marker); }
-        std::fprintf(stderr,"XM44: CAPTURE_COMPLETE samples=%d dir=%s\n",xm44Sample,xm44Dir.c_str());
+        xm44Status("CLEAN_RIP_BURST_DONE","samples="+
+            std::to_string(xm44Sample)+" dir="+xm44Dir+
+            " animation_and_world_coverage_unverified=1");
+        // Re-arm for another START.flag without quitting the MVC donor game.
+        xm44Done=false;
+        xm44Capturing=false;
     }
 }
 
