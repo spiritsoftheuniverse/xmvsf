@@ -455,3 +455,40 @@ Stable, prior raw captures, or GitHub history. It only refreshes its own
 review JSON/text/ZIP and contact sheet when actual pixel evidence exists.
 The regression test explicitly covers an absent clean_rips directory plus
 a status.log recording completed bursts, without entering MVC.
+
+
+## Fix: offline review exceeded the PNG height limit with 16+ shots
+
+On 2026-11-06, RUN_TEST.bat review printed:
+
+    CLEAN_RIP_REVIEW ERROR: invalid unfiltered CPS2 image dimensions
+    ERROR: Review bundle could not be created.
+
+This was a REVIEW-OUTPUT bug, not proof of broken original CPS2 pixels.
+The contact-sheet renderer wrote every shot into one vertically stacked
+PNG. Each row is 136 pixels tall, plus 8 pixels overall; 16 shots make
+2184 pixels, beyond the existing lossless PNG helper's 2048-pixel limit.
+The user's log already indicated 22 completed clean-rip bursts.
+
+The review now paginates at 12 shots (1640 pixels) per image. Page 1 keeps
+the original name clean_rips_contact_sheet.png; subsequent pages are
+clean_rips_contact_sheet_002.png, _003.png and so on. ALL pages are
+included in clean_rips_review_bundle.zip, in addition to the review JSON
+and TXT. The JSON retains its backward-compatible contact_sheet field
+and adds contact_sheets with page indices, row offsets, legends and shot
+mapping. Per-page bounded rendering continues even when the global
+--max-rows selection is 36 (or up to 150). NO original .rgba files are
+modified, and no ROM, build or gameplay is needed.
+
+With the updated feature branch pulled, rerun simply:
+
+    cd /d F:\xmvsf
+    RUN_TEST.bat review
+
+Expected output for 22 nonempty shots is at least two numbered PNG pages
+in test/87.203/clean_rips_review/clean_rips_review_bundle.zip.
+The exact number depends on invalid or empty shots and --max-rows.
+Source-only regression tests now include an 18-shot paginated ZIP case;
+a separate 22-shot synthetic replay of the failure condition also passed
+locally. Native Windows testing against the user's actual clean-rip
+directory remains outstanding until the regenerated ZIP is inspected.
