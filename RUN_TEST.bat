@@ -139,20 +139,21 @@ set "XM87149_TOURNAMENT_AUDIT=%XM87140_CHAT_DIR%\tournament_rules.tsv"
 echo 87.185 STARTUP HEALTH: %XM87181_DIAGNOSTIC_STATUS%
 echo 87.175 NATIVE OBSERVER: %XM87175_DHC_OBSERVER_LOG%
 echo Native actor rows require a running XMVSF combat session; menu exit writes health only.
-echo 87.185: QCF+LP+MP / LP+HP / MP+HP / 3P triggers Ken, 3P dash suppressed.
+echo 87.185: QCF+any 2P/3P recognizes DHC during real super; native tag still needs ROM acceptance.
 echo 87.185: Ken native QCF+2P and instant, no-charge arrival preserved.
 echo 87.185: UNSAFE delayed native 2P priming stays OFF in interactive TEST.
 echo 87.185: immediate 3P/2P paths, Ken no-charge arrival, and F9 stay intact.
 echo 87.185: delayed DHC input priming disabled by default, preserves original ROM state.
 echo 87.184 native Shinkuu action lifetime: 2E08 startup/attack, 2E0A recovery, exact exit.
-echo 87.185 TEST recovery tag enabled before terminal ROM script; 87.183 guard preserved.
+echo 87.185 exact recovery rebound is EXPERIMENTAL; startup input recognized, startup tag unverified.
+echo 87.185 experimental early attack: %XM87185_TEST_EARLY_ACTIVE_TAG%   recovery rebound: %XM87185_TEST_RECOVERY_REBOUND%   recovery phase: %XM87184_EXPERIMENTAL_RECOVERY_TAG%
 echo XMVSF Stage 87.185 TEST - KEEP KEN SHORYUREPPA; CUT OUTGOING RYU PROJECTILE HITS
 echo Executable: %EXE%
 echo SAME BUILD, TWO DHC CHOICES:
 echo   During Ryu Shinkuu Hadoken, QCF+ANY TWO PUNCHES or QCF+3P queues Ken SHORYUREPPA.
 echo   During Ryu Shinkuu Hadoken, QCF+LK+MK queues Ken SHINRYUKEN 2E02/D6976.
 echo Both ROM targets are verified and logged simultaneously in dhc_native_handoff.tsv.
-echo Ryu's super native tag uses the proven 87.151 timer 28 window.
+echo Standard native tag retains proven timer 28; the 87.185 TEST separately tries earlier active attacks.
 echo Immediately on real Ken arrival, cancel his 2A0C kick into nonattack 2A08.
 echo At Ken's first confirmed 2A08 frame, enter verified Ken ROM idle and submit a short QCF+2P / QCF+2K.
 echo Ken's recorded Hadoken transition is the baseline. The requested replacement is Ken's super.
