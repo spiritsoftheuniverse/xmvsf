@@ -18,7 +18,8 @@ REM Replay ONLY: deliberately reproduce old 87.182 bad action for PPC audit.
 REM 87.184 replay uses 87.183 SAFE handoff, not unsafe forensic bypass.
 set "XM87183_REPLAY_UNSAFE_CONSUMED_EDGE=0"
 REM Baseline replay retains old 2E08 timing while TEST can probe recovery.
-REM 87.185 historical 87.184 F9: reproduce old recovery controller path for exact PPC comparison.
+REM 87.185 F9 comparison: same physical inputs with safer recovery arming blocked.
+REM The original 87.184 native PC trace already proves the old 2E0A->2E08 restart.
 set "XM87184_EXPERIMENTAL_RECOVERY_TAG=1"
 set "XM87185_TEST_EARLY_ACTIVE_TAG=0"
 set "XM87185_TEST_RECOVERY_REBOUND=0"
