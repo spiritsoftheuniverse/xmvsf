@@ -393,6 +393,10 @@ test/87.203/clean_rips_review/:
 - clean_rips_review.txt: a small summary with corrupt or missing source
   files highlighted. The review summary and contact-sheet previews can be
   replaced by a later review; original clean-rip RGBA shots remain untouched.
+- clean_rips_review_bundle.zip: a compact ZIP containing ONLY the review
+  JSON, text and contact-sheet PNG (no source ROM `.rgba` files). Upload
+  this one file to the chat for actual-artwork inspection; no multi-GiB
+  shot_XXXX upload is necessary for the first visual audit.
 
 Default SAMPLED verification checks the size/presence of EVERY indexed
 native RGBA image plus native FNV64 hashes at the first, middle, last
