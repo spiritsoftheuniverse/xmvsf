@@ -326,35 +326,113 @@ def frequency_catalog(observations):
     return list(variants.values())
 
 
+def catalog_signature(c):
+    return (c['tile'],c['palette'],c['width_tiles'],
+            c['height_tiles'],c['flip'])
+
+
+def annotate_gallery_roles(catalog):
+    """Rank SOURCE object evidence; never certify that an object is scenery.
+
+    Repeated fixed screen coordinates at native priority 7 are frequent HUD
+    fixtures. Cross-shot reuse gives a stronger interface clue than any
+    hard-coded tile ID or indiscriminate palette exclusion. The full catalog
+    remains available through --focus all and exact --tile.
+    """
+    cross_shot=Counter(catalog_signature(c) for c in catalog)
+    for c in catalog:
+        appearances=cross_shot[catalog_signature(c)]
+        c['cross_shot_count']=appearances
+        p=int(c['priority_mode'])
+        samples=c['sample_count']
+        motion=c['positions_count']
+        area=c['width_tiles']*c['height_tiles']
+        fixed=(samples >= 8 and motion <= 2)
+        gui_like=(p == 7 and fixed and
+                  (appearances >= 3 or c['palette'] in (30,31)))
+        c['candidate_role']=('INTERFACE_LIKELY' if gui_like else
+                             'REVIEW_SCENE_CANDIDATE' if p <= 5 else
+                             'UNCLASSIFIED')
+        score=(18 if p <= 4 else 12 if p==5 else 4 if p==6 else -12)
+        score+=6*math.log2(1+area)
+        score+=3*math.log2(1+min(samples,24))
+        score+=4*math.log2(1+min(motion,24))
+        score-=10*math.log2(1+appearances)
+        if gui_like: score-=30
+        if p==7 and area>=6 and c['width_tiles']>=6 and c['height_tiles']<=2:
+            score-=12
+        c['scene_score']=round(score,3)
+    return catalog
+
+
 def ranking(c):
     # Balanced look-up gallery, not a claim of scene/fighter classification.
     area=c['width_tiles']*c['height_tiles']
     return (c['sample_count'] * (1 + math.log2(1+area)),c['observations'],area)
 
 
-def gallery_candidates(catalog,max_images,per_shot,tile_id,palette_id):
+def gallery_candidates(catalog,max_images,per_shot,tile_id,palette_id,focus='scenery'):
+    if focus not in ('scenery','all'):
+        raise SpriteError('gallery focus must be scenery or all')
     selected=[c for c in catalog if (tile_id is None or c['tile']==tile_id)
               and (palette_id is None or c['palette']==palette_id)]
+    if tile_id is not None:
+        # Explicit hardware address always wins over any heuristic.
+        return sorted(selected,key=ranking,reverse=True)
+    if focus=='scenery':
+        # A reversible interface filter: only high-confidence fixed HUD-like
+        # signatures are suppressed. All remain in sprite_catalog.tsv.
+        plausible=[c for c in selected if c.get('candidate_role')!='INTERFACE_LIKELY']
+        if plausible:
+            selected=plausible
+    key=(lambda c:c.get('scene_score',0.0)) if focus=='scenery' else ranking
     groups=defaultdict(list)
     for item in selected:groups[item['shot']].append(item)
-    for values in groups.values():values.sort(key=ranking,reverse=True)
-    if tile_id is not None:
-        # Exact tile selection should not be drowned out by other tiles.
-        return sorted(selected,key=ranking,reverse=True)
+    for values in groups.values():values.sort(key=key,reverse=True)
+    if focus=='all':
+        out=[]
+        for i in range(per_shot):
+            for shot in sorted(groups):
+                if len(groups[shot])>i:
+                    out.append(groups[shot][i])
+        used={id(x) for x in out}
+        for item in sorted(selected,key=ranking,reverse=True):
+            if id(item) not in used:
+                out.append(item)
+                used.add(id(item))
+        return out
+    # Scene review prioritizes diversity. Repeated HUD/UI tiles previously
+    # filled all 96 slots, once per shot. Only after distinct candidates have
+    # been offered may duplicate signatures enter the fallback list.
     out=[]
-    for i in range(per_shot):
+    seen_sig=set()
+    used=set()
+    cursors={shot:0 for shot in groups}
+    for _ in range(per_shot):
         for shot in sorted(groups):
-            if len(groups[shot])>i:
-                out.append(groups[shot][i])
-    # Return backup candidates. Empty/undecoded hardware objects are not
-    # allowed to consume the caller's requested number of real PNGs.
-    used={id(x) for x in out}
-    for item in sorted(selected,key=ranking,reverse=True):
-        if id(item) not in used:
+            values=groups[shot]
+            cursor=cursors[shot]
+            while cursor<len(values) and catalog_signature(values[cursor]) in seen_sig:
+                cursor+=1
+            if cursor<len(values):
+                item=values[cursor]
+                out.append(item)
+                used.add(id(item))
+                seen_sig.add(catalog_signature(item))
+                cursor+=1
+            cursors[shot]=cursor
+    for item in sorted(selected,key=key,reverse=True):
+        sig=catalog_signature(item)
+        if sig not in seen_sig:
             out.append(item)
             used.add(id(item))
+            seen_sig.add(sig)
+    # Preserve original exact addresses even when a scene has few unique
+    # objects; these are backup choices, never thrown away.
+    for item in sorted(selected,key=key,reverse=True):
+        if id(item) not in used:
+            out.append(item)
     return out
-
 
 def text_raster(image: bytearray,width:int,height:int,text:str,x:int,y:int):
     for ch in text.upper():
@@ -407,7 +485,9 @@ def make_sheet(items:list[dict],size:int=4):
 def create_factory(clean_root:Path|None,capture:Path|None,output:Path, *,
                    source:str='auto', tile:int|None=None,palette:int|None=None,
                    shot:str|None=None,max_images:int=96,per_shot:int=8,
-                   step:int=120):
+                   step:int=120,focus:str='scenery'):
+    if focus not in ('scenery','all'):
+        raise SpriteError('focus must be scenery or all')
     if not(1<=max_images<=400 and 1<=per_shot<=32 and 1<=step<=10000):
         raise SpriteError('bad image/sample limits')
     output=output.resolve()
@@ -455,9 +535,9 @@ def create_factory(clean_root:Path|None,capture:Path|None,output:Path, *,
     else:
         all_observations,palettes,gfx_lookup,provenance=telemetry_input(capture,step)
         errors=[]
-    catalog=frequency_catalog(all_observations)
+    catalog=annotate_gallery_roles(frequency_catalog(all_observations))
     catalog.sort(key=lambda c:(c['shot'],c['tile'],c['palette'],c['width_tiles'],c['height_tiles'],c['flip']))
-    selected=gallery_candidates(catalog,max_images,per_shot,tile,palette)
+    selected=gallery_candidates(catalog,max_images,per_shot,tile,palette,focus)
     output.mkdir(parents=True,exist_ok=True)
     image_dir=output/'sprites'
     image_dir.mkdir(exist_ok=True)
@@ -510,7 +590,8 @@ def create_factory(clean_root:Path|None,capture:Path|None,output:Path, *,
                                           'width_tiles','height_tiles','flip')])
     columns=('shot','tile','palette','width_tiles','height_tiles','flip','priority_mode',
              'priority_mask','sample_count','observations','positions_count',
-             'first_frame','last_frame','first_sample','png')
+             'first_frame','last_frame','first_sample',
+             'cross_shot_count','candidate_role','scene_score','png')
     with (output/'sprite_catalog.tsv').open('w',encoding='utf-8',newline='') as fp:
         wr=csv.writer(fp,delimiter='\t')
         wr.writerow(columns)
@@ -521,6 +602,12 @@ def create_factory(clean_root:Path|None,capture:Path|None,output:Path, *,
               'objects_observed':len(all_observations),
               'unique_object_variants':len(catalog),
               'image_candidates_selected':attempts,
+              'gallery_focus':focus,
+              'interface_likely_signatures':sum(
+                  c['candidate_role']=='INTERFACE_LIKELY' for c in catalog),
+              'selection_method':('candidate-only: priority, position stability, cross-shot'
+                                  ' reuse and address diversity; no confirmed scenery'),
+
               'images_exported':len(render),
               'pages':pages,
               'missing_source_tiles_by_shot':dict(missing_tiles),
@@ -534,6 +621,7 @@ def create_factory(clean_root:Path|None,capture:Path|None,output:Path, *,
               'source_palette_effective':use_clean,
               'unresolved_gaps':[
                   'Tile ID alone does not distinguish background actors, fighters, effects or HUD.',
+                  'Interface-like repeated static objects are only deprioritized, never deleted.',
                   'Individual object animation tracks and original priority are not yet verified.',
                   'Source pixels are decoded from native CPS2 packed tiles; color cache is provisional for raw telemetry.'
                       if not use_clean else
@@ -568,12 +656,14 @@ def main():
     p.add_argument('--max-images',type=int,default=96)
     p.add_argument('--per-shot',type=int,default=8)
     p.add_argument('--step',type=int,default=120,help='raw telemetry sample spacing, frames')
+    p.add_argument('--focus',choices=['scenery','all'],default='scenery',
+                   help='scenery prioritizes review candidates; all restores original frequency ranking')
     opts=p.parse_args()
     try:
         report=create_factory(opts.clean_root,opts.capture,opts.output,
                               source=opts.source,tile=opts.tile,palette=opts.palette,
                               shot=opts.shot,max_images=opts.max_images,
-                              per_shot=opts.per_shot,step=opts.step)
+                              per_shot=opts.per_shot,step=opts.step,focus=opts.focus)
         return 2 if report['errors'] else 0
     except (OSError,SpriteError,ValueError,zipfile.BadZipFile) as exc:
         print('SPRITE_FACTORY_ERROR '+str(exc),file=sys.stderr)
