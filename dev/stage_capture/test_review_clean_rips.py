@@ -97,6 +97,34 @@ class ReviewTests(unittest.TestCase):
         with self.assertRaisesRegex(mod.RipError, 'sample count'):
             mod.scan_shot(directory, full=True)
 
+    def test_offline_missing_source_still_produces_diagnostic_bundle(self):
+        # A native stage_capture ZIP can contain logging evidence without any
+        # clean_rips/shot_XXXX files. The offline review must STILL generate
+        # an uploadable ZIP, not silently refuse to create one.
+        missing = self.parent / 'missing_clean_rips'
+        status = self.parent / 'stage_capture' / 'status.log'
+        status.parent.mkdir()
+        status.write_text(
+            'frame=10\\tCLEAN_RIP_ARMED\\tdonor=mvscur1\\n'
+            'frame=20\\tCLEAN_RIP_START\\tdir=shot_0001\\n'
+            'frame=100\\tCLEAN_RIP_BURST_DONE\\tsamples=60 dir=shot_0001\\n'
+            'frame=101\\tCLEAN_RIP_START\\tdir=shot_0002\\n')
+        data = mod.review(missing, self.output, status_log=status)
+        self.assertFalse(data['source_root_exists'])
+        self.assertFalse(data['shots'])
+        self.assertFalse(data['contact_sheet']['file'])
+        self.assertEqual(data['capture_log_evidence']['CLEAN_RIP_BURST_DONE'], 1)
+        self.assertEqual(data['capture_log_evidence']['CLEAN_RIP_START'], 2)
+        self.assertTrue(any('NO_NATIVE_CLEAN_RIP_ARTWORK' in item
+                            for item in data['warnings']))
+        with zipfile.ZipFile(self.output / 'clean_rips_review_bundle.zip') as bundle:
+            self.assertEqual(set(bundle.namelist()),
+                             {'clean_rips_review.txt','clean_rips_review.json'})
+            self.assertIsNone(bundle.testzip())
+            self.assertIn('NOT FOUND',bundle.read('clean_rips_review.txt').decode())
+        self.assertIn('INCOMPLETE',status.read_text())
+        self.assertFalse(missing.exists())
+
     def test_source_path_is_never_an_output(self):
         self.shot(1)
         with self.assertRaisesRegex(mod.RipError, 'sibling'):
