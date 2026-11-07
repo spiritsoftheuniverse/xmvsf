@@ -629,6 +629,21 @@ if not exist "%PROJECT%\test\87.203\m68k_owner\m68k_owner_evidence_review.zip" (
   exit /b 2
 )
 echo Owner-evidence ZIP: "%PROJECT%\test\87.203\m68k_owner\m68k_owner_evidence_review.zip"
+REM Stage87.203: index ORIGINAL MVC1 68000 tile+attribute assembly pairs,
+REM match their parts to real CPS2 OBJ samples and camera scroll. Reuse the
+REM previous full-rate native capture, no ROM re-execution and no new builds.
+REM Private original program/decrypted bytes never leave local test/87.203.
+python.exe "%PROJECT%\dev\stage_capture\TRACE_MVC_ROM_ASSEMBLIES.py" --observations "%PROJECT%\test\87.203\sprite_factory\sprite_observations.tsv.gz" --trace-root "%PROJECT%\test\87.203\m68k_trace" --owner-evidence "%PROJECT%\test\87.203\m68k_owner\object_family_evidence.tsv" --capture-root "%PROJECT%\test\87.203\stage_capture" --output "%PROJECT%\test\87.203\m68k_rom_assemblies"
+set "ROM_FAMILY_RC=%ERRORLEVEL%"
+if not "%ROM_FAMILY_RC%"=="0" (
+  echo ERROR: Offline 68000 ROM assembly correlation failed. Existing source preserved.
+  exit /b %ROM_FAMILY_RC%
+)
+if not exist "%PROJECT%\test\87.203\m68k_rom_assemblies\rom_assemblies_review_bundle.zip" (
+  echo ERROR: 68000 assembly review ZIP not generated.
+  exit /b 2
+)
+echo ROM assembly ZIP: "%PROJECT%\test\87.203\m68k_rom_assemblies\rom_assemblies_review_bundle.zip"
 exit /b 0
 
 :offline_m68k_owner_no_observations
