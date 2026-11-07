@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# Stage 87.203 native-edge safety gate + exact ROM PPC diagnostic TEST builder. Called ONLY by root BUILD_TEST.bat.
+# Stage 87.204 native TEST: retained native game + real logo/glyph assets. Called ONLY by root BUILD_TEST.bat.
 # Build the CURRENT local source in place using the warm FBNeo object cache.
 # Never touch Stable executable, Stable manifests, user source, or old TEST binaries.
 set -euo pipefail
 PROJECT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
-# Permanent 87.202 build transcript. This starts BEFORE checking toolchains,
+# Permanent TEST build transcript. This starts BEFORE checking toolchains,
 # source files or running make. Never hide fatal compiler/linker diagnostics.
 # Tee preserves live console output and an on-disk copy. Logs live outside
 # the buildtree so incremental make objects and Stable remain untouched.
@@ -21,13 +21,13 @@ if ! command -v tee >/dev/null; then
   exit 2
 fi
 exec > >(tee -a "$LOG_FILE") 2>&1
-printf '\n========== XMVSF TEST 87.203 BUILD BEGIN %s ==========' "$(date '+%Y-%m-%d %H:%M:%S')"
+printf '\n========== XMVSF TEST 87.204 BUILD BEGIN %s ==========' "$(date '+%Y-%m-%d %H:%M:%S')"
 printf '\nProject: %s\nLog: %s\n' "$PROJECT" "$LOG_FILE"
 trap 'rc=$?; trap - EXIT; printf "XMVSF BUILD END rc=%s time=%s log=%s\n" "$rc" "$(date "+%Y-%m-%d %H:%M:%S")" "$LOG_FILE"; exit "$rc"' EXIT
 
 TREE="$PROJECT/dev/stable/buildtree"
-DEST="$PROJECT/runtime/stable/XMVSF_Test_87_203.exe"
-PENDING="$PROJECT/runtime/stable/.XMVSF_Test_87_203_pending.exe"
+DEST="$PROJECT/runtime/stable/XMVSF_Test_87_204.exe"
+PENDING="$PROJECT/runtime/stable/.XMVSF_Test_87_204_pending.exe"
 
 if [[ ! -f "$TREE/makefile.sdl2" ||
       ! -f "$TREE/src/burn/drv/capcom/xmvsf_stage87_186_opening_observer.h" ||
@@ -44,10 +44,27 @@ if [[ ! -f "$TREE/makefile.sdl2" ||
       ! -f "$TREE/src/burn/drv/capcom/xmvsf_stage87_198_native_super_freeze_cue.h" ||
       ! -f "$TREE/src/burn/drv/capcom/xmvsf_stage87_202_air_followup_rebound.h" ||
       ! -f "$TREE/src/burn/drv/capcom/xmvsf_stage87_203_stage_capture.h" ||
-      ! -f "$TREE/src/burner/sdl/xmvsf_stage87_195_menu_gif.h" ]]; then
-  echo "ERROR: Current Stage 87.203 source was not pulled into $TREE" >&2
+      ! -f "$TREE/src/burner/sdl/xmvsf_stage87_195_menu_gif.h" || 
+      ! -s "$TREE/src/burner/sdl/xmvsf_menu_glyph_atlas.h" ||
+      ! -s "$TREE/src/burner/sdl/xmvsf_stage14_boot.h" ]]; then
+  echo "ERROR: 87.204 native menu/glyph sources missing; inspect checked-out branch" >&2
   exit 2
 fi
+for asset in logo.png sf2font.png sf2fontsmall.png; do
+  if [[ ! -s "$PROJECT/_art/$asset" ]]; then
+    echo "ERROR: 87.204 requires original nonempty _art/$asset" >&2
+    exit 2
+  fi
+done
+if ! grep -Fq 'xmvsf_menu_glyph_atlas.h' "$TREE/src/burner/sdl/xmvsf_stage14_boot.h"; then
+  echo "ERROR: 87.204 glyph header is not wired into the native boot menu" >&2
+  exit 2
+fi
+if ! grep -Fq 'XMGlyph::logo(render)' "$TREE/src/burner/sdl/xmvsf_stage14_boot.h"; then
+  echo "ERROR: 87.204 native menu is not drawing the PNG title" >&2
+  exit 2
+fi
+echo "87.204 source preflight: native menu + font header + three _art PNG files verified."
 if [[ ! -f "$TREE/src/burn/drv/capcom/cps_run.cpp" ||
       ! -f "$TREE/src/intf/video/sdl/xmvsf_stage86_49_painter.h" ]]; then
   echo "ERROR: Native TEST buildtree source is incomplete." >&2
@@ -80,7 +97,11 @@ XM87203_BATCH_FRAMES=300 \
 
 # Preserve warm cache and anything already built on failures. Never run make clean.
 cd "$TREE"
-echo "XMVSF Stage 87.203 TEST: incremental build; preserving cached objects"
+echo "XMVSF Stage 87.204 TEST: incremental build; preserving cached objects"
+if command -v git >/dev/null 2>&1; then
+  echo "Source branch: $(git -C "$PROJECT" branch --show-current 2>/dev/null || true)"
+  echo "Source revision: $(git -C "$PROJECT" rev-parse --short HEAD 2>/dev/null || true)"
+fi
 echo "Dependencies: GNU Make + persistent obj/**/*.d header dependency files"
 # The FBNeo makefile already runs a two-pass dependency-aware build:
 #   MAKELEVEL=1 generates missing/stale .d files and builds changed objects;
@@ -97,8 +118,16 @@ echo "Dependencies: GNU Make + persistent obj/**/*.d header dependency files"
 # BUILD_TEST.log as well as the console. set -e preserves make's exit code.
 # Do not use awk warning filters or truncate diagnostics when compilation fails.
 # No make clean, forced rebuild, source timestamp changes, or Stable writes.
+# First 87.204 build: explicitly recompile ONLY the two SDL frontend
+# translation units, even if a Windows checkout retained stale .d timestamps.
+# Thereafter revert to the normal warm incremental dependency graph.
+FRESHEN=()
+if [[ ! -s "$DEST" ]]; then
+  echo "NEW TEST 87.204: refreshing SDL main.cpp and run.cpp once to guarantee menu code."
+  FRESHEN=(-W src/burner/sdl/main.cpp -W src/burner/sdl/run.cpp)
+fi
 MAKELEVEL=1 make -f makefile.sdl2 LSB_FIRST=1 INCLUDE_7Z_SUPPORT=1 DEPEND=1 \
-  -j"${XMVSF_BUILD_JOBS:-12}" all
+  "${FRESHEN[@]}" -j"${XMVSF_BUILD_JOBS:-12}" all
 
 BUILT=""
 for exe in "$TREE/fbneo.exe" "$TREE/fbneo"; do
@@ -131,4 +160,9 @@ if [[ ! -s "$PENDING" ]]; then
 fi
 mv -f "$PENDING" "$DEST"
 echo "TEST BUILD READY: $DEST"
-echo "Stage 87.203: read-only native startup/first attack PPC, preserve all 87.185 input and recovery bridge logic; Stable untouched."
+if command -v sha256sum >/dev/null 2>&1; then
+  echo "87.204 compiled TEST sha256: $(sha256sum "$DEST")"
+  echo "87.204 source font + logo sha256:"
+  sha256sum "$PROJECT/_art/logo.png" "$PROJECT/_art/sf2font.png" "$PROJECT/_art/sf2fontsmall.png"
+fi
+echo "Stage 87.204: native title + proportional font, original ROM/combat paths retained; Stable untouched."
