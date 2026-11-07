@@ -67,8 +67,13 @@ struct Tracker{
     void init(){
         if(initialized)return;
         initialized=true;
+        // 87.121 was the successful Cyclops air-throw release: recover
+        // the exact preceding airborne state ONLY after confirmed impact.
+        // The routine survived later source revisions but the standard
+        // launcher stopped setting XM87121_CYCLOPS_RELEASE, silently
+        // disabling it. Keep it on by default; explicit 0 is A/B opt-out.
         const char* on=std::getenv("XM87121_CYCLOPS_RELEASE");
-        enabled=on && std::strcmp(on,"1")==0;
+        enabled=!(on && std::strcmp(on,"0")==0);
         const char* path=std::getenv("XM87121_CYCLOPS_LOG_FILE");
         if(path && *path){log=std::fopen(path,"wb");if(log)
           std::fputs("frame\tplayer\tphase\taction\tmode\tairflag\tstep06\tstep08\tx\ty\tvy\topponent_action\topponent_y\tdecision\n",log);}
