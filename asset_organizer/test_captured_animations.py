@@ -5,11 +5,16 @@ import gzip
 import hashlib
 import json
 from pathlib import Path
+from http.server import ThreadingHTTPServer
+from threading import Thread
+from urllib.request import Request,urlopen
+from urllib.error import HTTPError
 import struct
 import tempfile
 import unittest
 
 from BUILD_CAPTURED_ANIMATIONS import build,group_takes,read_camera,reviewed_records,tile_rgba
+from SERVE_ASSET_ORGANIZER import make_handler
 
 class CapturedAnimationsTests(unittest.TestCase):
     def test_lookups_and_original_tile_decode(self):
@@ -42,6 +47,25 @@ class CapturedAnimationsTests(unittest.TestCase):
         self.assertEqual([x['frameCount'] for x in take],[2,1,1])
         self.assertEqual({x['tag'] for x in take},{'character','effect'})
         self.assertEqual(take[0]['frames'][0]['scroll2Candidate'],{'x':120,'y':150})
+
+    def test_exact_route_for_local_animations_and_manifest(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root=Path(temp)
+            (root/'index.html').write_text('Organizer index')
+            (root/'animations.html').write_text('<h1>Captured pose player</h1>')
+            (root/'captured_animations.json').write_text('{"format":"MVC1_CAPTURED_POSE_PLACEMENTS_V1"}')
+            server=ThreadingHTTPServer(('127.0.0.1',0),make_handler(root,{'romSha256':'test','catalog':[]}))
+            thread=Thread(target=server.serve_forever,daemon=True);thread.start()
+            try:
+                url=f'http://127.0.0.1:{server.server_port}'
+                self.assertIn(b'Captured pose player',urlopen(url+'/animations.html').read())
+                self.assertEqual(json.loads(urlopen(url+'/api/captured_animations').read())['format'],
+                                 'MVC1_CAPTURED_POSE_PLACEMENTS_V1')
+                with self.assertRaises(HTTPError) as wrong:
+                    urlopen(Request(url+'/animations.html',headers={'Host':'wrong-host.example'}))
+                self.assertEqual(wrong.exception.code,403)
+            finally:
+                server.shutdown();server.server_close();thread.join(timeout=2)
 
     def test_capture_chain_prefers_nonoverlapping_newer_session(self):
         with tempfile.TemporaryDirectory() as t:
