@@ -11,6 +11,7 @@
 #include <cstring>
 #include <string>
 #include <vector>
+#include "xmvsf_menu_color_fx.h"
 
 namespace XMGlyph {
 class Atlas {
@@ -18,6 +19,12 @@ class Atlas {
     SDL_Texture* large_ = nullptr;
     SDL_Texture* small_ = nullptr;
     SDL_Texture* logo_ = nullptr;
+    SDL_Texture* logoFx_ = nullptr; // streaming color-group pulse layer
+    std::vector<Uint8> originalLogo_;
+    std::vector<Uint8> animatedLogo_;
+    Uint32 lastLogoFX_=0;
+    int logoWidth_=0,logoHeight_=0;
+    bool logoFxWarning_=false;
     SDL_Rect logoSource_ = {0,0,0,0};
     // A fixed atlas grid is for locating sprites, not laying out text.
     // Per-glyph bounds discard empty side columns, keeping colored pixels intact.
@@ -127,8 +134,11 @@ public:
     void release(){
         if(large_)SDL_DestroyTexture(large_);
         if(small_)SDL_DestroyTexture(small_);
+        if(logoFx_)SDL_DestroyTexture(logoFx_);
         if(logo_)SDL_DestroyTexture(logo_);
-        large_=small_=logo_=nullptr;
+        large_=small_=logoFx_=logo_=nullptr;
+        originalLogo_.clear();animatedLogo_.clear();
+        lastLogoFX_=0;logoWidth_=logoHeight_=0;logoFxWarning_=false;
         renderer_=nullptr;logoSource_={0,0,0,0};attempted_=false;
         for(int i=0;i<2;i++)for(int c=0;c<128;c++)metrics_[i][c]=Glyph{};
     }
@@ -168,7 +178,18 @@ public:
             SDL_FreeSurface(original);
             if(rgba){
                 normalizeLogo(rgba,logoSource_);
-                if(logoSource_.w && logoSource_.h)logo_=texture(renderer,rgba);
+                if(logoSource_.w && logoSource_.h){
+                    logo_=texture(renderer,rgba); // original art fallback
+                    logoWidth_=rgba->w;logoHeight_=rgba->h;
+                    if(logo_ && XMMenuColor::rgbaPixels(rgba,originalLogo_)){
+                        logoFx_=SDL_CreateTexture(renderer,SDL_PIXELFORMAT_RGBA32,
+                                    SDL_TEXTUREACCESS_STREAMING,logoWidth_,logoHeight_);
+                        if(logoFx_)SDL_SetTextureBlendMode(logoFx_,SDL_BLENDMODE_BLEND);
+                        else std::fprintf(stderr,
+                            "XM MENU LOGO FX unsupported, retaining original PNG: %s\n",
+                            SDL_GetError());
+                    }
+                }
                 SDL_FreeSurface(rgba);
             }
         }
@@ -233,13 +254,31 @@ public:
         ensure(renderer);
         if(!renderer||!logo_||logoSource_.w<=0||logoSource_.h<=0 ||
            target.w<=0||target.h<=0)return false;
+        const Uint32 now=SDL_GetTicks();
+        // Refresh the FX texture at 12.5 Hz, only for the on-screen logo.
+        // Build from the original PNG every time: pulses never accumulate.
+        if(logoFx_ && !originalLogo_.empty() &&
+           (lastLogoFX_==0 || (Uint32)(now-lastLogoFX_)>=80u)){
+            XMMenuColor::logoPalettePulse(originalLogo_,animatedLogo_,
+                                           logoWidth_,logoHeight_,now);
+            if(SDL_UpdateTexture(logoFx_,nullptr,animatedLogo_.data(),
+                                 logoWidth_*4)!=0){
+                if(!logoFxWarning_){
+                    std::fprintf(stderr,"XM MENU LOGO FX upload failed: %s\n",
+                                 SDL_GetError());
+                    logoFxWarning_=true;
+                }
+                // Rendering must continue with the untouched original PNG.
+                SDL_DestroyTexture(logoFx_);logoFx_=nullptr;
+            }else lastLogoFX_=now;
+        }
         const double scale=std::min(double(target.w)/logoSource_.w,
                                     double(target.h)/logoSource_.h);
         const int width=std::max(1,int(logoSource_.w*scale+0.5));
         const int height=std::max(1,int(logoSource_.h*scale+0.5));
         SDL_Rect dst={target.x+(target.w-width)/2,
                       target.y+(target.h-height)/2,width,height};
-        SDL_RenderCopy(renderer,logo_,&logoSource_,&dst);
+        SDL_RenderCopy(renderer,logoFx_?logoFx_:logo_,&logoSource_,&dst);
         return true;
     }
     // Pixel-art nearest-neighbor rendering with fractional visual scale.
