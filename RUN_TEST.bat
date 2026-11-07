@@ -4,6 +4,7 @@ for %%I in ("%~dp0.") do set "PROJECT=%%~fI"
 set "MSYSTEM=UCRT64"
 set "PATH=C:\msys64\ucrt64\bin;C:\msys64\usr\bin;%PATH%"
 set "XMVSF_PROJECT=%PROJECT%"
+set "XMVSF_TEST_VERSION=87.204"
 REM Offline artifact review uses Python only. Never reaches ROM checks or EXE.
 if /I "%~1"=="review" goto :offline_clean_review
 if /I "%~1"=="sprites" goto :offline_sprite_factory
@@ -59,13 +60,13 @@ if "%XM87203_STAGE_CAPTURE_ENABLE%"=="1" (
 ) else (
   set "XM87203_STAGE_CAPTURE_DIR="
 )
-echo Stage 87.203 source ROM: %SOURCE_ROM%
+echo Stage 87.204 TEST executable, source ROM: %SOURCE_ROM%
 echo Stage capture: %XM87203_STAGE_CAPTURE_ENABLE%
 echo Existing MSYS live console: bash dev/stage_capture/WATCH_CAPTURE.sh
 echo F9 = replay, F10 = native probe, F11 = MVC1 level capture ON/OFF.
 echo Shift+F11 = legacy FPS display; F11 starts a NEW capture session on each activation.
 REM 87.175 read-only native state trace. Fails closed if logs cannot be saved.
-set "OBSROOT=%PROJECT%\test\87.203\observer"
+set "OBSROOT=%PROJECT%\test\87.204\observer"
 if not exist "%OBSROOT%" mkdir "%OBSROOT%"
 if not exist "%OBSROOT%" (
   echo ERROR: Cannot create 87.175 native observer log directory.
@@ -146,9 +147,9 @@ if errorlevel 1 (
 )
 >>"%XM87181_DIAGNOSTIC_STATUS%" echo RUN_TEST_START date=%DATE% time=%TIME%
 if not defined XM87180_EXPERIMENTAL_DELAYED_PRIME set "XM87180_EXPERIMENTAL_DELAYED_PRIME=0"
-set "EXE=%PROJECT%\runtime\stable\XMVSF_Test_87_203.exe"
+set "EXE=%PROJECT%\runtime\stable\XMVSF_Test_87_204.exe"
 if not exist "%EXE%" (
-  echo ERROR: Stage 87.203 TEST executable is missing.
+  echo ERROR: Stage 87.204 TEST executable is missing; no fallback to older builds.
   echo Run BUILD_TEST.bat first. Will NOT fall back to 87.132.4 or Stable.
   goto :fail
 )
@@ -165,7 +166,7 @@ REM The original 87.61 recorder remains available when this root is absent.
 REM V2 F9 sessions now live INSIDE the same current TEST replay folder
 REM users already package and inspect, not hidden under test\replay_sessions.
 REM Every F9 recording gets manifest.tsv + .fs + .bin in its own subfolder.
-set "XM8764_REPLAY_ROOT=%PROJECT%\test\87.203\replays"
+set "XM8764_REPLAY_ROOT=%PROJECT%\test\87.204\replays"
 if not exist "%XM8764_REPLAY_ROOT%" mkdir "%XM8764_REPLAY_ROOT%"
 if not exist "%XM8764_REPLAY_ROOT%" (
   echo ERROR: Cannot create permanent app-level replay recording directory.
@@ -185,15 +186,15 @@ REM Restore original native state-anchored F9 recorder (XM87.61/XM87.132).
 REM F9 starts/stops each independent full-state + input movie.
 REM The recorder requires an existing replay directory, not an invented
 REM input format or a new launcher.
-set "XM8761_REPLAY_DIR=%PROJECT%\test\87.203\replays"
+set "XM8761_REPLAY_DIR=%PROJECT%\test\87.204\replays"
 if not exist "%XM8761_REPLAY_DIR%" mkdir "%XM8761_REPLAY_DIR%"
 if not exist "%XM8761_REPLAY_DIR%" (
   echo ERROR: Cannot create native input replay directory.
   goto :fail
 )
 set "XM8761_REPLAY_MODE=off"
-set "XM87139_PROBE_DIR=%PROJECT%\test\87.203"
-set "XM87140_CHAT_DIR=%PROJECT%\test\87.203"
+set "XM87139_PROBE_DIR=%PROJECT%\test\87.204"
+set "XM87140_CHAT_DIR=%PROJECT%\test\87.204"
 if not exist "%XM87139_PROBE_DIR%" mkdir "%XM87139_PROBE_DIR%"
 if not exist "%XM87139_PROBE_DIR%" (
   echo ERROR: Cannot create diagnostic output directory.
@@ -258,9 +259,9 @@ echo 87.185: UNSAFE delayed native 2P priming stays OFF in interactive TEST.
 echo 87.185: immediate 3P/2P paths, Ken no-charge arrival, and F9 stay intact.
 echo 87.185: delayed DHC input priming disabled by default, preserves original ROM state.
 echo 87.184 native Shinkuu action lifetime: 2E08 startup/attack, 2E0A recovery, exact exit.
-echo 87.203 ROM super start-to-real-exit DHC: %XM87191_TEST_OPEN_SUPER_LIFETIME%  (no phase/timer/air-mode availability veto)
+echo 87.204 ROM super start-to-real-exit DHC: %XM87191_TEST_OPEN_SUPER_LIFETIME%  (no phase/timer/air-mode availability veto)
 echo Native 2E family: %XM87189_TEST_NATIVE_SUPER_FAMILY% full original attack: %XM87188_TEST_FULL_ATTACK% recovery: %XM87185_TEST_RECOVERY_REBOUND%
-echo XMVSF Stage 87.203 TEST - KEEP KEN SHORYUREPPA; CUT OUTGOING RYU PROJECTILE HITS
+echo XMVSF Stage 87.204 TEST - KEEP KEN SHORYUREPPA; CUT OUTGOING RYU PROJECTILE HITS
 echo Executable: %EXE%
 echo SAME BUILD, TWO DHC CHOICES:
 echo   During Ryu Shinkuu Hadoken, QCF+ANY TWO PUNCHES or QCF+3P queues Ken SHORYUREPPA.
@@ -395,10 +396,11 @@ if "%XM87203_M68K_TRACE%"=="1" if /I "%SOURCE_ROM:~0,4%"=="mvsc" (
 pushd "%PROJECT%\FBNeo" || goto :fail
 REM XMVSF has its own persistent boot/menu application. Passing xmvsfu as
 REM a ROM argument bypasses that application and runs only generic FBNeo.
+REM Stage 87.204: start the exact TEST executable without ROM argument.
 REM Restore the pre-merge zero-argument native TEST launch for XMVSF.
 REM MVC1 remains an explicit source-ROM invocation for capture option 3.
 if /I "%SOURCE_ROM%"=="xmvsfu" (
-  echo Launching native XMVSF TEST application: Arcade / Training / Versus.
+  echo Launching native XMVSF TEST 87.204: Arcade / Training / Versus.
   "%EXE%"
 ) else (
   echo Launching original CPS2 donor ROM %SOURCE_ROM% with controller support.
@@ -853,9 +855,9 @@ REM ROM and advanced capture/analysis commands remain backward compatible.
 :suite_menu
 echo.
 echo ============================================================
-echo   XMVSF - TEST / ASSET / LEVEL CAPTURE SUITE
+echo   XMVSF - TEST 87.204 / ASSET / CAPTURE SUITE
 echo ============================================================
-echo   [1] Test game - XMVSF compiled TEST executable
+echo   [1] Test game - XMVSF native TEST 87.204
 echo   [2] Asset Organizer - build and open local editor
 echo   [3] Capture Level - select original donor game
 echo.
