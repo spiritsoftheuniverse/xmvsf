@@ -140,7 +140,7 @@ static int xmvsfBootSelector(bool returningFromGame=false) {
     xm8655RenderColor(render,8,16,36,255); /* XMVSF_STAGE32_NAVY */
     SDL_RenderClear(render);
     menuBackground.draw(render,SDL_GetTicks());
-    XMGlyph::logo(render); // First frame must display the actual new title art.
+    if(!XMGlyph::logo(render)) xmvsfPixelText(render,"X-MEN VS STREET FIGHTER",480,82,4,255,255,255);
     xm8656Present(render); /* XM86.56 global final pass */
     SDL_PumpEvents();
     xm8652FocusWindowOnce(window,returningFromGame?"boot-return":"boot-startup");
@@ -389,7 +389,7 @@ static int xmvsfBootSelector(bool returningFromGame=false) {
         // Frame delays and 30% RGB brightness are owned by the GIF layer.
         menuBackground.draw(render,SDL_GetTicks());
         if(screen==0) {
-            XMGlyph::logo(render); // Actual _art/logo.png, foreground over the 30% GIF.
+            if(!XMGlyph::logo(render)) xmvsfPixelText(render,"X-MEN VS STREET FIGHTER",480,82,4,255,255,255);
             const char* entries[5]={"ARCADE","TRAINING","VERSUS","CONTROLS","OPTIONS"};
             for(int a=0;a<5;a++) {
                 const int y=272+a*44;
