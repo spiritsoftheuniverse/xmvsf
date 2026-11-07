@@ -169,3 +169,59 @@ known color families embedded in the matching source catalog. The full
 Wanted/Unwanted/tag dataset, including previously confirmed 105 Wanted assets,
 is preserved. The bundle contains private original pixel artwork and stays
 local; only the empty template, generator and grouping source are committed.
+
+## Stage 87.203 — complete source-family recovery and near foreground
+
+`RUN_TEST.bat art` now follows every explicitly Wanted original MVC1
+sprite-data record into its entire **structurally verified contiguous
+five-word source-data region**, preserving every original descriptor and
+referenced hardware 16x16 tile ID. The output is under the ignored
+`asset_organizer/source_families/` folder: `family_recovery.json`,
+`family_recovery.tsv`, `family_recovery.html` and an original-GFX packed
+tile archive `recovered_sprite_tiles.bin` containing u32 native tile ID
+plus the original 128-byte CPS2 tile for each record.
+
+This is a *source-closure candidate set*, **not** verified executed
+animation frames, placement coordinates, or original timing. An explicit
+Unwanted decision stays Unwanted even when it shares a source region with
+Wanted records. Previously unseen records remain SOURCE_DISCOVERED, not
+Wanted. The gallery mosaic is an index of **first tiles per descriptor**,
+not invented sprite geometry. Each discovered record retains all its
+descriptor pairs and expanded native tile IDs for future true frame
+decoding. Captured tile-bank matches are distinguished from tile-bank
+assignments inferred from other records in the same source region.
+Reviewed untagged assets are considered **UI**, without forcibly changing
+the user's four original tags or saved review data.
+
+The original SCROLL1 foreground was also missing from the former
+SCROLL2-only stage preview. Monster Rock Bar's tables, chairs, candle
+stands and major near decorative artwork are present in captured 8x8
+**SCROLL1** tilemaps. The new `BUILD_FOREGROUND_MAPS.py` recovers their
+original screen/map positions and all referenced tile bytes, and scans
+every recorded native SCROLL1 map snapshot within each selected shot's
+AO-observed frame range for additional tile IDs and changing cells.
+Original SCROLL1 tile data is saved as u32 native map tile ID plus 64
+source GFX bytes per entry; the evidence includes full original map-cell
+variant history as `foreground_tile_histories.json.gz`.
+
+Review comparisons in `asset_organizer/foreground_recovered/foreground.html`.
+The source-complete map evidence is in `foreground_maps.json`, alongside
+`scroll1_tiles.bin`. These files are private/local-only; the
+source template/algorithms belong in Git, not generated ROM pixels or
+`aodata.json`. Both new review links are available in the organizer
+toolbar and the localhost server refreshes them after saving the canonical
+review. No ROM execution or GitHub Actions are required.
+
+The November 7 source review contains 105 Wanted seeds; six native
+structural regions contain 371 records: 105 Wanted, 46 explicitly
+Unwanted, and 220 never shown by the former sampled sprite gallery.
+The original gfx recovery includes 3,567 unique 16x16 sprite tiles.
+The 14 selected captured scene windows contain 878 historical SCROLL1
+map snapshots, yielding 9,190 distinct 8x8 foreground tile IDs.
+These are source-backed counts for **the available captures**, not proof
+that every ROM-managed frame or stage is represented. The native
+SCROLL-versus-OBJ priority mask, named stage identifiers and true frame
+advance logic remain unverified.
+
+Offline tests: `python asset_organizer\test_source_and_foreground.py`.
+All source outputs remain Git-ignored and Stable is untouched.
