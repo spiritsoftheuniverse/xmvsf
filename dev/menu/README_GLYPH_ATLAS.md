@@ -49,7 +49,7 @@ pixels (window resizing leaves them anchored):
 | TRAINING / VERSUS / CONTROLS / OPTIONS | y=378 / 409 / 440 / 471 |
 | A SELECT  B BACK | centered x=489, y=495 |
 | ESC TO QUIT | centered x=500, y=522 |
-| TEST 87.205 | right edge x=942, y=522 |
+| TEST 87.206 | right edge x=942, y=522 |
 
 These are explicitly stored in XMGlyph::MainLayout, so one presentation
 contract controls the initial frame and every subsequent boot/menu frame.
@@ -101,7 +101,7 @@ For exported title PNGs with opaque white canvas, a flood fill makes only
 border-connected white transparent; enclosed white highlights are preserved.
 Texture atlases are released before renderer teardown or menu/game handoff.
 
-## Animated menu background and color-separated logo effects (TEST 87.205)
+## Animated menu background and color-separated logo effects (TEST 87.206)
 
 The native boot menu now loads **_art/menuanimation.gif** instead of the
 previous Marvel vs. Capcom super-effect GIF. The source is an authentic GIF87a
@@ -136,10 +136,10 @@ xmvsf_stage87_195_menu_gif.h and xmvsf_menu_glyph_atlas.h.
 
 The native builder checks that **menuanimation.gif** is present and nonempty,
 and includes its SHA256 in test/build_logs/BUILD_TEST.log. The binary is
-**runtime/stable/XMVSF_Test_87_205.exe**; no fallback to 87.204 or Stable.
+**runtime/stable/XMVSF_Test_87_206.exe**; no fallback to 87.204 or Stable.
 Build/run/replay launchers now all target the new effects version.
 
-## Native TEST version 87.205 and local verification
+## Native TEST version 87.206 and local verification
 
 **Pulling only main does not include this branch.** The source modifications
 are on feature/menu-logo-glyph-atlas-selection-dimming. In the Windows
@@ -153,16 +153,16 @@ Preserve any uncommitted local work before switching branches. Keep the
 original _art PNG files; do not resample or replace them.
 
 1. Run BUILD_TEST.bat. It now publishes ONLY
-   runtime/stable/XMVSF_Test_87_205.exe after compiling current source.
+   runtime/stable/XMVSF_Test_87_206.exe after compiling current source.
    A missing executable or modified menu/glyph header refreshes SDL
    main.cpp and run.cpp without deleting warm build objects, old TEST
    binaries, or Stable.
-2. Read test/build_logs/BUILD_TEST.log for the 87.205 success line and
+2. Read test/build_logs/BUILD_TEST.log for the 87.206 success line and
    the SHA256 hashes of the compiled executable and three source PNGs.
    If an asset or the glyph-header include is missing, the builder gives
    a precise error instead of silently building a legacy-looking menu.
 3. Run RUN_TEST.bat option 1. The menu window title and bottom-right
-   main-menu label both say TEST 87.205. If they do not, you are not
+   main-menu label both say TEST 87.206. If they do not, you are not
    looking at the newly compiled native XMVSF build.
 4. The gameplay path is still the native XMVSF app's zero-ROM-argument
    boot selector, NOT the separate MVC1 capture/ROM playback mode.
@@ -171,7 +171,7 @@ original _art PNG files; do not resample or replace them.
 5. Verify the unselected text is dim, selected text is bright, and that
    I, i, l, 1, punctuation and word gaps no longer waste full cell widths.
 6. New F9 replays, observer/chat diagnostics and replay verification live
-   under test/87.205. Legacy test/87.203 capture data is not modified;
+   under test/87.206. Legacy test/87.203 capture data is not modified;
    original replay files remain accessible through RUN_REPLAY.bat.
 
 This source audit includes inspection of the tracked code, unchanged font
