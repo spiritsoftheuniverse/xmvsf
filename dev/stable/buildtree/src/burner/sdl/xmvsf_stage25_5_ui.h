@@ -72,6 +72,8 @@ static inline void xm255BootVersus(SDL_Renderer* r){
     const char* modes[5]={"FFA","FT3","FT5","FT10","FT20"};
     for(int i=0;i<5;++i){
         const int y=100+i*47;const bool current=xm25State.setupRow==i;
+        // Mode identity (FFA/FT colors) remains visible for all modes.
+        xm255Rect(r,262,y+3,5,14,xm255ModeColor(xm25TargetAt(i)));
         // Selection is conveyed by the full-bright entry, not a row box.
         xm255Text(r,modes[i],282,y-1,142,3,current?fg:muted);
         char desc[65];
