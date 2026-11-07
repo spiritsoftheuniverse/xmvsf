@@ -66,9 +66,14 @@ static void checkStun(){
     // neither paints two extra pixels nor the unmoving original 76px meter.
     assert(XM8733::FillBounds(base,5,44,54,first,stop));
     for(int x=0;x<61;x++){
-        if(x<first||x>stop)
+        if(x<first||x>stop+1)
             assert(pixel(right,262+x,49)!=XM8733::PackRGBA(67,68,69));
     }
+    // The artist's sample has the single extra lower shadow pixel at
+    // x59, not x60; do not recreate the former 2-pixel overrun.
+    assert(stop==58);
+    assert(pixel(right,262+59,49)==XM8733::PackRGBA(67,68,69));
+    assert(pixel(right,262+60,49)!=XM8733::PackRGBA(67,68,69));
 
     XM8733::Reading full=partial;full.used=54;
     std::fill(right.begin(),right.end(),0);
