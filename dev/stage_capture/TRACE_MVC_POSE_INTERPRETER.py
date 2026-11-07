@@ -157,6 +157,12 @@ def selector_sites(code: bytes):
         elif op in tuple(0x303C + (r << 9) for r in range(8)):
             reg = (op - 0x303C) >> 9
             kind = 'MOVE_W_IMMEDIATE_D%d' % reg
+        elif (op & 0xF100) == 0x7000:
+            # MOVEQ embeds the signed 8-bit immediate in the opcode.
+            # Keep it as a static motif, not a verified selector consumer.
+            reg = (op >> 9) & 7
+            kind = 'MOVEQ_IMMEDIATE_D%d' % reg
+            imm = op & 0xFF
         if kind and imm in SELECTORS:
             selectors.append({'pc': pc, 'reg': reg, 'value': imm, 'kind': kind})
         # JMP/JSR (d8,PC,Xn). Index size/scale and the pointed-to bytes
