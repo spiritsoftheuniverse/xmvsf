@@ -242,7 +242,7 @@ def two_level_pointer_indices(data: bytes, code: bytes, addresses: dict):
                 candidate_rows.append((f'{pc:06X}', f'{table:06X}', slot,
                     f'{table + 4 * slot:06X}', f'{second:06X}', leaf_slot,
                     f'{ref_at:06X}', f'{target:06X}',
-                    *(f'{w:04X}' for w in words) if words else ('', '', '', '', ''),
+                    *(tuple(f'{w:04X}' for w in words) if words else ('', '', '', '', '')),
                     status))
         if not candidate_rows or accepted * 4 < len(candidate_rows) * 3:
             continue
