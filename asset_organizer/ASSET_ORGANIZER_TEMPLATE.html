@@ -34,11 +34,12 @@ h1{font-size:24px;letter-spacing:-.04em;margin:2px 0}.lede{color:var(--muted);ma
 <script type="application/json" id="original-catalog">__MVC_CATALOG__</script>
 <header class="masthead"><div class="shell">
   <div class="head"><div><div class="eyebrow">MARVEL VS. CAPCOM 1 · 87.203 · ASSET ORGANIZER</div><h1>Asset Organizer</h1><p class="lede">Original decoded tiles · independent category tags · Wanted / Unwanted decisions</p></div>
-   <div class="actions"><button class="btn primary" id="export">Save assets JSON ↓</button><button class="btn" id="import">Load assets JSON ↑</button><input type="file" id="file" accept=".json,application/json" hidden><button class="btn dim" id="clear">Reset review</button></div></div>
-  <div class="toolbar"><input id="search" type="search" placeholder="Search ROM address, source frame, tags…" aria-label="Search sprites"><select id="filter" aria-label="Filter by review status"><option value="all">All review states</option><option value="unreviewed">Unreviewed</option><option value="want">Wanted</option><option value="no">Unwanted</option><option value="complete">Fully observed</option><option value="partial">Partial reconstructions</option></select><select id="tag-filter" aria-label="Show asset category"><option value="all">All asset tags</option><option value="character">Character</option><option value="effect">Effect</option><option value="background">Background</option><option value="level_sprite">Level Sprite</option><option value="untagged">Untagged</option></select><span class="stats" id="stats"></span></div>
-  <div class="legend"><span><i class="swatch yes"></i>Wanted = checked</span><span><i class="swatch no"></i>Unwanted = unchecked</span><span><i class="swatch unknown"></i>Unreviewed = undecided</span><span>Tap a category tag to add or remove it; multiple tags are allowed</span></div>
+   <div class="actions"><button class="btn primary" id="export">Save to aodata.json</button><button class="btn" id="import">Load assets JSON ↑</button><input type="file" id="file" accept=".json,application/json" hidden><button class="btn dim" id="clear">Reset review</button></div></div>
+  <div class="toolbar"><input id="search" type="search" placeholder="Search ROM address, source frame, tags…" aria-label="Search sprites"><select id="filter" aria-label="Filter by review status"><option value="all">All review states</option><option value="unreviewed">Unreviewed</option><option value="want">Wanted</option><option value="no">Unwanted</option><option value="complete">Fully observed</option><option value="partial">Partial reconstructions</option></select><select id="tag-filter" aria-label="Show asset category"><option value="all">All asset tags</option><option value="character">Character</option><option value="effect">Effect</option><option value="background">Background</option><option value="level_sprite">Level Sprite</option><option value="untagged">Untagged</option></select><label class="bulk-type-label" for="mark-all-as">Mark all as</label><select id="mark-all-as" aria-label="Exclusive tag for all sprites"><option value="">Choose type…</option><option value="character">Character</option><option value="effect">Effect</option><option value="background">Background</option><option value="level_sprite">Level Sprite</option></select><button class="btn" id="apply-all-as" type="button">Apply to all</button><span class="stats" id="stats"></span></div>
+  <div class="legend"><span><i class="swatch yes"></i>Wanted = checked</span><span><i class="swatch no"></i>Unwanted = unchecked</span><span><i class="swatch unknown"></i>Unreviewed = undecided</span><span>Tags can overlap on individual cards; Mark all as assigns one exclusive type to every card.</span></div>
  </div></header>
-<main class="shell"><div class="note"><b>Classification is assumed, not confirmed.</b> The four category tags are independent. Initial tags are guesses from the old review, not verified sprite identities. A complete descriptor match does not prove a stage prop or animation frame. Raw CPS2 palette previews are approximate, not certified final DMA colors. Your exported JSON contains decisions and source addresses—not original artwork binaries.</div><div id="alert" role="status"></div><div id="content"></div><footer class="footerline" id="provenance"></footer></main>
+<main class="shell"><div class="note"><b>Classification is assumed, not confirmed.</b> The four category tags are independent. Initial tags are guesses from the old review, not verified sprite identities. A complete descriptor match does not prove a stage prop or animation frame. Raw CPS2 palette previews are approximate, not certified final DMA colors. Save to aodata.json writes directly when opened through the localhost organizer; from a file:// tab, your browser downloads the JSON for you to place in the folder. No art binaries are exported.</div><div id="alert" role="status"></div><div id="content"></div><footer class="footerline" id="provenance"></footer></main>
+<script type="application/json" id="seed-review">__AODATA_SEED__</script>
 <div id="modal" role="dialog" aria-modal="true" aria-label="Original sprite detail" hidden><div class="modalbox"><div class="modalhead"><strong id="modal-title"></strong><button id="modal-close">Close ✕</button></div><img id="modal-img" alt="Expanded original reconstructed sprite"><div id="modal-meta" class="modaltext"></div></div></div>
 <script>
 (()=>{'use strict';
@@ -57,9 +58,9 @@ const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'
 const statusName=x=>x===true?'WANTED':x===false?'UNWANTED':'UNREVIEWED';
 const label=id=>TAGS.find(c=>c.id===id)?.label||id;
 const normalTags=xs=>Array.isArray(xs)?TAGS.filter(t=>xs.includes(t.id)).map(t=>t.id):[];
-let search='',filter='all',tagFilter='all';
+let search='',filter='all',tagFilter='all',dirty=false;
 function show(msg,error=false){const box=e('alert');box.className=msg?'warning':'';box.textContent=msg?(error?'Could not load: ':'')+msg:'';}
-function persist(){try{localStorage.setItem(storageKey,JSON.stringify([...states]));}catch(_){/* JSON export is durable. */}}
+function persist(){dirty=true;try{localStorage.setItem(storageKey,JSON.stringify([...states]));}catch(_){/* JSON export is durable. */}}
 function loadStored(){try{const saved=JSON.parse(localStorage.getItem(storageKey)||'null');if(!Array.isArray(saved))return;
 for(const pair of saved){if(!Array.isArray(pair)||pair.length!==2||!byId.has(pair[0]))continue;
 const s=pair[1];if(!s||typeof s!=='object')continue;states.set(pair[0],{wanted:typeof s.wanted==='boolean'?s.wanted:null,tags:normalTags(s.tags)});}}
@@ -68,6 +69,7 @@ function member(item,group){const tags=states.get(item.id).tags;return group==='
 function setDecision(id,wanted){if(!states.has(id))return;states.get(id).wanted=wanted;persist();render();}
 function toggleTag(id,tag){if(!states.has(id)||!allowed.has(tag))return;const state=states.get(id);state.tags=state.tags.includes(tag)?state.tags.filter(t=>t!==tag):normalTags([...state.tags,tag]);persist();render();}
 function bulk(category,wanted){for(const item of data.catalog)if(member(item,category))states.get(item.id).wanted=wanted;persist();render();}
+function markAllAs(tag){if(!allowed.has(tag))return;for(const item of data.catalog)states.get(item.id).tags=[tag];persist();render();show('Assigned '+label(tag)+' exclusively to all '+data.catalog.length+' assets. Wanted/Unwanted decisions were kept.');}
 function visible(item){const s=states.get(item.id);const hay=[item.offset,item.id,item.shot,item.frame,item.selector,item.categoryEvidence,item.category,...s.tags.map(label)].join(' ').toLowerCase();
 if(search&&!hay.includes(search))return false;
 return filter==='all'||(filter==='unreviewed'&&s.wanted===null)||(filter==='want'&&s.wanted===true)||(filter==='no'&&s.wanted===false)||(filter==='complete'&&item.coverage===1)||(filter==='partial'&&item.coverage<1);}
@@ -98,22 +100,38 @@ statusMeaning:{true:'WANTED',false:'UNWANTED',null:'UNREVIEWED'},allowedTags:TAG
 sourceShot:item.shot,sourceFrame:item.frame,controlSelectorHex:item.selector,componentsMatched:item.componentsMatched,componentsExpected:item.componentsExpected,
 originalAssumedCategory:item.category,originalAssumption:item.categoryEvidence,tags:[...states.get(item.id).tags],wanted:states.get(item.id).wanted,
 reviewStatus:statusName(states.get(item.id).wanted)}))};}
-function exportJSON(){const out=new Blob([JSON.stringify(payload(),null,2)+'\n'],{type:'application/json'});
-const href=URL.createObjectURL(out),a=document.createElement('a');a.href=href;a.download='mvc1_asset_organizer_'+new Date().toISOString().slice(0,10)+'.json';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(href),3000);
-show('Saved all '+data.catalog.length+' assets with their independent tags and decisions.');}
-async function importJSON(file){try{const imported=JSON.parse(await file.text());const old=imported.format==='MVC1_ART_REVIEW_SELECTIONS_V1';
+function downloadJSON(review){const out=new Blob([JSON.stringify(review,null,2)+'\n'],{type:'application/json'});
+const href=URL.createObjectURL(out),a=document.createElement('a');a.href=href;a.download='aodata.json';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(href),3000);}
+async function exportJSON(){const review=payload();
+// file:// browsers (including Firefox) cannot write arbitrary paths; use the
+// loopback-only Python server from RUN_TEST.bat art when available.
+if(location.protocol==='http:'&&(location.hostname==='127.0.0.1'||location.hostname==='localhost')){
+try{const response=await fetch('/api/review',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(review)});
+if(!response.ok)throw Error('Local save rejected: HTTP '+response.status+' '+(await response.text()).slice(0,240));
+show('Saved '+review.items.length+' assets to asset_organizer/aodata.json.');dirty=false;return;
+}catch(err){show(String(err.message||err)+'; downloaded aodata.json as fallback.',true);}}
+downloadJSON(review);show('Downloaded aodata.json. To save directly into asset_organizer/aodata.json, launch the organizer through RUN_TEST.bat art (localhost mode).');}
+async function loadCanonicalReview(){
+if(location.protocol==='http:'&&(location.hostname==='127.0.0.1'||location.hostname==='localhost')){
+try{const r=await fetch('/api/review',{cache:'no-store'});if(r.ok){const saved=await r.json();if(!dirty){applyReview(saved,{quiet:true,requireComplete:true});dirty=false;show('Loaded asset_organizer/aodata.json.');}return;}}
+catch(err){show('Could not load canonical review: '+String(err.message||err),true);}}
+const seed=e('seed-review')?.textContent?.trim();if(seed&&seed!=='null'&&!dirty){try{applyReview(JSON.parse(seed),{quiet:true,requireComplete:true});dirty=false;}catch(err){show('Invalid embedded aodata.json: '+String(err.message||err),true);}}}
+function applyReview(imported,{quiet=false,requireComplete=false}={}){const old=imported.format==='MVC1_ART_REVIEW_SELECTIONS_V1';
 if(!old&&imported.format!=='MVC1_ASSET_ORGANIZER_V2')throw Error('Unknown review format (expected V2 organizer or V1 review).');
 if(imported.sourceRomSha256!==data.romSha256)throw Error('ROM checksum mismatch. No decisions applied.');
 if(!Array.isArray(imported.items))throw Error('Missing items array.');
-const proposed=new Map([...states].map(([id,s])=>[id,{wanted:s.wanted,tags:[...s.tags]}]));let applied=0;
+if(requireComplete&&(imported.items.length!==data.catalog.length||imported.sourceCatalogSize!==data.catalog.length))throw Error('Saved review must cover the entire source catalog.');
+const proposed=new Map([...states].map(([id,s])=>[id,{wanted:s.wanted,tags:[...s.tags]}]));let applied=0;const seen=new Set();
 for(const item of imported.items){if(!item||typeof item!=='object'||!byId.has(item.id))continue;
+if(seen.has(item.id))throw Error('Duplicate asset ID in review file.');seen.add(item.id);
 if(item.wanted!==null&&typeof item.wanted!=='boolean')throw Error('Invalid wanted status in review file.');
 const original=byId.get(item.id);
 if(item.romOffsetHex&&item.romOffsetHex!==original.offset)throw Error('A ROM address does not match its asset ID.');
 const tags=old?(seedCategory[item.category]?[seedCategory[item.category]]:initialTags(original)):normalTags(item.tags);
 proposed.set(item.id,{wanted:item.wanted,tags});applied++;}
-for(const [id,s] of proposed)states.set(id,s);persist();render();show('Imported '+applied+' assets'+(old?' from previous V1 review; categories converted to tags.':'.'));}
-catch(err){show(String(err.message||err),true);}}
+if(requireComplete&&applied!==data.catalog.length)throw Error('Not all catalog IDs were supplied.');
+for(const [id,s] of proposed)states.set(id,s);persist();render();if(!quiet)show('Imported '+applied+' assets'+(old?' from previous V1 review; categories converted to tags.':'.'));return applied;}
+async function importJSON(file){try{applyReview(JSON.parse(await file.text()));}catch(err){show(String(err.message||err),true);}}
 function zoom(id){const item=byId.get(id);if(!item)return;
 e('modal-title').textContent='$'+item.offset+' · '+(states.get(id).tags.map(label).join(', ')||'Untagged');e('modal-img').src=item.png;
 e('modal-meta').textContent=item.shot+' · frame '+item.frame+' · '+item.componentsMatched+'/'+item.componentsExpected+' descriptors · '+item.nativeWidth+'×'+item.nativeHeight+' original pixels';
@@ -126,6 +144,7 @@ e('content').addEventListener('change',event=>{const control=event.target;if(con
 e('search').addEventListener('input',event=>{search=event.target.value.trim().toLowerCase();render();});
 e('filter').addEventListener('change',event=>{filter=event.target.value;render();});
 e('tag-filter').addEventListener('change',event=>{tagFilter=event.target.value;render();});
+e('apply-all-as').addEventListener('click',()=>{const tag=e('mark-all-as').value;if(!allowed.has(tag)){show('Choose a type before using Mark all as.',true);return;}if(!confirm('Assign '+label(tag)+' as the ONLY type for all '+data.catalog.length+' assets? This clears other type tags everywhere, but leaves Wanted/Unwanted unchanged.'))return;markAllAs(tag);});
 e('export').addEventListener('click',exportJSON);e('import').addEventListener('click',()=>e('file').click());
 e('file').addEventListener('change',event=>{const file=event.target.files?.[0];if(file)importJSON(file);event.target.value='';});
 e('clear').addEventListener('click',()=>{if(!confirm('Reset all review decisions and category tags to their initial guesses?'))return;
@@ -133,7 +152,7 @@ for(const item of data.catalog)states.set(item.id,{wanted:null,tags:initialTags(
 e('modal-close').addEventListener('click',closeZoom);e('modal').addEventListener('click',event=>{if(event.target===e('modal'))closeZoom();});
 document.addEventListener('keydown',event=>{if(event.key==='Escape'&&!e('modal').hidden)closeZoom();});
 e('provenance').textContent='Original program SHA-256: '+data.romSha256+' · Asset tags are editable guesses. Reconstructed original pixels and approximate captured CPS2 palettes are embedded locally; no network required. Multiple tags may place the same asset in several sections.';
-loadStored();render();
+loadStored();render();loadCanonicalReview();
 })();
 </script>
 </body></html>
