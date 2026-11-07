@@ -596,5 +596,23 @@ if errorlevel 1 (
 )
 python.exe "%PROJECT%\dev\stage_capture\ANALYZE_M68K_SPRITES.py" --root "%PROJECT%\test\87.203\m68k_trace" --output "%PROJECT%\test\87.203\m68k_report"
 set "M68K_RC=%ERRORLEVEL%"
+if not "%M68K_RC%"=="0" (
+  echo WARNING: 68000 sprite-writer analysis failed. Existing local source files preserved.
+  exit /b %M68K_RC%
+)
 if exist "%PROJECT%\test\87.203\m68k_report\m68k_sprite_report.zip" echo M68K analysis ZIP: "%PROJECT%\test\87.203\m68k_report\m68k_sprite_report.zip"
-exit /b %M68K_RC%
+REM Follow upstream from the final OAM copier to the original MVC staging
+REM dispatcher and indexed tile descriptor writers. Offline; never launches ROM.
+python.exe "%PROJECT%\dev\stage_capture\TRACE_MVC_STAGING.py" --root "%PROJECT%\test\87.203\m68k_trace" --output "%PROJECT%\test\87.203\m68k_report"
+set "STAGING_RC=%ERRORLEVEL%"
+if not "%STAGING_RC%"=="0" (
+  echo ERROR: M68K staging map failed or source snapshot mismatched.
+  exit /b %STAGING_RC%
+)
+if exist "%PROJECT%\test\87.203\m68k_report\m68k_staging_report.zip" (
+  echo Staging analysis ZIP: "%PROJECT%\test\87.203\m68k_report\m68k_staging_report.zip"
+) else (
+  echo ERROR: Staging map ZIP was not generated.
+  exit /b 2
+)
+exit /b 0
