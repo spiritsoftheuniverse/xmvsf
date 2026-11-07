@@ -105,6 +105,15 @@ def make_handler(root: Path, catalog: dict, trace_root: Path | None = None):
                 preview = root / 'animations.html'
                 if not preview.is_file(): return self._reply(404, b'Animation preview not generated yet; run RUN_TEST.bat art', 'text/plain')
                 return self._reply(200, preview.read_bytes(), 'text/html; charset=utf-8')
+            # Exact local read-only routes; never serve arbitrary paths.
+            if self.path == '/source_families/family_recovery.html':
+                preview=root/'source_families'/'family_recovery.html'
+                if not preview.is_file():return self._reply(404,b'Run RUN_TEST.bat art to recover source frames','text/plain')
+                return self._reply(200,preview.read_bytes(),'text/html; charset=utf-8')
+            if self.path == '/foreground_recovered/foreground.html':
+                preview=root/'foreground_recovered'/'foreground.html'
+                if not preview.is_file():return self._reply(404,b'Run RUN_TEST.bat art to recover SCROLL1','text/plain')
+                return self._reply(200,preview.read_bytes(),'text/html; charset=utf-8')
             if self.path == '/api/captured_animations':
                 manifest = root / 'captured_animations.json'
                 if not manifest.is_file(): return self._reply(404, b'No captured animation manifest yet', 'text/plain')
@@ -141,6 +150,12 @@ def make_handler(root: Path, catalog: dict, trace_root: Path | None = None):
                             art=build_animations(review_path, root/'wanted_sequences.json',root/'index.html',
                                 observations,capture,trace_root,template,root/'animations.html')
                             print('Updated',art['previewTakes'],'sampled animation takes with',art['backgroundFrames'],'capture backdrops',flush=True)
+                            from BUILD_SOURCE_FAMILIES import build as recover_sources
+                            family=recover_sources(review_path,trace_root,observations,capture,root/'source_families')
+                            print('Recovered',family['sourceDiscovered'],'uncaptured source records and',family['uniqueOriginal16x16TileIds'],'original sprite tiles',flush=True)
+                            from BUILD_FOREGROUND_MAPS import build as recover_foreground
+                            foreground=recover_foreground(review_path,capture,root/'foreground_recovered')
+                            print('Recovered',foreground['originalScroll1TileIdsRecovered'],'native SCROLL1 tile IDs',flush=True)
                     except (OSError, ValueError, KeyError) as error:
                         print('NOTICE: aodata.json saved, but sequence metadata not updated:', error, flush=True)
             except (ValueError, TypeError, UnicodeError) as exc:
