@@ -160,13 +160,32 @@ static inline void SourceSpan(const BarArt& art,int compositionRow,
         right=x;
     }
 }
+// The live fill and its one-pixel diagonal tip share EXACTLY the
+// same moving bounds. There is no separate stationary cutout texture.
+// All positions are in original P2 source pixels before P1 mirroring.
+static inline bool FillBounds(const BarArt& art,int row,int used,int total,
+                              int& first,int& last){
+    if(used<=0 || total<=0 || row<0 || row>=6)return false;
+    int left=0,right=0;
+    SourceSpan(art,row,left,right);
+    if(left>right)return false;
+    const int span=right-left+1;
+    if(used>=total){first=left;last=right;return true;}
+    const int filled=(span*used+total-1)/total;
+    // A 45-degree leading cut progresses WITH the bar. Limit its
+    // row offset by the genuinely unfilled portion, eliminating a
+    // stationary tip that lingers when the fill approaches 100%.
+    const int missing=span-filled;
+    first=right-filled+1+std::min(row,missing);
+    last=right;
+    return first<=last && first>=left;
+}
 static inline void DrawOne(unsigned char* draw,int pitch,int side,
                            const Reading& s,bool noir,unsigned frame,
                            const BarArt* art=nullptr){
-    if(s.total<=0)return;
-    const bool newArt=art&&art->valid();
+    if(s.total<=0 || !art || !art->valid())return;
     const int y=45;  // existing native stun bar BASE top, not the floating fill
-    const int w=newArt?61:76,h=newArt?6:7;
+    const int w=61;
     const int x=side?(323-w):61; // P2 right-aligned, P1 mirrored at x=61
     const int used=s.flash?s.total:s.used;
     const bool atCapacity=used>=s.total; // rainbow ONLY at 100%
@@ -174,68 +193,34 @@ static inline void DrawOne(unsigned char* draw,int pitch,int side,
     const std::uint32_t pink=noir?PackRGBA(198,145,186):PackRGBA(255,104,220);
     const std::uint32_t inset=PackRGBA(67,68,69);
 
-    if(newArt){
-        // (1) Source base, pixel perfect; P2 original, P1 mirror.
-        Base(draw,pitch,x,y,side!=0,*art);
-        if(used>0){
-            int lastBegin=0,lastEnd=-1;
-            // (2) Active area occupies reference composition rows 0..5,
-            // beginning at y-2. Fill grows from the right edge inward.
-            // At 100%, use EVERY original opaque pixel all the way to
-            // the base's left/right limits; never stop at the old 44px
-            // orange example, which showed a PARTIALLY filled bar.
-            for(int row=0;row<6;row++){
-                int left,right;
-                SourceSpan(*art,row,left,right);
-                if(left>right)continue;
-                const int span=right-left+1;
-                const int filled=(span*used+s.total-1)/s.total;
-                // Diagonal growth tip (+1 source pixel per row), but
-                // atCapacity bypasses the tip and fills the FULL mask.
-                const int start=atCapacity?left:
-                    std::max(left,right-filled+1+row);
-                const int stop=right;
-                if(row==5){lastBegin=start;lastEnd=stop;}
-                if(start>stop)continue;
-                for(int src=start;src<=stop;src++){
-                    const int dx=side?src:(60-src);
-                    Pixel(draw,pitch,x+dx,y-2+row,
-                          atCapacity?RainbowPan(frame,src,row):
-                                     WarmStun((unsigned)row));
-                }
-                // (3a) One-pixel inset ON the active growing diagonal tip.
-                // Former code used start-1 and spilled outside the fill.
-                if(row>=2){
-                    const int dx=side?start:(60-start);
-                    Pixel(draw,pitch,x+dx,y-2+row,inset);
-                }
+    // (1) Original 61x6 base; no legacy 76px meter fallback exists.
+    Base(draw,pitch,x,y,side!=0,*art);
+    if(used>0){
+        // (2) The live fill and its diagonal cut move together. Mirror
+        // only at the final P1 pixel-coordinate conversion.
+        for(int row=0;row<6;row++){
+            int first=0,last=-1;
+            if(!FillBounds(*art,row,used,s.total,first,last))continue;
+            for(int src=first;src<=last;src++){
+                const int dx=side?src:(60-src);
+                Pixel(draw,pitch,x+dx,y-2+row,
+                      atCapacity?RainbowPan(frame,src,row):
+                                 WarmStun((unsigned)row));
             }
-            // (3b) Exactly ONE shadow row inside the base at y+4.
-            // Intersect with both the last colored row's actual extent
-            // AND the actual opaque PNG at base row4. No +2 overflow.
-            if(lastBegin<=lastEnd){
-                for(int src=lastBegin;src<=lastEnd;src++){
-                    if(!HasBasePixel(*art,src,4))continue;
-                    const int dx=side?src:(60-src);
-                    Pixel(draw,pitch,x+dx,y+4,inset);
-                }
+            // (3a) One-pixel inset exactly ON the live leading tip.
+            if(row>=2 && HasBasePixel(*art,first,row-2)){
+                const int dx=side?first:(60-first);
+                Pixel(draw,pitch,x+dx,y-2+row,inset);
             }
         }
-    }else{
-        // Safe fallback if the PNG is absent; always obey the same
-        // yellow/orange partial / rainbow full-color rule.
-        const int fill=w*used/s.total;
-        const std::uint32_t outline=PackRGBA(45,47,49);
-        const std::uint32_t empty=PackRGBA(100,103,105);
-        for(int row=0;row<h;row++){
-            const int leftCut=side?row:(h-1-row);
-            const int rightCut=side?(h-1-row):row;
-            for(int ix=leftCut;ix<w-rightCut;ix++){
-                std::uint32_t c=row==0||row==h-1?outline:empty;
-                if(row>=1&&row<h-1&&(side?ix>=w-fill:ix<fill))
-                    c=atCapacity?RainbowPan(frame,side?ix:(w-1-ix),row):
-                                 WarmStun((unsigned)row);
-                Pixel(draw,pitch,x+ix,y+row,c);
+        // (3b) One bottom shadow scanline inside the base. Recalculate
+        // from the SAME live moving mask; never extend outside the bar.
+        int first=0,last=-1;
+        if(FillBounds(*art,5,used,s.total,first,last)){
+            for(int src=first;src<=last;src++){
+                if(!HasBasePixel(*art,src,4))continue;
+                const int dx=side?src:(60-src);
+                Pixel(draw,pitch,x+dx,y+4,inset);
             }
         }
     }
