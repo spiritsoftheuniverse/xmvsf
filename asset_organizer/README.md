@@ -1,63 +1,95 @@
 # MVC1 Asset Organizer (Stage 87.203)
 
-This root-level folder contains the editable template for the offline original-art
-organizer. **The generated `index.html` embeds copyrighted MVC1 sprite pixels
-and must never be committed or pushed to GitHub.** The `.gitignore` in this
-folder excludes the generated HTML, its manifest and exported review JSON.
+The root-level folder contains the review template and a **local-only** browser
+app. The built `index.html` embeds original MVC1 pixels and must remain
+uncommitted. `.gitignore` also excludes `aodata.json` and generated reports.
 
-## Generate and open locally on Windows
+## Generate / launch
 
-From the repo root, using existing captured test data:
+In `F:\xmvsf` (after pulling the 87.203 branch), run:
 
     RUN_TEST.bat art
 
-Open `asset_organizer\index.html` in your browser. The existing exporter under
-`dev/stage_capture/BUILD_MVC_ART_REVIEW.py` reconstructs the original objects,
-then inserts the private artwork into `ASSET_ORGANIZER_TEMPLATE.html` to make a
-self-contained offline browser application. Input data remains under the ignored
-`test/87.203` capture folders. The generator does not change the game, ROM,
-Stable, or captured logs. This exporter now uses only the Python standard library:
-**NumPy and Pillow are not required**.
+This reassembles sprites from existing captured data and writes
+`asset_organizer\index.html`. It then starts a **127.0.0.1-only** Python
+server and opens the organizer in the default browser at
+`http://127.0.0.1:18720/`. Leave the organizer server console open while
+editing. Closing that window stops the server; nothing runs online or on
+GitHub Actions. There are no third-party Python dependencies.
 
-## How to organize
+If `asset_organizer\aodata.json` exists, the exporter loads the **complete**
+previous review as the initial state (checksum and exact asset IDs verified).
+The localhost Save button writes atomically to that same file without a file
+picker or downloaded duplicates. It preserves your Wanted/Unwanted decisions
+and all category tags. An updated `wanted_sequences.json` is also generated
+on Save from the original local program data if it is available.
 
-- Click a sprite image/box or its **Wanted** checkbox to choose Wanted/Unwanted.
-  Initially it is **Unreviewed**, not Unwanted.
-- Each sprite has four **independent, toggleable** category tags: **Character**,
-  **Effect**, **Background**, and **Level Sprite**. One sprite may have multiple
-  tags, and therefore can appear in multiple groups. The asset count remains
-  unique; the gallery does not duplicate IDs in the saved JSON.
-- **Check all** / **Uncheck all** in each group changes the review status of
-  every asset with that tag, **not** its category tags. The Untagged group also
-  supports those controls. Search, status filter and tag filter are available.
-- Original assumed categories seed **Character**, **Effect**, and **Level
-  Sprite** tags where sensible; lettering/HUD and partial records start untagged.
-  Background starts untagged because the present decoded candidates are OAM
-  sprite assemblies, not verified background scroll layers. All assignments
-  are assumptions until the user reviews them.
-- **Save assets JSON** downloads `mvc1_asset_organizer_YYYY-MM-DD.json`. The
-  browser selects the download location; copy it into
-  `asset_organizer\reviews\` if you want to store it beside the tool locally.
-  **Load assets JSON** restores decisions and tag arrays. The previous
-  `MVC1_ART_REVIEW_SELECTIONS_V1` review JSON is accepted and converted.
-  The new format is `MVC1_ASSET_ORGANIZER_V2`, checksum-guarded and holds
-  ROM offsets, source frames, original classification hints, Wanted state,
-  and zero-to-four explicit category tags without artwork binaries.
-- Browser local storage helps keep recent edits. Exported JSON is the durable
-  record, especially when opening HTML from a different local browser path.
+For first-time setup, place your full `MVC1_ASSET_ORGANIZER_V2` export into:
 
-## Source and privacy
+    F:\xmvsf\asset_organizer\aodata.json
 
-The source HTML template and this README are safe for source control. Original
-CPS2 decoded graphics, raw palette snapshots, captured ROM data, the generated
-`index.html` and review output are not. Colors derived from raw palette RAM
-remain approximate, not certified native-effective CPS2 palette colors.
+Do not use the filtered Wanted-only manifest as this master review; it must
+contain all 560 reviewed asset records. JSON files with a different ROM
+checksum or asset catalog are rejected rather than merged by guessing.
 
-For existing synthetic exporter checks:
+**Without the localhost server:** You can still open `index.html` via
+`file://`. Since Firefox/browser security does not allow arbitrary file
+writes, Save then **downloads a file named `aodata.json`**; copy/replace it
+in `asset_organizer` yourself. The standalone HTML embeds the review snapshot
+found at build time, and Load JSON can import your newer edits.
+
+## Controls
+
+- Click a boxed sprite (or its Wanted checkbox) to set Wanted or Unwanted;
+  initially each review is Unreviewed unless loaded from `aodata.json`.
+- Toggle the four **independent** tags: Character, Effect, Background,
+  Level Sprite. Any sprite may carry several tags.
+- **Mark all as → choose type → Apply to all:** after confirmation, every
+  sprite receives ONLY that one type tag, and its other tags are cleared.
+  This operates on the **entire** 560-asset catalog, even if filtered or hidden,
+  and **never changes** Wanted/Unwanted/Unreviewed status.
+- Per-category **Check all / Uncheck all** affect *Wanted* review decisions
+  in that category, not its tags. If a sprite has multiple tags it appears in
+  multiple sections but only once in `aodata.json`.
+- Save to aodata.json keeps full review metadata, original ROM addresses,
+  source frames and categories, but no ROM images. Load JSON also accepts
+  old `MVC1_ART_REVIEW_SELECTIONS_V1` selections.
+
+## Next reconstruction pass
+
+`BUILD_WANTED_SEQUENCES.py` links only Wanted assets to their original 68000
+**structural record-adjacency regions** and groups close neighbors. It writes:
+
+    asset_organizer\wanted_sequences.json
+    asset_organizer\wanted_sequences.tsv
+
+The currently supplied review has **105 Wanted** among 560 candidates. All
+105 occur in the original record-length scan and form **8 structural-neighbor
+clusters** when allowing up to eight unselected headers between Wanted items.
+These are candidates for adjacent artwork, *not* proven native animation
+sequences, execution order, characters, or frame timing. Later classification
+and visual verification remain necessary.
+
+Regenerate the report without launching the UI:
+
+    python asset_organizer\BUILD_WANTED_SEQUENCES.py ^
+      --trace-root test\87.203\m68k_trace ^
+      --review asset_organizer\aodata.json
+
+Synthetic, no-private-ROM tests:
 
     python dev\stage_capture\test_build_mvc_art_review.py
+    python asset_organizer\test_asset_organizer.py
 
-The organizer interface has also been exercised with a 560-item original-art
-catalog, including multi-tagging, group-wide selections, JSON V2 round-trip,
-and V1 review import. Native Windows runner and gameplay execution are not
-verified in the offline test environment. No GitHub Actions are used.
+## Privacy and controls
+
+Only the source HTML template, server source, structural analysis source,
+regression tests and documentation are tracked on GitHub. Original decoded
+artwork, ROM, private source bytes, generated `index.html`, `aodata.json` and
+local reports remain Git-ignored. The localhost server serves only the
+organizer page and `/api/review`, verifies the source checksum, full asset ID
+set, exact address mapping, save origin and tags, and replaces the fixed file
+atomically. It never accepts user-selected output paths.
+
+Existing captured palettes are still an approximation of CPS2 raw palette RAM,
+not certified effective DMA output. No Stable or gameplay modifications.
