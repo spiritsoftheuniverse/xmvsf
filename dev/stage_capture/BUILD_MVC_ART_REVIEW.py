@@ -284,6 +284,26 @@ def create_viewer(program_path:Path,observations_path:Path,capture_path:Path,
              'catalog':cards,'categories':[{'id':k,'label':v} for k,v in CATEGORIES]}
     safe_json=json.dumps(payload,separators=(',',':')).replace('</','<\\/')
     if '__MVC_CATALOG__' not in html:raise SourceError('viewer HTML template missing catalog placeholder')
+    # Optional review seed is local-only, never copied to public source control.
+    # A source checksum and exact ID set must match before prior selections are embedded.
+    review_seed=None
+    saved=output.parent/'aodata.json'
+    if saved.is_file():
+        try:
+            review_seed=json.loads(saved.read_text(encoding='utf-8'))
+            required={x['id'] for x in cards}
+            if (review_seed.get('format')!='MVC1_ASSET_ORGANIZER_V2' or
+                review_seed.get('sourceRomSha256')!=digest or
+                review_seed.get('sourceCatalogSize')!=len(cards) or
+                not isinstance(review_seed.get('items'),list) or
+                len(review_seed['items'])!=len(cards) or
+                {x['id'] for x in review_seed['items']}!=required):
+                raise SourceError('existing aodata.json does not match this gallery; original review preserved')
+        except (ValueError,TypeError,KeyError,AttributeError) as e:
+            raise SourceError('invalid existing aodata.json: '+str(e)) from e
+    if '__AODATA_SEED__' in html:
+        seed_json=json.dumps(review_seed,separators=(',',':')).replace('</','<\\/')
+        html=html.replace('__AODATA_SEED__',seed_json)
     output.parent.mkdir(parents=True,exist_ok=True)
     output.write_text(html.replace('__MVC_CATALOG__',safe_json),encoding='utf-8')
     manifest={k:v for k,v in payload.items() if k!='catalog'}
