@@ -20,6 +20,7 @@ import TRACE_MVC_STAGING as staging
 
 OUTPUTS = (
     'pose_footer_address_references.tsv',
+    'pose_footer_pointer_blocks.tsv',
     'pose_footer_selector_motifs.tsv',
     'pose_footer_dispatch_leads.tsv',
     'pose_footer_interpreter_manifest.json',
@@ -132,6 +133,46 @@ def exact_pointer_sites(data: bytes, code: bytes, addresses: dict):
     return result
 
 
+def read_pointer_blocks(pointers: list[dict], records: dict):
+    """Find adjacent exact READ-address references at four-byte intervals.
+
+    The observed run may start/end in the MIDDLE of a larger ROM table:
+    unknown pointers on either side are not declared table delimiters.
+    Duplicates prove repeated ordered pointer values, not shared execution.
+    """
+    hits = [p for p in pointers if p['source'] == 'READ']
+    runs = []
+    current = []
+    for hit in hits:
+        if current and hit['offset'] != current[-1]['offset'] + 4:
+            if len(current) >= 4:
+                runs.append(current)
+            current = []
+        current.append(hit)
+    if len(current) >= 4:
+        runs.append(current)
+    same_order = {}
+    for run in runs:
+        signature = tuple(hit['target'] for hit in run)
+        same_order.setdefault(signature, []).append(run[0]['offset'])
+    rows = []
+    for run in runs:
+        sequence = tuple(hit['target'] for hit in run)
+        other = [f'{address:06X}' for address in same_order[sequence]
+                 if address != run[0]['offset']]
+        controls = sorted({records[hit['record']][2] for hit in run})
+        rows.append((f"{run[0]['offset']:06X}",
+                     f"{run[-1]['offset']:06X}", len(run),
+                     len(set(sequence)),
+                     sum(hit['role'] == 'FIVE_WORD_FOOTER' for hit in run),
+                     sum(hit['role'] == 'RECORD_START' for hit in run),
+                     len({hit['chain'] for hit in run}),
+                     ','.join(f'{v:04X}' for v in controls),
+                     ','.join(other),
+                     'OBSERVED_ALIGNED_POINTER_SUBSEQUENCE_NOT_PROVEN_TABLE_BOUNDS'))
+    return runs, rows
+
+
 def selector_sites(code: bytes):
     """Find exact immediate selector comparisons / normalization motifs.
 
@@ -221,6 +262,7 @@ def report(trace_root: Path, pose_records: Path, output: Path) -> dict:
         raise InterpreterError('invalid host-word-swapped source alignment')
     records, addresses = read_records(poses, data)
     pointers, selectors, leads = inspect(data, code, records, addresses)
+    blocks, block_rows = read_pointer_blocks(pointers, records)
     dest.mkdir(parents=True, exist_ok=True)
     tsv(dest / OUTPUTS[0],
         ('source_view', 'aligned_long_offset_hex', 'referenced_rom_address_hex',
@@ -232,12 +274,18 @@ def report(trace_root: Path, pose_records: Path, output: Path) -> dict:
           f"{p['instruction_pc']:06X}" if p['instruction_pc'] is not None else '',
           p['kind'], 'STATIC_ADDRESS_MATCH_NOT_EXECUTION') for p in pointers))
     tsv(dest / OUTPUTS[1],
+        ('first_reference_offset_hex', 'last_reference_offset_hex',
+         'consecutive_32bit_references', 'distinct_target_addresses',
+         'control_footer_targets', 'tile_pair_start_targets',
+         'candidate_chains_referenced', 'raw_footer_selectors',
+         'same_order_at_other_offsets_hex', 'boundary_status'), block_rows)
+    tsv(dest / OUTPUTS[2],
         ('fetch_pc_hex', 'literal_selector_hex', 'register', 'opcode_motif',
          'interpretation'),
         ((f"{s['pc']:06X}", f"{s['value']:04X}", 'D%d' % s['reg'],
           s['kind'], 'STATIC_DECRYPTED_FETCH_WORDS_NOT_CONFIRMED_INSTRUCTION')
          for s in selectors))
-    tsv(dest / OUTPUTS[2],
+    tsv(dest / OUTPUTS[3],
         ('selector_motif_pc_hex', 'selector_value_hex', 'selector_opcode_form',
          'nearby_indexed_jump_pc_hex', 'nearby_indexed_jump_form',
          'computed_table_base_hex', 'same_register_cmpi_4_guard_pc_hex',
@@ -259,6 +307,12 @@ def report(trace_root: Path, pose_records: Path, output: Path) -> dict:
         'decrypted_fetch_sha256': hashlib.sha256(code).hexdigest(),
         'pose_records_verified_against_original_rom': len(records),
         'exact_aligned_address_matches': len(pointers),
+        'read_pointer_blocks_min_four_refs': len(blocks),
+        'read_pointer_block_references': sum(map(len, blocks)),
+        'longest_read_pointer_block': max(map(len, blocks), default=0),
+        'references_to_control_footer': sum(p['role'] == 'FIVE_WORD_FOOTER' for p in pointers),
+        'references_to_tile_pair_start': sum(p['role'] == 'RECORD_START' for p in pointers),
+        'distinct_control_footer_addresses_referenced': len({p['target'] for p in pointers if p['role'] == 'FIVE_WORD_FOOTER'}),
         'read_data_address_matches': sum(p['source'] == 'READ' for p in pointers),
         'decrypted_fetch_address_matches': sum(p['source'] == 'FETCH' for p in pointers),
         'recognized_fetch_address_load_motifs': sum(p['instruction_pc'] is not None for p in pointers),
@@ -272,12 +326,14 @@ def report(trace_root: Path, pose_records: Path, output: Path) -> dict:
         'privacy': 'Metadata and addresses only; no private ROM, decrypted code, decoded artwork or instruction dumps.',
         'method': 'Aligned 32-bit exact pointer matches; Motorola 68000 immediate opcode motifs and nearby indexed JMP/JSR. No full instruction boundary proof or control/data-flow proof.',
     }
-    (dest / OUTPUTS[3]).write_text(json.dumps(manifest, indent=2) + '\n', encoding='utf-8')
-    (dest / OUTPUTS[4]).write_text(
+    (dest / OUTPUTS[4]).write_text(json.dumps(manifest, indent=2) + '\n', encoding='utf-8')
+    (dest / OUTPUTS[5]).write_text(
         'MVC1 ORIGINAL 68000 FOOTER INTERPRETER LEADS - STATIC ONLY\n'
         'Original ROM record footers are hash-checked against their generating pose report.\n'
         '$0035..$0039 have NOT been demonstrated to be opcodes, frame clocks or branches.\n'
         'READ addresses are data pointers; FETCH motifs may contain extensions or embedded data.\n'
+        'Observed 4-byte pointer blocks may be partial subsequences with unknown neighbors.\n'
+        'Pointer addresses overwhelmingly target the five-word block, not tile-pair starts.\n'
         'A nearby selector/JMP or record address load is a RESEARCH LEAD, not a decoded parser.\n'
         'To establish semantics, disassemble validated reachable instructions and observe actual\n'
         'source-ROM reads / dispatch PCs while MVC1 changes pose at native-frame resolution.\n'
