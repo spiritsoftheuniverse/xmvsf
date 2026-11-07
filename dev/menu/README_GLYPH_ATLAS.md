@@ -176,7 +176,44 @@ the affected `main.cpp`, `run.cpp`, `vid_sdl2.cpp`, and `aud_sdl.cpp`
 objects when this executable is missing or the related sources change.
 All other warm objects, Stable, and older capture/replay files remain.
 
-## Native TEST version 87.206 and local verification
+## Native stun bar replacement (TEST 87.207)
+
+Source and screenshot reference now exist on the same branch:
+
+- `_art/stunbar_base.png`: **61 x 6**, the ORIGINAL RIGHT-side image.
+- `_art/examples/example_stunbar.png`: **61 x 8** composition reference.
+  It is not loaded in-game or substituted for the source base.
+
+The base's highest original pixel is anchored at native CPS-2 **y=45**,
+which matches the preceding stun HUD; P1 starts at x=61 and P2 ends at
+x=322 (P2 starts at x=262 for the 61-pixel source). The P1 source pixels
+are horizontally mirrored. Do not rotate or invert the bar vertically.
+
+The reference composition places the six-pixel source base at its rows
+2..7, while the active original orange region is at rows 0..5. At full
+stun, the active region spans exactly **44 pixels**, with each subsequent
+row shifted right one pixel. The render code preserves that shape, but
+replaces orange with moving six-pixel-wide diagonal rainbow bands. Stun
+usage from the original ROM continues to control the active width.
+One pixel of dark inset is drawn along the diagonal growth cut and across
+the bottom of the active region at reference row 6 (inside the base).
+The rest of the source PNG, existing shadows and 1-pixel diagonal grooves
+remain untouched.
+
+All drawing remains in the **existing native SDL HUD/UI order**, after
+the game scene and before Training/Versus text panels. Wily's existing
+compositor draws the same routine once; normal stages get it exactly once.
+No new rendering layers, gameplay RAM changes, stun timing, or collision
+logic. The original total/per-hit counter readouts remain.
+
+The PNG is decoded into RGBA bytes once and then reused across frames.
+Missing or wrongly sized PNGs produce a named log entry and a readable
+fallback bar; BUILD_TEST.bat requires the original PNG to prevent quietly
+shipping the fallback. TEST 87.207 recompiles native UI/HUD source
+(including `cps_obj.cpp`) and publishes only
+`runtime/stable/XMVSF_Test_87_207.exe`, never Stable.
+
+## Native TEST version 87.207 and local verification
 
 **Pulling only main does not include this branch.** The source modifications
 are on feature/menu-logo-glyph-atlas-selection-dimming. In the Windows
@@ -190,16 +227,16 @@ Preserve any uncommitted local work before switching branches. Keep the
 original _art PNG files; do not resample or replace them.
 
 1. Run BUILD_TEST.bat. It now publishes ONLY
-   runtime/stable/XMVSF_Test_87_206.exe after compiling current source.
+   runtime/stable/XMVSF_Test_87_207.exe after compiling current source.
    A missing executable or modified menu/video/audio/crash header refreshes
-   only main.cpp, run.cpp, vid_sdl2.cpp and aud_sdl.cpp, without deleting
-   warm build objects, older TEST binaries, or Stable.
-2. Read test/build_logs/BUILD_TEST.log for the 87.206 success line and
-   the SHA256 hashes of the compiled executable, three source PNGs and GIF.
+   only main.cpp, run.cpp, vid_sdl2.cpp, aud_sdl.cpp and cps_obj.cpp, without
+   deleting warm build objects, older TEST binaries, or Stable.
+2. Read test/build_logs/BUILD_TEST.log for the 87.207 success line and
+   the SHA256 hashes of the compiled executable, four source PNGs and GIF.
    If an asset or the glyph-header include is missing, the builder gives
    a precise error instead of silently building a legacy-looking menu.
 3. Run RUN_TEST.bat option 1. The menu window title and bottom-right
-   main-menu label both say TEST 87.206. If they do not, you are not
+   main-menu label both say TEST 87.207. If they do not, you are not
    looking at the newly compiled native XMVSF build.
 4. The gameplay path is still the native XMVSF app's zero-ROM-argument
    boot selector, NOT the separate MVC1 capture/ROM playback mode.
@@ -208,7 +245,7 @@ original _art PNG files; do not resample or replace them.
 5. Verify the unselected text is dim, selected text is bright, and that
    I, i, l, 1, punctuation and word gaps no longer waste full cell widths.
 6. New F9 replays, observer/chat diagnostics and replay verification live
-   under test/87.206. Legacy test/87.203 capture data is not modified;
+   under test/87.207. Legacy test/87.203 capture data is not modified;
    original replay files remain accessible through RUN_REPLAY.bat.
 
 This source audit includes inspection of the tracked code, unchanged font
