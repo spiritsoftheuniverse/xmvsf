@@ -8,6 +8,8 @@ from pathlib import Path
 import struct
 import tempfile
 import unittest
+from unittest.mock import patch
+import BUILD_FOREGROUND_MAPS as fg
 
 from BUILD_SOURCE_FAMILIES import build as recover_families, RecoveryError
 from BUILD_FOREGROUND_MAPS import (map_at,decode_layer_tile,paint_layer,
@@ -112,6 +114,64 @@ class ForegroundTests(unittest.TestCase):
             one=result['shots'][0]['changedCells'][0]
             self.assertEqual(one['mapByteOffset'],0)
             self.assertEqual([v['tileId'] for v in one['variants']],[0,5])
+
+
+    def test_export_writes_gzipped_tile_histories_for_nonempty_review(self):
+        """Regression: normal Wanted path must reach gzip.open successfully."""
+        with tempfile.TemporaryDirectory() as folder:
+            root=Path(folder)
+            review_path=root/'aodata.json'
+            review_path.write_text(json.dumps({
+                'format':'MVC1_ASSET_ORGANIZER_V2',
+                'sourceRomSha256':'0'*64,
+                'sourceCatalogSize':1,
+                'items':[{'id':'rom_000040','wanted':True,
+                          'sourceShot':'shot_0001','sourceFrame':100}]
+            }),encoding='utf-8')
+            camera={100:{'session':'session_0001','stage':0xFFFFFFFF,
+                         **{f'scroll{layer}{axis}':0 for layer in (1,2,3) for axis in ('x','y')}}}
+            history={'totalNativeScroll1MapSnapshotsScanned':1,
+                     'totalMapCellChangeEvents':0,
+                     'totalChangedMapCells':0,
+                     'shots':[{'shot':'shot_0001','changedCells':[]}]}
+            class FakeCapture:
+                def __init__(self,_capture):self.gfx=b'\x11'*65536
+                def palette(self,_frame):return ('test',bytes(6144))
+                def close(self):pass
+            def fake_tree(_root):
+                def read(name):
+                    self.assertEqual(name,'session_0001/gfx_index.tsv')
+                    return b'gfx\tindex\t65536\tffff\t0\t0\t0\tpad\tend'
+                return None,read,None,['session_0001']
+            fake_visible=[{'tileId':0,'attributes':0,'mapX':0,'mapY':0,
+                           'screenX':0,'screenY':0,'originalMapByteOffset':0}]
+            with patch.object(fg,'read_camera',return_value=(camera,['session_0001'])), \
+                 patch.object(fg,'scan_original_foreground_history',return_value=(history,{0})), \
+                 patch.object(fg,'captured_maps',return_value={100:{1:(bytes(0x4000),100,0x900000)}}), \
+                 patch.object(fg,'OriginalCapture',FakeCapture), \
+                 patch.object(fg,'capture_tree',side_effect=fake_tree), \
+                 patch.object(fg,'paint_layer',return_value=(bytes(384*224*4),fake_visible)):
+                report=fg.build(review_path,root/'capture',root/'output')
+            self.assertEqual(report['reviewWanted'],1)
+            self.assertEqual(report['sourceScenes'],1)
+            self.assertEqual(report['originalScroll1TileIdsRecovered'],1)
+            with gzip.open(root/'output'/'foreground_tile_histories.json.gz','rt',encoding='utf-8') as f:
+                self.assertEqual(json.load(f),history)
+            self.assertTrue((root/'output'/'foreground.html').is_file())
+            self.assertEqual((root/'output'/'scroll1_tiles.bin').stat().st_size,68)
+
+    def test_export_writes_empty_histories_with_no_wanted_assets(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root=Path(folder)
+            review=root/'aodata.json'
+            review.write_text(json.dumps({'format':'MVC1_ASSET_ORGANIZER_V2',
+                'sourceRomSha256':'0'*64,'sourceCatalogSize':1,
+                'items':[{'sourceShot':'shot_0001','sourceFrame':100,'wanted':False}]}))
+            result=fg.build(review,root/'capture',root/'output')
+            self.assertEqual(result['reviewWanted'],0)
+            with gzip.open(root/'output'/'foreground_tile_histories.json.gz','rt',encoding='utf-8') as f:
+                self.assertEqual(json.load(f),{'shots':[]})
+
 
 
 if __name__=='__main__':unittest.main()
