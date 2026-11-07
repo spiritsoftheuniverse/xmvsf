@@ -133,3 +133,39 @@ sequence metadata and animations from existing captures. No stage changes
 or gameplay placement is installed until a named-stage anchor and true
 frame-advance behavior are verified. All generated original sprites, GFX,
 backgrounds and private ROM-derived output stay Git-ignored.
+
+## Palette workbench and multi-selection
+
+The organizer is grouped **once per asset** by measured, frequency-weighted
+CIELAB similarity of the opaque original sprite pixels. This is a clustering
+heuristic, not duplicate detection or proof of sprite/animation ownership.
+Common dark outlines are downweighted; transparent pixels are ignored.
+Recorded raw CPS2 palette RAM remains an approximation of effective DMA color.
+
+The top controls have a fixed context grid. **Expanded** is the default and
+shows ROM offsets, original source frames, component counts and RGB swatches;
+**Compact** shows just image, four independent tag switches, Wanted checkbox,
+Zoom and multi-select controls. Neither display mode alters saved decisions.
+
+Use mouse drag across gallery artwork to rubber-band multiple sprite cards.
+Ctrl+click and the small **Select** button allow additive selection. Editing
+any tag on a card while a selection exists copies that *card's complete new
+tag set* to all selected assets; other tags on those assets are cleared.
+Wanted checkbox changes also apply to the selected set when editing a
+selected card. Selection never changes source ROM data.
+
+**Ctrl+X** stages selected cards in a visible cut tray without deleting them.
+Select **Set destination** on a color-family container and press **Ctrl+V**,
+or use that container's **Paste here** button. This manually reassigns the
+cards' color container; their original automatic `colorGroup` and graphics
+are retained. Press Esc to cancel a pending cut without modifications,
+**Ctrl+Z** or **Undo** to reverse an assignment, and **Auto color** to restore
+the computed family on selected cards. Pending cuts are not saved as moves.
+
+`aodata.json` remains `MVC1_ASSET_ORGANIZER_V2`. Each item may now optionally
+include `colorGroupOverride: null | "palette_NNN"`; old reviews without the
+field load without migration. The local API validates overrides against the
+known color families embedded in the matching source catalog. The full
+Wanted/Unwanted/tag dataset, including previously confirmed 105 Wanted assets,
+is preserved. The bundle contains private original pixel artwork and stays
+local; only the empty template, generator and grouping source are committed.
