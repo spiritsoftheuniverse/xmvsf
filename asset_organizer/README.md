@@ -4,6 +4,16 @@ The root-level folder contains the review template and a **local-only** browser
 app. The built `index.html` embeds original MVC1 pixels and must remain
 uncommitted. `.gitignore` also excludes `aodata.json` and generated reports.
 
+## Standalone Windows builder and unified launcher
+
+From `F:\\xmvsf`, use `asset_organizer\\BUILD_AO.bat` to rebuild only the
+offline Asset Organizer and derived private artwork; it does not launch the
+game or start the editor. Use root `RUN_TEST.bat` option **2** to build and
+open the organizer, option **1** for the compiled XMVSF TEST game, and option
+**3** for original MVC1 level capture with F11 toggling the session.
+
+See root `TEST_CAPTURE_SUITE.md` for the complete suite contract.
+
 ## Generate / launch
 
 In `F:\xmvsf` (after pulling the 87.203 branch), run:
