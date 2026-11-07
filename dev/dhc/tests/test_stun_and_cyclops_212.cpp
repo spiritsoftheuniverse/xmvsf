@@ -148,7 +148,6 @@ static void checkHundredFrameRelease(bool enabled,bool groundedEarly){
     assert(tracker.recoveryTicks[0]==0u);
     assert(tracker.waiting[0]==enabled);
     assert(XM87121::w(ram.data(),p+0x60u)==0x200Eu);
-    std::vector<std::uint8_t> opponent(ram.begin()+o,ram.begin()+o+0x400u);
     for(unsigned tick=1u;tick<=XM87121::ReleaseDelayFrames;tick++){
         // The victim lands for only two frames, well BEFORE release:
         // 1C34 need not persist exactly to the frame-100 boundary.
@@ -158,7 +157,13 @@ static void checkHundredFrameRelease(bool enabled,bool groundedEarly){
         }else if(groundedEarly && tick==52u){
             setW(ram,o+0x60u,0x1C00u); // already left landing pose
         }
+        // The test itself may change the opponent's landing animation,
+        // but the release controller must not change even a single
+        // byte of the victim's RAM record.
+        const std::vector<std::uint8_t> opponentBefore(
+            ram.begin()+o,ram.begin()+o+0x400u);
         tracker.frame(102u+tick,ram.data());
+        assert(std::memcmp(opponentBefore.data(),ram.data()+o,0x400u)==0);
         const bool release=enabled && groundedEarly &&
                            tick==XM87121::ReleaseDelayFrames;
         assert(XM87121::w(ram.data(),p+0x60u)==
@@ -189,7 +194,6 @@ static void checkHundredFrameRelease(bool enabled,bool groundedEarly){
         assert(!tracker.waiting[0]);
     }else{
         assert(XM87121::w(ram.data(),p+0x60u)==0x200Eu);
-        assert(std::memcmp(opponent.data(),ram.data()+o,0x400u)==0);
     }
     assert(XM87121::w(ram.data(),p+0x0Cu)==233u); // no teleport
     assert(XM87121::w(ram.data(),p+0x10u)==400u); // no forced new jump
