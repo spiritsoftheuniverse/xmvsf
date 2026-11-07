@@ -244,7 +244,50 @@ The updated builder and launchers target only
 `runtime/stable/XMVSF_Test_87_208.exe`. These are source changes, not
 a claim of Windows runtime or visual verification.
 
-## Native TEST version 87.208 and local verification
+## TEST 87.209 — Single stun HUD, moving tip mask, Cyclops release restored
+
+**Duplicate stun meter root cause:** `cps_draw.cpp::DoDraw` still called
+`XM8733::Draw` into a 384×224 native software overlay **without the new PNG
+asset**. That invoked the obsolete 76px fallback. Then
+`vid_sdl2.cpp::xm8733Overlay` drew the new 61px PNG stun meter again. The
+old native pass has been removed. The existing SDL gameplay HUD/UI pass is
+now the **one authoritative stun-bar renderer**; Wily's original caller
+shares that pass and avoids a second submission.
+
+**Moving tip mask:** The diagonal leading edge and the one-pixel inset
+shadow now share `XM8733::FillBounds`, calculated from each source row's
+actual alpha span **and current ROM-derived stun value**. The tip advances
+as stun accumulates; its slope shrinks safely near full capacity. The
+last shadow scanline reuses the current row-5 mask, clipped against source
+alpha, so there is no stationary tip or two-pixel overrun. The fallback
+76px bar has been retired even when a PNG fails to load (build preflight
+still requires `_art/stunbar_base.png`).
+
+**Cyclops air-throw recovery regression:** Stage **87.121**'s previously
+working `XM87121::state().frame` implementation is intact, including
+the exact preceding airborne controller and the `200C → 200E` first
+flip after victim landed in `1C34`. Its `XM87121_CYCLOPS_RELEASE`
+environment flag had silently gone missing from the regular TEST launcher,
+leaving it off. It is enabled by default and explicitly in normal
+`RUN_TEST.bat` and `RUN_REPLAY.bat`; set the flag to `0` for
+controlled A/B comparison. Donor MVC1 launches still force it off.
+No new superjump, no opponent writes, no forced follow-up or DHC change.
+Native event log: `test/87.209/observer/cyclops_air_throw_release.tsv`.
+
+**Regression coverage:** `dev/dhc/tests/test_stun_and_cyclops_209.cpp`
+is a standalone C++11 synthetic RAM/pixel-mask test. It checks movement
+of both mirrored bar tips, full-width rainbow, warm partial fill,
+one-pixel shadow clipping, no old PNG-less fallback, exact Cyclops
+state restoration only when the victim grounded, unchanged world X/Y
+and victim record, plus explicit disabled recovery. BUILD_TEST.bat runs
+this ROM-free test before the native incremental build. The builder
+refreshes the changed `cps_draw.cpp`, `cps_run.cpp` and SDL frontend
+translation units without touching Stable or older recorded replays.
+
+**Target:** `runtime/stable/XMVSF_Test_87_209.exe`. Source inspection and
+unit-test wiring do not constitute a verified Windows gameplay run.
+
+## Native TEST version 87.209 and local verification
 
 **Pulling only main does not include this branch.** The source modifications
 are on feature/menu-logo-glyph-atlas-selection-dimming. In the Windows
@@ -258,16 +301,16 @@ Preserve any uncommitted local work before switching branches. Keep the
 original _art PNG files; do not resample or replace them.
 
 1. Run BUILD_TEST.bat. It now publishes ONLY
-   runtime/stable/XMVSF_Test_87_208.exe after compiling current source.
+   runtime/stable/XMVSF_Test_87_209.exe after compiling current source.
    A missing executable or modified menu/video/audio/crash header refreshes
-   only main.cpp, run.cpp, vid_sdl2.cpp, aud_sdl.cpp and cps_obj.cpp, without
-   deleting warm build objects, older TEST binaries, or Stable.
-2. Read test/build_logs/BUILD_TEST.log for the 87.208 success line and
+   only main.cpp, run.cpp, vid_sdl2.cpp, aud_sdl.cpp, cps_obj.cpp, cps_draw.cpp
+   and cps_run.cpp without deleting warm build objects, older binaries, or Stable.
+2. Read test/build_logs/BUILD_TEST.log for the 87.209 success line and
    the SHA256 hashes of the compiled executable, four source PNGs and GIF.
    If an asset or the glyph-header include is missing, the builder gives
    a precise error instead of silently building a legacy-looking menu.
 3. Run RUN_TEST.bat option 1. The menu window title and bottom-right
-   main-menu label both say TEST 87.208. If they do not, you are not
+   main-menu label both say TEST 87.209. If they do not, you are not
    looking at the newly compiled native XMVSF build.
 4. The gameplay path is still the native XMVSF app's zero-ROM-argument
    boot selector, NOT the separate MVC1 capture/ROM playback mode.
@@ -276,7 +319,7 @@ original _art PNG files; do not resample or replace them.
 5. Verify the unselected text is dim, selected text is bright, and that
    I, i, l, 1, punctuation and word gaps no longer waste full cell widths.
 6. New F9 replays, observer/chat diagnostics and replay verification live
-   under test/87.208. Legacy test/87.203 capture data is not modified;
+   under test/87.209. Legacy test/87.203 capture data is not modified;
    original replay files remain accessible through RUN_REPLAY.bat.
 
 This source audit includes inspection of the tracked code, unchanged font
