@@ -681,4 +681,18 @@ if not exist "%PROJECT%\test\87.203\m68k_pose_boundaries\rom_pose_boundaries_rev
   exit /b 2
 )
 echo Candidate pose boundary ZIP: "%PROJECT%\test\87.203\m68k_pose_boundaries\rom_pose_boundaries_review.zip"
+REM Cross-reference exact original pose-record addresses with decrypted
+REM 68000 selector/dispatch opcode MOTIFS. Static only, no animation timing.
+REM Recheck the private ROM hash against the pose manifest before any join.
+python.exe "%PROJECT%\dev\stage_capture\TRACE_MVC_POSE_INTERPRETER.py" --trace-root "%PROJECT%\test\87.203\m68k_trace" --pose-records "%PROJECT%\test\87.203\m68k_pose_boundaries\rom_pose_records.tsv" --output "%PROJECT%\test\87.203\m68k_pose_interpreter"
+set "INTERPRETER_RC=%ERRORLEVEL%"
+if not "%INTERPRETER_RC%"=="0" (
+  echo ERROR: Original M68K footer interpreter lead analysis failed. Sources untouched.
+  exit /b %INTERPRETER_RC%
+)
+if not exist "%PROJECT%\test\87.203\m68k_pose_interpreter\pose_footer_interpreter_leads.zip" (
+  echo ERROR: M68K footer interpreter leads ZIP missing.
+  exit /b 2
+)
+echo Footer interpreter leads ZIP: "%PROJECT%\test\87.203\m68k_pose_interpreter\pose_footer_interpreter_leads.zip"
 exit /b 0
