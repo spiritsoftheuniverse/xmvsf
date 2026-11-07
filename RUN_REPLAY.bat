@@ -17,6 +17,10 @@ REM 87.186 traces early native Shinkuu action without changing F9 inputs.
 set "OBSROOT=%PROJECT%\test\87.208\observer"
 if not exist "%OBSROOT%" mkdir "%OBSROOT%"
 if not exist "%OBSROOT%" goto :fail
+REM Maintain exact Cyclops 87.121 air-throw recovery during F9 playback.
+REM Inherited =0 remains A/B opt-out, including older ROM-only comparisons.
+if not defined XM87121_CYCLOPS_RELEASE set "XM87121_CYCLOPS_RELEASE=1"
+if not defined XM87121_CYCLOPS_LOG_FILE set "XM87121_CYCLOPS_LOG_FILE=%OBSROOT%\cyclops_air_throw_replay.tsv"
 set "XM87175_DHC_OBSERVER=1"
 set "XM87175_DHC_OBSERVER_LOG=%OBSROOT%\dhc_acceptance_replay.tsv"
 REM 87.180: native input CPU-stage diagnostic independent of F9 inputs.
@@ -316,6 +320,7 @@ if not defined V2_DRIVER (
 echo F9 source ROM verified: %V2_DRIVER%
 if /I "%V2_DRIVER:~0,4%"=="mvsc" (
   REM Replaying original MVC1 must not enable XMVSF DHC/flight mutations.
+  set "XM87121_CYCLOPS_RELEASE=0"
   set "XM87144_DHC_NATIVE_TEST=0"
   set "XM87156_PROOF_NATIVE=0"
   set "XM87157_EARLY_CANCEL=0"
