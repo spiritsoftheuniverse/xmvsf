@@ -1,0 +1,6 @@
+record_offset_hex	shot	sample_frame	visual_category	confidence	reviewer_note	rom_sha256
+32868E	shot_0001	811	LETTERING_FRAGMENT	HIGH_VISUAL_ONLY	Decoded multi-part image visibly forms large serif letters beginning Ka; stage versus HUD provenance unverified	1dc7e0a6a9f9b36fca9c2c4dc0729c701517146345179b2b90a7c2c50a245ac0
+327A58	shot_0008	13028	HUMANOID_FIGURE_RAISED_ARM	HIGH_VISUAL_ONLY	All three sampled pieces show an upright pink-and-white humanoid raising one arm; fighter identity not established	1dc7e0a6a9f9b36fca9c2c4dc0729c701517146345179b2b90a7c2c50a245ac0
+327D54	shot_0008	12638	MAGENTA_DISCONNECTED_FRAGMENTS	LOW_PARTIAL	Only two of eight original descriptor pairs are in this sample; cannot reconstruct the complete object	1dc7e0a6a9f9b36fca9c2c4dc0729c701517146345179b2b90a7c2c50a245ac0
+335702	shot_0005	7115	DARK_HORIZONTAL_SHAPES	LOW_PARTIAL	Four of six original pairs observed; identity cannot be established from this preview	1dc7e0a6a9f9b36fca9c2c4dc0729c701517146345179b2b90a7c2c50a245ac0
+327330	shot_0006	9486	BLUE_CIRCULAR_OBJECT	MODERATE_VISUAL_ONLY	Ten of ten original pairs form a circular blue multi-part object; camera correlated; stage prop versus effect unresolved	1dc7e0a6a9f9b36fca9c2c4dc0729c701517146345179b2b90a7c2c50a245ac0
