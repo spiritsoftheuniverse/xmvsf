@@ -784,6 +784,26 @@ if exist "%PROJECT%\asset_organizer\aodata.json" (
   echo Original captured animation preview: "%PROJECT%\asset_organizer\animations.html"
   echo Original captured pose/camera metadata: "%PROJECT%\asset_organizer\captured_animations.json"
 )
+REM Recover EVERY native tile referenced by full original ROM source-record
+REM regions containing at least one Wanted seed. Never promote user-rejected
+REM frames; all newly discovered records remain source candidates.
+REM Restore original SCROLL1 near/foreground maps (including Monster Rock Bar
+REM tables and props) and recover all recorded 8px map-tile variants.
+REM Read-only original program/capture inputs. Generated assets stay ignored.
+if exist "%PROJECT%\asset_organizer\aodata.json" (
+  python.exe "%PROJECT%\asset_organizer\BUILD_SOURCE_FAMILIES.py" --review "%PROJECT%\asset_organizer\aodata.json" --trace-root "%PROJECT%\test\87.203\m68k_trace" --observations "%PROJECT%\test\87.203\sprite_factory\sprite_observations.tsv.gz" --capture "%PROJECT%\test\87.203\stage_capture" --output "%PROJECT%\asset_organizer\source_families"
+  if errorlevel 1 (
+    echo ERROR: Original ROM source-family closure failed. aodata.json preserved.
+    exit /b 2
+  )
+  python.exe "%PROJECT%\asset_organizer\BUILD_FOREGROUND_MAPS.py" --review "%PROJECT%\asset_organizer\aodata.json" --capture "%PROJECT%\test\87.203\stage_capture" --output "%PROJECT%\asset_organizer\foreground_recovered"
+  if errorlevel 1 (
+    echo ERROR: Captured original SCROLL1 foreground recovery failed. Inputs untouched.
+    exit /b 2
+  )
+  echo Source-family recovered art: "%PROJECT%\asset_organizer\source_families\family_recovery.html"
+  echo Original SCROLL1 foreground: "%PROJECT%\asset_organizer\foreground_recovered\foreground.html"
+)
 if not exist "%PROJECT%\asset_organizer\SERVE_ASSET_ORGANIZER.py" (
   echo ERROR: Asset Organizer localhost server is missing.
   exit /b 2
