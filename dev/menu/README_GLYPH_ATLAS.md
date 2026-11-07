@@ -371,7 +371,47 @@ It replaces the 87.210 synthetic test in BUILD_TEST.bat.
 This corrects a demonstrated logical gate. Native Windows gameplay
 verification is still required to prove the observed Cyclops recovery.
 
-## Native TEST version 87.211 and local verification
+## TEST 87.212 — Cyclops fixed 100-frame post-grab recovery
+
+**Request:** The previous five-frame release was too early when it
+succeeded and intermittently failed to trigger. Replace the delay with
+**100 native combat-frame updates after the actual grab-end 200C→200E
+transition**, regardless of whether the sprite animation word at +42
+changes. The counter does not begin until the grab ends. There is no
+early release at frame 5 and no wait for five unique animation poses.
+
+The earlier 87.121 first-flip recognition was overly restrictive
+(exact step06/step08/mode/flag values), and its airborne snapshot
+was required to be at most two updates old. This pass identifies the
+Cyclops grab-end by action transition while still airborne, accepts
+the most recent saved airborne snapshot up to 24 native updates old,
+and starts a one-shot timer. It continues through throw-family
+substates 2000..201F. Normal unrelated actions or Cyclops landing
+cancel pending recovery rather than rewinding a new animation.
+
+The victim's landing is remembered as soon as native Y reaches 472
+during the countdown. The fleeting 1C34 landing animation does not
+have to remain active precisely on update 100. On update 100, if
+Cyclops remains airborne/in throw recovery and the victim landed,
+restore Cyclops's original pre-throw airborne control. If the victim
+has not landed yet, release on the first later update where ground
+contact is observed. No opponent RAM, world position, HP, meter,
+ROM, DHC or Stable edits.
+
+The diagnostic TSV logs `GRAB_ENDED`, `RECOVERY_TICK` (first/100th),
+`RELEASED`, `WAIT_VICTIM` and `RELEASE_CANCEL` with
+`recovery_ticks`, plus independent pose-change observations.
+`dev/dhc/tests/test_stun_and_cyclops_212.cpp` simulates a held pose
+for exactly 100 frames, ensures no release on frames 1..99, verifies
+the victim landing latch after 1C34 ends, tests late landing, validates
+an intervening 200E→2010 throw substate, opt-out, natural action exit
+and duplicate-frame protection. The existing stun/HUD tests remain.
+
+The TEST build/launchers now target only
+`runtime/stable/XMVSF_Test_87_212.exe`. Source checks do not replace
+a local Windows gameplay verification.
+
+## Native TEST version 87.212 and local verification
 
 **Pulling only main does not include this branch.** The source modifications
 are on feature/menu-logo-glyph-atlas-selection-dimming. In the Windows
@@ -385,16 +425,16 @@ Preserve any uncommitted local work before switching branches. Keep the
 original _art PNG files; do not resample or replace them.
 
 1. Run BUILD_TEST.bat. It now publishes ONLY
-   runtime/stable/XMVSF_Test_87_211.exe after compiling current source.
+   runtime/stable/XMVSF_Test_87_212.exe after compiling current source.
    A missing executable or modified menu/video/audio/crash header refreshes
    only main.cpp, run.cpp, vid_sdl2.cpp, aud_sdl.cpp, cps_obj.cpp, cps_draw.cpp
    and cps_run.cpp without deleting warm build objects, older binaries, or Stable.
-2. Read test/build_logs/BUILD_TEST.log for the 87.211 success line and
+2. Read test/build_logs/BUILD_TEST.log for the 87.212 success line and
    the SHA256 hashes of the compiled executable, four source PNGs and GIF.
    If an asset or the glyph-header include is missing, the builder gives
    a precise error instead of silently building a legacy-looking menu.
 3. Run RUN_TEST.bat option 1. The menu window title and bottom-right
-   main-menu label both say TEST 87.211. If they do not, you are not
+   main-menu label both say TEST 87.212. If they do not, you are not
    looking at the newly compiled native XMVSF build.
 4. The gameplay path is still the native XMVSF app's zero-ROM-argument
    boot selector, NOT the separate MVC1 capture/ROM playback mode.
@@ -403,7 +443,7 @@ original _art PNG files; do not resample or replace them.
 5. Verify the unselected text is dim, selected text is bright, and that
    I, i, l, 1, punctuation and word gaps no longer waste full cell widths.
 6. New F9 replays, observer/chat diagnostics and replay verification live
-   under test/87.211. Legacy test/87.203 capture data is not modified;
+   under test/87.212. Legacy test/87.203 capture data is not modified;
    original replay files remain accessible through RUN_REPLAY.bat.
 
 This source audit includes inspection of the tracked code, unchanged font
