@@ -23,6 +23,7 @@
 #include "xmvsf_native_host.h" /* XMVSF_STAGE21_BOUNDARY */
 #include "xmvsf_stage22_select_audio.h" /* XMVSF_STAGE22_SELECTION_SFX */
 #include "xmvsf_stage23_engine.h" /* XMVSF_STAGE23_TRAINING_MENU */
+#include "xmvsf_menu_glyph_atlas.h" /* release sprite UI before renderer shutdown */
 #include "xmvsf_stage87_118_meter_audio.h" /* XM87.118 read-only stock edge (restored in 87.132 build repair) */
 #include "xmvsf_stage24_engine.h" /* XMVSF_STAGE24_VERSUS */
 #include "xmvsf_stage86_49_camera.h" // XM86.49 opt-in read-only native camera
@@ -1013,6 +1014,7 @@ int RunMessageLoop()
     std::fprintf(stderr,"XM86.40 SESSION EXIT reason=%s frames=%llu emulated=%d returnToBoot=%d\n",
          xm8640ExitReason,xm8640FrameCount-xm8640StartFrames,nFramesEmulated,(int)xm26ReturnToBoot);
     std::fflush(stderr);
+    XMGlyph::release(); // Prevent textures surviving native SDL renderer teardown.
 	RunExit();
 
 	return 0;
