@@ -8,6 +8,7 @@
 
 #include "xmvsf_stage86_55_options.h" /* shared state */
 #include "xmvsf_stage86_56_final.h" /* XM86.56 complete frontend presentation */
+#include "xmvsf_menu_glyph_atlas.h" /* Native SF2 large/small sprite glyphs + title logo */
 struct XMVSFGlyph { char c; unsigned char row[7]; };
 static const XMVSFGlyph xmvsfFont[] = {
     {'A', {0x0e, 0x11, 0x11, 0x1f, 0x11, 0x11, 0x11}},
@@ -61,6 +62,7 @@ static const unsigned char* xmvsfGlyph(char c) {
 static void xmvsfPixelText(SDL_Renderer* render, const char* text, int cx, int y, int pixel,
                             unsigned char r, unsigned char g, unsigned char b) {
     if (!text) return;
+    if(XMGlyph::center(render,text,cx,y,pixel,r,g,b))return;
     int count=0;
     while (text[count]) ++count;
     int x=cx-(count*6*pixel)/2;
@@ -133,10 +135,12 @@ static int xmvsfBootSelector(bool returningFromGame=false) {
     SDL_RenderSetClipRect(render,nullptr);
     SDL_SetRenderDrawBlendMode(render,SDL_BLENDMODE_NONE);
     menuBackground.load(render);
+    XMGlyph::preload(render);
     if (!(SDL_GetWindowFlags(window)&SDL_WINDOW_SHOWN)) SDL_ShowWindow(window);
     xm8655RenderColor(render,8,16,36,255); /* XMVSF_STAGE32_NAVY */
     SDL_RenderClear(render);
     menuBackground.draw(render,SDL_GetTicks());
+    XMGlyph::logo(render); // First frame must display the actual new title art.
     xm8656Present(render); /* XM86.56 global final pass */
     SDL_PumpEvents();
     xm8652FocusWindowOnce(window,returningFromGame?"boot-return":"boot-startup");
@@ -385,32 +389,24 @@ static int xmvsfBootSelector(bool returningFromGame=false) {
         // Frame delays and 30% RGB brightness are owned by the GIF layer.
         menuBackground.draw(render,SDL_GetTicks());
         if(screen==0) {
-            xmvsfPixelText(render,"X-MEN VS STREET FIGHTER",480,82,4,77,178,255);
-            xmvsfPixelText(render,"USA 961023",480,140,3,155,150,255);
+            XMGlyph::logo(render); // Actual _art/logo.png, foreground over the 30% GIF.
             const char* entries[5]={"ARCADE","TRAINING","VERSUS","CONTROLS","OPTIONS"};
             for(int a=0;a<5;a++) {
-                int y=163+a*53;
-                if(a==selection) {
-                    SDL_Rect r={206,y-12,548,57};
-                    xm8655RenderColor(render,25,19,68,255);SDL_RenderFillRect(render,&r);
-                    xm8655RenderColor(render,76,93,175,255);SDL_RenderDrawRect(render,&r);
-                }
-                xmvsfPixelText(render,entries[a],480,y,4,a==selection?255:125,a==selection?255:125,255);
+                const int y=272+a*44;
+                // No focus box or arrow: non-selected glyphs are darkened.
+                const Uint8 bright=(a==selection)?255:80;
+                xmvsfPixelText(render,entries[a],480,y,4,bright,bright,bright);
             }
-            if(SDL_GetTicks()<messageUntil)xmvsfPixelText(render,message,480,446,2,255,132,132);
-            else xmvsfPixelText(render,"A SELECT  B BACK",480,446,2,115,145,192);
-            xmvsfPixelText(render,"ESC TO QUIT",480,497,2,105,105,129);
+            if(SDL_GetTicks()<messageUntil)xmvsfPixelText(render,message,480,485,2,255,132,132);
+            else xmvsfPixelText(render,"A SELECT  B BACK",480,485,2,145,145,145);
+            xmvsfPixelText(render,"ESC TO QUIT",480,520,1,105,105,105);
         } else if(screen==5) {
             xmvsfPixelText(render,"SELECT STAGE",480,90,5,108,193,255);
             const char* stages[2]={"RANDOM","WILY FACTORY"};
             for(int i=0;i<2;++i){
                 const int y=205+i*80;
-                if(i==stageRow){
-                    SDL_Rect highlight={175,y-17,610,60};
-                    xm8655RenderColor(render,26,37,85,255);SDL_RenderFillRect(render,&highlight);
-                    xm8655RenderColor(render,95,150,238,255);SDL_RenderDrawRect(render,&highlight);
-                }
-                xmvsfPixelText(render,stages[i],480,y,4,i==stageRow?255:145,i==stageRow?248:164,255);
+                const Uint8 bright=(i==stageRow)?255:80;
+                xmvsfPixelText(render,stages[i],480,y,4,bright,bright,bright);
             }
             xmvsfPixelText(render,"RANDOM INCLUDES WILY FACTORY",480,405,2,137,177,215);
             xmvsfPixelText(render,"A SELECT  B BACK",480,465,2,152,192,235);
@@ -435,14 +431,8 @@ static int xmvsfBootSelector(bool returningFromGame=false) {
                 }else if(i<=XM29_PRESET_COUNT+2)label=xm29Presets[i-3].label;
                 else label=(i==XM29_PRESET_COUNT+3?"FULLSCREEN FIT":"MAXIMIZE WINDOW");
                 const int y=96+i*31;
-                if(i==displayRow){
-                    SDL_Rect highlight={125,y-7,710,33};
-                    xm8655RenderColor(render,25,37,87);
-                    SDL_RenderFillRect(render,&highlight);
-                    xm8655RenderColor(render,90,143,240);
-                    SDL_RenderDrawRect(render,&highlight);
-                }
-                xmvsfPixelText(render,label,480,y,2,i==displayRow?255:147,i==displayRow?245:166,255);
+                const Uint8 bright=(i==displayRow)?255:77;
+                xmvsfPixelText(render,label,480,y,2,bright,bright,bright);
             }
             xmvsfPixelText(render,"A SELECT  B BACK",480,468,2,148,179,210);
             xmvsfPixelText(render,"CTRL + / - RESIZE   ALT + ENTER FULLSCREEN",480,506,2,120,148,184);
@@ -464,11 +454,8 @@ static int xmvsfBootSelector(bool returningFromGame=false) {
                     else snprintf(label,sizeof(label),"P%d %s : %s %d",p+1,actionNames[action],b.type=='A'?"AXIS":"BUTTON",b.index);
                 }
                 int y=132+(a-first)*33;
-                if(a==controlsRow){
-                    SDL_Rect r={140,y-7,680,28};
-                    xm8655RenderColor(render,28,26,81,255);SDL_RenderFillRect(render,&r);
-                }
-                xmvsfPixelText(render,label,480,y,2,a==controlsRow?255:143,a==controlsRow?255:145,255);
+                const Uint8 bright=(a==controlsRow)?255:78;
+                xmvsfPixelText(render,label,480,y,2,bright,bright,bright);
             }
             if(capture>=0) xmvsfPixelText(render,"PRESS A PHYSICAL BUTTON",480,441,2,255,208,82);
             else if(SDL_GetTicks()<messageUntil)xmvsfPixelText(render,message,480,441,2,245,171,109);
@@ -522,6 +509,7 @@ static int xmvsfBootSelector(bool returningFromGame=false) {
     }
     xm8652TrackWindowGeometry(window,true,"boot-exit");
     menuBackground.release(); // lifetime ends before shared SDL renderer changes owner
+    XMGlyph::release(); // clean asset textures before game reuses the renderer
     std::fprintf(stderr,"XM27: boot selector EXIT mode=%d\n",outcome);
     std::fflush(stderr);
     for(int i=0;i<8;i++) {
