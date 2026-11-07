@@ -1012,3 +1012,71 @@ Stage names, genuine animation timing, and 68000 execution paths that
 construct the indexed tables remain **unverified**. This pass identifies
 evidence-backed assembly candidates and their visible composition, not
 finished stage actors.
+
+
+## MVC1 Motorola 68000 candidate pose-record boundaries (2026-11-06)
+
+Original MVC1 host-word-swapped program READ data shows repeated structures
+composed of native (tileword, attribute_word) pairs followed by FIVE 16-bit
+control words:
+
+    0002  ????  ????  0035|0036|0037|0038|0039  ????
+
+The fields are preserved AS-IS. Their native script meaning, including
+animation durations and jump targets, has NOT yet been verified against the
+original 68000 interpreter. A qualifying next pair-run precisely 10 bytes
+after the prior run establishes a more robust candidate record boundary,
+not necessarily an executed animation frame.
+
+Cross-check of the already uploaded original program, 17-shot object
+history and 39,282 frame continuous camera capture:
+- 1,234 original candidate tile/attribute runs;
+- 637 candidate records with matching five-word control footer;
+- 352 exact links to another qualifying adjacent record;
+- 285 groups including singletons; 129 multi-record chains;
+- longest chain: 22 candidate records;
+- 2,835 sampled pose candidate matches; 2,067 with distinguishing pairs;
+- 558 observed pose changes BETWEEN sampled frames, NOT native duration.
+
+The default 30-frame sparse samples can miss intermediate poses. When
+sprite pieces are repeated/shared, pose match ambiguity is retained.
+No OBJ priority is assumed to correspond to scenery, a fighter or HUD.
+
+Manual image inspections from original decoded graphics:
+- $32868E, shot_0001 frame 811: serif LETTERING fragment (chain $3285A0);
+- $327A58, shot_0008 frame 13028: pink-and-white HUMANOID raising an arm,
+  not safe to call stage scenery;
+- $327330, shot_0006 frame 9486: complete 10-part BLUE CIRCULAR OBJECT,
+  potentially stage art or an effect; exact identity unverified;
+- $327D54 and $335702: incomplete magenta and dark object fragments,
+  visual owner identity unresolved.
+
+These are separate HUMAN visual-review labels, not game-derived names.
+ROM_POSE_VISUAL_NOTES.tsv is tied to the exact SHA-256 of the private
+program-data image so visual notes cannot contaminate another ROM build.
+
+After pulling the 87.203 feature branch, use the existing launcher:
+
+    RUN_TEST.bat poses
+
+This reads the already-existing local M68K program snapshot, Sprite Factory
+observations, owner/visibility catalog and native camera history. There is
+no ROM launch, new build, installer, action workflow, or Stable rewrite.
+
+The existing RUN_TEST.bat m68k also invokes this last stage after its
+writer-PC, staging, owner and ROM-assembly passes. Offline output:
+
+    test/87.203/m68k_pose_boundaries/rom_pose_boundaries_review.zip
+
+It includes original control-word metadata, candidate linked records,
+sampled pose matches, between-sample changes, control-word summary,
+manual visual notes with checksum guards, and uncertainty manifest.
+The ZIP excludes raw ROM, decrypted code, decoded graphics, and raw
+source OAM history. It is not a finished stage identification result.
+
+Three synthetic regression tests (plus original earlier tests):
+
+    python dev/stage_capture/test_trace_mvc_pose_boundaries.py
+
+Local source-data analysis and regression tests passed; native Windows
+execution of the updated BAT remains unverified.
