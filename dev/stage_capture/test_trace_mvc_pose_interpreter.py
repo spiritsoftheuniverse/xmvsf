@@ -108,6 +108,46 @@ class PoseInterpreterTests(unittest.TestCase):
             self.assertEqual((trace / 'run_0001' / interp.staging.BIN_DATA).read_bytes(),
                              original)
 
+
+    def test_two_level_pointer_index_and_uncatalogued_valid_footer(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            trace, poses, original = self.fixture(root)
+            original = bytearray(original)
+            fetched = bytearray((trace / 'run_0001' / interp.staging.BIN_CODE).read_bytes())
+            # MOVEA.L #$00000240,A1; MOVEA.L (d8,A1,D2.W),A1.
+            self.put(fetched, 0x20, 0x227C, 0, 0x0240, 0x2271, 0x2000)
+            (trace / 'run_0001' / interp.staging.BIN_CODE).write_bytes(fetched)
+            # Four first-level slots reference four regularly spaced lists.
+            for i in range(4):
+                self.put(original, 0x240 + i * 4, 0, 0x250 + i * 16)
+            for i in range(4):
+                # The last leaf is valid footer grammar but was NOT in
+                # the earlier pose-candidate catalog.
+                for j, dest in enumerate((0x108, 0x11A, 0x108, 0x1D0)):
+                    self.put(original, 0x250 + i * 16 + 4 * j,
+                             0, dest)
+            self.put(original, 0x1D0, 2, 5, 2, 0x39, 0x8922)
+            image = trace / 'run_0001' / interp.staging.BIN_DATA
+            image.write_bytes(original)
+            manifest_file = poses.with_name('rom_pose_manifest.json')
+            manifest = json.loads(manifest_file.read_text())
+            manifest['private_rom_sha256_for_note_matching'] = hashlib.sha256(original).hexdigest()
+            manifest_file.write_text(json.dumps(manifest))
+            m = interp.report(trace, poses, root / 'review')
+            self.assertEqual(m['two_level_index_code_motifs'], 1)
+            self.assertEqual(m['two_level_index_leaf_rows'], 16)
+            index = m['two_level_index_evidence'][0]
+            self.assertEqual(index['first_level_slots'], 4)
+            self.assertEqual(index['unique_second_level_lists'], 4)
+            self.assertEqual(index['second_level_stride'], 16)
+            self.assertEqual(index['catalogued_footers'], 12)
+            self.assertEqual(index['grammar_only_footers'], 4)
+            self.assertFalse(m['two_level_index_execution_verified'])
+            rows = (root / 'review' / 'pose_footer_two_level_index.tsv').read_text()
+            self.assertIn('ORIGINAL_FOOTER_GRAMMAR_NOT_IN_POSE_CATALOG', rows)
+            self.assertIn('0001D0', rows)
+
     def test_stale_snapshot_and_tampered_footer_rejected(self):
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)
