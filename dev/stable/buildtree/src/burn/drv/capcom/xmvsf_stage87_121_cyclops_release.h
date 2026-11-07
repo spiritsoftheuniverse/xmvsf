@@ -150,15 +150,20 @@ struct Tracker{
                     "WAIT_100_NATIVE_FRAMES");
                 armed[i]=false;
             }else if(waiting[i]){
-                // A naturally exited action or Cyclops ground landing
-                // implies the ROM already progressed: never rewind it.
-                if(action!=0x200Eu || w(r,p+0x10u)>=472u){
+                // A throw may progress through 200F/2010/etc before 100
+                // frames elapse. Keep the countdown for genuine throw
+                // family substates, not only the first 200E action.
+                const bool inThrowFamily=(action&0xFFE0u)==0x2000u;
+                if(!inThrowFamily || w(r,p+0x10u)>=472u){
+                    // Do not rewind a natural non-throw action or landing.
                     emit(f,i,"RELEASE_CANCEL",r,p,other,
-                         action!=0x200Eu?"NATIVE_ACTION_EXIT":"CYCLOPS_LANDED");
+                         !inThrowFamily?"LEFT_THROW_FAMILY":"CYCLOPS_LANDED");
                     waiting[i]=false;
                 }else{
                     // Count real game updates, not sprite-frame changes.
                     // lastFrame==f at entry prevents duplicate callbacks.
+                    const bool reachedDeadlineThisFrame=
+                        recoveryTicks[i]+1u==ReleaseDelayFrames;
                     if(recoveryTicks[i]<ReleaseDelayFrames)
                         ++recoveryTicks[i];
                     const unsigned observed=w(r,p+0x42u);
@@ -168,7 +173,7 @@ struct Tracker{
                     }
                     if(w(r,other+0x10u)>=472u)
                         victimLanded[i]=true; // landing is a latch
-                    if(recoveryTicks[i]==1u || recoveryTicks[i]==ReleaseDelayFrames)
+                    if(recoveryTicks[i]==1u || reachedDeadlineThisFrame)
                         emit(f,i,"RECOVERY_TICK",r,p,other,
                              "FIXED_100_FRAME_DELAY");
                     if(recoveryTicks[i]>=ReleaseDelayFrames && victimLanded[i]){
@@ -177,8 +182,7 @@ struct Tracker{
                              "RESTORED_AFTER_100_NATIVE_FRAMES");
                         waiting[i]=false;
                         pending[i]=true;until[i]=f+16u; // follow log only
-                    }else if(recoveryTicks[i]==ReleaseDelayFrames &&
-                             !victimLanded[i]){
+                    }else if(reachedDeadlineThisFrame && !victimLanded[i]){
                         emit(f,i,"WAIT_VICTIM",r,p,other,
                              "100_FRAMES_COMPLETE_NOT_GROUNDED");
                     }
