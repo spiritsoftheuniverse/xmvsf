@@ -29,7 +29,7 @@ SPECIAL={
     0x328684:'lettering',
     0x327D4A:'partial',
     0x3356F8:'partial',
-    0x33F426:'lettering',  # MODE SELECT sign seen in source screenshot
+    0x33F426:'lettering', 0x33F4AC:'lettering', # MODE SELECT UI sign
     0x32888C:'lettering', # named text source sample
     0x2DF5D2:'effects',   # long abstract streak
     0x328E60:'stage', 0x328EA6:'stage', 0x328F26:'stage',
