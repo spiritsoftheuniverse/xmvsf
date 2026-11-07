@@ -19,7 +19,42 @@ class Atlas {
     SDL_Texture* small_ = nullptr;
     SDL_Texture* logo_ = nullptr;
     SDL_Rect logoSource_ = {0,0,0,0};
+    // A fixed atlas grid is for locating sprites, not laying out text.
+    // Per-glyph bounds discard empty side columns, keeping colored pixels intact.
+    struct Glyph {
+        SDL_Rect src = {0,0,0,0};
+        int advance = 0;
+    };
+    Glyph metrics_[2][128] = {};
     bool attempted_ = false;
+    static void measure(SDL_Surface* surface,Glyph* glyphs,int cell) {
+        if(!surface)return;
+        SDL_Surface* rgba=SDL_ConvertSurfaceFormat(surface,SDL_PIXELFORMAT_RGBA32,0);
+        if(!rgba)return;
+        if(SDL_LockSurface(rgba)!=0){SDL_FreeSurface(rgba);return;}
+        for(int ch=32;ch<=126;ch++) {
+            const int baseX=((ch-32)%16)*cell;
+            const int baseY=((ch-32)/16)*cell;
+            const int span=std::max(0,std::min(cell,rgba->w-baseX));
+            const int height=std::max(0,std::min(cell,rgba->h-baseY));
+            const int tracking=cell==12?2:1; // pixel-space gap, never scaled twice
+            Glyph& g=glyphs[ch];
+            g.advance=(ch==' ' ? cell/2 : std::max(1,cell/2))+tracking;
+            if(span<=0||height<=0)continue;
+            int left=span,right=-1;
+            for(int y=0;y<height;y++)for(int x=0;x<span;x++){
+                const Uint8* p=(const Uint8*)rgba->pixels+
+                    (baseY+y)*rgba->pitch+(baseX+x)*4;
+                if(p[3]>12){left=std::min(left,x);right=std::max(right,x);}
+            }
+            if(right>=left){
+                g.src={baseX+left,baseY,right-left+1,height};
+                g.advance=g.src.w+tracking;
+            }
+        }
+        SDL_UnlockSurface(rgba);
+        SDL_FreeSurface(rgba);
+    }
     static std::vector<std::string> paths(const char* filename) {
         std::vector<std::string> folders;
         folders.push_back("_art/");
@@ -95,6 +130,7 @@ public:
         if(logo_)SDL_DestroyTexture(logo_);
         large_=small_=logo_=nullptr;
         renderer_=nullptr;logoSource_={0,0,0,0};attempted_=false;
+        for(int i=0;i<2;i++)for(int c=0;c<128;c++)metrics_[i][c]=Glyph{};
     }
     void ensure(SDL_Renderer* renderer){
         if(renderer==renderer_ && attempted_)return;
@@ -104,16 +140,28 @@ public:
         SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY,"0");
         SDL_Surface* l=open("sf2font.png");
         if(l){
-            if(l->w==190 && l->h==70)large_=texture(renderer,l);
+            if(l->w==190 && l->h==70){
+                measure(l,metrics_[0],12);
+                large_=texture(renderer,l);
+            }
             else std::fprintf(stderr,"XM MENU ATLAS unexpected large sheet %dx%d\n",l->w,l->h);
             SDL_FreeSurface(l);
         }
         SDL_Surface* s=open("sf2fontsmall.png");
         if(s){
-            if(s->w==128 && s->h==48)small_=texture(renderer,s);
+            if(s->w==128 && s->h==48){
+                measure(s,metrics_[1],8);
+                small_=texture(renderer,s);
+            }
             else std::fprintf(stderr,"XM MENU ATLAS unexpected small sheet %dx%d\n",s->w,s->h);
             SDL_FreeSurface(s);
         }
+        // One character is unpainted in the big source atlas ('/').
+        // Borrow its width from the small sprite to prevent the next glyph
+        // from colliding with the substituted art.
+        if(metrics_[0]['/'].src.w==0 && metrics_[1]['/'].src.w>0)
+            metrics_[0]['/'].advance=
+                (metrics_[1]['/'].src.w*12+7)/8+2;
         SDL_Surface* original=open("logo.png");
         if(original){
             SDL_Surface* rgba=SDL_ConvertSurfaceFormat(original,SDL_PIXELFORMAT_RGBA32,0);
@@ -124,37 +172,55 @@ public:
                 SDL_FreeSurface(rgba);
             }
         }
-        std::fprintf(stderr,"XM MENU ATLAS loaded big=%d small=%d title=%d\n",
-            large_!=nullptr,small_!=nullptr,logo_!=nullptr);
+        std::fprintf(stderr,
+            "XM MENU ATLAS loaded big=%d small=%d title=%d widths big[A]=%d big[I]=%d small[a]=%d small[i]=%d\n",
+            large_!=nullptr,small_!=nullptr,logo_!=nullptr,
+            metrics_[0]['A'].advance,metrics_[0]['I'].advance,
+            metrics_[1]['a'].advance,metrics_[1]['i'].advance);
     }
+    // Intrinsic source pixels determine advances. This is the normalization
+    // pass: narrow I/i/l/1 and punctuation no longer consume a full cell.
     bool text(SDL_Renderer* renderer,const char* s,int x,int y,int maxWidth,
               bool centered,bool small,int scale,Uint8 brightness=255){
         ensure(renderer);
         SDL_Texture* font=small?small_:large_;
         if(!font||!s||!renderer)return false;
+        const Glyph* glyphs=metrics_[small?1:0];
         const int cell=small?8:12;
         scale=std::max(1,scale);
-        const int length=(int)std::strlen(s);
-        if(maxWidth>0 && length*cell*scale>maxWidth && scale>1)scale=1;
-        const int advance=cell*scale;
-        if(centered)x-=length*advance/2;
+        int measured=0;
+        for(const unsigned char* p=(const unsigned char*)s;*p;p++) {
+            const unsigned c=*p;
+            measured+=(c>=32 && c<=126 && glyphs[c].advance>0)
+                ?glyphs[c].advance:cell/2;
+        }
+        if(maxWidth>0 && measured*scale>maxWidth && scale>1)
+            scale=std::max(1,maxWidth/std::max(1,measured));
+        // Optical widths are measured BEFORE centering, not a character count.
+        if(centered)x-=(measured*scale)/2;
         SDL_SetTextureColorMod(font,brightness,brightness,brightness);
         SDL_SetTextureAlphaMod(font,255);
         int written=0;
-        for(int i=0;i<length;i++){
-            // Raw Latin ASCII mapping preserves cases, punctuation and digits.
-            const unsigned char ch=(unsigned char)s[i];
-            if(maxWidth>0 && written+advance>maxWidth)break;
-            if(ch>=33 && ch<=126){
-                const int px=((int(ch)-32)%16)*cell;
-                const int py=((int(ch)-32)/16)*cell;
-                SDL_Rect src={px,py,cell,cell};
-                if(!small && src.x+src.w>190)src.w=190-src.x;
-                if(!small && src.y+src.h>70)src.h=70-src.y;
-                SDL_Rect dst={x+written,y,src.w*scale,src.h*scale};
-                SDL_RenderCopy(renderer,font,&src,&dst);
+        for(const unsigned char* p=(const unsigned char*)s;*p;p++) {
+            const unsigned c=*p;
+            const Glyph& g=glyphs[c<128?c:32];
+            const int advance=(c>=32 && c<=126 && g.advance>0)
+                ?g.advance:cell/2;
+            if(maxWidth>0 && written+std::max(advance,g.src.w)*scale>maxWidth)break;
+            if(c>=33 && c<=126 && g.src.w>0){
+                SDL_Rect dst={x+written,y,g.src.w*scale,g.src.h*scale};
+                SDL_RenderCopy(renderer,font,&g.src,&dst);
+            } else if(c=='/' && !small && small_ && metrics_[1][c].src.w>0) {
+                // The large source sheet has no slash pixels; the small sheet
+                // contains the original mark. Render it at matching height.
+                const Glyph& fallback=metrics_[1][c];
+                SDL_SetTextureColorMod(small_,brightness,brightness,brightness);
+                SDL_Rect dst={x+written,y,
+                    fallback.src.w*cell*scale/8,cell*scale};
+                SDL_RenderCopy(renderer,small_,&fallback.src,&dst);
+                SDL_SetTextureColorMod(small_,255,255,255);
             }
-            written+=advance;
+            written+=advance*scale;
         }
         SDL_SetTextureColorMod(font,255,255,255);
         return true;
@@ -162,11 +228,19 @@ public:
     bool logo(SDL_Renderer* renderer,int cx,int top,int maxWidth,int maxHeight){
         ensure(renderer);
         if(!logo_||logoSource_.w<=0||logoSource_.h<=0)return false;
-        const double scale=std::min(double(maxWidth)/logoSource_.w,double(maxHeight)/logoSource_.h);
-        const int w=std::max(1,int(logoSource_.w*scale+0.5));
-        const int h=std::max(1,int(logoSource_.h*scale+0.5));
+        // The authored PNG is the native 400x300 canvas. Do NOT crop to the
+        // visible logo: the source's 25-pixel top padding is intentional.
+        // Use its original pixels at 1:1 in the 960x540 logical menu.
+        int sourceW=0,sourceH=0;
+        SDL_QueryTexture(logo_,nullptr,nullptr,&sourceW,&sourceH);
+        if(sourceW<=0||sourceH<=0)return false;
+        const double scale=std::min(1.0,std::min(
+            double(maxWidth)/sourceW,double(maxHeight)/sourceH));
+        const int w=std::max(1,int(sourceW*scale+0.5));
+        const int h=std::max(1,int(sourceH*scale+0.5));
+        SDL_Rect source={0,0,sourceW,sourceH};
         SDL_Rect dest={cx-w/2,top,w,h};
-        SDL_RenderCopy(renderer,logo_,&logoSource_,&dest);
+        SDL_RenderCopy(renderer,logo_,&source,&dest);
         return true;
     }
 };
@@ -185,7 +259,7 @@ static inline bool left(SDL_Renderer* r,const char* s,int x,int y,int maxWidth,
                         int scale,Uint8 brightness){
     return atlas().text(r,s,x,y,maxWidth,false,true,scale,brightness);
 }
-static inline bool logo(SDL_Renderer* r,int cx=480,int top=7,int w=740,int h=250){
+static inline bool logo(SDL_Renderer* r,int cx=480,int top=0,int w=400,int h=300){
     return atlas().logo(r,cx,top,w,h);
 }
 } // namespace XMGlyph

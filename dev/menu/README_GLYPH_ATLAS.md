@@ -25,9 +25,33 @@ Implementation: dev/stable/buildtree/src/burner/sdl/xmvsf_menu_glyph_atlas.h
 ## Rendering policy
 
 The PNG is the foreground title, above the original 30%-brightness animated
-menu background; visible logo artwork is cropped to a centered title.
+menu background. Its full 400 x 300 source canvas is rendered at 1:1 with
+its authored transparent padding intact. The visible artwork starts about
+25 native pixels below the PNG's top edge; **do not trim that margin**,
+scale up the logo, or vertically recenter only the nontransparent art.
 Large sprites render primary choices. The small sheet replaces the old
 hand-drawn text on secondary menus, scoreboard, and Training.
+
+## Proportional spacing normalization
+
+The underlying sheets retain their original 16 x 6 coordinate grids and
+colored pixels. A one-time glyph measurement pass scans alpha in each cell
+and extracts its leftmost/rightmost painted columns. The renderer uses those
+exact source bounds and computes a per-character horizontal advance:
+- Large font: painted width + 2 native pixels of tracking.
+- Small font: painted width + 1 native pixel of tracking.
+- Spaces use a separate half-cell word gap rather than a full sprite cell.
+- Centered text is centered by the **sum of measured advances**, not the
+  number of characters.
+- All spacing measurements happen in source pixels, then multiply by the
+  same integer scale as the glyphs (no blurry interpolation).
+- A blank large-font slash uses the original small-font slash as fallback.
+
+For example, the large capital I is only 5 painted pixels wide (versus
+10-11 for most capitals), so its advance is now **7** instead of **12**.
+The small lowercase i is 3 pixels wide and advances **4** instead of **8**.
+The original PNG sheets are left unmodified; these layout metrics are
+derived at load time, which keeps changes compatible with source artwork.
 
 Selected choices show at full brightness. All other choices are darkened.
 Do not draw selection arrows, surrounding boxes, or highlight stripes.
