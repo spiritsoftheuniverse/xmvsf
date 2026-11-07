@@ -861,3 +861,82 @@ Next unproven link: which 68000 paths execute while specific MVC stages
 animate and which stage actor/script references those candidate table bases.
 That requires correlating source tables and actual hardware object records;
 this tool does not mark unexecuted opcode motifs as scene ownership.
+
+
+## 68000 source descriptor vs original graphics ownership (2026-11-07)
+
+New read-only tool \`TRACE_MVC_OBJECT_OWNERS.py\` correlates the existing
+\`run_1\` MVC1 writer-PC capture, \`staging_descriptor_emitters.tsv\`,
+\`sprite_factory/sprite_observations.tsv.gz\` (17 captured shots), and the
+*original decoded* \`mvc1_decoded_gfx_*.bin\` from \`stage_capture\`.
+It never executes MVC or modifies the original capture and never puts
+ROM instructions, sprites, or GFX bytes into its review ZIP.
+
+The original 198,050 object observations included **49,812 objects with
+NO VISIBLE SOURCE PIXELS** (verified using the complete native
+multi-tile 4-bpp artwork). 48,198 of those come from the completely
+transparent \`$16820\` tile. This tile appears at *all eight* sprite
+priorities, so a priority-channel-only gallery can overstate the number
+of visible objects. These entries remain in the evidence catalog; no
+source observation is discarded.
+
+Cross-reference the 68000 program's exact \`MOVEM.W D0-D3,(A0)\`
+descriptor emitters against the original object *tile + full attributes*,
+not just visually similar pixels. Of 42 static patterns, **13 literal
+tile-and-attribute matches** were found in this source evidence:
+six land on transparent objects, six on repeated fixed-screen
+priority-7 interface candidates, and two are unresolved rare objects
+(the 13-pattern number counts patterns with both literal tile and
+literal attributes; one additional match has unknown attributes).
+These are *static code-pattern correlations*, NOT independently observed
+upstream 68000 execution.
+
+Grounded source examples:
+
+- \`$00689E\`: 68000 immediate tile \`$6CD8\` plus attributes \`$151F\`
+  matches a 6×2, palette-31 native OBJ \`$16CD8\` observed 844 times
+  across all 17 shots at native screen location (144,5).
+- \`$0063C0/$006402\`: tile \`$6978\`, attributes \`$001F\`;
+  source OBJ \`$16978\` was seen 1,554 times across all 17 shots
+  at fixed left/right interface positions.
+- \`$0069F4/$006A1C\`: tile \`$6CA6\` with attribute variants
+  \`$151F/$153F\`; source OBJ \`$16CA6\` is a fixed-screen,
+  6×2, priority-7 candidate.
+- \`$00652E/$006556\`: tile \`$6930\`, attributes \`$001F\`
+  matches original tile \`$16930\` in only two shots. Its
+  stage/fighter/interface ownership remains **unverified**.
+
+The high graphics bank is derived from the Y word:
+\`full_tile = tileword | ((yword & 0x6000) << 3)\`. Matching just the
+16-bit tile word across different graphics banks must **not** be
+presented as a proven identical image.
+
+After pulling the active feature branch, run offline:
+
+    RUN_TEST.bat m68k
+
+This runs the writer-PC, staging-code, and new owner-correlation reports.
+If the prior Sprite Factory observation file is absent, the owner pass
+states that and leaves the two earlier reports intact; generating
+observations is also offline via \`RUN_TEST.bat sprites all\`.
+
+The new output is:
+
+    test/87.203/m68k_owner/m68k_owner_evidence_review.zip
+
+Files include \`object_family_evidence.tsv\` (all source object variants
+with native visibility), \`m68k_descriptor_matches.tsv\` (candidate
+writer function and full attributes), \`m68k_runtime_overlap.tsv\`, and
+a manifest with explicit confidence limitations. If local
+\`stage_capture/session_*/mvc1_decoded_gfx_*.bin\` is absent, pixel
+visibility is left UNKNOWN rather than fabricated.
+
+Offline synthetic tests:
+
+    python dev\stage_capture\test_trace_mvc_object_owners.py
+
+Remaining task: distinguish genuine stage machinery from fighters and FX
+using animated object-world continuity and/or executed upstream 68000
+source references. Repeated fixed-screen priority-7 is a *probable
+interface family*, not a hard-coded gameplay filter. Never silently
+drop sprites from any priority channel, and do not mark stages complete.
