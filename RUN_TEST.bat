@@ -72,6 +72,11 @@ if not exist "%OBSROOT%" (
   echo ERROR: Cannot create 87.175 native observer log directory.
   goto :fail
 )
+REM XM87.209 restore previously successful 87.121 Cyclops air-throw recovery.
+REM Exact pre-throw airborne state after victim lands; no forced new jump.
+REM Inherited XM87121_CYCLOPS_RELEASE=0 remains an explicit A/B opt-out.
+if not defined XM87121_CYCLOPS_RELEASE set "XM87121_CYCLOPS_RELEASE=1"
+if not defined XM87121_CYCLOPS_LOG_FILE set "XM87121_CYCLOPS_LOG_FILE=%OBSROOT%\cyclops_air_throw_release.tsv"
 set "XM87175_DHC_OBSERVER=1"
 set "XM87175_DHC_OBSERVER_LOG=%OBSROOT%\dhc_acceptance_test.tsv"
 REM 87.185: subframe 68000 trace; delayed priming is unsafe by default.
@@ -250,6 +255,7 @@ set "XM8799_GROUND_DEFENSE_TEST=1"
 set "XM87149_TOURNAMENT_AUDIT=%XM87140_CHAT_DIR%\tournament_rules.tsv"
 REM Marvel vs. Capcom capture should not print XMVSF DHC instructions.
 if /I "%SOURCE_ROM:~0,4%"=="mvsc" goto :mvc_source_banner
+echo Cyclops air-throw 87.121 recovery: %XM87121_CYCLOPS_RELEASE%  log: %XM87121_CYCLOPS_LOG_FILE%
 echo 87.186 STARTUP HEALTH: %XM87181_DIAGNOSTIC_STATUS%
 echo 87.175 NATIVE OBSERVER: %XM87175_DHC_OBSERVER_LOG%
 echo Native actor rows require a running XMVSF combat session; menu exit writes health only.
@@ -324,6 +330,7 @@ if /I "%SOURCE_ROM:~0,4%"=="mvsc" (
 REM MVC1 is the donor, not the DHC host. Disable all XMVSF-only test
 REM mutations/lighting before starting original MVC1 execution.
 if /I "%SOURCE_ROM:~0,4%"=="mvsc" (
+  set "XM87121_CYCLOPS_RELEASE=0"
   set "XM87144_DHC_NATIVE_TEST=0"
   set "XM87156_PROOF_NATIVE=0"
   set "XM87157_EARLY_CANCEL=0"
