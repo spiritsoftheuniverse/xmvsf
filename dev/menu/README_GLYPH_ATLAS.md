@@ -25,12 +25,43 @@ Implementation: dev/stable/buildtree/src/burner/sdl/xmvsf_menu_glyph_atlas.h
 ## Rendering policy
 
 The PNG is the foreground title, above the original 30%-brightness animated
-menu background. Its full 400 x 300 source canvas is rendered at 1:1 with
-its authored transparent padding intact. The visible artwork starts about
-25 native pixels below the PNG's top edge; **do not trim that margin**,
-scale up the logo, or vertically recenter only the nontransparent art.
-Large sprites render primary choices. The small sheet replaces the old
-hand-drawn text on secondary menus, scoreboard, and Training.
+menu background. The source is a 400x300 **export canvas**, NOT a 400x300
+on-screen target. The renderer measures the alpha-visible art, crops only
+the extra transparent source margins, then fits the original painted pixels
+proportionally inside the exact reference area. No resaved, repainted, or
+warped source PNG is necessary.
+
+### User's screenshot: fixed native-coordinate alignment
+
+The supplied 1811x1358 example is nearly 4:3. Its positions map uniformly
+into a 720x540 safe frame centered at x=120 inside the game's 960x540 SDL
+logical canvas, so the **artwork and glyphs keep the original aspect ratio**
+rather than being distorted to fill the widescreen window.
+
+All values below are **logical SDL coordinates**, not physical display
+pixels (window resizing leaves them anchored):
+
+| Element | Native target |
+| --- | --- |
+| Logo visible artwork | x=235, y=51, maximum w=544, h=289 (fit and center) |
+| Menu text centerline | x=489 |
+| ARCADE | y=347 |
+| TRAINING / VERSUS / CONTROLS / OPTIONS | y=378 / 409 / 440 / 471 |
+| A SELECT  B BACK | centered x=489, y=495 |
+| ESC TO QUIT | centered x=489, y=522 |
+| TEST 87.204 | right edge x=944, y=522 |
+
+These are explicitly stored in XMGlyph::MainLayout, so one presentation
+contract controls the initial frame and every subsequent boot/menu frame.
+The title block ends near y=340; the selected entry begins at y=347.
+The 7-pixel gap matches the reference rather than the previous 400x300
+canvas assumption.
+
+Primary menu choices use the **large SF2 sprite font at 1.35x**. The
+control hint uses the small sprite font at 1.375x; the exit hint is at 1.20x,
+and the version stamp at 1.08x. SDL's nearest-neighbor sampler snaps those
+fractionally scaled pixels to the pixel grid without blurring.
+The other menus retain their existing layout and small font behavior.
 
 ## Proportional spacing normalization
 
@@ -43,8 +74,10 @@ exact source bounds and computes a per-character horizontal advance:
 - Spaces use a separate half-cell word gap rather than a full sprite cell.
 - Centered text is centered by the **sum of measured advances**, not the
   number of characters.
-- All spacing measurements happen in source pixels, then multiply by the
-  same integer scale as the glyphs (no blurry interpolation).
+- All spacing measurements happen in source pixels. The native menu
+  fits them at the screenshot-derived fractional scale with pixel-snapped
+  destination rectangles and nearest-neighbor sampling; auxiliary menus
+  retain their existing integer scale.
 - A blank large-font slash uses the original small-font slash as fallback.
 
 For example, the large capital I is only 5 painted pixels wide (versus
@@ -83,8 +116,9 @@ original _art PNG files; do not resample or replace them.
 
 1. Run BUILD_TEST.bat. It now publishes ONLY
    runtime/stable/XMVSF_Test_87_204.exe after compiling current source.
-   The first 87.204 build refreshes SDL main.cpp and run.cpp once, without
-   deleting warmed objects, old TEST binaries, or Stable.
+   A missing executable or modified menu/glyph header refreshes SDL
+   main.cpp and run.cpp without deleting warm build objects, old TEST
+   binaries, or Stable.
 2. Read test/build_logs/BUILD_TEST.log for the 87.204 success line and
    the SHA256 hashes of the compiled executable and three source PNGs.
    If an asset or the glyph-header include is missing, the builder gives
