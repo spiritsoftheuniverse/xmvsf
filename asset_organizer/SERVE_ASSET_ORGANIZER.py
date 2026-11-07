@@ -93,6 +93,14 @@ def make_handler(root: Path, catalog: dict, trace_root: Path | None = None):
             if not self._allowed_host(): return self._reply(403, b'Forbidden', 'text/plain')
             if self.path in ('/', '/index.html'):
                 return self._reply(200, page.read_bytes(), 'text/html; charset=utf-8')
+            if self.path == '/animations.html':
+                preview = root / 'animations.html'
+                if not preview.is_file(): return self._reply(404, b'Animation preview not generated yet; run RUN_TEST.bat art', 'text/plain')
+                return self._reply(200, preview.read_bytes(), 'text/html; charset=utf-8')
+            if self.path == '/api/captured_animations':
+                manifest = root / 'captured_animations.json'
+                if not manifest.is_file(): return self._reply(404, b'No captured animation manifest yet', 'text/plain')
+                return self._reply(200, manifest.read_bytes(), 'application/json; charset=utf-8')
             if self.path == '/api/review':
                 if not review_path.is_file(): return self._reply(404, b'No aodata.json yet', 'text/plain')
                 return self._reply(200, review_path.read_bytes(), 'application/json; charset=utf-8')
@@ -117,6 +125,14 @@ def make_handler(root: Path, catalog: dict, trace_root: Path | None = None):
                         from BUILD_WANTED_SEQUENCES import build as build_wanted
                         report=build_wanted(review_path, trace_root, root/'wanted_sequences.json')
                         print('Updated',report['wanted'],'Wanted assets /',report['candidateGroupCount'],'source-adjacent clusters',flush=True)
+                        observations=trace_root.parent/'sprite_factory'/'sprite_observations.tsv.gz'
+                        capture=trace_root.parent/'stage_capture'
+                        template=root/'CAPTURED_ANIMATIONS_TEMPLATE.html'
+                        if observations.is_file() and capture.exists() and template.is_file():
+                            from BUILD_CAPTURED_ANIMATIONS import build as build_animations
+                            art=build_animations(review_path, root/'wanted_sequences.json',root/'index.html',
+                                observations,capture,trace_root,template,root/'animations.html')
+                            print('Updated',art['previewTakes'],'sampled animation takes with',art['backgroundFrames'],'capture backdrops',flush=True)
                     except (OSError, ValueError, KeyError) as error:
                         print('NOTICE: aodata.json saved, but sequence metadata not updated:', error, flush=True)
             except (ValueError, TypeError, UnicodeError) as exc:
