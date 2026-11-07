@@ -1,4 +1,4 @@
-# MVC1 original-sprite category review (Stage 87.203)
+# MVC1 original-sprite Asset Organizer (Stage 87.203)
 
 Run the **existing** Windows launcher after obtaining the source evidence:
 
@@ -11,48 +11,34 @@ captures, use GitHub Actions, or touch Stable.
 
 Generated offline file:
 
-    test\87.203\art_review\MVC1_sprite_review.html
+    asset_organizer\index.html
 
 Open the generated HTML in a normal browser. It is fully self-contained:
 original decoded MVC1 sprite pixels are embedded directly as PNG data
 URLs, so the viewer does **not** require a web server, ROM access, or network
 connection after generation.
 
-## Reviewer controls
+## Organizer controls
 
-- Each boxed sprite is an assembled object candidate. Click the box to
-  toggle **Wanted** / **Unwanted**. First click on an unreviewed box chooses
-  Wanted. Each sprite also has a checkbox and an enlarged Zoom preview.
-- **Check all** / **Uncheck all** apply to every member of that category,
-  including items currently hidden by search filters.
-- Categories are **assumptions**, not ROM-derived ownership or verified stage
-  identities. Reassign any sprite using the category dropdown inside the
-  card.
-- Search by the exact original header address, sample frame, shot, category,
-  or selector value. Filter Wanted / Unwanted / Unreviewed or component
-  completeness. The totals distinguish these states.
-- **Save review JSON** downloads a complete machine-readable
-  `MVC1_ART_REVIEW_SELECTIONS_V1` file, including all original offsets,
-  source shot/frame, selector, number of matching components, chosen
-  category, and a `wanted` value of true, false or null (unreviewed).
-  **Load review JSON** restores decisions for the matching SHA-256 program.
-  The browser also attempts local persistence. The downloaded JSON is
-  the durable copy and should be preserved.
-
-## Assumed categories
-
-- Character / figure candidates
-- Stage / machinery candidates
-- Lettering / HUD candidates
-- Effects / abstract candidates
-- Partial / unresolved fragments
-
-These are based on image proportions and a few manual visual observations.
-They are **not** game-derived object identities. A matching record with
-all expected descriptor pairs is NOT proof that the grouping is a real
-animation frame. Original OAM observations can reuse hardware slots and
-contain multiple objects. Some large or ambiguous groups are placed under
-partial/unresolved even if all descriptor pairs have matches.
+- Click a boxed sprite to toggle **Wanted** / **Unwanted**; the initial state
+  remains **Unreviewed**. Each sprite also has a checkbox and Zoom view.
+- Four **independent category tags** can be toggled on each sprite:
+  **Character**, **Effect**, **Background**, and **Level Sprite**.
+  A sprite may carry several tags and appear in several tag groups.
+- **Check all** and **Uncheck all** within a group change Wanted status for
+  all assets assigned to that tag, including those hidden by review filters.
+  They do not modify the tag assignments.
+- Previous tentative figure, effects and stage classifications provide only
+  starting guesses for Character, Effect and Level Sprite. Lettering and
+  unresolved fragments start untagged; Background starts untagged until
+  supported by manual review. Tags are editable; no ROM identity is claimed.
+- Search and filter by review status, completeness, and chosen tag.
+- **Save assets JSON** produces `MVC1_ASSET_ORGANIZER_V2` with all 560
+  asset IDs/ROM offsets, source frames, independent tag arrays and decisions.
+  **Load assets JSON** restores tags and decisions, and can import
+  `MVC1_ART_REVIEW_SELECTIONS_V1` files from the previous viewer.
+  Exported JSON is the durable record; local browser persistence is helpful
+  but not guaranteed across changed HTML paths.
 
 ## Regenerate offline
 
@@ -60,7 +46,8 @@ partial/unresolved even if all descriptor pairs have matches.
       --trace-root test\87.203\m68k_trace ^
       --observations test\87.203\sprite_factory\sprite_observations.tsv.gz ^
       --capture test\87.203\stage_capture ^
-      --output test\87.203\art_review\MVC1_sprite_review.html
+      --template asset_organizer\ASSET_ORGANIZER_TEMPLATE.html ^
+      --output asset_organizer\index.html
 
 The source-only synthetic tests are:
 
@@ -82,14 +69,13 @@ objects. Do not infer missing art is absent from the ROM.
 ## Source privacy and visual accuracy
 
 - Only exporter **source** and the empty HTML **template** belong on GitHub.
-  The generated HTML contains original game artwork and MUST remain
-  under ignored `test/`, alongside the original decoded GFX, program data
-  and sprite capture. Do not commit the generated HTML, graphics binaries
+  The generated `asset_organizer/index.html` contains original game artwork
+  and MUST remain Git-ignored, alongside original source captures under `test/`. Do not commit the generated HTML, graphics binaries
   or private ROM snapshots.
 - The original sprite positions, exact tile/attribute pairs, hardware
   dimensions, palette slots and recorded frames are retained. Pixel colors
   currently use the captured **raw CPS2 palette RAM approximation**; the
   post-DMA effective native palette is not yet certified.
-- Gallery categories can be refined by human review using the saved JSON.
+- Asset tags can be refined by human review using the saved JSON.
   This tool does not identify verified 68000 runtime frame durations, script
   targets, stage actors, or cycle timing.
