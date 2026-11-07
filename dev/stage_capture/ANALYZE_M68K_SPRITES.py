@@ -13,6 +13,7 @@ import csv
 import json
 from pathlib import Path
 import re
+import struct
 import sys
 import zipfile
 
@@ -24,7 +25,8 @@ RUN = re.compile(r'run_\d+\Z')
 OPCODE_NAME='mvc_opcodes_decrypted_host_words.bin'
 DATA_NAME='mvc_program_data_host_words.bin'
 FILE_NAMES=('m68k_writer_pcs.tsv','m68k_object_families.tsv',
-            'm68k_tile_transitions.tsv','m68k_manifest.json','m68k_summary.txt')
+            'm68k_tile_transitions.tsv','m68k_rom_tile_references.tsv',
+            'm68k_rom_tile_sequences.tsv','m68k_manifest.json','m68k_summary.txt')
 # Raw opcode bytes in m68k_writer_code.tsv are intentionally LOCAL ONLY.
 
 class TraceError(ValueError):
@@ -93,6 +95,7 @@ def analyze(root:Path,output:Path,pc_limit:int=600)->dict:
     run=source_run(root)
     output.mkdir(parents=True,exist_ok=True)
     instructions=b''
+    program_data=b''
     program_bytes=0
     writer_count=0
     pcs=defaultdict(Counter)
@@ -104,13 +107,17 @@ def analyze(root:Path,output:Path,pc_limit:int=600)->dict:
     last_slot={}
     warnings=[]
     capped=False
+    native_tile_words=Counter()
+    nonblank_priorities=Counter()
     if run is None or not (run/'sprite_writes.tsv').is_file():
         warnings.append('NO_M68K_WRITER_TRACE: an existing MVC ROM run must have used RUN_TEST.bat mvscur1 trace; no writer PCs can be invented from OAM history.')
     else:
         data=run/DATA_NAME
         code=run/OPCODE_NAME
         if data.is_file():
-            program_bytes=data.stat().st_size
+            if data.stat().st_size>16*1024*1024:raise TraceError('private ROM exceeds CPS2 size limit')
+            program_data=data.read_bytes()
+            program_bytes=len(program_data)
         if code.is_file():
             if code.stat().st_size>16*1024*1024:raise TraceError('decrypted code source larger than CPS2 limit')
             instructions=code.read_bytes()
@@ -139,6 +146,9 @@ def analyze(root:Path,output:Path,pc_limit:int=600)->dict:
                 family=tile&~15
                 pal=attr&31
                 pri=(xword>>13)&7
+                if tileword not in (0,0x8000,0xffff) and not(yword&0x8000) and attr<0xff00:
+                    native_tile_words[tileword]+=1
+                    nonblank_priorities[pri]+=1
                 who=details[pc]
                 who['frames'].add(frame)
                 who['tiles'].add(tile)
@@ -200,18 +210,53 @@ def analyze(root:Path,output:Path,pc_limit:int=600)->dict:
               ('writer_pc_hex','decrypted_opcode_bytes_big_endian','disassembly_if_capstone_installed'),
               [(f'{pc:06X}',read_window(instructions,pc),asm_window(instructions,pc))
                for pc in ranked[:pc_limit]])
+    # Search the original 68000 program READ space for the tile word IDs
+    # actually written to CPS2 OBJ. The data image is host-word-swapped:
+    # a 68000 16-bit 0x6CD0 appears as bytes D0 6C. Only aligned matches
+    # are indexed. Coincidence and text-glyph tables remain unverified.
+    matches=[]
+    sequences=[]
+    if len(program_data)>1 and native_tile_words:
+        count=len(program_data)//2
+        words=struct.unpack('<'+str(count)+'H',program_data[:count*2])
+        for i,word in enumerate(words):
+            if word in native_tile_words:
+                matches.append((f'{i*2:06X}',f'{word:04X}',native_tile_words[word]))
+        i=0
+        while i+3<count:
+            if words[i] not in native_tile_words:
+                i+=1
+                continue
+            j=i+1
+            while (j<count and words[j] in native_tile_words
+                   and words[j]==words[j-1]+1):
+                j+=1
+            if j-i>=4:
+                sequences.append((f'{i*2:06X}',j-i,f'{words[i]:04X}',f'{words[j-1]:04X}'))
+                i=j
+            else:
+                i+=1
+    write_tsv(output/'m68k_rom_tile_references.tsv',
+              ('rom_data_offset_hex','observed_tile_word_hex','observed_writer_events'),matches)
+    write_tsv(output/'m68k_rom_tile_sequences.tsv',
+              ('rom_data_offset_hex','consecutive_tile_count','first_tile_hex','last_tile_hex'),sequences)
     report={'format':'XMVSF_STAGE87_203_MVC_M68K_WRITER_PROVENANCE_V1',
             'source_run':str(run) if run else None,'private_code_captured':bool(instructions),
             'private_data_captured':program_bytes>0,'writer_records':writer_count,
             'unique_writer_pcs':len(pcs),'object_families':len(families),
             'candidate_tile_transitions':len(transitions),
             'pc_disassembly_windows':min(pc_limit,len(ranked)),
+            'reported_handler_pc_equals_instruction_start_verified':False,
+            'nonblank_sprite_priorities':dict(sorted(nonblank_priorities.items())),
+            'observed_nonblank_tile_words':len(native_tile_words),
+            'rom_aligned_tile_references':len(matches),
+            'rom_consecutive_tile_sequences':len(sequences),
             'trace_cap_reached':capped,'warnings':warnings,
             'provenance':'Guest 68000 PC at committed CPS2 attribute-word writes; no code modifications.',
             'verified_animation_tables':False,
             'verified_stage_sprite_identity':False,
             'interleaving_verified_by_this_tool':False,
-            'confidence_note':'Only writer-PC and object fields are observed. A-register ROM pointers and same-slot transitions are correlation candidates, not proven source tables or animation scripts.',
+            'confidence_note':'SekGetPC(-1) at the handler may reference an instruction extension word, not the write opcode boundary. Raw opcode context is local-only. ROM tile matches and same-slot transitions are candidates, not proven animation tables.',
             'rom_binaries_in_report':False,
             'raw_opcode_windows_in_report':False,
             'local_private_opcode_windows_file':'m68k_writer_code.tsv'}
@@ -222,6 +267,10 @@ def analyze(root:Path,output:Path,pc_limit:int=600)->dict:
              f'Object family signatures: {len(families)}',
              f'Candidate same-slot transitions: {len(transitions)}',
              f'Private code present locally: {bool(instructions)}',
+             f'Nonblank sprite priorities: {dict(sorted(nonblank_priorities.items()))}',
+             f'Aligned ROM-data tile references: {len(matches)}',
+             f'ROM tile runs of 4+ consecutive IDs: {len(sequences)}',
+             'Note: reported handler PC may land on an instruction extension word.',
              'No ROM/decrypted opcode bytes are included in the review bundle.',
              'Animation-script and scene-actor ownership NOT verified.']
     summary.extend('WARNING '+w for w in warnings)
