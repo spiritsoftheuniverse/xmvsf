@@ -37,6 +37,8 @@ def validate_review(review: object, catalog: dict) -> None:
     if (not isinstance(items, list) or len(items) != len(entries) or
             review.get('sourceCatalogSize') != len(entries)):
         raise ValueError('review must include exactly the full source catalog')
+    original_groups = catalog.get('colorAnalysis', {}).get('groups', [])
+    valid_color_groups = {g['id'] for g in original_groups} if original_groups else {'palette_001'}
     seen = set()
     for item in items:
         if not isinstance(item, dict) or item.get('id') not in entries:
@@ -52,6 +54,12 @@ def validate_review(review: object, catalog: dict) -> None:
         if (not isinstance(tags, list) or len(set(tags)) != len(tags)
                 or any(not isinstance(t, str) or t not in TAGS for t in tags)):
             raise ValueError('invalid asset tags')
+        # Optional V2 manual reassignment. Old aodata.json files omit it.
+        # Only existing captured-palette containers may be referenced.
+        if 'colorGroupOverride' in item:
+            dest = item['colorGroupOverride']
+            if dest is not None and (not isinstance(dest, str) or dest not in valid_color_groups):
+                raise ValueError('invalid color assignment container')
         if item.get('reviewStatus') != ('WANTED' if item['wanted'] is True else 'UNWANTED' if item['wanted'] is False else 'UNREVIEWED'):
             raise ValueError('invalid review status')
     if len(seen) != len(entries): raise ValueError('missing asset IDs')
