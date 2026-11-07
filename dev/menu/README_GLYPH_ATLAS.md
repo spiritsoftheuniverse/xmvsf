@@ -213,7 +213,38 @@ shipping the fallback. TEST 87.207 recompiles native UI/HUD source
 (including `cps_obj.cpp`) and publishes only
 `runtime/stable/XMVSF_Test_87_207.exe`, never Stable.
 
-## Native TEST version 87.207 and local verification
+## TEST 87.208 — Seam-free purple vibration and corrected stun fill
+
+The two visible horizontal limits in the logo arose from hard rectangular
+`vsCore` / `bottomShadow` thresholds, together with a low-brightness
+chroma cutoff. Those rectangles are removed. Purple membership now follows
+the original PNG's **actual purple RGB pixels**, including dark gradients;
+two overlapping vibration frequencies crossfade smoothly over the logo's
+height. The moving Bayer gas remains source-pixel-locked. There is no
+rectangular crop, alpha change, blur or pixel displacement.
+
+The provided `_art/examples/example_stunbar.png` depicts the active
+**44-pixel partial** fill, not the bar's maximum capacity. The native right
+stun base (`_art/stunbar_base.png`, 61x6) determines its own opaque span
+per source row. At **100% stun**, every original visible source span is
+filled, through both ends. The P1 copy still mirrors P2 horizontally.
+At partial stun, the growing diagonal leading cut is one source pixel
+per row; the exact ROM stun value determines its width. The 1-pixel
+shadow sits **inside** the filled span and is also intersected with
+the original PNG's base alpha, preventing the former two-pixel overrun.
+
+The ordinary accumulating fill now uses a yellow-to-orange graded band.
+Only when the displayed bar reaches **100%** (including the existing
+dizzy-trigger flash) does it switch to a vivid seven-color rainbow,
+in 4px diagonals moving **3 pixels every emulated frame**. The UI render
+order and 45 native y-coordinate are unchanged; no gameplay mechanics,
+native CPS2 stun counters or Stable build are modified.
+
+The updated builder and launchers target only
+`runtime/stable/XMVSF_Test_87_208.exe`. These are source changes, not
+a claim of Windows runtime or visual verification.
+
+## Native TEST version 87.208 and local verification
 
 **Pulling only main does not include this branch.** The source modifications
 are on feature/menu-logo-glyph-atlas-selection-dimming. In the Windows
@@ -227,16 +258,16 @@ Preserve any uncommitted local work before switching branches. Keep the
 original _art PNG files; do not resample or replace them.
 
 1. Run BUILD_TEST.bat. It now publishes ONLY
-   runtime/stable/XMVSF_Test_87_207.exe after compiling current source.
+   runtime/stable/XMVSF_Test_87_208.exe after compiling current source.
    A missing executable or modified menu/video/audio/crash header refreshes
    only main.cpp, run.cpp, vid_sdl2.cpp, aud_sdl.cpp and cps_obj.cpp, without
    deleting warm build objects, older TEST binaries, or Stable.
-2. Read test/build_logs/BUILD_TEST.log for the 87.207 success line and
+2. Read test/build_logs/BUILD_TEST.log for the 87.208 success line and
    the SHA256 hashes of the compiled executable, four source PNGs and GIF.
    If an asset or the glyph-header include is missing, the builder gives
    a precise error instead of silently building a legacy-looking menu.
 3. Run RUN_TEST.bat option 1. The menu window title and bottom-right
-   main-menu label both say TEST 87.207. If they do not, you are not
+   main-menu label both say TEST 87.208. If they do not, you are not
    looking at the newly compiled native XMVSF build.
 4. The gameplay path is still the native XMVSF app's zero-ROM-argument
    boot selector, NOT the separate MVC1 capture/ROM playback mode.
@@ -245,7 +276,7 @@ original _art PNG files; do not resample or replace them.
 5. Verify the unselected text is dim, selected text is bright, and that
    I, i, l, 1, punctuation and word gaps no longer waste full cell widths.
 6. New F9 replays, observer/chat diagnostics and replay verification live
-   under test/87.207. Legacy test/87.203 capture data is not modified;
+   under test/87.208. Legacy test/87.203 capture data is not modified;
    original replay files remain accessible through RUN_REPLAY.bat.
 
 This source audit includes inspection of the tracked code, unchanged font
