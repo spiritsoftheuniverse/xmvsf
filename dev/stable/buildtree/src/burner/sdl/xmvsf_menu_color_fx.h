@@ -102,12 +102,16 @@ static inline void logoPalettePulse(const std::vector<Uint8>& source,
         if(hi<32 || int(hi)-int(lo)<22)continue;
         const float hue=hueDegrees(red,green,blue);
         float gain=1.0f;
+        bool warm=false;
+        float pulse=0.0f;
         if(hue>=16.0f && hue<80.0f){
-            // Yellow and orange have their own overlapping pulse envelopes.
+            // Yellow and orange have separate overlapping envelopes.
             const float mix=(hue-16.0f)/64.0f;
-            gain=1.02f+0.27f*(orangePulse*(1.0f-mix)+yellowPulse*mix);
+            pulse=orangePulse*(1.0f-mix)+yellowPulse*mix;
+            gain=1.02f+0.18f*pulse;warm=true;
         }else if(hue>=80.0f && hue<178.0f){
-            gain=1.03f+0.27f*greenPulse;
+            pulse=greenPulse;
+            gain=1.02f+0.18f*pulse;warm=true;
         }else if(hue>=184.0f && hue<=338.0f){
             const float curl=std::sin(float(x)*0.047f+float(y)*0.023f+
                                 seconds*0.60f+
@@ -119,9 +123,18 @@ static inline void logoPalettePulse(const std::vector<Uint8>& source,
             const float threshold=(float(bayer[(y&3)*4+(x&3)])+0.5f)/16.0f;
             gain=0.82f+0.28f*cloud+(cloud>threshold?0.11f:-0.07f);
         }else continue; // red badge, neutrals and other colors unchanged
-        output[p]=byte(float(red)*gain);
-        output[p+1]=byte(float(green)*gain);
-        output[p+2]=byte(float(blue)*gain);
+        if(warm){
+            // Add a gentle light-to-white component as well as exposure.
+            // Pure 255 greens/yellows otherwise cannot pulse by multiplication.
+            const float glow=0.02f+0.16f*pulse;
+            output[p]=byte(float(red)*gain+(255.0f-float(red))*glow);
+            output[p+1]=byte(float(green)*gain+(255.0f-float(green))*glow);
+            output[p+2]=byte(float(blue)*gain+(255.0f-float(blue))*glow);
+        }else{
+            output[p]=byte(float(red)*gain);
+            output[p+1]=byte(float(green)*gain);
+            output[p+2]=byte(float(blue)*gain);
+        }
     }
 }
 } // namespace XMMenuColor
