@@ -335,7 +335,43 @@ sprite-frame advances, unchanged world position and opponent RAM,
 and the previous opt-out. BUILD_TEST runs this regression before
 the incremental native build. No Stable, ROM, DHC or F9 replay changes.
 
-## Native TEST version 87.210 and local verification
+## TEST 87.211 — Cyclops air-throw timing: every native update
+
+**87.210 regression confirmed in source:** The air-throw release threshold
+was coupled to five **changes** in RAM word `+0x42`. A held animation
+pose can keep this word unchanged across many real emulation frames, so
+recovery could remain stuck at zero or one observed changes even after
+Cyclops spent more than five frames in `200E`.
+
+87.211 preserves the original 87.121 native grab-end transition
+(`200C -> 200E`), Cyclops-only fighter gate, saved preceding airborne
+controller and opponent-grounded `1C34` requirement. It starts the
+`recoveryTicks` counter at zero at grab-end, then increments **once on
+each distinct native combat-frame callback** while Cyclops remains in
+`200E`. At five ticks, it restores the saved airborne state as soon
+as the opponent is grounded. Duplicate callbacks with the same frame
+ID do not count; the `+0x42` value and changes are still recorded,
+but no longer gate recovery. Natural action exit or Cyclops landing
+still cancels pending restoration to avoid overwriting another move.
+
+The named TSV log includes `recovery_ticks` and separate
+`anim_advances` diagnostics, with `RECOVERY_TICK`, `RELEASED`,
+`WAIT_VICTIM`, `FLIP_REJECTED`, and `RELEASE_CANCEL` decisions.
+If the real ROM skips the strict 87.121 first-flip signature, its
+mismatch is logged rather than silently disappearing.
+
+A new ROM-free C++11 regression at
+`dev/dhc/tests/test_stun_and_cyclops_211.cpp` holds the *same* +0x42
+pose for five separate native updates, verifies the release on the
+fifth update (not on an animation-word change), prevents duplicate
+frame counts, checks delayed victim landing, opt-out, natural action
+exit, and retains all reference-image stun/HUD assertions.
+It replaces the 87.210 synthetic test in BUILD_TEST.bat.
+
+This corrects a demonstrated logical gate. Native Windows gameplay
+verification is still required to prove the observed Cyclops recovery.
+
+## Native TEST version 87.211 and local verification
 
 **Pulling only main does not include this branch.** The source modifications
 are on feature/menu-logo-glyph-atlas-selection-dimming. In the Windows
@@ -349,16 +385,16 @@ Preserve any uncommitted local work before switching branches. Keep the
 original _art PNG files; do not resample or replace them.
 
 1. Run BUILD_TEST.bat. It now publishes ONLY
-   runtime/stable/XMVSF_Test_87_210.exe after compiling current source.
+   runtime/stable/XMVSF_Test_87_211.exe after compiling current source.
    A missing executable or modified menu/video/audio/crash header refreshes
    only main.cpp, run.cpp, vid_sdl2.cpp, aud_sdl.cpp, cps_obj.cpp, cps_draw.cpp
    and cps_run.cpp without deleting warm build objects, older binaries, or Stable.
-2. Read test/build_logs/BUILD_TEST.log for the 87.210 success line and
+2. Read test/build_logs/BUILD_TEST.log for the 87.211 success line and
    the SHA256 hashes of the compiled executable, four source PNGs and GIF.
    If an asset or the glyph-header include is missing, the builder gives
    a precise error instead of silently building a legacy-looking menu.
 3. Run RUN_TEST.bat option 1. The menu window title and bottom-right
-   main-menu label both say TEST 87.210. If they do not, you are not
+   main-menu label both say TEST 87.211. If they do not, you are not
    looking at the newly compiled native XMVSF build.
 4. The gameplay path is still the native XMVSF app's zero-ROM-argument
    boot selector, NOT the separate MVC1 capture/ROM playback mode.
@@ -367,7 +403,7 @@ original _art PNG files; do not resample or replace them.
 5. Verify the unselected text is dim, selected text is bright, and that
    I, i, l, 1, punctuation and word gaps no longer waste full cell widths.
 6. New F9 replays, observer/chat diagnostics and replay verification live
-   under test/87.210. Legacy test/87.203 capture data is not modified;
+   under test/87.211. Legacy test/87.203 capture data is not modified;
    original replay files remain accessible through RUN_REPLAY.bat.
 
 This source audit includes inspection of the tracked code, unchanged font
