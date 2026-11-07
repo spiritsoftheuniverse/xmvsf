@@ -93,3 +93,43 @@ atomically. It never accepts user-selected output paths.
 
 Existing captured palettes are still an approximation of CPS2 raw palette RAM,
 not certified effective DMA output. No Stable or gameplay modifications.
+
+## Captured animations and scene placement (87.203)
+
+`RUN_TEST.bat art` also produces ignored, local-only files:
+
+    asset_organizer\animations.html
+    asset_organizer\captured_animations.json
+
+Open the **Animation & Stage Preview** link at the top of the organizer.
+It joins the 105 Wanted records (or whatever is currently selected in
+`aodata.json`) with exact descriptor pairs in the captured OAM observations.
+It splits the eight adjacent original control-record groups by original capture
+shot and type, then separates source-frame gaps exceeding 210 native frames.
+These are **candidate sampled sequences**: their preview interval is user
+controlled and is not the true 68000 animation timer. Single-pose groups stay
+visible and never become fabricated animation frames.
+
+Each frame shows the source sprite in the native 384×224 viewport at the
+observed CPS2 OAM object's source coordinates. The dashed rectangle is the
+original matching descriptor group's untrimmed bounds. When source art starts
+offscreen, a separate full-art view displays the complete cropped sprite
+without pretending it was on-screen. The scene's captured `scroll2x/y`,
+original program-ROM address, capture session, shot and emulated source frame
+are all retained in the metadata manifest, including an explicitly unverified
+SCROLL2-relative tilemap coordinate candidate.
+
+A background diagnostic is independently reconstructed from the source
+SCROLL2 map page, decoded original CPS2 GFX and raw palette snapshot at the
+selected native frame. This is useful for placing artwork against **real**
+captured level geometry. It is **not** certified as the native three-layer
+priority/raster composite. Stage IDs are the unrecognized `0xFFFFFFFF`
+sentinel in these captures, so we do **not** claim named level ownership,
+verified world coordinates, animation speed or runtime playback transitions.
+
+The localhost server exposes exactly `/animations.html` and read-only
+`/api/captured_animations`; after saving `aodata.json`, it refreshes the
+sequence metadata and animations from existing captures. No stage changes
+or gameplay placement is installed until a named-stage anchor and true
+frame-advance behavior are verified. All generated original sprites, GFX,
+backgrounds and private ROM-derived output stay Git-ignored.
