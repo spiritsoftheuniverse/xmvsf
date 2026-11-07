@@ -1045,7 +1045,12 @@ INT32 Cps2Frame()
         XM87137Capture::state().frame(CpsRamFF,BurnDrvGetTextA(DRV_NAME),
           (unsigned)GetCurrentFrame(),xm8786_p1_buttons,xm8786_p2_buttons,
           (unsigned)Cpi01A,(unsigned)Cpi01C,(unsigned)Cpi01E);
-    XM87121::state().frame((unsigned)GetCurrentFrame(),CpsRamFF); // XM87.121 cancel only recovery, no new jump
+    // Stage 87.121's proven post-throw recovery belongs to XMVSF only.
+    // 87.209 restores it in normal XMVSF TEST, without mutating the MVC1
+    // donor or other CPS2 titles even if they share Cyclops sprites/RAM.
+    const char* cyclopsGame=BurnDrvGetTextA(DRV_NAME);
+    if(Cps==2 && cyclopsGame && std::strncmp(cyclopsGame,"xmvsf",5)==0)
+        XM87121::state().frame((unsigned)GetCurrentFrame(),CpsRamFF);
     // XM87.203: source-accurate, read-only stage telemetry, no framebuffer,
     // ROM, gameplay, controller, palette or F9 replay modifications.
     // This private one-shot 68000 source dump is independent of the heavy
