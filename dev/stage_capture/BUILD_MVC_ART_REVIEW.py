@@ -6,10 +6,9 @@ Assumed categories are visual sorting hints, never claims about ROM semantics.
 The generated HTML embeds original reconstructed artwork; DO NOT commit it.
 """
 from __future__ import annotations
-import argparse,base64,bisect,collections,csv,gzip,hashlib,io,json,struct,sys,zipfile
+import argparse,base64,bisect,collections,csv,gzip,hashlib,json,struct,sys,zipfile
 from pathlib import Path
-from PIL import Image
-import numpy as np
+from MVC_RGBA import RGBAImage, decode_original_tile
 
 try:
     from TRACE_MVC_RECORD_LENGTHS import scan as scan_records
@@ -180,12 +179,13 @@ class Capture:
         state,pal=self.palette(frame)
         key=(state,number)
         if key not in self._palette_cache:
-            colors=np.zeros((16,4),dtype=np.uint8)
+            colors=[bytes((0,0,0,0))]
             for i in range(1,16):
                 value=struct.unpack_from('<H',pal,((number*16+i)^15)*2)[0]
                 brightness=15+2*((value>>12)&15)
-                colors[i]=[min(255,((value>>shift)&15)*17*brightness//45) for shift in (8,4,0)]+[255]
-            self._palette_cache[key]=colors
+                colors.append(bytes([min(255,((value>>shift)&15)*17*brightness//45)
+                                     for shift in (8,4,0)]+[255]))
+            self._palette_cache[key]=tuple(colors)
         return state,self._palette_cache[key]
 
     def tile(self,ident,pen_state,pens,flipx,flipy):
@@ -193,14 +193,9 @@ class Capture:
         image=self._tile_cache.get(key)
         if image is not None:return image
         start=(ident<<7)&self.mask
-        pack=np.frombuffer(self.gfx,dtype=np.uint8,count=128,offset=start)
-        y=np.arange(16)[:,None];x=np.arange(16)[None,:]
-        index=y*8+(x//8)*4+3-((x%8)//2)
-        vals=pack[index]
-        colors=pens[np.where(x%2==0,vals>>4,vals&15)]
-        if flipx:colors=colors[:,::-1]
-        if flipy:colors=colors[::-1]
-        image=Image.fromarray(np.ascontiguousarray(colors),'RGBA')
+        if start+128>len(self.gfx):
+            raise SourceError(f'original tile {ident:05X} outside captured graphics')
+        image=decode_original_tile(self.gfx[start:start+128],pens,flipx,flipy)
         if len(self._tile_cache)>10000:self._tile_cache.clear()
         self._tile_cache[key]=image
         return image
@@ -210,7 +205,7 @@ class Capture:
         state,pens=self.pens(o['frame'],num)
         tw=o['width_tiles'];th=o['height_tiles'];tile=o['tile']
         fx=bool(attr&32);fy=bool(attr&64)
-        result=Image.new('RGBA',(tw*16,th*16))
+        result=RGBAImage(tw*16,th*16)
         for dy in range(th):
             for dx in range(tw):
                 ident=(tile&~15)+(dy<<4)+((tile+dx)&15)
@@ -222,7 +217,7 @@ class Capture:
     def compose(self,item):
         objects=item['objects'];x0=min(x['x'] for x in objects);y0=min(x['y'] for x in objects)
         w=item['width'];h=item['height']
-        canvas=Image.new('RGBA',(w,h))
+        canvas=RGBAImage(w,h)
         for o in sorted(objects,key=lambda o:o['index']):
             canvas.alpha_composite(self.sprite(o),(o['x']-x0,o['y']-y0))
         box=canvas.getbbox()
@@ -244,8 +239,7 @@ def guess_category(item,img):
 
 
 def encode_png(image):
-    output=io.BytesIO();image.save(output,format='PNG',optimize=True)
-    return 'data:image/png;base64,'+base64.b64encode(output.getvalue()).decode('ascii')
+    return 'data:image/png;base64,'+base64.b64encode(image.png_bytes()).decode('ascii')
 
 
 def create_viewer(program_path:Path,observations_path:Path,capture_path:Path,
