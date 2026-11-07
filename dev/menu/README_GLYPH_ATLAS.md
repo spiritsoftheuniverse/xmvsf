@@ -48,8 +48,8 @@ pixels (window resizing leaves them anchored):
 | ARCADE | y=347 |
 | TRAINING / VERSUS / CONTROLS / OPTIONS | y=378 / 409 / 440 / 471 |
 | A SELECT  B BACK | centered x=489, y=495 |
-| ESC TO QUIT | centered x=489, y=522 |
-| TEST 87.204 | right edge x=944, y=522 |
+| ESC TO QUIT | centered x=500, y=522 |
+| TEST 87.204 | right edge x=942, y=522 |
 
 These are explicitly stored in XMGlyph::MainLayout, so one presentation
 contract controls the initial frame and every subsequent boot/menu frame.
