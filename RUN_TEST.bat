@@ -767,6 +767,23 @@ if exist "%PROJECT%\asset_organizer\aodata.json" (
   echo NOTICE: No asset_organizer\aodata.json yet. All 560 assets begin unreviewed.
   echo Load the last full organizer JSON or copy it into asset_organizer\aodata.json.
 )
+REM Assemble selected original MVC1 sampled poses and SCREEN-OBSERVED
+REM placements over the captured SCROLL2 diagnostic background. No gameplay
+REM stage changes, no private ROM writes. aodata.json remains the source of truth.
+if exist "%PROJECT%\asset_organizer\aodata.json" (
+  if not exist "%PROJECT%\asset_organizer\BUILD_CAPTURED_ANIMATIONS.py" (
+    echo ERROR: Captured animation builder is missing.
+    exit /b 2
+  )
+  python.exe "%PROJECT%\asset_organizer\BUILD_CAPTURED_ANIMATIONS.py" --review "%PROJECT%\asset_organizer\aodata.json" --adjacency "%PROJECT%\asset_organizer\wanted_sequences.json" --gallery "%PROJECT%\asset_organizer\index.html" --observations "%PROJECT%\test\87.203\sprite_factory\sprite_observations.tsv.gz" --capture "%PROJECT%\test\87.203\stage_capture" --trace-root "%PROJECT%\test\87.203\m68k_trace" --template "%PROJECT%\asset_organizer\CAPTURED_ANIMATIONS_TEMPLATE.html" --output "%PROJECT%\asset_organizer\animations.html"
+  if errorlevel 1 (
+    echo ERROR: Original MVC captured animations could not be generated.
+    echo The existing aodata.json remains unchanged.
+    exit /b 2
+  )
+  echo Original captured animation preview: "%PROJECT%\asset_organizer\animations.html"
+  echo Original captured pose/camera metadata: "%PROJECT%\asset_organizer\captured_animations.json"
+)
 if not exist "%PROJECT%\asset_organizer\SERVE_ASSET_ORGANIZER.py" (
   echo ERROR: Asset Organizer localhost server is missing.
   exit /b 2
