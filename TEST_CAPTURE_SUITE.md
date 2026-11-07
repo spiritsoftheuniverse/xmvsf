@@ -14,6 +14,14 @@ Run `RUN_TEST.bat` with no arguments. It displays:
 | **2 - Asset Organizer** | Call `asset_organizer/BUILD_AO.bat`, then start the localhost editor. | `asset_organizer/index.html` and `asset_organizer/aodata.json` |
 | **3 - Capture Level** | Show a category list; MVC1 (`mvscur1`) is the first and only donor. | `test/87.203/stage_capture/session_XXXX` |
 
+**Critical XMVSF launch contract:** option 1 must invoke the native TEST
+executable with **no ROM argument** (`"%EXE%"`). The native `main.cpp`
+checks `romname == NULL` to create the persistent XMVSF Arcade / Training /
+Versus boot selector, then chooses the original `xmvsfu` ROM internally.
+Passing `xmvsfu` on the command line instead bypasses the entire custom game
+shell and enters ordinary FBNeo ROM playback. Direct ROM invocation with
+`mvscur1 -joy` belongs **only to option 3**, the MVC1 donor capture.
+
 The direct shortcuts `RUN_TEST.bat 1`, `RUN_TEST.bat 2`,
 and `RUN_TEST.bat 3` are also supported. Advanced existing commands
 remain available: `RUN_TEST.bat art`, `art build`, `art open`,

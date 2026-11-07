@@ -31,6 +31,34 @@ class SuiteContractTests(unittest.TestCase):
         self.assertIn('set "SOURCE_ROM=xmvsfu"', batch)
         self.assertIn('set "SOURCE_ROM=mvscur1"', batch)
 
+    def test_option_one_cannot_inherit_choice_errorlevel_for_observer_log(self):
+        batch = source('RUN_TEST.bat')
+        self.assertIn('choice /C 123', batch)
+        self.assertIn('type nul >>"%XM87181_DIAGNOSTIC_STATUS%" 2>nul', batch)
+        start = batch.index('set "XM87181_DIAGNOSTIC_STATUS=')
+        canary = batch.index('type nul >>"%XM87181_DIAGNOSTIC_STATUS%" 2>nul', start)
+        error = batch.index('if errorlevel 1 (', canary)
+        marker = batch.index('echo RUN_TEST_START date=', error)
+        self.assertLess(start, canary)
+        self.assertLess(canary, error)
+        self.assertLess(error, marker)
+        self.assertNotIn('echo RUN_TEST_START date=', batch[canary:error])
+
+    def test_xmvsf_test_game_enters_native_boot_shell_not_direct_rom(self):
+        launcher = source('RUN_TEST.bat')
+        host = source('dev/stable/buildtree/src/burner/sdl/main.cpp')
+        self.assertIn('set "SOURCE_ROM=xmvsfu"', launcher)
+        start = launcher.index('REM Restore the pre-merge zero-argument native TEST launch for XMVSF.')
+        end = launcher.index('set "RC=%ERRORLEVEL%"', start)
+        launch_block = launcher[start:end]
+        self.assertIn('if /I "%SOURCE_ROM%"=="xmvsfu" (', launch_block)
+        self.assertIn('  "%EXE%"\n) else (\n', launch_block)
+        self.assertIn('  "%EXE%" %SOURCE_ROM% -joy', launch_block)
+        self.assertIn('romname == NULL && !usemenu && !dat', host)
+        self.assertIn('xmvsfBootSelector()', host)
+        self.assertIn('romname = "xmvsfu";', host)
+
+
     def test_ao_build_is_independent_and_compiles_only_offline_art(self):
         builder = source('asset_organizer/BUILD_AO.bat')
         root = source('RUN_TEST.bat')

@@ -134,11 +134,17 @@ set "XM87182_NATIVE_PC_TRACE_LOG=%OBSROOT%\native_pc_trace_test.tsv"
 REM 87.181 append-only launch health. This marker is created even if
 REM the menu closes without entering a CPS2 driver.
 set "XM87181_DIAGNOSTIC_STATUS=%OBSROOT%\observer_health_test.log"
->>"%XM87181_DIAGNOSTIC_STATUS%" echo RUN_TEST_START date=%DATE% time=%TIME%
+REM 'choice' returns ERRORLEVEL 1/2/3, which CMD echo redirection does
+REM NOT clear on success. Do not mistake a successful log write for failure.
+REM Explicit TYPE sets a fresh exit status and verifies append access.
+type nul >>"%XM87181_DIAGNOSTIC_STATUS%" 2>nul
 if errorlevel 1 (
-  echo ERROR: Cannot append observer health file: "%XM87181_DIAGNOSTIC_STATUS%"
+  echo ERROR: Observer health log directory/file cannot be opened for append:
+  echo   "%XM87181_DIAGNOSTIC_STATUS%"
+  echo Check permissions, read-only attributes, and available disk space.
   goto :fail
 )
+>>"%XM87181_DIAGNOSTIC_STATUS%" echo RUN_TEST_START date=%DATE% time=%TIME%
 if not defined XM87180_EXPERIMENTAL_DELAYED_PRIME set "XM87180_EXPERIMENTAL_DELAYED_PRIME=0"
 set "EXE=%PROJECT%\runtime\stable\XMVSF_Test_87_203.exe"
 if not exist "%EXE%" (
@@ -387,8 +393,17 @@ if "%XM87203_M68K_TRACE%"=="1" if /I "%SOURCE_ROM:~0,4%"=="mvsc" (
   echo Writer source dumps and traces remain LOCAL under ignored test\87.203.
 )
 pushd "%PROJECT%\FBNeo" || goto :fail
-echo Launching original CPS2 donor ROM %SOURCE_ROM% with controller support.
-"%EXE%" %SOURCE_ROM% -joy
+REM XMVSF has its own persistent boot/menu application. Passing xmvsfu as
+REM a ROM argument bypasses that application and runs only generic FBNeo.
+REM Restore the pre-merge zero-argument native TEST launch for XMVSF.
+REM MVC1 remains an explicit source-ROM invocation for capture option 3.
+if /I "%SOURCE_ROM%"=="xmvsfu" (
+  echo Launching native XMVSF TEST application: Arcade / Training / Versus.
+  "%EXE%"
+) else (
+  echo Launching original CPS2 donor ROM %SOURCE_ROM% with controller support.
+  "%EXE%" %SOURCE_ROM% -joy
+)
 set "RC=%ERRORLEVEL%"
 popd
 >>"%XM87181_DIAGNOSTIC_STATUS%" echo RUN_TEST_EXIT code=%RC%
