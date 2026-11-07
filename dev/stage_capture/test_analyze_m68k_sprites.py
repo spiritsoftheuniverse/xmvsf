@@ -24,7 +24,11 @@ class TraceTests(unittest.TestCase):
         run=root/'run_0001'
         run.mkdir(parents=True)
         (run/m.OPCODE_NAME).write_bytes(bytes.fromhex('00000000714e714e')*32)
-        (run/m.DATA_NAME).write_bytes(bytes(512))
+        program=bytearray(512)
+        # Three observed native tile IDs appear as a linked table in the
+        # original host-word-swapped ROM READ space (little within words).
+        struct.pack_into('<HHH',program,64,0x120,0x121,0x122)
+        (run/m.DATA_NAME).write_bytes(bytes(program))
         (run/'program_source.tsv').write_text(
             'frame\tdriver\trom_bytes\tdecrypted_bytes\tword_order\tstatus\n'
             '1\tmvscur1\t512\t256\thost_word_swapped\tCAPTURED\n')
@@ -55,6 +59,13 @@ class TraceTests(unittest.TestCase):
             self.assertTrue(report['private_code_captured'])
             self.assertTrue(report['private_data_captured'])
             self.assertEqual(report['candidate_tile_transitions'],2)
+            self.assertEqual(report['observed_nonblank_tile_words'],3)
+            self.assertEqual(report['nonblank_sprite_priorities'],{6:4})
+            self.assertEqual(report['rom_aligned_tile_references'],3)
+            self.assertEqual(report['rom_consecutive_tile_sequences'],0)
+            self.assertFalse(report['reported_handler_pc_equals_instruction_start_verified'])
+            self.assertIn('000040', (output/'m68k_rom_tile_references.tsv').read_text())
+            self.assertTrue((output/'m68k_rom_tile_sequences.tsv').is_file())
             self.assertFalse(report['verified_animation_tables'])
             pcs=(output/'m68k_writer_pcs.tsv').read_text()
             self.assertIn('000004',pcs)
