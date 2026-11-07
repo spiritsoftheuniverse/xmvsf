@@ -46,14 +46,15 @@ if [[ ! -f "$TREE/makefile.sdl2" ||
       ! -f "$TREE/src/burn/drv/capcom/xmvsf_stage87_203_stage_capture.h" ||
       ! -s "$TREE/src/burner/sdl/xmvsf_stage87_195_menu_gif.h" ||
       ! -s "$TREE/src/burner/sdl/xmvsf_menu_color_fx.h" ||
-      ! -s "$TREE/src/burner/sdl/xmvsf_stage87_207_crash_report.h" ||
+      ! -s "$TREE/src/burner/sdl/xmvsf_stage87_206_crash_report.h" ||
       ! -s "$TREE/src/intf/audio/sdl/xm20_wasapi_impl.h" ||
+      ! -s "$TREE/src/burn/drv/capcom/xmvsf_stage87_33_dizzy_hud.h" ||
       ! -s "$TREE/src/burner/sdl/xmvsf_menu_glyph_atlas.h" ||
       ! -s "$TREE/src/burner/sdl/xmvsf_stage14_boot.h" ]]; then
   echo "ERROR: 87.207 native menu/glyph sources missing; inspect checked-out branch" >&2
   exit 2
 fi
-for asset in logo.png sf2font.png sf2fontsmall.png menuanimation.gif; do
+for asset in logo.png sf2font.png sf2fontsmall.png menuanimation.gif stunbar_base.png; do
   if [[ ! -s "$PROJECT/_art/$asset" ]]; then
     echo "ERROR: 87.207 requires original nonempty _art/$asset" >&2
     exit 2
@@ -131,7 +132,7 @@ if [[ ! -s "$DEST" ||
       "$TREE/src/burner/sdl/xmvsf_menu_glyph_atlas.h" -nt "$DEST" ||
       "$TREE/src/burner/sdl/xmvsf_menu_color_fx.h" -nt "$DEST" ||
       "$TREE/src/burner/sdl/xmvsf_stage87_195_menu_gif.h" -nt "$DEST" ||
-      "$TREE/src/burner/sdl/xmvsf_stage87_207_crash_report.h" -nt "$DEST" ||
+      "$TREE/src/burner/sdl/xmvsf_stage87_206_crash_report.h" -nt "$DEST" ||
       "$TREE/src/burner/sdl/xmvsf_stage87_140_super_chat.h" -nt "$DEST" ||
       "$TREE/src/burner/sdl/xmvsf_stage14_boot.h" -nt "$DEST" ||
       "$TREE/src/burner/sdl/xm20_vs_transition.h" -nt "$DEST" ||
@@ -139,12 +140,14 @@ if [[ ! -s "$DEST" ||
       "$TREE/src/burner/sdl/xmvsf_stage25_5_ui.h" -nt "$DEST" ||
       "$TREE/src/intf/video/sdl/xmvsf_stage87_140_chat_overlay.h" -nt "$DEST" ||
       "$TREE/src/intf/video/sdl/vid_sdl2.cpp" -nt "$DEST" ||
+      "$TREE/src/burn/drv/capcom/xmvsf_stage87_33_dizzy_hud.h" -nt "$DEST" ||
       "$TREE/src/intf/audio/sdl/xm20_wasapi_impl.h" -nt "$DEST" ]]; then
-  echo "87.207 CRASH+FADE+MENU CHANGE: refreshing SDL main/run/video/audio frontend objects (other build objects preserved)."
+  echo "87.207 STUN BAR+CRASH+FADE: rebuilding native SDL frontend and CPS2 HUD source (other build objects preserved)."
   FRESHEN=(-W src/burner/sdl/main.cpp
            -W src/burner/sdl/run.cpp
            -W src/intf/video/sdl/vid_sdl2.cpp
-           -W src/intf/audio/sdl/aud_sdl.cpp)
+           -W src/intf/audio/sdl/aud_sdl.cpp
+           -W src/burn/drv/capcom/cps_obj.cpp)
 fi
 MAKELEVEL=1 make -f makefile.sdl2 LSB_FIRST=1 INCLUDE_7Z_SUPPORT=1 DEPEND=1 \
   "${FRESHEN[@]}" -j"${XMVSF_BUILD_JOBS:-12}" all
@@ -183,6 +186,6 @@ echo "TEST BUILD READY: $DEST"
 if command -v sha256sum >/dev/null 2>&1; then
   echo "87.207 compiled TEST sha256: $(sha256sum "$DEST")"
   echo "87.207 menu source assets sha256:"
-  sha256sum "$PROJECT/_art/logo.png" "$PROJECT/_art/sf2font.png" "$PROJECT/_art/sf2fontsmall.png" "$PROJECT/_art/menuanimation.gif"
+  sha256sum "$PROJECT/_art/logo.png" "$PROJECT/_art/sf2font.png" "$PROJECT/_art/sf2fontsmall.png" "$PROJECT/_art/menuanimation.gif" "$PROJECT/_art/stunbar_base.png"
 fi
 echo "Stage 87.207: native title + proportional font, original ROM/combat paths retained; Stable untouched."
