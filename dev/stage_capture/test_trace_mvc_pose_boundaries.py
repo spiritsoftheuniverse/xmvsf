@@ -3,6 +3,7 @@
 from pathlib import Path
 import csv
 import gzip
+import hashlib
 import json
 import struct
 import sys
@@ -72,11 +73,14 @@ class PoseBoundaryTests(unittest.TestCase):
             with notes.open('w',newline='',encoding='utf-8') as f:
                 w=csv.writer(f,delimiter='\t')
                 w.writerow(['record_offset_hex','shot','sample_frame',
-                            'visual_category','confidence','reviewer_note'])
-                w.writerow(['000040','shot_0001',100,'ABSTRACT','LOW','Not engine verified'])
-                w.writerow(['001234','shot_0001',100,'STALE','LOW','Must not be applied'])
+                            'visual_category','confidence','reviewer_note','rom_sha256'])
+                good_sha=hashlib.sha256((trace/'run_0001'/'mvc_program_data_host_words.bin').read_bytes()).hexdigest()
+                w.writerow(['000040','shot_0001',100,'ABSTRACT','LOW','Not engine verified',good_sha])
+                w.writerow(['001234','shot_0001',100,'STALE','LOW','Must not be applied',good_sha])
+                w.writerow(['000052','shot_0001',130,'WRONG_ROM','LOW','Do not propagate',('0'*64)])
             report=pose.report(obs,trace,owner,cam,base/'out',notes)
             self.assertEqual(report['manual_visual_notes_applied'],1)
+            self.assertEqual(report['manual_visual_notes_skipped_checksum'],1)
             self.assertIn('ABSTRACT',(base/'out'/'rom_pose_visual_review.tsv').read_text())
             self.assertNotIn('STALE',(base/'out'/'rom_pose_visual_review.tsv').read_text())
             self.assertEqual(report['original_rom_pair_runs'],2)
