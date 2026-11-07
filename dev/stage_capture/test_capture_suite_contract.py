@@ -48,17 +48,16 @@ class SuiteContractTests(unittest.TestCase):
         launcher = source('RUN_TEST.bat')
         host = source('dev/stable/buildtree/src/burner/sdl/main.cpp')
         self.assertIn('set "SOURCE_ROM=xmvsfu"', launcher)
-        self.assertIn('if /I "%SOURCE_ROM%"=="xmvsfu" (', launcher)
         start = launcher.index('REM Restore the pre-merge zero-argument native TEST launch for XMVSF.')
         end = launcher.index('set "RC=%ERRORLEVEL%"', start)
         launch_block = launcher[start:end]
-        self.assertIn('"%EXE%"\\n) else ('.replace('\\n','\n'), launch_block)
-        self.assertIn('"%EXE%" %SOURCE_ROM% -joy', launch_block)
-        self.assertLess(launch_block.index('"%EXE%"\\n'.replace('\\n','\n')),
-                        launch_block.index('"%EXE%" %SOURCE_ROM% -joy'))
+        self.assertIn('if /I "%SOURCE_ROM%"=="xmvsfu" (', launch_block)
+        self.assertIn('  "%EXE%"\n) else (\n', launch_block)
+        self.assertIn('  "%EXE%" %SOURCE_ROM% -joy', launch_block)
         self.assertIn('romname == NULL && !usemenu && !dat', host)
         self.assertIn('xmvsfBootSelector()', host)
         self.assertIn('romname = "xmvsfu";', host)
+
 
     def test_ao_build_is_independent_and_compiles_only_offline_art(self):
         builder = source('asset_organizer/BUILD_AO.bat')
