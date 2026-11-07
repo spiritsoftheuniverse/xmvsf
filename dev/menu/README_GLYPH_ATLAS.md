@@ -139,6 +139,43 @@ and includes its SHA256 in test/build_logs/BUILD_TEST.log. The binary is
 **runtime/stable/XMVSF_Test_87_206.exe**; no fallback to 87.204 or Stable.
 Build/run/replay launchers now all target the new effects version.
 
+## TEST 87.206: purple vibration, music handoff and FIGHT crash evidence
+
+The lowest Street Fighter extruded purple shadow and central purple VS core
+now vibrate in discrete visual intervals: a 0.55-second undulation every
+2.65 seconds, with independently phased brightness oscillations at
+approximately 7.4 and 9.2 Hz. These are strictly original-source RGB
+modulations of dark-purple pixels in two source-coordinate regions. Glyph
+silhouettes, letter faces, texture coordinates and alpha are not moved.
+
+The existing single Windows WASAPI device now crossfades the menu theme
+from its current audible level to silence using a smoothstep envelope over
+**500 milliseconds** at the first VS/early-combat host signal. The combat
+fallback now sends that signal immediately rather than waiting for a
+secondary poll. Repeat combat status observations cannot restart the fade.
+
+The left DHC Super Chat panel is closed by default and on every new gameplay
+session. Shift+G opens/closes it explicitly; F10 input probes, chat history
+and log recording remain available even while hidden.
+
+**Observed user issue:** the executable unexpectedly **exits/crashes at
+"FIGHT!"**. It must not be confused with focus loss, a pause modal or a
+mere rendering stall. A confirmed root cause has NOT been established
+without a native exception report. 87.206 therefore adds a Windows
+unhandled-exception handler that records the actual exception code,
+instruction address, DLL/EXE offset and last gameplay/video checkpoint
+in `test/87.206/crash_report.log`, and attempts to write
+`test/87.206/crash.dmp` using the system DbgHelp DLL. It also guards
+null SDL video resources during frame rendering. This is a diagnostic and
+defensive pass, **not a claim that the crash is already fixed**. If an
+abrupt exit persists, supply the crash_report.log, optional crash.dmp
+and the current native RUN_TEST output for exact triage.
+
+BUILD_TEST.bat now checks required 87.206 headers and regenerates just
+the affected `main.cpp`, `run.cpp`, `vid_sdl2.cpp`, and `aud_sdl.cpp`
+objects when this executable is missing or the related sources change.
+All other warm objects, Stable, and older capture/replay files remain.
+
 ## Native TEST version 87.206 and local verification
 
 **Pulling only main does not include this branch.** The source modifications
@@ -154,11 +191,11 @@ original _art PNG files; do not resample or replace them.
 
 1. Run BUILD_TEST.bat. It now publishes ONLY
    runtime/stable/XMVSF_Test_87_206.exe after compiling current source.
-   A missing executable or modified menu/glyph header refreshes SDL
-   main.cpp and run.cpp without deleting warm build objects, old TEST
-   binaries, or Stable.
+   A missing executable or modified menu/video/audio/crash header refreshes
+   only main.cpp, run.cpp, vid_sdl2.cpp and aud_sdl.cpp, without deleting
+   warm build objects, older TEST binaries, or Stable.
 2. Read test/build_logs/BUILD_TEST.log for the 87.206 success line and
-   the SHA256 hashes of the compiled executable and three source PNGs.
+   the SHA256 hashes of the compiled executable, three source PNGs and GIF.
    If an asset or the glyph-header include is missing, the builder gives
    a precise error instead of silently building a legacy-looking menu.
 3. Run RUN_TEST.bat option 1. The menu window title and bottom-right
