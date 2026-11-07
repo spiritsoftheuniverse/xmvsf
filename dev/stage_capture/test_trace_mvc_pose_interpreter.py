@@ -40,6 +40,7 @@ class PoseInterpreterTests(unittest.TestCase):
                  0x0C40, 0x0004, 0x4EFB, 0x0004)
         # Control site far away is only an independent static motif.
         self.put(fetch, 0x350, 0x0C41, 0x0036)
+        self.put(fetch, 0x354, 0x7239)  # MOVEQ #$39,D1 (embedded 8-bit)
         (trace / interp.staging.BIN_CODE).write_bytes(fetch)
         (trace / interp.staging.BIN_DATA).write_bytes(original)
         poses = root / 'pose'
@@ -84,6 +85,8 @@ class PoseInterpreterTests(unittest.TestCase):
             self.assertIn('MOVEA_L_IMMEDIATE_A0', pointers)
             self.assertIn('ALIGNED_LONG_IN_READ_DATA', pointers)
             self.assertIn('UNCLASSIFIED_FETCH_WORDS', pointers)
+            motifs = (out / interp.OUTPUTS[1]).read_text(encoding='utf-8')
+            self.assertIn('MOVEQ_IMMEDIATE_D1', motifs)
             leads = (out / interp.OUTPUTS[2]).read_text(encoding='utf-8')
             self.assertIn('JMP_PC_INDEXED', leads)
             self.assertIn('0000F8', leads)
