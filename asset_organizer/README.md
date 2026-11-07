@@ -16,7 +16,8 @@ Open `asset_organizer\index.html` in your browser. The existing exporter under
 then inserts the private artwork into `ASSET_ORGANIZER_TEMPLATE.html` to make a
 self-contained offline browser application. Input data remains under the ignored
 `test/87.203` capture folders. The generator does not change the game, ROM,
-Stable, or captured logs.
+Stable, or captured logs. This exporter now uses only the Python standard library:
+**NumPy and Pillow are not required**.
 
 ## How to organize
 
