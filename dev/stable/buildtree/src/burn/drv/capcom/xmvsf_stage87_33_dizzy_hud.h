@@ -150,40 +150,32 @@ static inline bool HasBasePixel(const BarArt& art,int x,int row) {
     return art.rgba[(std::size_t)row*(std::size_t)art.pitch+
                     (std::size_t)x*4u+3u]>=8u;
 }
-static inline void SourceSpan(const BarArt& art,int compositionRow,
-                              int& left,int& right) {
-    // The example's fill begins 2 rows ABOVE the base. Project the first
-    // opaque base row upward for those 2 rows, then use actual source art.
-    const int baseRow=compositionRow<2?0:std::min(art.height-1,compositionRow-2);
-    left=art.width;right=-1;
-    for(int x=0;x<art.width;x++)if(HasBasePixel(art,x,baseRow)){
-        if(x<left)left=x;
-        right=x;
-    }
+// Exact composition geometry recovered from _art/examples/example_stunbar.png.
+// Its six orange rows are [10..53], [11..54], ... [15..58] at a 44/54
+// fill. The source base is 61x6, translated down TWO pixels. The outer
+// 2px gray end is a bevel, not active meter area. Inferring the bar face
+// from PNG alpha previously extended the fill two pixels too far.
+static const int FaceWidth=54;
+static inline void SourceSpan(const BarArt& /*art*/,int row,
+                              int& left,int& right){
+    left=row;
+    right=row+FaceWidth-1; // exact original slanted face: 53..58
 }
-// The live fill and its one-pixel diagonal tip share EXACTLY the
-// same moving bounds. There is no separate stationary cutout texture.
-// All positions are in original P2 source pixels before P1 mirroring.
+// The colored face and tip always derive from ONE width/leading-edge.
+// Never use sprite alpha as a fill-length mask or a stationary tip.
 static inline bool FillBounds(const BarArt& art,int row,int used,int total,
                               int& first,int& last){
-    if(used<=0 || total<=0 || row<0 || row>=6)return false;
-    int left=0,right=0;
-    SourceSpan(art,row,left,right);
-    if(left>right)return false;
-    const int span=right-left+1;
-    if(used>=total){first=left;last=right;return true;}
-    const int filled=(span*used+total-1)/total;
-    // A 45-degree leading cut progresses WITH the bar. Limit its
-    // row offset by the genuinely unfilled portion, eliminating a
-    // stationary tip that lingers when the fill approaches 100%.
-    const int missing=span-filled;
-    first=right-filled+1+std::min(row,missing);
+    if(!art.valid() || used<=0 || total<=0 || row<0 || row>=6)return false;
+    int left,right;SourceSpan(art,row,left,right);
+    const int length=std::min(FaceWidth,
+                  (FaceWidth*std::min(used,total)+total-1)/total);
+    first=right-length+1;
     last=right;
-    return first<=last && first>=left;
+    return first>=left && first<=last;
 }
 static inline void DrawOne(unsigned char* draw,int pitch,int side,
                            const Reading& s,bool noir,unsigned frame,
-                           const BarArt* art=nullptr){
+                           const BarArt* art=nullptr,bool intro=false){
     if(s.total<=0 || !art || !art->valid())return;
     const int y=45;  // existing native stun bar BASE top, not the floating fill
     const int w=61;
@@ -208,9 +200,11 @@ static inline void DrawOne(unsigned char* draw,int pitch,int side,
                       atCapacity?RainbowPan(frame,src,row):
                                  WarmStun((unsigned)row));
             }
-            // (3a) One-pixel inset exactly ON the live leading tip.
-            if(row>=2 && HasBasePixel(*art,first,row-2)){
-                const int dx=side?first:(60-first);
+            // (3a) One pixel of shadow IN THE GRAY BASE immediately
+            // BEFORE the live diagonal face, not on top of the color.
+            // The source example proves shadow at row2=x(first-1).
+            if(row>=2 && HasBasePixel(*art,first-1,row-2)){
+                const int dx=side?(first-1):(61-first);
                 Pixel(draw,pitch,x+dx,y-2+row,inset);
             }
         }
@@ -226,6 +220,10 @@ static inline void DrawOne(unsigned char* draw,int pitch,int side,
         }
     }
 
+    // During status 06 the combat stage has opened but the round has not
+    // yet begun. Draw the empty bases in their final HUD positions, without
+    // interpreting uninitialized per-fighter resistance bytes as full stun.
+    if(intro)return;
     // Gameplay-owned stun accumulation, total and hit numbers unchanged.
     char totalText[16];
     std::snprintf(totalText,sizeof(totalText),"%d/%d",used,s.total);
@@ -244,8 +242,12 @@ static inline void Draw(const unsigned char* ram,unsigned char* framebuffer,int 
                         const BarArt* art=nullptr) {
     static Track tracked[2];
     static bool logged=false;
-    if(!ram || !framebuffer || gameStatus!=8 || bpp!=4 || pitch<384*4){
-        if(gameStatus!=8){tracked[0].valid=false;tracked[1].valid=false;tracked[0].flash=false;tracked[1].flash=false;}
+    const bool intro=(gameStatus==6);
+    const bool combat=(gameStatus==8);
+    if(!ram || !framebuffer || (!intro&&!combat) || bpp!=4 || pitch<384*4){
+        if(!intro&&!combat){
+            tracked[0]=Track();tracked[1]=Track();
+        }
         return;
     }
     const char* option=std::getenv("XM8733_DIZZY_BAR");
@@ -253,8 +255,16 @@ static inline void Draw(const unsigned char* ram,unsigned char* framebuffer,int 
     if(!logged){std::fprintf(stderr,"XM87.33 DIZZY_HUD active 384x224 raw=B8 table=8BC9A mode=game-wide\n");logged=true;}
     // Read native active P1 +0x4000 and P2 +0x4400. All player state is READ-ONLY.
     for(int p=0;p<2;p++){
-        Reading r=Sample(tracked[p],ram+0x4000+(unsigned)p*0x400u,frame);
-        DrawOne(framebuffer,pitch,p,r,noir,frame,art);
+        if(intro){
+            // Clear tracking from selection/Versus and render the empty
+            // base as soon as the native combat screen opens at 06.
+            tracked[p]=Track();
+            Reading empty;empty.total=1;empty.used=0;
+            DrawOne(framebuffer,pitch,p,empty,noir,frame,art,true);
+        }else{
+            Reading r=Sample(tracked[p],ram+0x4000+(unsigned)p*0x400u,frame);
+            DrawOne(framebuffer,pitch,p,r,noir,frame,art);
+        }
     }
 }
 }
