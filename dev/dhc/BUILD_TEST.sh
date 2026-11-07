@@ -49,6 +49,8 @@ if [[ ! -f "$TREE/makefile.sdl2" ||
       ! -s "$TREE/src/burner/sdl/xmvsf_stage87_206_crash_report.h" ||
       ! -s "$TREE/src/intf/audio/sdl/xm20_wasapi_impl.h" ||
       ! -s "$TREE/src/burn/drv/capcom/xmvsf_stage87_33_dizzy_hud.h" ||
+      ! -s "$TREE/src/burn/drv/capcom/xmvsf_stage87_121_cyclops_release.h" ||
+      ! -s "$PROJECT/dev/dhc/tests/test_stun_and_cyclops_209.cpp" ||
       ! -s "$TREE/src/burner/sdl/xmvsf_menu_glyph_atlas.h" ||
       ! -s "$TREE/src/burner/sdl/xmvsf_stage14_boot.h" ]]; then
   echo "ERROR: 87.208 native menu/glyph sources missing; inspect checked-out branch" >&2
@@ -100,6 +102,13 @@ XM87203_STAGE_CAPTURE_DIR="$PROJECT/test/87.203/unit_tests/capture_smoke" \
 XM87203_BATCH_FRAMES=300 \
   "$PROJECT/test/87.203/unit_tests/test_native_stage_capture_203.exe"
 
+# Verify the previous Cyclops 87.121 recovery and single dynamic bar geometry.
+# This test is C++11, ROM-free and uses synthetic native fighter RAM;
+# it runs before the full Windows build and never touches Stable/replays.
+mkdir -p "$PROJECT/test/87.209/unit_tests"
+g++ -std=c++11 -Wall -Wextra -Werror   -I"$TREE/src/burn/drv/capcom"   "$PROJECT/dev/dhc/tests/test_stun_and_cyclops_209.cpp"   -o "$PROJECT/test/87.209/unit_tests/test_stun_and_cyclops_209.exe"
+"$PROJECT/test/87.209/unit_tests/test_stun_and_cyclops_209.exe"
+
 # Preserve warm cache and anything already built on failures. Never run make clean.
 cd "$TREE"
 echo "XMVSF Stage 87.208 TEST: incremental build; preserving cached objects"
@@ -141,13 +150,18 @@ if [[ ! -s "$DEST" ||
       "$TREE/src/intf/video/sdl/xmvsf_stage87_140_chat_overlay.h" -nt "$DEST" ||
       "$TREE/src/intf/video/sdl/vid_sdl2.cpp" -nt "$DEST" ||
       "$TREE/src/burn/drv/capcom/xmvsf_stage87_33_dizzy_hud.h" -nt "$DEST" ||
+      "$TREE/src/burn/drv/capcom/xmvsf_stage87_121_cyclops_release.h" -nt "$DEST" ||
+      "$TREE/src/burn/drv/capcom/cps_draw.cpp" -nt "$DEST" ||
+      "$TREE/src/burn/drv/capcom/cps_run.cpp" -nt "$DEST" ||
       "$TREE/src/intf/audio/sdl/xm20_wasapi_impl.h" -nt "$DEST" ]]; then
   echo "87.208 STUN BAR+CRASH+FADE: rebuilding native SDL frontend and CPS2 HUD source (other build objects preserved)."
   FRESHEN=(-W src/burner/sdl/main.cpp
            -W src/burner/sdl/run.cpp
            -W src/intf/video/sdl/vid_sdl2.cpp
            -W src/intf/audio/sdl/aud_sdl.cpp
-           -W src/burn/drv/capcom/cps_obj.cpp)
+           -W src/burn/drv/capcom/cps_obj.cpp
+           -W src/burn/drv/capcom/cps_draw.cpp
+           -W src/burn/drv/capcom/cps_run.cpp)
 fi
 MAKELEVEL=1 make -f makefile.sdl2 LSB_FIRST=1 INCLUDE_7Z_SUPPORT=1 DEPEND=1 \
   "${FRESHEN[@]}" -j"${XMVSF_BUILD_JOBS:-12}" all
