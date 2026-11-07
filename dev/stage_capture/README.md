@@ -748,3 +748,53 @@ When the MVC process exits, RUN_TEST.bat automatically runs the small
 68000 report generator if this trace was enabled. The existing original
 game exit code remains authoritative; reporting never overwrites Stable.
 The alternate RUN_TEST.bat m68k is a fully offline repeat of that report.
+
+
+## 68000 run_1.zip source-backed findings (2026-11-06)
+
+Original uploader provided run_1.zip from RUN_TEST.bat mvscur1 trace:
+4,194,304 bytes original program READ data, 1,048,576 bytes decrypted
+instruction FETCH data, and 41,679 68000 object write records over frames
+87..1640 (1,014 frames with writes). No gameplay controller rerun is needed
+to inspect or disassemble these source images offline.
+
+There were 26 distinct *reported handler PC values*. Of the 41,679 writes,
+24,800 represent nonblank objects, and every one of those 24,800 has
+hardware sprite priority **7**. This trace therefore does NOT establish
+stage-actor animation writers in priorities 0..6; other scene stages and
+routines remain unobserved by the new PC audit.
+
+At recorded handler PC 0x02484C, the decrypted opcode word is 0xFFF0,
+the displacement extension of DBRA/DBF at 0x02484A. A preceding
+MOVEM/MOVE.L loop at 0x02483C-0x02484A copies preassembled OBJ
+descriptors from graphics RAM around 0x925000 to CPS2 object RAM.
+The memory-handler's SekGetPC(-1) is stable provenance *near the writer*,
+but is NOT necessarily an instruction-start PC. Disassembling at 0x02484C
+as though it were a new instruction is incorrect.
+
+Original host-word-swapped ROM program data contains the observed
+consecutive tile IDs 0x6CD0..0x6CD7 at byte address 0x08A51E.
+This neighborhood includes original THANK YOU FOR PLAYING / PRESENTED BY
+text, suggesting a text/interface context (not proof of a stage prop).
+Additional packed tile/attribute-like records occur near 0x2E4180.
+
+Updated ANALYZE_M68K_SPRITES.py writes two additional metadata TSVs
+from original 68000 program READ data without packaging ROM bytes:
+
+    m68k_rom_tile_references.tsv
+    m68k_rom_tile_sequences.tsv
+
+The reference list contains 16-bit aligned candidate tile word matches;
+a reference is not automatically a validated animation descriptor.
+The manifest reports nonblank priorities and explicitly marks handler
+PC == opcode instruction start as unverified.
+
+Use existing local trace, with no game launch or build:
+
+    RUN_TEST.bat m68k
+
+To find the ORIGINAL upstream object/animation engine writers (not the
+generic final OBJ copy), further analysis must follow the instructions
+that populate graphics-RAM source descriptors around
+0x925000..0x926FFF. Private ROM data and code dumps stay under
+test/87.203/m68k_trace, never in GitHub or the sharing ZIP.
