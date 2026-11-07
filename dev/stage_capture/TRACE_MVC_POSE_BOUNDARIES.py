@@ -16,6 +16,7 @@ from __future__ import annotations
 import argparse
 from collections import Counter, defaultdict
 import csv
+import hashlib
 import json
 from math import ceil
 from pathlib import Path
@@ -175,6 +176,7 @@ def report(observations:Path,trace_root:Path,owner:Path|None,
     visibility=read_owner_visibility(owner)
     valid,full_by_pair=allowed_pairs(grouped,visibility)
     program=private.read_bytes()
+    program_sha256=hashlib.sha256(program).hexdigest()
     runs=source.candidate_runs(program,valid)
     records,chains=recover_records(program,runs)
     camera,selected_sessions,conflicts=source.read_camera(capture)
@@ -247,14 +249,18 @@ def report(observations:Path,trace_root:Path,owner:Path|None,
           len({r['footer'][4] for r in records.values() if r['footer'][3]==ctl}),
           'NO') for ctl,n in sorted(controls.items())])
     visual_rows=[]
+    visual_notes_skipped_checksum=0
     if visual_notes is not None and visual_notes.is_file():
         with visual_notes.open('r',encoding='utf-8',newline='') as f:
             rd=csv.DictReader(f,delimiter='\t')
-            needed={'record_offset_hex','shot','sample_frame',
+            needed={'rom_sha256','record_offset_hex','shot','sample_frame',
                     'visual_category','confidence','reviewer_note'}
             if not rd.fieldnames or not needed.issubset(rd.fieldnames):
                 raise PoseError('visual notes must provide original address and review fields')
             for row in rd:
+                if row['rom_sha256'].strip().lower()!=program_sha256:
+                    visual_notes_skipped_checksum+=1
+                    continue
                 try:a=int(row['record_offset_hex'],16)
                 except ValueError as e:
                     raise PoseError('invalid manual visual review record address') from e
@@ -283,6 +289,8 @@ def report(observations:Path,trace_root:Path,owner:Path|None,
         'observed_pose_changes_between_samples':len(switches),
         'pixel_visibility_source_used':bool(visibility),
         'manual_visual_notes_applied':len(visual_rows),
+        'manual_visual_notes_skipped_checksum':visual_notes_skipped_checksum,
+        'private_rom_sha256_for_note_matching':program_sha256,
         'original_68000_animation_frame_boundary_verified':False,
         'original_68000_footer_semantics_verified':False,
         'original_duration_and_timing_verified':False,
