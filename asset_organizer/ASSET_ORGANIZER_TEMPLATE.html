@@ -1,158 +1,159 @@
 <!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>MVC1 • Asset Organizer</title>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>MVC1 · Asset Organizer</title>
 <style>
-:root{color-scheme:dark;--bg:#0d1017;--panel:#181e29;--panel2:#202838;--line:#334154;--ink:#eaf0fc;--muted:#9aa8bf;--blue:#8aa9ff;--yes:#63dca4;--no:#ff8d91;--yellow:#ffd180;--radius:12px}
-*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at top left,#1c2740 0,#0d1017 46%);color:var(--ink);font:14px/1.42 system-ui,-apple-system,'Segoe UI',Arial,sans-serif;min-height:100vh}
-button,input,select{font:inherit}button{cursor:pointer}.masthead{position:sticky;top:0;z-index:5;background:rgba(13,16,23,.97);border-bottom:1px solid #2d3646;backdrop-filter:blur(10px)}
-.shell{max-width:1510px;margin:0 auto;padding:16px 24px}.head{display:flex;align-items:center;justify-content:space-between;gap:18px;flex-wrap:wrap}.eyebrow{font-size:10px;text-transform:uppercase;letter-spacing:.18em;font-weight:800;color:#93aeed}
-h1{font-size:24px;letter-spacing:-.04em;margin:2px 0}.lede{color:var(--muted);margin:4px 0 0;font-size:12px}.actions{display:flex;gap:8px;flex-wrap:wrap}.btn{border:1px solid #46546b;background:#252d3e;color:var(--ink);padding:8px 11px;border-radius:8px;font-weight:650;font-size:12px}.actions a.btn{text-decoration:none;display:inline-flex;align-items:center}.btn:hover,.btn:focus-visible{background:#35445d;outline:2px solid #8aa9ff33}.btn.primary{background:#b7ccff;border-color:#b7ccff;color:#0c1729}.btn.primary:hover{background:#dce5ff}.btn.dim{background:transparent;color:var(--muted)}.toolbar{display:flex;gap:9px;align-items:center;margin-top:13px;flex-wrap:wrap}.toolbar input[type=search]{min-width:210px;flex:1;max-width:400px;border:1px solid var(--line);background:#171d29;border-radius:9px;padding:10px 12px;color:var(--ink);outline:none}.toolbar select{background:#171d29;color:var(--ink);padding:10px 13px;border:1px solid var(--line);border-radius:9px}.stats{display:flex;gap:14px;flex-wrap:wrap;margin-left:auto;color:var(--muted);font-size:12px}.stats b{color:#f3f6ff;font-variant-numeric:tabular-nums}
-.legend{display:flex;gap:16px;flex-wrap:wrap;font-size:12px;color:var(--muted);padding-top:10px}.swatch{display:inline-block;border:1px solid currentColor;width:9px;height:9px;border-radius:3px;margin-right:6px}.swatch.yes{color:var(--yes)}.swatch.no{color:var(--no)}.swatch.unknown{color:#8290ab}.note{font-size:12px;color:#a3aec5;margin:12px 0 18px}.note b{color:#dfe9ff}
-.category{margin:12px 0 32px;scroll-margin-top:210px}.cathead{display:flex;gap:14px;flex-wrap:wrap;align-items:center;padding:13px 14px;background:#1a2230;border:1px solid #344258;border-radius:12px 12px 0 0}.catlabel{font-size:18px;font-weight:770;letter-spacing:-.015em}.catcount{color:#a0aec2;font-size:12px}.catcontrols{display:flex;gap:7px;margin-left:auto}.catcontrols button{border:1px solid #3d4b60;background:#202b3a;color:var(--ink);border-radius:7px;padding:6px 10px;font-size:12px;font-weight:650}.catcontrols button:hover{border-color:var(--blue)}.catcontrols .on{color:var(--yes)}.catcontrols .off{color:var(--no)}
-.gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(208px,1fr));gap:12px;padding:14px;border:1px solid #283448;border-top:0;background:#111823;border-radius:0 0 12px 12px}.tile{min-width:0;background:var(--panel);border:1.5px solid #374357;border-radius:10px;overflow:hidden;transition:border-color .1s,background .1s;position:relative}.tile:hover{border-color:#869dbf}.tile.wanted{border-color:#3ab97f;background:#152720}.tile.unwanted{border-color:#aa5964;background:#271b25}.tap{display:block;width:100%;text-align:left;border:0;background:transparent;padding:0;color:inherit}.tap:focus-visible{outline:3px solid var(--blue);outline-offset:-3px}.imageframe{height:162px;padding:10px;display:flex;align-items:center;justify-content:center;background:repeating-conic-gradient(#222c3b 0 25%,#1b2533 0 50%) 50%/22px 22px;position:relative}.imageframe img{max-height:100%;max-width:100%;object-fit:contain;image-rendering:pixelated}.corner{position:absolute;right:9px;top:9px;border:1px solid #536177;background:#0e1827d9;color:#fff;padding:3px 7px;border-radius:6px;font-size:11px;font-weight:800}.corner.yes{border-color:#48af83;background:#103f2b}.corner.no{border-color:#dc7580;background:#56232c}.tilebody{padding:10px 11px 12px}.name{display:flex;gap:8px;align-items:center;justify-content:space-between;font-weight:800;font-size:13px;letter-spacing:.01em}.rom{font-family:ui-monospace,Consolas,monospace;color:#dde7fc}.details{font-size:11px;color:var(--muted);margin:6px 0 7px}.tiny{font-size:10.5px;color:#8391ac;min-height:30px}.tilefooter{display:flex;align-items:center;gap:7px;margin-top:8px;border-top:1px solid #364355;padding-top:9px}.choice{display:flex;gap:6px;align-items:center;font-size:11px;font-weight:780;white-space:nowrap}.choice input{accent-color:#63dca4;width:17px;height:17px;margin:0;cursor:pointer}.tilefooter select{min-width:0;max-width:125px;flex:1;background:#202b3a;color:#dce5f8;border:1px solid #394963;border-radius:5px;padding:5px 3px;font-size:10px}.zoom{border:1px solid #3d4b60;background:transparent;border-radius:5px;color:#adc0e2;padding:5px 8px;font-size:11px}.zoom:hover{color:white}.empty{padding:20px;border:1px dashed #54617a;border-radius:10px;color:var(--muted);margin:0 0 28px}
-#modal{position:fixed;inset:0;background:rgba(0,0,0,.82);z-index:20;display:flex;align-items:center;justify-content:center;padding:30px}#modal[hidden]{display:none}.modalbox{max-width:min(95vw,950px);max-height:90vh;display:flex;flex-direction:column;gap:15px;background:#192230;border:1px solid #697b97;border-radius:12px;padding:20px}.modalbox img{max-height:65vh;max-width:calc(95vw - 48px);object-fit:contain;image-rendering:pixelated}.modalhead{display:flex;justify-content:space-between;align-items:center;gap:12px}.modalhead button{background:transparent;color:var(--ink);border:1px solid #63718a;border-radius:7px;padding:6px 10px}.modaltext{color:var(--muted);font-size:12px}.footerline{padding:20px 0 40px;color:#7e8da7;font-size:11px}.warning{background:#3b3022;border:1px solid #8b6b38;color:#f9dc99;padding:9px 13px;border-radius:8px;font-size:12px;margin:12px 0}
-@media(max-width:650px){.shell{padding:12px}.category{scroll-margin-top:260px}.gallery{grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px;padding:8px}.catlabel{font-size:15px}.stats{width:100%}.imageframe{height:136px}.toolbar input[type=search]{width:100%;max-width:none}.tilefooter{gap:4px}}
-
-/* Independent, editable category tags: a record may belong to multiple groups. */
-.tagset{display:flex;gap:5px;flex-wrap:wrap;padding:8px 10px 3px;align-items:center}
-.tagset button{font-size:10.5px;font-weight:750;line-height:1.25;padding:6px 8px;background:#212b3a;border:1px solid #52627b;color:#a7b5cc;border-radius:6px;white-space:nowrap}
-.tagset button[aria-pressed="true"]{background:#274261;border-color:#73b2ff;color:#e1efff;box-shadow:0 0 0 1px #5480ba44 inset}
-.tagset button:hover,.tagset button:focus-visible{border-color:#9fbcf0;outline:2px solid #8aa9ff33}
-.taghint{padding:0 11px 8px;color:#9eafc7;font-size:10px}
-.tag-empty{margin:0;padding:16px;color:#8291ae;font-size:12px}
-.catcontrols button:disabled{opacity:.4;cursor:not-allowed}
-.tilefooter{justify-content:space-between}
-.coverage-tag{font-size:10px;letter-spacing:.03em;color:#a2b6d6}
-#tag-filter{min-width:155px}
-#alert:empty{display:none}
-</style>
-</head>
-<body>
+:root{color-scheme:dark;--bg:#0c1119;--surface:#171f2c;--surface2:#202a3b;--line:#38485f;--line2:#546681;--text:#e4ebf7;--muted:#9caac0;--blue:#89b9ff;--green:#77dbb0;--red:#ff9ba2;--amber:#f5c87b}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:13px/1.4 system-ui,Segoe UI,Arial,sans-serif}button,input,select{font:inherit}button{cursor:pointer}button:disabled{opacity:.42;cursor:not-allowed}a{color:var(--blue)}
+.wrap{max-width:1810px;padding:0 19px;margin:auto}.apphead{position:sticky;top:0;z-index:10;background:#101722fa;border-bottom:2px solid #415068;box-shadow:0 7px 16px #0007}.top-grid{display:grid;grid-template-columns:minmax(225px,1fr) 260px minmax(450px,1.5fr);gap:8px;padding:9px 0}.cell{min-width:0;background:#192231;border:1px solid #43536a;padding:9px 12px}.cell-title{font-size:10px;color:#a3bbdf;font-weight:800;text-transform:uppercase;letter-spacing:.085em;margin:0 0 7px}.title-cell h1{font-size:21px;margin:0;letter-spacing:-.03em;line-height:1.2}.title-cell p{margin:4px 0 0;color:var(--muted);font-size:11px}.project-label{font-weight:800;color:#7cabe4;letter-spacing:.08em;font-size:10px}.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;font-size:10px}.stats span{background:#101826;border:1px solid #36465d;padding:5px}.stats b{display:block;font-size:19px;color:#fff;font-variant-numeric:tabular-nums;line-height:1.4}
+.controls{display:grid;grid-template-columns:minmax(255px,1.55fr) minmax(174px,.8fr) minmax(240px,1.1fr) minmax(275px,1.4fr);gap:8px;padding-bottom:9px}.cluster-tools{grid-column:span 1}.control-row,.file-actions,.bulk-row{display:flex;gap:6px;align-items:center;flex-wrap:wrap}.btn,select,input[type=search]{border:1px solid #51637c;background:#111a29;color:var(--text);border-radius:0;padding:7px 10px;min-height:31px}.btn{font-size:12px;font-weight:700;white-space:nowrap}.btn:hover,select:hover{background:#28384f;border-color:#8ab5e7}.btn.primary{background:#284a70;border-color:#6ca8ed;color:#eef6ff}.btn.warn{color:#ffd296}.btn:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid #94c6ff;outline-offset:1px}.file-actions{justify-content:flex-end}.file-actions a{text-decoration:none}.query{flex:1;min-width:135px}.control-row select{max-width:100%}.mode-btn{border:1px solid #52637a;color:#b8c5d9;background:#101927;padding:7px 13px;min-height:31px}.mode-btn[aria-pressed=true]{background:#385374;color:#fff;border-color:#a0c9ff}.muted{color:var(--muted)}
+#statusbar{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:7px 11px;margin:9px 0;background:#162233;border:1px solid #405777;min-height:38px}.status-help{font-size:12px;color:#b9c7dc}.message{font-size:12px;color:#c4e0ff;text-align:right}.message.error{color:#ffb6ad}.summary{font-size:12px;color:#aebbd1;padding:9px 11px;margin:8px 0;background:#152030;border:1px solid #34465e}.summary strong{color:#eef4ff}
+.group{margin:8px 0 20px;border:1px solid #3d4b60;scroll-margin-top:235px}.grouphead{display:grid;grid-template-columns: minmax(180px,1fr) auto auto;gap:8px;align-items:center;padding:9px 10px;background:#1d2939;border-bottom:1px solid #46566d}.grouphead.active{background:#28415b;border-bottom-color:#86b8ff}.grouphead button{margin-left:4px}.group-title{font-size:15px;font-weight:800}.group-count{font-size:11px;color:#aebdd2}.swatches{display:inline-flex;gap:3px;vertical-align:middle;margin-right:12px}.swatches i{display:inline-block;width:15px;height:15px;border:1px solid #9fa8b6;background:var(--swatch)}.group-actions{display:flex;gap:5px;justify-content:flex-end;flex-wrap:wrap}.group-actions .btn{padding:5px 8px;min-height:28px;font-size:11px}.group-actions .target.active{background:#45698f;border-color:#9cccff;color:white}
+.gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(185px,1fr));gap:9px;padding:10px;background:#101823;min-height:54px;touch-action:pan-y}.gallery:empty:after{content:'No matching items in this palette container.';color:#8193ac;padding:10px}.asset-card{min-width:0;overflow:hidden;border:1px solid #455269;background:#1a2432;user-select:none;position:relative}.asset-card.wanted{border-color:#4ba980}.asset-card.unwanted{border-color:#985963}.asset-card.selected{outline:3px solid #96c6ff;outline-offset:-3px;background:#24374d}.asset-card.cutting{opacity:.35}.art{height:150px;background:repeating-conic-gradient(#2d3747 0 25%,#222e3c 0 50%) 50%/18px 18px;display:flex;align-items:center;justify-content:center;position:relative;cursor:crosshair;touch-action:pan-y}.art img{max-width:100%;max-height:100%;image-rendering:pixelated;object-fit:contain;pointer-events:none}.art:hover{box-shadow:inset 0 0 0 2px #9bc0f350}.art .review-pill{position:absolute;top:5px;right:5px;padding:2px 5px;background:#132030da;border:1px solid #5c6c83;font-size:10px;font-weight:800;color:#c5d5ec}.art .review-pill.yes{color:#9df0c2;border-color:#38966b}.art .review-pill.no{color:#ffa9b0;border-color:#ac5d67}.select-card{position:absolute;left:5px;top:5px;padding:3px 5px;background:#18283ae6;border:1px solid #6c8caf;color:#edf4fc;z-index:1;font-size:10px}.select-card[aria-pressed=true]{background:#315e9d;border-color:#a0ceff}.card-data{padding:7px 9px;font-size:11px;background:#192232;border-bottom:1px solid #43516a}.card-data strong{font:700 13px ui-monospace,Consolas,monospace}.card-data .info{color:#9aacc6;margin-top:3px;font-size:10.5px}.tiny-colors{display:flex;gap:2px;margin-top:4px}.tiny-colors i{height:5px;flex:1;background:var(--swatch)}.tagset{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px;padding:8px}.tagset button{min-width:0;border:1px solid #52647e;background:#141f2d;color:#acbad0;padding:5px 3px;font-size:11px;font-weight:700}.tagset button[aria-pressed=true]{background:#315070;color:#eff6ff;border-color:#9bc8ff}.tagset button:hover{border-color:#a0caff}.card-foot{border-top:1px solid #38495f;display:flex;justify-content:space-between;align-items:center;padding:7px 9px;gap:6px}.wanted-check{display:flex;gap:5px;align-items:center;color:#cbd8ea;white-space:nowrap;font-size:11px;font-weight:700}.wanted-check input{width:16px;height:16px;accent-color:#67dba5}.zoom{background:#111a2a;border:1px solid #546783;color:#c0dafa;padding:4px 9px;font-size:11px}.zoom:hover{border-color:#a6cfff}.empty{padding:16px;color:#92a2b9}
+body[data-mode=compact] .card-data{display:none}body[data-mode=compact] .art{height:135px}body[data-mode=compact] .gallery{grid-template-columns:repeat(auto-fill,minmax(163px,1fr));gap:8px}body[data-mode=compact] .tagset{padding:7px}body[data-mode=compact] .card-foot{padding:6px 8px}
+#cut-tray{padding:11px;margin:10px 0;border:1px solid #b58e54;background:#3a2b1b;color:#ffe1aa;font-size:12px;font-weight:700}#cut-tray[hidden]{display:none}#marquee{position:fixed;pointer-events:none;border:1.5px dashed #b8dcff;background:#619fff37;z-index:35}#marquee[hidden]{display:none}#modal{position:fixed;inset:0;background:#050810e8;z-index:30;display:flex;align-items:center;justify-content:center;padding:20px}#modal[hidden]{display:none}.modal-inner{background:#192333;border:1px solid #8194ae;padding:15px;max-width:min(92vw,1000px);max-height:94vh;display:flex;flex-direction:column;gap:10px}.modal-inner img{max-height:75vh;max-width:90vw;object-fit:contain;image-rendering:pixelated}.modal-row{display:flex;align-items:center;justify-content:space-between;gap:15px}.provenance{padding:16px 0 34px;color:#8495af;font-size:11px}
+@media(max-width:1100px){.top-grid{grid-template-columns:1fr 245px}.file-cell{grid-column:1/-1}.controls{grid-template-columns:1fr 1fr}}@media(max-width:650px){.wrap{padding:0 9px}.top-grid,.controls{grid-template-columns:1fr}.file-cell{grid-column:auto}.apphead{position:relative}.group{scroll-margin-top:10px}.grouphead{grid-template-columns:1fr}.group-actions{justify-content:flex-start}.gallery{grid-template-columns:repeat(2,minmax(0,1fr));gap:5px;padding:6px}}
+</style></head><body data-mode="expanded">
 <script type="application/json" id="original-catalog">__MVC_CATALOG__</script>
-<header class="masthead"><div class="shell">
-  <div class="head"><div><div class="eyebrow">MARVEL VS. CAPCOM 1 · 87.203 · ASSET ORGANIZER</div><h1>Asset Organizer</h1><p class="lede">Original decoded tiles · independent category tags · Wanted / Unwanted decisions</p></div>
-   <div class="actions"><a class="btn" href="animations.html" aria-label="Open captured sprite animations and stage placements">▶ Animation & Stage Preview</a><button class="btn primary" id="export">Save to aodata.json</button><button class="btn" id="import">Load assets JSON ↑</button><input type="file" id="file" accept=".json,application/json" hidden><button class="btn dim" id="clear">Reset review</button></div></div>
-  <div class="toolbar"><input id="search" type="search" placeholder="Search ROM address, source frame, tags…" aria-label="Search sprites"><select id="filter" aria-label="Filter by review status"><option value="all">All review states</option><option value="unreviewed">Unreviewed</option><option value="want">Wanted</option><option value="no">Unwanted</option><option value="complete">Fully observed</option><option value="partial">Partial reconstructions</option></select><select id="tag-filter" aria-label="Show asset category"><option value="all">All asset tags</option><option value="character">Character</option><option value="effect">Effect</option><option value="background">Background</option><option value="level_sprite">Level Sprite</option><option value="untagged">Untagged</option></select><label class="bulk-type-label" for="mark-all-as">Mark all as</label><select id="mark-all-as" aria-label="Exclusive tag for all sprites"><option value="">Choose type…</option><option value="character">Character</option><option value="effect">Effect</option><option value="background">Background</option><option value="level_sprite">Level Sprite</option></select><button class="btn" id="apply-all-as" type="button">Apply to all</button><span class="stats" id="stats"></span></div>
-  <div class="legend"><span><i class="swatch yes"></i>Wanted = checked</span><span><i class="swatch no"></i>Unwanted = unchecked</span><span><i class="swatch unknown"></i>Unreviewed = undecided</span><span>Tags can overlap on individual cards; Mark all as assigns one exclusive type to every card.</span></div>
+<header class="apphead"><div class="wrap">
+ <div class="top-grid">
+  <div class="cell title-cell"><div class="project-label">MVC1 / STAGE 87.203 / SPRITE WORKSPACE</div><h1>Asset Organizer</h1><p>One card per original record · measured color similarity · manual color containers</p></div>
+  <div class="cell"><div class="cell-title">Catalog status</div><div class="stats" id="stats"></div></div>
+  <div class="cell file-cell"><div class="cell-title">Project / file operations</div><div class="file-actions"><a class="btn" href="animations.html">Animation Preview</a><button class="btn primary" id="export">Save aodata.json</button><button class="btn" id="import">Load JSON</button><input type="file" id="file" accept=".json,application/json" hidden><button class="btn" id="undo">Undo</button><button class="btn warn" id="clear">Reset</button></div></div>
+ </div>
+ <div class="controls">
+  <div class="cell"><div class="cell-title">Find / filter</div><div class="control-row"><input class="query" type="search" id="search" placeholder="ROM, source, tag, color…"><select id="filter" aria-label="Filter review status"><option value="all">All states</option><option value="want">Wanted</option><option value="no">Unwanted</option><option value="unreviewed">Unreviewed</option><option value="complete">Complete</option><option value="partial">Partial</option></select><select id="tag-filter" aria-label="Filter tags"><option value="all">All tags</option><option value="character">Character</option><option value="effect">Effect</option><option value="background">Background</option><option value="level_sprite">Level Sprite</option><option value="untagged">Untagged</option></select></div></div>
+  <div class="cell"><div class="cell-title">Data density</div><div class="control-row" role="group" aria-label="Data display mode"><button class="mode-btn" id="expanded" aria-pressed="true">Expanded</button><button class="mode-btn" id="compact" aria-pressed="false">Compact</button></div></div>
+  <div class="cell"><div class="cell-title">Mark all as (exclusive type)</div><div class="control-row"><select id="mark-all-as" aria-label="Tag every asset"><option value="">Choose type…</option><option value="character">Character</option><option value="effect">Effect</option><option value="background">Background</option><option value="level_sprite">Level Sprite</option></select><button class="btn" id="apply-all-as">Apply to all</button></div></div>
+  <div class="cell"><div class="cell-title">Multi-select / color assignment</div><div class="control-row"><button class="btn" id="select-visible">Select visible</button><button class="btn" id="deselect">Deselect</button><button class="btn" id="reset-color">Auto color</button><span id="selection-count" class="muted">0 selected</span></div></div>
+ </div>
  </div></header>
-<main class="shell"><div class="note"><b>Classification is assumed, not confirmed.</b> The four category tags are independent. Initial tags are guesses from the old review, not verified sprite identities. A complete descriptor match does not prove a stage prop or animation frame. Raw CPS2 palette previews are approximate, not certified final DMA colors. Save to aodata.json writes directly when opened through the localhost organizer; from a file:// tab, your browser downloads the JSON for you to place in the folder. No art binaries are exported.</div><div id="alert" role="status"></div><div id="content"></div><footer class="footerline" id="provenance"></footer></main>
+<main class="wrap"><div id="statusbar"><span class="status-help">Drag across artwork to select · Ctrl+click adds · Ctrl+X cuts · choose destination palette · Ctrl+V pastes · Ctrl+Z undoes.</span><span id="alert" class="message" role="status"></span></div>
+<div class="summary">Color containers use <strong>frequency-weighted CIELAB palette overlap</strong> from opaque captured pixels, not guessed categories. Click a container's destination control before pasting. Tag editing on one selected card makes that card's <strong>complete tag set</strong> authoritative for the selection. Current ROM artwork is unchanged.</div>
+<div id="cut-tray" hidden></div><div id="content"></div><footer class="provenance" id="provenance"></footer></main>
 <script type="application/json" id="seed-review">__AODATA_SEED__</script>
-<div id="modal" role="dialog" aria-modal="true" aria-label="Original sprite detail" hidden><div class="modalbox"><div class="modalhead"><strong id="modal-title"></strong><button id="modal-close">Close ✕</button></div><img id="modal-img" alt="Expanded original reconstructed sprite"><div id="modal-meta" class="modaltext"></div></div></div>
+<div id="marquee" hidden></div>
+<div id="modal" role="dialog" aria-modal="true" aria-label="Zoom original sprite" hidden><div class="modal-inner"><div class="modal-row"><strong id="modal-title"></strong><button class="btn" id="modal-close">Close</button></div><img id="modal-img" alt="Original sprite enlarged"><div id="modal-meta" class="muted"></div></div></div>
 <script>
 (()=>{'use strict';
-const data=JSON.parse(document.getElementById('original-catalog').textContent);
+const e=id=>document.getElementById(id);
+const data=JSON.parse(e('original-catalog').textContent);
 const TAGS=[{id:'character',label:'Character'},{id:'effect',label:'Effect'},{id:'background',label:'Background'},{id:'level_sprite',label:'Level Sprite'}];
-const GROUPS=[...TAGS,{id:'untagged',label:'Untagged'}];
 const allowed=new Set(TAGS.map(t=>t.id));
-const byId=new Map(data.catalog.map(x=>[x.id,x]));
+const GROUPS=(data.colorAnalysis?.groups?.length?data.colorAnalysis.groups:[{id:'palette_001',label:'Palette 001',swatches:[],count:data.catalog.length}]);
+const groupById=new Map(GROUPS.map(g=>[g.id,g]));
+const byId=new Map(data.catalog.map(item=>[item.id,item]));
 const seedCategory={character:'character',effects:'effect',stage:'level_sprite'};
-// Background and unrecognizable fragments begin untagged; do not manufacture certainty.
 const initialTags=item=>seedCategory[item.category]?[seedCategory[item.category]]:[];
-const states=new Map(data.catalog.map(item=>[item.id,{wanted:null,tags:initialTags(item)}]));
+const normalizeTags=xs=>Array.isArray(xs)?TAGS.filter(t=>xs.includes(t.id)).map(t=>t.id):[];
+const autoGroup=item=>groupById.has(item.colorGroup)?item.colorGroup:GROUPS[0].id;
+const initialState=item=>({wanted:null,tags:initialTags(item),colorGroupOverride:null});
+const states=new Map(data.catalog.map(item=>[item.id,initialState(item)]));
 const storageKey='mvc1-87.203-asset-organizer-'+data.romSha256;
-const e=document.getElementById.bind(document);
-const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const selected=new Set(),undoStack=[];
+let search='',statusFilter='all',tagFilter='all',dataMode='expanded',dirty=false,destination=null,cut=null,suppressClick=false,drag=null;
+const esc=v=>String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const label=id=>TAGS.find(t=>t.id===id)?.label||id;
 const statusName=x=>x===true?'WANTED':x===false?'UNWANTED':'UNREVIEWED';
-const label=id=>TAGS.find(c=>c.id===id)?.label||id;
-const normalTags=xs=>Array.isArray(xs)?TAGS.filter(t=>xs.includes(t.id)).map(t=>t.id):[];
-let search='',filter='all',tagFilter='all',dirty=false;
-function show(msg,error=false){const box=e('alert');box.className=msg?'warning':'';box.textContent=msg?(error?'Could not load: ':'')+msg:'';}
-function persist(){dirty=true;try{localStorage.setItem(storageKey,JSON.stringify([...states]));}catch(_){/* JSON export is durable. */}}
+const groupFor=item=>states.get(item.id).colorGroupOverride||autoGroup(item);
+function announce(msg,error=false){e('alert').textContent=msg;e('alert').classList.toggle('error',error);}
+function snapshot(){return new Map([...states].map(([id,s])=>[id,{wanted:s.wanted,tags:[...s.tags],colorGroupOverride:s.colorGroupOverride}]));}
+function remember(){undoStack.push(snapshot());if(undoStack.length>15)undoStack.shift();e('undo').disabled=false;}
+function undo(){if(!undoStack.length)return;const last=undoStack.pop();for(const [id,s] of last)states.set(id,s);persist();render();announce('Restored previous asset assignments and decisions.');}
+function persist(){dirty=true;try{localStorage.setItem(storageKey,JSON.stringify([...states]));}catch(_){/* Save JSON remains authoritative. */}}
 function loadStored(){try{const saved=JSON.parse(localStorage.getItem(storageKey)||'null');if(!Array.isArray(saved))return;
-for(const pair of saved){if(!Array.isArray(pair)||pair.length!==2||!byId.has(pair[0]))continue;
-const s=pair[1];if(!s||typeof s!=='object')continue;states.set(pair[0],{wanted:typeof s.wanted==='boolean'?s.wanted:null,tags:normalTags(s.tags)});}}
-catch(_){} }
-function member(item,group){const tags=states.get(item.id).tags;return group==='untagged'?!tags.length:tags.includes(group);}
-function setDecision(id,wanted){if(!states.has(id))return;states.get(id).wanted=wanted;persist();render();}
-function toggleTag(id,tag){if(!states.has(id)||!allowed.has(tag))return;const state=states.get(id);state.tags=state.tags.includes(tag)?state.tags.filter(t=>t!==tag):normalTags([...state.tags,tag]);persist();render();}
-function bulk(category,wanted){for(const item of data.catalog)if(member(item,category))states.get(item.id).wanted=wanted;persist();render();}
-function markAllAs(tag){if(!allowed.has(tag))return;for(const item of data.catalog)states.get(item.id).tags=[tag];persist();render();show('Assigned '+label(tag)+' exclusively to all '+data.catalog.length+' assets. Wanted/Unwanted decisions were kept.');}
-function visible(item){const s=states.get(item.id);const hay=[item.offset,item.id,item.shot,item.frame,item.selector,item.categoryEvidence,item.category,...s.tags.map(label)].join(' ').toLowerCase();
+for(const pair of saved){if(!Array.isArray(pair)||pair.length!==2||!byId.has(pair[0]))continue;const s=pair[1];if(!s||typeof s!=='object')continue;
+states.set(pair[0],{wanted:typeof s.wanted==='boolean'?s.wanted:null,tags:normalizeTags(s.tags),colorGroupOverride:groupById.has(s.colorGroupOverride)?s.colorGroupOverride:null});}}catch(_){}}
+function tagMatches(item){const tags=states.get(item.id).tags;return tagFilter==='all'||(tagFilter==='untagged'?!tags.length:tags.includes(tagFilter));}
+function visible(item){const s=states.get(item.id);
+if(!tagMatches(item))return false;
+const hay=[item.offset,item.id,item.shot,item.frame,item.selector,item.category,item.categoryEvidence,groupFor(item),...s.tags.map(label)].join(' ').toLowerCase();
 if(search&&!hay.includes(search))return false;
-return filter==='all'||(filter==='unreviewed'&&s.wanted===null)||(filter==='want'&&s.wanted===true)||(filter==='no'&&s.wanted===false)||(filter==='complete'&&item.coverage===1)||(filter==='partial'&&item.coverage<1);}
-function counts(items){const acc={total:items.length,want:0,no:0,unreviewed:0};for(const item of items){const wanted=states.get(item.id).wanted;acc[wanted===true?'want':wanted===false?'no':'unreviewed']++;}return acc;}
-function card(item){const s=states.get(item.id);const css=s.wanted===true?'wanted':s.wanted===false?'unwanted':'';
-const pill=s.wanted===true?'✓ WANT':s.wanted===false?'✕ NO':'? REVIEW';
-const chip=s.wanted===true?'yes':s.wanted===false?'no':'';
-const meta=item.coverage===1?'COMPLETE':Math.round(item.coverage*100)+'% seen';
-const tagBtns=TAGS.map(t=>'<button type="button" data-action="tag" data-id="'+esc(item.id)+'" data-tag="'+t.id+'" aria-label="Toggle '+esc(t.label)+' for ROM '+esc(item.offset)+'" aria-pressed="'+s.tags.includes(t.id)+'">'+esc(t.label)+'</button>').join('');
-return '<article class="tile '+css+'" data-id="'+esc(item.id)+'">'+
-'<button class="tap" type="button" data-action="toggle" data-id="'+esc(item.id)+'" aria-label="Toggle wanted for ROM '+esc(item.offset)+'"><div class="imageframe"><img loading="lazy" src="'+item.png+'" alt="Original MVC1 sprite record '+esc(item.offset)+'"><span class="corner '+chip+'">'+pill+'</span></div><div class="tilebody"><div class="name"><span class="rom">$'+esc(item.offset)+'</span><span class="coverage-tag">'+meta+'</span></div><div class="details">'+esc(item.shot)+' · frame '+item.frame+'<br>'+item.componentsMatched+'/'+item.componentsExpected+' pieces · '+item.nativeWidth+'×'+item.nativeHeight+' px · ctl $'+esc(item.selector)+'</div><div class="tiny">'+esc(item.categoryEvidence)+'</div></div></button>'+
-'<div class="tagset" role="group" aria-label="Category tags for '+esc(item.offset)+'">'+tagBtns+'</div><div class="taghint">Tags are independent · select any combination</div>'+
-'<div class="tilebody" style="padding-top:0"><div class="tilefooter"><label class="choice"><input type="checkbox" data-action="check" data-id="'+esc(item.id)+'" '+(s.wanted===true?'checked':'')+' aria-label="Want sprite $'+esc(item.offset)+'"> Wanted</label><button class="zoom" type="button" data-action="zoom" data-id="'+esc(item.id)+'" aria-label="Expand sprite $'+esc(item.offset)+'">Zoom</button></div></div></article>';}
-function render(){const all=data.catalog,n=counts(all);
-e('stats').innerHTML='<span><b>'+n.total+'</b> assets</span><span><b>'+n.want+'</b> wanted</span><span><b>'+n.no+'</b> unwanted</span><span><b>'+n.unreviewed+'</b> unreviewed</span>';
-let html='',hasDisplay=false;
-for(const group of GROUPS){if(tagFilter!=='all'&&tagFilter!==group.id)continue;
-const members=all.filter(item=>member(item,group.id));const display=members.filter(visible);const c=counts(members);
-html+='<section class="category" id="cat_'+esc(group.id)+'"><div class="cathead"><span class="catlabel">'+esc(group.label)+'</span><span class="catcount">'+members.length+' assets · '+c.want+' want · '+c.no+' no · '+c.unreviewed+' pending</span><div class="catcontrols"><button class="on" type="button" data-action="all" data-cat="'+group.id+'" '+(members.length?'':'disabled')+'>✓ Check all</button><button class="off" type="button" data-action="none" data-cat="'+group.id+'" '+(members.length?'':'disabled')+'>✕ Uncheck all</button></div></div>';
-if(display.length){hasDisplay=true;html+='<div class="gallery">'+display.map(card).join('')+'</div>';}
-else html+='<div class="gallery"><p class="tag-empty">'+(members.length?'No assets match current search/review filters.':'No assets have this tag yet. Toggle its chip on any sprite to add it.')+'</p></div>';
-html+='</section>';}
-e('content').innerHTML=hasDisplay?html:'<p class="empty">No assets match your filters.</p>'+html;
-for(const input of e('content').querySelectorAll('input[type="checkbox"]'))input.indeterminate=states.get(input.dataset.id).wanted===null;
+return statusFilter==='all'||(statusFilter==='want'&&s.wanted===true)||(statusFilter==='no'&&s.wanted===false)||(statusFilter==='unreviewed'&&s.wanted===null)||(statusFilter==='complete'&&item.coverage===1)||(statusFilter==='partial'&&item.coverage<1);}
+function stats(items){let yes=0,no=0;for(const item of items){const w=states.get(item.id).wanted;if(w===true)yes++;else if(w===false)no++;}return {yes,no,unknown:items.length-yes-no};}
+function swatches(colors){return '<span class="swatches" aria-label="Representative color swatches">'+(colors||[]).slice(0,5).map(rgb=>'<i style="--swatch:rgb('+rgb.map(Number).join(',')+')"></i>').join('')+'</span>';}
+function card(item){const s=states.get(item.id),wanted=s.wanted===true,notwanted=s.wanted===false;
+const pill=wanted?'✓ WANT':notwanted?'✕ NO':'? REVIEW';
+const colorstrip=(item.dominantColors||[]).slice(0,6).map(c=>'<i style="--swatch:rgb('+c.rgb.map(Number).join(',')+')"></i>').join('');
+const tags=TAGS.map(t=>'<button data-action="tag" data-id="'+item.id+'" data-tag="'+t.id+'" aria-pressed="'+s.tags.includes(t.id)+'" title="Set '+t.label+'; applies complete tag set to selected cards">'+t.label+'</button>').join('');
+return '<article class="asset-card '+(wanted?'wanted':notwanted?'unwanted':'')+(selected.has(item.id)?' selected':'')+'" data-id="'+item.id+'">'+
+'<div class="art" data-action="toggle" data-id="'+item.id+'" role="button" tabindex="0" aria-label="Toggle Wanted for ROM '+esc(item.offset)+'"><img loading="lazy" draggable="false" src="'+item.png+'" alt="Original MVC1 sprite '+esc(item.offset)+'"><button type="button" class="select-card" data-action="select" data-id="'+item.id+'" aria-pressed="'+selected.has(item.id)+'">'+(selected.has(item.id)?'✓ Selected':'Select')+'</button><span class="review-pill '+(wanted?'yes':notwanted?'no':'')+'">'+pill+'</span></div>'+
+'<div class="card-data"><strong>ROM $'+esc(item.offset)+'</strong><span style="float:right">'+(item.coverage===1?'Full':'Partial')+'</span><div class="info">'+esc(item.shot)+' · frame '+item.frame+' · '+item.componentsMatched+'/'+item.componentsExpected+' parts<br>'+item.nativeWidth+'×'+item.nativeHeight+' px · ctl $'+esc(item.selector)+'</div><div class="tiny-colors">'+colorstrip+'</div></div>'+
+'<div class="tagset" role="group" aria-label="Tags for '+esc(item.offset)+'">'+tags+'</div><div class="card-foot"><label class="wanted-check"><input type="checkbox" data-action="check" data-id="'+item.id+'" '+(wanted?'checked':'')+'>Wanted</label><button class="zoom" data-action="zoom" data-id="'+item.id+'">Zoom</button></div></article>';}
+function render(){const st=stats(data.catalog);e('stats').innerHTML='<span><b>'+data.catalog.length+'</b>Assets</span><span><b>'+st.yes+'</b>Wanted</span><span><b>'+st.no+'</b>Unwanted</span><span><b>'+st.unknown+'</b>Pending</span>';
+e('selection-count').textContent=selected.size+' selected';e('deselect').disabled=selected.size===0;e('reset-color').disabled=selected.size===0;e('undo').disabled=undoStack.length===0;
+e('expanded').setAttribute('aria-pressed',String(dataMode==='expanded'));e('compact').setAttribute('aria-pressed',String(dataMode==='compact'));document.body.dataset.mode=dataMode;
+e('cut-tray').hidden=!cut;e('cut-tray').textContent=cut?'CUT TRAY · '+cut.ids.length+' assets pending · choose a destination container, then Ctrl+V or its Paste button · Esc cancels':'';
+let html='';for(const g of GROUPS){const members=data.catalog.filter(item=>groupFor(item)===g.id);const listed=members.filter(item=>!(cut&&cut.ids.includes(item.id))&&visible(item));const stg=stats(members);
+html+='<section class="group" id="group_'+g.id+'"><div class="grouphead '+(destination===g.id?'active':'')+'"><div><span class="group-title">'+esc(g.label)+'</span> '+swatches(g.swatches)+'<span class="group-count">'+members.length+' assets · '+stg.yes+' wanted'+(destination===g.id?' · DESTINATION':'')+'</span></div><div class="group-count">Measured palette affinity · '+esc(g.id)+'</div><div class="group-actions"><button class="btn target '+(destination===g.id?'active':'')+'" data-action="target" data-group="'+g.id+'">'+(destination===g.id?'✓ Destination':'Set destination')+'</button><button class="btn" data-action="paste" data-group="'+g.id+'" '+(cut?'':'disabled')+'>Paste here</button><button class="btn" data-action="all" data-group="'+g.id+'" '+(members.length?'':'disabled')+'>Check all</button><button class="btn" data-action="none" data-group="'+g.id+'" '+(members.length?'':'disabled')+'>Uncheck all</button></div></div>'+
+'<div class="gallery" data-group="'+g.id+'">'+listed.map(card).join('')+'</div></section>';}
+e('content').innerHTML=html;
+for(const input of e('content').querySelectorAll('input[data-action=check]'))input.indeterminate=states.get(input.dataset.id).wanted===null;
 }
+function selectOne(id,add=false){if(!add)selected.clear();if(add&&selected.has(id))selected.delete(id);else selected.add(id);render();}
+function clearSelection(){selected.clear();render();}
+function setWanted(id,value){if(!states.has(id))return;remember();const ids=selected.has(id)?[...selected]:[id];for(const itemId of ids)states.get(itemId).wanted=value;persist();render();}
+function toggleWanted(id){setWanted(id,states.get(id).wanted===true?false:true);}
+function toggleTag(id,tag){if(!allowed.has(tag)||!states.has(id))return;remember();const source=states.get(id);source.tags=source.tags.includes(tag)?source.tags.filter(t=>t!==tag):normalizeTags([...source.tags,tag]);
+// Editing one source card determines the ENTIRE tag set of every selected card.
+if(selected.size)for(const peer of selected)states.get(peer).tags=[...source.tags];persist();render();announce(selected.size?'Applied complete '+(source.tags.map(label).join(', ')||'empty')+' tag set to '+selected.size+' selected assets.':'Updated tags for $'+byId.get(id).offset+'.');}
+function bulk(group,wanted){remember();for(const item of data.catalog)if(groupFor(item)===group)states.get(item.id).wanted=wanted;persist();render();}
+function markAllAs(tag){if(!allowed.has(tag))return;remember();for(const item of data.catalog)states.get(item.id).tags=[tag];persist();render();announce('Assigned '+label(tag)+' exclusively to '+data.catalog.length+' assets; Wanted decisions preserved.');}
+function cutSelection(){if(!selected.size){announce('Select sprites with the rubber band or Select buttons before cutting.',true);return;}cut={ids:[...selected]};render();announce('Cut '+cut.ids.length+' assets. Click a destination palette, then Ctrl+V. Esc cancels.');}
+function pasteInto(group){if(!cut){announce('Cut sprites first with Ctrl+X.',true);return;}if(!groupById.has(group)){announce('Choose a valid palette destination.',true);return;}remember();
+for(const id of cut.ids)states.get(id).colorGroupOverride=group===autoGroup(byId.get(id))?null:group;const n=cut.ids.length;cut=null;destination=group;persist();render();announce('Moved '+n+' assets into '+group+'. Ctrl+Z undoes.');}
+function cancelCut(){if(!cut)return;cut=null;render();announce('Cut cancelled; no color assignments changed.');}
+function resetColor(){if(!selected.size)return;remember();for(const id of selected)states.get(id).colorGroupOverride=null;persist();render();announce('Restored automatic color assignments for '+selected.size+' selected assets.');}
 function payload(){return {format:'MVC1_ASSET_ORGANIZER_V2',sourceRomSha256:data.romSha256,sourceCatalogSize:data.catalog.length,exportedAt:new Date().toISOString(),
-statusMeaning:{true:'WANTED',false:'UNWANTED',null:'UNREVIEWED'},allowedTags:TAGS,items:data.catalog.map(item=>({id:item.id,romOffsetHex:item.offset,
+statusMeaning:{true:'WANTED',false:'UNWANTED',null:'UNREVIEWED'},allowedTags:TAGS,items:data.catalog.map(item=>{const s=states.get(item.id);return {id:item.id,romOffsetHex:item.offset,
 sourceShot:item.shot,sourceFrame:item.frame,controlSelectorHex:item.selector,componentsMatched:item.componentsMatched,componentsExpected:item.componentsExpected,
-originalAssumedCategory:item.category,originalAssumption:item.categoryEvidence,tags:[...states.get(item.id).tags],wanted:states.get(item.id).wanted,
-reviewStatus:statusName(states.get(item.id).wanted)}))};}
-function downloadJSON(review){const out=new Blob([JSON.stringify(review,null,2)+'\n'],{type:'application/json'});
-const href=URL.createObjectURL(out),a=document.createElement('a');a.href=href;a.download='aodata.json';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(href),3000);}
-async function exportJSON(){const review=payload();
-// file:// browsers (including Firefox) cannot write arbitrary paths; use the
-// loopback-only Python server from RUN_TEST.bat art when available.
-if(location.protocol==='http:'&&(location.hostname==='127.0.0.1'||location.hostname==='localhost')){
-try{const response=await fetch('/api/review',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(review)});
-if(!response.ok)throw Error('Local save rejected: HTTP '+response.status+' '+(await response.text()).slice(0,240));
-show('Saved '+review.items.length+' assets to asset_organizer/aodata.json.');dirty=false;return;
-}catch(err){show(String(err.message||err)+'; downloaded aodata.json as fallback.',true);}}
-downloadJSON(review);show('Downloaded aodata.json. To save directly into asset_organizer/aodata.json, launch the organizer through RUN_TEST.bat art (localhost mode).');}
-async function loadCanonicalReview(){
-if(location.protocol==='http:'&&(location.hostname==='127.0.0.1'||location.hostname==='localhost')){
-try{const r=await fetch('/api/review',{cache:'no-store'});if(r.ok){const saved=await r.json();if(!dirty){applyReview(saved,{quiet:true,requireComplete:true});dirty=false;show('Loaded asset_organizer/aodata.json.');}return;}}
-catch(err){show('Could not load canonical review: '+String(err.message||err),true);}}
-const seed=e('seed-review')?.textContent?.trim();if(seed&&seed!=='null'&&!dirty){try{applyReview(JSON.parse(seed),{quiet:true,requireComplete:true});dirty=false;}catch(err){show('Invalid embedded aodata.json: '+String(err.message||err),true);}}}
-function applyReview(imported,{quiet=false,requireComplete=false}={}){const old=imported.format==='MVC1_ART_REVIEW_SELECTIONS_V1';
-if(!old&&imported.format!=='MVC1_ASSET_ORGANIZER_V2')throw Error('Unknown review format (expected V2 organizer or V1 review).');
-if(imported.sourceRomSha256!==data.romSha256)throw Error('ROM checksum mismatch. No decisions applied.');
-if(!Array.isArray(imported.items))throw Error('Missing items array.');
-if(requireComplete&&(imported.items.length!==data.catalog.length||imported.sourceCatalogSize!==data.catalog.length))throw Error('Saved review must cover the entire source catalog.');
-const proposed=new Map([...states].map(([id,s])=>[id,{wanted:s.wanted,tags:[...s.tags]}]));let applied=0;const seen=new Set();
-for(const item of imported.items){if(!item||typeof item!=='object'||!byId.has(item.id))continue;
-if(seen.has(item.id))throw Error('Duplicate asset ID in review file.');seen.add(item.id);
-if(item.wanted!==null&&typeof item.wanted!=='boolean')throw Error('Invalid wanted status in review file.');
-const original=byId.get(item.id);
-if(item.romOffsetHex&&item.romOffsetHex!==original.offset)throw Error('A ROM address does not match its asset ID.');
-const tags=old?(seedCategory[item.category]?[seedCategory[item.category]]:initialTags(original)):normalTags(item.tags);
-proposed.set(item.id,{wanted:item.wanted,tags});applied++;}
-if(requireComplete&&applied!==data.catalog.length)throw Error('Not all catalog IDs were supplied.');
-for(const [id,s] of proposed)states.set(id,s);persist();render();if(!quiet)show('Imported '+applied+' assets'+(old?' from previous V1 review; categories converted to tags.':'.'));return applied;}
-async function importJSON(file){try{applyReview(JSON.parse(await file.text()));}catch(err){show(String(err.message||err),true);}}
-function zoom(id){const item=byId.get(id);if(!item)return;
-e('modal-title').textContent='$'+item.offset+' · '+(states.get(id).tags.map(label).join(', ')||'Untagged');e('modal-img').src=item.png;
-e('modal-meta').textContent=item.shot+' · frame '+item.frame+' · '+item.componentsMatched+'/'+item.componentsExpected+' descriptors · '+item.nativeWidth+'×'+item.nativeHeight+' original pixels';
-e('modal').hidden=false;e('modal-close').focus();}
+originalAssumedCategory:item.category,originalAssumption:item.categoryEvidence,tags:[...s.tags],wanted:s.wanted,reviewStatus:statusName(s.wanted),
+colorGroupOverride:s.colorGroupOverride};})};}
+function downloadJSON(review){const blob=new Blob([JSON.stringify(review,null,2)+'\n'],{type:'application/json'});const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='aodata.json';document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),2500);}
+async function save(){if(cut)announce('A cut is pending; move it before saving. Only completed assignments are saved.');const review=payload();
+if(location.protocol==='http:'&&(location.hostname==='127.0.0.1'||location.hostname==='localhost'))try{const r=await fetch('/api/review',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(review)});if(!r.ok)throw Error('HTTP '+r.status+' '+(await r.text()).slice(0,180));dirty=false;announce('Saved all '+review.items.length+' assets, tags and color overrides to asset_organizer/aodata.json.');return;}catch(err){announce('Direct save failed: '+String(err),true);}
+downloadJSON(review);announce('Downloaded aodata.json; for direct saves open the organizer using RUN_TEST.bat art.');}
+function applyReview(imported,{quiet=false,requireComplete=false}={}){const old=imported?.format==='MVC1_ART_REVIEW_SELECTIONS_V1';if(!old&&imported?.format!=='MVC1_ASSET_ORGANIZER_V2')throw Error('Expected V2 organizer or V1 review JSON.');
+if(imported.sourceRomSha256!==data.romSha256)throw Error('ROM SHA-256 does not match this original artwork.');if(!Array.isArray(imported.items))throw Error('Missing review items.');
+if(requireComplete&&(imported.items.length!==data.catalog.length||imported.sourceCatalogSize!==data.catalog.length))throw Error('Incomplete master catalog.');
+const proposal=snapshot();let used=0;const ids=new Set();for(const item of imported.items){if(!item||!byId.has(item.id))continue;if(ids.has(item.id))throw Error('Duplicate asset ID.');ids.add(item.id);if(item.romOffsetHex&&item.romOffsetHex!==byId.get(item.id).offset)throw Error('ROM address mismatch.');if(item.wanted!==null&&typeof item.wanted!=='boolean')throw Error('Invalid Wanted decision.');
+const tags=old?(seedCategory[item.category]?[seedCategory[item.category]]:initialTags(byId.get(item.id))):normalizeTags(item.tags);
+if(item.colorGroupOverride!==undefined&&item.colorGroupOverride!==null&&!groupById.has(item.colorGroupOverride))throw Error('Unknown color container.');
+proposal.set(item.id,{wanted:item.wanted,tags,colorGroupOverride:old?null:(item.colorGroupOverride||null)});used++;}
+if(requireComplete&&used!==data.catalog.length)throw Error('Missing IDs in full master review.');
+for(const [id,s] of proposal)states.set(id,s);cut=null;selected.clear();persist();render();if(!quiet)announce('Loaded '+used+' asset decisions and manual color assignments.');return used;}
+async function loadCanonical(){if(location.protocol==='http:'&&(location.hostname==='127.0.0.1'||location.hostname==='localhost'))try{const r=await fetch('/api/review',{cache:'no-store'});if(r.ok){const review=await r.json();if(!dirty){applyReview(review,{quiet:true,requireComplete:true});dirty=false;announce('Loaded asset_organizer/aodata.json.');}return;}}catch(err){announce('Could not load canonical review: '+String(err),true);}
+const seed=e('seed-review').textContent.trim();if(seed&&seed!=='null'&&!dirty)try{applyReview(JSON.parse(seed),{quiet:true,requireComplete:true});dirty=false;}catch(err){announce('Invalid embedded aodata.json: '+String(err),true);}}
+function zoom(id){const item=byId.get(id);if(!item)return;e('modal-title').textContent='ROM $'+item.offset+' · '+groupFor(item);e('modal-img').src=item.png;e('modal-meta').textContent=item.shot+' · frame '+item.frame+' · '+item.nativeWidth+'×'+item.nativeHeight+' original pixels';e('modal').hidden=false;e('modal-close').focus();}
 function closeZoom(){e('modal').hidden=true;e('modal-img').removeAttribute('src');}
-e('content').addEventListener('click',event=>{const target=event.target.closest('button[data-action]');if(!target)return;
-const {action,id,cat,tag}=target.dataset;if(action==='toggle'){const prev=states.get(id).wanted;setDecision(id,prev===true?false:true);}
-else if(action==='tag')toggleTag(id,tag);else if(action==='all')bulk(cat,true);else if(action==='none')bulk(cat,false);else if(action==='zoom')zoom(id);});
-e('content').addEventListener('change',event=>{const control=event.target;if(control.dataset.action==='check')setDecision(control.dataset.id,control.checked);});
-e('search').addEventListener('input',event=>{search=event.target.value.trim().toLowerCase();render();});
-e('filter').addEventListener('change',event=>{filter=event.target.value;render();});
-e('tag-filter').addEventListener('change',event=>{tagFilter=event.target.value;render();});
-e('apply-all-as').addEventListener('click',()=>{const tag=e('mark-all-as').value;if(!allowed.has(tag)){show('Choose a type before using Mark all as.',true);return;}if(!confirm('Assign '+label(tag)+' as the ONLY type for all '+data.catalog.length+' assets? This clears other type tags everywhere, but leaves Wanted/Unwanted unchanged.'))return;markAllAs(tag);});
-e('export').addEventListener('click',exportJSON);e('import').addEventListener('click',()=>e('file').click());
-e('file').addEventListener('change',event=>{const file=event.target.files?.[0];if(file)importJSON(file);event.target.value='';});
-e('clear').addEventListener('click',()=>{if(!confirm('Reset all review decisions and category tags to their initial guesses?'))return;
-for(const item of data.catalog)states.set(item.id,{wanted:null,tags:initialTags(item)});persist();render();show('Organizer reset to original unreviewed tags.');});
-e('modal-close').addEventListener('click',closeZoom);e('modal').addEventListener('click',event=>{if(event.target===e('modal'))closeZoom();});
-document.addEventListener('keydown',event=>{if(event.key==='Escape'&&!e('modal').hidden)closeZoom();});
-e('provenance').textContent='Original program SHA-256: '+data.romSha256+' · Asset tags are editable guesses. Reconstructed original pixels and approximate captured CPS2 palettes are embedded locally; no network required. Multiple tags may place the same asset in several sections.';
-loadStored();render();loadCanonicalReview();
+e('content').addEventListener('click',ev=>{if(suppressClick){ev.preventDefault();ev.stopPropagation();return;}const btn=ev.target.closest('[data-action]');if(!btn)return;
+const {action,id,tag,group}=btn.dataset;if(action==='tag')toggleTag(id,tag);else if(action==='zoom')zoom(id);else if(action==='select')selectOne(id,ev.ctrlKey||ev.metaKey||ev.shiftKey||selected.has(id));
+else if(action==='toggle'){if(ev.ctrlKey||ev.metaKey||ev.shiftKey)selectOne(id,true);else toggleWanted(id);}
+else if(action==='target'){destination=group;render();announce('Destination set to '+group+'. Ctrl+V pastes the cut selection here.');}
+else if(action==='paste'){destination=group;pasteInto(group);}
+else if(action==='all')bulk(group,true);else if(action==='none')bulk(group,false);});
+e('content').addEventListener('change',ev=>{const inp=ev.target;if(inp.dataset.action==='check')setWanted(inp.dataset.id,inp.checked);});
+e('content').addEventListener('keydown',ev=>{if(ev.target.classList.contains('art')&&(ev.key==='Enter'||ev.key===' ')){ev.preventDefault();toggleWanted(ev.target.dataset.id);}});
+// Rubber-band selection begins on non-control artwork or gallery background.
+// All visible cards whose rectangles intersect the band join the selection.
+e('content').addEventListener('pointerdown',ev=>{if(ev.button!==0||ev.target.closest('button,a,input,label,select')||ev.target.closest('.grouphead'))return;const gallery=ev.target.closest('.gallery');if(!gallery)return;
+drag={startX:ev.clientX,startY:ev.clientY,x:ev.clientX,y:ev.clientY,add:ev.ctrlKey||ev.metaKey||ev.shiftKey,active:false};});
+document.addEventListener('pointermove',ev=>{if(!drag)return;drag.x=ev.clientX;drag.y=ev.clientY;if(!drag.active&&Math.hypot(drag.x-drag.startX,drag.y-drag.startY)>7)drag.active=true;
+if(!drag.active)return;const x=Math.min(drag.x,drag.startX),y=Math.min(drag.y,drag.startY),w=Math.abs(drag.x-drag.startX),h=Math.abs(drag.y-drag.startY);const box=e('marquee');box.hidden=false;Object.assign(box.style,{left:x+'px',top:y+'px',width:w+'px',height:h+'px'});});
+document.addEventListener('pointerup',()=>{if(!drag)return;const d=drag;drag=null;e('marquee').hidden=true;if(!d.active)return;const x=Math.min(d.startX,d.x),y=Math.min(d.startY,d.y),x2=Math.max(d.startX,d.x),y2=Math.max(d.startY,d.y);
+if(!d.add)selected.clear();for(const card of e('content').querySelectorAll('.asset-card')){const b=card.getBoundingClientRect();if(b.left<x2&&b.right>x&&b.top<y2&&b.bottom>y)selected.add(card.dataset.id);}
+suppressClick=true;setTimeout(()=>suppressClick=false,0);render();announce('Selected '+selected.size+' assets. Click any selected card tag to synchronize the entire tag set, or Ctrl+X to cut.');});
+const inputFocused=()=>{const el=document.activeElement;return el&&(el.matches('input,textarea,select')||el.isContentEditable);};
+document.addEventListener('keydown',ev=>{if(ev.key==='Escape'){if(cut)cancelCut();if(!e('modal').hidden)closeZoom();return;}if(inputFocused())return;
+if((ev.ctrlKey||ev.metaKey)&&!ev.altKey){const key=ev.key.toLowerCase();if(key==='x'&&selected.size){ev.preventDefault();cutSelection();}else if(key==='v'&&cut){ev.preventDefault();if(destination)pasteInto(destination);else announce('Click Set destination on the color container you want to paste into.',true);}else if(key==='z'&&undoStack.length){ev.preventDefault();undo();}}});
+e('search').addEventListener('input',ev=>{search=ev.target.value.trim().toLowerCase();render();});e('filter').addEventListener('change',ev=>{statusFilter=ev.target.value;render();});e('tag-filter').addEventListener('change',ev=>{tagFilter=ev.target.value;render();});
+for(const mode of ['expanded','compact'])e(mode).addEventListener('click',()=>{dataMode=mode;render();});
+e('select-visible').addEventListener('click',()=>{for(const item of data.catalog)if(visible(item))selected.add(item.id);render();announce(selected.size+' assets selected from the visible filter.');});
+e('deselect').addEventListener('click',clearSelection);e('reset-color').addEventListener('click',resetColor);e('undo').addEventListener('click',undo);
+e('apply-all-as').addEventListener('click',()=>{const tag=e('mark-all-as').value;if(!allowed.has(tag)){announce('Choose a type first.',true);return;}if(confirm('Replace ALL category tags across '+data.catalog.length+' assets with '+label(tag)+'? Wanted decisions will not change.'))markAllAs(tag);});
+e('export').addEventListener('click',save);e('import').addEventListener('click',()=>e('file').click());e('file').addEventListener('change',async ev=>{const f=ev.target.files?.[0];if(f)try{applyReview(JSON.parse(await f.text()));}catch(err){announce(String(err),true);}ev.target.value='';});
+e('clear').addEventListener('click',()=>{if(!confirm('Reset all Wanted decisions, tags and manual palette overrides?'))return;remember();for(const item of data.catalog)states.set(item.id,initialState(item));cut=null;selected.clear();persist();render();announce('Restored original unreviewed catalog and automatic color grouping.');});
+e('modal-close').addEventListener('click',closeZoom);e('modal').addEventListener('click',ev=>{if(ev.target===e('modal'))closeZoom();});
+e('provenance').textContent='Original program SHA-256 '+data.romSha256+' · Color grouping uses opaque original pixels and approximate captured CPS2 palette RAM. Manual overrides and tags are saved separately from ROM offsets; original graphics and stage captures are never modified.';
+loadStored();render();loadCanonical();
 })();
-</script>
-</body></html>
+</script></body></html>
