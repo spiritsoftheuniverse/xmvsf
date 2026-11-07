@@ -695,4 +695,17 @@ if not exist "%PROJECT%\test\87.203\m68k_pose_interpreter\pose_footer_interprete
   exit /b 2
 )
 echo Footer interpreter leads ZIP: "%PROJECT%\test\87.203\m68k_pose_interpreter\pose_footer_interpreter_leads.zip"
+REM Source-verified split-byte lookup plus actual A6+40 pointer consumers.
+REM This remains OFFLINE: no native 68000 execution or real timing claim.
+python.exe "%PROJECT%\dev\stage_capture\TRACE_MVC_POSE_CONSUMERS.py" --trace-root "%PROJECT%\test\87.203\m68k_trace" --pose-manifest "%PROJECT%\test\87.203\m68k_pose_boundaries\rom_pose_manifest.json" --output "%PROJECT%\test\87.203\m68k_pose_consumers"
+set "CONSUMER_RC=%ERRORLEVEL%"
+if not "%CONSUMER_RC%"=="0" (
+  echo ERROR: Original M68K pose-pointer consumer analysis failed. Sources preserved.
+  exit /b %CONSUMER_RC%
+)
+if not exist "%PROJECT%\test\87.203\m68k_pose_consumers\pose_pointer_consumer_review.zip" (
+  echo ERROR: M68K consumer report ZIP missing.
+  exit /b 2
+)
+echo Pose pointer consumer ZIP: "%PROJECT%\test\87.203\m68k_pose_consumers\pose_pointer_consumer_review.zip"
 exit /b 0
