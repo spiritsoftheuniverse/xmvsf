@@ -272,6 +272,9 @@ leaving it off. It is enabled by default and explicitly in normal
 `RUN_TEST.bat` and `RUN_REPLAY.bat`; set the flag to `0` for
 controlled A/B comparison. Donor MVC1 launches still force it off.
 No new superjump, no opponent writes, no forced follow-up or DHC change.
+The CPS2 frame-hook now explicitly checks the driver name begins
+with `xmvsf` before invoking the recovered controller logic; MVC1 cannot
+inherit the restored XMVSF behavior through a direct ROM launch.
 Native event log: `test/87.209/observer/cyclops_air_throw_release.tsv`.
 
 **Regression coverage:** `dev/dhc/tests/test_stun_and_cyclops_209.cpp`
