@@ -4,15 +4,18 @@
 // Resume Cyclops's ACTUAL preceding airborne controller after air throw impact.
 // No fresh super-jump launch, no arbitrary animation/script/ROM address.
 // Never modify the opponent, world X/Y, HP, meter or character identity.
-// Arm on 200C -> 200E grab end; count FIVE native combat-frame updates
-// regardless of how many times the same sprite pose repeats (+42).
-// Only restore the saved airborne controller with the victim in 1C34.
-// +42 changes remain observations, NOT the release clock.
+// Arm on 200C -> 200E grab end, then wait 100 distinct native combat
+// updates. Ignore repeated sprite-pose values and animation-word changes.
+// Latch the victim's ground landing while waiting; the 1C34 action may be
+// fleeting and should NOT have to coincide with the 100th update.
+// Restore the saved airborne controller only while Cyclops still occupies
+// the throw-recovery action. Never overwrite a legitimate later action.
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
 namespace XM87121 {
+static const unsigned ReleaseDelayFrames=100u;
 static inline unsigned b(const std::uint8_t* r,unsigned addr){return r[(addr&0xFFFFu)^1u];}
 static inline unsigned w(const std::uint8_t* r,unsigned addr){return (b(r,addr)<<8)|b(r,addr+1);}
 static inline std::uint32_t d(const std::uint8_t* r,unsigned a){return (std::uint32_t(w(r,a))<<16)|w(r,a+2);}
@@ -59,14 +62,14 @@ static inline void restoreAir(std::uint8_t* r,unsigned p,const AirState& s){
     // World X/Y (+0C/+10), fighter ID, health, super meter, enemy untouched.
 }
 struct Tracker{
-    bool initialized,enabled,valid[2],armed[2],pending[2],waiting[2];
+    bool initialized,enabled,valid[2],armed[2],pending[2],waiting[2],victimLanded[2];
     unsigned lastFrame,previous[2],until[2];
     unsigned lastAnim42[2],animationAdvances[2],recoveryTicks[2];
     AirState lastAir[2],selected[2];
     std::FILE* log;
     Tracker():initialized(false),enabled(false),lastFrame(~0u),log(NULL){
         for(unsigned i=0;i<2;++i){
-            valid[i]=armed[i]=pending[i]=waiting[i]=false;
+            valid[i]=armed[i]=pending[i]=waiting[i]=victimLanded[i]=false;
             previous[i]=until[i]=lastAnim42[i]=animationAdvances[i]=recoveryTicks[i]=0;
         }
     }
@@ -88,7 +91,7 @@ struct Tracker{
     }
     void reset(){
         for(unsigned i=0;i<2;++i){
-            valid[i]=armed[i]=pending[i]=waiting[i]=false;
+            valid[i]=armed[i]=pending[i]=waiting[i]=victimLanded[i]=false;
             lastAir[i].valid=false;
             until[i]=lastAnim42[i]=animationAdvances[i]=recoveryTicks[i]=0;
         }
@@ -112,7 +115,7 @@ struct Tracker{
             unsigned action=w(r,p+0x60u);
             bool cyclops=w(r,p+0x40u)==0x0021u && w(r,p)==0x0101u;
             if(!cyclops){
-                valid[i]=armed[i]=pending[i]=waiting[i]=false;
+                valid[i]=armed[i]=pending[i]=waiting[i]=victimLanded[i]=false;
                 lastAir[i].valid=false;
                 animationAdvances[i]=recoveryTicks[i]=0;
                 continue;
@@ -124,63 +127,63 @@ struct Tracker{
                 w(r,p+0x10u)<472u;
             if(inJump)lastAir[i]=observeAir(r,p,f);
             if(valid[i] && action==0x200Cu && previous[i]!=0x200Cu){
-                armed[i]=lastAir[i].valid && f>=lastAir[i].frame && f-lastAir[i].frame<=2u;
+                // A throw can enter after multiple airborne game updates; 2u
+                // rejected otherwise valid saved air states intermittently.
+                armed[i]=lastAir[i].valid && f>=lastAir[i].frame &&
+                         f-lastAir[i].frame<=24u;
                 if(armed[i])selected[i]=lastAir[i];
                 emit(f,i,"THROW_CAPTURE",r,p,other,armed[i]?"AIRBORNE_SAVED":"NO_AIRBORNE_BASELINE");
             }
-            bool firstFlip=valid[i] && previous[i]==0x200Cu && action==0x200Eu &&
-                w(r,p+0x06u)==4u && w(r,p+0x08u)==6u &&
-                (w(r,p+0xA0u)>>8)==0x32u &&
-                (w(r,p+0xAAu)>>8)==2u && w(r,p+0x10u)<472u;
-            if(valid[i] && previous[i]==0x200Cu && action==0x200Eu && !firstFlip){
-                // If the real ROM differs from the saved 87.121 flip trace,
-                // make that visible rather than silently waiting forever.
-                // The existing emit fields expose +06/+08 and action; a
-                // current +A0/+AA mismatch can be confirmed in RUN_TEST.
-                emit(f,i,"FLIP_REJECTED",r,p,other,"NATIVE_RECOVERY_GATE_MISMATCH");
-            }
+            // The transition itself is the reliable grab-end boundary.
+            // The old exact +06/+08/+A0/+AA signature excluded valid
+            // 200C->200E states and never started the recovery clock.
+            const bool firstFlip=valid[i] && previous[i]==0x200Cu &&
+                                 action==0x200Eu && w(r,p+0x10u)<472u;
             if(firstFlip){
-                // Grab has ended. One subsequent native frame() call is ONE
-                // recovery tick, whether +42 (the pose ID) changes or not.
                 waiting[i]=enabled && armed[i];
                 recoveryTicks[i]=0;
-                animationAdvances[i]=0; // sprite transitions, diagnostics only
+                animationAdvances[i]=0; // diagnostic only
                 lastAnim42[i]=w(r,p+0x42u);
+                victimLanded[i]=w(r,other+0x10u)>=472u;
                 emit(f,i,"GRAB_ENDED",r,p,other,
-                    waiting[i]?"WAIT_5_NATIVE_UPDATES":"NO_AIRBORNE_BASELINE_OR_DISABLED");
+                    !enabled?"DISABLED":!armed[i]?"NO_AIRBORNE_BASELINE":
+                    "WAIT_100_NATIVE_FRAMES");
                 armed[i]=false;
-            } else if(waiting[i]){
-                if(w(r,p+0x10u)>=472u || action!=0x200Eu){
-                    // If the ROM naturally leaves throw recovery, do not
-                    // overwrite a new action with stale pre-throw values.
+            }else if(waiting[i]){
+                // A naturally exited action or Cyclops ground landing
+                // implies the ROM already progressed: never rewind it.
+                if(action!=0x200Eu || w(r,p+0x10u)>=472u){
                     emit(f,i,"RELEASE_CANCEL",r,p,other,
                          action!=0x200Eu?"NATIVE_ACTION_EXIT":"CYCLOPS_LANDED");
                     waiting[i]=false;
                 }else{
-                    // frame() is called exactly once per emulated frame by
-                    // cps_run.cpp; its top-level lastFrame guard suppresses
-                    // duplicate draw/runahead callbacks.
-                    if(recoveryTicks[i]<5u)++recoveryTicks[i];
+                    // Count real game updates, not sprite-frame changes.
+                    // lastFrame==f at entry prevents duplicate callbacks.
+                    if(recoveryTicks[i]<ReleaseDelayFrames)
+                        ++recoveryTicks[i];
                     const unsigned observed=w(r,p+0x42u);
                     if(observed!=lastAnim42[i]){
                         lastAnim42[i]=observed;
-                        ++animationAdvances[i]; // OBSERVATION only
+                        ++animationAdvances[i]; // observation only
                     }
-                    emit(f,i,"RECOVERY_TICK",r,p,other,"POSE_CAN_REPEAT");
-                    const bool grounded=w(r,other+0x10u)>=472u &&
-                                        w(r,other+0x60u)==0x1C34u;
-                    if(recoveryTicks[i]>=5u && grounded){
+                    if(w(r,other+0x10u)>=472u)
+                        victimLanded[i]=true; // landing is a latch
+                    if(recoveryTicks[i]==1u || recoveryTicks[i]==ReleaseDelayFrames)
+                        emit(f,i,"RECOVERY_TICK",r,p,other,
+                             "FIXED_100_FRAME_DELAY");
+                    if(recoveryTicks[i]>=ReleaseDelayFrames && victimLanded[i]){
                         restoreAir(r,p,selected[i]);
                         emit(f,i,"RELEASED",r,p,other,
-                             "RESTORED_AFTER_5_NATIVE_UPDATES");
+                             "RESTORED_AFTER_100_NATIVE_FRAMES");
                         waiting[i]=false;
-                        pending[i]=true;until[i]=f+16u; // follow-log only
-                    }else if(recoveryTicks[i]==5u && !grounded){
+                        pending[i]=true;until[i]=f+16u; // follow log only
+                    }else if(recoveryTicks[i]==ReleaseDelayFrames &&
+                             !victimLanded[i]){
                         emit(f,i,"WAIT_VICTIM",r,p,other,
-                             "FIVE_UPDATES_COMPLETE_NOT_GROUNDED");
+                             "100_FRAMES_COMPLETE_NOT_GROUNDED");
                     }
                 }
-            } else if(pending[i]){
+            }else if(pending[i]){
                 emit(f,i,"FOLLOW",r,p,other,
                    (w(r,p+0xA0u)>>8)==0x1Cu?"AIRBORNE_CONTROL":"OTHER_CONTROL");
                 if(f>=until[i] || w(r,p+0x10u)>=472u)pending[i]=false;
