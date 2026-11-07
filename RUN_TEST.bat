@@ -9,6 +9,7 @@ if /I "%~1"=="review" goto :offline_clean_review
 if /I "%~1"=="sprites" goto :offline_sprite_factory
 if /I "%~1"=="m68k" goto :offline_m68k_sprite_analysis
 if /I "%~1"=="poses" goto :offline_m68k_pose_analysis
+if /I "%~1"=="art" goto :offline_mvc_art_review
 if /I "%~1"=="channels" goto :offline_all_sprite_channels
 REM Stage 87.203 CAPTURE BRANCH: the input is MVC1 mvscur1, not XMVSF.
 REM Explicit variants: RUN_TEST.bat mvsc / RUN_TEST.bat mvscu.
@@ -721,4 +722,35 @@ if not exist "%PROJECT%\test\87.203\m68k_record_lengths\rom_structural_records_r
   exit /b 2
 )
 echo Original ROM record-length ZIP: "%PROJECT%\test\87.203\m68k_record_lengths\rom_structural_records_review.zip"
+exit /b 0
+
+REM 87.203: actual original MVC1 assembled sprite review. Offline only.
+REM Generated HTML contains original decoded artwork and MUST remain in ignored test/.
+:offline_mvc_art_review
+echo.
+echo STAGE 87.203: OFFLINE MVC1 SPRITE ASSEMBLY REVIEW
+where python.exe >nul 2>nul
+if errorlevel 1 (
+  echo ERROR: Python unavailable. Original captures untouched.
+  exit /b 1
+)
+if not exist "%PROJECT%\test\87.203\sprite_factory\sprite_observations.tsv.gz" (
+  echo ERROR: Missing original sprite observations.
+  echo Run RUN_TEST.bat sprites all first, then RUN_TEST.bat art.
+  exit /b 2
+)
+if not exist "%PROJECT%\test\87.203\art_review" mkdir "%PROJECT%\test\87.203\art_review"
+python.exe "%PROJECT%\dev\stage_capture\BUILD_MVC_ART_REVIEW.py" --trace-root "%PROJECT%\test\87.203\m68k_trace" --observations "%PROJECT%\test\87.203\sprite_factory\sprite_observations.tsv.gz" --capture "%PROJECT%\test\87.203\stage_capture" --output "%PROJECT%\test\87.203\art_review\MVC1_sprite_review.html"
+set "ART_RC=%ERRORLEVEL%"
+if not "%ART_RC%"=="0" (
+  echo ERROR: MVC1 original-art review export failed. Source captures untouched.
+  exit /b %ART_RC%
+)
+if not exist "%PROJECT%\test\87.203\art_review\MVC1_sprite_review.html" (
+  echo ERROR: Sprite review HTML missing.
+  exit /b 2
+)
+echo Open HTML: "%PROJECT%\test\87.203\art_review\MVC1_sprite_review.html"
+echo Click sprite cards to review; each category has Check All / Uncheck All.
+echo Save review JSON from your browser. HTML art stays local, not in GitHub.
 exit /b 0
