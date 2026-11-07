@@ -1080,3 +1080,62 @@ Three synthetic regression tests (plus original earlier tests):
 
 Local source-data analysis and regression tests passed; native Windows
 execution of the updated BAT remains unverified.
+
+
+## 87.203: original M68000 pose-footer interpreter leads (static, offline)
+
+The pose-boundary exporter proves repeating ROM data structure, but **not**
+which original MVC1 68000 routine consumes the five-word footer. The next
+pass is deliberately narrower than an invented animation interpreter:
+
+    RUN_TEST.bat poses
+
+After refreshing the hash-guarded original records, this also runs
+dev/stage_capture/TRACE_MVC_POSE_INTERPRETER.py using the same *local*
+original program READ image and decrypted 68000 instruction FETCH image.
+RUN_TEST.bat m68k reaches it through the existing poses stage.
+
+A separate private-ROM-safe metadata-only ZIP appears at:
+
+    test/87.203/m68k_pose_interpreter/pose_footer_interpreter_leads.zip
+
+The archive contains:
+
+- pose_footer_address_references.tsv: aligned 32-bit values in original
+  READ data and decrypted FETCH words that exactly equal known record starts
+  or five-word footer addresses. A recognized immediate/absolute-long 68000
+  opcode form is distinguished from an **unclassified** aligned value.
+- pose_footer_selector_motifs.tsv: candidate CMPI.W, SUBI.W,
+  ADDI.W, or MOVE.W #immediate instructions with literals $0035..$0039.
+- pose_footer_dispatch_leads.tsv: proximity-only suggestions linking
+  selector motifs to JMP/JSR (d8,PC,Xn), a same-register comparison to
+  $0004, or a nearby recognized record-address load.
+- A provenance manifest and explicit uncertainty text.
+
+**None of these individual features proves actual 68000 execution or that
+$0035..$0039 is a dispatch selector.** The 68000 code can include literal
+pools or extension words; the data stream is not an instruction stream.
+Neither a nearby jump nor a long pointer proves that the game read a
+particular pose record. Even a real instruction using $0035 might be
+unrelated to this five-word footer.
+
+Before comparing sources, the analyzer checks the saved pose manifest's
+SHA-256 against the full private READ image, then validates every exported
+footer word and record offset. It refuses stale/tampered metadata instead
+of relabeling it. The ZIP contains **only offsets, classifications and
+counts**, not private ROM bytes, disassembly windows, decoded GFX or raw
+native OBJ samples. Stage/fighter/FX/manual visual labels are not inferred
+from these cross-references.
+
+The next real proof needs a validated reachable code path plus a native
+runtime trace showing original ROM reads at these record/footer addresses
+and the code PC interpreting those words, correlated with changes in OBJ
+at frame resolution. Until then, exact frame timing, script targets, actor
+ownership and footer semantics stay **UNVERIFIED**.
+
+Offline source-only synthetic regression command:
+
+    python dev\stage_capture\test_trace_mvc_pose_interpreter.py
+
+This pass does not launch MVC1, rebuild native binaries, touch Stable, add
+launcher names, use GitHub Actions or change original ROM/source captures.
