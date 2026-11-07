@@ -1236,3 +1236,124 @@ Windows Python or native MVC execution. Until a reachable disassembly and
 runtime READ/PC trace confirm table accesses, classifying these routines
 as executed animation interpreters and exporting frame durations remains
 prohibited. No Stable, ROM, old data, or GitHub Actions were changed.
+
+
+## 87.203 original M68000 control-block readers and full record-length grammar
+
+New independent source verification of the already captured original MVC1
+program READ and decrypted FETCH images, based on 87.203's existing
+SHA-256-guarded pose records. This does not launch MVC1 or recompile native
+binaries, and makes no claim about executed animation timing.
+
+### Explicit program-produced pointer and original readers
+
+Both original decrypted FETCH pathways are an exact Motorola 68000 sequence:
+
+- $0790D8 source-byte split -> $07910E first indexed long-pointer lookup
+  using original READ table at $0791A6;
+- $09C8A4 source-byte split -> $09C8DA same indexed lookup using
+  original READ table at $09C978.
+
+The original code initializes D0 and reads byte $0063(A0); byte $FF
+branches around this lookup. It copies that byte to D1, masks D0 with
+$001F, then right-shifts D1 five bits and doubles it twice. Word $0052(A6)
+determines a first-level table index after doubling. Therefore:
+- selected second-level pointer = READ_LONG(first_level_table +
+  2 * WORD($0052,A6)), where the stored word's actual runtime range
+  is not yet proven;
+- selected control-block address = READ_LONG(second_level_pointer +
+  4 * (source_byte >> 5));
+- the **32-bit control-block address is stored to $0040(A6)** via the
+  exact MOVE.L indexed data instruction at $07911E / $09C8EA.
+
+The low five bits also select a word from another 23-way table and the
+result contributes to $000C(A6). That adjustment is not an animation clock.
+
+Original decoded FETCH code at $00208A, $00216C, and $0BC0D6 separately
+contains the exact MOVEA.L ($0040,A6),A4 followed by MOVE.W (A4)+,D0.
+These are static reader motifs for the *beginning* of the pointer-targeted
+control block. The first word is then used as an offset into graphics
+RAM bases $00914000 or $0092E000; the subsequent reader logic differs.
+
+**Important correction:** the 637 earlier sampled structures were called
+"tile-pair run plus five-word FOOTER" because the five words appear after
+each preceding pair run. However, original program pointers actually land
+on the five-word block and the readers begin at that block. They are
+**header-like entry points for subsequent source data**, not solely
+terminators of the preceding artwork. The preceding source observations
+remain valid, but assignment of tile pairs to a particular pose must be
+revisited before claiming exact frame reconstruction.
+
+The new offline exporter is:
+
+    dev/stage_capture/TRACE_MVC_POSE_CONSUMERS.py
+
+It writes source-checksummed opcode-location evidence, all 368 leaf
+references from the two exact producer tables, 16 distinct target control
+blocks, three exact reader motifs, and explicit uncertainty metadata to:
+
+    test/87.203/m68k_pose_consumers/pose_pointer_consumer_review.zip
+
+### Full source-data record-length survey independent of graphics sampling
+
+Inspecting the original four-megabyte program READ data also exposed
+a repeatable **five-word block + following body** length equation:
+
+    next_control_offset = current_control_offset + 10 + 4*(raw_word_2 + 1)
+
+Here raw_word_2 is the third 16-bit word of the five-word block, not a
+CPU address, clock, or duration. This arithmetic was independently
+verified against the original source-data adjacency. Requiring both the
+current and predicted successor to have word0=$0002 and
+word3=$0035..$0039 yields:
+
+- **12,121** original five-word control-block candidates;
+- **11,996** exact contiguous header-to-header links;
+- **125** separate contiguous structural regions;
+- **125** terminal or changed-grammar records, **0** multiple-predecessor
+  ambiguities;
+- control code $0035: **3,550**; $0036: **2,085**; $0037: **2,455**;
+  $0038: **2,419**; $0039: **1,612**;
+- longest contiguous source region: **1,115** records.
+
+The older pixel-filtered pose list had only 637 candidates; 631 of those
+also followed the length equation into another $0035..$0039 block, and
+six had a different next structure. This is a length-based **ROM data
+grammar**, not 12,121 verified animation frames, 125 executed animation
+scripts, or proof that all source data is scenery. Rare alternate terminators
+and other block types remain as explicit gaps. Human visual annotations
+remain separate and cannot drive record identification.
+
+The new standard-library-only exporter is:
+
+    dev/stage_capture/TRACE_MVC_RECORD_LENGTHS.py
+
+It writes the original five-word control metadata, predicted body-unit
+length, exact validated successor, grouping into contiguous data regions,
+and terminal offsets to:
+
+    test/87.203/m68k_record_lengths/rom_structural_records_review.zip
+
+Both exporters run through the existing launcher (already captured MVC
+data and current local Python; no new game execution):
+
+    RUN_TEST.bat poses
+
+The existing RUN_TEST.bat m68k continues to call poses as its final step.
+Standalone synthetic checks, which do not require any private game bytes:
+
+    python dev\stage_capture\test_trace_mvc_pose_consumers.py
+    python dev\stage_capture\test_trace_mvc_record_lengths.py
+
+Both tools reject a mismatched original READ-data SHA-256, refuse output
+under their source directory, and publish **metadata-only ZIPs**, never
+ROM programs, decrypted opcodes, CPS2 decoded graphics or original OAM
+logs. Tests and independent original-source scans passed in the offline
+analysis environment; local Windows BAT and game execution are unverified.
+
+Next proof required for actual animation timing: observe the executed
+producer + consumer instruction PCs and source-block dereferences across
+native CPS2 frames, correlate them with original OAM, and identify the
+engine's timekeeping/advance logic. Static record adjacency cannot supply
+those timings. Stable, the existing local buildtree and old source captures
+remain untouched. No GitHub Actions were used.
