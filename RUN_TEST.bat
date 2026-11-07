@@ -8,6 +8,7 @@ REM Offline artifact review uses Python only. Never reaches ROM checks or EXE.
 if /I "%~1"=="review" goto :offline_clean_review
 if /I "%~1"=="sprites" goto :offline_sprite_factory
 if /I "%~1"=="m68k" goto :offline_m68k_sprite_analysis
+if /I "%~1"=="poses" goto :offline_m68k_pose_analysis
 if /I "%~1"=="channels" goto :offline_all_sprite_channels
 REM Stage 87.203 CAPTURE BRANCH: the input is MVC1 mvscur1, not XMVSF.
 REM Explicit variants: RUN_TEST.bat mvsc / RUN_TEST.bat mvscu.
@@ -644,11 +645,40 @@ if not exist "%PROJECT%\test\87.203\m68k_rom_assemblies\rom_assemblies_review_bu
   exit /b 2
 )
 echo ROM assembly ZIP: "%PROJECT%\test\87.203\m68k_rom_assemblies\rom_assemblies_review_bundle.zip"
-exit /b 0
+REM Continue with original 68000 control-footer record boundaries, sampled
+REM pose transitions and separately hash-guarded human visual annotations.
+REM No ROM restart: reuse only existing private READ data and sprite logs.
+call "%~f0" poses
+exit /b %ERRORLEVEL%
 
 :offline_m68k_owner_no_observations
 echo NOTICE: M68K writer and staging reports completed. Full owner correlation needs
 echo the previous offline Sprite Factory observations. To produce them, run:
 echo RUN_TEST.bat sprites all
 echo and then rerun RUN_TEST.bat m68k. No game or new capture is needed.
+exit /b 0
+
+:offline_m68k_pose_analysis
+echo.
+echo STAGE 87.203: OFFLINE MVC ORIGINAL 68000 POSE RECORD BOUNDARIES
+where python.exe >nul 2>nul
+if errorlevel 1 (
+  echo ERROR: Python unavailable. Original local sources are preserved.
+  exit /b 1
+)
+if not exist "%PROJECT%\test\87.203\sprite_factory\sprite_observations.tsv.gz" (
+  echo ERROR: Missing existing sprite observations. Run RUN_TEST.bat sprites all first.
+  exit /b 2
+)
+python.exe "%PROJECT%\dev\stage_capture\TRACE_MVC_POSE_BOUNDARIES.py" --observations "%PROJECT%\test\87.203\sprite_factory\sprite_observations.tsv.gz" --trace-root "%PROJECT%\test\87.203\m68k_trace" --owner-evidence "%PROJECT%\test\87.203\m68k_owner\object_family_evidence.tsv" --capture-root "%PROJECT%\test\87.203\stage_capture" --visual-notes "%PROJECT%\dev\stage_capture\ROM_POSE_VISUAL_NOTES.tsv" --output "%PROJECT%\test\87.203\m68k_pose_boundaries"
+set "POSE_RC=%ERRORLEVEL%"
+if not "%POSE_RC%"=="0" (
+  echo ERROR: 68000 pose structural analysis failed. Original local sources unchanged.
+  exit /b %POSE_RC%
+)
+if not exist "%PROJECT%\test\87.203\m68k_pose_boundaries\rom_pose_boundaries_review.zip" (
+  echo ERROR: Pose boundary review ZIP not generated.
+  exit /b 2
+)
+echo Candidate pose boundary ZIP: "%PROJECT%\test\87.203\m68k_pose_boundaries\rom_pose_boundaries_review.zip"
 exit /b 0
