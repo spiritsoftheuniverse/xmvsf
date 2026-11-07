@@ -50,7 +50,7 @@ if [[ ! -f "$TREE/makefile.sdl2" ||
       ! -s "$TREE/src/intf/audio/sdl/xm20_wasapi_impl.h" ||
       ! -s "$TREE/src/burn/drv/capcom/xmvsf_stage87_33_dizzy_hud.h" ||
       ! -s "$TREE/src/burn/drv/capcom/xmvsf_stage87_121_cyclops_release.h" ||
-      ! -s "$PROJECT/dev/dhc/tests/test_stun_and_cyclops_209.cpp" ||
+      ! -s "$PROJECT/dev/dhc/tests/test_stun_and_cyclops_210.cpp" ||
       ! -s "$TREE/src/burner/sdl/xmvsf_menu_glyph_atlas.h" ||
       ! -s "$TREE/src/burner/sdl/xmvsf_stage14_boot.h" ]]; then
   echo "ERROR: 87.209 native menu/glyph sources missing; inspect checked-out branch" >&2
@@ -105,9 +105,12 @@ XM87203_BATCH_FRAMES=300 \
 # Verify the previous Cyclops 87.121 recovery and single dynamic bar geometry.
 # This test is C++11, ROM-free and uses synthetic native fighter RAM;
 # it runs before the full Windows build and never touches Stable/replays.
-mkdir -p "$PROJECT/test/87.209/unit_tests"
-g++ -std=c++11 -Wall -Wextra -Werror   -I"$TREE/src/burn/drv/capcom"   "$PROJECT/dev/dhc/tests/test_stun_and_cyclops_209.cpp"   -o "$PROJECT/test/87.209/unit_tests/test_stun_and_cyclops_209.exe"
-"$PROJECT/test/87.209/unit_tests/test_stun_and_cyclops_209.exe"
+mkdir -p "$PROJECT/test/87.210/unit_tests"
+g++ -std=c++11 -Wall -Wextra -Werror \
+  -I"$TREE/src/burn/drv/capcom" \
+  "$PROJECT/dev/dhc/tests/test_stun_and_cyclops_210.cpp" \
+  -o "$PROJECT/test/87.210/unit_tests/test_stun_and_cyclops_210.exe"
+"$PROJECT/test/87.210/unit_tests/test_stun_and_cyclops_210.exe"
 
 # Preserve warm cache and anything already built on failures. Never run make clean.
 cd "$TREE"
@@ -151,6 +154,7 @@ if [[ ! -s "$DEST" ||
       "$TREE/src/intf/video/sdl/vid_sdl2.cpp" -nt "$DEST" ||
       "$TREE/src/burn/drv/capcom/xmvsf_stage87_33_dizzy_hud.h" -nt "$DEST" ||
       "$TREE/src/burn/drv/capcom/xmvsf_stage87_121_cyclops_release.h" -nt "$DEST" ||
+      "$PROJECT/dev/dhc/tests/test_stun_and_cyclops_210.cpp" -nt "$DEST" ||
       "$TREE/src/burn/drv/capcom/cps_draw.cpp" -nt "$DEST" ||
       "$TREE/src/burn/drv/capcom/cps_run.cpp" -nt "$DEST" ||
       "$TREE/src/intf/audio/sdl/xm20_wasapi_impl.h" -nt "$DEST" ]]; then
