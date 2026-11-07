@@ -9,12 +9,16 @@ if /I "%~1"=="review" goto :offline_clean_review
 if /I "%~1"=="sprites" goto :offline_sprite_factory
 if /I "%~1"=="m68k" goto :offline_m68k_sprite_analysis
 if /I "%~1"=="poses" goto :offline_m68k_pose_analysis
+if /I "%~1"=="art" if /I "%~2"=="open" goto :offline_mvc_art_launch
 if /I "%~1"=="art" goto :offline_mvc_art_review
 if /I "%~1"=="channels" goto :offline_all_sprite_channels
 REM Stage 87.203 CAPTURE BRANCH: the input is MVC1 mvscur1, not XMVSF.
 REM Explicit variants: RUN_TEST.bat mvsc / RUN_TEST.bat mvscu.
 REM To run original XMVSF for DHC testing: RUN_TEST.bat xmvsfu.
 set "SOURCE_ROM=%~1"
+if not defined SOURCE_ROM goto :suite_menu
+:game_run
+REM Menu destinations preselect SOURCE_ROM; legacy named ROM arguments still work.
 if not defined SOURCE_ROM set "SOURCE_ROM=mvscur1"
 set "CLEAN_RIP_MODE=%~2"
 REM The 68000 program dumper runs independently of full native stage
@@ -37,13 +41,12 @@ if /I not "%SOURCE_ROM:~0,4%"=="mvsc" if /I not "%SOURCE_ROM%"=="xmvsfu" (
   echo Optional XMVSF mode is xmvsfu; no arbitrary ROM fallback.
   goto :fail
 )
-if not defined XM87203_STAGE_CAPTURE_ENABLE (
-  if /I "%SOURCE_ROM:~0,4%"=="mvsc" (
-    set "XM87203_STAGE_CAPTURE_ENABLE=1"
-  ) else (
-    set "XM87203_STAGE_CAPTURE_ENABLE=0"
-  )
-)
+REM F11 exclusively activates native level capture; no implicit huge capture on boot.
+if not defined XM87203_STAGE_CAPTURE_ENABLE set "XM87203_STAGE_CAPTURE_ENABLE=0"
+REM Legacy explicit clean mode still sets up both old render-pass and native data.
+if /I "%CLEAN_RIP_MODE%"=="clean" set "XM87203_STAGE_CAPTURE_ENABLE=1"
+set "XM87203_LEVEL_CAPTURE_ACTIVE=0"
+set "XM87203_LEVEL_CAPTURE_GENERATION=0"
 REM Old Stage44 donor capture remains opt-in; avoid duplicate huge outputs.
 if not defined XM44_CAPTURE set "XM44_CAPTURE=0"
 if "%XM87203_STAGE_CAPTURE_ENABLE%"=="1" (
@@ -56,7 +59,8 @@ if "%XM87203_STAGE_CAPTURE_ENABLE%"=="1" (
 echo Stage 87.203 source ROM: %SOURCE_ROM%
 echo Stage capture: %XM87203_STAGE_CAPTURE_ENABLE%
 echo Existing MSYS live console: bash dev/stage_capture/WATCH_CAPTURE.sh
-echo F9 records the MARVEL VS CAPCOM source session, not XMVSF.
+echo F9 = replay, F10 = native probe, F11 = MVC1 level capture ON/OFF.
+echo Shift+F11 = legacy FPS display; F11 starts a NEW capture session on each activation.
 REM 87.175 read-only native state trace. Fails closed if logs cannot be saved.
 set "OBSROOT=%PROJECT%\test\87.203\observer"
 if not exist "%OBSROOT%" mkdir "%OBSROOT%"
@@ -804,6 +808,17 @@ if exist "%PROJECT%\asset_organizer\aodata.json" (
   echo Source-family recovered art: "%PROJECT%\asset_organizer\source_families\family_recovery.html"
   echo Original SCROLL1 foreground: "%PROJECT%\asset_organizer\foreground_recovered\foreground.html"
 )
+if /I "%~2"=="build" (
+  echo.
+  echo ASSET ORGANIZER BUILD READY. No editor server launched.
+  echo Open through RUN_TEST.bat option 2 or RUN_TEST.bat art.
+  exit /b 0
+)
+:offline_mvc_art_launch
+if not exist "%PROJECT%\asset_organizer\index.html" (
+  echo ERROR: Asset Organizer not built. Run asset_organizer\BUILD_AO.bat.
+  exit /b 2
+)
 if not exist "%PROJECT%\asset_organizer\SERVE_ASSET_ORGANIZER.py" (
   echo ERROR: Asset Organizer localhost server is missing.
   exit /b 2
@@ -814,3 +829,50 @@ echo Mark all as assigns ONE exclusive type; Wanted decisions remain unchanged.
 echo The localhost server stays alive in its own console until you close it.
 start "MVC1 Asset Organizer" /D "%PROJECT%" python.exe "%PROJECT%\asset_organizer\SERVE_ASSET_ORGANIZER.py" --root "%PROJECT%\asset_organizer" --trace-root "%PROJECT%\test\87.203\m68k_trace" --port 18720 --open
 exit /b 0
+
+REM Single root launch suite. No arguments opens this menu; legacy named
+REM ROM and advanced capture/analysis commands remain backward compatible.
+:suite_menu
+echo.
+echo ============================================================
+echo   XMVSF - TEST / ASSET / LEVEL CAPTURE SUITE
+echo ============================================================
+echo   [1] Test game - XMVSF compiled TEST executable
+echo   [2] Asset Organizer - build and open local editor
+echo   [3] Capture Level - select original donor game
+echo.
+choice /C 123 /N /M "Select 1, 2 or 3: "
+if errorlevel 3 goto :suite_capture
+if errorlevel 2 goto :suite_asset
+if errorlevel 1 goto :suite_test
+exit /b 1
+
+:suite_test
+set "SOURCE_ROM=xmvsfu"
+set "XM87203_STAGE_CAPTURE_ENABLE=0"
+goto :game_run
+
+:suite_asset
+if not exist "%PROJECT%\asset_organizer\BUILD_AO.bat" (
+  echo ERROR: Missing asset_organizer\BUILD_AO.bat.
+  exit /b 2
+)
+call "%PROJECT%\asset_organizer\BUILD_AO.bat"
+if errorlevel 1 exit /b 2
+goto :offline_mvc_art_launch
+
+:suite_capture
+echo.
+echo -------- LEVEL CAPTURE CATEGORY --------
+echo   [1] Marvel vs. Capcom 1 (MVC1 / mvscur1)
+echo   [Q] Back to main menu
+choice /C 1Q /N /M "Select donor game: "
+if errorlevel 2 goto :suite_menu
+if errorlevel 1 goto :suite_capture_mvc1
+exit /b 1
+
+:suite_capture_mvc1
+REM Original MVC1 level telemetry stays dormant until first F11 press.
+set "SOURCE_ROM=mvscur1"
+set "XM87203_STAGE_CAPTURE_ENABLE=1"
+goto :game_run
