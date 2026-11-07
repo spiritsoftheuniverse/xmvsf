@@ -173,8 +173,9 @@ public:
             }
         }
         std::fprintf(stderr,
-            "XM MENU ATLAS loaded big=%d small=%d title=%d widths big[A]=%d big[I]=%d small[a]=%d small[i]=%d\n",
+            "XM MENU ATLAS loaded big=%d small=%d title=%d logo_src=%d,%d,%d,%d widths big[A]=%d big[I]=%d small[a]=%d small[i]=%d\n",
             large_!=nullptr,small_!=nullptr,logo_!=nullptr,
+            logoSource_.x,logoSource_.y,logoSource_.w,logoSource_.h,
             metrics_[0]['A'].advance,metrics_[0]['I'].advance,
             metrics_[1]['a'].advance,metrics_[1]['i'].advance);
     }
@@ -225,24 +226,71 @@ public:
         SDL_SetTextureColorMod(font,255,255,255);
         return true;
     }
-    bool logo(SDL_Renderer* renderer,int cx,int top,int maxWidth,int maxHeight){
+    // Draw the SOURCE ART, not the transparent 400x300 export canvas.
+    // Its visible aspect ratio is maintained inside the requested target
+    // rectangle; the original source PNG is never resized or rewritten.
+    bool logoInRect(SDL_Renderer* renderer,const SDL_Rect& target){
         ensure(renderer);
-        if(!logo_||logoSource_.w<=0||logoSource_.h<=0)return false;
-        // The authored PNG is the native 400x300 canvas. Do NOT crop to the
-        // visible logo: the source's 25-pixel top padding is intentional.
-        // Use its original pixels at 1:1 in the 960x540 logical menu.
-        int sourceW=0,sourceH=0;
-        SDL_QueryTexture(logo_,nullptr,nullptr,&sourceW,&sourceH);
-        if(sourceW<=0||sourceH<=0)return false;
-        const double scale=std::min(1.0,std::min(
-            double(maxWidth)/sourceW,double(maxHeight)/sourceH));
-        const int w=std::max(1,int(sourceW*scale+0.5));
-        const int h=std::max(1,int(sourceH*scale+0.5));
-        SDL_Rect source={0,0,sourceW,sourceH};
-        SDL_Rect dest={cx-w/2,top,w,h};
-        SDL_RenderCopy(renderer,logo_,&source,&dest);
+        if(!renderer||!logo_||logoSource_.w<=0||logoSource_.h<=0 ||
+           target.w<=0||target.h<=0)return false;
+        const double scale=std::min(double(target.w)/logoSource_.w,
+                                    double(target.h)/logoSource_.h);
+        const int width=std::max(1,int(logoSource_.w*scale+0.5));
+        const int height=std::max(1,int(logoSource_.h*scale+0.5));
+        SDL_Rect dst={target.x+(target.w-width)/2,
+                      target.y+(target.h-height)/2,width,height};
+        SDL_RenderCopy(renderer,logo_,&logoSource_,&dst);
         return true;
     }
+    // Pixel-art nearest-neighbor rendering with fractional visual scale.
+    // The glyph geometry remains derived from the actual PNG atlas and the
+    // advance is proportional. Destination edges snap to integer pixels.
+    bool textScaled(SDL_Renderer* renderer,const char* string,
+                    int anchorX,int top,bool small,double scale,
+                    Uint8 brightness,int alignment){
+        ensure(renderer);
+        SDL_Texture* font=small?small_:large_;
+        if(!renderer||!string||!font||scale<=0.0)return false;
+        const Glyph* glyphs=metrics_[small?1:0];
+        const int nominal=small?8:12;
+        int units=0;
+        for(const unsigned char* p=(const unsigned char*)string;*p;++p){
+            const int ch=*p;
+            units+=(ch>=32&&ch<=126&&glyphs[ch].advance>0)
+                  ?glyphs[ch].advance:nominal/2;
+        }
+        const int fullWidth=int(units*scale+0.5);
+        int x=anchorX;
+        if(alignment==1)x-=fullWidth/2; // center
+        else if(alignment==2)x-=fullWidth; // right edge
+        SDL_SetTextureColorMod(font,brightness,brightness,brightness);
+        SDL_SetTextureAlphaMod(font,255);
+        int pen=0;
+        for(const unsigned char* p=(const unsigned char*)string;*p;++p){
+            const int ch=*p;
+            const Glyph& g=glyphs[ch<128?ch:32];
+            const int advance=(ch>=32&&ch<=126&&g.advance>0)
+                              ?g.advance:nominal/2;
+            if(ch>=33&&ch<=126&&g.src.w>0){
+                SDL_Rect dst={x+int(pen*scale+0.5),top,
+                    std::max(1,int(g.src.w*scale+0.5)),
+                    std::max(1,int(g.src.h*scale+0.5))};
+                SDL_RenderCopy(renderer,font,&g.src,&dst);
+            }else if(ch=='/'&&!small&&small_&&metrics_[1][ch].src.w>0){
+                const Glyph& fallback=metrics_[1][ch];
+                SDL_SetTextureColorMod(small_,brightness,brightness,brightness);
+                SDL_Rect dst={x+int(pen*scale+0.5),top,
+                    std::max(1,int(fallback.src.w*nominal*scale/8.0+0.5)),
+                    std::max(1,int(nominal*scale+0.5))};
+                SDL_RenderCopy(renderer,small_,&fallback.src,&dst);
+                SDL_SetTextureColorMod(small_,255,255,255);
+            }
+            pen+=advance;
+        }
+        SDL_SetTextureColorMod(font,255,255,255);
+        return true;
+    }
+
 };
 // Explicitly released on every boot->game boundary and native game exit.
 static inline Atlas& atlas(){static Atlas value;return value;}
@@ -259,8 +307,41 @@ static inline bool left(SDL_Renderer* r,const char* s,int x,int y,int maxWidth,
                         int scale,Uint8 brightness){
     return atlas().text(r,s,x,y,maxWidth,false,true,scale,brightness);
 }
+// The user's 1811x1358 (4:3) layout reference mapped uniformly into a
+// centered 720x540 safe frame on our 960x540 SDL logical canvas.
+// This retains source-pixel proportions; no image stretching is necessary.
+struct MainLayout {
+    enum {
+        LogoX=235, LogoY=51, LogoW=544, LogoH=289,
+        TextCenter=489, FirstRowY=347, RowStep=31,
+        HintY=495, ExitY=522, VersionRight=944
+    };
+};
+static inline bool menuLogo(SDL_Renderer* r){
+    const SDL_Rect dst={MainLayout::LogoX,MainLayout::LogoY,
+                        MainLayout::LogoW,MainLayout::LogoH};
+    return atlas().logoInRect(r,dst);
+}
+static inline bool menuChoice(SDL_Renderer* r,const char* s,int row,bool selected){
+    return atlas().textScaled(r,s,MainLayout::TextCenter,
+        MainLayout::FirstRowY+row*MainLayout::RowStep,
+        false,1.35,selected?255:80,1);
+}
+static inline bool menuHint(SDL_Renderer* r,const char* s,Uint8 brightness){
+    return atlas().textScaled(r,s,MainLayout::TextCenter,
+        MainLayout::HintY,true,1.375,brightness,1);
+}
+static inline bool menuExit(SDL_Renderer* r,const char* s){
+    return atlas().textScaled(r,s,MainLayout::TextCenter,
+        MainLayout::ExitY,true,1.20,105,1);
+}
+static inline bool menuVersion(SDL_Renderer* r,const char* s){
+    return atlas().textScaled(r,s,MainLayout::VersionRight,
+        MainLayout::ExitY,true,1.08,185,2);
+}
 static inline bool logo(SDL_Renderer* r,int cx=480,int top=0,int w=400,int h=300){
-    return atlas().logo(r,cx,top,w,h);
+    const SDL_Rect target={cx-w/2,top,w,h};
+    return atlas().logoInRect(r,target);
 }
 } // namespace XMGlyph
 #endif
