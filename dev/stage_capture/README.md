@@ -1139,3 +1139,55 @@ Offline source-only synthetic regression command:
 
 This pass does not launch MVC1, rebuild native binaries, touch Stable, add
 launcher names, use GitHub Actions or change original ROM/source captures.
+
+
+### Verified original-data pointer cross-reference (existing run_1.zip)
+
+The original private MVC1 READ image, SHA-256
+1dc7e0a6a9f9b36fca9c2c4dc0729c701517146345179b2b90a7c2c50a245ac0,
+was independently scanned against all 637 existing hash-guarded pose records.
+These are exact aligned **literal 32-bit value matches**, not proven
+executed M68000 dereferences:
+
+- 1,740 aligned READ-image matches: **1,738 point directly to the
+  five-word control-block offset**, and just **2 to the corresponding
+  earlier tile/attribute-pair record start**.
+- 631 of the 637 candidate five-word blocks have at least one matching
+  READ-image address value. The two start-address matches are distinct
+  from those 631 footer destinations.
+- 32 observed subsequences of at least four consecutive matching
+  four-byte address values; all are 6, 7, 8 or 15 references long,
+  containing 270 matching references in total.
+- Exact duplicate ordered subsequences occur around $07920A and $09C9DC,
+  including 7- and 15-reference patterns. Their offsets and order
+  are source data; their function in original gameplay is not established.
+- The decrypted 1-MiB FETCH image has just **one** aligned literal
+  match to these candidate addresses, at an unclassified word location.
+  That is NOT an identified 68000 interpreter or executed direct load.
+- A broad opcode-motif scan produces mostly embedded-immediate MOVEQ-like
+  patterns. Do not mistake proximity to an indexed JMP/JSR for proof
+  of a footer-dispatch instruction.
+
+IMPORTANT: the candidate five-word blocks are the overwhelming **targets**
+of the original ROM's literal addresses. The earlier placement of the
+(tile,attr) runs before those blocks is real, but interpreting such a
+layout as consecutive *timed pose frames* would be premature.
+
+The new analyzer preserves the pointer role and also writes
+pose_footer_pointer_blocks.tsv with observed run lengths, source offsets,
+distinct target counts, selector sets and exact repeated ordered sequences.
+The program may contain unmatched pointer addresses before/after these
+runs: they are observed **subsequences**, not asserted complete tables.
+
+To regenerate from the existing local snapshot:
+
+    RUN_TEST.bat poses
+
+To run the new source-only synthetic tests separately:
+
+    python dev\stage_capture\test_trace_mvc_pose_interpreter.py
+
+This analysis was checked independently against the original private ROM
+bytes, but execution of the updated Windows BAT and the exact new
+Python analyzer remains unverified here. No GitHub Actions, native
+builds, Stable modifications or original source bytes were committed.
