@@ -6,6 +6,7 @@
 #include <cstdint>
 #include <cstring>
 #include <vector>
+#include <algorithm>
 #include "xmvsf_stage87_33_dizzy_hud.h"
 #include "xmvsf_stage87_121_cyclops_release.h"
 
@@ -122,10 +123,6 @@ static void runRecovery(bool permit,bool victimLanded){
         setW(ram,o+0x10u,472u);
         setW(ram,o+0x60u,0x1C34u);
     }
-    const std::uint8_t opponentBefore[0x400u]={
-        0 // Copy separately below to avoid using gameplay data as a template
-    };
-    (void)opponentBefore;
     std::vector<std::uint8_t> opponent(ram.begin()+o,ram.begin()+o+0x400u);
     tracker.frame(102,ram.data()); // 200C -> 200E after impact
     const bool shouldRecover=permit && victimLanded;
