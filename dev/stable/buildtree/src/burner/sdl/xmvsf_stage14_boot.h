@@ -141,7 +141,8 @@ static int xmvsfBootSelector(bool returningFromGame=false) {
     xm8655RenderColor(render,8,16,36,255); /* XMVSF_STAGE32_NAVY */
     SDL_RenderClear(render);
     menuBackground.draw(render,SDL_GetTicks());
-    if(!XMGlyph::logo(render)) xmvsfPixelText(render,"X-MEN VS STREET FIGHTER",480,82,4,255,255,255);
+    if(!XMGlyph::menuLogo(render))
+        xmvsfPixelText(render,"X-MEN VS STREET FIGHTER",480,130,3,255,255,255);
     xm8656Present(render); /* XM86.56 global final pass */
     SDL_PumpEvents();
     xm8652FocusWindowOnce(window,returningFromGame?"boot-return":"boot-startup");
@@ -390,18 +391,35 @@ static int xmvsfBootSelector(bool returningFromGame=false) {
         // Frame delays and 30% RGB brightness are owned by the GIF layer.
         menuBackground.draw(render,SDL_GetTicks());
         if(screen==0) {
-            if(!XMGlyph::logo(render)) xmvsfPixelText(render,"X-MEN VS STREET FIGHTER",480,82,4,255,255,255);
+            // User-authored 4:3 reference, placed on the centered safe frame
+            // of the 960x540 native SDL canvas. The PNG is cropped by alpha
+            // bounds and fitted WITHOUT stretching its source artwork.
+            if(!XMGlyph::menuLogo(render))
+                xmvsfPixelText(render,"X-MEN VS STREET FIGHTER",480,130,3,255,255,255);
             const char* entries[5]={"ARCADE","TRAINING","VERSUS","CONTROLS","OPTIONS"};
             for(int a=0;a<5;a++) {
-                const int y=272+a*44;
-                // No focus box or arrow: non-selected glyphs are darkened.
+                const int y=XMGlyph::MainLayout::FirstRowY+
+                            a*XMGlyph::MainLayout::RowStep;
                 const Uint8 bright=(a==selection)?255:80;
-                xmvsfPixelText(render,entries[a],480,y,4,bright,bright,bright);
+                // Proportional sprite glyphs at 1.35x; selected bright,
+                // others dark. No surrounding selection box or arrow.
+                if(!XMGlyph::menuChoice(render,entries[a],a,a==selection))
+                    xmvsfPixelText(render,entries[a],
+                        XMGlyph::MainLayout::TextCenter,y,2,bright,bright,bright);
             }
-            if(SDL_GetTicks()<messageUntil)xmvsfPixelText(render,message,480,485,2,255,132,132);
-            else xmvsfPixelText(render,"A SELECT  B BACK",480,485,2,145,145,145);
-            xmvsfPixelText(render,"ESC TO QUIT",480,520,1,105,105,105);
-            xmvsfPixelText(render,"TEST 87.204",888,522,1,140,140,140);
+            if(SDL_GetTicks()<messageUntil)
+                xmvsfPixelText(render,message,
+                    XMGlyph::MainLayout::TextCenter,
+                    XMGlyph::MainLayout::HintY,2,255,132,132);
+            else if(!XMGlyph::menuHint(render,"A SELECT  B BACK",235))
+                xmvsfPixelText(render,"A SELECT  B BACK",480,
+                    XMGlyph::MainLayout::HintY,2,235,235,235);
+            if(!XMGlyph::menuExit(render,"ESC TO QUIT"))
+                xmvsfPixelText(render,"ESC TO QUIT",480,
+                    XMGlyph::MainLayout::ExitY,1,105,105,105);
+            if(!XMGlyph::menuVersion(render,"TEST 87.204"))
+                xmvsfPixelText(render,"TEST 87.204",896,
+                    XMGlyph::MainLayout::ExitY,1,185,185,185);
         } else if(screen==5) {
             xmvsfPixelText(render,"SELECT STAGE",480,90,5,108,193,255);
             const char* stages[2]={"RANDOM","WILY FACTORY"};
