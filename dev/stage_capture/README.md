@@ -940,3 +940,75 @@ using animated object-world continuity and/or executed upstream 68000
 source references. Repeated fixed-screen priority-7 is a *probable
 interface family*, not a hard-coded gameplay filter. Never silently
 drop sprites from any priority channel, and do not mark stages complete.
+
+
+## 68000 ROM sprite-assembly correlation — full-rate native scene data (2026-11-06)
+
+\`TRACE_MVC_ROM_ASSEMBLIES.py\` is an **offline analysis only**; it neither
+patches 68000 code nor alters native gameplay, Stable, controller inputs,
+existing build objects or stage capture. It joins:
+
+- \`test/87.203/m68k_trace/run_XXXX/mvc_program_data_host_words.bin\`: the
+  original CPS2 program READ image with 68000 host-word-swapped 16-bit data.
+- \`test/87.203/sprite_factory/sprite_observations.tsv.gz\`: exact captured
+  sprite tile ID, attributes, screen position, sampled native frame, palette,
+  dimensions and priority.
+- \`test/87.203/m68k_owner/object_family_evidence.tsv\`: actual decoded-pixel
+  visibility. Transparent graphics stay in original observations but are
+  excluded from candidate artwork reconstruction.
+- \`test/87.203/stage_capture/session_*/frames.tsv\`: native Scroll 1/2/3
+  X/Y hardware registers. IMPORTANT: earlier sessions overlap native frame
+  numbers from **different playthroughs**. The tool chooses the newest
+  strictly frame-contiguous session suffix (on the uploaded original data:
+  session_0003 -> session_0004 -> session_0005 -> session_0006), never
+  merges incompatible old session_0001/0002 camera data.
+
+Read the 68000 program READ image in *host-word-swapped* order. Find runs
+of 2 or more consecutive observed (tileword, attribute-word) pairs, then
+corroborate exact 68000 data with actual OAM co-appearance, native graphic
+nontransparency, and background-camera motion. An OBJ object that moves
+by exactly the NEGATIVE of scroll-plane displacement is camera-locked
+**for that sample pair**. Where multiple scroll planes move together,
+retain every compatible plane; do not claim a unique scroll-plane owner.
+OAM 10-bit wrap and scroll 16-bit wrap are treated separately. Sparse
+30-frame samples can miss most intermediate poses; a ROM neighbor is a
+**candidate**, not a proven animation script boundary or frame duration.
+
+Results for the uploaded real MVC source:
+- 198,050 original object observations across 987 sampled native frames;
+- 39,282 camera frames, four authoritative contiguous source segments;
+- 1,234 candidate ROM runs of consecutive observed tile+attribute pairs
+  with source-visible artwork;
+- 33 ROM pair-runs with both same-frame co-draw and independent camera-lock
+  evidence; 58 individual exact-descriptor camera-motion matches;
+- 5 groups with three or more distinct co-moving OBJ descriptors,
+  including a group of 18 pieces in shot_0016;
+- key table neighborhoods near $326E60, $327330, $327A58, $327D00,
+  and $335702. These are program-data OFFSET references, not instruction PCs.
+
+The outputs separate \`rom_candidate_assemblies.tsv\`,
+\`rom_assembly_pairs.tsv\`, \`camera_locked_objects.tsv\`,
+\`camera_co_motion_groups.tsv\`, and
+\`rom_candidate_pose_neighbors.tsv\`, with an honest uncertainty manifest.
+
+After pulling feature/stage-87-203-native-layer-recorder and using the
+**already captured** 68000 code, decoded graphics and sprite samples:
+
+    RUN_TEST.bat m68k
+
+This now runs the original writer-PC, staging, owner and final ROM-assembly
+analyses sequentially. Review the last artifact:
+
+    test/87.203/m68k_rom_assemblies/rom_assemblies_review_bundle.zip
+
+No game replay, native recompilation, graphics-asset rewrite or GitHub
+Actions is required. The review ZIP includes **metadata only**: no private
+ROM/decrypted executable, native decoded GFX, raw OAM or original session data.
+Synthetic tests:
+
+    python dev/stage_capture/test_trace_mvc_rom_assemblies.py
+
+Stage names, genuine animation timing, and 68000 execution paths that
+construct the indexed tables remain **unverified**. This pass identifies
+evidence-backed assembly candidates and their visible composition, not
+finished stage actors.
