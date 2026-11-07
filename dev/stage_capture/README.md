@@ -884,10 +884,10 @@ Cross-reference the 68000 program's exact \`MOVEM.W D0-D3,(A0)\`
 descriptor emitters against the original object *tile + full attributes*,
 not just visually similar pixels. Of 42 static patterns, **13 literal
 tile-and-attribute matches** were found in this source evidence:
-six land on transparent objects, six on repeated fixed-screen
-priority-7 interface candidates, and two are unresolved rare objects
-(the 13-pattern number counts patterns with both literal tile and
-literal attributes; one additional match has unknown attributes).
+five land on transparent objects, six on repeated fixed-screen
+priority-7 interface candidates, and two are unresolved rare objects.
+A fourteenth tile-only match lands on a transparent object but has
+unresolved attributes, so it is not counted as a full-field match.
 These are *static code-pattern correlations*, NOT independently observed
 upstream 68000 execution.
 
