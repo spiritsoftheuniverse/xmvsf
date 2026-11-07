@@ -9,6 +9,9 @@ from __future__ import annotations
 import argparse,base64,bisect,collections,csv,gzip,hashlib,json,struct,sys,zipfile
 from pathlib import Path
 from MVC_RGBA import RGBAImage, decode_original_tile
+# The organizer's palette clustering is source-only and requires no image packages.
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'asset_organizer'))
+from COLOR_GROUPING import palette, assign_groups
 
 try:
     from TRACE_MVC_RECORD_LENGTHS import scan as scan_records
@@ -270,18 +273,20 @@ def create_viewer(program_path:Path,observations_path:Path,capture_path:Path,
                     'selector':f'{item["ctl"][3]:04X}',
                     'nativeWidth':image.width,'nativeHeight':image.height,
                     'priorityChannels':sorted(set(o['priority'] for o in item['objects'])),
+                    'dominantColors':palette(image),
                     'png':encode_png(image),
                 })
             except (SourceError,ValueError,struct.error,IndexError) as exc:
                 issues.append({'offset':f'{item["offset"]:06X}','reason':str(exc)})
     finally:capture.close()
     if not cards:raise SourceError('unable to reconstruct any original artwork')
+    color_analysis=assign_groups(cards,threshold=.78)
     html=html_template.read_text(encoding='utf-8')
     payload={'format':'MVC1_ART_REVIEW_GALLERY_V1','romSha256':digest,
              'sourceObservations':observations_path.name,
              'paletteStatus':'APPROXIMATE_RAW_CPS2_PALETTE_NOT_NATIVE_EFFECTIVE_DMA',
              'classificationStatus':'TENTATIVE_VISUAL_HEURISTICS',
-             'catalog':cards,'categories':[{'id':k,'label':v} for k,v in CATEGORIES]}
+             'catalog':cards,'colorAnalysis':color_analysis,'categories':[{'id':k,'label':v} for k,v in CATEGORIES]}
     safe_json=json.dumps(payload,separators=(',',':')).replace('</','<\\/')
     if '__MVC_CATALOG__' not in html:raise SourceError('viewer HTML template missing catalog placeholder')
     # Optional review seed is local-only, never copied to public source control.
@@ -311,6 +316,8 @@ def create_viewer(program_path:Path,observations_path:Path,capture_path:Path,
          'fullComponentMatchCards':sum(x['coverage']==1 for x in cards),
          'assumedCategoryCounts':dict(collections.Counter(x['category'] for x in cards)),
          'skipped':issues,'ranked':stats,
+         'colorGroupCount':color_analysis['groupCount'],
+         'colorMethod':color_analysis['method'],
          'originalArtCommittedToGit':False})
     output.with_suffix('.manifest.json').write_text(json.dumps(manifest,indent=2)+'\n',encoding='utf-8')
     return manifest
