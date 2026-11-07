@@ -1,3 +1,11 @@
-git pull origin feature/dhc-mvc2-stage87
-py -3 dev\dhc\tests\test_dhc_dispatch_xrefs_168.py
-py -3 dev\dhc\tools\TRACE_68000_DISPATCH_CALLERS.py --opcodes local_rom_dump\xmvsfu_decrypted_opcodes_host_swapped.bin --out test\87.167\decomp\dispatch_callers.json
+@echo off
+setlocal EnableExtensions DisableDelayedExpansion
+REM Compatibility launcher only. Actual TEST build/run entry points remain
+REM BUILD_TEST.bat and RUN_TEST.bat. Never pull another branch on launch.
+echo XMVSF NATIVE TEST 87.204: forwarding to RUN_TEST.bat
+if not exist "%~dp0RUN_TEST.bat" (
+  echo ERROR: RUN_TEST.bat is missing from the project root.
+  exit /b 2
+)
+call "%~dp0RUN_TEST.bat" %*
+exit /b %ERRORLEVEL%
