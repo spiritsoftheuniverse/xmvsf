@@ -708,4 +708,17 @@ if not exist "%PROJECT%\test\87.203\m68k_pose_consumers\pose_pointer_consumer_re
   exit /b 2
 )
 echo Pose pointer consumer ZIP: "%PROJECT%\test\87.203\m68k_pose_consumers\pose_pointer_consumer_review.zip"
+REM Complete ORIGINAL MVC ROM five-word record grammar survey, including
+REM structures never seen by sampled sprite tiles. No runtime or timing claim.
+python.exe "%PROJECT%\dev\stage_capture\TRACE_MVC_RECORD_LENGTHS.py" --trace-root "%PROJECT%\test\87.203\m68k_trace" --pose-manifest "%PROJECT%\test\87.203\m68k_pose_boundaries\rom_pose_manifest.json" --output "%PROJECT%\test\87.203\m68k_record_lengths"
+set "RECORD_RC=%ERRORLEVEL%"
+if not "%RECORD_RC%"=="0" (
+  echo ERROR: MVC program structural record-length survey failed. Originals preserved.
+  exit /b %RECORD_RC%
+)
+if not exist "%PROJECT%\test\87.203\m68k_record_lengths\rom_structural_records_review.zip" (
+  echo ERROR: MVC record-length review ZIP missing.
+  exit /b 2
+)
+echo Original ROM record-length ZIP: "%PROJECT%\test\87.203\m68k_record_lengths\rom_structural_records_review.zip"
 exit /b 0
