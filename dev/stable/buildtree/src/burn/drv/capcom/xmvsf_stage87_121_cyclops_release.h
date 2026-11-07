@@ -132,6 +132,13 @@ struct Tracker{
                 w(r,p+0x06u)==4u && w(r,p+0x08u)==6u &&
                 (w(r,p+0xA0u)>>8)==0x32u &&
                 (w(r,p+0xAAu)>>8)==2u && w(r,p+0x10u)<472u;
+            if(valid[i] && previous[i]==0x200Cu && action==0x200Eu && !firstFlip){
+                // If the real ROM differs from the saved 87.121 flip trace,
+                // make that visible rather than silently waiting forever.
+                // The existing emit fields expose +06/+08 and action; a
+                // current +A0/+AA mismatch can be confirmed in RUN_TEST.
+                emit(f,i,"FLIP_REJECTED",r,p,other,"NATIVE_RECOVERY_GATE_MISMATCH");
+            }
             if(firstFlip){
                 // Grab has ended. One subsequent native frame() call is ONE
                 // recovery tick, whether +42 (the pose ID) changes or not.
