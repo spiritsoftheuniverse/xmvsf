@@ -122,8 +122,12 @@ echo "Dependencies: GNU Make + persistent obj/**/*.d header dependency files"
 # translation units, even if a Windows checkout retained stale .d timestamps.
 # Thereafter revert to the normal warm incremental dependency graph.
 FRESHEN=()
-if [[ ! -s "$DEST" ]]; then
-  echo "NEW TEST 87.204: refreshing SDL main.cpp and run.cpp once to guarantee menu code."
+if [[ ! -s "$DEST" ||
+      "$TREE/src/burner/sdl/xmvsf_menu_glyph_atlas.h" -nt "$DEST" ||
+      "$TREE/src/burner/sdl/xmvsf_stage14_boot.h" -nt "$DEST" ||
+      "$TREE/src/burner/sdl/xmvsf_stage23_ui.h" -nt "$DEST" ||
+      "$TREE/src/burner/sdl/xmvsf_stage25_5_ui.h" -nt "$DEST" ]]; then
+  echo "87.204 MENU CHANGE DETECTED: refreshing SDL main.cpp and run.cpp (existing objects otherwise preserved)."
   FRESHEN=(-W src/burner/sdl/main.cpp -W src/burner/sdl/run.cpp)
 fi
 MAKELEVEL=1 make -f makefile.sdl2 LSB_FIRST=1 INCLUDE_7Z_SUPPORT=1 DEPEND=1 \
