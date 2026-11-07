@@ -53,7 +53,7 @@ The source-only synthetic tests are:
 
     python dev\stage_capture\test_build_mvc_art_review.py
 
-The builder requires Python with Pillow and NumPy. Captured decoded GFX and
+The builder requires Python 3.10+ and uses only its standard library. NumPy and Pillow are not required. Captured decoded GFX and
 raw palette snapshots must already be present in the original local
 stage_capture folder (or a ZIP explicitly given to --capture). If
 `sprite_observations.tsv.gz` is absent, first run:
