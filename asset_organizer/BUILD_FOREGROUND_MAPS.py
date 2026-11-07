@@ -233,7 +233,6 @@ def build(review_path:Path,capture_path:Path,output:Path):
         (output/'foreground_maps.json').write_text(json.dumps(report,indent=2)+'\n',encoding='utf-8')
         (output/'foreground.html').write_text('<!DOCTYPE html><html lang="en"><title>MVC1 Foreground</title><body><h1>No Wanted scenes</h1><p>Mark assets Wanted in the organizer to recover their native foreground.</p></body></html>',encoding='utf-8')
         (output/'scroll1_tiles.bin').write_bytes(b'')
-        import gzip
         with gzip.open(output/'foreground_tile_histories.json.gz','wt',encoding='utf-8') as fp:json.dump({'shots':[]},fp)
         return report
     samples={shot:frames[0] for shot,frames in shots.items()}
