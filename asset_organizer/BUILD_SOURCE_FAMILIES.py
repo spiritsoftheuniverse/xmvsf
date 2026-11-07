@@ -105,7 +105,6 @@ def build(review_path:Path, trace_root:Path, observations:Path, capture_path:Pat
     records,links,regions=scan(program)
     wanted={a for a,r in byaddr.items() if r['wanted'] is True}
     selected_regions=[g for g in regions if wanted.intersection(g)]
-    if not selected_regions:raise RecoveryError('no valid Wanted source regions')
     included=[a for g in selected_regions for a in g]
     all_pairs={struct.unpack_from('<HH',program,a+10+4*i)
                for a in included for i in range(records[a][1])}
@@ -190,6 +189,7 @@ def build(review_path:Path, trace_root:Path, observations:Path, capture_path:Pat
              'selected':len(wanted),'sourceRegions':len(selected_regions),
              'regionsOriginalRecords':len(flat),
              'sourceDiscovered':source_records,
+             'uiSourceAssets':[x['id'] for x in review['items'] if not x['tags']],
              'explicitUnwantedInRegions':sum(x['status']=='UNWANTED' for x in flat),
              'uniqueOriginal16x16TileIds':len(allids),
              'original16x16TilesExtracted':len(allids) if gfx is not None else 0,
