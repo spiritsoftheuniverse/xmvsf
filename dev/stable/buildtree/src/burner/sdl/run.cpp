@@ -226,7 +226,7 @@ static int RunFrame(int bDraw, int bPause)
 		return 1;
 	}
     ++xm8640FrameCount;
-    XM87206Crash::mark(300,(LONG)nCurrentFrame);
+    XM87206Crash::mark(300,(int)nCurrentFrame);
     if(!xm87132CleanStable() && (xm8640FrameCount==1 || (xm8640FrameCount%300u)==0u)) {
         std::fprintf(stderr,"XM86.40 PROGRESS frames=%llu emulated=%d paused=%d\n",
             xm8640FrameCount,nFramesEmulated,(int)bRunPause);
@@ -356,9 +356,9 @@ static int RunFrame(int bDraw, int bPause)
            bRunAhead,(int)((BurnDrvGetFlags()&BDF_RUNAHEAD_DISABLED)!=0),bAppDoFast);std::fflush(stderr);}
 		if (!bRunAhead || (BurnDrvGetFlags() & BDF_RUNAHEAD_DISABLED) || bAppDoFast) {     // Run-Ahead feature 				-dink aug 02, 2021
             if(traceFrame){std::fprintf(stderr,"XM86.34 FRAME1 BEFORE_VIDFRAME\n");std::fflush(stderr);}
-            XM87206Crash::mark(310,(LONG)nCurrentFrame);
+            XM87206Crash::mark(310,(int)nCurrentFrame);
 			const int xm8634VidResult=VidFrame();
-            XM87206Crash::mark(311,(LONG)nCurrentFrame);
+            XM87206Crash::mark(311,(int)nCurrentFrame);
             if(traceFrame){std::fprintf(stderr,"XM86.34 FRAME1 AFTER_VIDFRAME result=%d\n",xm8634VidResult);std::fflush(stderr);}
 			if (xm8634VidResult) {				// Do one frame w/o RunAhead or if FFWD is pressed.
 				// VidFrame() failed, but we must run a driver frame because we have
@@ -393,7 +393,7 @@ static int RunFrame(int bDraw, int bPause)
 				pBurnSoundOut = pBurnSoundOut_temp; // restore pointer, for wav & avi writer
 		}
 
-        XM87206Crash::mark(319,(LONG)nCurrentFrame);
+        XM87206Crash::mark(319,(int)nCurrentFrame);
         // XM86.57 stage registration and scene gate BEFORE the first stage-frame
         // presentation, not after the fight marquee or after VidPaint.
         if(!bPause){
@@ -403,7 +403,7 @@ static int RunFrame(int bDraw, int bPause)
             xm14ApplyTrainingCheats(xm14TrainingMode && !xm23State.dizzyAllowed); // XM87.44: before first presentation
         }
 	    if(traceFrame){std::fprintf(stderr,"XM86.34 FRAME1 BEFORE_VIDPAINT\n");std::fflush(stderr);}
-        XM87206Crash::mark(325,(LONG)nCurrentFrame);
+        XM87206Crash::mark(325,(int)nCurrentFrame);
 	VidPaint(0);
         if(traceFrame){std::fprintf(stderr,"XM86.34 FRAME1 AFTER_VIDPAINT\n");std::fflush(stderr);}                                              // paint the screen (no need to validate)
 	} else {                                       // frame skipping
@@ -413,9 +413,9 @@ static int RunFrame(int bDraw, int bPause)
 	}
 
 	if (!bPause) { /* XM87.44: Training applied before VidPaint, not after */ xm15OnRealFrame(bDrvOkay); xm17OnRealFrame(bDrvOkay); xm18ApplyPosition(bDrvOkay); /* XMVSF_STAGE18_POSITION */
-    XM87206Crash::mark(340,(LONG)nCurrentFrame);
+    XM87206Crash::mark(340,(int)nCurrentFrame);
     xm20VsCheck(bDrvOkay,bRunPause); /* XMVSF_STAGE20_1_VERSUS */
-    XM87206Crash::mark(341,(LONG)nCurrentFrame);
+    XM87206Crash::mark(341,(int)nCurrentFrame);
     xm22::muteSelectionBgm(bDrvOkay, bRunPause, xm20Vs.triggered); /* XMVSF_STAGE22_SELECTION_SFX */
     xm23OnRealFrame(bDrvOkay); /* XMVSF_STAGE23_TRAINING_MENU */
     xm87118OnRealFrame(bDrvOkay); /* XM87.118 completed super-stock observer */
@@ -429,7 +429,7 @@ static int RunFrame(int bDraw, int bPause)
     // Stage86.57: stage resolution and camera were sampled before VidPaint.
     // Do not run the stage hook a second time after presenting the frame.
     if(traceFrame){std::fprintf(stderr,"XM86.34 FIRST RunFrame stage5 hook returned\n");std::fflush(stderr);}
-    XM87206Crash::mark(350,(LONG)nCurrentFrame);
+    XM87206Crash::mark(350,(int)nCurrentFrame);
     if (bDrvOkay && !bBurnRunAheadFrame && !bRunPause) {
         if (xm18Position.combat) xmvsfHost::enterVs();
         else if (!xm14TrainingMode) {
@@ -725,6 +725,9 @@ int RunMessageLoop()
 	int quit = 0;
     const char* xm8640ExitReason="unspecified";
     const unsigned long long xm8640StartFrames=xm8640FrameCount;
+    // Keep the left DHC Super Chat hidden until explicitly toggled with
+    // Shift+G in THIS game session. Message logging and F10 stay available.
+    XM87140Chat::state().open=false;
     // XM86.55: the VS detector and the selection-music suppressor are session-scoped.
     // An earlier match must never keep the next character select in combat mode.
     if(xm20Vs.log){std::fclose(xm20Vs.log);xm20Vs.log=nullptr;}
