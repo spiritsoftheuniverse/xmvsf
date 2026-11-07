@@ -44,6 +44,9 @@ struct Machine {
     double meterPos[2] = {0.0,0.0};
     bool meterOn[2] = {false,false};
     float musicGain = 0.5f, musicTarget = 0.5f, gameGain = 1.f;
+    // Frame-rate independent WASAPI envelope. Derived from the current
+    // audible level; a 500 ms fight handoff ends exactly at zero.
+    float fadeFrom=0.5f,fadeSeconds=0.f,fadeElapsed=0.f;
     bool moveOn = false, confirmOn = false, fight = false, gameStarted = false;
     uint32_t gameHz = 48000;
     int16_t* game = nullptr;
@@ -137,9 +140,18 @@ static void fillFrames(BYTE* output, UINT32 count, const WAVEFORMATEX* fmt) {
     const uint32_t fadeFrames=240; // loop seam only, music remains continuous
     EnterCriticalSection(&m.lock);
     for (UINT32 i=0;i<count;i++) {
-        const float increment=1.0f/(hz*0.15f);
-        if (m.musicGain<m.musicTarget) m.musicGain=std::min(m.musicTarget,m.musicGain+increment);
-        else if(m.musicGain>m.musicTarget) m.musicGain=std::max(m.musicTarget,m.musicGain-increment);
+        if(m.fadeSeconds>0.f){
+            m.fadeElapsed=std::min(m.fadeSeconds,
+                                   m.fadeElapsed+1.0f/float(hz));
+            const float t=m.fadeElapsed/m.fadeSeconds;
+            // Smoothstep has zero slope at the endpoints, eliminating the
+            // abrupt discontinuity/pop of the old 150 ms linear cutoff.
+            const float ease=t*t*(3.0f-2.0f*t);
+            m.musicGain=m.fadeFrom+(m.musicTarget-m.fadeFrom)*ease;
+            if(m.fadeElapsed>=m.fadeSeconds){
+                m.musicGain=m.musicTarget;m.fadeSeconds=0.f;
+            }
+        }else m.musicGain=m.musicTarget;
         float channelsOut[2]={};
         for (int ch=0;ch<2;ch++) {
             float game=0;
@@ -286,6 +298,9 @@ void xm20MenuStart(){
         xm20::m.music.pos=0;
         xm20::m.musicGain=0.5f;
         xm20::m.musicTarget=0.5f;
+        xm20::m.fadeFrom=0.5f;
+        xm20::m.fadeSeconds=0.f;
+        xm20::m.fadeElapsed=0.f;
         xm20::m.moveOn=false;
         xm20::m.confirmOn=false;
         xm20::m.meterOn[0]=xm20::m.meterOn[1]=false;
@@ -306,8 +321,33 @@ void xm20MeterCharged(int player){
     }
     LeaveCriticalSection(&xm20::m.lock);
 }
-void xm20MenuEnterGame(){if(xm20::m.csReady){EnterCriticalSection(&xm20::m.lock);xm20::m.musicTarget=1.f;xm20::m.fight=false;LeaveCriticalSection(&xm20::m.lock);}}
-void xm20OnCombat(){if(xm20::m.csReady){EnterCriticalSection(&xm20::m.lock);xm20::m.musicTarget=0.f;xm20::m.fight=true;LeaveCriticalSection(&xm20::m.lock);}}
+void xm20MenuEnterGame(){
+    if(!xm20::m.csReady)return;
+    EnterCriticalSection(&xm20::m.lock);
+    xm20::m.fadeFrom=xm20::m.musicGain;
+    xm20::m.musicTarget=1.f;
+    xm20::m.fadeElapsed=0.f;
+    xm20::m.fadeSeconds=0.15f; // ordinary start/upward gain stays quick
+    xm20::m.fight=false;
+    LeaveCriticalSection(&xm20::m.lock);
+}
+void xm20OnCombat(){
+    if(!xm20::m.csReady)return;
+    EnterCriticalSection(&xm20::m.lock);
+    if(!xm20::m.fight){
+        // Trigger only ONCE at the earliest verified VS/crush boundary;
+        // repeated COMBAT observations cannot restart the envelope.
+        xm20::m.fadeFrom=xm20::m.musicGain;
+        xm20::m.musicTarget=0.f;
+        xm20::m.fadeElapsed=0.f;
+        xm20::m.fadeSeconds=0.5f;
+        xm20::m.fight=true;
+        std::fprintf(stderr,
+            "XM87.206 VS MUSIC_FADE_BEGIN duration=500ms start=%.3f\n",
+            xm20::m.fadeFrom);
+    }
+    LeaveCriticalSection(&xm20::m.lock);
+}
 void xm20ClockReset(){xm20::clockStarted=false;}
 int xm20FrameDue(int fpsHundredths) {
     if(fpsHundredths<1000 || fpsHundredths>10000)fpsHundredths=5964;
