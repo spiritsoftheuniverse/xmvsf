@@ -9,6 +9,9 @@ if /I "%~1"=="review" goto :offline_clean_review
 if /I "%~1"=="sprites" goto :offline_sprite_factory
 if /I "%~1"=="m68k" goto :offline_m68k_sprite_analysis
 if /I "%~1"=="poses" goto :offline_m68k_pose_analysis
+if "%~1"=="1" goto :suite_test
+if "%~1"=="2" goto :suite_asset
+if "%~1"=="3" goto :suite_capture
 if /I "%~1"=="art" if /I "%~2"=="open" goto :offline_mvc_art_launch
 if /I "%~1"=="art" goto :offline_mvc_art_review
 if /I "%~1"=="channels" goto :offline_all_sprite_channels
