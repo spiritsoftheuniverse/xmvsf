@@ -2358,3 +2358,120 @@ TEST BUILD READY: /f/xmvsf/runtime/stable/XMVSF_Test_87_203.exe
 Stage 87.203: read-only native startup/first attack PPC, preserve all 87.185 input and recovery bridge logic; Stable untouched.
 XMVSF BUILD END rc=0 time=2026-11-06 18:52:07 log=/f/xmvsf/test/build_logs/BUILD_TEST.log
 BATCH RESULT: SUCCESS Fri 11/06/2026 18:52:07.24
+
+========== XMVSF BUILD_TEST.bat 87.203 START Sat 11/07/2026 12:52:26.38 ==========
+Project: F:\xmvsf
+
+========== XMVSF TEST 87.203 BUILD BEGIN 2026-11-07 12:52:28 ==========
+Project: /f/xmvsf
+Log: /f/xmvsf/test/build_logs/BUILD_TEST.log
+PASS 87.202: 2E0E PC010392 rebound only; wrong action, owner and stale-latch rejected
+XM87.203 CAPTURE_START f=0 read_only=1 format=XM87203A1 no_level_complete_without_verification
+XM87.203 SESSION_DIR f=0 F:/xmvsf/test/87.203/unit_tests/capture_smoke/session_0007
+XM87.203 GFX_READY f=100 rom=mvscur1 decoded_bytes=2048 fnv64=026655812C8B5205 file=mvc1_decoded_gfx_00000800_026655812C8B5205.bin
+XM87.203 STAGE_BEGIN f=100 stage=5 begin
+XM87.203 MAP_SOURCE_READY f=101 scroll1_scroll2_scroll3_native_banks_observed_not_yet_builder_verified
+XM87.203 INCOMPLETE f=103 previous_stage_left_before_validation
+XM87.203 STAGE_BEGIN f=103 stage=6 begin
+XM87.203 CAPTURE_START f=0 read_only=1 format=XM87203A1 no_level_complete_without_verification
+XM87.203 SESSION_DIR f=0 F:/xmvsf/test/87.203/unit_tests/capture_smoke/session_0008
+XM87.203 GFX_READY f=104 rom=mvscur1 decoded_bytes=2048 fnv64=026655812C8B5205 file=mvc1_decoded_gfx_00000800_026655812C8B5205.bin
+XM87.203 STAGE_BEGIN f=104 stage=6 begin
+XM87.203 MAP_SOURCE_READY f=105 scroll1_scroll2_scroll3_native_banks_observed_not_yet_builder_verified
+XM87.203 PROGRESS f=403 source_rom=mvscur1 stage_id=observed batch_frames=300 total_frames=300 batch=1 map_snapshots=3 row_snapshots=1 palette_snapshots=1 oam_frames=300 still_recording=1
+XM87.203 BATCH_DONE f=404 session=F:/xmvsf/test/87.203/unit_tests/capture_smoke/session_0008 frames=300 final_frame=403 total_frames=300 all_batches_unverified=1
+XM87.203 CAPTURE_START f=0 read_only=1 format=XM87203A1 no_level_complete_without_verification
+XM87.203 SESSION_DIR f=0 F:/xmvsf/test/87.203/unit_tests/capture_smoke/session_0009
+XM87.203 BATCH_NEXT f=404 F:/xmvsf/test/87.203/unit_tests/capture_smoke/session_0009
+XM87.203 GFX_READY f=404 rom=mvscur1 decoded_bytes=2048 fnv64=026655812C8B5205 file=mvc1_decoded_gfx_00000800_026655812C8B5205.bin
+XM87.203 STAGE_BEGIN f=404 stage=6 begin
+PASS 87.203 native telemetry + continuous frame-batch rollover, no lost boundary frame or old-session overwrite
+XMVSF Stage 87.203 TEST: incremental build; preserving cached objects
+Dependencies: GNU Make + persistent obj/**/*.d header dependency files
+make[1]: Entering directory '/f/xmvsf/dev/stable/buildtree'
+Making normal build...
+
+Generating depend file for src/burn/drv/capcom/cps_draw.cpp...
+Generating depend file for src/burn/drv/capcom/cps_run.cpp...
+Generating depend file for src/burner/sdl/main.cpp...
+Generating depend file for src/burner/sdl/run.cpp...
+Compiling src/burn/drv/capcom/cps_draw.cpp...
+Compiling src/burn/drv/capcom/cps_run.cpp...
+Compiling src/burner/sdl/main.cpp...
+Compiling src/burner/sdl/run.cpp...
+In file included from src/burn/drv/capcom/cps_run.cpp:29:
+src/burn/drv/capcom/xmvsf_stage87_144_native_handoff.h: In member function 'void XM87144::State::armOutgoingTag(uint8_t*, unsigned int, unsigned int, unsigned int)':
+src/burn/drv/capcom/xmvsf_stage87_144_native_handoff.h:394:24: warning: unused variable 'p' [-Wunused-variable]
+  394 |         const unsigned p=0x4000u+side*0x400u;
+      |                        ^
+In file included from src/burn/burnint.h:13,
+                 from src/burner/sdl/xmvsf_stage17_auto.h:6,
+                 from src/burner/sdl/main.cpp:37:
+src/burner/sdl/tchar.h:12:9: warning: '__TEXT' redefined
+   12 | #define __TEXT(q)    q
+      |         ^~~~~~
+In file included from C:/msys64/ucrt64/include/minwindef.h:163,
+                 from C:/msys64/ucrt64/include/windef.h:9,
+                 from C:/msys64/ucrt64/include/windows.h:69,
+                 from src/burner/sdl/burner_sdl.h:22,
+                 from src/burner/burner.h:47,
+                 from src/burner/sdl/main.cpp:16:
+C:/msys64/ucrt64/include/winnt.h:412:9: note: this is the location of the previous definition
+  412 | #define __TEXT(quote) quote
+      |         ^~~~~~
+In file included from src/burn/burnint.h:13,
+                 from src/burner/sdl/xmvsf_stage14_training.h:10,
+                 from src/burner/sdl/run.cpp:15:
+src/burner/sdl/tchar.h:12:9: warning: '__TEXT' redefined
+   12 | #define __TEXT(q)    q
+      |         ^~~~~~
+In file included from C:/msys64/ucrt64/include/minwindef.h:163,
+                 from C:/msys64/ucrt64/include/windef.h:9,
+                 from C:/msys64/ucrt64/include/windows.h:69,
+                 from src/burner/sdl/burner_sdl.h:22,
+                 from src/burner/burner.h:47,
+                 from src/burner/sdl/run.cpp:6:
+C:/msys64/ucrt64/include/winnt.h:412:9: note: this is the location of the previous definition
+  412 | #define __TEXT(quote) quote
+      |         ^~~~~~
+In file included from src/burner/sdl/xmvsf_stage14_boot.h:82,
+                 from src/burner/sdl/main.cpp:23:
+src/burner/sdl/xmvsf_stage87_33_dizzy_option.h: In function 'void xm8733DizzyLoad()':
+src/burner/sdl/xmvsf_stage87_33_dizzy_option.h:19:24: warning: this 'if' clause does not guard... [-Wmisleading-indentation]
+   19 |     if(f){int flag=-1; if(std::fscanf(f,"dizzy_bar=%d",&flag)==1 && (flag==0||flag==1))
+      |                        ^~
+src/burner/sdl/xmvsf_stage87_33_dizzy_option.h:20:40: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the 'if'
+   20 |         xm8733DizzyEnabled()=(flag==1);std::fclose(f);}
+      |                                        ^~~
+src/burner/sdl/main.cpp: At global scope:
+src/burner/sdl/main.cpp:353:20: warning: 'int AppDebugPrintf(int, TCHAR*, ...)' defined but not used [-Wunused-function]
+  353 | static int __cdecl AppDebugPrintf(int nStatus, TCHAR* pszFormat, ...)
+      |                    ^~~~~~~~~~~~~~
+In file included from src/burner/sdl/xmvsf_stage23_ui.h:10,
+                 from src/burner/sdl/xmvsf_stage23_engine.h:3,
+                 from src/burner/sdl/run.cpp:25:
+src/burner/sdl/xmvsf_stage13_controls.h:145:12: warning: 'int xm13ReadInput(const XM13_Settings*, int, int, SDL_Joystick**, SDL_GameController**, int)' defined but not used [-Wunused-function]
+  145 | static int xm13ReadInput(const XM13_Settings* s, int player, int sub,
+      |            ^~~~~~~~~~~~~
+src/burner/sdl/xmvsf_stage13_controls.h:131:12: warning: 'int xm13Assign(XM13_Settings*, int, int)' defined but not used [-Wunused-function]
+  131 | static int xm13Assign(XM13_Settings* settings,int player,int device) {
+      |            ^~~~~~~~~~
+src/burner/sdl/main.cpp: In function 'int SDL_main(int, char**)':
+src/burner/sdl/main.cpp:486:52: warning: '%s' directive output may be truncated writing up to 2339 bytes into a region of size 260 [-Wformat-truncation=]
+  486 |                 snprintf(currentPath, MAX_PATH, "%s%s", base_path, szDirs[x]);
+      |                                                    ^~
+src/burner/sdl/main.cpp:486:25: note: 'snprintf' output 1 or more bytes (assuming 2340) into a destination of size 260
+  486 |                 snprintf(currentPath, MAX_PATH, "%s%s", base_path, szDirs[x]);
+      |                 ~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Warning: Perl is not available on this system.
+src/dep/generated/driverlist.h cannot be updated or created!
+
+
+Linking executable... fbneo
+make[1]: Leaving directory '/f/xmvsf/dev/stable/buildtree'
+Build/link succeeded; publishing TEST binary without brittle debug-string marker gates.
+TEST BUILD READY: /f/xmvsf/runtime/stable/XMVSF_Test_87_203.exe
+Stage 87.203: read-only native startup/first attack PPC, preserve all 87.185 input and recovery bridge logic; Stable untouched.
+XMVSF BUILD END rc=0 time=2026-11-07 12:55:42 log=/f/xmvsf/test/build_logs/BUILD_TEST.log
+BATCH RESULT: SUCCESS Sat 11/07/2026 12:55:43.12
