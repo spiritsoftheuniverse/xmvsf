@@ -2,7 +2,6 @@
 from __future__ import annotations
 import csv, gzip, json, struct, tempfile, unittest
 from pathlib import Path
-from PIL import Image
 import BUILD_MVC_ART_REVIEW as review
 
 class ArtReviewTests(unittest.TestCase):
@@ -38,8 +37,30 @@ class ArtReviewTests(unittest.TestCase):
             self.assertEqual(ranked[0]['coverage'],1)
             self.assertEqual(ranked[0]['hits'],3)
             self.assertEqual(len(digest),64)
-            self.assertEqual(review.guess_category({'offset':0x327A4E,'coverage':1},Image.new('RGBA',(30,90)))[0],'character')
-            self.assertEqual(review.guess_category({'offset':0x7C,'coverage':.75},Image.new('RGBA',(100,80)))[0],'partial')
+            self.assertEqual(review.guess_category({'offset':0x327A4E,'coverage':1},review.RGBAImage(30,90))[0],'character')
+            self.assertEqual(review.guess_category({'offset':0x7C,'coverage':.75},review.RGBAImage(100,80))[0],'partial')
+
+    def test_original_tile_encoding_and_lossless_png(self):
+        import base64,zlib
+        colors=(bytes((0,0,0,0)),)+tuple(bytes((i*15,i*8,i*3,255)) for i in range(1,16))
+        pixels=bytes((0x11,))*128
+        tile=review.decode_original_tile(pixels,colors,False,False)
+        self.assertEqual(tile.width,16)
+        self.assertEqual(tile.pixels[:4],colors[1])
+        png=base64.b64decode(review.encode_png(tile).split(',',1)[1])
+        self.assertTrue(png.startswith(b'\x89PNG\r\n\x1a\n'))
+        self.assertEqual(struct.unpack_from('>II',png,16),(16,16))
+        first_idat=png.find(b'IDAT')
+        rowdata=zlib.decompress(png[first_idat+4:first_idat+4+struct.unpack_from('>I',png,first_idat-4)[0]])
+        self.assertEqual(rowdata[:5],b'\x00'+colors[1])
+        original=review.RGBAImage(16,16)
+        original.alpha_composite(tile,(0,0))
+        self.assertEqual(original.pixels[:4],colors[1])
+        transparent=review.decode_original_tile(bytes(128),colors,False,False)
+        original.alpha_composite(transparent,(0,0))
+        self.assertEqual(original.pixels[:4],colors[1])
+        self.assertEqual(original.getbbox(),(0,0,16,16))
+        self.assertEqual(original.crop((0,0,1,1)).pixels[:4],colors[1])
 
     def test_full_local_html_and_output_safety(self):
         with tempfile.TemporaryDirectory() as t:
