@@ -1,3 +1,12 @@
+## Unified native TEST / capture entry point
+
+Root `RUN_TEST.bat` now presents a three-option menu: **1** TEST game,
+**2** Asset Organizer, **3** level capture (MVC1). MVC1 native capture
+starts only when F11 is pressed, and stops on the next press; F9/F10 retain
+their prior recorder and diagnostic functions. See root
+`TEST_CAPTURE_SUITE.md` for details and `asset_organizer/BUILD_AO.bat`
+for offline AO rebuilding without running a ROM.
+
 # Stage 87.203: live stage-capture status in your existing MSYS2 terminal
 
 Run in the ALREADY OPEN MSYS2 UCRT64 window:
