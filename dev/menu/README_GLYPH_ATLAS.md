@@ -68,16 +68,41 @@ For exported title PNGs with opaque white canvas, a flood fill makes only
 border-connected white transparent; enclosed white highlights are preserved.
 Texture atlases are released before renderer teardown or menu/game handoff.
 
-## Native local verification
+## Native TEST version 87.204 and local verification
 
-1. Check out this branch. Keep _art at the repository root.
-2. Run the existing BUILD_TEST.bat. Do not run the Stable builder.
-3. Run RUN_TEST.bat (option 1).
-4. Check the logo foreground and background GIF, five main choices,
-   Stage, Versus, scoreboard, Options, Controls, and Training.
-5. Confirm every selected choice is bright with no focus boxes, and test
-   uppercase, lowercase, digits, and punctuation. Return to boot from a
-   match to check shared window and renderer lifecycle.
+**Pulling only main does not include this branch.** The source modifications
+are on feature/menu-logo-glyph-atlas-selection-dimming. In the Windows
+project repository:
 
-No native Windows build or runtime result has been claimed by this
-GitHub-side editing session. No GitHub Actions are required.
+    git fetch origin
+    git switch feature/menu-logo-glyph-atlas-selection-dimming
+    git pull --ff-only origin feature/menu-logo-glyph-atlas-selection-dimming
+
+Preserve any uncommitted local work before switching branches. Keep the
+original _art PNG files; do not resample or replace them.
+
+1. Run BUILD_TEST.bat. It now publishes ONLY
+   runtime/stable/XMVSF_Test_87_204.exe after compiling current source.
+   The first 87.204 build refreshes SDL main.cpp and run.cpp once, without
+   deleting warmed objects, old TEST binaries, or Stable.
+2. Read test/build_logs/BUILD_TEST.log for the 87.204 success line and
+   the SHA256 hashes of the compiled executable and three source PNGs.
+   If an asset or the glyph-header include is missing, the builder gives
+   a precise error instead of silently building a legacy-looking menu.
+3. Run RUN_TEST.bat option 1. The menu window title and bottom-right
+   main-menu label both say TEST 87.204. If they do not, you are not
+   looking at the newly compiled native XMVSF build.
+4. The gameplay path is still the native XMVSF app's zero-ROM-argument
+   boot selector, NOT the separate MVC1 capture/ROM playback mode.
+   Inspect the title artwork, font tracking, Arcade, Training, Versus,
+   Controls, Options, scoreboard and return-to-menu behavior.
+5. Verify the unselected text is dim, selected text is bright, and that
+   I, i, l, 1, punctuation and word gaps no longer waste full cell widths.
+6. New F9 replays, observer/chat diagnostics and replay verification live
+   under test/87.204. Legacy test/87.203 capture data is not modified;
+   original replay files remain accessible through RUN_REPLAY.bat.
+
+This source audit includes inspection of the tracked code, unchanged font
+PNG blob hashes, and explicit version paths. It is not a claim that this
+GitHub-only session compiled or ran the native Windows executable.
+GitHub Actions are not used.
