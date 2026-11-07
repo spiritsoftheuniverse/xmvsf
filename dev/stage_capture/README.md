@@ -1357,3 +1357,30 @@ native CPS2 frames, correlate them with original OAM, and identify the
 engine's timekeeping/advance logic. Static record adjacency cannot supply
 those timings. Stable, the existing local buildtree and old source captures
 remain untouched. No GitHub Actions were used.
+
+## Stage 87.203: boxed original MVC1 sprite review UI
+
+Use `RUN_TEST.bat art` to assemble existing original sprites into the
+self-contained **local-only** `test/87.203/art_review/MVC1_sprite_review.html`.
+It groups candidates into tentative figure, stage/machinery, lettering/HUD,
+effects, and unresolved categories. Each sprite is boxed, clickable for
+Wanted/Unwanted, movable between categories, and supports per-category
+Check All / Uncheck All. Export/import JSON saves exact ROM addresses and
+review decisions without original artwork binaries. Starting status is
+Unreviewed, not automatically Unwanted. Local browser state is a convenience;
+**Save review JSON** is the durable record.
+
+The user-supplied 87.203 data yields 560 original descriptor-assembly
+candidates, 518 with full observed descriptor coverage in at least one
+sampled frame. These are candidate grouped images, not verified native
+animation frames or classifications. Colors currently approximate raw
+palette RAM and are not native effective-DMA-certified.
+
+Source/exporter and testing instructions:
+`dev/stage_capture/MVC_ART_REVIEW.md`.
+Python unit tests (synthetic, offline):
+`python dev/stage_capture/test_build_mvc_art_review.py`.
+Never commit the generated HTML, as it EMBEDS copyrighted original artwork;
+it remains within the git-ignored test folder, not public source control.
+No new game launcher, native gameplay change, Stable modification or GitHub
+Actions are involved.
