@@ -156,6 +156,12 @@ public:
             else std::fprintf(stderr,"XM MENU ATLAS unexpected small sheet %dx%d\n",s->w,s->h);
             SDL_FreeSurface(s);
         }
+        // One character is unpainted in the big source atlas ('/').
+        // Borrow its width from the small sprite to prevent the next glyph
+        // from colliding with the substituted art.
+        if(metrics_[0]['/'].src.w==0 && metrics_[1]['/'].src.w>0)
+            metrics_[0]['/'].advance=
+                (metrics_[1]['/'].src.w*12+7)/8+2;
         SDL_Surface* original=open("logo.png");
         if(original){
             SDL_Surface* rgba=SDL_ConvertSurfaceFormat(original,SDL_PIXELFORMAT_RGBA32,0);
