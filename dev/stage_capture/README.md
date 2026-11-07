@@ -1191,3 +1191,48 @@ This analysis was checked independently against the original private ROM
 bytes, but execution of the updated Windows BAT and the exact new
 Python analyzer remains unverified here. No GitHub Actions, native
 builds, Stable modifications or original source bytes were committed.
+
+
+### Mirrored two-level 68000 index path — source-backed (2026-11-06)
+
+This follows exact decrypted FETCH opcode words into the separate original
+READ data image, without confusing encrypted READ code with decrypted FETCH:
+
+- At FETCH PC **$07910E**, an exact source opcode motif begins with
+  MOVEA.L #$000791A6,A1 and an indexed A1 lookup ($2271 $2000).
+  READ address $0791A6 begins a 23-entry table of 32-bit pointers.
+  Its first entry refers to $079202, the first of 18 distinct lists.
+- At FETCH PC **$09C8DA**, an almost identical source motif begins with
+  MOVEA.L #$0009C978,A1, followed by the same indexed A1 lookup.
+  READ $09C978 likewise has 23 table entries; the first is $09C9D4.
+- In BOTH cases 23 first-level slots refer to 18 distinct second-level
+  lists, each eight 32-bit addresses long. The lists are laid out at
+  regular 32-byte strides. Their ordered footer targets match across
+  the two copies. First-level lists include reused secondary pointers.
+- The 184 leaf references in EACH first-level table comprise 166
+  addresses present in the previous 637-record pose catalog and 18
+  references to a single catalog-absent, **grammatically valid** footer
+  at $3355D8 (0002 0005 0002 0039 8922). The same 18 references
+  occur in the other copy. Lack of sampled graphics is not permission
+  to discard this real original data.
+
+Thus the original source shows a credible **code-motif -> first-level table
+-> second-level list -> five-word control block** pathway. The repeated
+two-level structure materially narrows the search for the original game
+reader. It does NOT prove either candidate code path executed in the prior
+F9 capture, that control code $0039 is an animation operation, or that
+any field is a timing value.
+
+The offline cross-reference now exports
+pose_footer_two_level_index.tsv, retaining both literal code-PC/table
+origins, the exact secondary slot, the original footer offset, every
+original raw five-word control block, and whether the footer was in
+the earlier sampled-pose catalog or has grammar-only support. Both
+types are retained without guessing a visual object category.
+
+Real-source byte-level hierarchy was independently inspected. New source
+code and synthetic tests are committed but NOT YET verified by local
+Windows Python or native MVC execution. Until a reachable disassembly and
+runtime READ/PC trace confirm table accesses, classifying these routines
+as executed animation interpreters and exporting frame durations remains
+prohibited. No Stable, ROM, old data, or GitHub Actions were changed.
