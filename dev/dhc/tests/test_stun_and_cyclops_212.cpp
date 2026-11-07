@@ -211,10 +211,29 @@ static void checkNaturalActionExit(){
     for(unsigned frame=151u;frame<225u;frame++)tracker.frame(frame,ram.data());
     assert(XM87121::w(ram.data(),0x4060u)==0x3400u); // never rewound
 }
+static void checkThrowSubstateTransition(){
+    std::vector<std::uint8_t> ram(65536u,0u);
+    setFixture(ram);
+    XM87121::Tracker tracker;tracker.initialized=true;tracker.enabled=true;
+    enterThrow(ram,tracker);
+    // Native recovery may change from 200E to 2010 before 100 frames,
+    // but that is still part of the throw-family controller.
+    setW(ram,0x4410u,472u);
+    setW(ram,0x4460u,0x1C34u);
+    for(unsigned tick=1u;tick<=XM87121::ReleaseDelayFrames;tick++){
+        if(tick==30u)setW(ram,0x4060u,0x2010u);
+        tracker.frame(102u+tick,ram.data());
+        assert(XM87121::w(ram.data(),0x4060u)==
+             (tick==XM87121::ReleaseDelayFrames?0x0200u:
+              tick>=30u?0x2010u:0x200Eu));
+    }
+    assert(!tracker.waiting[0]);
+}
 static void checkCyclops(){
     checkHundredFrameRelease(true,true);
     checkHundredFrameRelease(true,false);
     checkHundredFrameRelease(false,true);
+    checkThrowSubstateTransition();
     checkNaturalActionExit();
     std::puts("87.212 CYCLOPS_100_FRAMES_PASS: no early restore, latched victim landing, static pose, natural exit, opt-out");
 }
