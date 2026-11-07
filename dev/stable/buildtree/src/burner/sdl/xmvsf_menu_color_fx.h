@@ -99,8 +99,17 @@ static inline void logoPalettePulse(const std::vector<Uint8>& source,
         if(alpha<8)continue;
         const Uint8 hi=std::max(red,std::max(green,blue));
         const Uint8 lo=std::min(red,std::min(green,blue));
-        if(hi<32 || int(hi)-int(lo)<22)continue;
+        // Preserve very dark purple pixels in the gas/vibration mask.
+        // They were previously clipped by hi<32 and chroma<22, creating
+        // an artificial seam across the low-value magenta core.
         const float hue=hueDegrees(red,green,blue);
+        const int chroma=int(hi)-int(lo);
+        const bool purpleMaterial=
+            hue>=240.0f && hue<360.0f &&
+            (int(red)+int(blue)-2*int(green))>=16 &&
+            (int(blue)>=int(green)+7 || int(red)>=int(green)+18);
+        if(hi<16 || (!purpleMaterial && chroma<22) ||
+           (purpleMaterial && chroma<10))continue;
         float gain=1.0f;
         bool warm=false;
         float pulse=0.0f;
@@ -112,7 +121,7 @@ static inline void logoPalettePulse(const std::vector<Uint8>& source,
         }else if(hue>=80.0f && hue<178.0f){
             pulse=greenPulse;
             gain=1.02f+0.18f*pulse;warm=true;
-        }else if(hue>=184.0f && hue<=338.0f){
+        }else if((hue>=184.0f && hue<=338.0f) || purpleMaterial){
             const float curl=std::sin(float(x)*0.047f+float(y)*0.023f+
                                 seconds*0.60f+
                                 std::sin(float(y)*0.035f-seconds*0.23f));
@@ -123,32 +132,30 @@ static inline void logoPalettePulse(const std::vector<Uint8>& source,
             const float threshold=(float(bayer[(y&3)*4+(x&3)])+0.5f)/16.0f;
             gain=0.82f+0.28f*cloud+(cloud>threshold?0.11f:-0.07f);
         }else continue; // red badge, neutrals and other colors unchanged
-        // Two ORIGINAL-ART masks. The oval purple VS core and the lowest
-        // Street Fighter purple extruded shadow pulse in short intervals.
-        // Detect chromatic purple beneath the letters; never offset,
-        // blur, resample, recolor green/white letter faces or change alpha.
-        // Original logo canvas: 400x300, transparent/white margins intact.
-        const bool deepPurple=hue>=262.0f && hue<=338.0f &&
-                green*2u<red+blue && blue>green+15u &&
-                int(hi)-int(lo)>38;
-        const bool vsCore=deepPurple && x>=83 && x<=269 &&
-                y>=69 && y<=144;
-        const bool bottomShadow=deepPurple && x>=36 && x<=380 &&
-                y>=139 && y<=220;
-        if(vsCore || bottomShadow){
+        // Vibrate the native purple material without rectangular region
+        // masks. Old vsCore (y=69..144) and bottomShadow (y=139..220)
+        // ended on two visible horizontal seamlines through the logo.
+        // Original pixel hue/saturation determines membership, including
+        // the dark core and full extruded Street Fighter shadow. Only
+        // the vibration's *frequency* morphs continuously with height.
+        if(purpleMaterial){
             const float cycle=std::fmod(seconds,2.65f);
-            // About 0.55s of vibration in every 2.65s, otherwise hold.
+            // 0.55-second burst; 2.1 seconds of breathing between bursts.
             const float active=cycle<0.55f ?
                 std::sin(cycle*3.14159265f/0.55f) : 0.0f;
             const float envelope=active*active;
-            const float frequency=vsCore?9.2f:7.4f;
-            const float spatial=vsCore?
-                float(x)*0.047f+float(y)*0.073f:
-                float(x)*0.027f-float(y)*0.061f;
-            const float buzz=std::sin(seconds*6.2831853f*frequency+spatial);
-            // Oscillate brightness (and existing Bayer gas grain), never
-            // sprite coordinates, source indices or alpha silhouettes.
-            gain*=1.0f+envelope*(0.22f*buzz+0.06f);
+            const float mix=std::max(0.0f,std::min(1.0f,
+                                (float(y)-94.0f)/114.0f));
+            // Blend the VS core (~9.2 Hz) and lower extrusion (~7.4 Hz)
+            // as overlapping fields, never using a step threshold.
+            const float coreWave=std::sin(seconds*6.2831853f*9.2f+
+                                float(x)*0.047f+float(y)*0.073f);
+            const float shadowWave=std::sin(seconds*6.2831853f*7.4f+
+                                float(x)*0.027f-float(y)*0.061f);
+            const float buzz=coreWave*(1.0f-mix)+shadowWave*mix;
+            // Modulate original RGB only; alpha/coordinates/pixel edges
+            // are untouched, even at the outermost purple shadow.
+            gain*=1.0f+envelope*(0.25f*buzz+0.07f);
         }
         if(warm){
             // Add a gentle light-to-white component as well as exposure.
