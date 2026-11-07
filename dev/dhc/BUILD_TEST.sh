@@ -44,13 +44,14 @@ if [[ ! -f "$TREE/makefile.sdl2" ||
       ! -f "$TREE/src/burn/drv/capcom/xmvsf_stage87_198_native_super_freeze_cue.h" ||
       ! -f "$TREE/src/burn/drv/capcom/xmvsf_stage87_202_air_followup_rebound.h" ||
       ! -f "$TREE/src/burn/drv/capcom/xmvsf_stage87_203_stage_capture.h" ||
-      ! -f "$TREE/src/burner/sdl/xmvsf_stage87_195_menu_gif.h" || 
+      ! -s "$TREE/src/burner/sdl/xmvsf_stage87_195_menu_gif.h" ||
+      ! -s "$TREE/src/burner/sdl/xmvsf_menu_color_fx.h" ||
       ! -s "$TREE/src/burner/sdl/xmvsf_menu_glyph_atlas.h" ||
       ! -s "$TREE/src/burner/sdl/xmvsf_stage14_boot.h" ]]; then
   echo "ERROR: 87.204 native menu/glyph sources missing; inspect checked-out branch" >&2
   exit 2
 fi
-for asset in logo.png sf2font.png sf2fontsmall.png; do
+for asset in logo.png sf2font.png sf2fontsmall.png menuanimation.gif; do
   if [[ ! -s "$PROJECT/_art/$asset" ]]; then
     echo "ERROR: 87.204 requires original nonempty _art/$asset" >&2
     exit 2
@@ -64,7 +65,7 @@ fi
 # Stage 87.204 uses menuLogo(render), which superseded logo(render).
 # The C++ compiler checks the actual call and linking; the runtime atlas
 # reports whether the title PNG loaded successfully.
-echo "87.204 source preflight: native boot includes glyph atlas and all three _art PNG files are present."
+echo "87.204 menu preflight: native boot and glyph/FX sources present; logo, fonts and menuanimation.gif verified."
 echo "87.204 draw path is verified by native compile and runtime, not a stale grep for XMGlyph::logo(render)."
 if [[ ! -f "$TREE/src/burn/drv/capcom/cps_run.cpp" ||
       ! -f "$TREE/src/intf/video/sdl/xmvsf_stage86_49_painter.h" ]]; then
@@ -125,6 +126,8 @@ echo "Dependencies: GNU Make + persistent obj/**/*.d header dependency files"
 FRESHEN=()
 if [[ ! -s "$DEST" ||
       "$TREE/src/burner/sdl/xmvsf_menu_glyph_atlas.h" -nt "$DEST" ||
+      "$TREE/src/burner/sdl/xmvsf_menu_color_fx.h" -nt "$DEST" ||
+      "$TREE/src/burner/sdl/xmvsf_stage87_195_menu_gif.h" -nt "$DEST" ||
       "$TREE/src/burner/sdl/xmvsf_stage14_boot.h" -nt "$DEST" ||
       "$TREE/src/burner/sdl/xmvsf_stage23_ui.h" -nt "$DEST" ||
       "$TREE/src/burner/sdl/xmvsf_stage25_5_ui.h" -nt "$DEST" ]]; then
@@ -167,7 +170,7 @@ mv -f "$PENDING" "$DEST"
 echo "TEST BUILD READY: $DEST"
 if command -v sha256sum >/dev/null 2>&1; then
   echo "87.204 compiled TEST sha256: $(sha256sum "$DEST")"
-  echo "87.204 source font + logo sha256:"
-  sha256sum "$PROJECT/_art/logo.png" "$PROJECT/_art/sf2font.png" "$PROJECT/_art/sf2fontsmall.png"
+  echo "87.204 menu source assets sha256:"
+  sha256sum "$PROJECT/_art/logo.png" "$PROJECT/_art/sf2font.png" "$PROJECT/_art/sf2fontsmall.png" "$PROJECT/_art/menuanimation.gif"
 fi
 echo "Stage 87.204: native title + proportional font, original ROM/combat paths retained; Stable untouched."
