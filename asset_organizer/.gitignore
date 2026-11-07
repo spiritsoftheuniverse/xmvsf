@@ -1,3 +1,6 @@
 /index.html
 /index.manifest.json
 /reviews/*.json
+/aodata.json
+/wanted_sequences.json
+/wanted_sequences.tsv
