@@ -290,7 +290,52 @@ translation units without touching Stable or older recorded replays.
 **Target:** `runtime/stable/XMVSF_Test_87_209.exe`. Source inspection and
 unit-test wiring do not constitute a verified Windows gameplay run.
 
-## Native TEST version 87.209 and local verification
+## TEST 87.210 — Original 61x8 stencil, combat opening, 5 animation frames
+
+The 87.209 stun mask incorrectly inferred its fill from the alpha of the
+**61×6** base. The artist's reference `_art/examples/example_stunbar.png`
+has a precise **54-pixel inner face**, NOT a 56/61-pixel active area:
+the active rows have a constant diagonal slope and right endpoints
+x=53,54,55,56,57,58. The reference's orange example is 44/54 filled,
+with left edges x=10,11,12,13,14,15. A 100% fill is therefore 54
+pixels on each row and retains the intended two-pixel gray outer bevel.
+
+`XM8733::SourceSpan` and `XM8733::FillBounds` now use these exact
+pixel coordinates, independent of the base transparency silhouette.
+Partial yellow/orange and full rapid diagonal rainbow share that
+single moving span. On composite rows 2–5, the 1px dark tip is at
+`first-1`, matching the PNG example. The final bottom shadow uses
+row-5's current fill mask intersected with the original source PNG
+alpha. No legacy bar and no fixed-width tip.
+
+**Visibility:** Original game status `0x06` is the combat stage opening,
+before `0x08` FIGHT. The new stun base now appears during `0x06`
+already at its final HUD location (native y=45), empty and without
+reading uninitialized character stun counters. During `0x08`, the
+original live game RAM supplies stun values, per-hit amounts and
+rainbow-on-full behavior as before. Selection/Versus statuses `0x02`
+and `0x04` do not show the stun HUD.
+
+**Cyclops:** Restore Stage87.121's saved pre-throw airborne controller
+**only after five animation-frame changes** at native fighter word
+`+0x42` following the observed `200C -> 200E` grab-end flip. This
+is NOT a five-game-frame timer. The victim must have landed in native
+state `1C34` and Cyclops must still be airborne and in his throw
+recovery `200E`. On premature natural recovery/landing, cancel
+instead of writing stale controller values. Local logs now expose
+`anim42`, `anim_advances`, `GRAB_ENDED`, `ANIM_ADVANCE`,
+`RELEASED`, and cancellations so we can verify the actual
+game's animation cadence independently of emulation FPS.
+
+The new C++11 ROM-free test at
+`dev/dhc/tests/test_stun_and_cyclops_210.cpp` asserts all six
+reference fill rows, the two-pixel bevel, mirrored P1/P2 geometry,
+empty pre-FIGHT HUD, no appearance in Versus, five non-uniform-timed
+sprite-frame advances, unchanged world position and opponent RAM,
+and the previous opt-out. BUILD_TEST runs this regression before
+the incremental native build. No Stable, ROM, DHC or F9 replay changes.
+
+## Native TEST version 87.210 and local verification
 
 **Pulling only main does not include this branch.** The source modifications
 are on feature/menu-logo-glyph-atlas-selection-dimming. In the Windows
@@ -304,16 +349,16 @@ Preserve any uncommitted local work before switching branches. Keep the
 original _art PNG files; do not resample or replace them.
 
 1. Run BUILD_TEST.bat. It now publishes ONLY
-   runtime/stable/XMVSF_Test_87_209.exe after compiling current source.
+   runtime/stable/XMVSF_Test_87_210.exe after compiling current source.
    A missing executable or modified menu/video/audio/crash header refreshes
    only main.cpp, run.cpp, vid_sdl2.cpp, aud_sdl.cpp, cps_obj.cpp, cps_draw.cpp
    and cps_run.cpp without deleting warm build objects, older binaries, or Stable.
-2. Read test/build_logs/BUILD_TEST.log for the 87.209 success line and
+2. Read test/build_logs/BUILD_TEST.log for the 87.210 success line and
    the SHA256 hashes of the compiled executable, four source PNGs and GIF.
    If an asset or the glyph-header include is missing, the builder gives
    a precise error instead of silently building a legacy-looking menu.
 3. Run RUN_TEST.bat option 1. The menu window title and bottom-right
-   main-menu label both say TEST 87.209. If they do not, you are not
+   main-menu label both say TEST 87.210. If they do not, you are not
    looking at the newly compiled native XMVSF build.
 4. The gameplay path is still the native XMVSF app's zero-ROM-argument
    boot selector, NOT the separate MVC1 capture/ROM playback mode.
@@ -322,7 +367,7 @@ original _art PNG files; do not resample or replace them.
 5. Verify the unselected text is dim, selected text is bright, and that
    I, i, l, 1, punctuation and word gaps no longer waste full cell widths.
 6. New F9 replays, observer/chat diagnostics and replay verification live
-   under test/87.209. Legacy test/87.203 capture data is not modified;
+   under test/87.210. Legacy test/87.203 capture data is not modified;
    original replay files remain accessible through RUN_REPLAY.bat.
 
 This source audit includes inspection of the tracked code, unchanged font
