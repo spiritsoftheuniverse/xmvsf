@@ -1058,9 +1058,35 @@ INT32 Cps2Frame()
                               CpsRom,(unsigned)nCpsRomLen,
                               CpsCode,(unsigned)nCpsCodeLen);
     }
+    // F11 gate is host-only: never touch emulated RAM or source graphics.
+    // Source snapshots are captured only while the MVC1 donor is armed.
     const char* captureDir=std::getenv("XM87203_STAGE_CAPTURE_DIR");
-    if(captureDir && *captureDir && !bBurnRunAheadFrame &&
-       Cps==2 && CpsRamFF && CpsSavePal && CpsRam708 &&
+    const char* captureFlag=std::getenv("XM87203_LEVEL_CAPTURE_ACTIVE");
+    const char* captureGeneration=std::getenv("XM87203_LEVEL_CAPTURE_GENERATION");
+    const bool captureRequested=captureFlag && std::strcmp(captureFlag,"1")==0 &&
+        captureDir && *captureDir && Cps==2 &&
+        XM87203Stage::isMarvelVsCapcom(BurnDrvGetTextA(DRV_NAME));
+    // Each F11 ON begins a fresh exclusive session. F11 OFF flushes and
+    // closes the preceding source streams; next activation never appends to
+    // older MAP1/OAM/PALETTE data. No reset on run-ahead frames.
+    static bool priorCaptureRequested=false;
+    static unsigned priorCaptureGeneration=0u;
+    if(!bBurnRunAheadFrame){
+        const unsigned newGeneration=captureGeneration?
+            (unsigned)std::strtoul(captureGeneration,nullptr,10):0u;
+        if(priorCaptureRequested && (!captureRequested ||
+                                    newGeneration!=priorCaptureGeneration)){
+            XM87203Stage::state().statusLine("F11_CAPTURE_STOP",
+                (unsigned)GetCurrentFrame(),"original_session_sealed");
+            XM87203Stage::state().resetBatch();
+        }else if(captureRequested && newGeneration!=priorCaptureGeneration){
+            XM87203Stage::state().resetBatch();
+        }
+        priorCaptureRequested=captureRequested;
+        priorCaptureGeneration=newGeneration;
+    }
+    if(captureRequested && !bBurnRunAheadFrame &&
+       CpsRamFF && CpsSavePal && CpsRam708 &&
        CpsSaveReg[0] && CpsSaveFrg[0]){
         const char* driver=BurnDrvGetTextA(DRV_NAME);
         if(XM87203Stage::isMarvelVsCapcom(driver)){
