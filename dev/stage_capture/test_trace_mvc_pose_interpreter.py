@@ -31,6 +31,9 @@ class PoseInterpreterTests(unittest.TestCase):
                  2, 7, 1, 0x36, 0xFD72)
         # READ image contains an aligned 32-bit address, but it is not code.
         self.put(original, 0x310, 0x0000, 0x0112)
+        for source_at in (0x340, 0x370):
+            self.put(original, source_at,
+                     0, 0x108, 0, 0x11A, 0, 0x108, 0, 0x11A)
         # Recognized MOVEA.L #$00000100,A0 in decrypted FETCH words.
         self.put(fetch, 0x80, 0x207C, 0x0000, 0x0100)
         # Unclassified exact pointer; must NOT be labeled an instruction.
@@ -77,6 +80,9 @@ class PoseInterpreterTests(unittest.TestCase):
             m = interp.report(trace, poses, out)
             self.assertEqual(m['pose_records_verified_against_original_rom'], 2)
             self.assertEqual(m['recognized_fetch_address_load_motifs'], 1)
+            self.assertEqual(m['read_pointer_blocks_min_four_refs'], 2)
+            self.assertEqual(m['read_pointer_block_references'], 8)
+            self.assertEqual(m['longest_read_pointer_block'], 4)
             self.assertGreaterEqual(m['selector_immediate_opcode_motifs'], 3)
             self.assertGreaterEqual(m['selector_near_indexed_jump_motifs'], 2)
             self.assertFalse(m['footer_field_semantics_decoded'])
@@ -85,9 +91,13 @@ class PoseInterpreterTests(unittest.TestCase):
             self.assertIn('MOVEA_L_IMMEDIATE_A0', pointers)
             self.assertIn('ALIGNED_LONG_IN_READ_DATA', pointers)
             self.assertIn('UNCLASSIFIED_FETCH_WORDS', pointers)
-            motifs = (out / interp.OUTPUTS[1]).read_text(encoding='utf-8')
+            blocks = (out / interp.OUTPUTS[1]).read_text(encoding='utf-8')
+            self.assertIn('000370', blocks)
+            self.assertIn('000340', blocks)
+            self.assertIn('OBSERVED_ALIGNED_POINTER_SUBSEQUENCE', blocks)
+            motifs = (out / interp.OUTPUTS[2]).read_text(encoding='utf-8')
             self.assertIn('MOVEQ_IMMEDIATE_D1', motifs)
-            leads = (out / interp.OUTPUTS[2]).read_text(encoding='utf-8')
+            leads = (out / interp.OUTPUTS[3]).read_text(encoding='utf-8')
             self.assertIn('JMP_PC_INDEXED', leads)
             self.assertIn('0000F8', leads)
             with zipfile.ZipFile(out / 'pose_footer_interpreter_leads.zip') as z:
