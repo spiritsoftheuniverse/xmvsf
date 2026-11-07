@@ -615,4 +615,25 @@ if exist "%PROJECT%\test\87.203\m68k_report\m68k_staging_report.zip" (
   echo ERROR: Staging map ZIP was not generated.
   exit /b 2
 )
+REM Stage87.203: correlate the original 68000 builder literals with ALL
+REM observed OBJ priorities and the original decoded MVC1 GFX. No ROM run.
+REM The raw stage observations come from the prior offline Sprite Factory.
+if not exist "%PROJECT%\test\87.203\sprite_factory\sprite_observations.tsv.gz" goto :offline_m68k_owner_no_observations
+python.exe "%PROJECT%\dev\stage_capture\TRACE_MVC_OBJECT_OWNERS.py" --observations "%PROJECT%\test\87.203\sprite_factory\sprite_observations.tsv.gz" --trace-root "%PROJECT%\test\87.203\m68k_trace" --staging-emitters "%PROJECT%\test\87.203\m68k_report\staging_descriptor_emitters.tsv" --capture-root "%PROJECT%\test\87.203\stage_capture" --output "%PROJECT%\test\87.203\m68k_owner"
+if errorlevel 1 (
+  echo ERROR: M68K owner-evidence correlation failed. Original traces untouched.
+  exit /b 2
+)
+if not exist "%PROJECT%\test\87.203\m68k_owner\m68k_owner_evidence_review.zip" (
+  echo ERROR: M68K ownership ZIP not generated.
+  exit /b 2
+)
+echo Owner-evidence ZIP: "%PROJECT%\test\87.203\m68k_owner\m68k_owner_evidence_review.zip"
+exit /b 0
+
+:offline_m68k_owner_no_observations
+echo NOTICE: M68K writer and staging reports completed. Full owner correlation needs
+echo the previous offline Sprite Factory observations. To produce them, run:
+echo RUN_TEST.bat sprites all
+echo and then rerun RUN_TEST.bat m68k. No game or new capture is needed.
 exit /b 0
