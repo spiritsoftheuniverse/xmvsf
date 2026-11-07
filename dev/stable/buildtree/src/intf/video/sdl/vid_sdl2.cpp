@@ -13,7 +13,8 @@
 #include <SDL.h>
 #include "xmvsf_stage87_74_select_present.h" // XM87.74 native framebuffer matched pen colors
 #include "../../../burner/sdl/xmvsf_stage87_139_probe.h" // XM87.139 F10 probe status
-#include "xmvsf_stage87_140_chat_overlay.h" // XM87.140 fading command chat after final compositor
+#include "xmvsf_stage87_140_chat_overlay.h" // XM87.140 opt-in DHC history
+#include "../../../burner/sdl/xmvsf_stage87_206_crash_report.h" // FIGHT exception breadcrumbs
 #include "../../../burner/sdl/xmvsf_stage23_ui.h" /* XMVSF_STAGE23_TRAINING_MENU */
 #include "../../../burner/sdl/xmvsf_stage24_versus.h" /* XMVSF_STAGE24_VERSUS */
 #include <SDL_image.h>
@@ -590,19 +591,33 @@ static int Paint(int bValidate)
     static unsigned int stage12PaintCount = 0;
     if (stage12PaintCount < 3) xmvsfStage12VideoLog("VIDEO_PAINT_CALLED");
     ++stage12PaintCount;
+    XM87206Crash::mark(400,nFramesEmulated);
+    if(!sdlRenderer || !sdlTexture || !pVidImage){
+        static bool reported=false;
+        if(!reported){
+            std::fprintf(stderr,"XM87.206 VIDEO_RESOURCE_NOT_READY renderer=%p texture=%p pixels=%p\n",
+                (void*)sdlRenderer,(void*)sdlTexture,(void*)pVidImage);
+            std::fflush(stderr);reported=true;
+        }
+        return 1; // no dereference of missing FIGHT frame resources
+    }
     // XM87.132 CLEAN: no automatic framebuffer, GPU, or BMP capture in TEST/Stable.
     SDL_SetRenderDrawColor(sdlRenderer,8,16,36,255); /* XMVSF_STAGE32_NAVY */
 	SDL_RenderClear(sdlRenderer);
     if (SDL_UpdateTexture(sdlTexture, NULL, pVidImage, nVidImagePitch) < 0) {
         if (stage12PaintCount <= 3) xmvsfStage12VideoLog("ERROR_UPDATE_TEXTURE");
     }
+    XM87206Crash::mark(410,nFramesEmulated);
     xm8657EnsureCurrentSprites(); // stage registered immediately before VidPaint
+    XM87206Crash::mark(411,nFramesEmulated);
     // XM87.128: 87.127 displaced the ENTIRE 720x540 display rectangle by
     // 60 logical units, clipping the bottom. Restore original draw coordinates.
     // Native 384x224 vs display 384x288 is a pixel-aspect conversion, NOT
     // 64 blank framebuffer rows. Read-only diagnostics identify any DF offset.
     SDL_Rect xm87127View=dstrect;
+    XM87206Crash::mark(420,nFramesEmulated);
 	const bool xm8649Painted=xm8649Paint(sdlRenderer,xm87127View);
+    XM87206Crash::mark(421,nFramesEmulated);
 	if(!xm8649Painted){
 	if (nRotateGame)
 	{
@@ -625,7 +640,9 @@ static int Paint(int bValidate)
     // XM87.46: no topmost dizzy HUD. Native screen: priority-5 underlay; Wily: mid-compositor underlay.
 	RenderMessage();
 	xm23Overlay(sdlRenderer,xm87127View,nVidImageWidth,nVidImageHeight); /* XMVSF_STAGE23_TRAINING_MENU */
-	xm24Overlay(sdlRenderer,xm87127View); /* XMVSF_STAGE24_VERSUS */
+	XM87206Crash::mark(430,nFramesEmulated);
+    xm24Overlay(sdlRenderer,xm87127View); /* XMVSF_STAGE24_VERSUS */
+    XM87206Crash::mark(431,nFramesEmulated);
     static bool xm87104Notice=false;
     if(!xm87104Notice){std::fprintf(stderr,"XM87.104 SELECTOR_OVERLAY_DISABLED native_ROM_only=1\n");xm87104Notice=true;}
 
@@ -664,6 +681,7 @@ xm87132ReplayNotice(sdlRenderer);
         xm87140ChatOverlay(sdlRenderer);
         SDL_RenderPresent(sdlRenderer);
     } /* XM86.58 native layer-aware gameplay */
+    XM87206Crash::mark(450,nFramesEmulated);
     xm8652TrackWindowGeometry(sdlWindow,false,"game-frame");
     if (stage12PaintCount <= 3) xmvsfStage12VideoLog("VIDEO_PRESENT_CALLED");
 
