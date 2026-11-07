@@ -31,6 +31,19 @@ class SuiteContractTests(unittest.TestCase):
         self.assertIn('set "SOURCE_ROM=xmvsfu"', batch)
         self.assertIn('set "SOURCE_ROM=mvscur1"', batch)
 
+    def test_option_one_cannot_inherit_choice_errorlevel_for_observer_log(self):
+        batch = source('RUN_TEST.bat')
+        self.assertIn('choice /C 123', batch)
+        self.assertIn('type nul >>"%XM87181_DIAGNOSTIC_STATUS%" 2>nul', batch)
+        start = batch.index('set "XM87181_DIAGNOSTIC_STATUS=')
+        canary = batch.index('type nul >>"%XM87181_DIAGNOSTIC_STATUS%" 2>nul', start)
+        error = batch.index('if errorlevel 1 (', canary)
+        marker = batch.index('echo RUN_TEST_START date=', error)
+        self.assertLess(start, canary)
+        self.assertLess(canary, error)
+        self.assertLess(error, marker)
+        self.assertNotIn('echo RUN_TEST_START date=', batch[canary:error])
+
     def test_ao_build_is_independent_and_compiles_only_offline_art(self):
         builder = source('asset_organizer/BUILD_AO.bat')
         root = source('RUN_TEST.bat')
