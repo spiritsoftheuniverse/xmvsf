@@ -601,14 +601,18 @@ static const XM8733::BarArt* xm87207StunArt(){
         return &art;
     }
     std::fprintf(stderr,
-        "XM87.207 STUN_PNG_MISSING _art/stunbar_base.png; original HUD fallback\n");
+        "XM87.210 STUN_PNG_MISSING _art/stunbar_base.png; bar omitted (no obsolete 76px fallback)\n");
     return nullptr;
 }
 // Stun HUD now uses the existing UI stack for both ordinary and Wily stages.
 static void xm8733Overlay(SDL_Renderer* render,const SDL_Rect& view) {
     const char* name=BurnDrvGetTextA(DRV_NAME);
+    // Phase 06 is the combat scene's opening/round-intro, ahead of
+    // status 08 ("FIGHT!"). Keep the bar hidden on character select
+    // and the Versus screen (phases 02/04).
     if(!render || !name || std::strncmp(name,"xmvsf",5)!=0 ||
-       xm8658GameStatus!=8 || !CpsRamFF)return;
+       (xm8658GameStatus!=6 && xm8658GameStatus!=8) ||
+       !CpsRamFF)return;
     const char* option=std::getenv("XM8733_DIZZY_BAR");
     const bool dizzyBarEnabled=!(option && option[0]=='0' && option[1]==0) &&
         !(xm14TrainingMode && !xm23State.dizzyAllowed); // XM87.37 Training DIZZY OFF hides HUD
