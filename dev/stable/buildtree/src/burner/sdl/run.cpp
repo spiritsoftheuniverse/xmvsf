@@ -776,6 +776,55 @@ int RunMessageLoop()
                 }
                 continue;
             }
+#ifdef BUILD_SDL2
+            // Unified suite: F9 replay and F10 diagnostics retain their
+            // original early handlers. F11 owns MVC1 native level capture.
+            // Never arm capture during menu/replay or in the XMVSF game.
+            if(event.type==SDL_KEYDOWN && event.key.keysym.sym==SDLK_F11){
+                if(event.key.repeat==0){
+                    if(event.key.keysym.mod & KMOD_SHIFT){
+                        // Preserve legacy FPS function under Shift+F11.
+                        bAppShowFPS=!bAppShowFPS;
+                        if(!bAppShowFPS){
+                            std::sprintf(Windowtitle,"FBNeo - %s - %s",
+                                BurnDrvGetTextA(DRV_NAME),BurnDrvGetTextA(DRV_FULLNAME));
+                            SDL_SetWindowTitle(sdlWindow,Windowtitle);
+                        }
+                    }else{
+                        const char* driver=bDrvOkay?BurnDrvGetTextA(DRV_NAME):nullptr;
+                        const char* folder=std::getenv("XM87203_STAGE_CAPTURE_DIR");
+                        const bool allowed=driver && std::strncmp(driver,"mvsc",4)==0 &&
+                            folder && *folder && !XM8764::isPlayback();
+                        if(allowed){
+                            const char* flag=std::getenv("XM87203_LEVEL_CAPTURE_ACTIVE");
+                            const bool active=flag && std::strcmp(flag,"1")==0;
+                            bool ok=true;
+                            if(!active){
+                                static unsigned captureGeneration=0u;
+                                char generation[24];
+                                std::snprintf(generation,sizeof(generation),"%u",++captureGeneration);
+                                ok=SDL_setenv("XM87203_LEVEL_CAPTURE_GENERATION",generation,1)==0;
+                            }
+                            if(ok)ok=SDL_setenv("XM87203_LEVEL_CAPTURE_ACTIVE",
+                                active?"0":"1",1)==0;
+                            const char* message=!ok?"F11 LEVEL CAPTURE ERROR: SDL ENVIRONMENT":
+                                active?"F11 LEVEL CAPTURE STOP":
+                                       "F11 LEVEL CAPTURE START: NEW SOURCE SESSION";
+                            XM87140Chat::state().log((unsigned)GetCurrentFrame(),
+                                ok?XM87140Chat::SYSTEM:XM87140Chat::ALERT,message);
+                            std::fprintf(stderr,"XM87.203 %s driver=%s\n",
+                                message,driver);
+                            std::fflush(stderr);
+                        }else{
+                            XM87140Chat::state().log((unsigned)GetCurrentFrame(),
+                                XM87140Chat::ALERT,
+                                "F11 LEVEL CAPTURE: SELECT MVC1 UNDER RUN_TEST OPTION 3");
+                        }
+                    }
+                }
+                continue;
+            }
+#endif
             // V2 restores recorded semantic menu decisions at exact
             // checkpoints. Physical keyboard/gamepad input must not
             // inject NEW Training/Versus commands while the replay runs.
