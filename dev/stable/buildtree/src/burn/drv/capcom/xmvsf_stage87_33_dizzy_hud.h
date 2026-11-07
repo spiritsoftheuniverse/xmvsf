@@ -5,6 +5,7 @@
 // eighteen 16-bit ROM words beginning at USA 961023 program offset 0x8BC9A.
 // 68000 byte (+B9,A6) is at RAW FBNeo CpsRamFF offset +B8 (word-swapped).
 #include <cstdint>
+#include <algorithm> // moving source-mask bounds, self-contained C++11 header
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
