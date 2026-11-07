@@ -754,8 +754,26 @@ if not exist "%PROJECT%\asset_organizer\index.html" (
   echo ERROR: Asset Organizer HTML missing.
   exit /b 2
 )
-echo Open HTML: "%PROJECT%\asset_organizer\index.html"
-echo Tag sprites with Character, Effect, Background, Level Sprite.
-echo Check All / Uncheck All change Wanted status for each category.
-echo Save or load organizer JSON from your browser. Original art stays local.
+echo Generated: "%PROJECT%\asset_organizer\index.html"
+REM Only review metadata is written to aodata.json; no private ROM or graphics.
+REM Preserve any existing aodata.json: rebuilding only reads it, never clears it.
+if exist "%PROJECT%\asset_organizer\aodata.json" (
+  python.exe "%PROJECT%\asset_organizer\BUILD_WANTED_SEQUENCES.py" --trace-root "%PROJECT%\test\87.203\m68k_trace" --review "%PROJECT%\asset_organizer\aodata.json" --output "%PROJECT%\asset_organizer\wanted_sequences.json"
+  if errorlevel 1 (
+    echo ERROR: Wanted source-neighbor analysis failed. aodata.json remains unchanged.
+    exit /b 2
+  )
+) else (
+  echo NOTICE: No asset_organizer\aodata.json yet. All 560 assets begin unreviewed.
+  echo Load the last full organizer JSON or copy it into asset_organizer\aodata.json.
+)
+if not exist "%PROJECT%\asset_organizer\SERVE_ASSET_ORGANIZER.py" (
+  echo ERROR: Asset Organizer localhost server is missing.
+  exit /b 2
+)
+echo Opening local-only Asset Organizer: http://127.0.0.1:18720/
+echo Save writes exactly to "%PROJECT%\asset_organizer\aodata.json"
+echo Mark all as assigns ONE exclusive type; Wanted decisions remain unchanged.
+echo The localhost server stays alive in its own console until you close it.
+start "MVC1 Asset Organizer" /D "%PROJECT%" python.exe "%PROJECT%\asset_organizer\SERVE_ASSET_ORGANIZER.py" --root "%PROJECT%\asset_organizer" --trace-root "%PROJECT%\test\87.203\m68k_trace" --port 18720 --open
 exit /b 0
