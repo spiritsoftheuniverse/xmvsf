@@ -1,5 +1,7 @@
 #include <cstdio> // XM86.34 frame diagnostics
 #include <cstring> // XM87.132 replay indicator text length
+#include <vector>
+#include <string>
 // blitter effects via SDL2
 #include "burner.h"
 #include "vid_support.h"
@@ -549,7 +551,60 @@ extern "C" bool xm8746DizzyHudAllowed(){
     return !(option && option[0]=='0' && option[1]==0) &&
            !(xm14TrainingMode && !xm23State.dizzyAllowed);
 }
-// Wily-only SDL underlay; ordinary stages render the meter in native CPS2.
+// Exact right-side original PNG, decoded one time as native RGBA32 bytes.
+// The left side mirrors those source bytes in XM8733::DrawOne. This stays
+// in the current SDL HUD/UI pass; no compositor, UI priority or ROM change.
+static const XM8733::BarArt* xm87207StunArt(){
+    static bool attempted=false;
+    static std::vector<unsigned char> pixels;
+    static XM8733::BarArt art;
+    if(attempted)return art.valid()?&art:nullptr;
+    attempted=true;
+    std::vector<std::string> candidates={
+        "_art/stunbar_base.png","../_art/stunbar_base.png",
+        "../../_art/stunbar_base.png"};
+    char* base=SDL_GetBasePath();
+    if(base){
+        const std::string path(base);
+        candidates.push_back(path+"../../_art/stunbar_base.png");
+        candidates.push_back(path+"../_art/stunbar_base.png");
+        candidates.push_back(path+"_art/stunbar_base.png");
+        SDL_free(base);
+    }
+    for(const auto& file:candidates){
+        SDL_Surface* original=IMG_Load(file.c_str());
+        if(!original)continue;
+        if(original->w!=61||original->h!=6){
+            std::fprintf(stderr,
+                "XM87.207 STUN_PNG_SIZE_MISMATCH %s actual=%dx%d expected=61x6\n",
+                file.c_str(),original->w,original->h);
+            SDL_FreeSurface(original);
+            continue;
+        }
+        SDL_Surface* rgba=SDL_ConvertSurfaceFormat(original,SDL_PIXELFORMAT_RGBA32,0);
+        SDL_FreeSurface(original);
+        if(!rgba)continue;
+        if(SDL_LockSurface(rgba)!=0){SDL_FreeSurface(rgba);continue;}
+        const int w=rgba->w,h=rgba->h;
+        pixels.resize((std::size_t)w*(std::size_t)h*4u);
+        for(int row=0;row<h;row++)
+            std::memcpy(pixels.data()+(std::size_t)row*(std::size_t)w*4u,
+                        (const unsigned char*)rgba->pixels+
+                        (std::size_t)row*(std::size_t)rgba->pitch,
+                        (std::size_t)w*4u);
+        SDL_UnlockSurface(rgba);
+        SDL_FreeSurface(rgba);
+        art.rgba=pixels.data();art.width=w;art.height=h;art.pitch=w*4;
+        std::fprintf(stderr,
+            "XM87.207 STUN_PNG_READY %s right=source left=mirror baseTopY=45\n",
+            file.c_str());
+        return &art;
+    }
+    std::fprintf(stderr,
+        "XM87.207 STUN_PNG_MISSING _art/stunbar_base.png; original HUD fallback\n");
+    return nullptr;
+}
+// Stun HUD now uses the existing UI stack for both ordinary and Wily stages.
 static void xm8733Overlay(SDL_Renderer* render,const SDL_Rect& view) {
     const char* name=BurnDrvGetTextA(DRV_NAME);
     if(!render || !name || std::strncmp(name,"xmvsf",5)!=0 ||
@@ -580,7 +635,8 @@ static void xm8733Overlay(SDL_Renderer* render,const SDL_Rect& view) {
         xm8741Logged=true;}
     const char* df=std::getenv("XM8649_WILY_RENDER");
     if(dizzyBarEnabled) XM8733::Draw(CpsRamFF,xm8733Pixels,384*4,4,(unsigned)nFramesEmulated,
-                 xm8658GameStatus,df && df[0]=='1' && df[1]==0);
+                 xm8658GameStatus,df && df[0]=='1' && df[1]==0,
+                 xm87207StunArt());
     if(SDL_UpdateTexture(xm8733Texture,NULL,xm8733Pixels,384*4)==0)
         SDL_RenderCopy(render,xm8733Texture,NULL,&view);
 }
@@ -637,7 +693,9 @@ static int Paint(int bValidate)
 
 	} // XM86.49 native draw fallback
 
-    // XM87.46: no topmost dizzy HUD. Native screen: priority-5 underlay; Wily: mid-compositor underlay.
+    // Keep native UI order: scene -> stun bar -> other HUD/notifications.
+    // Wily's compositor draws the same stun UI itself, so skip a second pass.
+    if(!xm8649Painted)xm8733Overlay(sdlRenderer,xm87127View);
 	RenderMessage();
 	xm23Overlay(sdlRenderer,xm87127View,nVidImageWidth,nVidImageHeight); /* XMVSF_STAGE23_TRAINING_MENU */
 	XM87206Crash::mark(430,nFramesEmulated);
