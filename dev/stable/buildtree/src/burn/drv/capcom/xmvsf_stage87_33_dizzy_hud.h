@@ -208,11 +208,13 @@ static inline void DrawOne(unsigned char* draw,int pitch,int side,
                 Pixel(draw,pitch,x+dx,y-2+row,inset);
             }
         }
-        // (3b) One bottom shadow scanline inside the base. Recalculate
-        // from the SAME live moving mask; never extend outside the bar.
+        // (3b) The sample's bottom shadow is exactly one pixel past
+        // the colored face at its RIGHT bevel: e.g. partial row6 x15..59
+        // against row5's orange x15..58. Never two pixels beyond the
+        // face, and never beyond original alpha or beyond the dynamic tip.
         int first=0,last=-1;
         if(FillBounds(*art,5,used,s.total,first,last)){
-            for(int src=first;src<=last;src++){
+            for(int src=first;src<=std::min(60,last+1);src++){
                 if(!HasBasePixel(*art,src,4))continue;
                 const int dx=side?src:(60-src);
                 Pixel(draw,pitch,x+dx,y+4,inset);
