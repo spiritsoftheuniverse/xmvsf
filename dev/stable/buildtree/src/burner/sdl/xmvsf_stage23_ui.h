@@ -3,6 +3,7 @@
 // Stage 23: UI state and SDL presentation only. No ROM writes here.
 // Grounded in peon2/fbneo-training-mode XMVSF & Marvel hitbox profiles.
 #include <SDL.h>
+#include "xmvsf_menu_glyph_atlas.h" /* Native SF2 small menu glyphs */
 #include <cstdio>
 #include <cstring>
 #include <cstdint>
@@ -325,6 +326,8 @@ static inline const unsigned char* xm23Glyph(char ch) {
 static inline void xm23DrawTextSized(SDL_Renderer* r,const char* text,int x,int y,int maxWidth,int requestPixel=2) {
     if(!r || !text)return;
     const int length=(int)std::strlen(text);
+    const int spriteScale=(length*8*std::max(1,requestPixel)>maxWidth)?1:std::max(1,requestPixel);
+    if(XMGlyph::left(r,text,x,y,maxWidth,spriteScale,235))return;
     const int pixel=(length*6*requestPixel>maxWidth)?1:requestPixel;
     const int step=6*pixel;
     // A subtle dark shadow matches the native menu without FBNeo font APIs.
@@ -666,15 +669,9 @@ static inline void xm23Overlay(SDL_Renderer* renderer, const SDL_Rect& gameDest,
                               "PLAYER SELECT","RETURN","MAIN MENU","FRAME DATA"};
         for(int i=0;i<11;i++) {
             const int yy=bg.y+25+i*rowHeight;
-            SDL_Rect line={x,yy-1,w,std::max(13,rowHeight-2)};
-            SDL_SetRenderDrawColor(renderer,
-                xm23State.selected==i?34:14,xm23State.selected==i?62:26,
-                xm23State.selected==i?112:49,255);
-            SDL_RenderFillRect(renderer,&line);
-            if(xm23State.selected==i){
-                SDL_Rect stripe={x,yy-1,3,line.h};
-                SDL_SetRenderDrawColor(renderer,100,189,255,255);SDL_RenderFillRect(renderer,&stripe);
-            }
+            // Native focus convention: selected text at full brightness,
+            // every other row darkened. No focus box, bar, or arrow glyph.
+            const bool selected=(xm23State.selected==i);
             const char* val=i==0?(xm23State.hitboxes?"ON":"OFF"):
                 i==1?(xm23State.dataDisplay?"ON":"OFF"):
                 i==2?(xm23State.infiniteMeter?"ON":"OFF"):
@@ -684,11 +681,13 @@ static inline void xm23Overlay(SDL_Renderer* renderer, const SDL_Rect& gameDest,
                 i==10?(xm23State.frameData.enabled?"ON":"OFF"):"";
             char lineText[110];
             if(i==5 || i==6)
-                std::snprintf(lineText,sizeof(lineText),"%c %s %u%%",xm23State.selected==i?'>':' ',
+                std::snprintf(lineText,sizeof(lineText),"%s %u%%",
                               items[i],XM87105HP::state().percent((unsigned)(i-5)));
             else
-                std::snprintf(lineText,sizeof(lineText),"%c %s %s",xm23State.selected==i?'>':' ',items[i],val);
-            xm23DrawTextSized(renderer,lineText,x+5,yy+2,w-10,rowHeight>=16?2:1);
+                std::snprintf(lineText,sizeof(lineText),"%s %s",items[i],val);
+            const int fontScale=rowHeight>=16?2:1;
+            if(!XMGlyph::left(renderer,lineText,x+5,yy+2,w-10,fontScale,selected?255:82))
+                xm23DrawTextSized(renderer,lineText,x+5,yy+2,w-10,fontScale);
         }
         xm23DrawTextSized(renderer,"UP/DOWN  A SELECT  B BACK",x,bg.y+bg.h-17,w,1);
     }
