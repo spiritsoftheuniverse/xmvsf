@@ -100,6 +100,7 @@ static int xmvsfBootSelector(bool returningFromGame=false) {
     xm8655Load();
     xm8733DizzyLoad();
     XM8755Mode::Load();
+    std::fprintf(stderr,"XMVSF NATIVE TEST 87.204 | PNG title + SF2 proportional glyphs | original game mode\n");
     std::fprintf(stderr,"XM27: boot selector ENTER (%s)\n",returningFromGame?"return":"startup");
     std::fflush(stderr);
     if(SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER | SDL_INIT_JOYSTICK | SDL_INIT_GAMECONTROLLER)!=0) {
@@ -113,13 +114,13 @@ static int xmvsfBootSelector(bool returningFromGame=false) {
     if (!sdlWindow) xm8652ReadGeometry(&xm8652StartupWidth,&xm8652StartupHeight);
     SDL_Window* window=sdlWindow;
     if(!window){
-        window=SDL_CreateWindow("X-MEN VS. STREET FIGHTER II",
+        window=SDL_CreateWindow("X-MEN VS. STREET FIGHTER II | TEST 87.204",
             SDL_WINDOWPOS_CENTERED,SDL_WINDOWPOS_CENTERED,xm8652StartupWidth,xm8652StartupHeight,
             SDL_WINDOW_SHOWN|SDL_WINDOW_RESIZABLE);
     }
     if(!window) {fprintf(stderr,"XMVSF menu window: %s\n",SDL_GetError());return -1;}
     sdlWindow=window;
-    SDL_SetWindowTitle(window,"X-MEN VS. STREET FIGHTER II");
+    SDL_SetWindowTitle(window,"X-MEN VS. STREET FIGHTER II | TEST 87.204");
     SDL_Renderer* render=SDL_GetRenderer(window);
     if(!render)render=SDL_CreateRenderer(window,-1,SDL_RENDERER_ACCELERATED|SDL_RENDERER_PRESENTVSYNC);
     if(!render)render=SDL_CreateRenderer(window,-1,SDL_RENDERER_SOFTWARE);
@@ -183,7 +184,7 @@ static int xmvsfBootSelector(bool returningFromGame=false) {
         std::fflush(stderr);
         xm8652TrackWindowGeometry(window,true,"boot-exit");
         xmvsfHost::enterGame();
-        SDL_SetWindowTitle(window,"X-MEN VS. STREET FIGHTER II");
+        SDL_SetWindowTitle(window,"X-MEN VS. STREET FIGHTER II | TEST 87.204");
         return recordedChoice;
     }
     xmvsfHost::menuStart(); /* XMVSF_STAGE20_WASAPI */
@@ -400,6 +401,7 @@ static int xmvsfBootSelector(bool returningFromGame=false) {
             if(SDL_GetTicks()<messageUntil)xmvsfPixelText(render,message,480,485,2,255,132,132);
             else xmvsfPixelText(render,"A SELECT  B BACK",480,485,2,145,145,145);
             xmvsfPixelText(render,"ESC TO QUIT",480,520,1,105,105,105);
+            xmvsfPixelText(render,"TEST 87.204",888,522,1,140,140,140);
         } else if(screen==5) {
             xmvsfPixelText(render,"SELECT STAGE",480,90,5,108,193,255);
             const char* stages[2]={"RANDOM","WILY FACTORY"};
@@ -520,7 +522,7 @@ static int xmvsfBootSelector(bool returningFromGame=false) {
     if(outcome==0 || outcome==1 || outcome==2) { /* XMVSF_STAGE24_VERSUS */
         xmvsfHost::enterGame(); /* XMVSF_STAGE20_WASAPI */
         sdlWindow=window;
-        SDL_SetWindowTitle(sdlWindow,"X-MEN VS. STREET FIGHTER II");
+        SDL_SetWindowTitle(sdlWindow,"X-MEN VS. STREET FIGHTER II | TEST 87.204");
     } else {
         SDL_DestroyRenderer(render);
         if(window==sdlWindow)sdlWindow=nullptr;
