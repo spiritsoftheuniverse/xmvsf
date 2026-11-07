@@ -101,6 +101,44 @@ For exported title PNGs with opaque white canvas, a flood fill makes only
 border-connected white transparent; enclosed white highlights are preserved.
 Texture atlases are released before renderer teardown or menu/game handoff.
 
+## Animated menu background and color-separated logo effects (TEST 87.205)
+
+The native boot menu now loads **_art/menuanimation.gif** instead of the
+previous Marvel vs. Capcom super-effect GIF. The source is an authentic GIF87a
+384 x 224 image with **8 frames**, each **50 ms** long. It loops at the
+original 400 ms cycle, cover-scaled proportionally to 960 x 540 and
+center-cropped as needed. RGB colors undergo a continuous 36-second full HSV
+hue rotation at 30% menu-background brightness. Alpha is untouched.
+A streaming texture avoids allocating a new GPU texture per GIF frame.
+If SDL_image cannot decode animation, the first frame remains available as
+a static, hue-shifting fallback.
+
+The foreground **_art/logo.png** remains the original source artwork. Its
+alpha-visible rectangle and menu alignment are unchanged. A second streaming
+texture (separate from the unmodified fallback logo) applies per-pixel
+effects by original hue category:
+
+- **Yellow/orange:** two independent slow pulse envelopes with a small
+  lift toward white, so fully saturated bright colors visibly glow.
+- **Green:** its own brightness pulse envelope and saturation-safe lightening.
+- **Blue/purple:** intersecting moving sine-wave value fields plus a
+  source-locked 4 x 4 Bayer dither. This gives a gaseous brightness
+  undulation without repainting or blurring the logo.
+- **Red and grayscale:** retained without modification.
+- **Source alpha:** always retained; texture updates do not compound over
+  previous frames. The logo effect updates at most every 80 ms.
+
+The original large/small SF2 font atlases and their proportional tracking are
+unaffected. These are TEST-only SDL frontend changes; no CPS2 ROM input,
+hitbox, DHC, stage capture or other game simulation code is touched.
+The code resides in xmvsf_menu_color_fx.h,
+xmvsf_stage87_195_menu_gif.h and xmvsf_menu_glyph_atlas.h.
+
+The native builder checks that **menuanimation.gif** is present and nonempty,
+and includes its SHA256 in test/build_logs/BUILD_TEST.log. The binary is
+**runtime/stable/XMVSF_Test_87_205.exe**; no fallback to 87.204 or Stable.
+Build/run/replay launchers now all target the new effects version.
+
 ## Native TEST version 87.205 and local verification
 
 **Pulling only main does not include this branch.** The source modifications
