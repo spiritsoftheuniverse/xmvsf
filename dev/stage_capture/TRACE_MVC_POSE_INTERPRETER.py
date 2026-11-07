@@ -25,6 +25,7 @@ OUTPUTS = (
     'pose_footer_dispatch_leads.tsv',
     'pose_footer_interpreter_manifest.json',
     'pose_footer_interpreter_readme.txt',
+    'pose_footer_two_level_index.tsv',
 )
 SELECTORS = frozenset(range(0x35, 0x3A))
 
@@ -173,6 +174,87 @@ def read_pointer_blocks(pointers: list[dict], records: dict):
     return runs, rows
 
 
+def two_level_pointer_indices(data: bytes, code: bytes, addresses: dict):
+    """Source-aligned candidate MOVEA.L #table,A1 / indexed MOVEA.L trail.
+
+    Only the exact mirrored opcode prefix is classified. A table is accepted
+    when its FIRST pointer determines a bounded top-level slot count, its
+    second-level list starts are regularly spaced, and most leaf pointers
+    match catalogued five-word blocks OR the original footer grammar. Neither
+    opcode presence nor table topology proves this branch executes in MVC1.
+    """
+    def long(blob: bytes, at: int) -> int:
+        return (word(blob, at) << 16) | word(blob, at + 2)
+
+    sources = []
+    rows = []
+    for pc in range(0, len(code) - 10, 2):
+        if (word(code, pc) != 0x227C or word(code, pc + 6) != 0x2271
+                or word(code, pc + 8) != 0x2000):
+            continue
+        table = long(code, pc + 2)
+        if table < 0 or table + 32 > len(data) or table & 1:
+            continue
+        first = long(data, table)
+        span = first - table
+        if span < 16 or span > 512 or span % 4:
+            continue
+        num_slots = span // 4
+        if table + num_slots * 4 > len(data):
+            continue
+        lists = [long(data, table + 4 * i) for i in range(num_slots)]
+        unique = sorted(set(lists))
+        if (len(unique) < 4 or unique[0] != first or
+                any(a & 1 or a < first or a + 16 > len(data) for a in unique)):
+            continue
+        steps = [b - a for a, b in zip(unique, unique[1:])]
+        if len(set(steps)) != 1 or not 16 <= steps[0] <= 128 or steps[0] % 4:
+            continue
+        stride = steps[0]
+        if unique[-1] + stride > len(data):
+            continue
+        candidate_rows = []
+        accepted = 0
+        known = 0
+        grammar_only = 0
+        unknown = 0
+        for slot, second in enumerate(lists):
+            for leaf_slot in range(stride // 4):
+                ref_at = second + leaf_slot * 4
+                target = long(data, ref_at)
+                entry = addresses.get(target)
+                is_known = bool(entry and entry[2] == 'FIVE_WORD_FOOTER')
+                is_grammar = bool(target % 2 == 0 and 0 <= target <= len(data) - 10
+                                  and word(data, target) == 2
+                                  and word(data, target + 6) in SELECTORS)
+                if is_known:
+                    status = 'CATALOGUED_EXACT_FIVE_WORD_FOOTER'
+                    known += 1
+                    accepted += 1
+                elif is_grammar:
+                    status = 'ORIGINAL_FOOTER_GRAMMAR_NOT_IN_POSE_CATALOG'
+                    grammar_only += 1
+                    accepted += 1
+                else:
+                    status = 'NO_MATCH_UNVERIFIED_REFERENCE'
+                    unknown += 1
+                words = tuple(word(data, target + 2 * k) for k in range(5)) if is_grammar else None
+                candidate_rows.append((f'{pc:06X}', f'{table:06X}', slot,
+                    f'{table + 4 * slot:06X}', f'{second:06X}', leaf_slot,
+                    f'{ref_at:06X}', f'{target:06X}',
+                    *(f'{w:04X}' for w in words) if words else ('', '', '', '', ''),
+                    status))
+        if not candidate_rows or accepted * 4 < len(candidate_rows) * 3:
+            continue
+        sources.append({'fetch_pc': pc, 'table': table, 'first_level_slots': num_slots,
+                        'unique_second_level_lists': len(unique),
+                        'second_level_stride': stride, 'leaf_pointers': len(candidate_rows),
+                        'catalogued_footers': known, 'grammar_only_footers': grammar_only,
+                        'unresolved_leaf_pointers': unknown})
+        rows.extend(candidate_rows)
+    return sources, rows
+
+
 def selector_sites(code: bytes):
     """Find exact immediate selector comparisons / normalization motifs.
 
@@ -263,6 +345,7 @@ def report(trace_root: Path, pose_records: Path, output: Path) -> dict:
     records, addresses = read_records(poses, data)
     pointers, selectors, leads = inspect(data, code, records, addresses)
     blocks, block_rows = read_pointer_blocks(pointers, records)
+    indexed_sources, indexed_rows = two_level_pointer_indices(data, code, addresses)
     dest.mkdir(parents=True, exist_ok=True)
     tsv(dest / OUTPUTS[0],
         ('source_view', 'aligned_long_offset_hex', 'referenced_rom_address_hex',
@@ -301,12 +384,23 @@ def report(trace_root: Path, pose_records: Path, output: Path) -> dict:
           f"{l['pointer']['record']:06X}" if l['pointer'] else '',
           l['classification'], 'UNVERIFIED_STATIC_MOTIFS_ONLY')
          for l in leads))
+    tsv(dest / OUTPUTS[6],
+        ('fetch_motif_pc_hex', 'first_table_base_hex', 'first_level_slot',
+         'first_level_entry_offset_hex', 'second_level_list_base_hex',
+         'second_level_slot', 'second_level_entry_offset_hex',
+         'target_original_data_hex', 'footer_word_0_hex', 'footer_word_1_hex',
+         'footer_word_2_hex', 'footer_word_3_hex', 'footer_word_4_hex',
+         'target_provenance'), indexed_rows)
     manifest = {
         'format': 'MVC1_M68K_POSE_FOOTER_INTERPRETER_LEADS_V1',
         'original_rom_sha256': hashlib.sha256(data).hexdigest(),
         'decrypted_fetch_sha256': hashlib.sha256(code).hexdigest(),
         'pose_records_verified_against_original_rom': len(records),
         'exact_aligned_address_matches': len(pointers),
+        'two_level_index_code_motifs': len(indexed_sources),
+        'two_level_index_evidence': indexed_sources,
+        'two_level_index_leaf_rows': len(indexed_rows),
+        'two_level_index_execution_verified': False,
         'read_pointer_blocks_min_four_refs': len(blocks),
         'read_pointer_block_references': sum(map(len, blocks)),
         'longest_read_pointer_block': max(map(len, blocks), default=0),
@@ -333,6 +427,8 @@ def report(trace_root: Path, pose_records: Path, output: Path) -> dict:
         '$0035..$0039 have NOT been demonstrated to be opcodes, frame clocks or branches.\n'
         'READ addresses are data pointers; FETCH motifs may contain extensions or embedded data.\n'
         'Observed 4-byte pointer blocks may be partial subsequences with unknown neighbors.\n'
+        'A separate two-level index lists static MOVEA/READ-table/READ-footer links.\n'
+        'Footer-shaped records missing from the sparse pose catalog remain visible.\n'
         'Pointer addresses overwhelmingly target the five-word block, not tile-pair starts.\n'
         'A nearby selector/JMP or record address load is a RESEARCH LEAD, not a decoded parser.\n'
         'To establish semantics, disassemble validated reachable instructions and observe actual\n'
