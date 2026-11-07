@@ -19,7 +19,7 @@ echo Permanent build transcript: "%BUILDLOG%"
 echo All build output is displayed AND appended to the transcript.
 echo Stable, prior TEST binaries, and warm object cache are preserved.
 if not exist "%PROJECT%\dev\dhc\BUILD_TEST.sh" (
-  echo ERROR: Current TEST builder missing. Pull feature/dhc-mvc2-stage87.
+  echo ERROR: Current native TEST builder missing. Update repository source to the latest checkpoint.
   >>"%BUILDLOG%" echo ERROR: Missing dev\dhc\BUILD_TEST.sh
   goto :fail
 )
@@ -45,8 +45,15 @@ bash.exe BUILD_TEST.sh
 set "RC=%ERRORLEVEL%"
 popd
 if not "%RC%"=="0" goto :fail
+REM The shell must have actually compiled/linked and published the current
+REM native TEST executable. Never fall back to Stable or a stale numbered TEST.
+if not exist "%PROJECT%\runtime\stable\XMVSF_Test_87_203.exe" (
+  echo ERROR: Native compiler returned success but TEST executable is missing.
+  >>"%BUILDLOG%" echo ERROR: TEST executable missing after successful make
+  goto :fail
+)
 echo.
-echo TEST 87.203 BUILD READY. Run RUN_TEST.bat.
+echo TEST 87.203 BUILD READY. Run RUN_TEST.bat option 1.
 echo Full transcript: "%BUILDLOG%"
 >>"%BUILDLOG%" echo BATCH RESULT: SUCCESS %DATE% %TIME%
 pause
