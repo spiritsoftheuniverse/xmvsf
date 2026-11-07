@@ -148,6 +148,8 @@ struct Tracker{
                     waiting[i]=false;
                 }else{
                     const unsigned observed=w(r,p+0x42u);
+                    const bool newlyReachedFive=
+                        observed!=lastAnim42[i] && animationAdvances[i]==4u;
                     if(observed!=lastAnim42[i]){
                         lastAnim42[i]=observed;
                         if(animationAdvances[i]<5u)++animationAdvances[i];
@@ -163,7 +165,9 @@ struct Tracker{
                              "RESTORED_AFTER_5_ANIMATION_ADVANCES");
                         waiting[i]=false;
                         pending[i]=true;until[i]=f+16u; // follow-log ONLY
-                    }else if(animationAdvances[i]>=5u && !grounded){
+                    }else if(newlyReachedFive && !grounded){
+                        // Report the first hit of the 5-frame threshold,
+                        // not a duplicate line on every emulation frame.
                         emit(f,i,"WAIT_VICTIM",r,p,other,
                              "FIVE_FRAMES_REACHED_NOT_GROUNDED");
                     }
