@@ -95,7 +95,7 @@ def rank_records(program:bytes,observations:dict,minimum_coverage=.75,limit=600)
             x1=max(o['x']+16*o['width_tiles'] for o in selected)
             y1=max(o['y']+16*o['height_tiles'] for o in selected)
             W=x1-x0;H=y1-y0
-            if W<=0 or H<=0 or W>1050 or H>500 or W*H>170000:continue
+            if W<=0 or H<=0 or W>1600 or H>500 or W*H>250000:continue
             # Favor complete and distinctive matches over large grouped HUD duplicates.
             metric=(int(hits==len(record['unique'])),frac,hits,
                     -max(W,H),-W*H,-frame)
@@ -233,6 +233,7 @@ def guess_category(item,img):
     known=SPECIAL.get(item['offset'])
     if known:return known,'visually reviewed reference'
     if item['coverage']<1:return 'partial','missing recorded components'
+    if img.width>700 or img.height>300:return 'partial','very dispersed/large component layout (tentative)'
     w,h=img.size;ratio=w/max(h,1)
     if w>=120 and h<=48 and ratio>=4.5:return 'lettering','wide, flat silhouette (tentative)'
     if h>=76 and .3<=ratio<=1.6:return 'character','upright silhouette (tentative)'
@@ -249,6 +250,11 @@ def encode_png(image):
 
 def create_viewer(program_path:Path,observations_path:Path,capture_path:Path,
                   html_template:Path,output:Path,limit:int=0):
+    source_path=program_path.resolve();capture_source=capture_path.resolve();observations_source=observations_path.resolve()
+    target=output.resolve()
+    for protected in (source_path,capture_source,observations_source):
+        if target==protected or protected in target.parents or target in protected.parents:
+            raise SourceError('review output overlaps original capture/source; refused')
     data,digest=get_original(program_path)
     obs=read_observations(observations_path)
     ranked,stats=rank_records(data,obs,limit=limit)
