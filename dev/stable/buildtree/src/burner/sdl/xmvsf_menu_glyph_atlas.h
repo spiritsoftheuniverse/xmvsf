@@ -1,0 +1,192 @@
+#ifndef XMVSF_MENU_GLYPH_ATLAS_H
+#define XMVSF_MENU_GLYPH_ATLAS_H
+// Pixel-exact UI glyph system sourced from _art/sf2font[small].png.
+// Sheets are a 16-column ASCII grid (space through DEL), six rows.
+// Large: 190x70, 12x12 stride (rightmost two pixels intentionally absent).
+// Small: 128x48, 8x8 stride. Never resample with linear filtering.
+#include <SDL.h>
+#include <SDL_image.h>
+#include <algorithm>
+#include <cstdio>
+#include <cstring>
+#include <string>
+#include <vector>
+
+namespace XMGlyph {
+class Atlas {
+    SDL_Renderer* renderer_ = nullptr;
+    SDL_Texture* large_ = nullptr;
+    SDL_Texture* small_ = nullptr;
+    SDL_Texture* logo_ = nullptr;
+    SDL_Rect logoSource_ = {0,0,0,0};
+    bool attempted_ = false;
+    static std::vector<std::string> paths(const char* filename) {
+        std::vector<std::string> folders;
+        folders.push_back("_art/");
+        folders.push_back("../_art/");
+        folders.push_back("../../_art/");
+        char* base = SDL_GetBasePath();
+        if(base) {
+            folders.push_back(std::string(base) + "../../_art/");
+            folders.push_back(std::string(base) + "../_art/");
+            folders.push_back(std::string(base) + "_art/");
+            SDL_free(base);
+        }
+        std::vector<std::string> result;
+        for(const auto& folder:folders) result.push_back(folder + filename);
+        return result;
+    }
+    static SDL_Surface* open(const char* filename) {
+        for(const auto& path:paths(filename)) {
+            SDL_Surface* surface = IMG_Load(path.c_str());
+            if(surface) return surface;
+        }
+        std::fprintf(stderr,"XM MENU ATLAS missing _art/%s; original bitmap fallback retained\n",filename);
+        return nullptr;
+    }
+    static SDL_Texture* texture(SDL_Renderer* renderer, SDL_Surface* surface) {
+        if(!surface) return nullptr;
+        SDL_Texture* result = SDL_CreateTextureFromSurface(renderer,surface);
+        if(result) SDL_SetTextureBlendMode(result,SDL_BLENDMODE_BLEND);
+        return result;
+    }
+    static bool white(const Uint8* p) {
+        return p[0]>=250 && p[1]>=250 && p[2]>=250 && p[3]>=240;
+    }
+    static void normalizeLogo(SDL_Surface* s,SDL_Rect& bounds) {
+        // A PNG with an opaque white canvas is treated like a keyed sprite,
+        // but ONLY border-connected white is erased; enclosed white highlights
+        // in the lettering are kept. Transparent PNGs are untouched.
+        if(!s || SDL_LockSurface(s)!=0)return;
+        const int w=s->w,h=s->h;
+        Uint8* base=(Uint8*)s->pixels;
+        auto pixel=[&](int x,int y)->Uint8*{return base+y*s->pitch+x*4;};
+        const bool opaqueWhiteBorder=white(pixel(0,0));
+        if(opaqueWhiteBorder){
+            std::vector<Uint8> seen((size_t)w*h,0);
+            std::vector<int> queue;queue.reserve((size_t)w*h/2);
+            auto add=[&](int x,int y){
+                if(x<0||y<0||x>=w||y>=h)return;
+                const int i=y*w+x;
+                if(!seen[i] && white(pixel(x,y))){seen[i]=1;queue.push_back(i);}
+            };
+            for(int x=0;x<w;x++){add(x,0);add(x,h-1);}
+            for(int y=0;y<h;y++){add(0,y);add(w-1,y);}
+            for(size_t i=0;i<queue.size();++i){
+                const int x=queue[i]%w,y=queue[i]/w;
+                pixel(x,y)[3]=0;
+                add(x-1,y);add(x+1,y);add(x,y-1);add(x,y+1);
+            }
+        }
+        int left=w,top=h,right=-1,bottom=-1;
+        for(int y=0;y<h;y++)for(int x=0;x<w;x++){
+            if(pixel(x,y)[3]>12){
+                left=std::min(left,x);top=std::min(top,y);
+                right=std::max(right,x);bottom=std::max(bottom,y);
+            }
+        }
+        if(right>=left && bottom>=top)bounds={left,top,right-left+1,bottom-top+1};
+        SDL_UnlockSurface(s);
+    }
+public:
+    void release(){
+        if(large_)SDL_DestroyTexture(large_);
+        if(small_)SDL_DestroyTexture(small_);
+        if(logo_)SDL_DestroyTexture(logo_);
+        large_=small_=logo_=nullptr;
+        renderer_=nullptr;logoSource_={0,0,0,0};attempted_=false;
+    }
+    void ensure(SDL_Renderer* renderer){
+        if(renderer==renderer_ && attempted_)return;
+        release();
+        if(!renderer)return;
+        renderer_=renderer;attempted_=true;
+        SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY,"0");
+        SDL_Surface* l=open("sf2font.png");
+        if(l){
+            if(l->w==190 && l->h==70)large_=texture(renderer,l);
+            else std::fprintf(stderr,"XM MENU ATLAS unexpected large sheet %dx%d\n",l->w,l->h);
+            SDL_FreeSurface(l);
+        }
+        SDL_Surface* s=open("sf2fontsmall.png");
+        if(s){
+            if(s->w==128 && s->h==48)small_=texture(renderer,s);
+            else std::fprintf(stderr,"XM MENU ATLAS unexpected small sheet %dx%d\n",s->w,s->h);
+            SDL_FreeSurface(s);
+        }
+        SDL_Surface* original=open("logo.png");
+        if(original){
+            SDL_Surface* rgba=SDL_ConvertSurfaceFormat(original,SDL_PIXELFORMAT_RGBA32,0);
+            SDL_FreeSurface(original);
+            if(rgba){
+                normalizeLogo(rgba,logoSource_);
+                if(logoSource_.w && logoSource_.h)logo_=texture(renderer,rgba);
+                SDL_FreeSurface(rgba);
+            }
+        }
+        std::fprintf(stderr,"XM MENU ATLAS loaded big=%d small=%d title=%d\n",
+            large_!=nullptr,small_!=nullptr,logo_!=nullptr);
+    }
+    bool text(SDL_Renderer* renderer,const char* s,int x,int y,int maxWidth,
+              bool centered,bool small,int scale,Uint8 brightness=255){
+        ensure(renderer);
+        SDL_Texture* font=small?small_:large_;
+        if(!font||!s||!renderer)return false;
+        const int cell=small?8:12;
+        scale=std::max(1,scale);
+        const int length=(int)std::strlen(s);
+        if(maxWidth>0 && length*cell*scale>maxWidth && scale>1)scale=1;
+        const int advance=cell*scale;
+        if(centered)x-=length*advance/2;
+        SDL_SetTextureColorMod(font,brightness,brightness,brightness);
+        SDL_SetTextureAlphaMod(font,255);
+        int written=0;
+        for(int i=0;i<length;i++){
+            // Raw Latin ASCII mapping preserves cases, punctuation and digits.
+            const unsigned char ch=(unsigned char)s[i];
+            if(maxWidth>0 && written+advance>maxWidth)break;
+            if(ch>=33 && ch<=126){
+                const int px=((int(ch)-32)%16)*cell;
+                const int py=((int(ch)-32)/16)*cell;
+                SDL_Rect src={px,py,cell,cell};
+                if(!small && src.x+src.w>190)src.w=190-src.x;
+                if(!small && src.y+src.h>70)src.h=70-src.y;
+                SDL_Rect dst={x+written,y,src.w*scale,src.h*scale};
+                SDL_RenderCopy(renderer,font,&src,&dst);
+            }
+            written+=advance;
+        }
+        SDL_SetTextureColorMod(font,255,255,255);
+        return true;
+    }
+    bool logo(SDL_Renderer* renderer,int cx,int top,int maxWidth,int maxHeight){
+        ensure(renderer);
+        if(!logo_||logoSource_.w<=0||logoSource_.h<=0)return false;
+        const double scale=std::min(double(maxWidth)/logoSource_.w,double(maxHeight)/logoSource_.h);
+        const int w=std::max(1,int(logoSource_.w*scale+0.5));
+        const int h=std::max(1,int(logoSource_.h*scale+0.5));
+        SDL_Rect dest={cx-w/2,top,w,h};
+        SDL_RenderCopy(renderer,logo_,&logoSource_,&dest);
+        return true;
+    }
+};
+// Explicitly released on every boot->game boundary and native game exit.
+static inline Atlas& atlas(){static Atlas value;return value;}
+static inline void release(){atlas().release();}
+static inline void preload(SDL_Renderer* renderer){atlas().ensure(renderer);}
+static inline bool center(SDL_Renderer* r,const char* s,int cx,int y,int pixel,
+                          Uint8 red,Uint8 green,Uint8 blue){
+    const bool useSmall=pixel<=2;
+    const int scale=useSmall?(pixel<=1?1:2):(pixel>=6?3:2);
+    const Uint8 light=(Uint8)((unsigned(red)+green+blue)/3);
+    return atlas().text(r,s,cx,y,0,true,useSmall,scale,light);
+}
+static inline bool left(SDL_Renderer* r,const char* s,int x,int y,int maxWidth,
+                        int scale,Uint8 brightness){
+    return atlas().text(r,s,x,y,maxWidth,false,true,scale,brightness);
+}
+static inline bool logo(SDL_Renderer* r,int cx=480,int top=7,int w=740,int h=250){
+    return atlas().logo(r,cx,top,w,h);
+}
+} // namespace XMGlyph
+#endif
