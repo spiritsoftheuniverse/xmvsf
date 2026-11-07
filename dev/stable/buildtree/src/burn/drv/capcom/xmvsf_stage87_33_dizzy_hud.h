@@ -98,6 +98,7 @@ static inline std::uint32_t Rainbow(unsigned frame,unsigned phase) {
 // _art/examples/example_stunbar.png is a 61x8 COMPOSITION REFERENCE only:
 // the base occupies composition rows 2..7, while orange fills rows 0..5,
 // and the one-pixel shadow covers row 6 and the fill's diagonal cut.
+// Example orange is PARTIAL (44px), not a limit for the full bar.
 // Preserve the original HUD base top pixel at y=45 (composition begins y=43).
 struct BarArt {
     const unsigned char* rgba=nullptr;
@@ -121,66 +122,108 @@ static inline void Base(unsigned char* draw,int pitch,int x,int y,
             Pixel(draw,pitch,x+col,y+row,rgba);
         }
 }
+// Six-pixel base comes from PNG; full fill spans its entire original
+// opaque width. Normal stun is warm yellow/orange. Fast diagonal rainbow
+// is reserved EXCLUSIVELY for a visually full stun bar / dizzy flash.
 static inline std::uint32_t RainbowPan(unsigned frame,int srcX,int row) {
-    // P2 source-space x-row is constant along each diagonal segment;
-    // P1 is mirrored at drawing, keeping the same slant against its cut.
     const std::uint32_t colors[7]={
-        PackRGBA(255,64,48),PackRGBA(255,156,38),
-        PackRGBA(255,225,58),PackRGBA(89,250,57),
-        PackRGBA(37,218,243),PackRGBA(70,102,255),
-        PackRGBA(220,61,248)};
-    const int pan=int((frame/2u)%42u);
-    const int stripe=(srcX-row+pan+420)/6;
-    return colors[(unsigned)stripe%7u];
+        PackRGBA(255,55,49),PackRGBA(255,145,22),
+        PackRGBA(255,231,39),PackRGBA(81,249,52),
+        PackRGBA(33,231,245),PackRGBA(61,96,255),
+        PackRGBA(210,45,255)};
+    // 3 native pixels EVERY emulated frame, versus 1 per 2 frames.
+    // Narrow 4px diagonals give a rapid, continuous rainbow pan.
+    const int pan=int((frame*3u)%28u);
+    const int band=(srcX-row+pan+280)/4;
+    return colors[(unsigned)band%7u];
+}
+static inline std::uint32_t WarmStun(unsigned row) {
+    static const std::uint32_t colors[6]={
+        PackRGBA(255,225,65),PackRGBA(255,200,41),
+        PackRGBA(255,168,24),PackRGBA(251,146,12),
+        PackRGBA(244,121,6),PackRGBA(230,101,0)};
+    return colors[row<6u?row:5u];
+}
+static inline bool HasBasePixel(const BarArt& art,int x,int row) {
+    if(x<0 || x>=art.width || row<0 || row>=art.height)return false;
+    return art.rgba[(std::size_t)row*(std::size_t)art.pitch+
+                    (std::size_t)x*4u+3u]>=8u;
+}
+static inline void SourceSpan(const BarArt& art,int compositionRow,
+                              int& left,int& right) {
+    // The example's fill begins 2 rows ABOVE the base. Project the first
+    // opaque base row upward for those 2 rows, then use actual source art.
+    const int baseRow=compositionRow<2?0:std::min(art.height-1,compositionRow-2);
+    left=art.width;right=-1;
+    for(int x=0;x<art.width;x++)if(HasBasePixel(art,x,baseRow)){
+        if(x<left)left=x;
+        right=x;
+    }
 }
 static inline void DrawOne(unsigned char* draw,int pitch,int side,
                            const Reading& s,bool noir,unsigned frame,
                            const BarArt* art=nullptr){
     if(s.total<=0)return;
     const bool newArt=art&&art->valid();
-    const int y=45;  // original native stun base top row (unaltered)
+    const int y=45;  // existing native stun bar BASE top, not the floating fill
     const int w=newArt?61:76,h=newArt?6:7;
-    // Anchor the left outer end and right outer end to the old HUD positions.
-    // This keeps P1/P2 symmetric despite the narrower 61-pixel source.
-    const int x=side?(323-w):61;
+    const int x=side?(323-w):61; // P2 right-aligned, P1 mirrored at x=61
     const int used=s.flash?s.total:s.used;
+    const bool atCapacity=used>=s.total; // rainbow ONLY at 100%
     const std::uint32_t cyan=noir?PackRGBA(158,192,192):PackRGBA(68,226,240);
     const std::uint32_t pink=noir?PackRGBA(198,145,186):PackRGBA(255,104,220);
+    const std::uint32_t inset=PackRGBA(67,68,69);
 
     if(newArt){
-        // UI order 1: raw PNG base. P2 unchanged; P1 horizontally mirrored.
+        // (1) Source base, pixel perfect; P2 original, P1 mirror.
         Base(draw,pitch,x,y,side!=0,*art);
-        // The example's orange is exactly 44 px wide at full capacity,
-        // and slants +1 pixel per row. Capacity controls its width only.
-        const int fill=44*used/s.total;
-        if(fill>0){
+        if(used>0){
+            int lastBegin=0,lastEnd=-1;
+            // (2) Active area occupies reference composition rows 0..5,
+            // beginning at y-2. Fill grows from the right edge inward.
+            // At 100%, use EVERY original opaque pixel all the way to
+            // the base's left/right limits; never stop at the old 44px
+            // orange example, which showed a PARTIALLY filled bar.
             for(int row=0;row<6;row++){
-                const int left=54-fill+row;
-                const int right=54+row; // exclusive; full: x10..53 at row0
-                for(int src=left;src<right;src++){
+                int left,right;
+                SourceSpan(*art,row,left,right);
+                if(left>right)continue;
+                const int span=right-left+1;
+                const int filled=(span*used+s.total-1)/s.total;
+                // Diagonal growth tip (+1 source pixel per row), but
+                // atCapacity bypasses the tip and fills the FULL mask.
+                const int start=atCapacity?left:
+                    std::max(left,right-filled+1+row);
+                const int stop=right;
+                if(row==5){lastBegin=start;lastEnd=stop;}
+                if(start>stop)continue;
+                for(int src=start;src<=stop;src++){
                     const int dx=side?src:(60-src);
                     Pixel(draw,pitch,x+dx,y-2+row,
-                          RainbowPan(frame,src,row));
+                          atCapacity?RainbowPan(frame,src,row):
+                                     WarmStun((unsigned)row));
+                }
+                // (3a) One-pixel inset ON the active growing diagonal tip.
+                // Former code used start-1 and spilled outside the fill.
+                if(row>=2){
+                    const int dx=side?start:(60-start);
+                    Pixel(draw,pitch,x+dx,y-2+row,inset);
                 }
             }
-            // UI order 3: sample-proven one-pixel shadow at the growing
-            // diagonal cut, then inside the base under the orange (row6
-            // of the 8px reference = base row4). Never move silhouettes.
-            const std::uint32_t inset=PackRGBA(67,68,69);
-            for(int row=2;row<6;row++){
-                const int src=54-fill+row-1;
-                const int dx=side?src:(60-src);
-                Pixel(draw,pitch,x+dx,y-2+row,inset);
-            }
-            const int shadowLeft=56-fill; // full: x12, exactly the example
-            for(int src=shadowLeft;src<=59;src++){
-                const int dx=side?src:(60-src);
-                Pixel(draw,pitch,x+dx,y+4,inset);
+            // (3b) Exactly ONE shadow row inside the base at y+4.
+            // Intersect with both the last colored row's actual extent
+            // AND the actual opaque PNG at base row4. No +2 overflow.
+            if(lastBegin<=lastEnd){
+                for(int src=lastBegin;src<=lastEnd;src++){
+                    if(!HasBasePixel(*art,src,4))continue;
+                    const int dx=side?src:(60-src);
+                    Pixel(draw,pitch,x+dx,y+4,inset);
+                }
             }
         }
     }else{
-        // Older buildtrees without the newly committed PNG retain the
-        // former geometry and readable meter rather than a blank HUD.
+        // Safe fallback if the PNG is absent; always obey the same
+        // yellow/orange partial / rainbow full-color rule.
         const int fill=w*used/s.total;
         const std::uint32_t outline=PackRGBA(45,47,49);
         const std::uint32_t empty=PackRGBA(100,103,105);
@@ -190,13 +233,14 @@ static inline void DrawOne(unsigned char* draw,int pitch,int side,
             for(int ix=leftCut;ix<w-rightCut;ix++){
                 std::uint32_t c=row==0||row==h-1?outline:empty;
                 if(row>=1&&row<h-1&&(side?ix>=w-fill:ix<fill))
-                    c=RainbowPan(frame,side?ix:(w-1-ix),row);
+                    c=atCapacity?RainbowPan(frame,side?ix:(w-1-ix),row):
+                                 WarmStun((unsigned)row);
                 Pixel(draw,pitch,x+ix,y+row,c);
             }
         }
     }
 
-    // ROM-owned stun amount and per-hit numbers are untouched.
+    // Gameplay-owned stun accumulation, total and hit numbers unchanged.
     char totalText[16];
     std::snprintf(totalText,sizeof(totalText),"%d/%d",used,s.total);
     const int totalX=side?326:(x-5-(int)std::strlen(totalText)*4);
