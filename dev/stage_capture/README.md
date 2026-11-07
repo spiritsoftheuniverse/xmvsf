@@ -798,3 +798,66 @@ generic final OBJ copy), further analysis must follow the instructions
 that populate graphics-RAM source descriptors around
 0x925000..0x926FFF. Private ROM data and code dumps stay under
 test/87.203/m68k_trace, never in GitHub or the sharing ZIP.
+
+
+## Offline MVC Motorola 68000 upstream sprite staging map (2026-11-06)
+
+The uploaded \`run_1.zip\` established that native object RAM receives final
+8-byte sprite descriptors from a generic 68000 copier at \`$02483C–$02484C\`.
+Those writes were priority-7 interface graphics only. Their writer PCs do
+**not** identify the code choosing every source animation frame.
+
+A second static program investigation, \`TRACE_MVC_STAGING.py\`, uses the
+existing PRIVATE local \`mvc_opcodes_decrypted_host_words.bin\` and
+\`mvc_program_data_host_words.bin\`. It does not launch MVC, modify the
+emulator, build anything, or commit either image.
+
+Source-backed results for the user's 1-MiB MVC decrypted FETCH image:
+
+- \`$004B0E\`: original sprite-descriptor dispatcher. Its exact bank-select
+  opcode signature is verified in the decrypted instruction stream:
+  nonnegative type to \`$924000\`, type high nibble \`$80\` to \`$925000\`,
+  other negative type values to \`$926000\`. These are staging buffer
+  categories, **not** eight hardware sprite priority layers.
+- \`$006B7A\`: \`MOVEA.L #$925800,A0\`, followed by setup of the four
+  fields of an original 8-byte descriptor.
+- \`$006B8C\`: indexed \`MOVE.W d8(PC,D5.W),D2\` candidate tile selection,
+  referring to a potential base near \`$006B9C\`.
+- \`$006B94\`: \`MOVEM.W D0-D3,(A0)\`, depositing X, Y, tile, attributes
+  as original four-word sprite descriptors into staging RAM.
+- \`$02483C–$02484C\`: final copy from \`$925000\` into CPS-2 OBJ RAM.
+  As before, the traced \`$02484C\` is an instruction displacement
+  extension, not an instruction-start PC.
+- The encrypted original program READ view and decrypted instruction FETCH
+  view have *different bytes* at several candidate PC-relative tables.
+  Do not silently read apparent animation entries from the wrong view.
+
+Exact opcode-pattern scan of the supplied program: 112 candidate staging
+address instructions, 42 matching four-word descriptor emitters,
+21 emitters with nearby A0 staging constants, 13 nearby indexed tile
+lookup motifs, and 32 direct branch/call motifs to \`$004B0A/$004B0E\`.
+These are **static code patterns**, NOT 42 proven executed routines,
+13 independently verified animation tables, or stage-prop ownership.
+The user's \`run_1\` CPU write trace itself only captured priority 7.
+
+Run with existing trace, no further gameplay, build or ROM:
+
+    cd /d F:\xmvsf
+    RUN_TEST.bat m68k
+
+The existing \`m68k_sprite_report.zip\` is retained. The new report is:
+
+    test/87.203/m68k_report/m68k_staging_report.zip
+
+Its TSV files index staging address references, descriptor emitters,
+potential indexed tile table bases, and direct dispatcher call sites.
+The ZIP includes metadata/offsets only; original and decrypted program
+images remain local under ignored \`test/87.203/m68k_trace\`.
+Synthetic regression command:
+
+    python dev\stage_capture\test_trace_mvc_staging.py
+
+Next unproven link: which 68000 paths execute while specific MVC stages
+animate and which stage actor/script references those candidate table bases.
+That requires correlating source tables and actual hardware object records;
+this tool does not mark unexecuted opcode motifs as scene ownership.
