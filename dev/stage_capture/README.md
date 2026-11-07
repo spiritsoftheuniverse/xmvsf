@@ -1358,29 +1358,30 @@ engine's timekeeping/advance logic. Static record adjacency cannot supply
 those timings. Stable, the existing local buildtree and old source captures
 remain untouched. No GitHub Actions were used.
 
-## Stage 87.203: boxed original MVC1 sprite review UI
+## Stage 87.203: original MVC1 multi-tag Asset Organizer
 
-Use `RUN_TEST.bat art` to assemble existing original sprites into the
-self-contained **local-only** `test/87.203/art_review/MVC1_sprite_review.html`.
-It groups candidates into tentative figure, stage/machinery, lettering/HUD,
-effects, and unresolved categories. Each sprite is boxed, clickable for
-Wanted/Unwanted, movable between categories, and supports per-category
-Check All / Uncheck All. Export/import JSON saves exact ROM addresses and
-review decisions without original artwork binaries. Starting status is
-Unreviewed, not automatically Unwanted. Local browser state is a convenience;
-**Save review JSON** is the durable record.
+Run `RUN_TEST.bat art` to reconstruct original MVC1 sprites into the
+self-contained, **local-only** `asset_organizer/index.html`.
+The source HTML template and usage notes live in the new root-level
+`asset_organizer/` folder; the old single-category selector is superseded.
 
-The user-supplied 87.203 data yields 560 original descriptor-assembly
-candidates, 518 with full observed descriptor coverage in at least one
-sampled frame. These are candidate grouped images, not verified native
-animation frames or classifications. Colors currently approximate raw
-palette RAM and are not native effective-DMA-certified.
+Each sprite image remains boxed and reviewable as Wanted / Unwanted /
+Unreviewed. Four independent, toggleable tags—**Character**, **Effect**,
+**Background**, **Level Sprite**—allow multiple roles on the same sprite.
+Each tag category has Check all / Uncheck all for review status.
+The JSON export format `MVC1_ASSET_ORGANIZER_V2` preserves the four
+independent tags plus exact original ROM addresses and decisions.
+Legacy review JSON `MVC1_ART_REVIEW_SELECTIONS_V1` can be imported.
 
-Source/exporter and testing instructions:
-`dev/stage_capture/MVC_ART_REVIEW.md`.
-Python unit tests (synthetic, offline):
-`python dev/stage_capture/test_build_mvc_art_review.py`.
-Never commit the generated HTML, as it EMBEDS copyrighted original artwork;
-it remains within the git-ignored test folder, not public source control.
-No new game launcher, native gameplay change, Stable modification or GitHub
-Actions are involved.
+Existing sampled observations yielded 560 original descriptor-assembly
+candidates, 518 with full observed descriptor coverage in one sample.
+These are candidates, not verified native animation frames or identities.
+Raw palette colors are approximate.
+
+The generated `asset_organizer/index.html` embeds original game pixels
+and is ignored by the root-level organizer's `.gitignore`: **do not commit
+the generated HTML, decoded graphics, original ROM or source capture**.
+`RUN_TEST.bat art` uses existing local captures; no GitHub Actions,
+gameplay modification, Stable changes or original-ROM writes.
+See `asset_organizer/README.md` and
+`dev/stage_capture/MVC_ART_REVIEW.md` for exact use and regeneration.
