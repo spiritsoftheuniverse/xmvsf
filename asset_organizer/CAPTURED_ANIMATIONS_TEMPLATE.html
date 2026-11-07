@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>MVC1 | Original Captured Animation & Stage Placement Review</title>
+<style>
+:root{color-scheme:dark;--bg:#0d121e;--panel:#1b2637;--edge:#35435c;--white:#f0f5ff;--muted:#aebed5;--blue:#86bdff;--gold:#ffdf86}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--white);font:14px/1.5 system-ui,Segoe UI,sans-serif}
+a{color:var(--blue)}header{background:#141e2d;border-bottom:1px solid var(--edge);padding:18px max(20px,calc((100% - 1260px)/2));}
+header h1{font-size:23px;margin:0 0 5px}header p{margin:0;color:var(--muted)}main{max-width:1260px;margin:0 auto;padding:20px;display:grid;grid-template-columns:300px minmax(0,1fr);gap:18px}
+.panel{background:var(--panel);border:1px solid var(--edge);border-radius:12px;padding:16px;min-width:0}.head{font-weight:700;margin-bottom:12px}
+input,select,button{background:#253449;border:1px solid #4c5d77;color:var(--white);border-radius:7px;padding:8px;font:inherit}button{cursor:pointer}button:hover{background:#314762}button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid #8abffc;outline-offset:2px}
+#takes{max-height:min(76vh,840px);overflow:auto;display:grid;gap:8px;margin-top:12px}.take{display:grid;gap:4px;text-align:left;padding:10px;width:100%;border:1px solid #40516a}.take.active{border-color:#95c2ff;background:#304463}.take small{color:var(--muted)}
+.options{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px;align-items:center}.options select{flex:1;min-width:120px}#status{color:var(--muted)}
+.viewport-frame{overflow:auto;border:1px solid #617189;border-radius:8px;background:#090d14;padding:10px;display:flex;justify-content:center;align-items:center}
+.viewport{zoom:2;width:384px;height:224px;position:relative;transform-origin:top left;background-color:#1a2535;background-image:linear-gradient(#52647a20 1px,transparent 1px),linear-gradient(90deg,#52647a20 1px,transparent 1px);background-size:16px 16px;overflow:hidden;image-rendering:pixelated;flex:none}
+#background{position:absolute;inset:0;width:384px;height:224px;object-fit:fill;image-rendering:pixelated;opacity:.72}
+#sprite{position:absolute;image-rendering:pixelated;object-fit:contain;filter:drop-shadow(0 0 1px #101c30)}#bbox{position:absolute;outline:1px dashed #ffe69c;background:#f0c85012;pointer-events:none}
+#anchor{position:absolute;display:block;width:6px;height:6px;border-radius:50%;background:#ffb75d;outline:1px solid #000;pointer-events:none}
+.full-inspection{margin-top:14px;border:1px solid #455877;border-radius:8px;padding:10px;background:#141e2d}.full-inspection strong{font-size:12px;color:var(--muted)}.full-inspection div{min-height:120px;display:flex;justify-content:center;align-items:center;overflow:auto;background-color:#233045;background-image:linear-gradient(45deg,#31425b 25%,transparent 25%,transparent 75%,#31425b 75%),linear-gradient(45deg,#31425b 25%,transparent 25%,transparent 75%,#31425b 75%);background-size:16px 16px;background-position:0 0,8px 8;border-radius:5px}.full-inspection img{image-rendering:pixelated;max-width:100%;max-height:240px;object-fit:contain;zoom:2}.camera-warning{font-size:11px;color:#ffe49f;margin-top:7px}
+#scene-label{position:absolute;top:4px;left:6px;background:#111a27df;color:#f4f7ff;font:8px monospace;padding:2px 4px}
+.controls{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:14px}.controls input{width:110px}#frame-num{min-width:82px;text-align:center;font-variant-numeric:tabular-nums}
+.readout{margin-top:12px;border-top:1px solid var(--edge);padding-top:10px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.readout>div{background:#141e2e;padding:8px;border-radius:6px}.readout span{display:block;font-size:11px;color:var(--muted)}.readout b{font-size:13px;font-weight:550;word-break:break-word}
+.note{font-size:12px;color:var(--muted);margin-top:12px;line-height:1.55}#origin{color:var(--gold)}.muted{color:var(--muted)}
+@media(max-width:800px){main{grid-template-columns:1fr}#takes{max-height:260px}.readout{grid-template-columns:1fr}.viewport-frame{justify-content:flex-start}}
+</style></head><body>
+<header><h1>Original MVC1 • Captured Animation & Placement</h1>
+<p>Wanted objects from <code>aodata.json</code>, arranged by original record family, captured scene and type. This is a review player, not a verified native animation script.</p>
+</header>
+<main><aside class="panel"><div class="head">Captured takes <span id="take-count" class="muted"></span></div>
+<div class="options"><select id="tag"><option value="all">All types</option><option value="character">Character</option><option value="effect">Effect</option><option value="background">Background</option><option value="level_sprite">Level Sprite</option><option value="untagged">Untagged</option></select>
+<select id="scene"><option value="all">All captured scenes</option></select></div>
+<div id="takes" role="navigation" aria-label="Candidate captured pose sequences"></div></aside>
+<section class="panel"><div class="options"><strong id="take-name">Choose a captured take</strong> <span id="status"></span></div>
+<div class="viewport-frame"><div id="viewport" class="viewport"><img id="background" alt="Diagnostic original SCROLL2 snapshot" hidden>
+<div id="bbox"></div><img id="sprite" alt="Original reconstructed MVC1 sprite frame"><span id="anchor"></span><span id="scene-label"></span></div></div>
+<div class="full-inspection"><strong>Whole reconstructed sprite · independent of offscreen source position</strong><div><img id="pose-full" alt="Full source MVC1 sprite"></div><span class="camera-warning" id="offscreen-note"></span></div>
+<div class="controls"><button type="button" id="previous">◀ Previous</button><button id="play" type="button">▶ Play sampled poses</button><button id="next" type="button">Next ▶</button>
+<span id="frame-num">0 / 0</span><label for="speed">Preview interval</label><select id="speed"><option value="150">150ms</option><option value="300" selected>300ms</option><option value="600">600ms</option><option value="1000">1000ms</option></select></div>
+<div class="readout"><div><span>Original ROM control record</span><b id="rom">—</b></div><div><span>Capture evidence</span><b id="captured">—</b></div>
+<div><span>Observed OAM viewport rectangle</span><b id="screen">—</b></div><div><span>Captured SCROLL2 camera</span><b id="camera">—</b></div>
+<div><span>SCROLL2 tilemap-relative candidate</span><b id="candidate">—</b></div><div><span>Source image & matching descriptors</span><b id="source">—</b></div></div>
+<p class="note" id="origin"></p><p class="note">The outlined rectangle is computed from exact OAM tile/attribute matches. Sprites are displayed at their source screen origin, but transparent PNG cropping can shift the rendered pixels slightly. A SCROLL2 backdrop, where present, is decoded from original map/GFX/palette records, <b>not</b> a native-priority-accurate scene composite. A scene number is a capture grouping, <b>not</b> a verified named stage. The player advances among sparse source samples at the interval you set; it does not infer missing frames or original playback duration.</p>
+<p class="note"><a href="index.html">Back to Asset Organizer</a> · <button id="export" type="button">Export captured placement metadata</button></p>
+</section></main>
+<script type="application/json" id="anim-data">__CAPTURED_ANIMATIONS__</script>
+<script>
+(()=>{'use strict';const DATA=JSON.parse(document.getElementById('anim-data').textContent);
+const q=id=>document.getElementById(id),names={character:'Character',effect:'Effect',level_sprite:'Level Sprite',background:'Background',untagged:'Untagged'};
+let takes=DATA.takes,chosen=null,at=0,timer=null;
+function stop(){if(timer!==null){clearInterval(timer);timer=null;}q('play').textContent='▶ Play sampled poses';}
+function labels(){const scenes=[...new Set(takes.map(t=>t.shot))].sort();for(const scene of scenes){const opt=document.createElement('option');opt.value=scene;opt.textContent='Captured '+scene;q('scene').appendChild(opt);}}
+function list(){const tag=q('tag').value,scene=q('scene').value;const view=takes.filter(t=>(tag==='all'||t.tag===tag)&&(scene==='all'||t.shot===scene));q('take-count').textContent='('+view.length+'/'+takes.length+')';
+const menu=q('takes');menu.replaceChildren();for(const t of view){const btn=document.createElement('button');btn.type='button';btn.className='take'+(t.id===chosen?.id?' active':'');const strong=document.createElement('strong');strong.textContent=(names[t.tag]||t.tag)+' · '+t.shot;const small=document.createElement('small');small.textContent=t.family+' · '+t.frameCount+' sampled pose'+(t.frameCount===1?'':'s')+' · #'+t.id.slice(-3)+' · frames '+t.firstSourceFrame+'–'+t.lastSourceFrame;btn.append(strong,small);btn.onclick=()=>select(t);menu.append(btn);}if(!view.includes(chosen)){if(view.length)select(view[0]);else{stop();chosen=null;updateEmpty();}}}
+function updateEmpty(){q('take-name').textContent='No matching takes';q('sprite').hidden=true;q('background').hidden=true;q('pose-full').removeAttribute('src');}
+function select(t){stop();chosen=t;at=0;listCurrent();render();}
+function listCurrent(){for(const button of q('takes').querySelectorAll('.take'))button.classList.toggle('active',!!chosen&&button.textContent.includes(chosen.family+' · '+chosen.frameCount+' sampled pose')&&button.textContent.includes(chosen.shot));}
+function render(){if(!chosen)return;const f=chosen.frames[at],p=f.screen,c=f.camera||null;
+ q('sprite').hidden=false;q('sprite').src=f.png;q('pose-full').src=f.png;q('offscreen-note').textContent=(p.screenX<0||p.screenY<0||p.screenX+p.screenWidth>384||p.screenY+p.screenHeight>224)?'This source sprite extends beyond the recorded 384×224 viewport. The full sprite is displayed above without moving its actual placement.':'This source sprite lies within the recorded viewport rectangle.';q('sprite').style.cssText='left:'+p.screenX+'px;top:'+p.screenY+'px;width:'+f.nativeWidth+'px;height:'+f.nativeHeight+'px;';
+ const b=q('bbox');b.style.cssText='left:'+p.screenX+'px;top:'+p.screenY+'px;width:'+p.screenWidth+'px;height:'+p.screenHeight+'px;';
+ q('anchor').style.cssText='left:'+(p.screenX-3)+'px;top:'+(p.screenY-3)+'px;';
+ q('background').hidden=!(f.background&&f.background.png);if(f.background)q('background').src=f.background.png;
+ q('scene-label').textContent=chosen.shot+' · native frame '+f.sourceFrame;
+ q('take-name').textContent=(names[chosen.tag]||chosen.tag)+' · '+chosen.family;
+ q('status').textContent=chosen.frameCount>1?'Source-ordered candidate sequence':'Single observed pose';
+ q('frame-num').textContent=(at+1)+' / '+chosen.frameCount;
+ q('rom').textContent='$'+f.romOffsetHex;
+ q('captured').textContent=f.shot+' · #'+f.sourceFrame+' · '+(c?c.session:'camera unavailable')+' · native stage name unknown';
+ q('screen').textContent=p.screenX+', '+p.screenY+' · '+p.screenWidth+'×'+p.screenHeight+' px';
+ q('camera').textContent=c?c.scroll2x+', '+c.scroll2y:'Unavailable';
+ q('candidate').textContent=f.scroll2Candidate?'x='+f.scroll2Candidate.x+' y='+f.scroll2Candidate.y+' (mod 1024), unverified':'Unavailable';
+ q('source').textContent=f.nativeWidth+'×'+f.nativeHeight+' pixels · '+f.componentsMatched+'/'+f.componentsExpected+' OAM pairs';
+ q('origin').textContent=f.background?'Actual captured SCROLL2 map + decoded graphics backdrop (diagnostic, not native composite).':'Backdrop not available for this sampled frame; dark grid is only a viewport coordinate guide.';
+}
+function step(d){if(!chosen)return;at=(at+d+chosen.frames.length)%chosen.frames.length;render();}
+function play(){if(timer!==null){stop();return;}if(!chosen||chosen.frames.length<2)return;timer=setInterval(()=>step(1),Number(q('speed').value));q('play').textContent='⏸ Pause';}
+function exportMeta(){const summary={...DATA.meta,takes:DATA.takes.map(t=>({...t,frames:t.frames.map(f=>{const {png,background,...metadata}=f;return metadata;})}))};const json=JSON.stringify(summary,null,2)+'\n';const blob=new Blob([json],{type:'application/json'});const url=URL.createObjectURL(blob);const link=document.createElement('a');link.href=url;link.download='captured_animations_summary.json';link.click();setTimeout(()=>URL.revokeObjectURL(url),2000);}
+q('tag').onchange=list;q('scene').onchange=list;q('previous').onclick=()=>step(-1);q('next').onclick=()=>step(1);q('play').onclick=play;q('speed').onchange=()=>{if(timer!==null){stop();play();}};q('export').onclick=exportMeta;
+document.addEventListener('keydown',e=>{if(/INPUT|SELECT|TEXTAREA/.test(e.target.tagName))return;if(e.key==='ArrowLeft')step(-1);else if(e.key==='ArrowRight')step(1);else if(e.key===' '){e.preventDefault();play();}});
+labels();list();
+})();
+</script></body></html>
