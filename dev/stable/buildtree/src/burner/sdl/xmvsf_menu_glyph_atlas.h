@@ -172,8 +172,11 @@ public:
                 SDL_FreeSurface(rgba);
             }
         }
-        std::fprintf(stderr,"XM MENU ATLAS loaded big=%d small=%d title=%d\n",
-            large_!=nullptr,small_!=nullptr,logo_!=nullptr);
+        std::fprintf(stderr,
+            "XM MENU ATLAS loaded big=%d small=%d title=%d widths big[A]=%d big[I]=%d small[a]=%d small[i]=%d\n",
+            large_!=nullptr,small_!=nullptr,logo_!=nullptr,
+            metrics_[0]['A'].advance,metrics_[0]['I'].advance,
+            metrics_[1]['a'].advance,metrics_[1]['i'].advance);
     }
     // Intrinsic source pixels determine advances. This is the normalization
     // pass: narrow I/i/l/1 and punctuation no longer consume a full cell.
