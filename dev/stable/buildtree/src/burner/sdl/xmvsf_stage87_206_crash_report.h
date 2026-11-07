@@ -12,6 +12,7 @@
 #include <dbghelp.h>
 #include <cstdio>
 #include <cstdint>
+#include <algorithm>
 
 namespace XM87206Crash {
 inline volatile LONG& phase(){static volatile LONG value=0;return value;}
