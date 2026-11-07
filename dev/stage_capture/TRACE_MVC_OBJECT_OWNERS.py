@@ -278,8 +278,14 @@ def main():
     p.add_argument('--staging-emitters',type=Path,required=True)
     p.add_argument('--output',type=Path,required=True)
     p.add_argument('--gfx',type=Path)
+    p.add_argument('--capture-root',type=Path,
+                   help='optional native stage_capture root to find existing decoded MVC GFX')
     args=p.parse_args()
-    try:analyze(args.observations,args.trace_root,args.staging_emitters,args.output,args.gfx)
+    gfx=args.gfx
+    if gfx is None and args.capture_root and args.capture_root.is_dir():
+        candidates=sorted(args.capture_root.glob('session_*/mvc1_decoded_gfx_*.bin'))
+        if candidates:gfx=candidates[0]
+    try:analyze(args.observations,args.trace_root,args.staging_emitters,args.output,gfx)
     except (OSError,ValueError,zipfile.BadZipFile) as exc:
         print('M68K_OBJECT_OWNERS_ERROR',str(exc),file=sys.stderr)
         return 2
