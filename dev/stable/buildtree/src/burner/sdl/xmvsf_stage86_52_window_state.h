@@ -76,11 +76,12 @@ static inline void xm8652TrackWindowGeometry(SDL_Window* w,bool force,const char
 static inline bool xm8652CenteredBootCanvas(SDL_Renderer* render,
                                               const char* phase) {
     if(!render)return false;
-    if(SDL_SetRenderTarget(render,nullptr)!=0){
-        std::fprintf(stderr,"XM87.234 BOOT_VIEWPORT_TARGET_ERROR phase=%s err=%s\n",
+    // A software SDL renderer may reject even a NULL target request if
+    // target textures are unsupported. Do not skip logical-size recovery:
+    // SDL can still center its regular backbuffer on that renderer.
+    if(SDL_SetRenderTarget(render,nullptr)!=0)
+        std::fprintf(stderr,"XM87.234 BOOT_VIEWPORT_TARGET_NOTE phase=%s err=%s\n",
             phase?phase:"?",SDL_GetError());
-        return false;
-    }
     // Do not inherit the game's 960x540/720x540 logical canvas, integer
     // scaling, clip or stale renderer viewport on in-process menu return.
     SDL_RenderSetLogicalSize(render,0,0);
