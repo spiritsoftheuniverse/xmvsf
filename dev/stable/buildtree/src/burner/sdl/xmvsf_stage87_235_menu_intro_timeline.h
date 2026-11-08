@@ -4,7 +4,8 @@
 // Cold boot only. The replay harness and game->menu return skip the intro.
 // Timer differences are unsigned and safe across SDL_GetTicks wraparound.
 namespace XM87235Intro {
-static constexpr std::uint32_t BackgroundMs=1000u;
+static constexpr std::uint32_t BackgroundMs=1000u; // logo cue remains at 1s
+static constexpr std::uint32_t BackgroundFadeMs=3000u; // visual fade overlaps logo
 static constexpr std::uint32_t LogoMs=3500u;
 static constexpr std::uint32_t MenuMs=500u;
 static constexpr std::uint32_t LogoStart=BackgroundMs;
@@ -17,7 +18,7 @@ static inline float progress(std::uint32_t elapsed,std::uint32_t start,
     return float(elapsed-start)/float(duration);
 }
 static inline float backgroundStrength(std::uint32_t elapsed){
-    const float remaining=1.0f-progress(elapsed,0u,BackgroundMs);
+    const float remaining=1.0f-progress(elapsed,0u,BackgroundFadeMs);
     return remaining*remaining; // pulse ramps DOWN to normal GIF hue/color
 }
 static inline float logoStrength(std::uint32_t elapsed){
