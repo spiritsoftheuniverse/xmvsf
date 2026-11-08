@@ -44,10 +44,14 @@ static inline float hueDegrees(Uint8 red,Uint8 green,Uint8 blue) {
 // One full, continuous hue turn per 36 seconds, while each original GIF
 // animation still advances at its authored frame delays.
 static inline void backgroundHue(const std::vector<Uint8>& source,
-                                  std::vector<Uint8>& output,Uint32 now) {
+                                  std::vector<Uint8>& output,Uint32 now,float introStrength=0.0f) {
     if(source.empty())return;
     output.resize(source.size());
-    const float turn=float(now%36000u)/100.0f; // degrees [0,360)
+    // 87.235: on cold boot the background whips through a bright hue
+    // pulse, then converges EXACTLY to the normal 36-second animation.
+    const float pulse=(140.0f+95.0f*std::sin(float(now%1000u)*0.018f))*
+                      std::max(0.0f,std::min(1.0f,introStrength));
+    const float turn=float(now%36000u)/100.0f+pulse;
     for(size_t n=0;n+3<source.size();n+=4){
         const Uint8 r=source[n],g=source[n+1],b=source[n+2];
         output[n+3]=source[n+3];
@@ -169,6 +173,48 @@ static inline void logoPalettePulse(const std::vector<Uint8>& source,
             output[p+1]=byte(float(green)*gain);
             output[p+2]=byte(float(blue)*gain);
         }
+    }
+}
+// Dither the additional intro hue out of the ORIGINAL authored logo pixels.
+// The final frame is the unmodified regular logoPalettePulse texture.
+static inline void introLogoDither(const std::vector<Uint8>& regular,
+                                   std::vector<Uint8>& result,
+                                   int width,int height,Uint32 now,
+                                   float remaining){
+    if(width<=0||height<=0 || regular.size()<(size_t)width*(size_t)height*4u)return;
+    remaining=std::max(0.0f,std::min(1.0f,remaining));
+    result=regular;
+    if(remaining<=0.0f)return;
+    static const Uint8 bayer[16]={0,8,2,10,12,4,14,6,3,11,1,9,15,7,13,5};
+    const float cycle=std::sin(float(now%10000u)*0.013f);
+    const float turn=145.0f+85.0f*cycle;
+    for(int y=0;y<height;++y)for(int x=0;x<width;++x){
+        const size_t p=(size_t(y)*width+x)*4u;
+        if(regular[p+3]<8u)continue;
+        // Fixed source-space Bayer threshold, not temporal random noise.
+        if(remaining<=(float(bayer[(y&3)*4+(x&3)])+0.5f)/16.0f)continue;
+        const float red=float(regular[p]),green=float(regular[p+1]),blue=float(regular[p+2]);
+        const float hi=std::max(red,std::max(green,blue));
+        const float lo=std::min(red,std::min(green,blue));
+        const float chroma=hi-lo;
+        if(chroma<1.0f)continue;
+        float hue=hueDegrees(regular[p],regular[p+1],regular[p+2])+turn;
+        if(hue>=360.0f)hue-=360.0f;
+        const float sector=hue/60.0f;
+        const float zig=chroma*(1.0f-std::fabs(std::fmod(sector,2.0f)-1.0f));
+        float rr=0.0f,gg=0.0f,bb=0.0f;
+        switch(int(sector)){
+            case 0: rr=chroma;gg=zig;break;
+            case 1: rr=zig;gg=chroma;break;
+            case 2: gg=chroma;bb=zig;break;
+            case 3: gg=zig;bb=chroma;break;
+            case 4: rr=zig;bb=chroma;break;
+            default: rr=chroma;bb=zig;break;
+        }
+        const float glow=0.11f+0.19f*(cycle*0.5f+0.5f);
+        result[p]=byte((lo+rr)*(1.0f-glow)+255.0f*glow);
+        result[p+1]=byte((lo+gg)*(1.0f-glow)+255.0f*glow);
+        result[p+2]=byte((lo+bb)*(1.0f-glow)+255.0f*glow);
     }
 }
 } // namespace XMMenuColor
