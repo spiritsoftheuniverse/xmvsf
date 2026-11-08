@@ -51,7 +51,31 @@ int main(){
     assert(rw(V+0x60u)==0x1c18u && rw(V+0xe0u)==0x0230u);
     assert(rl(V+0x14u)==0x0018ff00u);
     assert(rl(V+0x1cu)==0x00010800u);
-    assert(std::strcmp(hp.outcome,"CHARLIE_AIR_HEAVY_FS_150PCT_NATIVE_INDEX")==0);
+    assert(std::strcmp(hp.outcome,"CHARLIE_STORM_FIXED_BASE_XY_150PCT")==0);
+
+    // 87.224 regression: a later native downward velocity was retained,
+    // sometimes producing 0x00021000 instead of a clean 0x00010800.
+    Decision stackedY=run(0x20u,0x28u,0x1804u,
+                          0x0010aa00u,0x00016000u);
+    assert(stackedY.launch);
+    assert(rl(V+0x14u)==0x0018ff00u);
+    assert(rl(V+0x1cu)==0x00010800u);
+
+    // Source-reference consistency: a previously learned Storm reaction
+    // must not change Charlie's fixed original 87.80 baseline, even
+    // though the other characters may use the live learned reference.
+    auto& storm=XM87223Flight::state();
+    storm.observed.valid=true;
+    storm.observed.action=0x1c18u;
+    storm.observed.profile=0x0230u;
+    storm.observed.vx=0x000d0000u;
+    storm.observed.vy=0x0000c000u;
+    Decision fixed=run(0x20u,0x28u,0x1804u,
+                        0x00000000u,0x00070000u);
+    assert(fixed.launch);
+    assert(rl(V+0x14u)==0x0018ff00u);
+    assert(rl(V+0x1cu)==0x00010800u);
+    storm.observed=XM87223Flight::Motion{};
 
     Decision hk=run(0x20u,0x28u,0x1a04u,0xfffc0000u);
     assert(hk.launch && hk.velocityWritten);
@@ -76,6 +100,6 @@ int main(){
     assert(!special.launch && special.excluded);
     assert(rl(V+0x14u)==0x00060000u);
     assert(rl(V+0x1cu)==0x00120000u);
-    std::puts("87.224 Charlie HP/HK-only 1.5x FS, native severe protected: PASS");
+    std::puts("87.225 Charlie Storm fixed source x1.5, no inherited Y stacking: PASS");
     return 0;
 }
