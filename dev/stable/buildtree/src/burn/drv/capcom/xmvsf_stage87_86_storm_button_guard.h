@@ -335,21 +335,28 @@ struct Actor {
                     // on ONLY his two confirmed flying-screen heavies.
                     const bool charlieFS=charlieAirHeavyFS(
                         d.attackerId,d.attackerBank,pendingAction);
+                    // TEST 87.225: use the original 87.80 Storm flight
+                    // recording as a CONSTANT source for Charlie. Do not
+                    // incorporate any later learned victim or accumulated
+                    // in-flight velocity into this 1.5x reference.
                     const unsigned magnitudeX=charlieFS?
-                        charlieFS150(XM87223Flight::flightVX(),0x00300000u):
+                        charlieFS150(XM87223Flight::NativeObservedVX,0x00300000u):
                         XM87223Flight::flightVX();
-                    const unsigned magnitudeY=XM87223Flight::flightVY();
+                    const unsigned magnitudeY=charlieFS?
+                        charlieFS150(XM87223Flight::NativeObservedVY,0x000c0000u):
+                        XM87223Flight::flightVY();
                     const std::uint32_t attackerX=rawFixed(r,attacker+0x0cu);
                     const std::uint32_t victimX=rawFixed(r,victim+0x0cu);
                     const bool left=speed<0 || (speed==0 && victimX<attackerX);
                     d.afterX=left?(0u-magnitudeX):magnitudeX;
-                    // Keep stronger existing *downward* native momentum,
-                    // but do not add the old forced 19.16-pixel dive.
+                    // Charlie always begins with Storm's *original*
+                    // downward velocity times 1.5, not whatever the
+                    // target had accumulated from an earlier air hit.
+                    // Other characters retain their existing 87.223 rule.
                     const std::int64_t oldY=signedFixed(d.beforeY);
-                    d.afterY=(oldY>std::int64_t(magnitudeY) &&
-                              oldY<0x00080000LL)?d.beforeY:magnitudeY;
-                    if(charlieFS)
-                        d.afterY=charlieFS150(d.afterY,0x000c0000u);
+                    d.afterY=charlieFS?magnitudeY:
+                        ((oldY>std::int64_t(magnitudeY) &&
+                          oldY<0x00080000LL)?d.beforeY:magnitudeY);
                     // Reuse Storm's NATIVE 68000 severe reaction pair,
                     // including the flight index, but NOT the Cyclops
                     // Down+MP 0x00132A00 downward override. This is an
@@ -366,7 +373,7 @@ struct Actor {
                     d.stateWritten=(d.victimActionBefore!=fsAction ||
                                     d.victimProfileBefore!=fsIndex);
                     d.outcome=charlieFS?
-                        "CHARLIE_AIR_HEAVY_FS_150PCT_NATIVE_INDEX":
+                        "CHARLIE_STORM_FIXED_BASE_XY_150PCT":
                         (XM87223Flight::flightLearned()?
                         "STORM_HP_RECORDED_FS_INDEX_AND_VELOCITY":
                         "STORM_HP_NATIVE_SIGNATURE_FS_INDEX_AND_VELOCITY");
