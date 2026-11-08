@@ -135,8 +135,8 @@ struct Actor {
     bool stormFlightUsedUntilLanding=false;
     // TEST 87.228: source trace proved the 87.223 one-boost latch does
     // not stop *native* 1C14/0210 relaunches before landing. Arm a
-    // severe groundward recovery only on the first native launch
-    // restarted while a Storm-style flying screen remains in effect.
+    // severe groundward recovery on each genuine subsequent native
+    // launcher while the earlier flying screen remains unresolved.
     bool postFlightNeedsNativeLanding=false;
     bool postFlightRelaunchPending=false;
     unsigned postFlightRelaunchAge=1000u,postFlightAttacker=~0u;
@@ -238,8 +238,8 @@ struct Actor {
             // TEST 87.228: the 87.227 trace proves a post-FS
             // opponent can be relaunched natively into 1C14/0210 many
             // times before EVER landing, while the host one-boost gate
-            // correctly refuses synthetic FS. Only the first such fresh
-            // ROM launch in a NEW attack can arm groundward resolution.
+            // correctly refuses synthetic FS. Each fresh ROM launcher
+            // in a NEW attack must instead resolve groundward.
             // Do not touch medium/ordinary soft followup hit states.
             if(postFlightNeedsNativeLanding &&
                nativeLaunchReaction(d.victimActionBefore,d.victimProfileBefore) &&
