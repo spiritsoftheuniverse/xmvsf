@@ -102,6 +102,9 @@ int main(){
     Actor weak;
     weak.nativeLaunched=true;
     weak.pendingSevere=true;
+    // A freshly confirmed hit arms this latch with age zero. Without
+    // this, the constructor's 1000-frame default correctly expires it.
+    weak.pendingAge=0u;
     weak.pendingAction=0x1a04u;
     weak.pendingBank=0x22u;
     weak.pendingAttackerId=0x04u;
@@ -116,10 +119,15 @@ int main(){
     sl(V+0x14u,0x00060000u);sl(V+0x1cu,0x00120000u);
     Actor native;
     native.nativeLaunched=true;native.pendingSevere=true;
+    // Exercise actual steep-native preservation, not a stale-latch cancel.
+    native.pendingAge=0u;
     native.pendingAction=0x1a04u;native.pendingButton=32u;
     native.pendingBank=0x28u;native.pendingAttackerId=0x20u;
     Decision existing=native.evaluate(mem,V,A,true,true,0u);
     assert(!existing.launch && existing.excluded);
+    assert(std::strcmp(existing.outcome,"NATIVE_STEEP_SLAM_PRESERVED")==0);
+    assert(rw(V+0x60u)==SEVERE_ACTION && rw(V+0xe0u)==SEVERE_PROFILE);
+    assert(rl(V+0x14u)==0x00060000u);
     assert(rl(V+0x1cu)==0x00120000u);
 
     std::puts("87.226 Charlie HP ROM-default, HK Cyclops severe, Storm separate: PASS");
