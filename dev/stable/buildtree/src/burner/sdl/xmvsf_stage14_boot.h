@@ -123,9 +123,22 @@ static int xmvsfBootSelector(bool returningFromGame=false) {
     sdlWindow=window;
     SDL_SetWindowTitle(window,"X-MEN VS. STREET FIGHTER II | TEST 87.227");
     SDL_Renderer* render=SDL_GetRenderer(window);
+    const bool existingRenderer=render!=nullptr;
     if(!render)render=SDL_CreateRenderer(window,-1,SDL_RENDERER_ACCELERATED|SDL_RENDERER_PRESENTVSYNC);
     if(!render)render=SDL_CreateRenderer(window,-1,SDL_RENDERER_SOFTWARE);
     if(!render){fprintf(stderr,"XMVSF menu renderer: %s\n",SDL_GetError());return -1;}
+    // 87.227: visible proof that game→menu adopted the live renderer,
+    // rather than presenting into a destroyed/recreated GPU context.
+    SDL_RendererInfo info={};
+    int outputW=0,outputH=0;
+    const int rendererInfoRc=SDL_GetRendererInfo(render,&info);
+    const int outputRc=SDL_GetRendererOutputSize(render,&outputW,&outputH);
+    std::fprintf(stderr,
+        "XM87.227 MENU_RENDERER_LIVE returned=%d adopted=%d info_rc=%d backend=%s output_rc=%d output=%dx%d\n",
+        int(returningFromGame),int(existingRenderer),rendererInfoRc,
+        rendererInfoRc==0 && info.name?info.name:"unknown",
+        outputRc,outputW,outputH);
+    std::fflush(stderr);
     XM87195Menu::Background menuBackground;
     // Stage 27: the video backend can leave a non-default renderer target,
     // viewport, clip, or scale after game teardown. Explicitly restore the
