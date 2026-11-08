@@ -102,7 +102,9 @@ int main(){
     assert(std::strcmp(onset(hpHk,32u).outcome,
         "FS_HP_THEN_HK_CONFIRMED_PENDING")==0);
     assert(hpHk.fsPendingSevere);
-    severe(finish(hpHk),"FS_HP_THEN_HK_CYCLOPS_SEVERE");
+    const Decision hpHkRelease=finish(hpHk);
+    severe(hpHkRelease,"FS_HP_THEN_HK_CYCLOPS_SEVERE");
+    assert(hpHkRelease.previousHitButton==4u); // originating HP, not HK
     setup(0x1004u,0u,0x21u,true);
     Actor groundHp=activeFS(1u);
     assert(std::strcmp(onset(groundHp,4u).outcome,
@@ -188,6 +190,11 @@ int main(){
     assert(std::strcmp(ch.outcome,"CHARLIE_AIR_HP_NATIVE_UNCHANGED")==0);
     assert(!charlie.fsConditionalPending && !finish(charlie).velocityWritten);
     assert(charlieAirHK(0x20u,0x28u,0x1a04u,32u));
+    setup(0x1a04u,0x20u,0x28u);
+    Actor charlieHK=activeFS(1u,0x20u); // first HK, NOT an HP->HK chain
+    assert(std::strcmp(onset(charlieHK,32u).outcome,
+        "FS_CHARLIE_HK_CONFIRMED_PENDING")==0);
+    severe(finish(charlieHK),"CHARLIE_HK_CYCLOPS_SEVERE_KNOCKDOWN");
     // Sabretooth/Cammy HP and Wolverine Drill Claw remain exceptions.
     const unsigned protectedFighters[]={0x000au,0x0022u};
     for(unsigned fighter: protectedFighters){
