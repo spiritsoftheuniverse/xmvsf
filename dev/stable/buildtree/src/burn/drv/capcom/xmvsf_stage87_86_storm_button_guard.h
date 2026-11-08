@@ -24,6 +24,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include "xmvsf_stage87_223_storm_native_flight.h" // native HP velocity/index reference
 
 namespace XM8786Flight {
 static inline unsigned byteAt(const std::uint8_t* r,unsigned p){return r[(p&0xffffu)^1u];}
@@ -41,11 +42,21 @@ static const unsigned SOFT_ACTION=0x1C16u,SEVERE_ACTION=0x1C18u;
 static const unsigned SOFT_PROFILE=0x0220u,SEVERE_PROFILE=0x0230u;
 // Native Cyclops down+MP severe flight: knockdown reaction and flight speed
 // form one operation. 1C18/0230 must not be omitted on a severe write.
+// Historical Cyclops-like severe writer retained for the source audit only.
+// TEST 87.223 never calls this for an ordinary Tournament aerial finisher.
 static inline void applyCyclopsSevereFlight(std::uint8_t* r,unsigned victim,std::uint32_t horizontal){
     setWord(r,victim+0x60u,SEVERE_ACTION);
     setWord(r,victim+0xE0u,SEVERE_PROFILE);
     setFixed(r,victim+0x14u,horizontal);
     setFixed(r,victim+0x1Cu,TARGET_DOWN);
+}
+// Storm-like flying-screen movement, NOT a fabricated special knockdown.
+// Preserve the original 68000 victim action/index and all ground-hit gates;
+// forcing 1C18/0230 was the reason the previous severe variant lost OTG.
+static inline void applyStormLikeMotion(std::uint8_t* r,unsigned victim,
+                                       std::uint32_t horizontal,std::uint32_t vertical){
+    setFixed(r,victim+0x14u,horizontal);
+    setFixed(r,victim+0x1cu,vertical);
 }
 static inline bool isDrillCandidate(unsigned action){return action==0x2C1Eu || action==0x2C46u;}
 static inline bool normalAirAttack(unsigned action){
@@ -105,6 +116,7 @@ struct Decision {
 struct Actor {
     // Per-victim, per-combo state; only a fresh connected airborne hit counts.
     bool observed,prevAttackNow,pendingSevere,nativeLaunched,pendingStormRepeatHK;
+    bool stormFlightUsedUntilLanding=false;
     unsigned prevAction,prevProfile,prevSubstate,prevReaction,prevVictimY;
     unsigned prevAttackerAction,attackSerial,lastConfirmedSerial,connectedAirHits,connectedStormHeavyHits,attackAge;
     unsigned pendingAge,pendingAction,pendingBank,pendingAttackerId,lastAttackerId,lastVictimId;
@@ -138,6 +150,13 @@ struct Actor {
         // A tag must not inherit another fighter's combo/launch latch.
         if(observed && (d.attackerId!=lastAttackerId || d.victimId!=lastVictimId))clearChain();
         lastAttackerId=d.attackerId;lastVictimId=d.victimId;
+        // A single synthetic flight boost per continuous aerial sequence.
+        // Re-arm only at a REAL native landing, not upon hitstun transitions.
+        const unsigned floor=wordAt(r,victim+0x254u);
+        const unsigned airFlag=wordAt(r,victim+0xaau)>>8u;
+        const bool nativeLanded=floor>0u && floor<2048u &&
+            wordAt(r,victim+0x10u)>=floor && airFlag==0u;
+        if(!combat || nativeLanded)stormFlightUsedUntilLanding=false;
         d.attackerBank=wordAt(r,attacker+0x40u);
         d.attackerAction=wordAt(r,attacker+0x60u);
         d.attackerPointer=wordAt(r,attacker+0x42u);
@@ -242,6 +261,9 @@ struct Actor {
                 d.excluded=true;d.outcome="NOT_HEAVY_NATIVE_PRESERVED";
             }else if(!paired){
                 d.excluded=true;d.outcome="UNKNOWN_REACTION_PRESERVED";
+            }else if(stormFlightUsedUntilLanding){
+                d.excluded=true;
+                d.outcome="STORM_FLIGHT_ALREADY_USED_UNTIL_NATIVE_LANDING";
             }else if(!enabled){
                 d.outcome="TEST_DISABLED_PRESERVED";
             }else{
@@ -262,7 +284,7 @@ struct Actor {
         }
         if(pendingSevere && !d.hitConfirmed){
             ++pendingAge;
-            const bool stale=pendingAge>24u || !combat || !attackerAir ||
+            const bool stale=stormFlightUsedUntilLanding || pendingAge>24u || !combat || !attackerAir ||
               d.reaction!=0x000Cu || d.y>=472u ||
               d.attackerAction!=pendingAction || d.attackerBank!=pendingBank ||
               d.attackerId!=pendingAttackerId || (!nativeLaunched && !pendingStormRepeatHK);
@@ -282,14 +304,29 @@ struct Actor {
                     d.excluded=true;
                     d.outcome="NATIVE_STEEP_SLAM_PRESERVED";
                 }else{
+                    // Read the native Storm HP velocity captured BEFORE this
+                    // host TEST writer, or use the previously observed 87.80
+                    // Storm horizontal/vertical pair until a live HP ref exists.
+                    // The original ROM's victim reaction and +E0 flight index
+                    // stay authoritative: no synthetic Cyclops Down+MP slam.
                     d.launch=true;
-                    d.afterX=speed<0?TARGET_LEFT:TARGET_RIGHT;
-                    d.afterY=TARGET_DOWN;
-                    applyCyclopsSevereFlight(r,victim,d.afterX);
+                    const unsigned magnitudeX=XM87223Flight::flightVX();
+                    const unsigned magnitudeY=XM87223Flight::flightVY();
+                    const std::uint32_t attackerX=rawFixed(r,attacker+0x0cu);
+                    const std::uint32_t victimX=rawFixed(r,victim+0x0cu);
+                    const bool left=speed<0 || (speed==0 && victimX<attackerX);
+                    d.afterX=left?(0u-magnitudeX):magnitudeX;
+                    // Keep stronger existing *downward* native momentum,
+                    // but do not add the old forced 19.16-pixel dive.
+                    const std::int64_t oldY=signedFixed(d.beforeY);
+                    d.afterY=(oldY>std::int64_t(magnitudeY) &&
+                              oldY<0x00080000LL)?d.beforeY:magnitudeY;
+                    applyStormLikeMotion(r,victim,d.afterX,d.afterY);
+                    stormFlightUsedUntilLanding=true;
                     d.velocityWritten=true;
-                    d.stateWritten=true;
-                    d.outcome=soft?"XM87.127 FLIGHT_SEVERE_STATE_FROM_SOFT":
-                                  "XM87.127 FLIGHT_SEVERE_STATE_REFRESHED";
+                    d.stateWritten=false;
+                    d.outcome=soft?"STORM_HP_MOTION_ROM_SOFT_OTG_PRESERVED":
+                                  "STORM_HP_MOTION_ROM_SEVERE_UNCHANGED";
                 }
             }
         }
