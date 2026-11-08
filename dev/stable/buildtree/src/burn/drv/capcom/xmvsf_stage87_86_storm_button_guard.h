@@ -152,7 +152,7 @@ struct Actor {
     // button press, decides whether an HK during live FS becomes severe.
     // Grounded normal HP/HK during FS is a second independent rule.
     bool postFlightNeedsNativeLanding=false;
-    bool fsConditionalPending=false,fsPendingGround=false;
+    bool fsConditionalPending=false,fsPendingGround=false,fsPendingSevere=false;
     unsigned fsPendingAge=1000u,fsPendingAction=0u,fsPendingSerial=0u;
     unsigned fsPendingAttacker=~0u,fsPendingVictim=~0u;
     unsigned lastConnectedButton=0u,lastConnectedAttacker=~0u,lastConnectedVictim=~0u;
@@ -169,7 +169,7 @@ struct Actor {
         lastConfirmedSerial=0;attackAge=1000;prevAttackNow=false;
         pendingSevere=false;pendingStormRepeatHK=false;
         pendingAge=1000;pendingButton=0;nativeLaunched=false;
-        fsConditionalPending=false;fsPendingAge=1000u;
+        fsConditionalPending=false;fsPendingSevere=false;fsPendingAge=1000u;
         fsPendingAction=0u;fsPendingSerial=0u;fsPendingGround=false;
         // This air-sequence gate deliberately survives ordinary combo
         // gaps. Only tag-out, a confirmed landing, or match exit clears
@@ -219,6 +219,7 @@ struct Actor {
             stormFlightUsedUntilLanding=false;
             postFlightNeedsNativeLanding=false;
             fsConditionalPending=false;
+            fsPendingSevere=false;
             fsPendingAge=1000u;
             lastConnectedButton=0u;
             lastConnectedAttacker=~0u;
@@ -288,6 +289,7 @@ struct Actor {
             // Any new confirmed hit cancels the older pending decision:
             // an old HP/HK cannot leak into a subsequent LP/LK/MP.
             fsConditionalPending=false;
+            fsPendingSevere=false;
             fsPendingAge=1000u;
             // A new hit invalidates any older pending Storm conversion.
             pendingSevere=false;pendingStormRepeatHK=false;pendingAge=1000u;pendingButton=0u;
@@ -321,8 +323,23 @@ struct Actor {
                 groundAttackNow)?d.taggedButton:0u;
             lastConnectedAttacker=d.attackerId;
             lastConnectedVictim=d.victimId;
-            if(enabled && (hpThenHK || groundedFSHeavy)){
+            // 87.231: FS is a FLOOR, not a once-per-landing permission
+            // to hit the victim. EVERY newly connected normal during an
+            // existing FS gets its own Storm baseline at that hit's native
+            // substate 2. Only the two explicit finishers upgrade to Cyclops.
+            // Keep protected original native moves untouched.
+            const Signature* fsSignature=match(d.attackerBank,d.attackerAction,
+                d.attackerPointer,d.victimActionBefore,d.victimProfileBefore);
+            const bool protectedFSNative=
+                charlieNativeAirHP(d.attackerId,d.attackerBank,d.attackerAction) ||
+                excludedCharacterHP(d.attackerId,d.attackerAction,d.taggedButton) ||
+                isDrillCandidate(d.attackerAction) ||
+                (fsSignature && fsSignature->preserveNative);
+            const bool fsStormBaseline=flightAlready && !protectedFSNative &&
+                (normalAirAttack(d.attackerAction) || groundAttackNow);
+            if(enabled && fsStormBaseline){
                 fsConditionalPending=true;
+                fsPendingSevere=hpThenHK || groundedFSHeavy;
                 fsPendingGround=groundedFSHeavy;
                 fsPendingAge=0u;
                 fsPendingAction=d.attackerAction;
@@ -372,10 +389,12 @@ struct Actor {
             d.connectedAfter=connectedAirHits;
             if(fsConditionalPending){
                 d.candidate=true;
-                d.heavyFollowup=true;
-                d.outcome=fsPendingGround?
+                d.heavyFollowup=fsPendingSevere;
+                d.outcome=!fsPendingSevere?
+                    "FS_STORM_HIT_CONFIRMED_PENDING":
+                    (fsPendingGround?
                     "FS_GROUNDED_HEAVY_CONFIRMED_PENDING":
-                    "FS_HP_THEN_HK_CONFIRMED_PENDING";
+                    "FS_HP_THEN_HK_CONFIRMED_PENDING");
             }else if(isDrillCandidate(d.attackerAction)){
                 d.excluded=true;d.outcome="DRILL_CLAW_PRESERVED";
             }else if(stormMedium){
@@ -428,10 +447,10 @@ struct Actor {
             d.connectedAfter=connectedAirHits;
             if(d.airAttackStart)d.outcome="AIR_ATTACK_ATTEMPT_UNCONFIRMED";
         }
-        // Apply Cyclops severe ONLY to this confirmed qualifying hit,
-        // after native impact step 0 settles to 2. An attack change or
-        // another connected hit cancels it, rather than postponing the
-        // knockback into a light/medium followup.
+        // 87.231: resolve EACH FS hit on its own original ROM impact.
+        // Normal FS hits receive Storm's gentle knockdown; only the
+        // confirmed HP->HK and grounded HP/HK cases receive Cyclops severe.
+        // Never carry either variant into the next move/attack serial.
         if(fsConditionalPending && !d.hitConfirmed){
             if(fsPendingAge<1000u)++fsPendingAge;
             const bool sameHit=d.attackerId==fsPendingAttacker &&
@@ -442,36 +461,54 @@ struct Actor {
                 nativeLaunchReaction(d.victimActionBefore,
                                      d.victimProfileBefore);
             const bool expired=fsPendingAge>24u || !enabled || !combat ||
-                !sameHit || nativeLanded || !postFlightNeedsNativeLanding ||
+                !sameHit || nativeLanded ||
+                !(postFlightNeedsNativeLanding || stormFlightUsedUntilLanding) ||
                 d.reaction!=0x000cu || d.y>=472u ||
                 (fsPendingGround?!attackerGrounded:!attackerAir);
             if(expired){
                 fsConditionalPending=false;
+                fsPendingSevere=false;
                 fsPendingAge=1000u;
-                d.outcome="FS_CONDITIONAL_SEVERE_CANCELLED";
+                d.outcome="FS_HIT_CONVERSION_CANCELLED";
             }else if(d.substate==2u && nativePair){
                 const bool originalSteep=severe &&
                     signedFixed(d.beforeY)>=0x00100000LL &&
                     magnitude(signedFixed(d.beforeX))<=0x000a0000LL;
-                if(!originalSteep){
+                if(originalSteep){
+                    // Native already-severe is always authoritative.
+                    d.excluded=true;
+                    d.outcome="FS_ALREADY_NATIVE_SEVERE_PRESERVED";
+                }else{
                     const std::int64_t vx=signedFixed(d.beforeX);
                     const std::uint32_t ax=rawFixed(r,attacker+0x0cu);
                     const std::uint32_t vxpos=rawFixed(r,victim+0x0cu);
                     const bool left=vx<0 || (vx==0 && vxpos<ax);
-                    d.afterX=left?TARGET_LEFT:TARGET_RIGHT;
-                    d.afterY=TARGET_DOWN;
-                    applyCyclopsSevereFlight(r,victim,d.afterX);
+                    if(fsPendingSevere){
+                        d.afterX=left?TARGET_LEFT:TARGET_RIGHT;
+                        d.afterY=TARGET_DOWN;
+                        applyCyclopsSevereFlight(r,victim,d.afterX);
+                        d.outcome=fsPendingGround?
+                            "FS_GROUNDED_HEAVY_CYCLOPS_SEVERE":
+                            "FS_HP_THEN_HK_CYCLOPS_SEVERE";
+                    }else{
+                        const unsigned stormX=XM87223Flight::flightVX();
+                        const unsigned stormY=XM87223Flight::flightVY();
+                        d.afterX=left?(0u-stormX):stormX;
+                        const std::int64_t oldY=signedFixed(d.beforeY);
+                        d.afterY=(oldY>std::int64_t(stormY) &&
+                                  oldY<0x00080000LL)?d.beforeY:stormY;
+                        applyStormFlyingScreen(r,victim,d.afterX,d.afterY);
+                        d.outcome="FS_STORM_KNOCKDOWN";
+                    }
+                    d.launch=true;
                     d.velocityWritten=true;
                     d.stateWritten=d.victimActionBefore!=SEVERE_ACTION ||
                         d.victimProfileBefore!=SEVERE_PROFILE;
-                    d.outcome=fsPendingGround?
-                        "FS_GROUNDED_HEAVY_CYCLOPS_SEVERE":
-                        "FS_HP_THEN_HK_CYCLOPS_SEVERE";
-                }else{
-                    d.excluded=true;
-                    d.outcome="FS_ALREADY_NATIVE_SEVERE_PRESERVED";
+                    stormFlightUsedUntilLanding=true;
+                    postFlightNeedsNativeLanding=true;
                 }
                 fsConditionalPending=false;
+                fsPendingSevere=false;
                 fsPendingAge=1000u;
             }
         }
@@ -604,7 +641,7 @@ struct Controller {
             Decision d=actor[i].evaluate(r,i?0x4400u:0x4000u,i?0x4000u:0x4400u,enabled,combat,i?p1Buttons:p2Buttons);
             if(!d.hitConfirmed && !d.airAttackStart && !d.launch &&
                !d.velocityWritten && !(d.excluded && d.candidate) &&
-               std::strcmp(d.outcome,"FS_CONDITIONAL_SEVERE_CANCELLED")!=0)
+               std::strcmp(d.outcome,"FS_HIT_CONVERSION_CANCELLED")!=0)
                 continue;
             if(log){
                 std::fprintf(log,"%u\t%u\t%04X\t%04X\t%04X\t%04X\t%04X\t%u\t%04X\t%04X\t%08X\t%08X\t%08X\t%08X\t%04X\t%04X\t%u\t%u\t%u\t%u\t%u\t%u\t%u\t%u\t%u\t%u\t%u\t%u\t%u\t%u\t%u\t%u\t%u\t%u\t%s\t%04X\t%04X\t%u\t%u\t%u\t%u\t%u\n",
