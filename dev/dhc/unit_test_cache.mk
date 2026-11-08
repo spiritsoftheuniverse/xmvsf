@@ -19,5 +19,6 @@ $(UNIT_OUTPUT): $(UNIT_SOURCE) $(UNIT_SIGNATURE)
 	@g++ -std=c++11 -Wall -Wextra -Werror \
 	  -I"$(UNIT_INCLUDE_CAPCOM)" -I"$(UNIT_INCLUDE_SDL)" \
 	  -MMD -MP -MF "$@.d" -MT "$@" \
-	  "$(UNIT_SOURCE)" -o "$@"
+	  "$(UNIT_SOURCE)" -o "$@.pending"
+	@mv -f "$@.pending" "$@"
 -include $(UNIT_OUTPUT).d
