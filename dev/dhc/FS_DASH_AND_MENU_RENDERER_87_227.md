@@ -33,6 +33,8 @@ The persistent SDL window used to survive the return while the gameplay backend 
 
 In `vid_sdl2.cpp`, on `xm26PersistentShell && xm26ReturnToBoot`, release the original gameplay-owned textures, video compositor, and cached resources, **but retain the real SDL renderer with the window**. Reset target, logical canvas, viewport, clip, and blend mode to the native 960x540 menu defaults. Boot selector can then adopt it through `SDL_GetRenderer(window)`. On actual app exit/other modes, normal renderer destruction is unchanged.
 
+In `run.cpp` the earlier return-to-menu path also deliberately cleared the game backbuffer to pure black and presented it. That submitted black frame is removed. The boot menu now takes responsibility for the first new presentation on the retained renderer, rather than inheriting a freshly presented black frame.
+
 The transition logs `XM87.227 MENU_RENDERER_HANDOFF` from gameplay exit and `XM87.227 MENU_RENDERER_LIVE returned=1 adopted=1` from the boot selector, alongside the renderer backend and output size. These allow diagnosing a future black screen without guessing based on emulated-game observer files.
 
 The first-window centering fix from 87.226 remains intact; the boot menu is never repositioned during an in-process return.
