@@ -246,11 +246,13 @@ run_cached_unit \
 # exists under local_rom_dump. Decode only small windows around the REAL
 # executed X/mode writer PCs. Diagnostic failure must never gate the build.
 if command -v python3 >/dev/null 2>&1; then
-  if ! python3 "$PROJECT/dev/dhc/tools/ANALYZE_FS_ENTRY_68K_232.py"; then
+  if ! python3 "$PROJECT/dev/dhc/tools/ANALYZE_FS_ENTRY_68K_232.py" \
+     --output "$PROJECT/test/87.233/observer/fs_entry_68000_opcode_windows.tsv"; then
     echo "WARNING: 87.233 68000 source window analysis unavailable; native build continues." >&2
   fi
 elif command -v python >/dev/null 2>&1; then
-  if ! python "$PROJECT/dev/dhc/tools/ANALYZE_FS_ENTRY_68K_232.py"; then
+  if ! python "$PROJECT/dev/dhc/tools/ANALYZE_FS_ENTRY_68K_232.py" \
+     --output "$PROJECT/test/87.233/observer/fs_entry_68000_opcode_windows.tsv"; then
     echo "WARNING: 87.233 68000 source window analysis unavailable; native build continues." >&2
   fi
 fi
