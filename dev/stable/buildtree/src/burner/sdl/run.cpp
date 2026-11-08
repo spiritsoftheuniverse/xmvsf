@@ -1002,16 +1002,17 @@ int RunMessageLoop()
             quit=1;continue;
         }
         if(xm26ReturnToBoot){
-            // Explicitly leave gameplay's backbuffer behind. This transition
-            // does not destroy, reposition, or recreate the SDL_Window.
-            std::fprintf(stderr,"XM27: emulation loop LEAVE for main menu\n");
+            // TEST 87.227: do not submit a full black frame during the
+            // persistent game->menu handoff. The menu paints a complete first
+            // frame on the very same live SDL renderer after media cleanup.
+            // Old code explicitly presented black here, leaving an empty
+            // screen if the renderer was re-created late or presentation
+            // ownership was disrupted.
+            std::fprintf(stderr,
+                "XM87.227 MENU_HANDOFF_NO_BLACK_FRAME renderer=%p\n",
+                (void*)sdlRenderer);
             std::fflush(stderr);
-            if(sdlRenderer){
-                SDL_SetRenderTarget(sdlRenderer,nullptr);
-                SDL_SetRenderDrawColor(sdlRenderer,0,0,0,255);
-                SDL_RenderClear(sdlRenderer);
-                xm8656Present(sdlRenderer); /* XM86.56 shared final pass */
-            }
+            if(sdlRenderer)SDL_SetRenderTarget(sdlRenderer,nullptr);
             xm8640ExitReason="return_to_main";
             quit=1;
             continue;
