@@ -863,6 +863,13 @@ INT32 Cps2Frame()
     const unsigned xm8786_p2_buttons =
         (CpsInp000[4]&1u) | ((CpsInp000[5]&1u)<<1) | ((CpsInp000[6]&1u)<<2) |
         ((CpsInp011[4]&1u)<<3) | ((CpsInp011[5]&1u)<<4) | ((CpsInp020[6]&1u)<<5);
+    // TEST 87.223: track Storm's original attack action independently of
+    // Classic/Tournament. The Z80/QSound sample can arrive after this pose.
+    if(!bBurnRunAheadFrame){
+        const char* voiceDriver=BurnDrvGetTextA(DRV_NAME);
+        XM87127Voice::state().observe((unsigned)GetCurrentFrame(),CpsRamFF,
+            voiceDriver && std::strncmp(voiceDriver,"xmvsf",5)==0);
+    }
     XM8786Flight::state().frame((unsigned)GetCurrentFrame(),CpsRamFF,
         xm8786_p1_buttons,xm8786_p2_buttons);
     // Stage 87.140: inspect actual CPS2 controller bits AFTER native CPU run.
