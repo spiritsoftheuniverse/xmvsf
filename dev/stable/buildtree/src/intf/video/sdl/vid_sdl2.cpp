@@ -162,6 +162,13 @@ static void xm87139ProbeNotice(SDL_Renderer* renderer){
 static int Exit()
 {
     extern bool xm26PersistentShell;
+    extern bool xm26ReturnToBoot;
+    // TEST 87.227: on MAIN MENU the native single SDL_Window persists.
+    // Retain its renderer as well: destroying/recreating just the renderer
+    // caused an intermittent black boot screen despite working menu input.
+    // All gameplay-owned textures are still explicitly destroyed below.
+    const bool preserveMenuRenderer=xm26PersistentShell &&
+        xm26ReturnToBoot && sdlWindow && sdlRenderer;
 
 #ifdef INCLUDE_SWITCHRES
 	sr_deinit();
@@ -176,10 +183,29 @@ static int Exit()
         xm87217FloatTexture=NULL;
     }
     xm8656Cleanup(sdlRenderer); // XM86.56 release final compositor on exit
-	SDL_DestroyTexture(sdlTexture);
-	sdlTexture = NULL;
-	SDL_DestroyRenderer(sdlRenderer);
-	sdlRenderer = NULL;
+    if(sdlTexture)SDL_DestroyTexture(sdlTexture);
+    sdlTexture=nullptr;
+    if(preserveMenuRenderer){
+        // Return the same live renderer to the boot selector; reset all
+        // game-specific viewport/target settings after disposing textures.
+        SDL_SetRenderTarget(sdlRenderer,nullptr);
+        SDL_RenderSetLogicalSize(sdlRenderer,960,540);
+        SDL_RenderSetIntegerScale(sdlRenderer,SDL_FALSE);
+        SDL_RenderSetViewport(sdlRenderer,nullptr);
+        SDL_RenderSetClipRect(sdlRenderer,nullptr);
+        SDL_SetRenderDrawBlendMode(sdlRenderer,SDL_BLENDMODE_NONE);
+        std::fprintf(stderr,
+            "XM87.227 MENU_RENDERER_HANDOFF retained window=%p renderer=%p\\n",
+            (void*)sdlWindow,(void*)sdlRenderer);
+        std::fflush(stderr);
+    }else{
+        if(sdlRenderer)SDL_DestroyRenderer(sdlRenderer);
+        std::fprintf(stderr,
+            "XM87.227 VIDEO_RENDERER_DESTROY exit_not_menu=1\\n");
+    }
+    // Ownership ends with VideoExit. The boot selector will get the
+    // retained renderer with SDL_GetRenderer(sdlWindow) if applicable.
+    sdlRenderer=nullptr;
 	if (!xm26PersistentShell) SDL_DestroyWindow(sdlWindow);
 	if (!xm26PersistentShell) sdlWindow = NULL;
 	
