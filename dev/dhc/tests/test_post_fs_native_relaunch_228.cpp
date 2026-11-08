@@ -1,8 +1,7 @@
-// TEST 87.228: real native 1C14/0210 relaunches cannot produce an
-// indefinite airborne loop after a Storm-profile FS. This is NOT a
-// second Storm boost; Cyclops' verified severe downward knockdown ends it.
-// The user's 87.227.tsv shows repeated ~4-hit air strings while the old
-// synthetic-flight latch correctly blocked repeat artificial launches.
+// TEST 87.229: prevent late post-FS severe conversions on LP/LK/MP.
+// The 87.228 runtime records four bad writes on an airborne light attack,
+// 9 frames after an LP native up-launch. Only a new, verified HP/HK
+// may be converted and only while its EXACT action remains active.
 #include <cassert>
 #include <cstdint>
 #include <cstdio>
@@ -51,29 +50,44 @@ static void originalStormFS(Actor& actor){
     assert(rw(V+0x60u)==SEVERE_ACTION);
     assert(rl(V+0x1cu)==XM87223Flight::NativeObservedVY);
 }
-static void tryNativeRelaunch(Actor& actor,unsigned action,unsigned button){
-    // Original 68000 starts another air string without reaching the
-    // true native floor. This is the real 87.227 infinite mechanism.
+static void nativeRelaunchOnset(Actor& actor,unsigned action,unsigned button,
+                                bool expectHeavy){
     sw(A+0x60u,action);
     sw(V+0x60u,0x1c14u);sw(V+0xe0u,0x0210u);
     sw(V+0x08u,0u);
-    sl(V+0x1cu,0xfffc6000u); // up again, even though already in FS
+    sl(V+0x1cu,0xfffc6000u); // original ROM launches upward again
     const Decision onset=actor.evaluate(ram,V,A,true,true,button);
     assert(onset.hitConfirmed);
-    assert(onset.nativeLaunched);
     assert(!onset.velocityWritten);
-    assert(actor.postFlightRelaunchPending);
+    assert(actor.postFlightRelaunchPending==expectHeavy);
+}
+static void finishRelaunch(Actor& actor,bool expectHeavy){
     sw(V+0x08u,2u);
     const Decision resolved=actor.evaluate(ram,V,A,true,true,0u);
-    assert(resolved.velocityWritten && resolved.stateWritten);
-    assert(!resolved.launch); // no fabricated second Storm FS
-    assert(std::strcmp(resolved.outcome,
-        "POST_FS_NATIVE_RELAUNCH_SEVERE_LANDING")==0);
-    assert(rw(V+0x60u)==SEVERE_ACTION);
-    assert(rw(V+0xe0u)==SEVERE_PROFILE);
-    assert(rl(V+0x1cu)==TARGET_DOWN);
+    assert(!resolved.launch); // no synthetic second Storm FS
+    if(expectHeavy){
+        assert(resolved.velocityWritten && resolved.stateWritten);
+        assert(std::strcmp(resolved.outcome,
+            "POST_FS_SAME_HEAVY_NATIVE_RELAUNCH_SEVERE")==0);
+        assert(rw(V+0x60u)==SEVERE_ACTION);
+        assert(rw(V+0xe0u)==SEVERE_PROFILE);
+        assert(rl(V+0x1cu)==TARGET_DOWN);
+    }else{
+        assert(!resolved.velocityWritten && !resolved.stateWritten);
+        assert(rw(V+0x60u)==0x1c14u);
+        assert(rw(V+0xe0u)==0x0210u);
+        assert(rl(V+0x1cu)==0xfffc6000u);
+    }
     assert(!actor.postFlightRelaunchPending);
-    assert(actor.postFlightNeedsNativeLanding); // until actual landing
+    assert(actor.postFlightNeedsNativeLanding); // still airborne
+}
+static void tryLightNative(Actor& actor,unsigned action,unsigned button){
+    nativeRelaunchOnset(actor,action,button,false);
+    finishRelaunch(actor,false);
+}
+static void tryConfirmedHeavy(Actor& actor,unsigned action,unsigned button){
+    nativeRelaunchOnset(actor,action,button,true);
+    finishRelaunch(actor,true);
 }
 int main(){
     setup();
@@ -92,12 +106,31 @@ int main(){
     assert(rl(V+0x1cu)==0x00020000u);
     sw(V+0x08u,2u);actor.evaluate(ram,V,A,true,true,0u);
 
-    // The same native relaunch repeated enough times for a 40-hit
-    // infinite must always be sent DOWN; no repeat soft launch or
-    // additional Storm-boost allowed.
+    // 87.228.zip reproducer: all four unwanted severe writes were
+    // armed by LP 1800 and applied as LK 1A00 started 9f later.
+    // Even ten successive LP/LK native launches must NOT acquire severe
+    // from an HK forty or more frames earlier. All these individual
+    // connected hits and their real 68000 velocity stay intact.
     for(unsigned i=0;i<10u;++i)
-        tryNativeRelaunch(actor,(i&1u)?0x1806u:0x1a06u,
-                          (i&1u)?1u:8u);
+        tryLightNative(actor,(i&1u)?0x1a00u:0x1800u,
+                       (i&1u)?8u:1u);
+    // Medium attacks must also remain native.
+    tryLightNative(actor,0x1808u,2u);
+
+    // If a fresh verified HP/HK itself really starts the native launcher,
+    // that SAME action can still receive Cyclops severe at substate 2.
+    tryConfirmedHeavy(actor,0x1a04u,32u);
+
+    // Critical anti-leak case: an HP arms a pending conversion, but
+    // LK begins before the 68000 reaches native hit step 2. The pending
+    // decision MUST be cancelled instead of transferring to the LK.
+    nativeRelaunchOnset(actor,0x180au,4u,true);
+    sw(A+0x60u,0x1a00u);sw(V+0x08u,2u);
+    const Decision interrupted=actor.evaluate(ram,V,A,true,true,8u);
+    assert(!interrupted.velocityWritten && !interrupted.stateWritten);
+    assert(!actor.postFlightRelaunchPending);
+    assert(rw(V+0x60u)==0x1c14u);
+    assert(rl(V+0x1cu)==0xfffc6000u);
 
     // Only authentic native floor/air state re-arms a new aerial sequence.
     sw(V+0x10u,472u);sw(V+0xaau,0u);
@@ -121,7 +154,8 @@ int main(){
     assert(rl(V+0x1cu)==TARGET_DOWN);
     assert(charlie.postFlightNeedsNativeLanding);
     assert(!charlie.postFlightRelaunchPending);
-    tryNativeRelaunch(charlie,0x1806u,1u); // fresh native hit before landing
+    tryLightNative(charlie,0x1800u,1u); // light input remains native
+    tryConfirmedHeavy(charlie,0x1a04u,32u); // only actual new HK goes severe
 
     // Original Charlie airborne HP is still never replaced by an
     // initial synthetic FS, even in the universal anti-infinite test.
@@ -141,6 +175,6 @@ int main(){
     assert(!nativeHit.velocityWritten);
     assert(!nativeHP.postFlightNeedsNativeLanding);
 
-    std::puts("87.228 native re-launch anti-infinite + ordinary followup + Charlie preserved: PASS");
+    std::puts("87.229 LP/LK/MP native after FS; same-heavy-only conversion; action switch cancel; Charlie preserved: PASS");
     return 0;
 }
