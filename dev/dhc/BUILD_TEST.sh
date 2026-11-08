@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Stage 87.214 native TEST: retained native game + real logo/glyph assets. Called ONLY by root BUILD_TEST.bat.
+# Stage 87.215 native TEST: retained native game + real logo/glyph assets. Called ONLY by root BUILD_TEST.bat.
 # Build the CURRENT local source in place using the warm FBNeo object cache.
 # Never touch Stable executable, Stable manifests, user source, or old TEST binaries.
 set -euo pipefail
@@ -21,13 +21,13 @@ if ! command -v tee >/dev/null; then
   exit 2
 fi
 exec > >(tee -a "$LOG_FILE") 2>&1
-printf '\n========== XMVSF TEST 87.214 BUILD BEGIN %s ==========' "$(date '+%Y-%m-%d %H:%M:%S')"
+printf '\n========== XMVSF TEST 87.215 BUILD BEGIN %s ==========' "$(date '+%Y-%m-%d %H:%M:%S')"
 printf '\nProject: %s\nLog: %s\n' "$PROJECT" "$LOG_FILE"
 trap 'rc=$?; trap - EXIT; printf "XMVSF BUILD END rc=%s time=%s log=%s\n" "$rc" "$(date "+%Y-%m-%d %H:%M:%S")" "$LOG_FILE"; exit "$rc"' EXIT
 
 TREE="$PROJECT/dev/stable/buildtree"
-DEST="$PROJECT/runtime/stable/XMVSF_Test_87_214.exe"
-PENDING="$PROJECT/runtime/stable/.XMVSF_Test_87_214_pending.exe"
+DEST="$PROJECT/runtime/stable/XMVSF_Test_87_215.exe"
+PENDING="$PROJECT/runtime/stable/.XMVSF_Test_87_215_pending.exe"
 # Machine-local cache: never stored in Git and never mutates Stable.
 CACHE_DIR="$PROJECT/test/build_cache"
 SIGNATURE="$CACHE_DIR/compiler.signature"
@@ -60,25 +60,25 @@ if [[ ! -f "$TREE/makefile.sdl2" ||
       ! -s "$PROJECT/dev/dhc/tests/test_stun_and_cyclops_214.cpp" ||
       ! -s "$TREE/src/burner/sdl/xmvsf_menu_glyph_atlas.h" ||
       ! -s "$TREE/src/burner/sdl/xmvsf_stage14_boot.h" ]]; then
-  echo "ERROR: 87.214 native menu/glyph sources missing; inspect checked-out branch" >&2
+  echo "ERROR: 87.215 native menu/glyph sources missing; inspect checked-out branch" >&2
   exit 2
 fi
 for asset in logo.png sf2font.png sf2fontsmall.png menuanimation.gif stunbar_base.png; do
   if [[ ! -s "$PROJECT/_art/$asset" ]]; then
-    echo "ERROR: 87.214 requires original nonempty _art/$asset" >&2
+    echo "ERROR: 87.215 requires original nonempty _art/$asset" >&2
     exit 2
   fi
 done
 if ! grep -Fq 'xmvsf_menu_glyph_atlas.h' "$TREE/src/burner/sdl/xmvsf_stage14_boot.h"; then
-  echo "ERROR: 87.214 glyph header is not wired into the native boot menu" >&2
+  echo "ERROR: 87.215 glyph header is not wired into the native boot menu" >&2
   exit 2
 fi
 # Do not gate an otherwise valid build on a particular draw helper name.
-# Stage 87.214 uses menuLogo(render), which superseded logo(render).
+# Stage 87.215 uses menuLogo(render), which superseded logo(render).
 # The C++ compiler checks the actual call and linking; the runtime atlas
 # reports whether the title PNG loaded successfully.
-echo "87.214 menu preflight: native boot and glyph/FX sources present; logo, fonts and menuanimation.gif verified."
-echo "87.214 draw path is verified by native compile and runtime, not a stale grep for XMGlyph::logo(render)."
+echo "87.215 menu preflight: native boot and glyph/FX sources present; logo, fonts and menuanimation.gif verified."
+echo "87.215 draw path is verified by native compile and runtime, not a stale grep for XMGlyph::logo(render)."
 if [[ ! -f "$TREE/src/burn/drv/capcom/cps_run.cpp" ||
       ! -f "$TREE/src/intf/video/sdl/xmvsf_stage86_49_painter.h" ]]; then
   echo "ERROR: Native TEST buildtree source is incomplete." >&2
@@ -183,7 +183,7 @@ run_cached_unit \
 
 # Preserve warm cache and anything already built on failures. Never run make clean.
 cd "$TREE"
-echo "XMVSF Stage 87.214 TEST: incremental build; preserving cached objects"
+echo "XMVSF Stage 87.215 TEST: incremental build; preserving cached objects"
 if command -v git >/dev/null 2>&1; then
   echo "Source branch: $(git -C "$PROJECT" branch --show-current 2>/dev/null || true)"
   echo "Source revision: $(git -C "$PROJECT" rev-parse --short HEAD 2>/dev/null || true)"
