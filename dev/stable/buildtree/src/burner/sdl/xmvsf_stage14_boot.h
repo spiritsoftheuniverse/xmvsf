@@ -112,6 +112,7 @@ static int xmvsfBootSelector(bool returningFromGame=false) {
     // Stage 26: reuse the exact same OS window/handle every time we return.
     int xm8652StartupWidth=960,xm8652StartupHeight=540;
     if (!sdlWindow) xm8652ReadGeometry(&xm8652StartupWidth,&xm8652StartupHeight);
+    const bool xm87226FirstWindow=(sdlWindow==nullptr && !returningFromGame);
     SDL_Window* window=sdlWindow;
     if(!window){
         window=SDL_CreateWindow("X-MEN VS. STREET FIGHTER II | TEST 87.225",
@@ -138,6 +139,10 @@ static int xmvsfBootSelector(bool returningFromGame=false) {
     menuBackground.load(render);
     XMGlyph::preload(render);
     if (!(SDL_GetWindowFlags(window)&SDL_WINDOW_SHOWN)) SDL_ShowWindow(window);
+    // The initial SDL_CREATE centered hint may be lost under restored
+    // window sizing/DPI on Windows. Center the real desktop HWND ONCE,
+    // before the first menu frame; never recenter after the user moves it.
+    if(xm87226FirstWindow)xm8652CenterInitialWindow(window);
     xm8655RenderColor(render,8,16,36,255); /* XMVSF_STAGE32_NAVY */
     SDL_RenderClear(render);
     menuBackground.draw(render,SDL_GetTicks());
