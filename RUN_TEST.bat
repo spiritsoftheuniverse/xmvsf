@@ -4,7 +4,7 @@ for %%I in ("%~dp0.") do set "PROJECT=%%~fI"
 set "MSYSTEM=UCRT64"
 set "PATH=C:\msys64\ucrt64\bin;C:\msys64\usr\bin;%PATH%"
 set "XMVSF_PROJECT=%PROJECT%"
-set "XMVSF_TEST_VERSION=87.232"
+set "XMVSF_TEST_VERSION=87.233"
 REM Offline artifact review uses Python only. Never reaches ROM checks or EXE.
 if /I "%~1"=="review" goto :offline_clean_review
 if /I "%~1"=="sprites" goto :offline_sprite_factory
@@ -60,51 +60,51 @@ if "%XM87203_STAGE_CAPTURE_ENABLE%"=="1" (
 ) else (
   set "XM87203_STAGE_CAPTURE_DIR="
 )
-echo Stage 87.232 TEST executable, source ROM: %SOURCE_ROM%
+echo Stage 87.233 TEST executable, source ROM: %SOURCE_ROM%
 echo Stage capture: %XM87203_STAGE_CAPTURE_ENABLE%
 echo Existing MSYS live console: bash dev/stage_capture/WATCH_CAPTURE.sh
 echo F9 = replay, F10 = native probe, F11 = MVC1 level capture ON/OFF.
 echo Shift+F11 = legacy FPS display; F11 starts a NEW capture session on each activation.
 REM 87.175 read-only native state trace. Fails closed if logs cannot be saved.
-set "OBSROOT=%PROJECT%\test\87.232\observer"
+set "OBSROOT=%PROJECT%\test\87.233\observer"
 if not exist "%OBSROOT%" mkdir "%OBSROOT%"
 if not exist "%OBSROOT%" (
   echo ERROR: Cannot create 87.175 native observer log directory.
   goto :fail
 )
-REM XM87.232 restore previously successful 87.121 Cyclops air-throw recovery.
+REM XM87.233 restore previously successful 87.121 Cyclops air-throw recovery.
 REM Exact pre-throw airborne state after victim lands; no forced new jump.
 REM Inherited XM87121_CYCLOPS_RELEASE=0 remains an explicit A/B opt-out.
 if not defined XM87121_CYCLOPS_RELEASE set "XM87121_CYCLOPS_RELEASE=1"
 if not defined XM87121_CYCLOPS_LOG_FILE set "XM87121_CYCLOPS_LOG_FILE=%OBSROOT%\cyclops_air_throw_release.tsv"
-REM 87.232 native accepted-dash startup evidence; tiny event-only TSV.
+REM 87.233 native accepted-dash startup evidence; tiny event-only TSV.
 if not defined XM87220_DASH_LOG_FILE set "XM87220_DASH_LOG_FILE=%OBSROOT%\dash_startup.tsv"
-REM TEST 87.232: native Storm HP 68000 reaction/index/velocity and candidate writers.
+REM TEST 87.233: native Storm HP 68000 reaction/index/velocity and candidate writers.
 set "XM87223_STORM_FLIGHT_LOG_FILE=%OBSROOT%\storm_hp_native_fs.tsv"
 set "XM87223_M68K_CANDIDATES_FILE=%OBSROOT%\storm_fs_68000_opcode_candidates.tsv"
 set "XM87127_STORM_VOICE_MUTE=1"
 set "XM87127_STORM_VOICE_LOG_FILE=%OBSROOT%\storm_voice_all_modes.tsv"
 set "XM8786_STORM_BUTTON_LOG_FILE=%OBSROOT%\storm_like_flight_events.tsv"
-REM TEST 87.232: compare native hit order + current button tag.
+REM TEST 87.233: compare native hit order + current button tag.
 REM FS_HP_THEN_HK_CYCLOPS_SEVERE = previous connected HP, current HK in FS.
 REM FS_GROUNDED_HEAVY_CYCLOPS_SEVERE = grounded non-SJ HP/HK during FS.
 REM Both decisions require same attacking action through native step 2.
-REM 87.232: severe post-FS relaunch requires the SAME confirmed HP/HK
+REM 87.233: severe post-FS relaunch requires the SAME confirmed HP/HK
 REM action until native step 2. No delayed severe knockback on LP/LK/MP.
 REM Inspect storm_like_flight_events.tsv for
 REM POST_FS_SAME_HEAVY_NATIVE_RELAUNCH_SEVERE (never on light actions).
-REM TEST 87.232: original 68000 executed PC and native knockback/knockdown writes
+REM TEST 87.233: original 68000 executed PC and native knockback/knockdown writes
 REM for Charlie air HP 1804 and super-jump HK 1A04, max 32 frames each.
 set "XM87224_CHARLIE_M68K_TRACE=1"
 set "XM87224_CHARLIE_M68K_TRACE_LOG=%OBSROOT%\charlie_native_68000_pc_writes.tsv"
-REM 87.232 distinguishes recovered corrupt-world-X and recurring dash loops.
-REM 87.232: after persistent native dash reentry, inspect the new
+REM 87.233 distinguishes recovered corrupt-world-X and recurring dash loops.
+REM 87.233: after persistent native dash reentry, inspect the new
 REM FS_DASH_NATIVE_CONTROLLER_RESTORED decision.  The runner also captures
 REM MENU_RENDERER_HANDOFF in stderr on every in-process menu return.
 REM Expected dash decisions: FS_DASH_INVALID_WORLD_X_RECOVERED,
 REM FS_DASH_REENTRY_SUPPRESSED, FS_DASH_REPEAT_AFTER_WATCHDOG.
 REM Charlie air HP stays ROM native; confirmed HK gets Cyclops severe.
-REM 87.232 fixed Storm native baseline x1.5. Charlie conversions label
+REM 87.233 fixed Storm native baseline x1.5. Charlie conversions label
 REM CHARLIE_STORM_FIXED_BASE_XY_150PCT and the old Y-velocity
 REM carry-over is disabled only for Charlie air HP/HK.
 set "XM87175_DHC_OBSERVER=1"
@@ -182,9 +182,9 @@ if errorlevel 1 (
 )
 >>"%XM87181_DIAGNOSTIC_STATUS%" echo RUN_TEST_START date=%DATE% time=%TIME%
 if not defined XM87180_EXPERIMENTAL_DELAYED_PRIME set "XM87180_EXPERIMENTAL_DELAYED_PRIME=0"
-set "EXE=%PROJECT%\runtime\stable\XMVSF_Test_87_232.exe"
+set "EXE=%PROJECT%\runtime\stable\XMVSF_Test_87_233.exe"
 if not exist "%EXE%" (
-  echo ERROR: Stage 87.232 TEST executable is missing; no fallback to older builds.
+  echo ERROR: Stage 87.233 TEST executable is missing; no fallback to older builds.
   echo Run BUILD_TEST.bat first. Will NOT fall back to 87.132.4 or Stable.
   goto :fail
 )
@@ -201,7 +201,7 @@ REM The original 87.61 recorder remains available when this root is absent.
 REM V2 F9 sessions now live INSIDE the same current TEST replay folder
 REM users already package and inspect, not hidden under test\replay_sessions.
 REM Every F9 recording gets manifest.tsv + .fs + .bin in its own subfolder.
-set "XM8764_REPLAY_ROOT=%PROJECT%\test\87.232\replays"
+set "XM8764_REPLAY_ROOT=%PROJECT%\test\87.233\replays"
 if not exist "%XM8764_REPLAY_ROOT%" mkdir "%XM8764_REPLAY_ROOT%"
 if not exist "%XM8764_REPLAY_ROOT%" (
   echo ERROR: Cannot create permanent app-level replay recording directory.
@@ -221,15 +221,15 @@ REM Restore original native state-anchored F9 recorder (XM87.61/XM87.132).
 REM F9 starts/stops each independent full-state + input movie.
 REM The recorder requires an existing replay directory, not an invented
 REM input format or a new launcher.
-set "XM8761_REPLAY_DIR=%PROJECT%\test\87.232\replays"
+set "XM8761_REPLAY_DIR=%PROJECT%\test\87.233\replays"
 if not exist "%XM8761_REPLAY_DIR%" mkdir "%XM8761_REPLAY_DIR%"
 if not exist "%XM8761_REPLAY_DIR%" (
   echo ERROR: Cannot create native input replay directory.
   goto :fail
 )
 set "XM8761_REPLAY_MODE=off"
-set "XM87139_PROBE_DIR=%PROJECT%\test\87.232"
-set "XM87140_CHAT_DIR=%PROJECT%\test\87.232"
+set "XM87139_PROBE_DIR=%PROJECT%\test\87.233"
+set "XM87140_CHAT_DIR=%PROJECT%\test\87.233"
 if not exist "%XM87139_PROBE_DIR%" mkdir "%XM87139_PROBE_DIR%"
 if not exist "%XM87139_PROBE_DIR%" (
   echo ERROR: Cannot create diagnostic output directory.
@@ -295,9 +295,9 @@ echo 87.185: UNSAFE delayed native 2P priming stays OFF in interactive TEST.
 echo 87.185: immediate 3P/2P paths, Ken no-charge arrival, and F9 stay intact.
 echo 87.185: delayed DHC input priming disabled by default, preserves original ROM state.
 echo 87.184 native Shinkuu action lifetime: 2E08 startup/attack, 2E0A recovery, exact exit.
-echo 87.232 ROM super start-to-real-exit DHC: %XM87191_TEST_OPEN_SUPER_LIFETIME%  (no phase/timer/air-mode availability veto)
+echo 87.233 ROM super start-to-real-exit DHC: %XM87191_TEST_OPEN_SUPER_LIFETIME%  (no phase/timer/air-mode availability veto)
 echo Native 2E family: %XM87189_TEST_NATIVE_SUPER_FAMILY% full original attack: %XM87188_TEST_FULL_ATTACK% recovery: %XM87185_TEST_RECOVERY_REBOUND%
-echo XMVSF Stage 87.232 TEST - KEEP KEN SHORYUREPPA; CUT OUTGOING RYU PROJECTILE HITS
+echo XMVSF Stage 87.233 TEST - KEEP KEN SHORYUREPPA; CUT OUTGOING RYU PROJECTILE HITS
 echo Executable: %EXE%
 echo SAME BUILD, TWO DHC CHOICES:
 echo   During Ryu Shinkuu Hadoken, QCF+ANY TWO PUNCHES or QCF+3P queues Ken SHORYUREPPA.
@@ -433,11 +433,11 @@ if "%XM87203_M68K_TRACE%"=="1" if /I "%SOURCE_ROM:~0,4%"=="mvsc" (
 pushd "%PROJECT%\FBNeo" || goto :fail
 REM XMVSF has its own persistent boot/menu application. Passing xmvsfu as
 REM a ROM argument bypasses that application and runs only generic FBNeo.
-REM Stage 87.232: start the exact TEST executable without ROM argument.
+REM Stage 87.233: start the exact TEST executable without ROM argument.
 REM Restore the pre-merge zero-argument native TEST launch for XMVSF.
 REM MVC1 remains an explicit source-ROM invocation for capture option 3.
 if /I "%SOURCE_ROM%"=="xmvsfu" (
-  echo Launching native XMVSF TEST 87.232: Arcade / Training / Versus.
+  echo Launching native XMVSF TEST 87.233: Arcade / Training / Versus.
   "%EXE%"
 ) else (
   echo Launching original CPS2 donor ROM %SOURCE_ROM% with controller support.
@@ -892,9 +892,9 @@ REM ROM and advanced capture/analysis commands remain backward compatible.
 :suite_menu
 echo.
 echo ============================================================
-echo   XMVSF - TEST 87.232 / ASSET / CAPTURE SUITE
+echo   XMVSF - TEST 87.233 / ASSET / CAPTURE SUITE
 echo ============================================================
-echo   [1] Test game - XMVSF native TEST 87.232
+echo   [1] Test game - XMVSF native TEST 87.233
 echo   [2] Asset Organizer - build and open local editor
 echo   [3] Capture Level - select original donor game
 echo.
