@@ -59,5 +59,11 @@ int main(){
     // overridden if no longer a native dash.
     prepare(0x4000u,0x14u,0x0000u,11u);
     c.frame(15u,memory,true);assert(word(memory,0x403eu)==11u);
-    std::puts("XMVSF 87.220 zero-delay dash: 17 source assertions passed");
+    // No fighter lookup: all 19 native even-numbered roster IDs behave alike.
+    for(unsigned id=0;id<=0x24u;id+=2u){
+        prepare(0x4000u,id,0x1400u,10u+id);
+        c.frame(20u+id,memory,true);
+        assert(word(memory,0x403eu)==1u);
+    }
+    std::puts("XMVSF 87.220 zero-delay dash: ROM-free source regression passed");
 }
