@@ -40,39 +40,39 @@ static const std::uint32_t TARGET_LEFT =0xFFF99E00u;
 static const std::uint32_t TARGET_DOWN =0x00132A00u;
 static const unsigned SOFT_ACTION=0x1C16u,SEVERE_ACTION=0x1C18u;
 static const unsigned SOFT_PROFILE=0x0220u,SEVERE_PROFILE=0x0230u;
-// Native Cyclops down+MP severe flight: knockdown reaction and flight speed
-// form one operation. 1C18/0230 must not be omitted on a severe write.
-// Historical Cyclops-like severe writer retained for the source audit only.
-// TEST 87.223 never calls this for an ordinary Tournament aerial finisher.
-static inline void applyCyclopsSevereFlight(std::uint8_t* r,unsigned victim,std::uint32_t horizontal){
+// TEST 87.226: two independent native-reference flying-screen writers.
+// (1) Cyclops down+MP severe variant: 1C18/0230 and 0x00132A00 dive.
+static inline void applyCyclopsSevereFlight(std::uint8_t* r,unsigned victim,
+                                             std::uint32_t horizontal){
     setWord(r,victim+0x60u,SEVERE_ACTION);
     setWord(r,victim+0xE0u,SEVERE_PROFILE);
     setFixed(r,victim+0x14u,horizontal);
     setFixed(r,victim+0x1Cu,TARGET_DOWN);
 }
-// Storm-like flying-screen movement, NOT a fabricated special knockdown.
-// Preserve the original 68000 victim action/index and all ground-hit gates;
-// forcing 1C18/0230 was the reason the previous severe variant lost OTG.
-static inline void applyStormLikeMotion(std::uint8_t* r,unsigned victim,
-                                       std::uint32_t horizontal,std::uint32_t vertical){
+// (2) Storm original-style flying-screen: native Storm 68000
+// reaction/index plus measured, gentle X/Y launch velocity.
+// Keep separate from the Cyclops severe slam; do not mix their Y values.
+static inline void applyStormFlyingScreen(std::uint8_t* r,unsigned victim,
+                                          std::uint32_t horizontal,
+                                          std::uint32_t vertical){
+    setWord(r,victim+0x60u,XM87223Flight::flightAction());
+    setWord(r,victim+0xE0u,XM87223Flight::flightIndex());
     setFixed(r,victim+0x14u,horizontal);
     setFixed(r,victim+0x1cu,vertical);
 }
-// TEST 87.224: Charlie's native actor ID 0x20, action bank 0x28.
-// The supplied 87.223 trace confirms real flying-screen hits on 1804
-// (air HP) and 1A04 (super-jump HK). A move's 1A04 label is shared
-// with other characters, so NEVER identify Charlie by action alone.
-static inline bool charlieAirHeavyFS(unsigned fighter,unsigned bank,
+// Original 68000 Charlie fighter ID=0020 and ROM bank=0028.
+// 87.225 recording confirms air HP=1804 with button-edge 0004 and
+// his super-jump HK=1A04 with physical button-edge 0020.
+// The shared 1A04 action alone is NOT proof of HK (Storm's differs).
+static inline bool charlieNativeAirHP(unsigned fighter,unsigned bank,
                                       unsigned action){
-    return fighter==0x0020u && bank==0x0028u &&
-           (action==0x1804u || action==0x1a04u);
+    return fighter==0x0020u && bank==0x0028u && action==0x1804u;
 }
-// Exact 1.5x fixed-point multiplier. Saturate before applying so a
-// corrupted learned Storm reference cannot yield an extreme FS vector.
-static inline std::uint32_t charlieFS150(std::uint32_t positive,
-                                         std::uint32_t maximum){
-    const std::uint64_t scaled=(std::uint64_t(positive)*3u)/2u;
-    return scaled>maximum?maximum:std::uint32_t(scaled);
+static inline bool charlieAirHK(unsigned fighter,unsigned bank,
+                                unsigned action,unsigned button){
+    return fighter==0x0020u && bank==0x0028u &&
+           button==(1u<<5u) &&
+           (action==0x1a04u || action==0x180au || action==0x1a0au);
 }
 static inline bool isDrillCandidate(unsigned action){return action==0x2C1Eu || action==0x2C46u;}
 static inline bool normalAirAttack(unsigned action){
@@ -135,13 +135,13 @@ struct Actor {
     bool stormFlightUsedUntilLanding=false;
     unsigned prevAction,prevProfile,prevSubstate,prevReaction,prevVictimY;
     unsigned prevAttackerAction,attackSerial,lastConfirmedSerial,connectedAirHits,connectedStormHeavyHits,attackAge;
-    unsigned pendingAge,pendingAction,pendingBank,pendingAttackerId,lastAttackerId,lastVictimId;
+    unsigned pendingAge,pendingAction,pendingButton,pendingBank,pendingAttackerId,lastAttackerId,lastVictimId;
     unsigned previousButtons,recentButton,recentButtonAge,pressSequence,consumedSequence;
     Actor():observed(false),prevAttackNow(false),pendingSevere(false),nativeLaunched(false),pendingStormRepeatHK(false),prevAction(0),prevProfile(0),prevSubstate(0),
       prevReaction(0),prevVictimY(0),prevAttackerAction(0),attackSerial(0),
-      lastConfirmedSerial(0),connectedAirHits(0),connectedStormHeavyHits(0),attackAge(1000),pendingAge(1000),pendingAction(0),pendingBank(0),pendingAttackerId(0),lastAttackerId(0),lastVictimId(0),
+      lastConfirmedSerial(0),connectedAirHits(0),connectedStormHeavyHits(0),attackAge(1000),pendingAge(1000),pendingAction(0),pendingButton(0),pendingBank(0),pendingAttackerId(0),lastAttackerId(0),lastVictimId(0),
       previousButtons(0),recentButton(0),recentButtonAge(1000),pressSequence(0),consumedSequence(0){}
-    void clearChain(){connectedAirHits=0;connectedStormHeavyHits=0;attackSerial=0;lastConfirmedSerial=0;attackAge=1000;prevAttackNow=false;pendingSevere=false;pendingStormRepeatHK=false;pendingAge=1000;nativeLaunched=false;}
+    void clearChain(){connectedAirHits=0;connectedStormHeavyHits=0;attackSerial=0;lastConfirmedSerial=0;attackAge=1000;prevAttackNow=false;pendingSevere=false;pendingStormRepeatHK=false;pendingAge=1000;pendingButton=0;nativeLaunched=false;}
     // Bit order is LP MP HP LK MK HK. These are driver-level button states,
     // sampled after CpsRwGetInp, not guessed from a ROM action code.
     Decision evaluate(std::uint8_t* r,unsigned victim,unsigned attacker,bool enabled,bool combat,unsigned buttons=0u){
@@ -212,7 +212,7 @@ struct Actor {
           d.y<472u && freshReaction && attackAge<=24u && attackSerial!=lastConfirmedSerial;
         if(d.hitConfirmed){
             // A new hit invalidates any older pending severe-velocity write.
-            pendingSevere=false;pendingStormRepeatHK=false;pendingAge=1000u;
+            pendingSevere=false;pendingStormRepeatHK=false;pendingAge=1000u;pendingButton=0u;
             // Bind each button press to at most one confirmed hit. Do not let a
             // prior HK be reused when the player subsequently performs an MK.
             d.buttonAge=recentButtonAge;
@@ -269,6 +269,12 @@ struct Actor {
                 d.excluded=true;d.outcome="CYCLOPS_NATIVE_SLAM_PRESERVED";
             }else if(d.characterHPExcluded){
                 d.excluded=true;d.outcome="SABRETOOTH_CAMMY_HP_NATIVE_PRESERVED";
+            }else if(charlieNativeAirHP(d.attackerId,d.attackerBank,d.attackerAction)){
+                // Charlie HP must remain EXACTLY ROM-original: no Storm
+                // substitution, no elevated velocity, no artificial FS.
+                // The connected-air-hit counter still advances normally,
+                // so a later confirmed HK can use Cyclops severe.
+                d.excluded=true;d.outcome="CHARLIE_AIR_HP_NATIVE_UNCHANGED";
             }else if(!d.nativeLaunched && !stormRepeatHK){
                 d.excluded=true;d.outcome="VICTIM_NOT_NATIVE_LAUNCHED";
             }else if(medium){
@@ -292,6 +298,7 @@ struct Actor {
                 pendingStormRepeatHK=stormRepeatHK;
                 pendingAge=0;
                 pendingAction=d.attackerAction;
+                pendingButton=d.taggedButton;
                 pendingBank=d.attackerBank;
                 pendingAttackerId=d.attackerId;
                 d.outcome=enabled?"CONNECTED_HEAVY_HIT_LATCHED":"TEST_DISABLED_PRESERVED";
@@ -322,61 +329,45 @@ struct Actor {
                     d.excluded=true;
                     d.outcome="NATIVE_STEEP_SLAM_PRESERVED";
                 }else{
-                    // Read the native Storm HP velocity captured BEFORE this
-                    // host TEST writer, or use the previously observed 87.80
-                    // Storm horizontal/vertical pair until a live HP ref exists.
-                    // The original ROM's victim reaction and +E0 flight index
-                    // stay authoritative: no synthetic Cyclops Down+MP slam.
+                    // TEST 87.226: distinct native flying-screen variants.
+                    // Charlie's connected HK uses the same Cyclops severe
+                    // knockdown as Down+MP; Charlie HP is explicitly excluded
+                    // earlier and remains ROM-original.
                     d.launch=true;
-                    // Charlie's native 68000 pre-host reactions in 87.223
-                    // are ordinary 1C16/0220 soft hit; no verified
-                    // character-specific severe-knockdown writer appears
-                    // in this capture. Test the requested 1.5x motion
-                    // on ONLY his two confirmed flying-screen heavies.
-                    const bool charlieFS=charlieAirHeavyFS(
-                        d.attackerId,d.attackerBank,pendingAction);
-                    // TEST 87.225: use the original 87.80 Storm flight
-                    // recording as a CONSTANT source for Charlie. Do not
-                    // incorporate any later learned victim or accumulated
-                    // in-flight velocity into this 1.5x reference.
-                    const unsigned magnitudeX=charlieFS?
-                        charlieFS150(XM87223Flight::NativeObservedVX,0x00300000u):
-                        XM87223Flight::flightVX();
-                    const unsigned magnitudeY=charlieFS?
-                        charlieFS150(XM87223Flight::NativeObservedVY,0x000c0000u):
-                        XM87223Flight::flightVY();
+                    const bool charlieHK=charlieAirHK(
+                        d.attackerId,d.attackerBank,pendingAction,pendingButton);
                     const std::uint32_t attackerX=rawFixed(r,attacker+0x0cu);
                     const std::uint32_t victimX=rawFixed(r,victim+0x0cu);
                     const bool left=speed<0 || (speed==0 && victimX<attackerX);
-                    d.afterX=left?(0u-magnitudeX):magnitudeX;
-                    // Charlie always begins with Storm's *original*
-                    // downward velocity times 1.5, not whatever the
-                    // target had accumulated from an earlier air hit.
-                    // Other characters retain their existing 87.223 rule.
-                    const std::int64_t oldY=signedFixed(d.beforeY);
-                    d.afterY=charlieFS?magnitudeY:
-                        ((oldY>std::int64_t(magnitudeY) &&
-                          oldY<0x00080000LL)?d.beforeY:magnitudeY);
-                    // Reuse Storm's NATIVE 68000 severe reaction pair,
-                    // including the flight index, but NOT the Cyclops
-                    // Down+MP 0x00132A00 downward override. This is an
-                    // experimental fairness test, not an OTG permission patch.
-                    // The native match-start hit gates and floor handling
-                    // remain exactly as they were.
-                    const unsigned fsAction=XM87223Flight::flightAction();
-                    const unsigned fsIndex=XM87223Flight::flightIndex();
-                    setWord(r,victim+0x60u,fsAction);
-                    setWord(r,victim+0xe0u,fsIndex);
-                    applyStormLikeMotion(r,victim,d.afterX,d.afterY);
+                    if(charlieHK){
+                        // Cyclops severe: the original Tournament 87.86
+                        // horizontal knockback plus the strong downward hit,
+                        // not the new Storm x1.5 experimental velocity.
+                        d.afterX=left?TARGET_LEFT:TARGET_RIGHT;
+                        d.afterY=TARGET_DOWN;
+                        applyCyclopsSevereFlight(r,victim,d.afterX);
+                        d.outcome="CHARLIE_HK_CYCLOPS_SEVERE_KNOCKDOWN";
+                    }else{
+                        // Everyone else keeps the 87.223 Storm reference.
+                        const unsigned magnitudeX=XM87223Flight::flightVX();
+                        const unsigned magnitudeY=XM87223Flight::flightVY();
+                        d.afterX=left?(0u-magnitudeX):magnitudeX;
+                        const std::int64_t oldY=signedFixed(d.beforeY);
+                        d.afterY=(oldY>std::int64_t(magnitudeY) &&
+                                  oldY<0x00080000LL)?d.beforeY:magnitudeY;
+                        applyStormFlyingScreen(r,victim,d.afterX,d.afterY);
+                        d.outcome=XM87223Flight::flightLearned()?
+                            "STORM_HP_RECORDED_FS_INDEX_AND_VELOCITY":
+                            "STORM_HP_NATIVE_SIGNATURE_FS_INDEX_AND_VELOCITY";
+                    }
                     stormFlightUsedUntilLanding=true;
                     d.velocityWritten=true;
+                    const unsigned fsAction=charlieHK?
+                        SEVERE_ACTION:XM87223Flight::flightAction();
+                    const unsigned fsIndex=charlieHK?
+                        SEVERE_PROFILE:XM87223Flight::flightIndex();
                     d.stateWritten=(d.victimActionBefore!=fsAction ||
                                     d.victimProfileBefore!=fsIndex);
-                    d.outcome=charlieFS?
-                        "CHARLIE_STORM_FIXED_BASE_XY_150PCT":
-                        (XM87223Flight::flightLearned()?
-                        "STORM_HP_RECORDED_FS_INDEX_AND_VELOCITY":
-                        "STORM_HP_NATIVE_SIGNATURE_FS_INDEX_AND_VELOCITY");
                 }
             }
         }
@@ -403,7 +394,7 @@ struct Controller {
             log=std::fopen(path,"wb");
             if(log)std::fputs("frame\tvictim\tattacker_bank\tattacker_action\tattacker_pointer\treaction\tsubstate\ty\tvictim_action_before\tvictim_profile_before\toriginal_vx\toriginal_vy\tfinal_vx\tfinal_vy\tvictim_action_after\tvictim_profile_after\trom_signature_matched\tfirst_air_followup\tair_attack_index\theavy_followup\tnew_air_attack\tconnected_hits_before\tconnected_hits_after\tcombo_continuous\thit_confirmed\tvelocity_written\tstate_pair_written\texcluded\tbutton_bits\tbutton_tag\tbutton_age\tbutton_evidence\tstorm_mk\tstorm_heavy\tdecision\tattacker_id\tvictim_id\tobserved_native_launch\tcharacter_hp_excluded\n",log);
         }
-        std::fprintf(stderr,"XM87.223 STORM_NATIVE_FS_LAUNCH_READY enabled=%d fallback_x=0010AA00 fallback_y=0000B000 index=0230 one_launch_until_landing=1 protected_drill=2C1E,2C46\n",int(enabled));
+        std::fprintf(stderr,"XM87.226 STORM_FS_OR_CYCLOPS_CHARLIE_HK_READY enabled=%d fallback_x=0010AA00 fallback_y=0000B000 index=0230 one_launch_until_landing=1 protected_drill=2C1E,2C46\n",int(enabled));
     }
     void frame(unsigned tick,std::uint8_t* r,unsigned p1Buttons,unsigned p2Buttons){
         if(!initialized)init();
