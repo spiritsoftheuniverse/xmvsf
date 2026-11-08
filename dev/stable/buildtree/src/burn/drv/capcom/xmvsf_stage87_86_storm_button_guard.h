@@ -229,7 +229,9 @@ struct Actor {
         const unsigned groundY=attackerFloor>0u && attackerFloor<2048u?
             attackerFloor:472u;
         const bool attackerAir=attackerY>0u && attackerY<472u;
-        const bool attackerGrounded=attackerY>=groundY &&
+        const bool attackerGrounded=(attackerY>=groundY ||
+            attackerY==0u) && !attackerAir &&
+            wordAt(r,attacker)!=0u &&
             (wordAt(r,attacker+0xaau)>>8u)==0u;
         const bool groundHeavyNow=attackerGrounded &&
             groundedNormalHeavy(d.attackerAction);
@@ -384,7 +386,11 @@ struct Actor {
                 d.excluded=true;d.outcome="NOT_HEAVY_NATIVE_PRESERVED";
             }else if(!paired){
                 d.excluded=true;d.outcome="UNKNOWN_REACTION_PRESERVED";
-            }else if(stormFlightUsedUntilLanding){
+            }else if(stormFlightUsedUntilLanding ||
+                     postFlightNeedsNativeLanding){
+                // Never grant another ordinary Storm FS boost while native
+                // FS is already running. The two explicit 87.230 severe
+                // conditions were evaluated above on the CURRENT hit.
                 d.excluded=true;
                 d.outcome="STORM_FLIGHT_ALREADY_USED_UNTIL_NATIVE_LANDING";
             }else if(!enabled){
@@ -455,7 +461,9 @@ struct Actor {
         }
         if(pendingSevere && !d.hitConfirmed){
             ++pendingAge;
-            const bool stale=stormFlightUsedUntilLanding || pendingAge>24u || !combat || !attackerAir ||
+            const bool stale=stormFlightUsedUntilLanding ||
+              postFlightNeedsNativeLanding || pendingAge>24u ||
+              !combat || !attackerAir ||
               d.reaction!=0x000Cu || d.y>=472u ||
               d.attackerAction!=pendingAction || d.attackerBank!=pendingBank ||
               d.attackerId!=pendingAttackerId || (!nativeLaunched && !pendingStormRepeatHK);
