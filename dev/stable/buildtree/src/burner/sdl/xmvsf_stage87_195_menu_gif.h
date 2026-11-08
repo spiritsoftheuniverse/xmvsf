@@ -120,7 +120,7 @@ public:
            name);
         return false;
     }
-    void draw(SDL_Renderer* render,Uint32 now){
+    void draw(SDL_Renderer* render,Uint32 now,float introStrength=0.0f){
         if(!render||render!=renderer_||width_<=0||height_<=0)return;
         int index=0;
 #if SDL_IMAGE_VERSION_ATLEAST(2,6,0)
@@ -151,7 +151,7 @@ public:
                     return;
                 }
             }
-            XMMenuColor::backgroundHue(originalPixels_,huePixels_,now);
+            XMMenuColor::backgroundHue(originalPixels_,huePixels_,now,introStrength);
             if(SDL_UpdateTexture(texture_,nullptr,huePixels_.data(),
                                   width_*4)!=0){
                 if(!reported_){
@@ -163,6 +163,11 @@ public:
             lastUpload_=now;
         }
         lastIndex_=index;
+        // The first second is bright and hue-pulsed; the authored 30% backdrop
+        // is restored at introStrength=0, with no persistent texture mutation.
+        const float s=std::max(0.0f,std::min(1.0f,introStrength));
+        const Uint8 brightness=static_cast<Uint8>(77+int(112.0f*s));
+        SDL_SetTextureColorMod(texture_,brightness,brightness,brightness);
         // Original source aspect ratio, centered and cover-cropped in the
         // unchanged 960x540 logical canvas, with no animation slowdown.
         const double scale=std::max(960.0/double(width_),
