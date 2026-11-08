@@ -150,6 +150,14 @@ struct Recorder {
         const Native current=read(ram,base);
         const unsigned flags=changes(previous,current);
         if(!flags)return;
+        // In the 4-frame FS-dash capture, reserve the bounded TSV budget
+        // for real X/mode writes and their controlling reaction/phase/flags.
+        // Otherwise high-frequency Y gravity updates would exhaust the 96
+        // row allowance before the broken 0x70000000 X writer executes.
+        if(tracingDash && !(flags&(512u|1024u|1u|2u|4u|128u|256u))){
+            previous=current;
+            return;
+        }
         if(events<MAX_EVENTS_PER_FRAME && log){
             const unsigned pc=SekGetPPC(-1)&0x00ffffffu;
             const unsigned a6=unsigned(m68k_get_reg(nullptr,M68K_REG_A6))&
