@@ -135,6 +135,19 @@ struct Controller {
         anchor=std::uint32_t(std::int32_t(candidate));
         return true;
     }
+    // Already offscreen, but with a SANE native world X: preserve the ROM's
+    // chosen entry X exactly. We only need to stop the sky-fall and protect
+    // the scripted startup interval from the voluntary zero-wait patch.
+    static bool outsideOpponentView(const std::uint8_t* r,unsigned p,
+                                    std::uint32_t x){
+        const unsigned other=p==0x4000u?0x4400u:0x4000u;
+        if(!word(r,other) || word(r,other+0x52u)>0x24u)return false;
+        const std::uint32_t otherX=longword(r,other+0x0cu);
+        if(!plausibleWorldX(x) || !plausibleWorldX(otherX))return false;
+        const std::int64_t delta=std::int64_t(std::int32_t(x))-
+            std::int64_t(std::int32_t(otherX));
+        return delta>=0x01c00000LL || delta<=-0x01c00000LL;
+    }
     // A native ground-dash mode and its ROM script remain in place: the
     // engine, not a host-generated velocity, supplies actual dash motion.
     static bool stageNativeGroundEntry(std::uint8_t* r,unsigned p,Actor& a){
@@ -246,6 +259,24 @@ struct Controller {
             }else if(saneX && ++a.advancingReturnFrames>=2u){
                 a.failedReturnFrames=0u;
             }
+        }
+        if(!a.autoReturn && !a.recoveryActive && ground(mode) && !control &&
+           saneX && outsideOpponentView(r,p,x) &&
+           word(r,p+0x254u)>0u && word(r,p+0x254u)<2048u &&
+           (word(r,p+0x10u)!=word(r,p+0x254u) ||
+            (word(r,p+0xaau)&0xff00u)!=0u) &&
+           settleReturnOnNativeFloor(r,p)){
+            // The original 68000 already supplied a valid offscreen X.
+            // Do not rewrite it or substitute an invented native script.
+            a.autoReturn=true;a.returnAnchorValid=true;
+            a.returnAnchor=x;a.failedReturnFrames=0u;
+            a.advancingReturnFrames=0u;
+            if(log)std::fprintf(log,
+                "%u\t%u\t%04X\t%04X\t0\t%08X\t%08X\t%08X\t%u\t%u\tFS_NATIVE_VALID_OFFSCREEN_GROUNDED\n",
+                frame,side+1u,identity,mode,x,longword(r,p+0x14u),
+                longword(r,p+0x34u),word(r,p+0x3eu),
+                word(r,p+0x3eu));
+            return e;
         }
         // The 87.221 36-frame watchdog exited 12 consecutive native dashes
         // in the 87.225 log. Each re-entered within 1f; suppressing further
