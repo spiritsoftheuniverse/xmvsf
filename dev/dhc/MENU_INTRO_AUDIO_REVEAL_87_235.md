@@ -4,7 +4,7 @@ Branch: `feature/menu-intro-reveal-audio-87-235`, descended from 87.234. No main
 
 ## First launch timeline
 
-- 0.0–1.0 seconds: start PURE WHITE (including the navy canvas behind the GIF). Its native animated `_art/menuanimation.gif` pixels flash white, then fast hue-strobe with source-space Bayer dither until settling to the exact original animated GIF colors and normal 30% brightness/36-second hue cycle. `audio/crash.wav` fires at t=0.
+- 0.0–3.0 seconds: start PURE WHITE (including the navy canvas behind the GIF). Its native animated `_art/menuanimation.gif` pixels flash white, then fast hue-strobe with source-space Bayer dither over **three seconds**, settling to the exact original GIF colors and normal 30% brightness/36-second hue cycle. This visual fade **overlaps the title from t=1.0 through t=3.0**. `audio/crash.wav` still fires at t=0; no other cue moves.
 - 1.0–4.5 seconds: logo (original `_art/logo.png`) appears PURE WHITE. It hue-strobes downward while fixed source-pixel Bayer dither progressively releases the original colors and existing authored logo palette animation. `audio/xmvsf_welcome.wav` fires at t=1.0. This is **3.5 seconds of logo animation**; the WAV is never sped up or truncated if its natural duration differs.
 - 4.5–5.0 seconds: menu glyphs (the original `_art/sf2font.png` / `_art/sf2fontsmall.png`) appear using 16-stage spatial Bayer alpha dither. **Menu music starts at this boundary**, beginning at sample zero and rising over the same 0.5 seconds. Prior crash/logo phases have no menu music; the authored one-shot effects still play.
 - At t=5.0 seconds: menu input unlocks. Already-held buttons must release before they can select. `SDL_QUIT` still closes the window at any time.
