@@ -537,7 +537,46 @@ recompilation. Details: `dev/dhc/INCREMENTAL_BUILD_CACHE.md`.
 No Stable, original game logic, UI art or runtime save files changed.
 Local Windows native build is pending.
 
-## Native TEST version 87.216 and local verification
+## TEST 87.217 — Cyclops earlier air release; native frame-data popups
+
+**Cyclops:** The user's 87.216 native gameplay confirms the 36-frame
+release is now consistent. This proves why the earlier 100-frame and
+animation-state-trigger attempts failed: real throw recovery naturally
+ends near 51–52 frames, and `+0x42` pose changes do not measure elapsed
+emulation time. The new experimental release is **24 committed native
+frames after `200C -> 200E` grab end (0.4 seconds at 60Hz)**. Existing
+non-run-ahead event capture, per-throw ID/rearming, native mode32 scope
+and exact saved-airborne-state restoration remain intact. Reference
+`dev/dhc/CYCLOPS_AIR_THROW_ENGINE_QUIRK.md` before modifying it again.
+
+**Startup labels:** Floating `S:##F` training frame-data popups no longer
+paint inside `xm30Overlay` or the window's logical SDL pixel space.
+They are instead built into a **384×224 native-resolution game image
+layer**, in the same pixel coordinates as the recorded fighter hitboxes.
+`xmvsf_stage87_217_native_float.h` performs the CPU pixel raster using
+the exact alpha/color pixels from `_art/sf2fontsmall.png`, provided
+by the existing XMGlyph atlas. `vid_sdl2.cpp` uploads the resulting
+transparent 384×224 buffer and composites it with the game viewport
+for both the original CPS2 and custom Wily stage renders, before
+external UI/panels. This is not an SDL font draw or a scaled logical
+canvas animation. Native glyph height is **8 source pixels**.
+
+Popups keep their 120-native-frame ascent of 40 **source pixels**.
+Beginning at the apex they horizontally squeeze to zero over **six
+native game frames** (ages 120–125), while rising a further **8 source
+pixels** (one full native glyph height) and fading. Glyph height stays
+constant and the source image is cleared each paint, avoiding ghost
+trails. The frame-data history/cards in the external panel remain
+unchanged. Native font art is not modified.
+
+`dev/dhc/tests/test_stun_and_cyclops_217.cpp` replaces the 214
+regression in the cached local build: it verifies Cyclops 24-frame
+release, repeated throws, and full native pixel-space font geometry,
+including 6-frame width collapse, 8px extra ascent, transparent last
+frame, and the original stun-bar stencil. All native gameplay
+verification must be performed locally with BUILD_TEST.bat.
+
+## Native TEST version 87.217 and local verification
 
 **Pulling only main does not include this branch.** The source modifications
 are on feature/menu-logo-glyph-atlas-selection-dimming. In the Windows
@@ -551,16 +590,16 @@ Preserve any uncommitted local work before switching branches. Keep the
 original _art PNG files; do not resample or replace them.
 
 1. Run BUILD_TEST.bat. It now publishes ONLY
-   runtime/stable/XMVSF_Test_87_216.exe after compiling current source.
+   runtime/stable/XMVSF_Test_87_217.exe after compiling current source.
    A missing executable or modified menu/video/audio/crash header refreshes
    only main.cpp, run.cpp, vid_sdl2.cpp, aud_sdl.cpp, cps_obj.cpp, cps_draw.cpp
    and cps_run.cpp without deleting warm build objects, older binaries, or Stable.
-2. Read test/build_logs/BUILD_TEST.log for the 87.216 success line and
+2. Read test/build_logs/BUILD_TEST.log for the 87.217 success line and
    the SHA256 hashes of the compiled executable, four source PNGs and GIF.
    If an asset or the glyph-header include is missing, the builder gives
    a precise error instead of silently building a legacy-looking menu.
 3. Run RUN_TEST.bat option 1. The menu window title and bottom-right
-   main-menu label both say TEST 87.216. If they do not, you are not
+   main-menu label both say TEST 87.217. If they do not, you are not
    looking at the newly compiled native XMVSF build.
 4. The gameplay path is still the native XMVSF app's zero-ROM-argument
    boot selector, NOT the separate MVC1 capture/ROM playback mode.
@@ -569,7 +608,7 @@ original _art PNG files; do not resample or replace them.
 5. Verify the unselected text is dim, selected text is bright, and that
    I, i, l, 1, punctuation and word gaps no longer waste full cell widths.
 6. New F9 replays, observer/chat diagnostics and replay verification live
-   under test/87.216. Legacy test/87.203 capture data is not modified;
+   under test/87.217. Legacy test/87.203 capture data is not modified;
    original replay files remain accessible through RUN_REPLAY.bat.
 
 This source audit includes inspection of the tracked code, unchanged font
