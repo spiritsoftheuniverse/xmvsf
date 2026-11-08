@@ -5,6 +5,9 @@
 void xm20MenuStart();
 void xm20MenuMovement();
 void xm20MenuConfirm();
+void xm20MenuCrash();
+void xm20MenuWelcome();
+void xm20MenuFight();
 void xm20MeterCharged(int player); // XM87.118 per-stock event
 void xm20MenuEnterGame();
 void xm20OnCombat();
