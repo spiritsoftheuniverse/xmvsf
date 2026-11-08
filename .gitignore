@@ -5,6 +5,9 @@
 /test/
 /dev/stable/buildtree/obj/
 /fbneo/*.log
+/runtime/stable/xmvsfu_*
+/dev/stable/buildtree/fbneo.exe
+test/build_logs/BUILD_TEST.log
 *.o
 *.d
 *.zip
@@ -16,3 +19,4 @@
 # Local TEST compiler/linker transcripts. Keep potentially large machine
 # diagnostics private; users can attach BUILD_TEST.log when a build fails.
 /test/build_logs/
+*.ini
