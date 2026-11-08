@@ -1049,7 +1049,13 @@ INT32 Cps2Frame()
     // 87.209 restores it in normal XMVSF TEST, without mutating the MVC1
     // donor or other CPS2 titles even if they share Cyclops sprites/RAM.
     const char* cyclopsGame=BurnDrvGetTextA(DRV_NAME);
-    if(Cps==2 && cyclopsGame && std::strncmp(cyclopsGame,"xmvsf",5)==0)
+    // XM87.213: DO NOT mutate host-side throw event state on speculative
+    // runahead frames. Its static Tracker and lastFrame guard are not part
+    // of a savestate; a runahead invocation can otherwise consume the real
+    // frame's grab-end edge and discard the corresponding CpsRamFF write.
+    // Exactly one committed native frame can advance the 100-frame clock.
+    if(!bBurnRunAheadFrame && Cps==2 && CpsRamFF && cyclopsGame &&
+       std::strncmp(cyclopsGame,"xmvsf",5)==0)
         XM87121::state().frame((unsigned)GetCurrentFrame(),CpsRamFF);
     // XM87.203: source-accurate, read-only stage telemetry, no framebuffer,
     // ROM, gameplay, controller, palette or F9 replay modifications.
