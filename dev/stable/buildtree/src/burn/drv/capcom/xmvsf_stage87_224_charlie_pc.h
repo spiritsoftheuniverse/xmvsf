@@ -174,8 +174,8 @@ struct Recorder {
             char ds[96]={0},as[96]={0};
             unsigned dn=0u,an=0u;
             for(int i=0;i<8;++i){
-                const unsigned dr=unsigned(m68k_get_reg(nullptr,M68K_REG_D0+i));
-                const unsigned ar=unsigned(m68k_get_reg(nullptr,M68K_REG_A0+i));
+                const unsigned dr=unsigned(m68k_get_reg(nullptr,(m68k_register_t)(M68K_REG_D0+i)));
+                const unsigned ar=unsigned(m68k_get_reg(nullptr,(m68k_register_t)(M68K_REG_A0+i)));
                 dn+=(unsigned)std::snprintf(ds+dn,sizeof(ds)-dn,
                     i?",%08X":"%08X",dr);
                 an+=(unsigned)std::snprintf(as+an,sizeof(as)-an,
