@@ -57,6 +57,34 @@ int main(){
     dash(0x02b90000u,9u,0u);
     voluntary.frame(2u,ram,true);
     assert(rw(P+0xa0u)==0x1400u && rw(P+0x3eu)==1u);
+    // Genuine *valid* native offscreen X stays untouched; only vertical
+    // flight/air status gets grounded. This closes the "falls from the sky"
+    // symptom without guessing the original 68k's chosen spawn position.
+    base();Controller validOffscreen;
+    validOffscreen.frame(1u,ram,true);
+    dash(0x01600000u,8u,0u); // 448px left of visible opponent
+    w(P+0x10u,128u);w(P+0xaau,0x0102u);
+    l(P+0x1cu,0x00090000u);
+    validOffscreen.frame(2u,ram,true);
+    assert(validOffscreen.actor[0].autoReturn);
+    assert(rl(P+0x0cu)==0x01600000u); // position chosen by ROM retained
+    assert(rw(P+0x10u)==472u);
+    assert((rw(P+0xaau)>>8u)==0u);
+    assert(rl(P+0x1cu)==0u);
+    assert(rw(P+0xa0u)==0x1400u);
+    assert(rl(P+0x34u)==0x000a0502u);
+    assert(rw(P+0x3eu)==8u);
+    validOffscreen.frame(3u,ram,true);
+    assert(rw(P+0x3eu)==8u); // native scripted delay remains
+    // No horizontal offscreen separation => don't suppress a voluntary
+    // ground dash or teleport its grounded input timing.
+    base();Controller onscreen;
+    onscreen.frame(1u,ram,true);
+    dash(0x02b90000u,8u,0u);
+    onscreen.frame(2u,ram,true);
+    assert(!onscreen.actor[0].autoReturn);
+    assert(rw(P+0x3eu)==1u);
+    
     // Native source corruption: X jumps to B27C0700 before 1400 mode.
     base();Controller entry;
     w(P+0x210u,0x038fu);
