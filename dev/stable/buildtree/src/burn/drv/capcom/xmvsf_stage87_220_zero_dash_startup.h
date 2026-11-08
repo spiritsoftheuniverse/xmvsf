@@ -12,6 +12,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring> // bounded native-neutral actor snapshot for catastrophic dash recovery
+#include "xmvsf_stage87_233_airborne_entry.h" // 87.233 original 68k pre-ground entry gate
 
 namespace XM87220Dash {
 static inline unsigned byte(const std::uint8_t* r,unsigned a){
@@ -54,6 +55,7 @@ struct Neutral {
 };
 struct Actor {
     Neutral neutral;
+    XM87233AirReturn::Tracker airReturn; // independent of dash watchdog
     bool ready=false,tracking=false;
     // TEST 87.226: last stage-plausible native X (87.225 capture leapt
     // from ~0x02B00000 to 0x7041D600 before an endless 37f dash loop).
@@ -225,6 +227,82 @@ struct Controller {
         const bool brokenX=!plausibleWorldX(x);
         const bool canRecover=a.neutral.valid &&
             a.neutral.identity==identity && a.neutral.script && a.neutral.next;
+        // 87.233: an offscreen airborne fighter cannot reach 87.232's
+        // ground-mode interceptor until the ORIGINAL 68k has put that
+        // fighter on the floor. Stage +10/+1C/+AA first, without inventing
+        // a +A0 mode, attack script, horizontal velocity or world X.
+        // Actual native 1400/1600 dispatch will become the same 87.232
+        // autoReturn path on a subsequent committed frame.
+        const unsigned other=p==0x4000u?0x4400u:0x4000u;
+        XM87233AirReturn::Native airState;
+        airState.combat=true; // Controller::frame already checks battle 08.
+        airState.active=active!=0u;
+        airState.opponentActive=word(r,other)!=0u &&
+            word(r,other+0x52u)<=0x24u &&
+            !(word(r,other+0x52u)&1u);
+        airState.allowed=!a.recoveryActive && !a.autoReturn;
+        airState.fighter=identity;airState.control=control;
+        airState.action=word(r,p+0x60u);airState.mode=mode;
+        airState.y=word(r,p+0x10u);
+        airState.floor=word(r,p+0x254u);
+        airState.air=word(r,p+0xaau);
+        airState.x=x;airState.opponentX=longword(r,other+0x0cu);
+        const XM87233AirReturn::Decision entry=a.airReturn.observe(airState);
+        if(entry==XM87233AirReturn::GROUND_BEFORE_NATIVE_DASH ||
+           entry==XM87233AirReturn::REGROUND_BEFORE_NATIVE_DASH){
+            if(!settleReturnOnNativeFloor(r,p))a.airReturn.reset();
+            else{
+                if(log){
+                    std::fprintf(log,
+                        "%u\t%u\t%04X\t%04X\t0\t%08X\t%08X\t%08X\t%u\t%u\t%s\n",
+                        frame,side+1u,identity,mode,x,longword(r,p+0x14u),
+                        longword(r,p+0x34u),word(r,p+0x3eu),word(r,p+0x3eu),
+                        entry==XM87233AirReturn::GROUND_BEFORE_NATIVE_DASH?
+                        "FS_AIR_OFFSCREEN_NATIVE_GROUND_PREP":
+                        "FS_AIR_OFFSCREEN_NATIVE_GROUND_REASSERTED");
+                    std::fflush(log);
+                }
+                return e;
+            }
+        }else if(entry==XM87233AirReturn::NATIVE_GROUND_DASH_READY ||
+                 entry==XM87233AirReturn::NATIVE_GROUND_DASH_BAD_X){
+            const bool bad=entry==XM87233AirReturn::NATIVE_GROUND_DASH_BAD_X;
+            const std::uint32_t anchored=bad?a.airReturn.anchor:x;
+            if(settleReturnOnNativeFloor(r,p)){
+                if(bad)setLong(r,p+0x0cu,anchored);
+                a.autoReturn=true;a.returnAnchorValid=true;
+                a.returnAnchor=anchored;a.returnMode=mode;
+                a.failedReturnFrames=0u;a.advancingReturnFrames=0u;
+                a.ready=false;a.tracking=false;a.dashAge=0u;
+                a.stalledFrames=0u;a.scriptLoopsAtOrigin=0u;a.lastScript=0u;
+                if(log){
+                    std::fprintf(log,
+                        "%u\t%u\t%04X\t%04X\t0\t%08X\t%08X\t%08X\t%u\t%u\t%s\n",
+                        frame,side+1u,identity,mode,x,longword(r,p+0x14u),
+                        longword(r,p+0x34u),word(r,p+0x3eu),word(r,p+0x3eu),
+                        bad?"FS_AIR_TO_NATIVE_DASH_CORRUPT_X_RECOVERED":
+                            "FS_AIR_TO_NATIVE_GROUND_DASH");
+                    std::fflush(log);
+                }
+                return e; // 87.232 original entry countdown still intact.
+            }
+        }else if(entry==XM87233AirReturn::WAIT_FOR_NATIVE_DASH){
+            // Never teach the ordinary neutral snapshot system a partially
+            // converted airborne controller state during return staging.
+            return e;
+        }else if(entry==XM87233AirReturn::NATIVE_DASH_NOT_OBSERVED ||
+                 entry==XM87233AirReturn::RETURN_ABORTED){
+            if(log){
+                std::fprintf(log,
+                    "%u\t%u\t%04X\t%04X\t0\t%08X\t%08X\t%08X\t%u\t%u\t%s\n",
+                    frame,side+1u,identity,mode,x,longword(r,p+0x14u),
+                    longword(r,p+0x34u),word(r,p+0x3eu),word(r,p+0x3eu),
+                    entry==XM87233AirReturn::NATIVE_DASH_NOT_OBSERVED?
+                        "FS_AIR_NATIVE_GROUND_DASH_MISSING":
+                        "FS_AIR_RETURN_CANCELLED");
+                std::fflush(log);
+            }
+        }
         // Recover CPU-scripted offscreen entry BEFORE generic native-neutral
         // watchdog recovery. The 87.231 original-CPU trace observed PPC
         // 0109B4 write X=B27C0700 and PPC 01284A set native mode 1400.
