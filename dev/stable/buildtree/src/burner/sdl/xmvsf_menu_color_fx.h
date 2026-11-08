@@ -44,39 +44,55 @@ static inline float hueDegrees(Uint8 red,Uint8 green,Uint8 blue) {
 // One full, continuous hue turn per 36 seconds, while each original GIF
 // animation still advances at its authored frame delays.
 static inline void backgroundHue(const std::vector<Uint8>& source,
-                                  std::vector<Uint8>& output,Uint32 now,float introStrength=0.0f) {
+                                  std::vector<Uint8>& output,Uint32 now,float introStrength=0.0f,int width=0) {
     if(source.empty())return;
     output.resize(source.size());
-    // 87.235: on cold boot the background whips through a bright hue
-    // pulse, then converges EXACTLY to the normal 36-second animation.
-    const float pulse=(140.0f+95.0f*std::sin(float(now%1000u)*0.018f))*
-                      std::max(0.0f,std::min(1.0f,introStrength));
-    const float turn=float(now%36000u)/100.0f+pulse;
-    for(size_t n=0;n+3<source.size();n+=4){
-        const Uint8 r=source[n],g=source[n+1],b=source[n+2];
-        output[n+3]=source[n+3];
+    const float strength=std::max(0.0f,std::min(1.0f,introStrength));
+    // Retain the original steady 36s hue orbit; add a fast startup strobe.
+    const float normalTurn=float(now%36000u)/100.0f;
+    const float strobe=std::fmod(normalTurn+
+        235.0f+110.0f*std::sin(float(now%10000u)*0.035f),360.0f);
+    static const Uint8 bayer[16]={0,8,2,10,12,4,14,6,3,11,1,9,15,7,13,5};
+    const auto rotated=[&](Uint8 r,Uint8 g,Uint8 b,float turn,Uint8* out){
         const Uint8 hi=std::max(r,std::max(g,b)),lo=std::min(r,std::min(g,b));
         const float chroma=float(hi)-float(lo);
-        if(chroma<1.0f || source[n+3]==0){
-            output[n]=r;output[n+1]=g;output[n+2]=b;continue;
-        }
+        if(chroma<1.0f){out[0]=r;out[1]=g;out[2]=b;return;}
         const float h=std::fmod(hueDegrees(r,g,b)+turn,360.0f);
         const float sector=h/60.0f;
-        const float x=chroma*(1.0f-std::fabs(std::fmod(sector,2.0f)-1.0f));
-        const float m=float(lo);
-        const int region=int(sector);
-        float rr=0.0f,gg=0.0f,bb=0.0f;
-        switch(region){
-        case 0: rr=chroma;gg=x;break;
-        case 1: rr=x;gg=chroma;break;
-        case 2: gg=chroma;bb=x;break;
-        case 3: gg=x;bb=chroma;break;
-        case 4: rr=x;bb=chroma;break;
-        default: rr=chroma;bb=x;break;
+        const float cross=chroma*(1.0f-std::fabs(std::fmod(sector,2.0f)-1.0f));
+        float rr=0.f,gg=0.f,bb=0.f;
+        switch(int(sector)){
+            case 0:rr=chroma;gg=cross;break;
+            case 1:rr=cross;gg=chroma;break;
+            case 2:gg=chroma;bb=cross;break;
+            case 3:gg=cross;bb=chroma;break;
+            case 4:rr=cross;bb=chroma;break;
+            default:rr=chroma;bb=cross;break;
         }
-        output[n]=byte(rr+m);
-        output[n+1]=byte(gg+m);
-        output[n+2]=byte(bb+m);
+        out[0]=byte(float(lo)+rr);
+        out[1]=byte(float(lo)+gg);
+        out[2]=byte(float(lo)+bb);
+    };
+    // Ordered thresholds are fixed in source-image pixel space. First
+    // frame: pure white. Last frame: exact established GIF hues with no FX.
+    for(size_t n=0;n+3<source.size();n+=4){
+        output[n+3]=source[n+3];
+        if(source[n+3]==0){output[n]=source[n];output[n+1]=source[n+1];
+                             output[n+2]=source[n+2];continue;}
+        const Uint8 r=source[n],g=source[n+1],b=source[n+2];
+        rotated(r,g,b,normalTurn,&output[n]);
+        if(strength<=0.0f)continue;
+        const size_t pixel=n/4u;
+        const size_t row=width>0?pixel/size_t(width):pixel/4u;
+        const size_t col=width>0?pixel%size_t(width):pixel;
+        const float threshold=(float(bayer[(row&3u)*4u+(col&3u)])+0.5f)/16.f;
+        if(strength<threshold)continue;
+        Uint8 flash[3]={r,g,b};
+        rotated(r,g,b,strobe,flash);
+        // Bright white -> bright spectral strobe -> authored, dim background.
+        const float white=std::max(0.0f,std::min(1.0f,(strength-0.50f)*2.0f));
+        for(int ch=0;ch<3;ch++)
+            output[n+ch]=byte(float(flash[ch])*(1.0f-white)+255.0f*white);
     }
 }
 // Four-by-four Bayer thresholds lock gas grain to SOURCE pixels. Moving
@@ -185,35 +201,35 @@ static inline void introLogoDither(const std::vector<Uint8>& regular,
     result=regular;
     if(remaining<=0.0f)return;
     static const Uint8 bayer[16]={0,8,2,10,12,4,14,6,3,11,1,9,15,7,13,5};
-    const float cycle=std::sin(float(now%10000u)*0.013f);
-    const float turn=145.0f+85.0f*cycle;
+    const float turn=235.0f+110.0f*std::sin(float(now%10000u)*0.035f);
+    const float whiten=std::max(0.0f,std::min(1.0f,(remaining-0.50f)*2.0f));
     for(int y=0;y<height;++y)for(int x=0;x<width;++x){
         const size_t p=(size_t(y)*width+x)*4u;
         if(regular[p+3]<8u)continue;
-        // Fixed source-space Bayer threshold, not temporal random noise.
-        if(remaining<=(float(bayer[(y&3)*4+(x&3)])+0.5f)/16.0f)continue;
-        const float red=float(regular[p]),green=float(regular[p+1]),blue=float(regular[p+2]);
-        const float hi=std::max(red,std::max(green,blue));
-        const float lo=std::min(red,std::min(green,blue));
+        const float threshold=(float(bayer[(y&3)*4+(x&3)])+0.5f)/16.0f;
+        // Source-space Bayer mask releases pixels to their original colors.
+        if(remaining<threshold)continue;
+        const Uint8 red=regular[p],green=regular[p+1],blue=regular[p+2];
+        const float hi=std::max(float(red),std::max(float(green),float(blue)));
+        const float lo=std::min(float(red),std::min(float(green),float(blue)));
         const float chroma=hi-lo;
-        if(chroma<1.0f)continue;
-        float hue=hueDegrees(regular[p],regular[p+1],regular[p+2])+turn;
-        if(hue>=360.0f)hue-=360.0f;
-        const float sector=hue/60.0f;
-        const float zig=chroma*(1.0f-std::fabs(std::fmod(sector,2.0f)-1.0f));
-        float rr=0.0f,gg=0.0f,bb=0.0f;
-        switch(int(sector)){
-            case 0: rr=chroma;gg=zig;break;
-            case 1: rr=zig;gg=chroma;break;
-            case 2: gg=chroma;bb=zig;break;
-            case 3: gg=zig;bb=chroma;break;
-            case 4: rr=zig;bb=chroma;break;
-            default: rr=chroma;bb=zig;break;
+        float rr=float(red),gg=float(green),bb=float(blue);
+        if(chroma>=1.0f){
+            const float hue=std::fmod(hueDegrees(red,green,blue)+turn,360.0f);
+            const float sector=hue/60.0f;
+            const float zig=chroma*(1.0f-std::fabs(std::fmod(sector,2.0f)-1.0f));
+            switch(int(sector)){
+                case 0: rr=lo+chroma;gg=lo+zig;bb=lo;break;
+                case 1: rr=lo+zig;gg=lo+chroma;bb=lo;break;
+                case 2: rr=lo;gg=lo+chroma;bb=lo+zig;break;
+                case 3: rr=lo;gg=lo+zig;bb=lo+chroma;break;
+                case 4: rr=lo+zig;gg=lo;bb=lo+chroma;break;
+                default: rr=lo+chroma;gg=lo;bb=lo+zig;break;
+            }
         }
-        const float glow=0.11f+0.19f*(cycle*0.5f+0.5f);
-        result[p]=byte((lo+rr)*(1.0f-glow)+255.0f*glow);
-        result[p+1]=byte((lo+gg)*(1.0f-glow)+255.0f*glow);
-        result[p+2]=byte((lo+bb)*(1.0f-glow)+255.0f*glow);
+        result[p]=byte(rr*(1.0f-whiten)+255.0f*whiten);
+        result[p+1]=byte(gg*(1.0f-whiten)+255.0f*whiten);
+        result[p+2]=byte(bb*(1.0f-whiten)+255.0f*whiten);
     }
 }
 } // namespace XMMenuColor
