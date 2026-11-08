@@ -30,8 +30,8 @@
 #include "xmvsf_stage87_160_super_discovery.h" // read-only roster-wide native 2E ROM/script and input discovery
 #include "../../../burner/sdl/xmvsf_stage87_162_replay_sync.h" // exact F9 movie-frame index for native action logs
 #include "xmvsf_stage87_119_cyclops_recovery_probe.h" // XM87.119 read-only recovery state trace
-#include "xmvsf_stage87_121_cyclops_release.h"
-#include "xmvsf_stage87_220_zero_dash_startup.h" // TEST 87.220 ROM-owned dash startup countdown // XM87.121 restore recorded airborne state after throw // XM87.100 native Training-only KO suppression
+#include "xmvsf_stage87_121_cyclops_release.h" // XM87.121 restore recorded airborne state after throw
+#include "xmvsf_stage87_220_zero_dash_startup.h" // TEST 87.220 native dash startup countdown
 extern int xm14TrainingMode; // native SDL Training mode selection
 extern int xm87102DamageMode; // XM87.102 Training damage option
 #include <cstdio> // XM86.34 first native CPS2 frame tracing
