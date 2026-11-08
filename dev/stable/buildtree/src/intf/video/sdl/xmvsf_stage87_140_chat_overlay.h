@@ -2,8 +2,8 @@
 #define XMVSF_STAGE87_140_CHAT_OVERLAY_H
 // Warcraft-style combat chat, presentation only. Does NOT intercept native
 // pixels, change CPS2 palettes, or depend on DF's sprite ownership filter.
-// New lines fade in place and expire after 180 native frames (~3s at 60fps).
-// Shift+G expands/collapses persistent bounded message history.
+// Hidden by default: diagnostics stay in bounded history and on-disk logs.
+// Shift+G explicitly opens/closes the left-hand panel; F10 only toggles probe.
 #include <SDL.h>
 #include <algorithm>
 #include <cstring>
@@ -11,6 +11,7 @@
 static inline void xm87140ChatOverlay(SDL_Renderer* render){
     if(!render)return;
     const XM87140Chat::State& st=XM87140Chat::state();
+    if(!st.open)return; // Never auto-pop from a new log message.
     const unsigned now=st.lastFrame;
     const unsigned available=st.visibleLines(now);
     if(!available)return;
@@ -20,8 +21,8 @@ static inline void xm87140ChatOverlay(SDL_Renderer* render){
     SDL_RenderGetLogicalSize(render,&width,&height);
     if(width<=0||height<=0)SDL_GetRendererOutputSize(render,&width,&height);
     if(width<250||height<160)return;
-    const unsigned shown=std::min<unsigned>(available,st.open?
-        unsigned(std::min(12,(height-70)/16)):5u);
+    const unsigned shown=std::min<unsigned>(available,
+        unsigned(std::min(12,(height-70)/16)));
     if(!shown)return;
     const int left=15;
     const int boxWidth=std::min(610,width-30);
@@ -39,29 +40,24 @@ static inline void xm87140ChatOverlay(SDL_Renderer* render){
     SDL_GetTextureAlphaMod(font,&fa);
     SDL_SetRenderDrawBlendMode(render,SDL_BLENDMODE_BLEND);
     SDL_Rect box={left,top,boxWidth,boxHeight};
-    SDL_SetRenderDrawColor(render,8,13,23,st.open?214:142);
+    SDL_SetRenderDrawColor(render,8,13,23,214);
     SDL_RenderFillRect(render,&box);
-    SDL_SetRenderDrawColor(render,83,131,190,st.open?194:132);
+    SDL_SetRenderDrawColor(render,83,131,190,194);
     SDL_RenderDrawRect(render,&box);
     SDL_Rect topStrip={left+1,top+1,boxWidth-2,2};
-    SDL_SetRenderDrawColor(render,79,144,205,st.open?230:160);
+    SDL_SetRenderDrawColor(render,79,144,205,230);
     SDL_RenderFillRect(render,&topStrip);
     SDL_SetTextureColorMod(font,210,176,90);
     SDL_SetTextureAlphaMod(font,230);
-    inprint_shadowed(render,st.open?"DHC COMMAND LOG [SHIFT+G CLOSE]":
-                      "DHC COMMANDS  [SHIFT+G HISTORY]",left+8,top+7);
-    // Newest at the bottom. 'open' shows the entire last twelve messages
-    // regardless of age; normal chat shows up to five recent messages.
+    inprint_shadowed(render,"DHC COMMAND LOG [SHIFT+G CLOSE]",left+8,top+7);
+    // Newest at the bottom; explicit Shift+G always shows bounded history.
     const unsigned capacity=XM87140Chat::CHAT_CAPACITY;
     const int maxChars=(boxWidth-16)/8;
     for(unsigned j=0;j<shown;++j){
         const unsigned ago=shown-1u-j;
         const XM87140Chat::Line& line=st.lines[(st.write+capacity-1u-ago)%capacity];
         const unsigned age=(now>=line.frame)?now-line.frame:180u;
-        if(!st.open && age>=180u)continue;
-        Uint8 alpha=245;
-        if(!st.open&&age>120u)
-            alpha=Uint8((180u-age)*245u/60u);
+        const Uint8 alpha=245; // Visible only after explicit toggle.
         Uint8 cr=220,cg=225,cb=226;
         if(line.kind==XM87140Chat::ALERT){cr=255;cg=196;cb=92;}
         else if(line.kind==XM87140Chat::INPUT){cr=168;cg=204;cb=255;}

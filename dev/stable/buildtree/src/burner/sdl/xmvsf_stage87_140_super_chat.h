@@ -177,15 +177,11 @@ struct State {
         ++chatMessages;lastMsgFrame=now;
     }
     void toggle(){open=!open;}
-    unsigned visibleLines(unsigned frame)const{
-        if(open)return count<12u?count:12u;
-        unsigned n=0;
-        for(unsigned i=0;i<count&&i<5u;++i){
-            const Line& l=lines[(write+CHAT_CAPACITY-1u-i)%CHAT_CAPACITY];
-            if(frame>=l.frame&&frame-l.frame<180u)++n;
-            else break;
-        }
-        return n;
+    // Never expose transient messages unless the player explicitly
+    // opens Super Chat (Shift+G). The bounded log and TSV recording
+    // continue independently while the overlay is hidden.
+    unsigned visibleLines(unsigned /*frame*/)const{
+        return open?(count<12u?count:12u):0u;
     }
     static std::uint8_t nativeDirections(unsigned raw){
         // CPS2 port order RIGHT,LEFT,DOWN,UP, verified in d_cps2.cpp.

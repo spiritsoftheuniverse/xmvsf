@@ -23,6 +23,7 @@
 #include "xmvsf_native_host.h" /* XMVSF_STAGE21_BOUNDARY */
 #include "xmvsf_stage22_select_audio.h" /* XMVSF_STAGE22_SELECTION_SFX */
 #include "xmvsf_stage23_engine.h" /* XMVSF_STAGE23_TRAINING_MENU */
+#include "xmvsf_menu_glyph_atlas.h" /* release sprite UI before renderer shutdown */
 #include "xmvsf_stage87_118_meter_audio.h" /* XM87.118 read-only stock edge (restored in 87.132 build repair) */
 #include "xmvsf_stage24_engine.h" /* XMVSF_STAGE24_VERSUS */
 #include "xmvsf_stage86_49_camera.h" // XM86.49 opt-in read-only native camera
@@ -30,6 +31,7 @@
 #include "xmvsf_stage87_162_replay_sync.h" // F9 movie index read-only native ROM trace correlation
 #include "xmvsf_stage87_139_probe.h" // XM87.139 F10 native/input diagnostic toggle
 #include "xmvsf_stage87_140_super_chat.h" // XM87.140 Shift+G chat history toggle
+#include "xmvsf_stage87_206_crash_report.h" // uncaught FIGHT crash phase breadcrumbs
 #include "xmvsf_stage77_native_stage5.h" // XM86.31 postframe guarded native stage request
 #include "xmvsf_stage29_display.h" /* XMVSF_STAGE29_SCALABLE_DISPLAY */
 #include "xmvsf_stage24_3_menu_poll.h" /* XMVSF_STAGE24_3_LIVE_RESULTS */
@@ -60,6 +62,11 @@ static void xm8658ObserveGamePhase(bool ready){
     c->open(0); xm8658GameStatus=int(c->read(0xFF5000u)&255u); c->close();
     static int previous=-2;
     if(xm8658GameStatus!=previous){
+        if(xm8658GameStatus==8){
+            std::fprintf(stderr,"XM87.206 COMBAT_STATUS_08 frame=%d prior=%d\n",
+                         nFramesEmulated,previous);
+            std::fflush(stderr);
+        }
         if(!xm87132CleanStable()) std::fprintf(stderr,"XM86.58 GAME_PHASE old=%02X new=%02X selectionGray=%d\n",
             previous<0?255u:(unsigned)previous,(unsigned)xm8658GameStatus,
             (int)(xm8658GameStatus<2));
@@ -219,6 +226,7 @@ static int RunFrame(int bDraw, int bPause)
 		return 1;
 	}
     ++xm8640FrameCount;
+    XM87206Crash::mark(300,(int)nCurrentFrame);
     if(!xm87132CleanStable() && (xm8640FrameCount==1 || (xm8640FrameCount%300u)==0u)) {
         std::fprintf(stderr,"XM86.40 PROGRESS frames=%llu emulated=%d paused=%d\n",
             xm8640FrameCount,nFramesEmulated,(int)bRunPause);
@@ -348,7 +356,9 @@ static int RunFrame(int bDraw, int bPause)
            bRunAhead,(int)((BurnDrvGetFlags()&BDF_RUNAHEAD_DISABLED)!=0),bAppDoFast);std::fflush(stderr);}
 		if (!bRunAhead || (BurnDrvGetFlags() & BDF_RUNAHEAD_DISABLED) || bAppDoFast) {     // Run-Ahead feature 				-dink aug 02, 2021
             if(traceFrame){std::fprintf(stderr,"XM86.34 FRAME1 BEFORE_VIDFRAME\n");std::fflush(stderr);}
+            XM87206Crash::mark(310,(int)nCurrentFrame);
 			const int xm8634VidResult=VidFrame();
+            XM87206Crash::mark(311,(int)nCurrentFrame);
             if(traceFrame){std::fprintf(stderr,"XM86.34 FRAME1 AFTER_VIDFRAME result=%d\n",xm8634VidResult);std::fflush(stderr);}
 			if (xm8634VidResult) {				// Do one frame w/o RunAhead or if FFWD is pressed.
 				// VidFrame() failed, but we must run a driver frame because we have
@@ -383,6 +393,7 @@ static int RunFrame(int bDraw, int bPause)
 				pBurnSoundOut = pBurnSoundOut_temp; // restore pointer, for wav & avi writer
 		}
 
+        XM87206Crash::mark(319,(int)nCurrentFrame);
         // XM86.57 stage registration and scene gate BEFORE the first stage-frame
         // presentation, not after the fight marquee or after VidPaint.
         if(!bPause){
@@ -392,6 +403,7 @@ static int RunFrame(int bDraw, int bPause)
             xm14ApplyTrainingCheats(xm14TrainingMode && !xm23State.dizzyAllowed); // XM87.44: before first presentation
         }
 	    if(traceFrame){std::fprintf(stderr,"XM86.34 FRAME1 BEFORE_VIDPAINT\n");std::fflush(stderr);}
+        XM87206Crash::mark(325,(int)nCurrentFrame);
 	VidPaint(0);
         if(traceFrame){std::fprintf(stderr,"XM86.34 FRAME1 AFTER_VIDPAINT\n");std::fflush(stderr);}                                              // paint the screen (no need to validate)
 	} else {                                       // frame skipping
@@ -401,7 +413,9 @@ static int RunFrame(int bDraw, int bPause)
 	}
 
 	if (!bPause) { /* XM87.44: Training applied before VidPaint, not after */ xm15OnRealFrame(bDrvOkay); xm17OnRealFrame(bDrvOkay); xm18ApplyPosition(bDrvOkay); /* XMVSF_STAGE18_POSITION */
+    XM87206Crash::mark(340,(int)nCurrentFrame);
     xm20VsCheck(bDrvOkay,bRunPause); /* XMVSF_STAGE20_1_VERSUS */
+    XM87206Crash::mark(341,(int)nCurrentFrame);
     xm22::muteSelectionBgm(bDrvOkay, bRunPause, xm20Vs.triggered); /* XMVSF_STAGE22_SELECTION_SFX */
     xm23OnRealFrame(bDrvOkay); /* XMVSF_STAGE23_TRAINING_MENU */
     xm87118OnRealFrame(bDrvOkay); /* XM87.118 completed super-stock observer */
@@ -415,6 +429,7 @@ static int RunFrame(int bDraw, int bPause)
     // Stage86.57: stage resolution and camera were sampled before VidPaint.
     // Do not run the stage hook a second time after presenting the frame.
     if(traceFrame){std::fprintf(stderr,"XM86.34 FIRST RunFrame stage5 hook returned\n");std::fflush(stderr);}
+    XM87206Crash::mark(350,(int)nCurrentFrame);
     if (bDrvOkay && !bBurnRunAheadFrame && !bRunPause) {
         if (xm18Position.combat) xmvsfHost::enterVs();
         else if (!xm14TrainingMode) {
@@ -710,6 +725,9 @@ int RunMessageLoop()
 	int quit = 0;
     const char* xm8640ExitReason="unspecified";
     const unsigned long long xm8640StartFrames=xm8640FrameCount;
+    // Keep the left DHC Super Chat hidden until explicitly toggled with
+    // Shift+G in THIS game session. Message logging and F10 stay available.
+    XM87140Chat::state().open=false;
     // XM86.55: the VS detector and the selection-music suppressor are session-scoped.
     // An earlier match must never keep the next character select in combat mode.
     if(xm20Vs.log){std::fclose(xm20Vs.log);xm20Vs.log=nullptr;}
@@ -1013,6 +1031,7 @@ int RunMessageLoop()
     std::fprintf(stderr,"XM86.40 SESSION EXIT reason=%s frames=%llu emulated=%d returnToBoot=%d\n",
          xm8640ExitReason,xm8640FrameCount-xm8640StartFrames,nFramesEmulated,(int)xm26ReturnToBoot);
     std::fflush(stderr);
+    XMGlyph::release(); // Prevent textures surviving native SDL renderer teardown.
 	RunExit();
 
 	return 0;

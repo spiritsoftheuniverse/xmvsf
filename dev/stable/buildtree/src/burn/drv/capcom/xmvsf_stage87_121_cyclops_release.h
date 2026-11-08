@@ -4,12 +4,18 @@
 // Resume Cyclops's ACTUAL preceding airborne controller after air throw impact.
 // No fresh super-jump launch, no arbitrary animation/script/ROM address.
 // Never modify the opponent, world X/Y, HP, meter or character identity.
-// Only allowed on 200C -> 200E, while victim has landed in 1C34.
+// Arm on 200C -> 200E grab end, then wait 36 distinct native combat
+// updates. Ignore repeated sprite-pose values and animation-word changes.
+// Latch the victim's ground landing while waiting; the 1C34 action may be
+// fleeting and should NOT have to coincide with the 36th update.
+// Restore the saved airborne controller only while Cyclops still occupies
+// the throw-recovery action. Never overwrite a legitimate later action.
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
 namespace XM87121 {
+static const unsigned ReleaseDelayFrames=36u;
 static inline unsigned b(const std::uint8_t* r,unsigned addr){return r[(addr&0xFFFFu)^1u];}
 static inline unsigned w(const std::uint8_t* r,unsigned addr){return (b(r,addr)<<8)|b(r,addr+1);}
 static inline std::uint32_t d(const std::uint8_t* r,unsigned a){return (std::uint32_t(w(r,a))<<16)|w(r,a+2);}
@@ -56,72 +62,164 @@ static inline void restoreAir(std::uint8_t* r,unsigned p,const AirState& s){
     // World X/Y (+0C/+10), fighter ID, health, super meter, enemy untouched.
 }
 struct Tracker{
-    bool initialized,enabled,valid[2],armed[2],pending[2];
-    unsigned lastFrame,previous[2],until[2];
+    bool initialized,enabled,valid[2],armed[2],pending[2],waiting[2],victimLanded[2];
+    unsigned lastFrame,previous[2],until[2],attempt[2];
+    unsigned lastAnim42[2],animationAdvances[2],recoveryTicks[2];
     AirState lastAir[2],selected[2];
     std::FILE* log;
     Tracker():initialized(false),enabled(false),lastFrame(~0u),log(NULL){
-        for(unsigned i=0;i<2;++i){valid[i]=armed[i]=pending[i]=false;previous[i]=until[i]=0;}
+        for(unsigned i=0;i<2;++i){
+            valid[i]=armed[i]=pending[i]=waiting[i]=victimLanded[i]=false;
+            previous[i]=until[i]=attempt[i]=lastAnim42[i]=animationAdvances[i]=recoveryTicks[i]=0;
+        }
     }
     ~Tracker(){if(log)std::fclose(log);}
     void init(){
         if(initialized)return;
         initialized=true;
+        // 87.121 was the successful Cyclops air-throw release: recover
+        // the exact preceding airborne state ONLY after confirmed impact.
+        // The routine survived later source revisions but the standard
+        // launcher stopped setting XM87121_CYCLOPS_RELEASE, silently
+        // disabling it. Keep it on by default; explicit 0 is A/B opt-out.
         const char* on=std::getenv("XM87121_CYCLOPS_RELEASE");
-        enabled=on && std::strcmp(on,"1")==0;
+        enabled=!(on && std::strcmp(on,"0")==0);
         const char* path=std::getenv("XM87121_CYCLOPS_LOG_FILE");
         if(path && *path){log=std::fopen(path,"wb");if(log)
-          std::fputs("frame\tplayer\tphase\taction\tmode\tairflag\tstep06\tstep08\tx\ty\tvy\topponent_action\topponent_y\tdecision\n",log);}
+          std::fputs("frame\tplayer\tthrow_id\tphase\taction\tmode\tairflag\tstep06\tstep08\tanim42\tanim_advances\trecovery_ticks\tx\ty\tvy\topponent_action\topponent_y\tdecision\n",log);}
         std::fprintf(stderr,"XM87.121 CYCLOPS_THROW_RECOVERY_RELEASE enabled=%d\n",int(enabled));
     }
-    void reset(){for(unsigned i=0;i<2;++i){valid[i]=armed[i]=pending[i]=false;lastAir[i].valid=false;until[i]=0;}}
+    void reset(){
+        for(unsigned i=0;i<2;++i){
+            valid[i]=armed[i]=pending[i]=waiting[i]=victimLanded[i]=false;
+            lastAir[i].valid=false;
+            until[i]=lastAnim42[i]=animationAdvances[i]=recoveryTicks[i]=0;
+        }
+    }
     void emit(unsigned f,unsigned i,const char* phase,const std::uint8_t* r,
               unsigned p,unsigned other,const char* decision){
         if(!log)return;
-        std::fprintf(log,"%u\t%u\t%s\t%04X\t%02X\t%u\t%04X\t%04X\t%u\t%u\t%08X\t%04X\t%u\t%s\n",
-          f,i+1u,phase,w(r,p+0x60u),w(r,p+0xA0u)>>8,w(r,p+0xAAu)>>8,
-          w(r,p+0x06u),w(r,p+0x08u),w(r,p+0x0Cu),w(r,p+0x10u),d(r,p+0x1Cu),
+        std::fprintf(log,"%u\t%u\t%u\t%s\t%04X\t%02X\t%u\t%04X\t%04X\t%04X\t%u\t%u\t%u\t%u\t%08X\t%04X\t%u\t%s\n",
+          f,i+1u,attempt[i],phase,w(r,p+0x60u),w(r,p+0xA0u)>>8,w(r,p+0xAAu)>>8,
+          w(r,p+0x06u),w(r,p+0x08u),w(r,p+0x42u),
+          animationAdvances[i],recoveryTicks[i],
+          w(r,p+0x0Cu),w(r,p+0x10u),d(r,p+0x1Cu),
           w(r,other+0x60u),w(r,other+0x10u),decision);
         std::fflush(log);
     }
     void frame(unsigned f,std::uint8_t* r){
         init();if(!r||lastFrame==f)return;lastFrame=f;
-        if(b(r,0x5000u)!=8u){reset();return;}
+        if(b(r,0x5000u)!=8u){
+            // Explain why an armed event vanished before its deadline.
+            for(unsigned i=0;i<2u;++i)if(waiting[i] || armed[i]){
+                const unsigned p=i?0x4400u:0x4000u;
+                const unsigned other=i?0x4000u:0x4400u;
+                emit(f,i,"SCOPE_END",r,p,other,"COMBAT_PHASE_LEFT_08");
+            }
+            reset();return;
+        }
         for(unsigned i=0;i<2u;++i){
             unsigned p=i?0x4400u:0x4000u,other=i?0x4000u:0x4400u;
             unsigned action=w(r,p+0x60u);
             bool cyclops=w(r,p+0x40u)==0x0021u && w(r,p)==0x0101u;
-            if(!cyclops){valid[i]=armed[i]=pending[i]=false;lastAir[i].valid=false;continue;}
+            if(!cyclops){
+                if(waiting[i] || armed[i])
+                    emit(f,i,"SCOPE_END",r,p,other,"CYCLOPS_ID_OR_BANK_CHANGED");
+                valid[i]=armed[i]=pending[i]=waiting[i]=victimLanded[i]=false;
+                lastAir[i].valid=false;
+                animationAdvances[i]=recoveryTicks[i]=0;
+                continue;
+            }
             // ROM trace: 0200 / 0202, mode 1C, airborne flag 1 (rising) / 2 (descending).
+            // Save the native airborne controller by actual airborne
+            // actions and altitude. Requiring EXACT mode 1C and AA 1/2
+            // discarded the pre-throw state on some otherwise valid jumps.
             bool inJump=(action==0x0200u || action==0x0202u) &&
-                (w(r,p+0xA0u)>>8)==0x1Cu &&
-                ((w(r,p+0xAAu)>>8)==1u || (w(r,p+0xAAu)>>8)==2u) &&
-                w(r,p+0x10u)<472u;
+                         w(r,p+0x10u)<472u;
             if(inJump)lastAir[i]=observeAir(r,p,f);
             if(valid[i] && action==0x200Cu && previous[i]!=0x200Cu){
-                armed[i]=lastAir[i].valid && f>=lastAir[i].frame && f-lastAir[i].frame<=2u;
+                // A new grab is a new transaction, even if the previous
+                // attempt still had a follow-log window. It must NEVER
+                // inherit that attempt's pending flag, landing latch or
+                // countdown; throw_id makes each attempt distinguishable.
+                ++attempt[i];
+                pending[i]=waiting[i]=victimLanded[i]=false;
+                recoveryTicks[i]=animationAdvances[i]=0;
+                // A throw can enter after multiple airborne game updates; 2u
+                // rejected otherwise valid saved air states intermittently.
+                armed[i]=lastAir[i].valid && f>=lastAir[i].frame &&
+                         f-lastAir[i].frame<=24u;
                 if(armed[i])selected[i]=lastAir[i];
                 emit(f,i,"THROW_CAPTURE",r,p,other,armed[i]?"AIRBORNE_SAVED":"NO_AIRBORNE_BASELINE");
             }
-            bool firstFlip=valid[i] && previous[i]==0x200Cu && action==0x200Eu &&
-                w(r,p+0x06u)==4u && w(r,p+0x08u)==6u &&
-                (w(r,p+0xA0u)>>8)==0x32u &&
-                (w(r,p+0xAAu)>>8)==2u && w(r,p+0x10u)<472u;
+            // The transition itself is the reliable grab-end boundary.
+            // The old exact +06/+08/+A0/+AA signature excluded valid
+            // 200C->200E states and never started the recovery clock.
+            const bool firstFlip=valid[i] && previous[i]==0x200Cu &&
+                                 action==0x200Eu && w(r,p+0x10u)<472u;
             if(firstFlip){
-                bool grounded=w(r,other+0x10u)>=472u && w(r,other+0x60u)==0x1C34u;
-                emit(f,i,"FLIP_BEFORE",r,p,other,!grounded?"VICTIM_NOT_GROUNDED":(armed[i]?"RELEASE_READY":"NO_AIRBORNE_BASELINE"));
-                if(enabled && grounded && armed[i]){
-                    restoreAir(r,p,selected[i]);
-                    emit(f,i,"RELEASED",r,p,other,"RESTORED_PRE_THROW_AIRBORNE");
-                    pending[i]=true;until[i]=f+16u;
-                }
+                waiting[i]=enabled && armed[i];
+                recoveryTicks[i]=0;
+                animationAdvances[i]=0; // diagnostic only
+                lastAnim42[i]=w(r,p+0x42u);
+                victimLanded[i]=w(r,other+0x10u)>=472u;
+                emit(f,i,"GRAB_ENDED",r,p,other,
+                    !enabled?"DISABLED":!armed[i]?"NO_AIRBORNE_BASELINE":
+                    "WAIT_36_NATIVE_FRAMES");
                 armed[i]=false;
-            } else if(pending[i]){
+            }else if(waiting[i]){
+                // A throw may progress through 200F/2010/etc before 100
+                // frames elapse. Keep the countdown for genuine throw
+                // family substates, not only the first 200E action.
+                const bool inThrowFamily=(action&0xFFE0u)==0x2000u;
+                const bool inThrowMode=(w(r,p+0xA0u)>>8)==0x32u;
+                // The action code can leave 2000..201F before the ROM
+                // clears its throw-mode controller. Retain the same
+                // event while mode32 still proves it is throw-bound.
+                if((!inThrowFamily && !inThrowMode) ||
+                   w(r,p+0x10u)>=472u){
+                    emit(f,i,"RELEASE_CANCEL",r,p,other,
+                         w(r,p+0x10u)>=472u?"CYCLOPS_LANDED":
+                         "LEFT_THROW_ACTION_AND_MODE");
+                    waiting[i]=false;
+                }else{
+                    // Count real game updates, not sprite-frame changes.
+                    // lastFrame==f at entry prevents duplicate callbacks.
+                    const bool reachedDeadlineThisFrame=
+                        recoveryTicks[i]+1u==ReleaseDelayFrames;
+                    if(recoveryTicks[i]<ReleaseDelayFrames)
+                        ++recoveryTicks[i];
+                    const unsigned observed=w(r,p+0x42u);
+                    if(observed!=lastAnim42[i]){
+                        lastAnim42[i]=observed;
+                        ++animationAdvances[i]; // observation only
+                    }
+                    if(w(r,other+0x10u)>=472u)
+                        victimLanded[i]=true; // landing is a latch
+                    if(recoveryTicks[i]==1u || reachedDeadlineThisFrame)
+                        emit(f,i,"RECOVERY_TICK",r,p,other,
+                             "FIXED_0_6_SECOND_DELAY");
+                    if(recoveryTicks[i]>=ReleaseDelayFrames){
+                        // The 87.213 runtime trace proves the opponent had
+                        // already landed at grab end, but Cyclops himself
+                        // naturally landed at 51-52 frames, canceling the
+                        // previous 100-frame release. At 0.6s, the native
+                        // throw controller still owns Cyclops; release it
+                        // on schedule, with no victim-action veto.
+                        restoreAir(r,p,selected[i]);
+                        emit(f,i,"RELEASED",r,p,other,
+                             "RESTORED_AFTER_0_6_SECONDS");
+                        waiting[i]=false;
+                        pending[i]=true;until[i]=f+16u; // follow log only
+                    }
+                }
+            }else if(pending[i]){
                 emit(f,i,"FOLLOW",r,p,other,
                    (w(r,p+0xA0u)>>8)==0x1Cu?"AIRBORNE_CONTROL":"OTHER_CONTROL");
                 if(f>=until[i] || w(r,p+0x10u)>=472u)pending[i]=false;
             }
-            if(action!=0x200Cu && action!=0x200Eu && !inJump && !pending[i])armed[i]=false;
+            if(action!=0x200Cu && action!=0x200Eu && !inJump &&
+               !pending[i] && !waiting[i])armed[i]=false;
             previous[i]=w(r,p+0x60u);valid[i]=true;
         }
     }

@@ -3,6 +3,7 @@
 // Native pixel presentation layer for the Stage25 Versus setup/results/scoreboard.
 // Uses the existing Stage25.1 glyphs and SDL renderer; no game ROM or audio changes.
 #include <SDL.h>
+#include "xmvsf_menu_glyph_atlas.h"
 #include "xmvsf_stage86_55_options.h" /* universal menu grayscale */
 #include <cstdio>
 #include <cstdlib>
@@ -34,6 +35,8 @@ static inline void xm255Rect(SDL_Renderer* r,int x,int y,int w,int h,XM255RGB co
 }
 static inline void xm255Text(SDL_Renderer* r,const char* s,int x,int y,int maxWidth,int scale,XM255RGB col){
     if(!r||!s||scale<1||maxWidth<6*scale)return;
+    const Uint8 brightness=(Uint8)((unsigned(col.r)+col.g+col.b)/3);
+    if(XMGlyph::left(r,s,x,y,maxWidth,scale,brightness))return;
     xm8655RenderColor(r,col.r,col.g,col.b);
     const int step=6*scale, count=maxWidth/step;
     for(int i=0;s[i] && i<count;++i){
@@ -59,7 +62,7 @@ static inline void xm255Date(const XM25LedgerRow& row,char* dst,size_t cap){
     else std::snprintf(dst,cap,"--/--/----");
 }
 static inline void xm255BootVersus(SDL_Renderer* r){
-    const XM255RGB fg=xm255Rgb(225,231,254), muted=xm255Rgb(145,167,202),edge=xm255Rgb(72,116,195);
+    const XM255RGB fg=xm255Rgb(255,255,255), muted=xm255Rgb(81,81,81),edge=xm255Rgb(72,116,195);
     xm255Rect(r,66,22,828,503,xm255Rgb(8,13,31));
     xm255Rect(r,66,22,828,503,edge,false);
     xm255Rect(r,82,38,5,30,xm255Rgb(88,175,255));
@@ -69,27 +72,25 @@ static inline void xm255BootVersus(SDL_Renderer* r){
     const char* modes[5]={"FFA","FT3","FT5","FT10","FT20"};
     for(int i=0;i<5;++i){
         const int y=100+i*47;const bool current=xm25State.setupRow==i;
-        xm255Rect(r,220,y-7,520,35,current?xm255Rgb(29,51,91):xm255Rgb(15,24,46));
-        if(current)xm255Rect(r,220,y-7,5,35,xm255ModeColor(xm25TargetAt(i)));
-        xm255Text(r,current?">":" ",238,y,25,2,fg);
-        xm255Text(r,modes[i],282,y-1,142,3,xm255ModeColor(xm25TargetAt(i)));
+        // Mode identity (FFA/FT colors) remains visible for all modes.
+        xm255Rect(r,262,y+3,5,14,xm255ModeColor(xm25TargetAt(i)));
+        // Selection is conveyed by the full-bright entry, not a row box.
+        xm255Text(r,modes[i],282,y-1,142,3,current?fg:muted);
         char desc[65];
         std::snprintf(desc,sizeof(desc),"%s",i==0?"FREE FOR ALL":i==1?"FIRST TO THREE":i==2?"FIRST TO FIVE":i==3?"FIRST TO TEN":"FIRST TO TWENTY");
-        xm255Text(r,desc,440,y+5,277,2,muted);
+        xm255Text(r,desc,440,y+5,277,2,current?fg:muted);
     }
     for(int i=5;i<=6;++i){
         const int y=i==5?351:399; const bool current=xm25State.setupRow==i;
-        xm255Rect(r,220,y-6,520,34,current?xm255Rgb(29,51,91):xm255Rgb(15,24,46));
-        if(current)xm255Rect(r,220,y-6,5,34,xm255Rgb(111,192,255));
-        xm255Text(r,current?">":" ",238,y,24,2,fg);
         xm255Text(r,i==5?"SCOREBOARD":"MAIN MENU",276,y,380,2,current?fg:muted);
     }
     for(int p=0;p<2;++p){
         int left=p==0?85:510;
         xm255Rect(r,left,459,290,38,xm255Rgb(18,28,53));
-        xm255Rect(r,left,459,290,38,xm25State.focus==p?xm255Rgb(255,211,109):edge,false);
-        xm255Text(r,p==0?"P1":"P2",left+10,465,35,2,xm255Rgb(108,190,255));
-        xm255Text(r,xm25State.names[p],left+51,469,225,2,fg);
+        xm255Text(r,p==0?"P1":"P2",left+10,465,35,2,
+                  xm25State.focus<0 || xm25State.focus==p?fg:muted);
+        xm255Text(r,xm25State.names[p],left+51,469,225,2,
+                  xm25State.focus<0 || xm25State.focus==p?fg:muted);
         xm255Rect(r,left+295,459,40,38,xm255Rgb(37,30,55));
         xm255Rect(r,left+295,459,40,38,xm255Rgb(191,95,115),false);
         xm255Text(r,"X",left+307,470,20,2,xm255Rgb(255,140,150));

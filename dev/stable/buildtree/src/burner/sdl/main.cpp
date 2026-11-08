@@ -21,6 +21,7 @@
 int xm77StageChoice=0, xm77StageResolved=0;
 #include "xmvsf_stage87_164_host_replay.h" // shared app/menu/session replay journal
 #include "xmvsf_stage14_boot.h" // XMVSF_STAGE14_TRAINING_BOOT
+#include "xmvsf_stage87_206_crash_report.h" // TEST 87.206 SEH minidump
 int xm14TrainingMode = 0;
 int xm87102DamageMode = 0; // XM87.102 Training: 0 regenerate, 1 native KO
 int xm24VersusMode = 0; /* XMVSF_STAGE24_VERSUS */
@@ -287,10 +288,12 @@ void DoGame(int gameToRun)
     // Restore the user's Training MENU choices once for each Training
     // session, including a fresh process or a return from the boot menu.
     // This never loads a fight state and never affects Arcade or Versus.
+    XM87206Crash::mark(150);
     if(xm14TrainingMode)xm257LoadTrainingOptions();
     std::fprintf(stderr,"XM86.32 HOST ENTER DoGame id=%d modeTraining=%d modeVersus=%d stageChoice=%d resolved=%d\n",gameToRun,xm14TrainingMode,xm24VersusMode,xm77StageChoice,xm77StageResolved);
     std::fflush(stderr);
     const int driverResult=DrvInit(gameToRun, 0);
+    XM87206Crash::mark(151);
     const char* donorCapture=std::getenv("XM87203_STAGE_CAPTURE_DIR");
     const bool donorRequested=romname && std::strncmp(romname,"mvsc",4)==0;
     if(driverResult!=0 && (donorRequested || (donorCapture && *donorCapture))){
@@ -306,6 +309,7 @@ void DoGame(int gameToRun)
 	{
         std::fprintf(stderr,"XM86.32 HOST MediaInit begin\n");std::fflush(stderr);
 		MediaInit();
+        XM87206Crash::mark(160);
         if(xm14TrainingMode){
             // The Frame Data toggle is persisted, but an SDL session's
             // external-pane geometry is not: apply the saved toggle to
@@ -316,7 +320,9 @@ void DoGame(int gameToRun)
         std::fprintf(stderr,"XM86.32 HOST MediaInit complete; controls begin\n");std::fflush(stderr);
 		display_set_controls();
         std::fprintf(stderr,"XM86.32 HOST controls complete; RunMessageLoop begin\n");std::fflush(stderr);
+        XM87206Crash::mark(190);
 		RunMessageLoop();
+        XM87206Crash::mark(191);
         XM8764::gameEnd(); // checkpoint/close recorded CPS2 session before DrvExit
         std::fprintf(stderr,"XM86.32 HOST RunMessageLoop returned\n");std::fflush(stderr);
 	}
@@ -363,6 +369,8 @@ static int __cdecl AppDebugPrintf(int nStatus, TCHAR* pszFormat, ...)
 
 int main(int argc, char* argv[])
 {
+    XM87206Crash::install();
+    XM87206Crash::mark(100);
 	UINT32      i = 0;
 	int fail = 0;
 	atexit(bye);

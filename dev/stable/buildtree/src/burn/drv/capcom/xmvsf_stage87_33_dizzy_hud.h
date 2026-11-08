@@ -5,6 +5,7 @@
 // eighteen 16-bit ROM words beginning at USA 961023 program offset 0x8BC9A.
 // 68000 byte (+B9,A6) is at RAW FBNeo CpsRamFF offset +B8 (word-swapped).
 #include <cstdint>
+#include <algorithm> // moving source-mask bounds, self-contained C++11 header
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -94,71 +95,161 @@ static inline std::uint32_t Rainbow(unsigned frame,unsigned phase) {
        PackRGBA(20,230,255),PackRGBA(50,70,255),PackRGBA(240,50,255)};
     return colors[((frame/4u)+phase)%6u];
 }
-// Compact gold HUD design. These are the screenshot's YELLOW meter positions,
-// not Stage87.33's oversized gray bars at y=53 or labels at y=61.
-// Native viewport 384x224; gold strips: P1 x=61, P2 x=247, y=45, w=76.
-// Stage87.36 corrected mirror relative to existing HP bars; 45-degree chiseled, mirrored 10-point divisions. Geometry changes
-// only; the live stun numerator continues to come from the real ROM counter.
-// The exposed fill is 100% of the available mask at s.used==s.total.
-static inline void DrawOne(unsigned char* draw,int pitch,int side,const Reading& s,
-                           bool noir,unsigned frame) {
-    if(s.total==0)return;
-    const int x=side?247:61, y=45, w=76, h=7;
-    (void)noir; // saturated stun ink even in Double Feature
-    const std::uint32_t shadow=PackRGBA(45,47,49);
-    const std::uint32_t top=PackRGBA(255,212,69); // bright yellow bevel
-    const std::uint32_t gold=PackRGBA(248,143,10); // Spanish orange/yellow
-    const std::uint32_t low=PackRGBA(230,97,0);
-    const std::uint32_t empty=PackRGBA(100,103,105); // energy bar base gray
+// Source art _art/stunbar_base.png is 61x6, authored for P2 (right).
+// _art/examples/example_stunbar.png is a 61x8 COMPOSITION REFERENCE only:
+// the base occupies composition rows 2..7, while orange fills rows 0..5,
+// and the one-pixel shadow covers row 6 and the fill's diagonal cut.
+// Example orange is PARTIAL (44px), not a limit for the full bar.
+// Preserve the original HUD base top pixel at y=45 (composition begins y=43).
+struct BarArt {
+    const unsigned char* rgba=nullptr;
+    int width=0,height=0,pitch=0;
+    bool valid()const{
+        return rgba && width==61 && height==6 && pitch>=width*4;
+    }
+};
+static inline void Base(unsigned char* draw,int pitch,int x,int y,
+                        bool right,const BarArt& art) {
+    for(int row=0;row<art.height;row++)
+        for(int col=0;col<art.width;col++){
+            const int sx=right?col:art.width-1-col;
+            const unsigned char* p=art.rgba+
+                (std::size_t)row*(std::size_t)art.pitch+(std::size_t)sx*4u;
+            if(!p[3])continue;
+            const std::uint32_t rgba=std::uint32_t(p[0])|
+                    (std::uint32_t(p[1])<<8u)|
+                    (std::uint32_t(p[2])<<16u)|
+                    (std::uint32_t(p[3])<<24u);
+            Pixel(draw,pitch,x+col,y+row,rgba);
+        }
+}
+// Six-pixel base comes from PNG; full fill spans its entire original
+// opaque width. Normal stun is warm yellow/orange. Fast diagonal rainbow
+// is reserved EXCLUSIVELY for a visually full stun bar / dizzy flash.
+static inline std::uint32_t RainbowPan(unsigned frame,int srcX,int row) {
+    const std::uint32_t colors[7]={
+        PackRGBA(255,55,49),PackRGBA(255,145,22),
+        PackRGBA(255,231,39),PackRGBA(81,249,52),
+        PackRGBA(33,231,245),PackRGBA(61,96,255),
+        PackRGBA(210,45,255)};
+    // 3 native pixels EVERY emulated frame, versus 1 per 2 frames.
+    // Narrow 4px diagonals give a rapid, continuous rainbow pan.
+    const int pan=int((frame*3u)%28u);
+    const int band=(srcX-row+pan+280)/4;
+    return colors[(unsigned)band%7u];
+}
+static inline std::uint32_t WarmStun(unsigned row) {
+    static const std::uint32_t colors[6]={
+        PackRGBA(255,225,65),PackRGBA(255,200,41),
+        PackRGBA(255,168,24),PackRGBA(251,146,12),
+        PackRGBA(244,121,6),PackRGBA(230,101,0)};
+    return colors[row<6u?row:5u];
+}
+static inline bool HasBasePixel(const BarArt& art,int x,int row) {
+    if(x<0 || x>=art.width || row<0 || row>=art.height)return false;
+    return art.rgba[(std::size_t)row*(std::size_t)art.pitch+
+                    (std::size_t)x*4u+3u]>=8u;
+}
+// Exact composition geometry recovered from _art/examples/example_stunbar.png.
+// Its six orange rows are [10..53], [11..54], ... [15..58] at a 44/54
+// fill. The source base is 61x6, translated down TWO pixels. The outer
+// 2px gray end is a bevel, not active meter area. Inferring the bar face
+// from PNG alpha previously extended the fill two pixels too far.
+static const int FaceWidth=54;
+static inline void SourceSpan(const BarArt& /*art*/,int row,
+                              int& left,int& right){
+    left=row;
+    right=row+FaceWidth-1; // exact original slanted face: 53..58
+}
+// The colored face and tip always derive from ONE width/leading-edge.
+// Never use sprite alpha as a fill-length mask or a stationary tip.
+static inline bool FillBounds(const BarArt& art,int row,int used,int total,
+                              int& first,int& last){
+    if(!art.valid() || used<=0 || total<=0 || row<0 || row>=6)return false;
+    int left,right;SourceSpan(art,row,left,right);
+    const int length=std::min(FaceWidth,
+                  (FaceWidth*std::min(used,total)+total-1)/total);
+    first=right-length+1;
+    last=right;
+    return first>=left && first<=last;
+}
+static inline void DrawOne(unsigned char* draw,int pitch,int side,
+                           const Reading& s,bool noir,unsigned frame,
+                           const BarArt* art=nullptr,bool intro=false){
+    if(s.total<=0 || !art || !art->valid())return;
+    const int y=45;  // existing native stun bar BASE top, not the floating fill
+    const int w=61;
+    const int x=side?(323-w):61; // P2 right-aligned, P1 mirrored at x=61
+    const int used=s.flash?s.total:s.used;
+    const bool atCapacity=used>=s.total; // rainbow ONLY at 100%
     const std::uint32_t cyan=noir?PackRGBA(158,192,192):PackRGBA(68,226,240);
     const std::uint32_t pink=noir?PackRGBA(198,145,186):PackRGBA(255,104,220);
-    const int segments=s.total/10; // 50->5; 60->6, one division per 10 stun
-    const int used=s.flash?s.total:s.used;
-    const int fill=w*used/s.total;
-    for(int ry=0;ry<h;ry++) {
-        // 45-degree chisel on both ends; mirror the tilt for P2.
-        // A 1px change in y yields a 1px shift in its slanted edge.
-        const int leftCut=side?ry:(h-1-ry);
-        const int rightCut=side?(h-1-ry):ry;
-        for(int ix=leftCut;ix<w-rightCut;ix++) {
-            const bool filled=side?(ix>=w-fill):(ix<fill);
-            std::uint32_t color=shadow;
-            if(ry>=1 && ry<h-1) {
-                color=empty;
-                if(filled) {
-                    if(s.flash)color=Rainbow(frame,(unsigned)(ix/4)+(unsigned)side*2u);
-                    else if(ry==1)color=top;
-                    else if(ry==h-2)color=low;
-                    else color=gold;
-                }
-                // The dash is an etched 1px slit at every 10 stun points.
-                // Do not change fill arithmetic; zero and full still map
-                // precisely to 0% and 100% of the available chiseled area.
-                bool dash=false;
-                for(int d=1;d<segments;d++) {
-                    const int split=(w*d)/segments;
-                    if(ix==split){dash=true;break;}
-                }
-                if(dash)color=PackRGBA(67,68,69);
+    const std::uint32_t inset=PackRGBA(67,68,69);
+
+    // (1) Original 61x6 base; no legacy 76px meter fallback exists.
+    Base(draw,pitch,x,y,side!=0,*art);
+    if(used>0){
+        // (2) The live fill and its diagonal cut move together. Mirror
+        // only at the final P1 pixel-coordinate conversion.
+        for(int row=0;row<6;row++){
+            int first=0,last=-1;
+            if(!FillBounds(*art,row,used,s.total,first,last))continue;
+            for(int src=first;src<=last;src++){
+                const int dx=side?src:(60-src);
+                Pixel(draw,pitch,x+dx,y-2+row,
+                      atCapacity?RainbowPan(frame,src,row):
+                                 WarmStun((unsigned)row));
             }
-            Pixel(draw,pitch,x+ix,y+ry,color);
+            // (3a) One pixel of shadow IN THE GRAY BASE immediately
+            // BEFORE the live diagonal face, not on top of the color.
+            // The source example proves shadow at row2=x(first-1).
+            if(row>=2 && HasBasePixel(*art,first-1,row-2)){
+                const int dx=side?(first-1):(61-first);
+                Pixel(draw,pitch,x+dx,y-2+row,inset);
+            }
+        }
+        // (3b) The sample's bottom shadow is exactly one pixel past
+        // the colored face at its RIGHT bevel: e.g. partial row6 x15..59
+        // against row5's orange x15..58. Never two pixels beyond the
+        // face, and never beyond original alpha or beyond the dynamic tip.
+        int first=0,last=-1;
+        if(FillBounds(*art,5,used,s.total,first,last)){
+            for(int src=first;src<=std::min(60,last+1);src++){
+                if(!HasBasePixel(*art,src,4))continue;
+                const int dx=side?src:(60-src);
+                Pixel(draw,pitch,x+dx,y+4,inset);
+            }
         }
     }
-    char totalText[16];std::snprintf(totalText,sizeof(totalText),"%d/%d",used,s.total);
+
+    // During status 06 the combat stage has opened but the round has not
+    // yet begun. Draw the empty bases in their final HUD positions, without
+    // interpreting uninitialized per-fighter resistance bytes as full stun.
+    if(intro)return;
+    // Gameplay-owned stun accumulation, total and hit numbers unchanged.
+    char totalText[16];
+    std::snprintf(totalText,sizeof(totalText),"%d/%d",used,s.total);
     const int totalX=side?326:(x-5-(int)std::strlen(totalText)*4);
-    Text(draw,pitch,totalX,y+1,totalText,s.flash?Rainbow(frame,(unsigned)side):cyan);
-    if(s.hitStun>0&&!s.flash) {
-        char hitText[16];std::snprintf(hitText,sizeof(hitText),"%d",s.hitStun);
+    Text(draw,pitch,totalX,y+1,totalText,
+         s.flash?Rainbow(frame,(unsigned)side):cyan);
+    if(s.hitStun>0&&!s.flash){
+        char hitText[16];
+        std::snprintf(hitText,sizeof(hitText),"%d",s.hitStun);
         const int hitX=side?351:(34-(int)std::strlen(hitText)*4);
         Text(draw,pitch,hitX,y+1,hitText,pink);
     }
 }
 static inline void Draw(const unsigned char* ram,unsigned char* framebuffer,int pitch,int bpp,
-                        unsigned frame,int gameStatus,bool noir) {
+                        unsigned frame,int gameStatus,bool noir,
+                        const BarArt* art=nullptr) {
     static Track tracked[2];
     static bool logged=false;
-    if(!ram || !framebuffer || gameStatus!=8 || bpp!=4 || pitch<384*4){
-        if(gameStatus!=8){tracked[0].valid=false;tracked[1].valid=false;tracked[0].flash=false;tracked[1].flash=false;}
+    const bool intro=(gameStatus==6);
+    const bool combat=(gameStatus==8);
+    if(!ram || !framebuffer || (!intro&&!combat) || bpp!=4 || pitch<384*4){
+        if(!intro&&!combat){
+            tracked[0]=Track();tracked[1]=Track();
+        }
         return;
     }
     const char* option=std::getenv("XM8733_DIZZY_BAR");
@@ -166,8 +257,16 @@ static inline void Draw(const unsigned char* ram,unsigned char* framebuffer,int 
     if(!logged){std::fprintf(stderr,"XM87.33 DIZZY_HUD active 384x224 raw=B8 table=8BC9A mode=game-wide\n");logged=true;}
     // Read native active P1 +0x4000 and P2 +0x4400. All player state is READ-ONLY.
     for(int p=0;p<2;p++){
-        Reading r=Sample(tracked[p],ram+0x4000+(unsigned)p*0x400u,frame);
-        DrawOne(framebuffer,pitch,p,r,noir,frame);
+        if(intro){
+            // Clear tracking from selection/Versus and render the empty
+            // base as soon as the native combat screen opens at 06.
+            tracked[p]=Track();
+            Reading empty;empty.total=1;empty.used=0;
+            DrawOne(framebuffer,pitch,p,empty,noir,frame,art,true);
+        }else{
+            Reading r=Sample(tracked[p],ram+0x4000+(unsigned)p*0x400u,frame);
+            DrawOne(framebuffer,pitch,p,r,noir,frame,art);
+        }
     }
 }
 }

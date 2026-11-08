@@ -10,9 +10,17 @@ Run `RUN_TEST.bat` with no arguments. It displays:
 
 | Option | Operation | Source and output |
 | --- | --- | --- |
-| **1 - Test game** | Launch the current native XMVSF TEST executable (xmvsfu), not Stable. | `runtime/stable/XMVSF_Test_87_203.exe` |
+| **1 - Test game** | Launch the current native XMVSF TEST executable (xmvsfu), not Stable. | `runtime/stable/XMVSF_Test_87_206.exe` |
 | **2 - Asset Organizer** | Call `asset_organizer/BUILD_AO.bat`, then start the localhost editor. | `asset_organizer/index.html` and `asset_organizer/aodata.json` |
 | **3 - Capture Level** | Show a category list; MVC1 (`mvscur1`) is the first and only donor. | `test/87.203/stage_capture/session_XXXX` |
+
+**Current native TEST: 87.206 (menu/logo/font pass).** The executable
+is produced only by `BUILD_TEST.bat` and deliberately **not checked into
+GitHub**. Pulling code does not rebuild an existing Windows .exe. The builder
+publishes `runtime/stable/XMVSF_Test_87_206.exe`, and launch option 1
+requires that exact version with no old-EXE fallback. All existing
+87.203 capture/analysis directories are preserved; new gameplay/replay logs
+are written in `test/87.206`.
 
 **Critical XMVSF launch contract:** option 1 must invoke the native TEST
 executable with **no ROM argument** (`"%EXE%"`). The native `main.cpp`

@@ -1,10 +1,7 @@
 #include "cps.h"
 #include "xmvsf_stage87_25_direct_outline.h" // Existing fighter outline enable gate
 #include "xmvsf_stage87_26_seamless_bloom.h" // Stage87.26 exterior-only fighter glow
-#include "xmvsf_stage87_46_hud_layers.h" // XM87.122 native stun HUD compositing
 #include "xmvsf_stage87_28_interior_mask.h" // ROM-derived fighter opacity stencil
-extern "C" bool xm8746DizzyHudAllowed();
-extern UINT8 *CpsRamFF;
 extern bool xm8657PaletteActive;
 extern int xm8658GameStatus;
 #include "xmvsf_stage86_64_strong_noir.h" // XM86.64 strong saturated dark backgrounds
@@ -597,42 +594,12 @@ static void DoDraw(INT32 Recalc)
         xm8658GameStatus==8 && XM8725::Enabled(),
         nCpsScreenWidth,nCpsScreenHeight,nBurnBpp);
     CpsLayersDoX();
-    // XM87.122 HUD_DEPTH_TAG_HP: all native trees/scrolls have painted.
-    // Use the existing accurate 4-bit fighter-opacity stencil so neither
-    // Cyclops nor his opponent can be covered when airborne over the meter.
-    if(Cps==2 && CpsRamFF && pBurnDraw && xm8658GameStatus==8 &&
-       xm8746DizzyHudAllowed() && nCpsScreenWidth==384 &&
-       nCpsScreenHeight==224 && nBurnBpp==4 && nBurnPitch>=384*4){
-        const auto& body=XM8728::State();
-        const unsigned frame=(unsigned)GetCurrentFrame();
-        if(body.started && body.ready && body.frame==frame &&
-           body.width==384 && body.height==224 && body.body.size()==384u*224u){
-            static unsigned char overlay[384*224*4];
-            std::memset(overlay,0,sizeof(overlay));
-            const char* df=std::getenv("XM8649_WILY_RENDER");
-            XM8733::Draw(CpsRamFF,overlay,384*4,4,frame,xm8658GameStatus,
-                         df && df[0]=='1' && df[1]==0);
-            unsigned skipped=0;
-            const unsigned drawn=XM8746::BlitOverSceneryUnderActors(
-                overlay,(unsigned char*)pBurnDraw,nBurnPitch,body.body.data(),
-                384u,224u,BurnHighCol,&skipped);
-            static unsigned lastReport=~0u;
-            if(lastReport==~0u || frame-lastReport>=300u){
-                std::fprintf(stderr,
-                    "XM87.122 HUD_DEPTH_TAG_HP frame=%u drawn=%u masked_actor_pixels=%u\n",
-                    frame,drawn,skipped);
-                lastReport=frame;
-            }
-        }else{
-            static bool warned=false;
-            if(!warned){
-                std::fprintf(stderr,
-                    "XM87.122 HUD_DEPTH_MASK_UNAVAILABLE frame=%u (skipping meter to protect fighters)\n",
-                    frame);
-                warned=true;
-            }
-        }
-    }
+    // XM87.209: the 76-pixel legacy stun meter MUST NOT be painted here.
+    // It was an independent native software draw layered under the new
+    // 61x6 PNG HUD, causing the user-visible double rainbow/immobile tip.
+    // The existing SDL HUD (vid_sdl2.cpp::xm8733Overlay) is the single
+    // presentation owner: one pass, PNG base -> live fill -> moving inset.
+    // Leave CPS2 layer order, original fighter pixels and hitboxes intact.
     XM8726::State().Composite(pBurnDraw,nBurnBpp,nBurnPitch,
         (unsigned)GetCurrentFrame());
     xm8657RestoreNativePalette(); // original palette for later emulation and capture

@@ -140,7 +140,12 @@ struct XM30Track {
     unsigned previousActiveBases[12]={};
 };
 struct XM30FrameData {
-    static const int HISTORY=24, FLOATS=8, MAX_WAIT=120, FLOAT_LIFE=120;
+    // Original 120 native-frame ascent to the 40px apex, then a
+    // 20-frame width-only collapse and another full text-height rise.
+    // This modifies presentation timing, never attack measurements.
+    static const int HISTORY=24, FLOATS=8, MAX_WAIT=120;
+    static const int FLOAT_APEX=120, FLOAT_EXIT=20;
+    static const int FLOAT_LIFE=FLOAT_APEX+FLOAT_EXIT;
     bool enabled=false;
     bool inCombat=false;
     unsigned long long frame=0;
@@ -413,4 +418,31 @@ struct XM30FrameData {
         }
     }
 };
+// Stage 87.214: floating popup geometry determined ONLY by the native
+// frame-data clock. Apex holds the original 40px rise, then over 20
+// frames squeeze horizontal width to zero while moving up the actual
+// on-screen font height. Vertical glyph size never compresses.
+struct XM30FloatPose {
+    int rise=0;
+    int alpha=255;
+    double horizontal=1.0;
+};
+static inline XM30FloatPose xm30FloatPose(int age,int fontHeight){
+    XM30FloatPose pose;
+    if(age<0)age=0;
+    if(fontHeight<1)fontHeight=1;
+    if(age<XM30FrameData::FLOAT_APEX){
+        pose.rise=(age*40)/XM30FrameData::FLOAT_APEX;
+        return pose;
+    }
+    const int elapsed=age-XM30FrameData::FLOAT_APEX+1;
+    const int progress=elapsed<0?0:(elapsed>XM30FrameData::FLOAT_EXIT?
+                               XM30FrameData::FLOAT_EXIT:elapsed);
+    pose.rise=40+(progress*fontHeight)/XM30FrameData::FLOAT_EXIT;
+    pose.horizontal=(double)(XM30FrameData::FLOAT_EXIT-progress)/
+                    (double)XM30FrameData::FLOAT_EXIT;
+    pose.alpha=255*(XM30FrameData::FLOAT_EXIT-progress)/
+               XM30FrameData::FLOAT_EXIT;
+    return pose;
+}
 #endif
