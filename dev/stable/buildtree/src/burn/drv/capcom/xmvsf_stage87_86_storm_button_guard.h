@@ -140,7 +140,8 @@ struct Actor {
     bool postFlightNeedsNativeLanding=false;
     bool postFlightRelaunchPending=false;
     unsigned postFlightRelaunchAge=1000u,postFlightAttacker=~0u;
-    unsigned postFlightVictim=~0u;
+    unsigned postFlightVictim=~0u,postFlightRelaunchAction=0u;
+    unsigned postFlightRelaunchSerial=0u;
     unsigned prevAction,prevProfile,prevSubstate,prevReaction,prevVictimY;
     unsigned prevAttackerAction,attackSerial,lastConfirmedSerial,connectedAirHits,connectedStormHeavyHits,attackAge;
     unsigned pendingAge,pendingAction,pendingButton,pendingBank,pendingAttackerId,lastAttackerId,lastVictimId;
@@ -155,6 +156,7 @@ struct Actor {
         pendingSevere=false;pendingStormRepeatHK=false;
         pendingAge=1000;pendingButton=0;nativeLaunched=false;
         postFlightRelaunchPending=false;postFlightRelaunchAge=1000u;
+        postFlightRelaunchAction=0u;postFlightRelaunchSerial=0u;
         // This air-sequence gate deliberately survives ordinary combo
         // gaps. Only tag-out, a confirmed landing, or match exit clears
         // postFlightNeedsNativeLanding.
@@ -235,20 +237,13 @@ struct Actor {
         d.hitConfirmed=combat && attackerAir && attackNow && d.reaction==0x000Cu &&
           d.y<472u && freshReaction && attackAge<=24u && attackSerial!=lastConfirmedSerial;
         if(d.hitConfirmed){
-            // TEST 87.228: the 87.227 trace proves a post-FS
-            // opponent can be relaunched natively into 1C14/0210 many
-            // times before EVER landing, while the host one-boost gate
-            // correctly refuses synthetic FS. Each fresh ROM launcher
-            // in a NEW attack must instead resolve groundward.
-            // Do not touch medium/ordinary soft followup hit states.
-            if(postFlightNeedsNativeLanding &&
-               nativeLaunchReaction(d.victimActionBefore,d.victimProfileBefore) &&
-               d.substate==0u && !nativeLanded){
-                postFlightRelaunchPending=true;
-                postFlightRelaunchAge=0u;
-                postFlightAttacker=d.attackerId;
-                postFlightVictim=d.victimId;
-            }
+            // 87.229: never inherit a previous HK's delayed severe
+            // decision. A NEW confirmed hit invalidates a previous
+            // post-flight decision; only a physical HP/HK button edge
+            // associated with THIS native hit may arm another one.
+            postFlightRelaunchPending=false;
+            postFlightRelaunchAge=1000u;
+            postFlightRelaunchAction=0u;
             // A new hit invalidates any older pending severe-velocity write.
             pendingSevere=false;pendingStormRepeatHK=false;pendingAge=1000u;pendingButton=0u;
             // Bind each button press to at most one confirmed hit. Do not let a
@@ -257,6 +252,29 @@ struct Actor {
             d.buttonEvidence=pressSequence!=consumedSequence && recentButtonAge<=30u && recentButton!=0u;
             d.taggedButton=d.buttonEvidence?recentButton:0u;
             consumedSequence=pressSequence;
+            // TEST 87.229 evidence: all 4 unwanted severe writes in
+            // 87.228.zip were triggered by air LP 1800 or LK 1A00,
+            // 9 frames after their hit onset, including after an HK.
+            // Never upgrade these light/medium hits to Cyclops severe.
+            // Require a fresh, unambiguous HP/HK press for THIS action.
+            const bool sameHitHeavy=heavyAirAttack(d.attackerAction) &&
+                d.buttonEvidence &&
+                (d.taggedButton==(1u<<2u) ||
+                 d.taggedButton==(1u<<5u)) &&
+                !charlieNativeAirHP(d.attackerId,d.attackerBank,
+                                    d.attackerAction) &&
+                !excludedCharacterHP(d.attackerId,d.attackerAction,
+                                     d.taggedButton);
+            if(postFlightNeedsNativeLanding && sameHitHeavy &&
+               nativeLaunchReaction(d.victimActionBefore,d.victimProfileBefore) &&
+               d.substate==0u && !nativeLanded){
+                postFlightRelaunchPending=true;
+                postFlightRelaunchAge=0u;
+                postFlightAttacker=d.attackerId;
+                postFlightVictim=d.victimId;
+                postFlightRelaunchAction=d.attackerAction;
+                postFlightRelaunchSerial=attackSerial;
+            }
             d.stormMediumButton=d.taggedButton==(1u<<4); // native MK
             d.stormHeavyButton=d.taggedButton==(1u<<2) || d.taggedButton==(1u<<5); // HP/HK
             d.onset=true;
@@ -354,16 +372,23 @@ struct Actor {
             if(postFlightRelaunchAge<1000u)++postFlightRelaunchAge;
             const bool sameVictim=d.victimId==postFlightVictim;
             const bool sameAttacker=d.attackerId==postFlightAttacker;
+            // The 87.228 delayed write survived an LP->LK change. Never
+            // resolve against a later attack, even within the old 24f
+            // window. A new attack edge on the same animation also cancels.
+            const bool sameAttack=d.attackerAction==postFlightRelaunchAction &&
+                attackSerial==postFlightRelaunchSerial && !d.airAttackStart;
             const bool nativePaired=paired ||
                 nativeLaunchReaction(d.victimActionBefore,d.victimProfileBefore);
             const bool expired=postFlightRelaunchAge>24u || !combat ||
                 !postFlightNeedsNativeLanding || !sameVictim ||
-                !sameAttacker || nativeLanded || d.reaction!=0x000cu ||
-                d.y>=472u;
+                !sameAttacker || !sameAttack || nativeLanded ||
+                d.reaction!=0x000cu || d.y>=472u;
             if(expired){
                 postFlightRelaunchPending=false;
                 postFlightRelaunchAge=1000u;
             }else if(d.substate==2u && nativePaired){
+                // This is still the SAME confirmed HP/HK input and
+                // action as the native hit that armed the intervention.
                 // Cyclops' verified native severe fall, NOT another
                 // Storm boost. It deliberately breaks the native
                 // launch/relaunch loop and forces a real ground approach.
@@ -377,7 +402,7 @@ struct Actor {
                 d.velocityWritten=true;
                 d.stateWritten=(d.victimActionBefore!=SEVERE_ACTION ||
                                 d.victimProfileBefore!=SEVERE_PROFILE);
-                d.outcome="POST_FS_NATIVE_RELAUNCH_SEVERE_LANDING";
+                d.outcome="POST_FS_SAME_HEAVY_NATIVE_RELAUNCH_SEVERE";
                 postFlightRelaunchPending=false;
                 postFlightRelaunchAge=1000u;
             }
