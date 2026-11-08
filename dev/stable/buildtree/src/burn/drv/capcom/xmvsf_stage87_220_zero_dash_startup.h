@@ -265,8 +265,9 @@ struct Controller {
                 return e;
             }
         }else if(entry==XM87233AirReturn::NATIVE_GROUND_DASH_READY ||
-                 entry==XM87233AirReturn::NATIVE_GROUND_DASH_BAD_X){
-            const bool bad=entry==XM87233AirReturn::NATIVE_GROUND_DASH_BAD_X;
+                 entry==XM87233AirReturn::NATIVE_GROUND_DASH_BAD_X ||
+                 entry==XM87233AirReturn::NATIVE_GROUND_DASH_WARPED_X){
+            const bool bad=entry!=XM87233AirReturn::NATIVE_GROUND_DASH_READY;
             const std::uint32_t anchored=bad?a.airReturn.anchor:x;
             if(settleReturnOnNativeFloor(r,p)){
                 if(bad)setLong(r,p+0x0cu,anchored);
@@ -280,7 +281,10 @@ struct Controller {
                         "%u\t%u\t%04X\t%04X\t0\t%08X\t%08X\t%08X\t%u\t%u\t%s\n",
                         frame,side+1u,identity,mode,x,longword(r,p+0x14u),
                         longword(r,p+0x34u),word(r,p+0x3eu),word(r,p+0x3eu),
-                        bad?"FS_AIR_TO_NATIVE_DASH_CORRUPT_X_RECOVERED":
+                        entry==XM87233AirReturn::NATIVE_GROUND_DASH_BAD_X?
+                            "FS_AIR_TO_NATIVE_DASH_CORRUPT_X_RECOVERED":
+                        entry==XM87233AirReturn::NATIVE_GROUND_DASH_WARPED_X?
+                            "FS_AIR_TO_NATIVE_DASH_WARP_RECOVERED":
                             "FS_AIR_TO_NATIVE_GROUND_DASH");
                     std::fflush(log);
                 }
