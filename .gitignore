@@ -4,6 +4,7 @@
 /testdata/
 /test/
 /dev/stable/buildtree/obj/
+/fbneo/*.log
 *.o
 *.d
 *.zip
