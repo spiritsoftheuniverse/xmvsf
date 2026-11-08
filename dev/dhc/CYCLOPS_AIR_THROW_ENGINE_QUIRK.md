@@ -40,6 +40,53 @@ around **51–52 committed frames after grab end**, canceling the former
 100-frame release. Lowering the deadline to **36 frames (0.6s)** made
 release consistent in user gameplay tests.
 
+## TEST 87.219 — Native combo-air grabs and variable stage world Y
+
+**Attached evidence:** `87.218.zip/observer/cyclops_air_throw_release.tsv`
+contains nine throw captures. Four had `AIRBORNE_SAVED`, entered
+`GRAB_ENDED`, and released at exactly **24 native recovery updates**.
+Five captures were `NO_AIRBORNE_BASELINE` at world Y positions
+**810, 681, 865, 823, and 805**, despite native airborne flag
+`AA=1/2` and grab controller `32`. This invalidates using world
+`Y<472` as a universal airborne/grounded condition.
+
+The included DHC post-CPU trace independently shows the last actions
+before those misses. Some were neutral airborne `0200/0202` at world
+Y above 472, and two were native combo air substates **`020C`**
+(mode `1C1A`) and **`0214`** (mode `1C28`). For the `0214`
+attempt, a valid `0202` neutral controller occurred 39 frames
+earlier; the previous 24-frame source-age limit discarded it.
+For the `020C` attempt, the last recorded neutral action was
+473 frames earlier, too stale to restore.
+
+The fix is restricted to air-throw eligibility and snapshot selection:
+
+- Trust native airborne actions `0200/0202`, the native `1C`
+  airborne controller and `AA` rising/descending flags, **not**
+  an absolute stage-Y threshold.
+- Retain a known neutral-air snapshot for up to **96 committed
+  frames**, allowing 39-frame aerial-combo sequences to reconnect.
+- When no recent neutral snapshot exists, accept a recent **native**
+  `0200–021E` aerial substate (including `020C/0214`) with
+  both mode `1C` and `AA=1/2`. Restore that recorded controller,
+  never invent an animation/script/jump.
+- Start at `200C -> 200E` regardless of world-Y. Cancel waiting
+  only when the native throw family **and** mode32 are both gone;
+  world Y does not cancel a live throw.
+- Log `AIRBORNE_SAVED`, `COMBO_NEUTRAL_RETAINED` or
+  `COMBO_AIR_SAVED` for each capture, making the three paths
+  independently diagnosable.
+
+**Input interpretation:** the X cancel observed after a successful
+release is **intentional human input**. It is not a delayed recovery
+failure and is not intercepted or suppressed by this work.
+
+The proven **24-frame release** and one-time zero at horizontal
+velocity `+0x14` remain unchanged, as do run-ahead protection,
+per-throw rearming, animation fields, vertical physics, other
+characters, and the six-frame native SF2 popup. The fallback combo
+substates require native gameplay confirmation before merging.
+
 ## TEST 87.218 — Stop inherited horizontal momentum on release
 
 The preceding airborne state contains two separately observed 32-bit
