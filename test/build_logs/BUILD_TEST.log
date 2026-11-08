@@ -5183,3 +5183,198 @@ b7f92a94e6a705829e184d3f5ca504ebd14783a61328652e25259c9477750962 */f/xmvsf/_art/
 Stage 87.216: native sources dependency-cached; Stable and previous TESTs untouched.
 XMVSF BUILD END rc=0 time=2026-11-07 21:13:01 log=/f/xmvsf/test/build_logs/BUILD_TEST.log
 BATCH RESULT: SUCCESS Sat 11/07/2026 21:13:01.26
+
+========== XMVSF BUILD_TEST.bat 87.218 START Sat 11/07/2026 22:07:26.08 ==========
+Project: F:\xmvsf
+
+========== XMVSF TEST 87.218 BUILD BEGIN 2026-11-07 22:07:27 ==========
+Project: /f/xmvsf
+Log: /f/xmvsf/test/build_logs/BUILD_TEST.log
+ERROR: 87.218 native menu/glyph sources missing; inspect checked-out branch
+XMVSF BUILD END rc=2 time=2026-11-07 22:07:28 log=/f/xmvsf/test/build_logs/BUILD_TEST.log
+BATCH RESULT: FAILURE Sat 11/07/2026 22:07:28.54
+
+========== XMVSF BUILD_TEST.bat 87.218 START Sat 11/07/2026 22:10:28.75 ==========
+Project: F:\xmvsf
+
+========== XMVSF TEST 87.218 BUILD BEGIN 2026-11-07 22:10:30 ==========
+Project: /f/xmvsf
+Log: /f/xmvsf/test/build_logs/BUILD_TEST.log
+87.218 menu preflight: native boot and glyph/FX sources present; logo, fonts and menuanimation.gif verified.
+87.218 draw path is verified by native compile and runtime, not a stale grep for XMGlyph::logo(render).
+BUILD CACHE: compiler/settings match; retaining existing objects.
+BUILD CACHE: fingerprint=cc24b66d70a424d766a1dd3da98614f91463cd30cf9a9e808027ee108436d6ea
+BUILD CACHE: native objects=/f/xmvsf/dev/stable/buildtree/obj; state=/f/xmvsf/test/build_cache
+BUILD CACHE: optional ccache unavailable/disabled; normal gcc.
+PASS 87.202: 2E0E PC010392 rebound only; wrong action, owner and stale-latch rejected
+XM87.203 CAPTURE_START f=0 read_only=1 format=XM87203A1 no_level_complete_without_verification
+XM87.203 SESSION_DIR f=0 F:/xmvsf/test/87.203/unit_tests/capture_smoke/session_0067
+XM87.203 GFX_READY f=100 rom=mvscur1 decoded_bytes=2048 fnv64=026655812C8B5205 file=mvc1_decoded_gfx_00000800_026655812C8B5205.bin
+XM87.203 STAGE_BEGIN f=100 stage=5 begin
+XM87.203 MAP_SOURCE_READY f=101 scroll1_scroll2_scroll3_native_banks_observed_not_yet_builder_verified
+XM87.203 INCOMPLETE f=103 previous_stage_left_before_validation
+XM87.203 STAGE_BEGIN f=103 stage=6 begin
+XM87.203 CAPTURE_START f=0 read_only=1 format=XM87203A1 no_level_complete_without_verification
+XM87.203 SESSION_DIR f=0 F:/xmvsf/test/87.203/unit_tests/capture_smoke/session_0068
+XM87.203 GFX_READY f=104 rom=mvscur1 decoded_bytes=2048 fnv64=026655812C8B5205 file=mvc1_decoded_gfx_00000800_026655812C8B5205.bin
+XM87.203 STAGE_BEGIN f=104 stage=6 begin
+XM87.203 MAP_SOURCE_READY f=105 scroll1_scroll2_scroll3_native_banks_observed_not_yet_builder_verified
+XM87.203 PROGRESS f=403 source_rom=mvscur1 stage_id=observed batch_frames=300 total_frames=300 batch=1 map_snapshots=3 row_snapshots=1 palette_snapshots=1 oam_frames=300 still_recording=1
+XM87.203 BATCH_DONE f=404 session=F:/xmvsf/test/87.203/unit_tests/capture_smoke/session_0068 frames=300 final_frame=403 total_frames=300 all_batches_unverified=1
+XM87.203 CAPTURE_START f=0 read_only=1 format=XM87203A1 no_level_complete_without_verification
+XM87.203 SESSION_DIR f=0 F:/xmvsf/test/87.203/unit_tests/capture_smoke/session_0069
+XM87.203 BATCH_NEXT f=404 F:/xmvsf/test/87.203/unit_tests/capture_smoke/session_0069
+XM87.203 GFX_READY f=404 rom=mvscur1 decoded_bytes=2048 fnv64=026655812C8B5205 file=mvc1_decoded_gfx_00000800_026655812C8B5205.bin
+XM87.203 STAGE_BEGIN f=404 stage=6 begin
+PASS 87.203 native telemetry + continuous frame-batch rollover, no lost boundary frame or old-session overwrite
+UNIT CACHE: first dependency scan for test_stun_and_cyclops_218.exe.
+UNIT COMPILE: test_stun_and_cyclops_218.exe
+XM87.33 DIZZY_HUD active 384x224 raw=B8 table=8BC9A mode=game-wide
+87.218 STUN_UI_PASS: mirrored source, full coverage, live tip, 1px shadow, threshold
+87.218 NATIVE_FLOAT_PASS: native raster bounds, 6f squeeze, 8px rise, no SDL coordinates
+87.218 PASS: Cyclops 24f release with zero X velocity, intact XY/Y motion, repeated throws, 6f native SF2 float
+XMVSF Stage 87.218 TEST: incremental build; preserving cached objects
+Source branch: feature/cyclops-zero-horizontal-release-87-218
+Source revision: d96b82c
+Dependencies: GNU Make + persistent obj/**/*.d header dependency files
+make[1]: Entering directory '/f/xmvsf/dev/stable/buildtree'
+Making normal build...
+
+
+Warning: Perl is not available on this system.
+src/dep/generated/driverlist.h cannot be updated or created!
+
+Compiling src/burn/drv/capcom/cps_run.cpp...
+Compiling src/burner/sdl/main.cpp...
+In file included from src/burn/drv/capcom/cps_run.cpp:29:
+src/burn/drv/capcom/xmvsf_stage87_144_native_handoff.h: In member function 'void XM87144::State::armOutgoingTag(uint8_t*, unsigned int, unsigned int, unsigned int)':
+src/burn/drv/capcom/xmvsf_stage87_144_native_handoff.h:394:24: warning: unused variable 'p' [-Wunused-variable]
+  394 |         const unsigned p=0x4000u+side*0x400u;
+      |                        ^
+In file included from src/burn/burnint.h:13,
+                 from src/burner/sdl/xmvsf_stage17_auto.h:6,
+                 from src/burner/sdl/main.cpp:38:
+src/burner/sdl/tchar.h:12:9: warning: '__TEXT' redefined
+   12 | #define __TEXT(q)    q
+      |         ^~~~~~
+In file included from C:/msys64/ucrt64/include/minwindef.h:163,
+                 from C:/msys64/ucrt64/include/windef.h:9,
+                 from C:/msys64/ucrt64/include/windows.h:69,
+                 from src/burner/sdl/burner_sdl.h:22,
+                 from src/burner/burner.h:47,
+                 from src/burner/sdl/main.cpp:16:
+C:/msys64/ucrt64/include/winnt.h:412:9: note: this is the location of the previous definition
+  412 | #define __TEXT(quote) quote
+      |         ^~~~~~
+In file included from src/burner/sdl/xmvsf_stage14_boot.h:84,
+                 from src/burner/sdl/main.cpp:23:
+src/burner/sdl/xmvsf_stage87_33_dizzy_option.h: In function 'void xm8733DizzyLoad()':
+src/burner/sdl/xmvsf_stage87_33_dizzy_option.h:19:24: warning: this 'if' clause does not guard... [-Wmisleading-indentation]
+   19 |     if(f){int flag=-1; if(std::fscanf(f,"dizzy_bar=%d",&flag)==1 && (flag==0||flag==1))
+      |                        ^~
+src/burner/sdl/xmvsf_stage87_33_dizzy_option.h:20:40: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the 'if'
+   20 |         xm8733DizzyEnabled()=(flag==1);std::fclose(f);}
+      |                                        ^~~
+In file included from src/burner/sdl/main.cpp:24:
+src/burner/sdl/xmvsf_stage87_206_crash_report.h: In function 'LONG XM87206Crash::onUnhandled(EXCEPTION_POINTERS*)':
+src/burner/sdl/xmvsf_stage87_206_crash_report.h:55:27: warning: cast between incompatible function types from 'FARPROC' {aka 'long long int (*)()'} to 'DumpFn' {aka 'int (*)(void*, long unsigned int, void*, MINIDUMP_TYPE, _MINIDUMP_EXCEPTION_INFORMATION*, _MINIDUMP_USER_STREAM_INFORMATION*, _MINIDUMP_CALLBACK_INFORMATION*)'} [-Wcast-function-type]
+   55 |         const DumpFn dump=reinterpret_cast<DumpFn>(
+      |                           ^~~~~~~~~~~~~~~~~~~~~~~~~
+   56 |             GetProcAddress(dll,"MiniDumpWriteDump"));
+      |             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+src/burner/sdl/main.cpp: At global scope:
+src/burner/sdl/main.cpp:359:20: warning: 'int AppDebugPrintf(int, TCHAR*, ...)' defined but not used [-Wunused-function]
+  359 | static int __cdecl AppDebugPrintf(int nStatus, TCHAR* pszFormat, ...)
+      |                    ^~~~~~~~~~~~~~
+src/burner/sdl/main.cpp: In function 'int SDL_main(int, char**)':
+src/burner/sdl/main.cpp:494:52: warning: '%s' directive output may be truncated writing up to 2339 bytes into a region of size 260 [-Wformat-truncation=]
+  494 |                 snprintf(currentPath, MAX_PATH, "%s%s", base_path, szDirs[x]);
+      |                                                    ^~
+src/burner/sdl/main.cpp:494:25: note: 'snprintf' output 1 or more bytes (assuming 2340) into a destination of size 260
+  494 |                 snprintf(currentPath, MAX_PATH, "%s%s", base_path, szDirs[x]);
+      |                 ~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Linking executable... fbneo
+make[1]: Leaving directory '/f/xmvsf/dev/stable/buildtree'
+TEST PUBLISH: atomic TEST-only update completed.
+TEST BUILD READY: /f/xmvsf/runtime/stable/XMVSF_Test_87_218.exe
+BUILD CACHE SUMMARY: rebuilt 2 of 1174 local objects; reused 1172.
+BUILD CACHE INVENTORY: /f/xmvsf/test/build_cache/object_inventory.tsv
+BUILD CACHE REBUILT FILES: /f/xmvsf/test/build_cache/last_rebuilt_objects.txt
+BUILD CACHE LAST SUCCESS: /f/xmvsf/test/build_cache/last_success.tsv
+87.218 compiled TEST sha256: 40ead54cd1417da15e84c885664ca64f87eb7e91736f464404639429a4537a6d
+87.218 menu source asset checksums:
+92c0d589fbf98ca34c9152458e42938b9617bc153b8a989db978fdcfa3de5388 */f/xmvsf/_art/logo.png
+94fc3ea5e03113137336635a896b782b404b742a0c2b1bcdd98fb5b740f9f276 */f/xmvsf/_art/sf2font.png
+bdd1f33563d97781ecb43efa54ee445af50b790ca4f544016890e68556b28aa0 */f/xmvsf/_art/sf2fontsmall.png
+e20c0dcd1dc34dd15739d55d6d519d8eaabef283aed556105310ae5e80fc5945 */f/xmvsf/_art/menuanimation.gif
+b7f92a94e6a705829e184d3f5ca504ebd14783a61328652e25259c9477750962 */f/xmvsf/_art/stunbar_base.png
+Stage 87.218: native sources dependency-cached; Stable and previous TESTs untouched.
+XMVSF BUILD END rc=0 time=2026-11-07 22:16:59 log=/f/xmvsf/test/build_logs/BUILD_TEST.log
+BATCH RESULT: SUCCESS Sat 11/07/2026 22:16:59.79
+
+========== XMVSF BUILD_TEST.bat 87.218 START Sat 11/07/2026 22:22:28.31 ==========
+Project: F:\xmvsf
+
+========== XMVSF TEST 87.218 BUILD BEGIN 2026-11-07 22:22:30 ==========
+Project: /f/xmvsf
+Log: /f/xmvsf/test/build_logs/BUILD_TEST.log
+87.218 menu preflight: native boot and glyph/FX sources present; logo, fonts and menuanimation.gif verified.
+87.218 draw path is verified by native compile and runtime, not a stale grep for XMGlyph::logo(render).
+BUILD CACHE: compiler/settings match; retaining existing objects.
+BUILD CACHE: fingerprint=cc24b66d70a424d766a1dd3da98614f91463cd30cf9a9e808027ee108436d6ea
+BUILD CACHE: native objects=/f/xmvsf/dev/stable/buildtree/obj; state=/f/xmvsf/test/build_cache
+BUILD CACHE: optional ccache unavailable/disabled; normal gcc.
+PASS 87.202: 2E0E PC010392 rebound only; wrong action, owner and stale-latch rejected
+XM87.203 CAPTURE_START f=0 read_only=1 format=XM87203A1 no_level_complete_without_verification
+XM87.203 SESSION_DIR f=0 F:/xmvsf/test/87.203/unit_tests/capture_smoke/session_0070
+XM87.203 GFX_READY f=100 rom=mvscur1 decoded_bytes=2048 fnv64=026655812C8B5205 file=mvc1_decoded_gfx_00000800_026655812C8B5205.bin
+XM87.203 STAGE_BEGIN f=100 stage=5 begin
+XM87.203 MAP_SOURCE_READY f=101 scroll1_scroll2_scroll3_native_banks_observed_not_yet_builder_verified
+XM87.203 INCOMPLETE f=103 previous_stage_left_before_validation
+XM87.203 STAGE_BEGIN f=103 stage=6 begin
+XM87.203 CAPTURE_START f=0 read_only=1 format=XM87203A1 no_level_complete_without_verification
+XM87.203 SESSION_DIR f=0 F:/xmvsf/test/87.203/unit_tests/capture_smoke/session_0071
+XM87.203 GFX_READY f=104 rom=mvscur1 decoded_bytes=2048 fnv64=026655812C8B5205 file=mvc1_decoded_gfx_00000800_026655812C8B5205.bin
+XM87.203 STAGE_BEGIN f=104 stage=6 begin
+XM87.203 MAP_SOURCE_READY f=105 scroll1_scroll2_scroll3_native_banks_observed_not_yet_builder_verified
+XM87.203 PROGRESS f=403 source_rom=mvscur1 stage_id=observed batch_frames=300 total_frames=300 batch=1 map_snapshots=3 row_snapshots=1 palette_snapshots=1 oam_frames=300 still_recording=1
+XM87.203 BATCH_DONE f=404 session=F:/xmvsf/test/87.203/unit_tests/capture_smoke/session_0071 frames=300 final_frame=403 total_frames=300 all_batches_unverified=1
+XM87.203 CAPTURE_START f=0 read_only=1 format=XM87203A1 no_level_complete_without_verification
+XM87.203 SESSION_DIR f=0 F:/xmvsf/test/87.203/unit_tests/capture_smoke/session_0072
+XM87.203 BATCH_NEXT f=404 F:/xmvsf/test/87.203/unit_tests/capture_smoke/session_0072
+XM87.203 GFX_READY f=404 rom=mvscur1 decoded_bytes=2048 fnv64=026655812C8B5205 file=mvc1_decoded_gfx_00000800_026655812C8B5205.bin
+XM87.203 STAGE_BEGIN f=404 stage=6 begin
+PASS 87.203 native telemetry + continuous frame-batch rollover, no lost boundary frame or old-session overwrite
+XM87.33 DIZZY_HUD active 384x224 raw=B8 table=8BC9A mode=game-wide
+87.218 STUN_UI_PASS: mirrored source, full coverage, live tip, 1px shadow, threshold
+87.218 NATIVE_FLOAT_PASS: native raster bounds, 6f squeeze, 8px rise, no SDL coordinates
+87.218 PASS: Cyclops 24f release with zero X velocity, intact XY/Y motion, repeated throws, 6f native SF2 float
+XMVSF Stage 87.218 TEST: incremental build; preserving cached objects
+Source branch: feature/cyclops-zero-horizontal-release-87-218
+Source revision: d96b82c
+Dependencies: GNU Make + persistent obj/**/*.d header dependency files
+make[1]: Entering directory '/f/xmvsf/dev/stable/buildtree'
+Making normal build...
+
+
+Warning: Perl is not available on this system.
+src/dep/generated/driverlist.h cannot be updated or created!
+
+make[1]: Leaving directory '/f/xmvsf/dev/stable/buildtree'
+TEST PUBLISH: identical executable, keeping previous TEST file untouched.
+TEST BUILD READY: /f/xmvsf/runtime/stable/XMVSF_Test_87_218.exe
+BUILD CACHE SUMMARY: rebuilt 0 of 1174 local objects; reused 1174.
+BUILD CACHE INVENTORY: /f/xmvsf/test/build_cache/object_inventory.tsv
+BUILD CACHE REBUILT FILES: /f/xmvsf/test/build_cache/last_rebuilt_objects.txt
+BUILD CACHE LAST SUCCESS: /f/xmvsf/test/build_cache/last_success.tsv
+87.218 compiled TEST sha256: 40ead54cd1417da15e84c885664ca64f87eb7e91736f464404639429a4537a6d
+87.218 menu source asset checksums:
+92c0d589fbf98ca34c9152458e42938b9617bc153b8a989db978fdcfa3de5388 */f/xmvsf/_art/logo.png
+94fc3ea5e03113137336635a896b782b404b742a0c2b1bcdd98fb5b740f9f276 */f/xmvsf/_art/sf2font.png
+bdd1f33563d97781ecb43efa54ee445af50b790ca4f544016890e68556b28aa0 */f/xmvsf/_art/sf2fontsmall.png
+e20c0dcd1dc34dd15739d55d6d519d8eaabef283aed556105310ae5e80fc5945 */f/xmvsf/_art/menuanimation.gif
+b7f92a94e6a705829e184d3f5ca504ebd14783a61328652e25259c9477750962 */f/xmvsf/_art/stunbar_base.png
+Stage 87.218: native sources dependency-cached; Stable and previous TESTs untouched.
+XMVSF BUILD END rc=0 time=2026-11-07 22:28:30 log=/f/xmvsf/test/build_logs/BUILD_TEST.log
+BATCH RESULT: SUCCESS Sat 11/07/2026 22:28:30.52
