@@ -1063,7 +1063,8 @@ INT32 Cps2Frame()
     // No dash input synthesis, ROM patch, X velocity or position coercion.
     if(!bBurnRunAheadFrame && Cps==2 && CpsRamFF)
         XM87220Dash::state().frame((unsigned)GetCurrentFrame(),CpsRamFF,
-            cyclopsGame && std::strncmp(cyclopsGame,"xmvsf",5)==0);
+            cyclopsGame && std::strncmp(cyclopsGame,"xmvsf",5)==0,
+            XM8795Native::env("XM8755_TOURNAMENT_MODE"));
     // XM87.203: source-accurate, read-only stage telemetry, no framebuffer,
     // ROM, gameplay, controller, palette or F9 replay modifications.
     // This private one-shot 68000 source dump is independent of the heavy
