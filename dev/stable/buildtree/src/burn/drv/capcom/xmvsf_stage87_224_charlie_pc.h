@@ -11,6 +11,7 @@
 #include <cstdlib>
 #include <cstring>
 #include "../../../cpu/m68k/m68k.h"
+#include "xmvsf_stage87_220_zero_dash_startup.h" // read-only recovery-state access
 
 namespace XM87224CharliePC {
 static inline unsigned rb(const std::uint8_t* r,unsigned a){
@@ -24,7 +25,8 @@ static inline std::uint32_t rl(const std::uint8_t* r,unsigned a){
 }
 struct Native {
     unsigned reaction=0,step=0,action=0,index=0,air=0,gate82=0,gate83=0;
-    std::uint32_t vx=0,vy=0;
+    std::uint32_t vx=0,vy=0,x=0;
+    unsigned mode=0;
 };
 static inline Native read(const std::uint8_t*r,unsigned base){
     Native n;
@@ -32,6 +34,8 @@ static inline Native read(const std::uint8_t*r,unsigned base){
     n.step=rw(r,base+0x08u);
     n.action=rw(r,base+0x60u);
     n.index=rw(r,base+0xe0u);
+    n.x=rl(r,base+0x0cu);
+    n.mode=rw(r,base+0xa0u);
     n.vx=rl(r,base+0x14u);
     n.vy=rl(r,base+0x1cu);
     n.air=rw(r,base+0xaau);
@@ -48,13 +52,19 @@ static inline unsigned changes(const Native&a,const Native&b){
            (a.vy!=b.vy?32u:0u)|
            (a.air!=b.air?64u:0u)|
            (a.gate82!=b.gate82?128u:0u)|
-           (a.gate83!=b.gate83?256u:0u);
+           (a.gate83!=b.gate83?256u:0u)|
+           (a.x!=b.x?512u:0u)|
+           (a.mode!=b.mode?1024u:0u);
 }
 struct Recorder;
 inline Recorder& state();
 struct Recorder {
     bool initialized=false,enabled=false,active=false;
     unsigned observedFrames[2]={0u,0u};
+    // TEST 87.227: trace only four original CPU frames after a confirmed
+    // same-actor stuck dash. We need the real PC that reasserts 1400/bad X.
+    unsigned observedDashFrames[2]={0u,0u};
+    bool tracingDash=false;
     unsigned frame=0,side=0,move=0,events=0,visited=0;
     unsigned base=0;
     const std::uint8_t* ram=nullptr;
@@ -81,7 +91,8 @@ struct Recorder {
                    "\tprev_step\tnext_step\tprev_action\tnext_action"
                    "\tprev_index\tnext_index\tprev_vx\tnext_vx"
                    "\tprev_vy\tnext_vy\tprev_air\tnext_air"
-                   "\tprev_82\tnext_82\tprev_83\tnext_83\n",log);
+                   "\tprev_82\tnext_82\tprev_83\tnext_83"
+                   "\tprev_x\tnext_x\tprev_mode\tnext_mode\ttrace_kind\n",log);
     }
     void begin(const std::uint8_t* source,unsigned tick,bool xmvsf,
                bool tournament,bool runahead){
@@ -100,9 +111,28 @@ struct Recorder {
             ++observedFrames[slot];
             break;
         }
+        tracingDash=false;
+        if(selected>=2u){
+            // The original 87.224 trace only sampled Charlie's air hits,
+            // so it missed the 497-frame 87.226 dash restart entirely.
+            // The 87.220 controller already knows which *actual* actor
+            // entered guarded recovery on the preceding committed frame.
+            for(unsigned s=0u;s<2u;++s){
+                if(!XM87220Dash::state().actor[s].recoveryActive ||
+                   observedDashFrames[s]>=4u)continue;
+                const unsigned p=s?0x4400u:0x4000u;
+                if(rw(source,p+0x52u)>0x24u)continue;
+                selected=s;
+                selectedMove=rw(source,p+0xa0u);
+                tracingDash=true;
+                ++observedDashFrames[s];
+                break;
+            }
+        }
         if(selected>=2u)return;
         frame=tick;side=selected;move=selectedMove;ram=source;
-        base=side?0x4000u:0x4400u; // Charlie's victim
+        base=tracingDash?(side?0x4400u:0x4000u):
+                         (side?0x4000u:0x4400u);
         previous=read(ram,base);
         events=0u;visited=0u;
         prior=m68k_get_insn_cb();
@@ -125,16 +155,19 @@ struct Recorder {
             const unsigned a6=unsigned(m68k_get_reg(nullptr,M68K_REG_A6))&
                 0x00ffffffu;
             std::fprintf(log,
-                "%u\t%u\t%04X\t%06X\t%06X\t%d\t%u\t%03X"
+                "%u\t%u\t%04X\t%06X\t%06X\t%d\t%u\t%04X"
                 "\t%04X\t%04X\t%04X\t%04X\t%04X\t%04X"
                 "\t%04X\t%04X\t%08X\t%08X\t%08X\t%08X"
-                "\t%04X\t%04X\t%02X\t%02X\t%02X\t%02X\n",
+                "\t%04X\t%04X\t%02X\t%02X\t%02X\t%02X"
+                "\t%08X\t%08X\t%04X\t%04X\t%s\n",
                 frame,side+1u,move,pc,a6,cycles,visited,flags,
                 previous.reaction,current.reaction,previous.step,current.step,
                 previous.action,current.action,previous.index,current.index,
                 previous.vx,current.vx,previous.vy,current.vy,
                 previous.air,current.air,previous.gate82,current.gate82,
-                previous.gate83,current.gate83);
+                previous.gate83,current.gate83,
+                previous.x,current.x,previous.mode,current.mode,
+                tracingDash?"FS_DASH":"AIR_HEAVY");
         }
         ++events;
         previous=current;
