@@ -40,6 +40,28 @@ around **51–52 committed frames after grab end**, canceling the former
 100-frame release. Lowering the deadline to **36 frames (0.6s)** made
 release consistent in user gameplay tests.
 
+## TEST 87.218 — Stop inherited horizontal momentum on release
+
+The preceding airborne state contains two separately observed 32-bit
+fields: `velocityX` at Cyclops fighter RAM `+0x14`, and `motionX`
+at `+0x18`. Because the earlier release restored the entire snapshot,
+Cyclops also inherited his pre-grab forward X velocity and kept
+moving forward when the throw released.
+
+Change ONLY the release restoration: write **zero at +0x14**
+instead of the captured `velocityX`. Retain the saved `+0x18`
+movement-control field and `+0x1C/+0x20` vertical velocity/gravity,
+world position, animation/controller fields, timing, event identity,
+and opponent data unchanged. This is a **one-shot write at release**,
+not permanent movement suppression during the grab or afterward.
+A natural exit without a forced release must not have its velocity changed.
+
+The native deadline remains **24 committed frames (0.4 seconds)**.
+The new ROM-free TEST 87.218 regression explicitly checks the
+horizontal velocity before release, at the deadline, after a second
+independent grab with fresh momentum, and after a natural action exit.
+Actual Windows gameplay remains the final verification.
+
 ## TEST 87.217 experiment — earlier release
 
 The deadline is now **24 committed native frames (0.4s at 60Hz)** by
