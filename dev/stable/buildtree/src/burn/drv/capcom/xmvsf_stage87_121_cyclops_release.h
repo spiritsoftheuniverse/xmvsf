@@ -63,14 +63,14 @@ static inline void restoreAir(std::uint8_t* r,unsigned p,const AirState& s){
 }
 struct Tracker{
     bool initialized,enabled,valid[2],armed[2],pending[2],waiting[2],victimLanded[2];
-    unsigned lastFrame,previous[2],until[2];
+    unsigned lastFrame,previous[2],until[2],attempt[2];
     unsigned lastAnim42[2],animationAdvances[2],recoveryTicks[2];
     AirState lastAir[2],selected[2];
     std::FILE* log;
     Tracker():initialized(false),enabled(false),lastFrame(~0u),log(NULL){
         for(unsigned i=0;i<2;++i){
             valid[i]=armed[i]=pending[i]=waiting[i]=victimLanded[i]=false;
-            previous[i]=until[i]=lastAnim42[i]=animationAdvances[i]=recoveryTicks[i]=0;
+            previous[i]=until[i]=attempt[i]=lastAnim42[i]=animationAdvances[i]=recoveryTicks[i]=0;
         }
     }
     ~Tracker(){if(log)std::fclose(log);}
@@ -86,7 +86,7 @@ struct Tracker{
         enabled=!(on && std::strcmp(on,"0")==0);
         const char* path=std::getenv("XM87121_CYCLOPS_LOG_FILE");
         if(path && *path){log=std::fopen(path,"wb");if(log)
-          std::fputs("frame\tplayer\tphase\taction\tmode\tairflag\tstep06\tstep08\tanim42\tanim_advances\trecovery_ticks\tx\ty\tvy\topponent_action\topponent_y\tdecision\n",log);}
+          std::fputs("frame\tplayer\tthrow_id\tphase\taction\tmode\tairflag\tstep06\tstep08\tanim42\tanim_advances\trecovery_ticks\tx\ty\tvy\topponent_action\topponent_y\tdecision\n",log);}
         std::fprintf(stderr,"XM87.121 CYCLOPS_THROW_RECOVERY_RELEASE enabled=%d\n",int(enabled));
     }
     void reset(){
@@ -99,8 +99,8 @@ struct Tracker{
     void emit(unsigned f,unsigned i,const char* phase,const std::uint8_t* r,
               unsigned p,unsigned other,const char* decision){
         if(!log)return;
-        std::fprintf(log,"%u\t%u\t%s\t%04X\t%02X\t%u\t%04X\t%04X\t%04X\t%u\t%u\t%u\t%u\t%08X\t%04X\t%u\t%s\n",
-          f,i+1u,phase,w(r,p+0x60u),w(r,p+0xA0u)>>8,w(r,p+0xAAu)>>8,
+        std::fprintf(log,"%u\t%u\t%u\t%s\t%04X\t%02X\t%u\t%04X\t%04X\t%04X\t%u\t%u\t%u\t%u\t%08X\t%04X\t%u\t%s\n",
+          f,i+1u,attempt[i],phase,w(r,p+0x60u),w(r,p+0xA0u)>>8,w(r,p+0xAAu)>>8,
           w(r,p+0x06u),w(r,p+0x08u),w(r,p+0x42u),
           animationAdvances[i],recoveryTicks[i],
           w(r,p+0x0Cu),w(r,p+0x10u),d(r,p+0x1Cu),
@@ -109,24 +109,42 @@ struct Tracker{
     }
     void frame(unsigned f,std::uint8_t* r){
         init();if(!r||lastFrame==f)return;lastFrame=f;
-        if(b(r,0x5000u)!=8u){reset();return;}
+        if(b(r,0x5000u)!=8u){
+            // Explain why an armed event vanished before its deadline.
+            for(unsigned i=0;i<2u;++i)if(waiting[i] || armed[i]){
+                const unsigned p=i?0x4400u:0x4000u;
+                const unsigned other=i?0x4000u:0x4400u;
+                emit(f,i,"SCOPE_END",r,p,other,"COMBAT_PHASE_LEFT_08");
+            }
+            reset();return;
+        }
         for(unsigned i=0;i<2u;++i){
             unsigned p=i?0x4400u:0x4000u,other=i?0x4000u:0x4400u;
             unsigned action=w(r,p+0x60u);
             bool cyclops=w(r,p+0x40u)==0x0021u && w(r,p)==0x0101u;
             if(!cyclops){
+                if(waiting[i] || armed[i])
+                    emit(f,i,"SCOPE_END",r,p,other,"CYCLOPS_ID_OR_BANK_CHANGED");
                 valid[i]=armed[i]=pending[i]=waiting[i]=victimLanded[i]=false;
                 lastAir[i].valid=false;
                 animationAdvances[i]=recoveryTicks[i]=0;
                 continue;
             }
             // ROM trace: 0200 / 0202, mode 1C, airborne flag 1 (rising) / 2 (descending).
+            // Save the native airborne controller by actual airborne
+            // actions and altitude. Requiring EXACT mode 1C and AA 1/2
+            // discarded the pre-throw state on some otherwise valid jumps.
             bool inJump=(action==0x0200u || action==0x0202u) &&
-                (w(r,p+0xA0u)>>8)==0x1Cu &&
-                ((w(r,p+0xAAu)>>8)==1u || (w(r,p+0xAAu)>>8)==2u) &&
-                w(r,p+0x10u)<472u;
+                         w(r,p+0x10u)<472u;
             if(inJump)lastAir[i]=observeAir(r,p,f);
             if(valid[i] && action==0x200Cu && previous[i]!=0x200Cu){
+                // A new grab is a new transaction, even if the previous
+                // attempt still had a follow-log window. It must NEVER
+                // inherit that attempt's pending flag, landing latch or
+                // countdown; throw_id makes each attempt distinguishable.
+                ++attempt[i];
+                pending[i]=waiting[i]=victimLanded[i]=false;
+                recoveryTicks[i]=animationAdvances[i]=0;
                 // A throw can enter after multiple airborne game updates; 2u
                 // rejected otherwise valid saved air states intermittently.
                 armed[i]=lastAir[i].valid && f>=lastAir[i].frame &&
@@ -154,10 +172,15 @@ struct Tracker{
                 // frames elapse. Keep the countdown for genuine throw
                 // family substates, not only the first 200E action.
                 const bool inThrowFamily=(action&0xFFE0u)==0x2000u;
-                if(!inThrowFamily || w(r,p+0x10u)>=472u){
-                    // Do not rewind a natural non-throw action or landing.
+                const bool inThrowMode=(w(r,p+0xA0u)>>8)==0x32u;
+                // The action code can leave 2000..201F before the ROM
+                // clears its throw-mode controller. Retain the same
+                // event while mode32 still proves it is throw-bound.
+                if((!inThrowFamily && !inThrowMode) ||
+                   w(r,p+0x10u)>=472u){
                     emit(f,i,"RELEASE_CANCEL",r,p,other,
-                         !inThrowFamily?"LEFT_THROW_FAMILY":"CYCLOPS_LANDED");
+                         w(r,p+0x10u)>=472u?"CYCLOPS_LANDED":
+                         "LEFT_THROW_ACTION_AND_MODE");
                     waiting[i]=false;
                 }else{
                     // Count real game updates, not sprite-frame changes.
