@@ -1,13 +1,21 @@
 #ifndef XMVSF_STAGE87_121_CYCLOPS_RELEASE_H
 #define XMVSF_STAGE87_121_CYCLOPS_RELEASE_H
 // XM87.121 CYCLOPS_THROW_RECOVERY_RELEASE
+// Engine quirk (confirmed by repeated 87.216 play tests): the air-throw
+// release is an EVENT with lifetime, not a single animation-frame write.
+// The ROM's +42 pose can remain unchanged while native frames advance;
+// host runahead callbacks must NEVER advance its counter or consume the
+// grab-end edge. Re-arm separately for EVERY throw, tolerate mode32
+// recovery substates, and restore the SAVED airborne controller before
+// Cyclops's natural ~51-52-frame landing. 36 native frames was stable;
+// 24 is the requested earlier release experiment (0.4s at 60Hz).
 // Resume Cyclops's ACTUAL preceding airborne controller after air throw impact.
 // No fresh super-jump launch, no arbitrary animation/script/ROM address.
 // Never modify the opponent, world X/Y, HP, meter or character identity.
-// Arm on 200C -> 200E grab end, then wait 36 distinct native combat
+// Arm on 200C -> 200E grab end, then wait 24 distinct native combat
 // updates. Ignore repeated sprite-pose values and animation-word changes.
 // Latch the victim's ground landing while waiting; the 1C34 action may be
-// fleeting and should NOT have to coincide with the 36th update.
+// fleeting and should NOT have to coincide with the 24th update.
 // Restore the saved airborne controller only while Cyclops still occupies
 // the throw-recovery action. Never overwrite a legitimate later action.
 #include <cstdint>
@@ -15,7 +23,7 @@
 #include <cstdlib>
 #include <cstring>
 namespace XM87121 {
-static const unsigned ReleaseDelayFrames=36u;
+static const unsigned ReleaseDelayFrames=24u;
 static inline unsigned b(const std::uint8_t* r,unsigned addr){return r[(addr&0xFFFFu)^1u];}
 static inline unsigned w(const std::uint8_t* r,unsigned addr){return (b(r,addr)<<8)|b(r,addr+1);}
 static inline std::uint32_t d(const std::uint8_t* r,unsigned a){return (std::uint32_t(w(r,a))<<16)|w(r,a+2);}
@@ -165,10 +173,10 @@ struct Tracker{
                 victimLanded[i]=w(r,other+0x10u)>=472u;
                 emit(f,i,"GRAB_ENDED",r,p,other,
                     !enabled?"DISABLED":!armed[i]?"NO_AIRBORNE_BASELINE":
-                    "WAIT_36_NATIVE_FRAMES");
+                    "WAIT_24_NATIVE_FRAMES");
                 armed[i]=false;
             }else if(waiting[i]){
-                // A throw may progress through 200F/2010/etc before 100
+                // A throw may progress through 200F/2010/etc before 24
                 // frames elapse. Keep the countdown for genuine throw
                 // family substates, not only the first 200E action.
                 const bool inThrowFamily=(action&0xFFE0u)==0x2000u;
@@ -198,17 +206,17 @@ struct Tracker{
                         victimLanded[i]=true; // landing is a latch
                     if(recoveryTicks[i]==1u || reachedDeadlineThisFrame)
                         emit(f,i,"RECOVERY_TICK",r,p,other,
-                             "FIXED_0_6_SECOND_DELAY");
+                             "FIXED_0_4_SECOND_DELAY");
                     if(recoveryTicks[i]>=ReleaseDelayFrames){
                         // The 87.213 runtime trace proves the opponent had
                         // already landed at grab end, but Cyclops himself
                         // naturally landed at 51-52 frames, canceling the
-                        // previous 100-frame release. At 0.6s, the native
+                        // previous 100-frame release. At 0.4s, the native
                         // throw controller still owns Cyclops; release it
                         // on schedule, with no victim-action veto.
                         restoreAir(r,p,selected[i]);
                         emit(f,i,"RELEASED",r,p,other,
-                             "RESTORED_AFTER_0_6_SECONDS");
+                             "RESTORED_AFTER_0_4_SECONDS");
                         waiting[i]=false;
                         pending[i]=true;until[i]=f+16u; // follow log only
                     }
