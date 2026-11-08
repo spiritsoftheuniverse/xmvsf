@@ -88,7 +88,7 @@ inline void install(){
     installed=true;
     rearm();
     std::fprintf(stderr,
-        "XM87.206 CRASH_REPORT armed: test/87.206/crash_report.log and crash.dmp\n");
+        "XM87.222 CRASH_REPORT armed: test/87.222/observer/crash_report.log and crash.dmp\n");
 }
 } // namespace XM87206Crash
 #else
