@@ -321,12 +321,24 @@ struct Actor {
                     const std::int64_t oldY=signedFixed(d.beforeY);
                     d.afterY=(oldY>std::int64_t(magnitudeY) &&
                               oldY<0x00080000LL)?d.beforeY:magnitudeY;
+                    // Reuse Storm's NATIVE 68000 severe reaction pair,
+                    // including the flight index, but NOT the Cyclops
+                    // Down+MP 0x00132A00 downward override. This is an
+                    // experimental fairness test, not an OTG permission patch.
+                    // The native match-start hit gates and floor handling
+                    // remain exactly as they were.
+                    const unsigned fsAction=XM87223Flight::flightAction();
+                    const unsigned fsIndex=XM87223Flight::flightIndex();
+                    setWord(r,victim+0x60u,fsAction);
+                    setWord(r,victim+0xe0u,fsIndex);
                     applyStormLikeMotion(r,victim,d.afterX,d.afterY);
                     stormFlightUsedUntilLanding=true;
                     d.velocityWritten=true;
-                    d.stateWritten=false;
-                    d.outcome=soft?"STORM_HP_MOTION_ROM_SOFT_OTG_PRESERVED":
-                                  "STORM_HP_MOTION_ROM_SEVERE_UNCHANGED";
+                    d.stateWritten=(d.victimActionBefore!=fsAction ||
+                                    d.victimProfileBefore!=fsIndex);
+                    d.outcome=XM87223Flight::flightLearned()?
+                        "STORM_HP_RECORDED_FS_INDEX_AND_VELOCITY":
+                        "STORM_HP_NATIVE_SIGNATURE_FS_INDEX_AND_VELOCITY";
                 }
             }
         }
@@ -353,7 +365,7 @@ struct Controller {
             log=std::fopen(path,"wb");
             if(log)std::fputs("frame\tvictim\tattacker_bank\tattacker_action\tattacker_pointer\treaction\tsubstate\ty\tvictim_action_before\tvictim_profile_before\toriginal_vx\toriginal_vy\tfinal_vx\tfinal_vy\tvictim_action_after\tvictim_profile_after\trom_signature_matched\tfirst_air_followup\tair_attack_index\theavy_followup\tnew_air_attack\tconnected_hits_before\tconnected_hits_after\tcombo_continuous\thit_confirmed\tvelocity_written\tstate_pair_written\texcluded\tbutton_bits\tbutton_tag\tbutton_age\tbutton_evidence\tstorm_mk\tstorm_heavy\tdecision\tattacker_id\tvictim_id\tobserved_native_launch\tcharacter_hp_excluded\n",log);
         }
-        std::fprintf(stderr,"XM87.124 NATIVE_LAUNCH_HP_GUARD_READY enabled=%d target=00066200/00132A00 storm_mk_preserved=1 storm_hk_connected_enabled=1 protected_drill=2C1E,2C46\n",int(enabled));
+        std::fprintf(stderr,"XM87.223 STORM_NATIVE_FS_LAUNCH_READY enabled=%d fallback_x=0010AA00 fallback_y=0000B000 index=0230 one_launch_until_landing=1 protected_drill=2C1E,2C46\n",int(enabled));
     }
     void frame(unsigned tick,std::uint8_t* r,unsigned p1Buttons,unsigned p2Buttons){
         if(!initialized)init();
