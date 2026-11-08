@@ -28,6 +28,13 @@ trap 'rc=$?; trap - EXIT; printf "XMVSF BUILD END rc=%s time=%s log=%s\n" "$rc" 
 TREE="$PROJECT/dev/stable/buildtree"
 DEST="$PROJECT/runtime/stable/XMVSF_Test_87_214.exe"
 PENDING="$PROJECT/runtime/stable/.XMVSF_Test_87_214_pending.exe"
+# Machine-local cache: never stored in Git and never mutates Stable.
+CACHE_DIR="$PROJECT/test/build_cache"
+SIGNATURE="$CACHE_DIR/compiler.signature"
+BUILD_START="$CACHE_DIR/.build_started"
+OBJECT_INVENTORY="$CACHE_DIR/object_inventory.tsv"
+REBUILT_LIST="$CACHE_DIR/last_rebuilt_objects.txt"
+SUCCESS_STATE="$CACHE_DIR/last_success.tsv"
 
 if [[ ! -f "$TREE/makefile.sdl2" ||
       ! -f "$TREE/src/burn/drv/capcom/xmvsf_stage87_186_opening_observer.h" ||
@@ -82,36 +89,97 @@ if ! command -v make >/dev/null || ! command -v gcc >/dev/null; then
   exit 2
 fi
 
-# Before full make, compile/run the tiny 87.202 exact-ROM-rebound
-# regression without touching Stable or the warm FBNeo object cache.
-if ! command -v g++ >/dev/null; then
-  echo "ERROR: Missing g++ for 87.202 local DHC predicate regression." >&2
-  exit 2
+# Make's .d dependency graph remains authoritative for C++ source/header
+# changes. A persistent fingerprint is an ADDITIONAL prerequisite only
+# when the compiler, settings, SDK or Make rules change. Git commits alone
+# never trigger compilation.
+command -v sha256sum >/dev/null || {
+  echo "ERROR: MSYS2 sha256sum required for build fingerprint." >&2; exit 2;
+}
+command -v sdl2-config >/dev/null || {
+  echo "ERROR: sdl2-config required by native SDL build." >&2; exit 2;
+}
+mkdir -p "$CACHE_DIR"
+compiler_identity="$(
+  {
+    printf 'XMVSF_COMPILER_IDENTITY_V1\n'
+    printf 'MAKE_ARGS: LSB_FIRST=1 INCLUDE_7Z_SUPPORT=1 DEPEND=1\n'
+    printf 'MSYSTEM=%s\n' "${MSYSTEM:-UCRT64}"
+    printf 'gcc_path=%s\n' "$(command -v gcc)"
+    gcc -dumpmachine
+    gcc -dumpfullversion -dumpversion
+    printf 'g++_path=%s\n' "$(command -v g++)"
+    g++ -dumpmachine
+    g++ -dumpfullversion -dumpversion
+    printf 'sdl_cflags=%s\n' "$(sdl2-config --cflags)"
+    printf 'sdl_libs=%s\n' "$(sdl2-config --libs)"
+    sha256sum "$TREE/makefile.sdl2" "$TREE/makefile.burn_rules" \
+      "$PROJECT/dev/dhc/unit_test_cache.mk"
+  } | sha256sum | cut -d ' ' -f 1
+)"
+if [[ ! -s "$SIGNATURE" ]]; then
+  printf '%s\n' "$compiler_identity" > "$SIGNATURE.pending"
+  mv -f "$SIGNATURE.pending" "$SIGNATURE"
+  # Bootstrap pre-existing warm objects without a needless full rebuild.
+  # Native .o/.d mtime checks still work, as before this improvement.
+  touch -t 200001010000 "$SIGNATURE"
+  echo "BUILD CACHE: initialized fingerprint; adopting warm Make objects."
+elif [[ "$(cat "$SIGNATURE")" != "$compiler_identity" ]]; then
+  printf '%s\n' "$compiler_identity" > "$SIGNATURE.pending"
+  mv -f "$SIGNATURE.pending" "$SIGNATURE"
+  echo "BUILD CACHE: compiler/settings changed; affected objects will rebuild."
+else
+  echo "BUILD CACHE: compiler/settings match; retaining existing objects."
 fi
-mkdir -p "$PROJECT/test/87.202/unit_tests"
-g++ -std=c++11 -Wall -Wextra -Werror \
-  "$PROJECT/dev/dhc/tests/test_dhc_air_followup_rebound_202.cpp" \
-  -o "$PROJECT/test/87.202/unit_tests/test_dhc_air_followup_rebound_202.exe"
-"$PROJECT/test/87.202/unit_tests/test_dhc_air_followup_rebound_202.exe"
-# Compile/execute the read-only native stage telemetry regression separately.
-mkdir -p "$PROJECT/test/87.203/unit_tests/capture_smoke"
-g++ -std=c++11 -Wall -Wextra -Werror -I"$TREE/src/burn/drv/capcom" \
-  "$PROJECT/dev/stage_capture/test_native_stage_capture.cpp" \
-  -o "$PROJECT/test/87.203/unit_tests/test_native_stage_capture_203.exe"
-XM87203_STAGE_CAPTURE_DIR="$PROJECT/test/87.203/unit_tests/capture_smoke" \
-XM87203_BATCH_FRAMES=300 \
-  "$PROJECT/test/87.203/unit_tests/test_native_stage_capture_203.exe"
+echo "BUILD CACHE: fingerprint=$compiler_identity"
+echo "BUILD CACHE: native objects=$TREE/obj; state=$CACHE_DIR"
 
-# Verify the previous Cyclops 87.121 recovery and single dynamic bar geometry.
-# This test is C++11, ROM-free and uses synthetic native fighter RAM;
-# it runs before the full Windows build and never touches Stable/replays.
-mkdir -p "$PROJECT/test/87.214/unit_tests"
-g++ -std=c++11 -Wall -Wextra -Werror \
-  -I"$TREE/src/burn/drv/capcom" \
-  -I"$TREE/src/burner/sdl" \
+# Optional second-layer content cache for branch switching. Keep its
+# storage on the project disk, not the Windows OS drive. No install gate.
+MAKE_COMPILER=()
+if [[ "${XMVSF_CCACHE:-1}" != 0 ]] && command -v ccache >/dev/null 2>&1; then
+  export CCACHE_DIR="${XMVSF_CCACHE_DIR:-$CACHE_DIR/ccache}"
+  mkdir -p "$CCACHE_DIR"
+  MAKE_COMPILER=('CC=ccache gcc' 'CXX=ccache gcc' 'LD=gcc'
+                 'HOST_CC=gcc' 'HOST_CXX=gcc')
+  echo "BUILD CACHE: optional ccache enabled ($CCACHE_DIR)."
+else
+  echo "BUILD CACHE: optional ccache unavailable/disabled; normal gcc."
+fi
+
+# Each ROM-free test also retains an executable AND compiler-produced .d.
+# It is recompiled only when its own source, transitive project headers,
+# or the toolchain signature actually changed.
+run_cached_unit(){
+  local source="$1" output="$2"
+  local args=(-s -f "$PROJECT/dev/dhc/unit_test_cache.mk"
+    "UNIT_SOURCE=$source" "UNIT_OUTPUT=$output"
+    "UNIT_SIGNATURE=$SIGNATURE"
+    "UNIT_INCLUDE_CAPCOM=$TREE/src/burn/drv/capcom"
+    "UNIT_INCLUDE_SDL=$TREE/src/burner/sdl")
+  mkdir -p "$(dirname "$output")"
+  if [[ ! -s "$output.d" ]]; then
+    echo "UNIT CACHE: first dependency scan for $(basename "$output")."
+    # -W applies to this ONE tiny test source for .d bootstrap,
+    # NEVER to the seven native translation units.
+    make "${args[@]}" -W "$source" unit
+  else
+    make "${args[@]}" unit
+  fi
+  "$output"
+}
+run_cached_unit \
+  "$PROJECT/dev/dhc/tests/test_dhc_air_followup_rebound_202.cpp" \
+  "$PROJECT/test/87.202/unit_tests/test_dhc_air_followup_rebound_202.exe"
+mkdir -p "$PROJECT/test/87.203/unit_tests/capture_smoke"
+export XM87203_STAGE_CAPTURE_DIR="$PROJECT/test/87.203/unit_tests/capture_smoke"
+export XM87203_BATCH_FRAMES=300
+run_cached_unit \
+  "$PROJECT/dev/stage_capture/test_native_stage_capture.cpp" \
+  "$PROJECT/test/87.203/unit_tests/test_native_stage_capture_203.exe"
+run_cached_unit \
   "$PROJECT/dev/dhc/tests/test_stun_and_cyclops_214.cpp" \
-  -o "$PROJECT/test/87.214/unit_tests/test_stun_and_cyclops_214.exe"
-"$PROJECT/test/87.214/unit_tests/test_stun_and_cyclops_214.exe"
+  "$PROJECT/test/87.214/unit_tests/test_stun_and_cyclops_214.exe"
 
 # Preserve warm cache and anything already built on failures. Never run make clean.
 cd "$TREE"
