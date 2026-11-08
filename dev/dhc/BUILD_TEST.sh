@@ -58,10 +58,19 @@ if [[ ! -f "$TREE/makefile.sdl2" ||
       ! -s "$TREE/src/burn/drv/capcom/xmvsf_stage87_33_dizzy_hud.h" ||
       ! -s "$TREE/src/burn/drv/capcom/xmvsf_stage87_121_cyclops_release.h" ||
       ! -s "$PROJECT/dev/dhc/tests/test_stun_and_cyclops_218.cpp" ||
-      ! -s "$TREE/src/burner/sdl/xmvsf_stage87_218_native_float.h" ||
+      ! -s "$TREE/src/burner/sdl/xmvsf_stage87_217_native_float.h" ||
       ! -s "$TREE/src/burner/sdl/xmvsf_menu_glyph_atlas.h" ||
       ! -s "$TREE/src/burner/sdl/xmvsf_stage14_boot.h" ]]; then
-  echo "ERROR: 87.218 native menu/glyph sources missing; inspect checked-out branch" >&2
+  echo "ERROR: 87.218 required native source missing or empty:" >&2
+  for source in \
+    "$TREE/makefile.sdl2" \
+    "$TREE/src/burner/sdl/xmvsf_stage87_217_native_float.h" \
+    "$TREE/src/burn/drv/capcom/xmvsf_stage87_121_cyclops_release.h" \
+    "$PROJECT/dev/dhc/tests/test_stun_and_cyclops_218.cpp" \
+    "$TREE/src/burner/sdl/xmvsf_menu_glyph_atlas.h" \
+    "$TREE/src/burner/sdl/xmvsf_stage14_boot.h"; do
+    if [[ ! -s "$source" ]]; then echo "MISSING: $source" >&2; fi
+  done
   exit 2
 fi
 for asset in logo.png sf2font.png sf2fontsmall.png menuanimation.gif stunbar_base.png; do
