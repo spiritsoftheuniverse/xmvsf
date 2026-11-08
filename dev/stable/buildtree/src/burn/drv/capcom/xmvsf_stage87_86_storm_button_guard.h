@@ -148,6 +148,8 @@ struct Actor {
         d.attackerId=wordAt(r,attacker+0x52u);
         d.victimId=wordAt(r,victim+0x52u);
         // A tag must not inherit another fighter's combo/launch latch.
+        if(observed && d.victimId!=lastVictimId)
+            stormFlightUsedUntilLanding=false; // a tagged-in victim is new
         if(observed && (d.attackerId!=lastAttackerId || d.victimId!=lastVictimId))clearChain();
         lastAttackerId=d.attackerId;lastVictimId=d.victimId;
         // A single synthetic flight boost per continuous aerial sequence.
