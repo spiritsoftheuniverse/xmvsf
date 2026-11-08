@@ -225,6 +225,9 @@ run_cached_unit \
 run_cached_unit \
   "$PROJECT/dev/dhc/tests/test_flying_screen_dash_exit_221.cpp" \
   "$CACHE_DIR/unit_tests/test_flying_screen_dash_exit_221.exe"
+run_cached_unit \
+  "$PROJECT/dev/dhc/tests/test_classic_transition_222.cpp" \
+  "$CACHE_DIR/unit_tests/test_classic_transition_222.exe"
 
 # Preserve warm cache and anything already built on failures. Never run make clean.
 cd "$TREE"
