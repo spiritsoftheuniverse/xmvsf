@@ -41,15 +41,22 @@ int main(){
     c.frame(103u,ram,true,false);
     assert(word(ram,P+0x3eu)==1u); // Classic instant dash preserved
     make(0x1402u,4u,0x00090000u);
-    for(unsigned f=104u;f<150u;++f){
+    for(unsigned f=104u;f<139u;++f){
         c.frame(f,ram,true,false);
-        assert(word(ram,P+0xa0u)==0x1402u); // Classic never forces exit
+        assert(word(ram,P+0xa0u)==0x1402u);
     }
-    // Reenter Tournament while already dashing: Classic's captured neutral
-    // cannot become a Tournament controller. Need a fresh ROM idle sample.
-    c.frame(150u,ram,true,true);
+    c.frame(139u,ram,true,false);
+    assert(word(ram,P+0xa0u)==0u); // Classic also exits a genuine runaway dash
+    assert(longword(ram,P+0x34u)==0x000ab4d0u);
+    // 87.220 instant startup still works after the Classic watchdog exit.
+    make(0x1402u,5u,0u);
+    c.frame(140u,ram,true,false);
+    assert(word(ram,P+0x3eu)==1u);
+    // Reenter Tournament on the SAME native frame. Classic's captured
+    // neutral cannot be reused; Tournament must observe its own.
+    c.frame(140u,ram,true,true);
     assert(!c.actor[0].neutral.valid);
-    for(unsigned f=151u;f<193u;++f)c.frame(f,ram,true,true);
+    for(unsigned f=141u;f<183u;++f)c.frame(f,ram,true,true);
     assert(word(ram,P+0xa0u)==0x1402u);
     // After a native neutral in Tournament, the original 87.221 watchdog
     // still terminates a runaway ground dash without touching world X.
