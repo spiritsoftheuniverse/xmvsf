@@ -47,12 +47,12 @@ popd
 if not "%RC%"=="0" goto :fail
 REM The shell must have actually compiled/linked and published the current
 REM native TEST executable. Never fall back to Stable or a stale numbered TEST.
-if not exist "%PROJECT%\runtime\stable\XMVSF_Test_87_219.exe" (
+if not exist "%PROJECT%\runtime\stable\XMVSF_Test_87_220.exe" (
   echo ERROR: Native compiler returned success but TEST 87.220 executable is missing.
   >>"%BUILDLOG%" echo ERROR: TEST 87.220 executable missing after successful make
   goto :fail
 )
-for %%I in ("%PROJECT%\runtime\stable\XMVSF_Test_87_219.exe") do if %%~zI LEQ 0 (
+for %%I in ("%PROJECT%\runtime\stable\XMVSF_Test_87_220.exe") do if %%~zI LEQ 0 (
   echo ERROR: TEST 87.220 output is empty.
   >>"%BUILDLOG%" echo ERROR: TEST 87.220 executable has zero bytes.
   goto :fail
