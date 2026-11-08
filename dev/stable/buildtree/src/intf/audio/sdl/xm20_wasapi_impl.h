@@ -41,6 +41,7 @@ struct Machine {
     bool begun = false;
     volatile LONG threadStatus = 0;
     Clip music, move, confirm, meter;
+    Clip crash, welcome, fightVoice; // authored 87.235; same WASAPI device
     double meterPos[2] = {0.0,0.0};
     bool meterOn[2] = {false,false};
     float musicGain = 0.5f, musicTarget = 0.5f, gameGain = 1.f;
@@ -48,6 +49,7 @@ struct Machine {
     // audible level; a 500 ms fight handoff ends exactly at zero.
     float fadeFrom=0.5f,fadeSeconds=0.f,fadeElapsed=0.f;
     bool moveOn = false, confirmOn = false, fight = false, gameStarted = false;
+    bool crashOn=false,welcomeOn=false,fightVoiceOn=false;
     uint32_t gameHz = 48000;
     int16_t* game = nullptr;
     uint64_t produced = 0;
@@ -83,6 +85,35 @@ static bool clipLoad(Clip& dst, const char* filename) {
     dst.pcm=data; dst.frames=frames; dst.pos=0;
     return true;
 } /* XMVSF_STAGE21_BOUNDARY */
+
+// Authored WAVs live in repository root /audio (two parents above
+// runtime/stable). Resolve relative to the EXE, independent of the CWD.
+// This reuses the existing portable PCM loader, including mono/48k conversion.
+static bool clipLoadRepoAudio(Clip& dst,const char* filename){
+    char base[4096]={};
+    const DWORD n=GetModuleFileNameA(nullptr,base,static_cast<DWORD>(sizeof(base)));
+    if(!n||n>=sizeof(base))return false;
+    char* slash=std::strrchr(base,'\\');
+    if(!slash)slash=std::strrchr(base,'/');
+    if(!slash)return false;
+    *(slash+1)=0;
+    const char* relatives[]={"../../audio/","../audio/","audio/"};
+    for(const char* relative:relatives){
+        char path[4096]={};
+        const int written=std::snprintf(path,sizeof(path),"%s%s%s",base,relative,filename);
+        if(written<0||size_t(written)>=sizeof(path))continue;
+        unsigned char* pcm=nullptr;uint32_t frames=0;
+        if(xmvsfPcm::load48kStereo16(path,&pcm,&frames) ||
+           xmvsfPcm::loadEffectStereo16(path,&pcm,&frames)){
+            dst.pcm=pcm;dst.frames=frames;dst.pos=0;
+            std::fprintf(stderr,"XM87.235 BOOT_WAV %s frames=%u seconds=%.3f\n",
+                         path,unsigned(frames),double(frames)/48000.0);
+            return true;
+        }
+    }
+    std::fprintf(stderr,"XM87.235 BOOT_WAV_MISSING %s (expected root/audio)\n",filename);
+    return false;
+}
 
 static float clipSample(const Clip& c, uint32_t f, int ch) {
     if (!c.pcm || f>=c.frames) return 0.f;
@@ -172,15 +203,22 @@ static void fillFrames(BYTE* output, UINT32 count, const WAVEFORMATEX* fmt) {
             // XM87.118: two independent effect cursors, mixed in the existing WASAPI sink.
             const float meterSound = (m.meterOn[0] ? linearClip(m.meter,m.meterPos[0],ch)*0.56f : 0.f) +
                                      (m.meterOn[1] ? linearClip(m.meter,m.meterPos[1],ch)*0.56f : 0.f);
+            const float crashSfx=m.crashOn?linearClip(m.crash,m.crash.pos,ch)*0.88f:0.f;
+            const float welcomeVoice=m.welcomeOn?linearClip(m.welcome,m.welcome.pos,ch)*0.95f:0.f;
+            const float fightVoice=m.fightVoiceOn?linearClip(m.fightVoice,m.fightVoice.pos,ch)*0.95f:0.f;
+            const float musicDuck=(m.crashOn||m.welcomeOn||m.fightVoiceOn)?0.64f:1.0f;
             // Before confirmed combat, original QSound is muted. This also mutes game SFX;
             // selective QSound music routing is NOT implemented in this stage.
-            channelsOut[ch]=clamp(game+m.musicGain*0.70f*0.70f*music /* XMVSF_STAGE25_2_LEDGER_RESULTS : 49pct original */+movement+confirmation+meterSound); /* XMVSF_STAGE22_SELECTION_SFX: native game SFX always audible; sound CPU suppresses BGM */
+            channelsOut[ch]=clamp(game+m.musicGain*0.70f*0.70f*music*musicDuck /* 49% base, duck for authored voices */+movement+confirmation+meterSound+crashSfx+welcomeVoice+fightVoice); /* XMVSF_STAGE22_SELECTION_SFX: native game SFX always audible; sound CPU suppresses BGM */
         }
         BYTE* dest=output+static_cast<size_t>(i)*fmt->nBlockAlign;
         for(unsigned ch=0;ch<channels;ch++)putSample(dest,ch,bits,floats,ch<2?channelsOut[ch]:0.f);
         advanceClip(m.music,musicStep,true);
         if (m.moveOn) {advanceClip(m.move,musicStep,false);if(m.move.pos>=m.move.frames)m.moveOn=false;}
         if (m.confirmOn){advanceClip(m.confirm,musicStep,false);if(m.confirm.pos>=m.confirm.frames)m.confirmOn=false;}
+        if (m.crashOn){advanceClip(m.crash,musicStep,false);if(m.crash.pos>=m.crash.frames)m.crashOn=false;}
+        if (m.welcomeOn){advanceClip(m.welcome,musicStep,false);if(m.welcome.pos>=m.welcome.frames)m.welcomeOn=false;}
+        if (m.fightVoiceOn){advanceClip(m.fightVoice,musicStep,false);if(m.fightVoice.pos>=m.fightVoice.frames)m.fightVoiceOn=false;}
         for(unsigned side=0;side<2;++side)if(m.meterOn[side]){
             m.meterPos[side]+=musicStep;
             if(m.meterPos[side]>=m.meter.frames)m.meterOn[side]=false;
@@ -249,6 +287,7 @@ static void shutdown() {
     if(m.stop){CloseHandle(m.stop);m.stop=nullptr;}
     if(m.event){CloseHandle(m.event);m.event=nullptr;}
     m.music.release();m.move.release();m.confirm.release();m.meter.release();
+    m.crash.release();m.welcome.release();m.fightVoice.release();
     if(m.game){free(m.game);m.game=nullptr;}
     if(m.csReady){DeleteCriticalSection(&m.lock);m.csReady=false;}
     m.begun=false;
@@ -263,6 +302,9 @@ static bool start() {
     if(!m.stop || !m.event){shutdown();return false;}
     clipLoad(m.music,"xmvsfMenu.wav");clipLoad(m.move,"menu_movement1.wav");clipLoad(m.confirm,"menu_selection1.wav");
     clipLoad(m.meter,"chargemeter.wav"); // optional, supplied by the user in runtime/stable/assets/xmvsf
+    clipLoadRepoAudio(m.crash,"crash.wav");
+    clipLoadRepoAudio(m.welcome,"xmvsf_welcome.wav");
+    clipLoadRepoAudio(m.fightVoice,"fight!.wav");
     m.thread=CreateThread(nullptr,0,audioThread,nullptr,0,nullptr);
     if(!m.thread){shutdown();return false;}
     atexit(shutdown);
@@ -303,6 +345,8 @@ void xm20MenuStart(){
         xm20::m.fadeElapsed=0.f;
         xm20::m.moveOn=false;
         xm20::m.confirmOn=false;
+        xm20::m.crashOn=xm20::m.welcomeOn=xm20::m.fightVoiceOn=false;
+        xm20::m.crash.pos=xm20::m.welcome.pos=xm20::m.fightVoice.pos=0;
         xm20::m.meterOn[0]=xm20::m.meterOn[1]=false;
         std::fprintf(stderr,"XM86.55 AUDIO_MENU_RETURN queue_flushed=1 music_restarted=1 fight=0\n");
     }
@@ -310,6 +354,10 @@ void xm20MenuStart(){
 }
 void xm20MenuMovement(){if(xm20::m.csReady){EnterCriticalSection(&xm20::m.lock);xm20::m.move.pos=0;xm20::m.moveOn=true;LeaveCriticalSection(&xm20::m.lock);}}
 void xm20MenuConfirm(){if(xm20::m.csReady){EnterCriticalSection(&xm20::m.lock);xm20::m.confirm.pos=0;xm20::m.confirmOn=true;LeaveCriticalSection(&xm20::m.lock);}}
+// Original menu, game, and these three one-shots share the same WASAPI sink.
+void xm20MenuCrash(){if(xm20::m.csReady){EnterCriticalSection(&xm20::m.lock);xm20::m.crash.pos=0;xm20::m.crashOn=xm20::m.crash.frames>0;LeaveCriticalSection(&xm20::m.lock);}}
+void xm20MenuWelcome(){if(xm20::m.csReady){EnterCriticalSection(&xm20::m.lock);xm20::m.welcome.pos=0;xm20::m.welcomeOn=xm20::m.welcome.frames>0;LeaveCriticalSection(&xm20::m.lock);}}
+void xm20MenuFight(){if(xm20::m.csReady){EnterCriticalSection(&xm20::m.lock);xm20::m.fightVoice.pos=0;xm20::m.fightVoiceOn=xm20::m.fightVoice.frames>0;LeaveCriticalSection(&xm20::m.lock);}}
 // XM87.118 METER_CHARGE_WAV: render-time SFX only, no QSound writes or SDL audio device.
 void xm20MeterCharged(int player){
     if(player<0||player>1||!xm20::m.csReady)return;
