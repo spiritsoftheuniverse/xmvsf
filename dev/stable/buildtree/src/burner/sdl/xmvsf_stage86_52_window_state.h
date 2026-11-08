@@ -67,6 +67,38 @@ static inline void xm8652TrackWindowGeometry(SDL_Window* w,bool force,const char
         std::fprintf(stderr,"XM86.52 WINDOW_SAVED phase=%s size=%dx%d\n",source?source:"?",width,height);
     }
 }
+// TEST 87.234: SDL_RenderSetLogicalSize computes the 16:9 letterbox
+// viewport. The former boot path set the logical size FIRST and then
+// SDL_RenderSetViewport(nullptr), accidentally discarding that centered
+// viewport at startup. Reset a stale game/menu viewport FIRST, and apply
+// the logical size LAST so SDL can center the first visible boot frame.
+// This changes renderer coordinates only, never the user's OS window.
+static inline bool xm8652CenteredBootCanvas(SDL_Renderer* render,
+                                              const char* phase) {
+    if(!render)return false;
+    if(SDL_SetRenderTarget(render,nullptr)!=0){
+        std::fprintf(stderr,"XM87.234 BOOT_VIEWPORT_TARGET_ERROR phase=%s err=%s\n",
+            phase?phase:"?",SDL_GetError());
+        return false;
+    }
+    // Do not inherit the game's 960x540/720x540 logical canvas, integer
+    // scaling, clip or stale renderer viewport on in-process menu return.
+    SDL_RenderSetLogicalSize(render,0,0);
+    SDL_RenderSetIntegerScale(render,SDL_FALSE);
+    SDL_RenderSetViewport(render,nullptr);
+    SDL_RenderSetClipRect(render,nullptr);
+    // MUST BE LAST: SDL computes the centered viewport for current output.
+    const int result=SDL_RenderSetLogicalSize(render,960,540);
+    SDL_Rect vp={0,0,0,0};
+    SDL_RenderGetViewport(render,&vp);
+    int outW=0,outH=0,lw=0,lh=0;
+    SDL_GetRendererOutputSize(render,&outW,&outH);
+    SDL_RenderGetLogicalSize(render,&lw,&lh);
+    std::fprintf(stderr,
+        "XM87.234 BOOT_VIEWPORT_CENTER phase=%s rc=%d output=%dx%d logical=%dx%d viewport=%d,%d,%d,%d\n",
+        phase?phase:"?",result,outW,outH,lw,lh,vp.x,vp.y,vp.w,vp.h);
+    return result==0 && lw==960 && lh==540;
+}
 // TEST 87.226: SDL_WINDOWPOS_CENTERED at creation is not enough on some
 // Windows DPI/multi-monitor configurations: the first visible boot window
 // was left-aligned until maximize or game video reinitialized its geometry.
