@@ -46,7 +46,7 @@ static void originalStormFS(Actor& actor){
     const Decision fs=actor.evaluate(ram,V,A,true,true,0u);
     assert(fs.launch && fs.velocityWritten);
     assert(actor.stormFlightUsedUntilLanding);
-    assert(actor.stormFlightNeedsNativeLanding);
+    assert(actor.postFlightNeedsNativeLanding);
     assert(!actor.postFlightRelaunchPending);
     assert(rw(V+0x60u)==SEVERE_ACTION);
     assert(rl(V+0x1cu)==XM87223Flight::NativeObservedVY);
@@ -68,12 +68,12 @@ static void tryNativeRelaunch(Actor& actor,unsigned action,unsigned button){
     assert(resolved.velocityWritten && resolved.stateWritten);
     assert(!resolved.launch); // no fabricated second Storm FS
     assert(std::strcmp(resolved.outcome,
-        "POST_STORM_FS_NATIVE_RELAUNCH_SEVERE_LANDING")==0);
+        "POST_FS_NATIVE_RELAUNCH_SEVERE_LANDING")==0);
     assert(rw(V+0x60u)==SEVERE_ACTION);
     assert(rw(V+0xe0u)==SEVERE_PROFILE);
     assert(rl(V+0x1cu)==TARGET_DOWN);
     assert(!actor.postFlightRelaunchPending);
-    assert(actor.stormFlightNeedsNativeLanding); // until actual landing
+    assert(actor.postFlightNeedsNativeLanding); // until actual landing
 }
 int main(){
     setup();
@@ -102,13 +102,13 @@ int main(){
     // Only authentic native floor/air state re-arms a new aerial sequence.
     sw(V+0x10u,472u);sw(V+0xaau,0u);
     actor.evaluate(ram,V,A,true,true,0u);
-    assert(!actor.stormFlightNeedsNativeLanding);
+    assert(!actor.postFlightNeedsNativeLanding);
     assert(!actor.stormFlightUsedUntilLanding);
     assert(!actor.postFlightRelaunchPending);
 
     // Charlie's already accepted native HP / Cyclops HK remains separate:
-    // his original severe is applied directly, so no Storm-specific
-    // follow-up relaunch intervention is ever armed.
+    // his INITIAL severe is untouched. A new *native* re-launch before
+    // actual landing still receives the universal anti-infinite recovery.
     setup(0x20u,0x28u);sw(A+0x60u,0x1a04u);
     Actor charlie;
     charlie.nativeLaunched=true;charlie.pendingSevere=true;
@@ -119,8 +119,27 @@ int main(){
     const Decision hk=charlie.evaluate(ram,V,A,true,true,0u);
     assert(hk.launch && hk.velocityWritten);
     assert(rl(V+0x1cu)==TARGET_DOWN);
-    assert(!charlie.stormFlightNeedsNativeLanding);
+    assert(charlie.postFlightNeedsNativeLanding);
     assert(!charlie.postFlightRelaunchPending);
+    tryNativeRelaunch(charlie,0x1806u,1u); // fresh native hit before landing
+
+    // Original Charlie airborne HP is still never replaced by an
+    // initial synthetic FS, even in the universal anti-infinite test.
+    setup(0x20u,0x28u);
+    sw(A+0x60u,0x1804u);sw(V+0x08u,0u);
+    sw(V+0x60u,SOFT_ACTION);sw(V+0xe0u,SOFT_PROFILE);
+    Actor nativeHP;
+    nativeHP.observed=true;nativeHP.nativeLaunched=true;
+    nativeHP.prevReaction=0x000cu;nativeHP.prevSubstate=2u;
+    nativeHP.prevVictimY=180u;nativeHP.prevAction=0x1c14u;
+    nativeHP.prevProfile=0x0210u;
+    nativeHP.connectedAirHits=1u;nativeHP.attackSerial=1u;
+    nativeHP.prevAttackNow=true;nativeHP.prevAttackerAction=0x1800u;
+    nativeHP.lastAttackerId=0x20u;nativeHP.lastVictimId=0x06u;
+    const Decision nativeHit=nativeHP.evaluate(ram,V,A,true,true,4u);
+    assert(nativeHit.hitConfirmed && nativeHit.excluded);
+    assert(!nativeHit.velocityWritten);
+    assert(!nativeHP.postFlightNeedsNativeLanding);
 
     std::puts("87.228 native re-launch anti-infinite + ordinary followup + Charlie preserved: PASS");
     return 0;
