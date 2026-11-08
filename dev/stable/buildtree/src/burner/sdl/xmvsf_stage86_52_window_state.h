@@ -67,6 +67,62 @@ static inline void xm8652TrackWindowGeometry(SDL_Window* w,bool force,const char
         std::fprintf(stderr,"XM86.52 WINDOW_SAVED phase=%s size=%dx%d\n",source?source:"?",width,height);
     }
 }
+// TEST 87.226: SDL_WINDOWPOS_CENTERED at creation is not enough on some
+// Windows DPI/multi-monitor configurations: the first visible boot window
+// was left-aligned until maximize or game video reinitialized its geometry.
+// Center the ACTUAL outer OS window rectangle on its nearest monitor's
+// working area, ONCE when the persistent window is first created.
+// Never move a user's already-positioned window on menu return or game start.
+static inline void xm8652CenterInitialWindow(SDL_Window* w) {
+    if(!w)return;
+#if defined(_WIN32)
+    SDL_SysWMinfo info;
+    SDL_VERSION(&info.version);
+    if(SDL_GetWindowWMInfo(w,&info)==SDL_TRUE &&
+       info.subsystem==SDL_SYSWM_WINDOWS) {
+        HWND hwnd=info.info.win.window;
+        RECT bounds={};
+        MONITORINFO monitor={};
+        monitor.cbSize=sizeof(monitor);
+        HMONITOR which=MonitorFromWindow(hwnd,MONITOR_DEFAULTTONEAREST);
+        if(which && GetWindowRect(hwnd,&bounds) &&
+           GetMonitorInfo(which,&monitor)) {
+            const int width=bounds.right-bounds.left;
+            const int height=bounds.bottom-bounds.top;
+            const RECT& work=monitor.rcWork;
+            const int centerX=work.left+((work.right-work.left)-width)/2;
+            const int centerY=work.top+((work.bottom-work.top)-height)/2;
+            const int x=centerX<work.left?work.left:centerX;
+            const int y=centerY<work.top?work.top:centerY;
+            const BOOL moved=SetWindowPos(hwnd,NULL,x,y,0,0,
+                SWP_NOSIZE|SWP_NOZORDER|SWP_NOACTIVATE);
+            std::fprintf(stderr,
+                "XM87.226 BOOT_WINDOW_CENTER Win32 result=%d outer=%dx%d x=%d y=%d\n",
+                int(moved),width,height,x,y);
+            SDL_PumpEvents();
+            return;
+        }
+    }
+#endif
+    const int display=SDL_GetWindowDisplayIndex(w);
+    SDL_Rect area={};
+    const int index=display>=0?display:0;
+#if SDL_VERSION_ATLEAST(2,0,5)
+    int result=SDL_GetDisplayUsableBounds(index,&area);
+    if(result!=0)result=SDL_GetDisplayBounds(index,&area);
+#else
+    const int result=SDL_GetDisplayBounds(index,&area);
+#endif
+    if(result!=0)return;
+    int width=0,height=0;
+    SDL_GetWindowSize(w,&width,&height);
+    const int x=area.x+((area.w-width)>0?(area.w-width)/2:0);
+    const int y=area.y+((area.h-height)>0?(area.h-height)/2:0);
+    SDL_SetWindowPosition(w,x,y);
+    SDL_PumpEvents();
+    std::fprintf(stderr,"XM87.226 BOOT_WINDOW_CENTER SDL display=%d size=%dx%d x=%d y=%d\n",
+        index,width,height,x,y);
+}
 // A single request when entering the boot UI / game video, never a timer.
 static inline void xm8652FocusWindowOnce(SDL_Window* w,const char* phase) {
     if (!w) return;
