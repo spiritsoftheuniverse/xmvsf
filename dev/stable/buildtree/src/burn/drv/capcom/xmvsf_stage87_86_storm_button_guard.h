@@ -152,8 +152,9 @@ struct Actor {
     // button press, decides whether an HK during live FS becomes severe.
     // Grounded normal HP/HK during FS is a second independent rule.
     bool postFlightNeedsNativeLanding=false;
-    bool fsConditionalPending=false,fsPendingGround=false,fsPendingSevere=false;
+    bool fsConditionalPending=false,fsPendingGround=false,fsPendingSevere=false,fsPendingCharlieHK=false;
     unsigned fsPendingAge=1000u,fsPendingAction=0u,fsPendingSerial=0u;
+    unsigned fsPendingPreviousHitButton=0u;
     unsigned fsPendingAttacker=~0u,fsPendingVictim=~0u;
     unsigned lastConnectedButton=0u,lastConnectedAttacker=~0u,lastConnectedVictim=~0u;
     unsigned prevAction,prevProfile,prevSubstate,prevReaction,prevVictimY;
@@ -169,7 +170,8 @@ struct Actor {
         lastConfirmedSerial=0;attackAge=1000;prevAttackNow=false;
         pendingSevere=false;pendingStormRepeatHK=false;
         pendingAge=1000;pendingButton=0;nativeLaunched=false;
-        fsConditionalPending=false;fsPendingSevere=false;fsPendingAge=1000u;
+        fsConditionalPending=false;fsPendingSevere=false;fsPendingCharlieHK=false;
+        fsPendingAge=1000u;
         fsPendingAction=0u;fsPendingSerial=0u;fsPendingGround=false;
         // This air-sequence gate deliberately survives ordinary combo
         // gaps. Only tag-out, a confirmed landing, or match exit clears
@@ -219,7 +221,7 @@ struct Actor {
             stormFlightUsedUntilLanding=false;
             postFlightNeedsNativeLanding=false;
             fsConditionalPending=false;
-            fsPendingSevere=false;
+            fsPendingSevere=false;fsPendingCharlieHK=false;
             fsPendingAge=1000u;
             lastConnectedButton=0u;
             lastConnectedAttacker=~0u;
@@ -289,7 +291,7 @@ struct Actor {
             // Any new confirmed hit cancels the older pending decision:
             // an old HP/HK cannot leak into a subsequent LP/LK/MP.
             fsConditionalPending=false;
-            fsPendingSevere=false;
+            fsPendingSevere=false;fsPendingCharlieHK=false;
             fsPendingAge=1000u;
             // A new hit invalidates any older pending Storm conversion.
             pendingSevere=false;pendingStormRepeatHK=false;pendingAge=1000u;pendingButton=0u;
@@ -339,8 +341,13 @@ struct Actor {
                 (normalAirAttack(d.attackerAction) || groundAttackNow);
             if(enabled && fsStormBaseline){
                 fsConditionalPending=true;
-                fsPendingSevere=hpThenHK || groundedFSHeavy;
+                // Charlie's separately accepted first HK severe is an
+                // intentional exception to the general HP->HK upgrade.
+                fsPendingCharlieHK=charlieAirHK(d.attackerId,d.attackerBank,
+                                                d.attackerAction,d.taggedButton);
+                fsPendingSevere=hpThenHK || groundedFSHeavy || fsPendingCharlieHK;
                 fsPendingGround=groundedFSHeavy;
+                fsPendingPreviousHitButton=d.previousHitButton;
                 fsPendingAge=0u;
                 fsPendingAction=d.attackerAction;
                 fsPendingSerial=attackSerial;
@@ -392,9 +399,9 @@ struct Actor {
                 d.heavyFollowup=fsPendingSevere;
                 d.outcome=!fsPendingSevere?
                     "FS_STORM_HIT_CONFIRMED_PENDING":
-                    (fsPendingGround?
-                    "FS_GROUNDED_HEAVY_CONFIRMED_PENDING":
-                    "FS_HP_THEN_HK_CONFIRMED_PENDING");
+                    (fsPendingCharlieHK?"FS_CHARLIE_HK_CONFIRMED_PENDING":
+                    (fsPendingGround?"FS_GROUNDED_HEAVY_CONFIRMED_PENDING":
+                    "FS_HP_THEN_HK_CONFIRMED_PENDING"));
             }else if(isDrillCandidate(d.attackerAction)){
                 d.excluded=true;d.outcome="DRILL_CLAW_PRESERVED";
             }else if(stormMedium){
@@ -467,10 +474,13 @@ struct Actor {
                 (fsPendingGround?!attackerGrounded:!attackerAir);
             if(expired){
                 fsConditionalPending=false;
-                fsPendingSevere=false;
+                fsPendingSevere=false;fsPendingCharlieHK=false;
                 fsPendingAge=1000u;
                 d.outcome="FS_HIT_CONVERSION_CANCELLED";
             }else if(d.substate==2u && nativePair){
+                // Report the preceding hit from the originating substate-0
+                // snapshot, not the now-updated lastConnectedButton ledger.
+                d.previousHitButton=fsPendingPreviousHitButton;
                 const bool originalSteep=severe &&
                     signedFixed(d.beforeY)>=0x00100000LL &&
                     magnitude(signedFixed(d.beforeX))<=0x000a0000LL;
@@ -487,9 +497,10 @@ struct Actor {
                         d.afterX=left?TARGET_LEFT:TARGET_RIGHT;
                         d.afterY=TARGET_DOWN;
                         applyCyclopsSevereFlight(r,victim,d.afterX);
-                        d.outcome=fsPendingGround?
-                            "FS_GROUNDED_HEAVY_CYCLOPS_SEVERE":
-                            "FS_HP_THEN_HK_CYCLOPS_SEVERE";
+                        d.outcome=fsPendingCharlieHK?
+                            "CHARLIE_HK_CYCLOPS_SEVERE_KNOCKDOWN":
+                            (fsPendingGround?"FS_GROUNDED_HEAVY_CYCLOPS_SEVERE":
+                            "FS_HP_THEN_HK_CYCLOPS_SEVERE");
                     }else{
                         const unsigned stormX=XM87223Flight::flightVX();
                         const unsigned stormY=XM87223Flight::flightVY();
@@ -508,7 +519,7 @@ struct Actor {
                     postFlightNeedsNativeLanding=true;
                 }
                 fsConditionalPending=false;
-                fsPendingSevere=false;
+                fsPendingSevere=false;fsPendingCharlieHK=false;
                 fsPendingAge=1000u;
             }
         }
