@@ -57,7 +57,7 @@ if [[ ! -f "$TREE/makefile.sdl2" ||
       ! -s "$TREE/src/intf/audio/sdl/xm20_wasapi_impl.h" ||
       ! -s "$TREE/src/burn/drv/capcom/xmvsf_stage87_33_dizzy_hud.h" ||
       ! -s "$TREE/src/burn/drv/capcom/xmvsf_stage87_121_cyclops_release.h" ||
-      ! -s "$PROJECT/dev/dhc/tests/test_stun_and_cyclops_218.cpp" ||
+      ! -s "$PROJECT/dev/dhc/tests/test_stun_and_cyclops_219.cpp" ||
       ! -s "$TREE/src/burner/sdl/xmvsf_stage87_217_native_float.h" ||
       ! -s "$TREE/src/burner/sdl/xmvsf_menu_glyph_atlas.h" ||
       ! -s "$TREE/src/burner/sdl/xmvsf_stage14_boot.h" ]]; then
@@ -66,7 +66,7 @@ if [[ ! -f "$TREE/makefile.sdl2" ||
     "$TREE/makefile.sdl2" \
     "$TREE/src/burner/sdl/xmvsf_stage87_217_native_float.h" \
     "$TREE/src/burn/drv/capcom/xmvsf_stage87_121_cyclops_release.h" \
-    "$PROJECT/dev/dhc/tests/test_stun_and_cyclops_218.cpp" \
+    "$PROJECT/dev/dhc/tests/test_stun_and_cyclops_219.cpp" \
     "$TREE/src/burner/sdl/xmvsf_menu_glyph_atlas.h" \
     "$TREE/src/burner/sdl/xmvsf_stage14_boot.h"; do
     if [[ ! -s "$source" ]]; then echo "MISSING: $source" >&2; fi
@@ -217,8 +217,8 @@ run_cached_unit \
   "$PROJECT/dev/stage_capture/test_native_stage_capture.cpp" \
   "$CACHE_DIR/unit_tests/test_native_stage_capture_203.exe"
 run_cached_unit \
-  "$PROJECT/dev/dhc/tests/test_stun_and_cyclops_218.cpp" \
-  "$CACHE_DIR/unit_tests/test_stun_and_cyclops_218.exe"
+  "$PROJECT/dev/dhc/tests/test_stun_and_cyclops_219.cpp" \
+  "$CACHE_DIR/unit_tests/test_stun_and_cyclops_219.exe"
 
 # Preserve warm cache and anything already built on failures. Never run make clean.
 cd "$TREE"
