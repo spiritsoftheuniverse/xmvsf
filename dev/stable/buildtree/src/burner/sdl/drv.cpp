@@ -1,5 +1,6 @@
 // Driver Init module
 #include "burner.h"
+#include <cstdio>
 #include "xmvsf_stage13_1_game_bindings.h" // XMVSF_STAGE13_1_ACTIVE_INPUT_MAPPING
 #include "neocdlist.h"
 #include "pcecdlist.h"
@@ -81,8 +82,21 @@ static int DrvLoadRom(unsigned char* Dest, int* pnWrote, int i)
 
 int DrvInit(int nDrvNum, bool bRestore)
 {
-	DrvExit();						// Make sure exitted
-	MediaExit();
+	// XM87.222: a persistent-menu round trip has ALREADY called
+	// DrvExit()/MediaExit() at the end of DoGame(). Repeating MediaExit
+	// against an inactive SDL2 video/audio/input backend risks double
+	// teardown of the menu's persistent renderer when starting Classic.
+	// Preserve the normal cleanup if an actual backend is still live.
+	DrvExit();
+	if(bVidOkay || bAudOkay || bInputOkay) {
+		std::fprintf(stderr,
+			"XM87.222 REENTRY_MEDIA_EXIT live video=%d audio=%d input=%d\n",
+			int(bVidOkay!=0),int(bAudOkay!=0),int(bInputOkay!=0));
+		MediaExit();
+	} else {
+		std::fprintf(stderr,
+			"XM87.222 REENTRY_MEDIA_EXIT_SKIPPED inactive_backends=1\n");
+	}
 
 	nBurnDrvActive = nDrvNum;		// Set the driver number
 
