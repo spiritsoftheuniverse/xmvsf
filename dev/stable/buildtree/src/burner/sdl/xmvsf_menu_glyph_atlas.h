@@ -18,10 +18,16 @@ class Atlas {
     SDL_Renderer* renderer_ = nullptr;
     SDL_Texture* large_ = nullptr;
     SDL_Texture* small_ = nullptr;
+    SDL_Texture* largeReveal_=nullptr;
+    SDL_Texture* smallReveal_=nullptr;
     SDL_Texture* logo_ = nullptr;
     SDL_Texture* logoFx_ = nullptr; // streaming color-group pulse layer
     std::vector<Uint8> originalLogo_;
-    std::vector<Uint8> animatedLogo_;
+    std::vector<Uint8> animatedLogo_,introLogo_;
+    std::vector<Uint8> originalLargeRGBA_,originalSmallRGBA_;
+    std::vector<Uint8> revealedLargeRGBA_,revealedSmallRGBA_;
+    bool revealOn_=false;
+    int revealStep_=-1,lastIntroLogoStep_=-1;
     // A CPU copy of the REAL SF2 small PNG for the 384x224 native
     // game-render popup layer. Never synthesize a substitute bitmap.
     std::vector<Uint8> nativeSmallRGBA_;
@@ -137,10 +143,16 @@ public:
     void release(){
         if(large_)SDL_DestroyTexture(large_);
         if(small_)SDL_DestroyTexture(small_);
+        if(largeReveal_)SDL_DestroyTexture(largeReveal_);
+        if(smallReveal_)SDL_DestroyTexture(smallReveal_);
         if(logoFx_)SDL_DestroyTexture(logoFx_);
         if(logo_)SDL_DestroyTexture(logo_);
         large_=small_=logoFx_=logo_=nullptr;
-        originalLogo_.clear();animatedLogo_.clear();nativeSmallRGBA_.clear();
+        largeReveal_=smallReveal_=nullptr;
+        originalLogo_.clear();animatedLogo_.clear();introLogo_.clear();nativeSmallRGBA_.clear();
+        originalLargeRGBA_.clear();originalSmallRGBA_.clear();
+        revealedLargeRGBA_.clear();revealedSmallRGBA_.clear();
+        revealOn_=false;revealStep_=lastIntroLogoStep_=-1;
         lastLogoFX_=0;logoWidth_=logoHeight_=0;logoFxWarning_=false;
         renderer_=nullptr;logoSource_={0,0,0,0};attempted_=false;
         for(int i=0;i<2;i++)for(int c=0;c<128;c++)metrics_[i][c]=Glyph{};
@@ -156,6 +168,7 @@ public:
             if(l->w==190 && l->h==70){
                 measure(l,metrics_[0],12);
                 large_=texture(renderer,l);
+                if(large_)XMMenuColor::rgbaPixels(l,originalLargeRGBA_);
             }
             else std::fprintf(stderr,"XM MENU ATLAS unexpected large sheet %dx%d\n",l->w,l->h);
             SDL_FreeSurface(l);
@@ -165,6 +178,7 @@ public:
             if(s->w==128 && s->h==48){
                 measure(s,metrics_[1],8);
                 small_=texture(renderer,s);
+                if(small_)XMMenuColor::rgbaPixels(s,originalSmallRGBA_);
                 SDL_Surface* native=SDL_ConvertSurfaceFormat(
                     s,SDL_PIXELFORMAT_RGBA32,0);
                 if(native && SDL_LockSurface(native)==0){
@@ -216,10 +230,42 @@ public:
     }
     // Intrinsic source pixels determine advances. This is the normalization
     // pass: narrow I/i/l/1 and punctuation no longer consume a full cell.
+    // 87.235: dither the SF2 sprite atlas, not the background or the logo.
+    // A source-pixel 4x4 Bayer mask updates in sixteen steps over 500ms.
+    void setReveal(SDL_Renderer* renderer,float progress){
+        ensure(renderer);
+        progress=std::max(0.0f,std::min(1.0f,progress));
+        const int level=std::max(0,std::min(16,int(progress*16.0f)));
+        revealOn_=level<16;
+        if(!revealOn_||revealStep_==level)return;
+        revealStep_=level;
+        static const Uint8 bayer[16]={0,8,2,10,12,4,14,6,3,11,1,9,15,7,13,5};
+        auto stage=[&](SDL_Texture*& target,const std::vector<Uint8>& original,
+                       std::vector<Uint8>& output,int w,int h){
+            if(original.size()!=(size_t)w*h*4u)return;
+            if(!target){
+                target=SDL_CreateTexture(renderer,SDL_PIXELFORMAT_RGBA32,
+                                         SDL_TEXTUREACCESS_STREAMING,w,h);
+                if(target)SDL_SetTextureBlendMode(target,SDL_BLENDMODE_BLEND);
+            }
+            if(!target)return;
+            output=original;
+            for(int y=0;y<h;++y)for(int x=0;x<w;++x)
+                if(bayer[(y&3)*4+(x&3)]>=level)
+                    output[((size_t)y*w+x)*4u+3u]=0;
+            if(SDL_UpdateTexture(target,nullptr,output.data(),w*4)!=0){
+                SDL_DestroyTexture(target);target=nullptr;
+            }
+        };
+        stage(largeReveal_,originalLargeRGBA_,revealedLargeRGBA_,190,70);
+        stage(smallReveal_,originalSmallRGBA_,revealedSmallRGBA_,128,48);
+    }
     bool text(SDL_Renderer* renderer,const char* s,int x,int y,int maxWidth,
               bool centered,bool small,int scale,Uint8 brightness=255){
         ensure(renderer);
-        SDL_Texture* font=small?small_:large_;
+        SDL_Texture* font=small?
+            (revealOn_&&smallReveal_?smallReveal_:small_):
+            (revealOn_&&largeReveal_?largeReveal_:large_);
         if(!font||!s||!renderer)return false;
         const Glyph* glyphs=metrics_[small?1:0];
         const int cell=small?8:12;
@@ -274,18 +320,28 @@ public:
     // Draw the SOURCE ART, not the transparent 400x300 export canvas.
     // Its visible aspect ratio is maintained inside the requested target
     // rectangle; the original source PNG is never resized or rewritten.
-    bool logoInRect(SDL_Renderer* renderer,const SDL_Rect& target){
+    bool logoInRect(SDL_Renderer* renderer,const SDL_Rect& target,
+                    float introRemaining=0.0f){
         ensure(renderer);
         if(!renderer||!logo_||logoSource_.w<=0||logoSource_.h<=0 ||
            target.w<=0||target.h<=0)return false;
         const Uint32 now=SDL_GetTicks();
+        introRemaining=std::max(0.0f,std::min(1.0f,introRemaining));
+        const int introStep=int(introRemaining*16.0f+0.5f);
         // Refresh the FX texture at 12.5 Hz, only for the on-screen logo.
         // Build from the original PNG every time: pulses never accumulate.
         if(logoFx_ && !originalLogo_.empty() &&
-           (lastLogoFX_==0 || (Uint32)(now-lastLogoFX_)>=80u)){
+           (lastLogoFX_==0 || (Uint32)(now-lastLogoFX_)>=80u ||
+            introStep!=lastIntroLogoStep_)){
             XMMenuColor::logoPalettePulse(originalLogo_,animatedLogo_,
                                            logoWidth_,logoHeight_,now);
-            if(SDL_UpdateTexture(logoFx_,nullptr,animatedLogo_.data(),
+            const std::vector<Uint8>* pixels=&animatedLogo_;
+            if(introRemaining>0.0f){
+                XMMenuColor::introLogoDither(animatedLogo_,introLogo_,
+                                            logoWidth_,logoHeight_,now,introRemaining);
+                pixels=&introLogo_;
+            }
+            if(SDL_UpdateTexture(logoFx_,nullptr,pixels->data(),
                                  logoWidth_*4)!=0){
                 if(!logoFxWarning_){
                     std::fprintf(stderr,"XM MENU LOGO FX upload failed: %s\n",
@@ -294,7 +350,7 @@ public:
                 }
                 // Rendering must continue with the untouched original PNG.
                 SDL_DestroyTexture(logoFx_);logoFx_=nullptr;
-            }else lastLogoFX_=now;
+            }else {lastLogoFX_=now;lastIntroLogoStep_=introStep;}
         }
         const double scale=std::min(double(target.w)/logoSource_.w,
                                     double(target.h)/logoSource_.h);
@@ -312,7 +368,9 @@ public:
                     int anchorX,int top,bool small,double scale,
                     Uint8 brightness,int alignment){
         ensure(renderer);
-        SDL_Texture* font=small?small_:large_;
+        SDL_Texture* font=small?
+            (revealOn_&&smallReveal_?smallReveal_:small_):
+            (revealOn_&&largeReveal_?largeReveal_:large_);
         if(!renderer||!string||!font||scale<=0.0)return false;
         const Glyph* glyphs=metrics_[small?1:0];
         const int nominal=small?8:12;
@@ -359,6 +417,7 @@ public:
 static inline Atlas& atlas(){static Atlas value;return value;}
 static inline void release(){atlas().release();}
 static inline void preload(SDL_Renderer* renderer){atlas().ensure(renderer);}
+static inline void menuReveal(SDL_Renderer* renderer,float progress){atlas().setReveal(renderer,progress);}
 static inline bool center(SDL_Renderer* r,const char* s,int cx,int y,int pixel,
                           Uint8 red,Uint8 green,Uint8 blue){
     const bool useSmall=pixel<=2;
@@ -380,10 +439,10 @@ struct MainLayout {
         HintY=495, ExitY=522, ExitLeft=18, VersionRight=942
     };
 };
-static inline bool menuLogo(SDL_Renderer* r){
+static inline bool menuLogo(SDL_Renderer* r,float introRemaining=0.0f){
     const SDL_Rect dst={MainLayout::LogoX,MainLayout::LogoY,
                         MainLayout::LogoW,MainLayout::LogoH};
-    return atlas().logoInRect(r,dst);
+    return atlas().logoInRect(r,dst,introRemaining);
 }
 static inline bool menuChoice(SDL_Renderer* r,const char* s,int row,bool selected){
     return atlas().textScaled(r,s,MainLayout::TextCenter,
