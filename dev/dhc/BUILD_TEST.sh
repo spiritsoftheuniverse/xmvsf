@@ -113,8 +113,7 @@ compiler_identity="$(
     g++ -dumpfullversion -dumpversion
     printf 'sdl_cflags=%s\n' "$(sdl2-config --cflags)"
     printf 'sdl_libs=%s\n' "$(sdl2-config --libs)"
-    sha256sum "$TREE/makefile.sdl2" "$TREE/makefile.burn_rules" \
-      "$PROJECT/dev/dhc/unit_test_cache.mk"
+    sha256sum "$TREE/makefile.sdl2" "$TREE/makefile.burn_rules"
   } | sha256sum | cut -d ' ' -f 1
 )"
 if [[ ! -s "$SIGNATURE" ]]; then
