@@ -51,7 +51,8 @@ struct Tracker {
     std::FILE *log=nullptr,*opcodes=nullptr;
     ~Tracker(){if(log)std::fclose(log);if(opcodes)std::fclose(opcodes);}
     void init(){
-        if(initialized)return;initialized=true;
+        if(initialized)return;
+        initialized=true;
         const char*path=std::getenv("XM87223_STORM_FLIGHT_LOG_FILE");
         if(path&&*path){log=std::fopen(path,"wb");if(log)std::fputs(
           "frame\tside\tmode\tstorm_action\tstorm_anim\thp_edge_age"
