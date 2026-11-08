@@ -161,14 +161,15 @@ static int xmvsfBootSelector(bool returningFromGame=false) {
     // Cold boot only: replay and return-to-menu retain instantaneous access.
     // Open the ALREADY EXISTING WASAPI sink before presenting the first frame.
     const bool introEnabled=xm87226FirstWindow && !XM8764::isPlayback();
-    if(introEnabled){xmvsfHost::menuStart();xm20MenuCrash();}
+    if(introEnabled){xm20MenuIntroSilence();xm20MenuCrash();}
     const Uint32 introStart=SDL_GetTicks();
-    bool welcomeFired=false,introHandoffFinished=false;
+    bool welcomeFired=false,musicFired=false,introHandoffFinished=false;
     std::fprintf(stderr,"XM87.235 INTRO_BEGIN enabled=%d first_window=%d\n",
                  int(introEnabled),int(xm87226FirstWindow));
     // The OS window was centered before configuring the logical output.
     // Returning from game never moves an already-positioned window.
-    xm8655RenderColor(render,8,16,36,255); /* XMVSF_STAGE32_NAVY */
+    xm8655RenderColor(render,introEnabled?255:8,introEnabled?255:16,
+                      introEnabled?255:36,255); /* white first-frame strobe */
     SDL_RenderClear(render);
     menuBackground.draw(render,SDL_GetTicks(),introEnabled?1.0f:0.0f);
     if(!introEnabled && !XMGlyph::menuLogo(render))
@@ -242,6 +243,11 @@ static int xmvsfBootSelector(bool returningFromGame=false) {
            introElapsed>=XM87235Intro::LogoStart){
             xm20MenuWelcome();welcomeFired=true;
             std::fprintf(stderr,"XM87.235 INTRO_WELCOME elapsed=%u\n",introElapsed);
+        }
+        if(introEnabled && !musicFired &&
+           introElapsed>=XM87235Intro::MenuStart){
+            xm20MenuIntroMusic();musicFired=true;
+            std::fprintf(stderr,"XM87.235 INTRO_MENU_MUSIC elapsed=%u\n",introElapsed);
         }
         if(introEnabled && !introHandoffFinished &&
            XM87235Intro::inputAllowed(introElapsed)){
@@ -441,11 +447,17 @@ static int xmvsfBootSelector(bool returningFromGame=false) {
                 }
             }
         }
-        xm8655RenderColor(render,8,16,36,255);SDL_RenderClear(render); /* XMVSF_STAGE32_NAVY */
+        const float backgroundStrength=introEnabled?
+            XM87235Intro::backgroundStrength(introElapsed):0.0f;
+        const Uint8 clearRed=XMMenuColor::byte(8.f+247.f*backgroundStrength);
+        const Uint8 clearGreen=XMMenuColor::byte(16.f+239.f*backgroundStrength);
+        const Uint8 clearBlue=XMMenuColor::byte(36.f+219.f*backgroundStrength);
+        xm8655RenderColor(render,clearRed,clearGreen,clearBlue,255);
+        SDL_RenderClear(render); /* white to original navy canvas */
         // Full 960x540 animated background, beneath ALL interactive menus.
         // Frame delays and 30% RGB brightness are owned by the GIF layer.
         menuBackground.draw(render,SDL_GetTicks(),
-            introEnabled?XM87235Intro::backgroundStrength(introElapsed):0.0f);
+            backgroundStrength);
         if(screen==0) {
             // User-authored 4:3 reference, placed on the centered safe frame
             // of the 960x540 native SDL canvas. The PNG is cropped by alpha
