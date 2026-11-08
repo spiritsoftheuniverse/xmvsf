@@ -11,17 +11,14 @@
 #include <cstdlib>
 #include <cstring>
 #include "../../../cpu/m68k/m68k.h"
+#include "xmvsf_stage87_232_native_pc_words.h"
 #include "xmvsf_stage87_220_zero_dash_startup.h" // read-only recovery-state access
 
 namespace XM87224CharliePC {
 static inline unsigned rb(const std::uint8_t* r,unsigned a){
     return r[(a&0xffffu)^1u];
 }
-// Decrypted 68000 opcode stream uses host word-swapped byte order.
-static inline unsigned opcodeWord(const std::uint8_t* op,unsigned len,unsigned pc){
-    if(!op || (pc&1u) || pc+1u>=len)return 0u;
-    return (unsigned(op[pc^1u])<<8u)|unsigned(op[(pc+1u)^1u]);
-}
+using XM87232NativePC::opcodeWord;
 static inline unsigned rw(const std::uint8_t* r,unsigned a){
     return (rb(r,a)<<8u)|rb(r,a+1u);
 }
