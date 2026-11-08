@@ -154,7 +154,7 @@ if errorlevel 1 (
 )
 >>"%XM87181_DIAGNOSTIC_STATUS%" echo RUN_TEST_START date=%DATE% time=%TIME%
 if not defined XM87180_EXPERIMENTAL_DELAYED_PRIME set "XM87180_EXPERIMENTAL_DELAYED_PRIME=0"
-set "EXE=%PROJECT%\runtime\stable\XMVSF_Test_87_219.exe"
+set "EXE=%PROJECT%\runtime\stable\XMVSF_Test_87_220.exe"
 if not exist "%EXE%" (
   echo ERROR: Stage 87.220 TEST executable is missing; no fallback to older builds.
   echo Run BUILD_TEST.bat first. Will NOT fall back to 87.132.4 or Stable.
