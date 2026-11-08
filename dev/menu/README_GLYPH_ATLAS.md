@@ -599,7 +599,39 @@ See `dev/dhc/CYCLOPS_AIR_THROW_ENGINE_QUIRK.md` for the underlying
 ROM/recovery event-scope quirk. Local Windows runtime verification is
 still required. Stable and earlier TEST executables remain untouched.
 
-## Native TEST version 87.218 and local verification
+## TEST 87.219 — Cyclops air-throw cancel after a combo
+
+The **87.218 native observer** proved the 0.4-second release itself
+works (four completed throws at exactly 24 frames). It also recorded
+five otherwise legitimate native air throws denied a baseline because
+world Y was between **681–865** instead of below 472. The DHC trace
+shows combo actions `020C` and `0214` occurring just before such
+attempts; these are native airborne controller substates, not arbitrary
+synthetic jump requests.
+
+TEST 87.219 removes the stage-specific world-Y restriction from
+airborne snapshot capture, `200C->200E` grab-end detection and native
+throw recovery. The proven neutral-air `0200/0202` controller is
+preserved through extended combos (up to 96 committed frames). Where
+there is no recent neutral snapshot, the tracker may restore a recorded
+native `020C/0214` combo-air controller only when both mode `1C`
+and airborne flag `AA=1/2` agree. Observer decisions distinguish
+`AIRBORNE_SAVED`, `COMBO_NEUTRAL_RETAINED` and
+`COMBO_AIR_SAVED`.
+
+**User clarification:** the X cancel seen in successful 87.218
+attempts is deliberate player input. No automated X-cancel suppression
+or continuous velocity override has been added. Release timing remains
+**24 committed frames (0.4s)**, and X velocity is zeroed **once**
+at release. Native game-pixel frame-data labels remain six-frame exits.
+`dev/dhc/tests/test_stun_and_cyclops_219.cpp` covers high-Y normal
+throws, long-combo neutral snapshots, native 020C fallback, unqualified
+nonair states, and untouched input-driven exits. See
+`dev/dhc/CYCLOPS_AIR_THROW_ENGINE_QUIRK.md` for the source evidence.
+
+The native Windows build and actual combo gameplay remain unverified.
+
+## Native TEST version 87.219 and local verification
 
 **Pulling only main does not include this branch.** The source modifications
 are on feature/menu-logo-glyph-atlas-selection-dimming. In the Windows
@@ -613,16 +645,16 @@ Preserve any uncommitted local work before switching branches. Keep the
 original _art PNG files; do not resample or replace them.
 
 1. Run BUILD_TEST.bat. It now publishes ONLY
-   runtime/stable/XMVSF_Test_87_218.exe after compiling current source.
+   runtime/stable/XMVSF_Test_87_219.exe after compiling current source.
    A missing executable or modified menu/video/audio/crash header refreshes
    only main.cpp, run.cpp, vid_sdl2.cpp, aud_sdl.cpp, cps_obj.cpp, cps_draw.cpp
    and cps_run.cpp without deleting warm build objects, older binaries, or Stable.
-2. Read test/build_logs/BUILD_TEST.log for the 87.218 success line and
+2. Read test/build_logs/BUILD_TEST.log for the 87.219 success line and
    the SHA256 hashes of the compiled executable, four source PNGs and GIF.
    If an asset or the glyph-header include is missing, the builder gives
    a precise error instead of silently building a legacy-looking menu.
 3. Run RUN_TEST.bat option 1. The menu window title and bottom-right
-   main-menu label both say TEST 87.218. If they do not, you are not
+   main-menu label both say TEST 87.219. If they do not, you are not
    looking at the newly compiled native XMVSF build.
 4. The gameplay path is still the native XMVSF app's zero-ROM-argument
    boot selector, NOT the separate MVC1 capture/ROM playback mode.
@@ -631,7 +663,7 @@ original _art PNG files; do not resample or replace them.
 5. Verify the unselected text is dim, selected text is bright, and that
    I, i, l, 1, punctuation and word gaps no longer waste full cell widths.
 6. New F9 replays, observer/chat diagnostics and replay verification live
-   under test/87.218. Legacy test/87.203 capture data is not modified;
+   under test/87.219. Legacy test/87.203 capture data is not modified;
    original replay files remain accessible through RUN_REPLAY.bat.
 
 This source audit includes inspection of the tracked code, unchanged font
