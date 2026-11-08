@@ -100,7 +100,7 @@ static int xmvsfBootSelector(bool returningFromGame=false) {
     xm8655Load();
     xm8733DizzyLoad();
     XM8755Mode::Load();
-    std::fprintf(stderr,"XMVSF NATIVE TEST 87.230 | PNG title + SF2 proportional glyphs | original game mode\n");
+    std::fprintf(stderr,"XMVSF NATIVE TEST 87.234 | PNG title + SF2 proportional glyphs | original game mode\n");
     std::fprintf(stderr,"XM27: boot selector ENTER (%s)\n",returningFromGame?"return":"startup");
     std::fflush(stderr);
     if(SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER | SDL_INIT_JOYSTICK | SDL_INIT_GAMECONTROLLER)!=0) {
@@ -115,13 +115,13 @@ static int xmvsfBootSelector(bool returningFromGame=false) {
     const bool xm87226FirstWindow=(sdlWindow==nullptr && !returningFromGame);
     SDL_Window* window=sdlWindow;
     if(!window){
-        window=SDL_CreateWindow("X-MEN VS. STREET FIGHTER II | TEST 87.230",
+        window=SDL_CreateWindow("X-MEN VS. STREET FIGHTER II | TEST 87.234",
             SDL_WINDOWPOS_CENTERED,SDL_WINDOWPOS_CENTERED,xm8652StartupWidth,xm8652StartupHeight,
             SDL_WINDOW_SHOWN|SDL_WINDOW_RESIZABLE);
     }
     if(!window) {fprintf(stderr,"XMVSF menu window: %s\n",SDL_GetError());return -1;}
     sdlWindow=window;
-    SDL_SetWindowTitle(window,"X-MEN VS. STREET FIGHTER II | TEST 87.230");
+    SDL_SetWindowTitle(window,"X-MEN VS. STREET FIGHTER II | TEST 87.234");
     SDL_Renderer* render=SDL_GetRenderer(window);
     const bool existingRenderer=render!=nullptr;
     if(!render)render=SDL_CreateRenderer(window,-1,SDL_RENDERER_ACCELERATED|SDL_RENDERER_PRESENTVSYNC);
@@ -143,11 +143,12 @@ static int xmvsfBootSelector(bool returningFromGame=false) {
     // Stage 27: the video backend can leave a non-default renderer target,
     // viewport, clip, or scale after game teardown. Explicitly restore the
     // presentation canvas and present a clean first frame on the SAME window.
-    SDL_SetRenderTarget(render,nullptr);
-    SDL_RenderSetLogicalSize(render,960,540);
-    SDL_RenderSetIntegerScale(render,SDL_FALSE);
-    SDL_RenderSetViewport(render,nullptr);
-    SDL_RenderSetClipRect(render,nullptr);
+    // 87.234: center the *logical renderer* before the FIRST frame.
+    // A viewport reset after SDL_RenderSetLogicalSize discarded SDL's
+    // calculated letterbox and made the restored-size boot appear top-left.
+    if(!xm8652CenteredBootCanvas(render,
+            returningFromGame?"menu-return":"menu-first-frame"))
+        std::fprintf(stderr,"XM87.234 BOOT_VIEWPORT_NOTE unable_to_recenter\n");
     SDL_SetRenderDrawBlendMode(render,SDL_BLENDMODE_NONE);
     menuBackground.load(render);
     XMGlyph::preload(render);
@@ -203,7 +204,7 @@ static int xmvsfBootSelector(bool returningFromGame=false) {
         std::fflush(stderr);
         xm8652TrackWindowGeometry(window,true,"boot-exit");
         xmvsfHost::enterGame();
-        SDL_SetWindowTitle(window,"X-MEN VS. STREET FIGHTER II | TEST 87.230");
+        SDL_SetWindowTitle(window,"X-MEN VS. STREET FIGHTER II | TEST 87.234");
         return recordedChoice;
     }
     xmvsfHost::menuStart(); /* XMVSF_STAGE20_WASAPI */
@@ -435,8 +436,8 @@ static int xmvsfBootSelector(bool returningFromGame=false) {
             if(!XMGlyph::menuExit(render,"ESC TO QUIT"))
                 xmvsfPixelText(render,"ESC TO QUIT",480,
                     XMGlyph::MainLayout::ExitY,1,105,105,105);
-            if(!XMGlyph::menuVersion(render,"TEST 87.230"))
-                xmvsfPixelText(render,"TEST 87.230",896,
+            if(!XMGlyph::menuVersion(render,"TEST 87.234"))
+                xmvsfPixelText(render,"TEST 87.234",896,
                     XMGlyph::MainLayout::ExitY,1,185,185,185);
         } else if(screen==5) {
             xmvsfPixelText(render,"SELECT STAGE",480,90,5,108,193,255);
@@ -558,7 +559,7 @@ static int xmvsfBootSelector(bool returningFromGame=false) {
     if(outcome==0 || outcome==1 || outcome==2) { /* XMVSF_STAGE24_VERSUS */
         xmvsfHost::enterGame(); /* XMVSF_STAGE20_WASAPI */
         sdlWindow=window;
-        SDL_SetWindowTitle(sdlWindow,"X-MEN VS. STREET FIGHTER II | TEST 87.230");
+        SDL_SetWindowTitle(sdlWindow,"X-MEN VS. STREET FIGHTER II | TEST 87.234");
     } else {
         SDL_DestroyRenderer(render);
         if(window==sdlWindow)sdlWindow=nullptr;
