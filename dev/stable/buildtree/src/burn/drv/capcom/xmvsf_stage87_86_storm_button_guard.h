@@ -430,9 +430,9 @@ struct Actor {
                 d.excluded=true;d.outcome="UNKNOWN_REACTION_PRESERVED";
             }else if(stormFlightUsedUntilLanding ||
                      postFlightNeedsNativeLanding){
-                // Never grant another ordinary Storm FS boost while native
-                // FS is already running. The two explicit 87.230 severe
-                // conditions were evaluated above on the CURRENT hit.
+                // This fallback is only for unexpected/unsupported moves.
+                // Every supported connected FS normal now takes the
+                // 87.231 Storm floor / severe upgrade above.
                 d.excluded=true;
                 d.outcome="STORM_FLIGHT_ALREADY_USED_UNTIL_NATIVE_LANDING";
             }else if(!enabled){
@@ -478,6 +478,7 @@ struct Actor {
                 fsPendingAge=1000u;
                 d.outcome="FS_HIT_CONVERSION_CANCELLED";
             }else if(d.substate==2u && nativePair){
+                d.candidate=true; // also log native-steep preservation
                 // Report the preceding hit from the originating substate-0
                 // snapshot, not the now-updated lastConnectedButton ledger.
                 d.previousHitButton=fsPendingPreviousHitButton;
@@ -625,7 +626,7 @@ struct Controller {
             log=std::fopen(path,"wb");
             if(log)std::fputs("frame\tvictim\tattacker_bank\tattacker_action\tattacker_pointer\treaction\tsubstate\ty\tvictim_action_before\tvictim_profile_before\toriginal_vx\toriginal_vy\tfinal_vx\tfinal_vy\tvictim_action_after\tvictim_profile_after\trom_signature_matched\tfirst_air_followup\tair_attack_index\theavy_followup\tnew_air_attack\tconnected_hits_before\tconnected_hits_after\tcombo_continuous\thit_confirmed\tvelocity_written\tstate_pair_written\texcluded\tbutton_bits\tbutton_tag\tbutton_age\tbutton_evidence\tstorm_mk\tstorm_heavy\tdecision\tattacker_id\tvictim_id\tobserved_native_launch\tcharacter_hp_excluded\tprevious_confirmed_hit_button\tattacker_grounded\tfs_active\n",log);
         }
-        std::fprintf(stderr,"XM87.226 STORM_FS_OR_CYCLOPS_CHARLIE_HK_READY enabled=%d fallback_x=0010AA00 fallback_y=0000B000 index=0230 one_launch_until_landing=1 protected_drill=2C1E,2C46\n",int(enabled));
+        std::fprintf(stderr,"XM87.231 FS_STORM_PER_HIT_SEVERE_PRIORITY_READY enabled=%d fallback_x=0010AA00 fallback_y=0000B000 index=0230 fs_latch_until_landing=1 protected_drill=2C1E,2C46\n",int(enabled));
     }
     void frame(unsigned tick,std::uint8_t* r,unsigned p1Buttons,unsigned p2Buttons){
         if(!initialized)init();
