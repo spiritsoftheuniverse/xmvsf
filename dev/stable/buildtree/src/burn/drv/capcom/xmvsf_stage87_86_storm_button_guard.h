@@ -58,6 +58,22 @@ static inline void applyStormLikeMotion(std::uint8_t* r,unsigned victim,
     setFixed(r,victim+0x14u,horizontal);
     setFixed(r,victim+0x1cu,vertical);
 }
+// TEST 87.224: Charlie's native actor ID 0x20, action bank 0x28.
+// The supplied 87.223 trace confirms real flying-screen hits on 1804
+// (air HP) and 1A04 (super-jump HK). A move's 1A04 label is shared
+// with other characters, so NEVER identify Charlie by action alone.
+static inline bool charlieAirHeavyFS(unsigned fighter,unsigned bank,
+                                      unsigned action){
+    return fighter==0x0020u && bank==0x0028u &&
+           (action==0x1804u || action==0x1a04u);
+}
+// Exact 1.5x fixed-point multiplier. Saturate before applying so a
+// corrupted learned Storm reference cannot yield an extreme FS vector.
+static inline std::uint32_t charlieFS150(std::uint32_t positive,
+                                         std::uint32_t maximum){
+    const std::uint64_t scaled=(std::uint64_t(positive)*3u)/2u;
+    return scaled>maximum?maximum:std::uint32_t(scaled);
+}
 static inline bool isDrillCandidate(unsigned action){return action==0x2C1Eu || action==0x2C46u;}
 static inline bool normalAirAttack(unsigned action){
     return ((action&0xFFF0u)==0x1800u || (action&0xFFF0u)==0x1A00u) &&
@@ -312,7 +328,16 @@ struct Actor {
                     // The original ROM's victim reaction and +E0 flight index
                     // stay authoritative: no synthetic Cyclops Down+MP slam.
                     d.launch=true;
-                    const unsigned magnitudeX=XM87223Flight::flightVX();
+                    // Charlie's native 68000 pre-host reactions in 87.223
+                    // are ordinary 1C16/0220 soft hit; no verified
+                    // character-specific severe-knockdown writer appears
+                    // in this capture. Test the requested 1.5x motion
+                    // on ONLY his two confirmed flying-screen heavies.
+                    const bool charlieFS=charlieAirHeavyFS(
+                        d.attackerId,d.attackerBank,pendingAction);
+                    const unsigned magnitudeX=charlieFS?
+                        charlieFS150(XM87223Flight::flightVX(),0x00300000u):
+                        XM87223Flight::flightVX();
                     const unsigned magnitudeY=XM87223Flight::flightVY();
                     const std::uint32_t attackerX=rawFixed(r,attacker+0x0cu);
                     const std::uint32_t victimX=rawFixed(r,victim+0x0cu);
@@ -323,6 +348,8 @@ struct Actor {
                     const std::int64_t oldY=signedFixed(d.beforeY);
                     d.afterY=(oldY>std::int64_t(magnitudeY) &&
                               oldY<0x00080000LL)?d.beforeY:magnitudeY;
+                    if(charlieFS)
+                        d.afterY=charlieFS150(d.afterY,0x000c0000u);
                     // Reuse Storm's NATIVE 68000 severe reaction pair,
                     // including the flight index, but NOT the Cyclops
                     // Down+MP 0x00132A00 downward override. This is an
@@ -338,9 +365,11 @@ struct Actor {
                     d.velocityWritten=true;
                     d.stateWritten=(d.victimActionBefore!=fsAction ||
                                     d.victimProfileBefore!=fsIndex);
-                    d.outcome=XM87223Flight::flightLearned()?
+                    d.outcome=charlieFS?
+                        "CHARLIE_AIR_HEAVY_FS_150PCT_NATIVE_INDEX":
+                        (XM87223Flight::flightLearned()?
                         "STORM_HP_RECORDED_FS_INDEX_AND_VELOCITY":
-                        "STORM_HP_NATIVE_SIGNATURE_FS_INDEX_AND_VELOCITY";
+                        "STORM_HP_NATIVE_SIGNATURE_FS_INDEX_AND_VELOCITY");
                 }
             }
         }
