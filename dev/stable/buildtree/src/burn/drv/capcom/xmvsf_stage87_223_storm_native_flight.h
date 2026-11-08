@@ -49,21 +49,34 @@ struct Tracker {
     unsigned lastFrame=~0u;
     bool initialized=false,candidateScanDone=false;
     std::FILE *log=nullptr,*opcodes=nullptr;
-    ~Tracker(){if(log)std::fclose(log);if(opcodes)std::fclose(opcodes);}
+    ~Tracker(){
+        if(log)std::fclose(log);
+        if(opcodes)std::fclose(opcodes);
+    }
     void init(){
         if(initialized)return;
         initialized=true;
         const char*path=std::getenv("XM87223_STORM_FLIGHT_LOG_FILE");
-        if(path&&*path){log=std::fopen(path,"wb");if(log)std::fputs(
+        if(path&&*path){
+            log=std::fopen(path,"wb");
+            if(log)std::fputs(
           "frame\tside\tmode\tstorm_action\tstorm_anim\thp_edge_age"
           "\tvictim_id\tvictim_reaction\tstep06\tstep08\tvictim_action"
           "\tflight_index_E0\tgate82\tgate83\tairAA\tx\ty"
-          "\tfloor254\tvx14\tvy1C\tgravity20\tdecision\n",log);}
+          "\tfloor254\tvx14\tvy1C\tgravity20\tdecision\n",log);
+        }
         path=std::getenv("XM87223_M68K_CANDIDATES_FILE");
-        if(path&&*path){opcodes=std::fopen(path,"wb");if(opcodes)
-            std::fputs("pc\topcode\topcode_format\tactor_offset\timmediate\torder\n",opcodes);}
+        if(path&&*path){
+            opcodes=std::fopen(path,"wb");
+            if(opcodes)
+            std::fputs("pc\topcode\topcode_format\tactor_offset\timmediate\torder\n",opcodes);
+        }
     }
-    void reset(){source[0]=Source{};source[1]=Source{};observed=Motion{};}
+    void reset(){
+        source[0]=Source{};
+        source[1]=Source{};
+        observed=Motion{};
+    }
     static bool nativeStormHP(unsigned id,unsigned bank,unsigned action){
         return id==0x0004u && bank==0x0022u &&
                (action==0x1804u || action==0x1a04u);
