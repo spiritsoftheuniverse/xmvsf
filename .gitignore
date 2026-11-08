@@ -7,7 +7,6 @@
 /fbneo/*.log
 /runtime/stable/xmvsfu_*
 /dev/stable/buildtree/fbneo.exe
-test/build_logs/BUILD_TEST.log
 *.o
 *.d
 *.zip
