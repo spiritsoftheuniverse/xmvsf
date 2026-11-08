@@ -247,6 +247,41 @@ public:
         SDL_SetTextureColorMod(font,255,255,255);
         return true;
     }
+    // Frame-data labels share the original SF2 small glyph atlas.
+    // Compress only HORIZONTAL destination coordinates after the apex;
+    // height stays at its original native pixel scale. One existing
+    // SDL renderer and one present, without any intermediate texture.
+    bool floatingText(SDL_Renderer* renderer,const char* string,int cx,int top,
+                      double horizontal,Uint8 alpha,int scale=2){
+        ensure(renderer);
+        if(!renderer||!string||!small_||horizontal<=0.0||alpha==0)return false;
+        if(horizontal>1.0)horizontal=1.0;
+        scale=std::max(1,scale);
+        const Glyph* glyphs=metrics_[1];
+        int total=0;
+        for(const unsigned char* p=(const unsigned char*)string;*p;++p){
+            const unsigned char ch=*p;
+            total+=(ch<128&&glyphs[ch].advance>0)?glyphs[ch].advance:4;
+        }
+        const int whole=std::max(1,int(total*scale*horizontal+0.5));
+        const int left=cx-whole/2;
+        SDL_SetTextureAlphaMod(small_,alpha);
+        SDL_SetTextureColorMod(small_,255,255,255);
+        int pen=0;
+        for(const unsigned char* p=(const unsigned char*)string;*p;++p){
+            const unsigned char ch=*p;
+            const Glyph& g=glyphs[ch<128?ch:32];
+            if(ch>=33&&ch<=126&&g.src.w>0){
+                const int x0=left+int(pen*scale*horizontal+0.5);
+                const int x1=left+int((pen+g.src.w)*scale*horizontal+0.5);
+                const SDL_Rect dst={x0,top,std::max(1,x1-x0),g.src.h*scale};
+                SDL_RenderCopy(renderer,small_,&g.src,&dst);
+            }
+            pen+=(ch<128&&g.advance>0)?g.advance:4;
+        }
+        SDL_SetTextureAlphaMod(small_,255);
+        return true;
+    }
     // Draw the SOURCE ART, not the transparent 400x300 export canvas.
     // Its visible aspect ratio is maintained inside the requested target
     // rectangle; the original source PNG is never resized or rewritten.
