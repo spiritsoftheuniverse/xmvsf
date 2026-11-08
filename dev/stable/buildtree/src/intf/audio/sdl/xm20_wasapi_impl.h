@@ -50,6 +50,7 @@ struct Machine {
     float fadeFrom=0.5f,fadeSeconds=0.f,fadeElapsed=0.f;
     bool moveOn = false, confirmOn = false, fight = false, gameStarted = false;
     bool crashOn=false,welcomeOn=false,fightVoiceOn=false;
+    bool musicEnabled=true; // 87.235 cold intro alone pauses the music clock
     uint32_t gameHz = 48000;
     int16_t* game = nullptr;
     uint64_t produced = 0;
@@ -193,7 +194,7 @@ static void fillFrames(BYTE* output, UINT32 count, const WAVEFORMATEX* fmt) {
                 const auto get=[&](uint64_t p)->float{return m.game[(p%kGameCapacity)*2+ch]/32768.f;};
                 game=static_cast<float>(get(base)*(1.0-blend)+get(base+1)*blend)*m.gameGain;
             }
-            float music=linearClip(m.music,m.music.pos,ch);
+            float music=m.musicEnabled?linearClip(m.music,m.music.pos,ch):0.f;
             if(m.music.frames>fadeFrames && m.music.pos>=m.music.frames-fadeFrames) {
                 const float t=static_cast<float>((m.music.pos-(m.music.frames-fadeFrames))/fadeFrames);
                 music=music*(1.f-t)+linearClip(m.music,m.music.pos-(m.music.frames-fadeFrames),ch)*t;
@@ -213,7 +214,7 @@ static void fillFrames(BYTE* output, UINT32 count, const WAVEFORMATEX* fmt) {
         }
         BYTE* dest=output+static_cast<size_t>(i)*fmt->nBlockAlign;
         for(unsigned ch=0;ch<channels;ch++)putSample(dest,ch,bits,floats,ch<2?channelsOut[ch]:0.f);
-        advanceClip(m.music,musicStep,true);
+        if(m.musicEnabled)advanceClip(m.music,musicStep,true);
         if (m.moveOn) {advanceClip(m.move,musicStep,false);if(m.move.pos>=m.move.frames)m.moveOn=false;}
         if (m.confirmOn){advanceClip(m.confirm,musicStep,false);if(m.confirm.pos>=m.confirm.frames)m.confirmOn=false;}
         if (m.crashOn){advanceClip(m.crash,musicStep,false);if(m.crash.pos>=m.crash.frames)m.crashOn=false;}
@@ -338,6 +339,7 @@ void xm20MenuStart(){
         xm20::m.consumed=0;
         xm20::m.fight=false;
         xm20::m.music.pos=0;
+        xm20::m.musicEnabled=true;
         xm20::m.musicGain=0.5f;
         xm20::m.musicTarget=0.5f;
         xm20::m.fadeFrom=0.5f;
@@ -351,6 +353,29 @@ void xm20MenuStart(){
         std::fprintf(stderr,"XM86.55 AUDIO_MENU_RETURN queue_flushed=1 music_restarted=1 fight=0\n");
     }
     LeaveCriticalSection(&xm20::m.lock);
+}
+// The cold boot runs crash and the announcer in silence. The music's
+// sample cursor remains at zero until the 500ms glyph reveal begins.
+void xm20MenuIntroSilence(){
+    xm20::start();
+    if(!xm20::m.csReady)return;
+    EnterCriticalSection(&xm20::m.lock);
+    xm20::m.musicEnabled=false;
+    xm20::m.music.pos=0;
+    xm20::m.musicGain=0.f;xm20::m.musicTarget=0.f;
+    xm20::m.fadeFrom=0.f;xm20::m.fadeElapsed=0.f;xm20::m.fadeSeconds=0.f;
+    LeaveCriticalSection(&xm20::m.lock);
+}
+void xm20MenuIntroMusic(){
+    if(!xm20::m.csReady)return;
+    EnterCriticalSection(&xm20::m.lock);
+    xm20::m.music.pos=0;
+    xm20::m.musicGain=0.f;xm20::m.musicTarget=0.5f;
+    xm20::m.fadeFrom=0.f;xm20::m.fadeElapsed=0.f;
+    xm20::m.fadeSeconds=0.5f;
+    xm20::m.musicEnabled=true;
+    LeaveCriticalSection(&xm20::m.lock);
+    std::fprintf(stderr,"XM87.235 MENU_MUSIC_BEGIN 500ms_crossfade\n");
 }
 void xm20MenuMovement(){if(xm20::m.csReady){EnterCriticalSection(&xm20::m.lock);xm20::m.move.pos=0;xm20::m.moveOn=true;LeaveCriticalSection(&xm20::m.lock);}}
 void xm20MenuConfirm(){if(xm20::m.csReady){EnterCriticalSection(&xm20::m.lock);xm20::m.confirm.pos=0;xm20::m.confirmOn=true;LeaveCriticalSection(&xm20::m.lock);}}
