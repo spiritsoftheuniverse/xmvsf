@@ -163,6 +163,23 @@ int main(){
     onset(hostOnly,1u);
     storm(finish(hostOnly));
 
+    // Ground/air classification is captured at the ORIGINAL native hit,
+    // not revalidated 9 frames later as the attacker changes altitude.
+    // The move remains identical, so this is still the same impact.
+    setup(0x1004u,0u,0x21u,true);
+    Actor groundMotion=activeFS(1u);
+    onset(groundMotion,4u);
+    sw(A+0x10u,140u);sw(A+0xaau,0x0100u); // leaves floor after impact
+    const Decision groundMotionRelease=finish(groundMotion);
+    severe(groundMotionRelease,"FS_GROUNDED_HEAVY_CYCLOPS_SEVERE");
+    assert(groundMotionRelease.groundedAttacker==1u);
+
+    setup(0x1a04u);
+    Actor airMotion=activeFS(4u);
+    onset(airMotion,32u);
+    sw(A+0x10u,472u);sw(A+0xaau,0u); // lands during native hit settle
+    severe(finish(airMotion),"FS_HP_THEN_HK_CYCLOPS_SEVERE");
+
     // Without FS, no new baseline or grounded severe is manufactured.
     setup(0x1004u,0u,0x21u,true);
     Actor without=activeFS(1u);
