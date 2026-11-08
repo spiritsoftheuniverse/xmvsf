@@ -189,7 +189,8 @@ int main(){
     assert(!charlie.fsConditionalPending && !finish(charlie).velocityWritten);
     assert(charlieAirHK(0x20u,0x28u,0x1a04u,32u));
     // Sabretooth/Cammy HP and Wolverine Drill Claw remain exceptions.
-    for(unsigned fighter: {0x000au,0x0022u}){
+    const unsigned protectedFighters[]={0x000au,0x0022u};
+    for(unsigned fighter: protectedFighters){
         setup(0x180au,fighter);
         Actor exception=activeFS(1u,fighter);
         onset(exception,4u);
