@@ -123,7 +123,7 @@ struct Controller {
             setWord(r,p+0x42u,n.anim);setWord(r,p+0x60u,n.action);
             setWord(r,p+0xa0u,n.mode);setWord(r,p+0xaau,n.air);
             if(log){
-                std::fprintf(log,"%u\\t%u\\t%04X\\t%04X\\t0\\t%08X\\t%08X\\t%08X\\t%u\\t%u\\tFS_DASH_LOOP_EXIT\\n",
+                std::fprintf(log,"%u\t%u\t%04X\t%04X\t0\t%08X\t%08X\t%08X\t%u\t%u\tFS_DASH_LOOP_EXIT\n",
                     frame,side+1u,identity,mode,x,vx,n.script,n.timer,n.timer);
                 std::fflush(log);
             }
