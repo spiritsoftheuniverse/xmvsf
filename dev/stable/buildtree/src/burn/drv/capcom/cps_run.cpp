@@ -9,6 +9,7 @@
 #include "xmvsf_stage87_84_air_heavy_finisher.h" // XM87.84 second-or-later airborne heavy finisher
 #include "xmvsf_stage87_85_connected_air_heavy.h" // XM87.85 connected aerial heavy qualifier
 #include "xmvsf_stage87_127_storm_voice_mute.h" // 87.223 all-mode QSound native attack source state
+#include "xmvsf_stage87_224_charlie_pc.h" // 87.224 bounded original 68000 Charlie knockdown/velocity PC observer
 #include "xmvsf_stage87_223_storm_native_flight.h" // 87.223 read-only 68000 Storm HP velocity + native flight index
 #include "xmvsf_stage87_86_storm_button_guard.h" // XM87.86 CPS2 physical MK/HK evidence
 #include "xmvsf_stage87_95_native_dizzy_air_collision.h" // XM87.95 dizzy init and per-frame gate/f6 source-backed native opcode override
@@ -771,6 +772,13 @@ INT32 Cps2Frame()
                 (unsigned)Cpi01A,(unsigned)Cpi01C,(unsigned)Cpi01E);
     };
     xm87180Sample("BEFORE_CPU");
+    // 87.224: executed 68000 PC / victim reaction+velocity deltas while
+    // Charlie's actual 1804/1A04 is running. Read-only and bounded to
+    // 32 CPU frames per move; wrap (never replace) the older DHC callback.
+    if(!bBurnRunAheadFrame)
+        XM87224CharliePC::state().begin(CpsRamFF,
+            (unsigned)GetCurrentFrame(),dhcGameMatches,
+            XM8795Native::env("XM8755_TOURNAMENT_MODE"),false);
 
 	SekIdle(nCpsCyclesExtra);
 	nCpsCyclesExtra = 0;
@@ -845,6 +853,9 @@ INT32 Cps2Frame()
 	SekRun(nCpsCycles - SekTotalCycles());
     xm8634Mark("AFTER CPU VBLANK RUN");
     xm87180Sample("AFTER_VBLANK_CPU");
+    // Unwind the nested Charlie callback BEFORE the DHC observer restores
+    // its own prior Musashi callback; neither remains armed after SekClose.
+    XM87224CharliePC::state().end();
 
 	nCpsCyclesExtra = SekTotalCycles() - nCpsCycles;
 
