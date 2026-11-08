@@ -381,7 +381,9 @@ static int xmvsfBootSelector(bool returningFromGame=false) {
                 continue;
             }
             if(screen==0) {
-                if(back) {running=0;outcome=-1;}
+                // B remains Back in submenus, but only ESC (or SDL_QUIT) may quit at root.
+                if(ev.type==SDL_KEYDOWN && ev.key.keysym.sym==SDLK_ESCAPE)
+                    {running=0;outcome=-1;}
                 if(direction){xmvsfHost::cursorMove();selection=(selection+5+direction)%5; /* XMVSF_STAGE24_VERSUS */} /* XMVSF_STAGE20_WASAPI */
                 if(accept) { xmvsfHost::confirm(); /* XMVSF_STAGE20_WASAPI */
                     if(selection==0){xm25BeginInputHandoff();outcome=0;running=0;}
@@ -436,8 +438,8 @@ static int xmvsfBootSelector(bool returningFromGame=false) {
                 xmvsfPixelText(render,"A SELECT  B BACK",480,
                     XMGlyph::MainLayout::HintY,2,235,235,235);
             if(!XMGlyph::menuExit(render,"ESC TO QUIT"))
-                xmvsfPixelText(render,"ESC TO QUIT",480,
-                    XMGlyph::MainLayout::ExitY,1,105,105,105);
+                xmvsfPixelText(render,"ESC TO QUIT",58,
+                    XMGlyph::MainLayout::ExitY,1,185,185,185);
             if(!XMGlyph::menuVersion(render,"TEST 87.234"))
                 xmvsfPixelText(render,"TEST 87.234",896,
                     XMGlyph::MainLayout::ExitY,1,185,185,185);
