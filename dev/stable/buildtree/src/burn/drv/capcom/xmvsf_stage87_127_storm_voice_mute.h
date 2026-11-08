@@ -7,6 +7,8 @@
 // XM87.129: recorded crouch HP uses action 1404 and the SAME channel-12
 // PCM sample 6508. Unlike standing HP (1004), it must be muted.
 // Keep native commands, hit noises, other channels, and all game RAM intact.
+// TEST 87.223: apply in ALL rule modes; allow a bounded QSound Z80 delay
+// after the observed 68000 action, but never mute an unrelated sample.
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
@@ -30,7 +32,8 @@ static inline bool stormTargetAction(const std::uint8_t* r,unsigned base){
 }
 struct Filter {
     bool muted12=false,initialized=false,enabled=true;
-    unsigned lastFrame=~0u,count=0;
+    unsigned lastFrame=~0u,count=0,lastStormAttackFrame=~0u;
+    unsigned lastStormActor=~0u;
     std::FILE* log=nullptr;
     ~Filter(){if(log)std::fclose(log);}
     void init(){
@@ -42,7 +45,25 @@ struct Filter {
         if(path && *path){log=std::fopen(path,"wb");if(log)std::fputs("frame	register	original	filtered	muted12	reason\n",log);}
         std::fprintf(stderr,"XM87.128 STORM_HORIZONTAL_MP_MUTE XM87.129 STORM_CROUCH_HP_VOICE_MUTE STORM_VOICE_MUTE_READY enabled=%u targeted_pcm_channel=12 sample=6508\n",unsigned(enabled));
     }
-    void reset(){muted12=false;lastFrame=~0u;count=0;}
+    void reset(){muted12=false;lastFrame=~0u;count=0;
+        lastStormAttackFrame=~0u;lastStormActor=~0u;}
+    // Z80 QSound can dispatch a voice command AFTER the 68000 attack pose
+    // has advanced. Capture the confirmed source actor independently of
+    // Classic/Tournament on committed native frames, not inside a mode gate.
+    void observe(unsigned frame,const std::uint8_t* ram,bool xmvsf){
+        if(!xmvsf || !ram || (byteAt(ram,0x5000u)!=8u && byteAt(ram,0x5001u)!=8u)){
+            lastStormAttackFrame=~0u;lastStormActor=~0u;return;
+        }
+        for(unsigned i=0;i<2u;++i){
+            const unsigned base=i?0x4400u:0x4000u;
+            if(stormTargetAction(ram,base)){
+                lastStormAttackFrame=frame;lastStormActor=i;return;
+            }
+        }
+        if(frame<lastStormAttackFrame || frame-lastStormAttackFrame>12u){
+            lastStormAttackFrame=~0u;lastStormActor=~0u;
+        }
+    }
     unsigned transform(unsigned frame,unsigned reg,unsigned value,const std::uint8_t* ram){
         init();
         if(!enabled)return value;
@@ -50,9 +71,13 @@ struct Filter {
         // precedes a new PCM voice's 0x66 volume command in the capture.
         // Releasing on every new sample prevents silencing reused channels.
         if(reg==0x61u){
-            const bool target=ram && (byteAt(ram,0x5000u)==8u || byteAt(ram,0x5001u)==8u) &&
-              (stormTargetAction(ram,0x4000u)||stormTargetAction(ram,0x4400u));
-            const bool newMute=(value==0x6508u && target);
+            const bool combat=ram && (byteAt(ram,0x5000u)==8u || byteAt(ram,0x5001u)==8u);
+            const bool direct=combat && (stormTargetAction(ram,0x4000u)||
+                                         stormTargetAction(ram,0x4400u));
+            const bool delayed=combat && lastStormActor<2u &&
+                frame>=lastStormAttackFrame && frame-lastStormAttackFrame<=12u &&
+                wordAt(ram,(lastStormActor?0x4400u:0x4000u)+0x52u)==0x0004u;
+            const bool newMute=(value==0x6508u && (direct || delayed));
             if(newMute!=muted12){
                 muted12=newMute;
                 if(log && count++<15000u){std::fprintf(log,"%u	%02X	%04X	%04X	%u	SAMPLE_%s\n",frame,reg,value,value,unsigned(muted12),muted12?"MUTED":"REPLACED");std::fflush(log);}
