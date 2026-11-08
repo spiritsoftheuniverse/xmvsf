@@ -89,6 +89,7 @@ static void xmvsfPixelText(SDL_Renderer* render, const char* text, int cx, int y
 #include "xmvsf_stage86_52_window_state.h" /* XM86.52 SAVED_WINDOW_AND_FOCUS */
 #include "xmvsf_stage29_display.h" /* XMVSF_STAGE29_SCALABLE_DISPLAY */
 #include "xmvsf_stage87_195_menu_gif.h" /* animated local _art menu background at 30% brightness */
+#include "xmvsf_stage87_235_menu_intro_timeline.h"
 #include "xmvsf_stage25_sets.h"
 #include "xmvsf_stage77_selection.h" /* XMVSF_STAGE25_SETS */
 #include "xmvsf_stage20_api.h" /* XMVSF_STAGE20_WASAPI */
@@ -157,12 +158,20 @@ static int xmvsfBootSelector(bool returningFromGame=false) {
     SDL_SetRenderDrawBlendMode(render,SDL_BLENDMODE_NONE);
     menuBackground.load(render);
     XMGlyph::preload(render);
+    // Cold boot only: replay and return-to-menu retain instantaneous access.
+    // Open the ALREADY EXISTING WASAPI sink before presenting the first frame.
+    const bool introEnabled=xm87226FirstWindow && !XM8764::isPlayback();
+    if(introEnabled){xmvsfHost::menuStart();xm20MenuCrash();}
+    const Uint32 introStart=SDL_GetTicks();
+    bool welcomeFired=false,introHandoffFinished=false;
+    std::fprintf(stderr,"XM87.235 INTRO_BEGIN enabled=%d first_window=%d\n",
+                 int(introEnabled),int(xm87226FirstWindow));
     // The OS window was centered before configuring the logical output.
     // Returning from game never moves an already-positioned window.
     xm8655RenderColor(render,8,16,36,255); /* XMVSF_STAGE32_NAVY */
     SDL_RenderClear(render);
-    menuBackground.draw(render,SDL_GetTicks());
-    if(!XMGlyph::menuLogo(render))
+    menuBackground.draw(render,SDL_GetTicks(),introEnabled?1.0f:0.0f);
+    if(!introEnabled && !XMGlyph::menuLogo(render))
         xmvsfPixelText(render,"X-MEN VS STREET FIGHTER",480,130,3,255,255,255);
     xm8656Present(render); /* XM86.56 global final pass */
     SDL_PumpEvents();
@@ -209,7 +218,7 @@ static int xmvsfBootSelector(bool returningFromGame=false) {
         SDL_SetWindowTitle(window,"X-MEN VS. STREET FIGHTER II | TEST 87.234");
         return recordedChoice;
     }
-    xmvsfHost::menuStart(); /* XMVSF_STAGE20_WASAPI */
+    if(!introEnabled)xmvsfHost::menuStart(); /* XMVSF_STAGE20_WASAPI */
     SDL_Joystick* menuSticks[8]={NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL};
     SDL_GameController* menuPads[8]={NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL};
     for(int i=0;i<SDL_NumJoysticks() && i<8;i++) {
@@ -226,9 +235,28 @@ static int xmvsfBootSelector(bool returningFromGame=false) {
     if(returningFromGame)menuGate.begin(); // Ignore prior gameplay's held inputs.
     const char* actionNames[8]={"LP","MP","HP","LK","MK","HK","COIN","START"};
     while(running) {
-        if(menuGate.active)menuGate.update(xm25HandoffAnyInputHeld(),SDL_GetTicks());
+        const Uint32 now=SDL_GetTicks();
+        const Uint32 introElapsed=introEnabled?
+            (Uint32)(now-introStart):XM87235Intro::TotalMs;
+        if(introEnabled && !welcomeFired &&
+           introElapsed>=XM87235Intro::LogoStart){
+            xm20MenuWelcome();welcomeFired=true;
+            std::fprintf(stderr,"XM87.235 INTRO_WELCOME elapsed=%u\n",introElapsed);
+        }
+        if(introEnabled && !introHandoffFinished &&
+           XM87235Intro::inputAllowed(introElapsed)){
+            // Ignore inputs physically held throughout the intro.
+            if(xm25HandoffAnyInputHeld())menuGate.begin();
+            introHandoffFinished=true;
+            std::fprintf(stderr,"XM87.235 INTRO_INPUTS_UNLOCK elapsed=%u\n",introElapsed);
+        }
+        if(menuGate.active)menuGate.update(xm25HandoffAnyInputHeld(),now);
         SDL_Event ev;
         while(SDL_PollEvent(&ev)) {
+            // SDL_QUIT always works, but no menu/keyboard/controller action
+            // can skip, select or quit while the cold-boot reveal is running.
+            if(introEnabled && !XM87235Intro::inputAllowed(introElapsed) &&
+               ev.type!=SDL_QUIT)continue;
             // v2 F9 can arm/stop an app-wide movie INSIDE the custom main
             // menu, before any CPS2 game or input slot exists.
             if(ev.type==SDL_KEYDOWN && ev.key.keysym.sym==SDLK_F9 &&
@@ -385,7 +413,11 @@ static int xmvsfBootSelector(bool returningFromGame=false) {
                 if(ev.type==SDL_KEYDOWN && ev.key.keysym.sym==SDLK_ESCAPE)
                     {running=0;outcome=-1;}
                 if(direction){xmvsfHost::cursorMove();selection=(selection+5+direction)%5; /* XMVSF_STAGE24_VERSUS */} /* XMVSF_STAGE20_WASAPI */
-                if(accept) { xmvsfHost::confirm(); /* XMVSF_STAGE20_WASAPI */
+                if(accept) {
+                    // "Fight!" is the confirmation for each GAME MODE.
+                    // The one-shot keeps playing as the same sink enters game.
+                    if(selection<=2)xm20MenuFight();
+                    else xmvsfHost::confirm(); /* XMVSF_STAGE20_WASAPI */
                     if(selection==0){xm25BeginInputHandoff();outcome=0;running=0;}
                     else if(selection==1) {
                         pendingMode=1;returnScreen=0;stageRow=xm77StageChoice;screen=5;menuGate.begin();
@@ -412,13 +444,21 @@ static int xmvsfBootSelector(bool returningFromGame=false) {
         xm8655RenderColor(render,8,16,36,255);SDL_RenderClear(render); /* XMVSF_STAGE32_NAVY */
         // Full 960x540 animated background, beneath ALL interactive menus.
         // Frame delays and 30% RGB brightness are owned by the GIF layer.
-        menuBackground.draw(render,SDL_GetTicks());
+        menuBackground.draw(render,SDL_GetTicks(),
+            introEnabled?XM87235Intro::backgroundStrength(introElapsed):0.0f);
         if(screen==0) {
             // User-authored 4:3 reference, placed on the centered safe frame
             // of the 960x540 native SDL canvas. The PNG is cropped by alpha
             // bounds and fitted WITHOUT stretching its source artwork.
-            if(!XMGlyph::menuLogo(render))
-                xmvsfPixelText(render,"X-MEN VS STREET FIGHTER",480,130,3,255,255,255);
+            if(!introEnabled||XM87235Intro::logoVisible(introElapsed)){
+                const float remaining=introEnabled?
+                    XM87235Intro::logoStrength(introElapsed):0.0f;
+                if(!XMGlyph::menuLogo(render,remaining))
+                    xmvsfPixelText(render,"X-MEN VS STREET FIGHTER",480,130,3,255,255,255);
+            }
+            if(!introEnabled||XM87235Intro::menuVisible(introElapsed)){
+                XMGlyph::menuReveal(render,introEnabled?
+                    XM87235Intro::menuReveal(introElapsed):1.0f);
             const char* entries[5]={"ARCADE","TRAINING","VERSUS","CONTROLS","OPTIONS"};
             for(int a=0;a<5;a++) {
                 const int y=XMGlyph::MainLayout::FirstRowY+
@@ -443,6 +483,7 @@ static int xmvsfBootSelector(bool returningFromGame=false) {
             if(!XMGlyph::menuVersion(render,"TEST 87.234"))
                 xmvsfPixelText(render,"TEST 87.234",896,
                     XMGlyph::MainLayout::ExitY,1,185,185,185);
+            }
         } else if(screen==5) {
             xmvsfPixelText(render,"SELECT STAGE",480,90,5,108,193,255);
             const char* stages[2]={"RANDOM","WILY FACTORY"};
