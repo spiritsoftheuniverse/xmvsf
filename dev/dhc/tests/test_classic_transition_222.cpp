@@ -48,15 +48,34 @@ int main(){
     c.frame(139u,ram,true,false);
     assert(word(ram,P+0xa0u)==0u); // Classic also exits a genuine runaway dash
     assert(longword(ram,P+0x34u)==0x000ab4d0u);
-    // 87.220 instant startup still works after the Classic watchdog exit.
+    // 87.226+ regression: a dash one frame after a confirmed 36f
+    // watchdog exit is NOT an independent voluntary dash. The 68000
+    // repeatedly regenerated that state in the captured FS loop.
+    // Preserve the original 5f timer rather than forcing it to 1.
     make(0x1402u,5u,0u);
     c.frame(140u,ram,true,false);
+    assert(word(ram,P+0x3eu)==5u);
+    assert(word(ram,P+0xa0u)==0u); // native repeat was suppressed
+    assert(c.actor[0].recoveryActive);
+    // Three distinct committed neutral frames rearm voluntary dash.
+    // A fresh player dash then retains the 87.220 zero-delay behavior.
+    for(unsigned f=141u;f<=143u;++f){
+        make(0u,5u,0u);
+        c.frame(f,ram,true,false);
+    }
+    assert(!c.actor[0].recoveryActive);
+    make(0x1402u,5u,0u);
+    c.frame(144u,ram,true,false);
     assert(word(ram,P+0x3eu)==1u);
     // Reenter Tournament on the SAME native frame. Classic's captured
     // neutral cannot be reused; Tournament must observe its own.
-    c.frame(140u,ram,true,true);
+    c.frame(144u,ram,true,true);
     assert(!c.actor[0].neutral.valid);
-    for(unsigned f=141u;f<183u;++f)c.frame(f,ram,true,true);
+    for(unsigned f=145u;f<183u;++f)c.frame(f,ram,true,true);
+    // Switching rules deliberately invalidated the prior Classic neutral.
+    // Without a NEW Tournament neutral, the watchdog must fail closed:
+    // it cannot restore the old Classic script just to end this dash.
+    assert(!c.actor[0].neutral.valid);
     assert(word(ram,P+0xa0u)==0x1402u);
     // After a native neutral in Tournament, the original 87.221 watchdog
     // still terminates a runaway ground dash without touching world X.

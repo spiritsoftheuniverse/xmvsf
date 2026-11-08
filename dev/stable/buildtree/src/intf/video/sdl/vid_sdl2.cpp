@@ -188,11 +188,11 @@ static int Exit()
     if(preserveMenuRenderer){
         // Return the same live renderer to the boot selector; reset all
         // game-specific viewport/target settings after disposing textures.
-        SDL_SetRenderTarget(sdlRenderer,nullptr);
-        SDL_RenderSetLogicalSize(sdlRenderer,960,540);
-        SDL_RenderSetIntegerScale(sdlRenderer,SDL_FALSE);
-        SDL_RenderSetViewport(sdlRenderer,nullptr);
-        SDL_RenderSetClipRect(sdlRenderer,nullptr);
+        // 87.234: restore SDL's centered logical letterbox before
+        // passing the live renderer back to the boot selector.
+        // Keep the original SDL_Renderer/GPU context intact.
+        if(!xm8652CenteredBootCanvas(sdlRenderer,"game-to-menu"))
+            std::fprintf(stderr,"XM87.234 MENU_VIEWPORT_NOTE unable_to_recenter\n");
         SDL_SetRenderDrawBlendMode(sdlRenderer,SDL_BLENDMODE_NONE);
         std::fprintf(stderr,
             "XM87.227 MENU_RENDERER_HANDOFF retained window=%p renderer=%p\n",
