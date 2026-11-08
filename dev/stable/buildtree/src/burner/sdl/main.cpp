@@ -289,6 +289,14 @@ void DoGame(int gameToRun)
     // session, including a fresh process or a return from the boot menu.
     // This never loads a fight state and never affects Arcade or Versus.
     XM87206Crash::mark(150);
+    // The boot selector owns the rule choice. Reassert the selected rule
+    // BEFORE any native 68000 opcode hook or ROM/game driver initializes.
+    // Playback bypasses this selector and manages its own recorded mode.
+    if(xm26PersistentShell)XM8755Mode::Apply();
+    XM87206Crash::rearm();
+    std::fprintf(stderr,"XM87.222 GAME_LAUNCH mode=%s persistent=%u\n",
+        XM8755Mode::Label(),unsigned(xm26PersistentShell));
+    std::fflush(stderr);
     if(xm14TrainingMode)xm257LoadTrainingOptions();
     std::fprintf(stderr,"XM86.32 HOST ENTER DoGame id=%d modeTraining=%d modeVersus=%d stageChoice=%d resolved=%d\n",gameToRun,xm14TrainingMode,xm24VersusMode,xm77StageChoice,xm77StageResolved);
     std::fflush(stderr);
