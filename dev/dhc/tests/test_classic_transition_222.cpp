@@ -72,9 +72,11 @@ int main(){
     c.frame(144u,ram,true,true);
     assert(!c.actor[0].neutral.valid);
     for(unsigned f=145u;f<183u;++f)c.frame(f,ram,true,true);
-    // 38 motionless frames must NOT survive the 36f native dash watchdog.
-    // The old 87.222 expectation (still 1402) predates FS-loop recovery.
-    assert(word(ram,P+0xa0u)==0u);
+    // Switching rules deliberately invalidated the prior Classic neutral.
+    // Without a NEW Tournament neutral, the watchdog must fail closed:
+    // it cannot restore the old Classic script just to end this dash.
+    assert(!c.actor[0].neutral.valid);
+    assert(word(ram,P+0xa0u)==0x1402u);
     // After a native neutral in Tournament, the original 87.221 watchdog
     // still terminates a runaway ground dash without touching world X.
     make(0u,4u,0u);
