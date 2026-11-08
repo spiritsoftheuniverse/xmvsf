@@ -11,6 +11,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
+#include <cstring> // bounded native-neutral actor snapshot for catastrophic dash recovery
 
 namespace XM87220Dash {
 static inline unsigned byte(const std::uint8_t* r,unsigned a){
@@ -50,10 +51,15 @@ struct Actor {
     bool ready=false,tracking=false;
     // TEST 87.226: last stage-plausible native X (87.225 capture leapt
     // from ~0x02B00000 to 0x7041D600 before an endless 37f dash loop).
-    bool safeValid=false,recoveryActive=false;
+    bool safeValid=false,recoveryActive=false,neutralSnapshotValid=false;
     unsigned mode=0,identity=~0u,entryFrame=0,dashAge=0;
     unsigned safeFrame=0,lastRecoveryFrame=~0u,quietFrames=0;
+    unsigned suppressedFrames=0,snapshotFrame=0,snapshotRestores=0;
     std::uint32_t lastX=0,entryX=0,safeX=0;
+    // Only the actor's 0x000..0x0FF movement/controller/animation slice.
+    // Health/meter live outside this slice and must NOT rewind. Snapshot
+    // only an actual safe native idle from this same fighter.
+    std::uint8_t neutralBytes[0x100u]={};
 };
 struct Event {
     bool entered=false,patched=false,moving=false;
@@ -95,6 +101,24 @@ struct Controller {
         setWord(r,p+0xaau,n.air);
         a.ready=false;a.tracking=false;a.dashAge=0;
     }
+    static bool restoreNativeNeutral(std::uint8_t* r,unsigned p,Actor& a,
+                                     unsigned frame){
+        if(!a.neutralSnapshotValid || !a.safeValid ||
+           frame<a.snapshotFrame || frame-a.snapshotFrame>600u ||
+           word(r,p+0x52u)!=a.neutral.identity)return false;
+        // The 87.226 fix restored only 9 selected fields; native 68000
+        // reasserted a bad 0x704E7800 X + 0x1400 dash for 497 frames.
+        // Recover the *original CPU-owned* idle controller slice instead,
+        // including any related dash/animation phase variables. Avoid any
+        // snapshot/rewind of health, meter, or opponent state.
+        std::memcpy(r+p,a.neutralBytes,sizeof(a.neutralBytes));
+        setLong(r,p+0x0cu,a.safeX);
+        setLong(r,p+0x14u,0u);
+        setLong(r,p+0x18u,0u);
+        a.ready=false;a.tracking=false;a.dashAge=0u;
+        ++a.snapshotRestores;
+        return true;
+    }
     Event sample(std::uint8_t* r,unsigned p,unsigned frame,unsigned side){
         Event e;
         Actor& a=actor[side];
@@ -129,13 +153,27 @@ struct Controller {
                     a.recoveryActive=false;
                     a.lastRecoveryFrame=~0u;
                     a.quietFrames=0u;
+                    a.suppressedFrames=0u;
+                    a.snapshotRestores=0u;
                 }
             }else if(!control && canRecover){
-                restoreNeutral(r,p,a,true);
-                if(log){
-                    std::fprintf(log,"%u\t%u\t%04X\t%04X\t0\t%08X\t%08X\t%08X\t%u\t%u\tFS_DASH_REENTRY_SUPPRESSED\n",
+                ++a.suppressedFrames;
+                // Escalate only AFTER several consecutive reentries and
+                // only after confirming that we have the actual ROM-native
+                // neutral controller snapshot for this SAME fighter.
+                // Retry at 16-frame intervals if the ROM still regenerates
+                // the corrupted position. This is not a normal dash cancel.
+                const bool recoverSnapshot=a.suppressedFrames>=4u &&
+                    ((a.suppressedFrames-4u)%16u)==0u &&
+                    restoreNativeNeutral(r,p,a,frame);
+                if(!recoverSnapshot)restoreNeutral(r,p,a,true);
+                if(log && (recoverSnapshot || a.suppressedFrames==1u ||
+                           a.suppressedFrames%64u==0u)){
+                    std::fprintf(log,"%u\t%u\t%04X\t%04X\t0\t%08X\t%08X\t%08X\t%u\t%u\t%s\n",
                         frame,side+1u,identity,mode,x,longword(r,p+0x14u),
-                        a.neutral.script,a.neutral.timer,a.neutral.timer);
+                        a.neutral.script,a.neutral.timer,a.neutral.timer,
+                        recoverSnapshot?"FS_DASH_NATIVE_CONTROLLER_RESTORED":
+                          "FS_DASH_REENTRY_SUPPRESSED");
                     std::fflush(log);
                 }
                 return e;
@@ -145,6 +183,8 @@ struct Controller {
            a.safeValid && frame>=a.safeFrame && frame-a.safeFrame<=600u &&
            brokenX){
             a.recoveryActive=true;a.quietFrames=0u;
+            a.suppressedFrames=0u;
+            a.snapshotRestores=0u;
             a.lastRecoveryFrame=frame;
             restoreNeutral(r,p,a,true);
             if(log){
@@ -161,6 +201,8 @@ struct Controller {
            a.lastRecoveryFrame!=~0u && frame>=a.lastRecoveryFrame &&
            frame-a.lastRecoveryFrame<=5u){
             a.recoveryActive=true;a.quietFrames=0u;
+            a.suppressedFrames=0u;
+            a.snapshotRestores=0u;
             restoreNeutral(r,p,a,a.safeValid);
             if(log){
                 std::fprintf(log,"%u\t%u\t%04X\t%04X\t0\t%08X\t%08X\t%08X\t%u\t%u\tFS_DASH_REPEAT_AFTER_WATCHDOG\n",
@@ -179,6 +221,11 @@ struct Controller {
             n.timer=word(r,p+0x3eu);n.anim=word(r,p+0x42u);
             n.mode=mode;n.action=word(r,p+0x60u);n.air=word(r,p+0xaau);
             n.script=longword(r,p+0x34u);n.next=longword(r,p+0x38u);
+            if(saneX && n.script && n.next){
+                std::memcpy(a.neutralBytes,r+p,sizeof(a.neutralBytes));
+                a.neutralSnapshotValid=true;
+                a.snapshotFrame=frame;
+            }
         }
         if(control || !dash(mode)){
             a.ready=false;a.tracking=false;a.dashAge=0;
