@@ -603,13 +603,18 @@ static inline void xm30Overlay(SDL_Renderer* r,const SDL_Rect& dest,int sw,int s
         const XM30Float& fl=f.floats[i];
         if(!fl.visible)continue;
         const int x=dest.x+(fl.x*dest.w)/sw;
-        const int rise=(fl.age*40)/XM30FrameData::FLOAT_LIFE;
-        const int y=dest.y+(fl.y*dest.h)/sh-rise-17;
-        Uint8 alpha=fl.age<80?255:(Uint8)(255*(XM30FrameData::FLOAT_LIFE-fl.age)/40);
+        // Stage 87.214: actual SF2 font is 8 native pixels tall at
+        // scale 2, hence 16px. At age 120 the popup has reached its
+        // original 40px apex. Over the following 20 game updates rise
+        // another 16px and squeeze WIDTH to zero, not glyph height.
+        const int fontHeight=16;
+        const XM30FloatPose pose=xm30FloatPose(fl.age,fontHeight);
+        const int y=dest.y+(fl.y*dest.h)/sh-pose.rise-17;
         char popup[32];std::snprintf(popup,sizeof(popup),"S:%dF",fl.startup);
         const int safeX=std::max(dest.x+25,std::min(x,dest.x+dest.w-25));
         const int safeY=std::max(dest.y+5,y);
-        xm30OutlinedText(r,popup,safeX,safeY,2,alpha);
+        XMGlyph::atlas().floatingText(r,popup,safeX,safeY,
+                                      pose.horizontal,(Uint8)pose.alpha,2);
     }
 }
 static inline void xm23Overlay(SDL_Renderer* renderer, const SDL_Rect& gameDest,
