@@ -674,7 +674,7 @@ static void xm87217NativeFloat(SDL_Renderer* render,const SDL_Rect& gameView){
         xm87217FloatTexture=SDL_CreateTexture(
             render,SDL_PIXELFORMAT_RGBA32,SDL_TEXTUREACCESS_STREAMING,384,224);
         if(!xm87217FloatTexture){
-            std::fprintf(stderr,"XM87.217 NATIVE_FLOAT_TEXTURE_FAILED %s\\n",
+            std::fprintf(stderr,"XM87.217 NATIVE_FLOAT_TEXTURE_FAILED %s\n",
                          SDL_GetError());
             return;
         }
@@ -683,7 +683,7 @@ static void xm87217NativeFloat(SDL_Renderer* render,const SDL_Rect& gameView){
         SDL_SetTextureScaleMode(xm87217FloatTexture,SDL_ScaleModeNearest);
 #endif
         std::fprintf(stderr,
-            "XM87.217 NATIVE_FLOAT_READY 384x224 source_pixels=1 exit_frames=6 font=sf2fontsmall.png\\n");
+            "XM87.217 NATIVE_FLOAT_READY 384x224 source_pixels=1 exit_frames=6 font=sf2fontsmall.png\n");
     }
     std::memset(xm87217FloatRGBA.data(),0,xm87217FloatRGBA.size());
     XM87217::Image image;
