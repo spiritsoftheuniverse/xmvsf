@@ -778,7 +778,8 @@ INT32 Cps2Frame()
     if(!bBurnRunAheadFrame)
         XM87224CharliePC::state().begin(CpsRamFF,
             (unsigned)GetCurrentFrame(),dhcGameMatches,
-            XM8795Native::env("XM8755_TOURNAMENT_MODE"),false);
+            XM8795Native::env("XM8755_TOURNAMENT_MODE"),false,
+            CpsCode,(unsigned)nCpsCodeLen);
 
 	SekIdle(nCpsCyclesExtra);
 	nCpsCyclesExtra = 0;
