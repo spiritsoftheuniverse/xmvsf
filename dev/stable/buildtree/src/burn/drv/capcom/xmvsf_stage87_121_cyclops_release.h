@@ -1,13 +1,29 @@
 #ifndef XMVSF_STAGE87_121_CYCLOPS_RELEASE_H
 #define XMVSF_STAGE87_121_CYCLOPS_RELEASE_H
 // XM87.121 CYCLOPS_THROW_RECOVERY_RELEASE
+// Engine quirk (confirmed by repeated 87.216 play tests): the air-throw
+// release is an EVENT with lifetime, not a single animation-frame write.
+// The ROM's +42 pose can remain unchanged while native frames advance;
+// host runahead callbacks must NEVER advance its counter or consume the
+// grab-end edge. Re-arm separately for EVERY throw, tolerate mode32
+// recovery substates, and restore the SAVED airborne controller before
+// Cyclops's natural ~51-52-frame landing. 36 native frames was stable;
+// 24 is the requested earlier release experiment (0.4s at 60Hz).
+// TEST 87.218: only +0x14 X velocity is zeroed on release.
+// TEST 87.219: attached native 87.218 observer found five combo throws
+// at world Y=681..865 with airborne flag AA=1/2 and controller 32.
+// Y=472 is a stage-specific world coordinate, NOT a universal floor.
+// Keep reliable neutral 0200/0202 snapshots across combo moves and
+// accept recent native 020C/0214 mode-1C air substates as fallback.
+// The X cancel seen after successful release is player input, never an
+// automatic cancellation or symptom to suppress.
 // Resume Cyclops's ACTUAL preceding airborne controller after air throw impact.
 // No fresh super-jump launch, no arbitrary animation/script/ROM address.
 // Never modify the opponent, world X/Y, HP, meter or character identity.
-// Arm on 200C -> 200E grab end, then wait 36 distinct native combat
+// Arm on 200C -> 200E grab end, then wait 24 distinct native combat
 // updates. Ignore repeated sprite-pose values and animation-word changes.
 // Latch the victim's ground landing while waiting; the 1C34 action may be
-// fleeting and should NOT have to coincide with the 36th update.
+// fleeting and should NOT have to coincide with the 24th update.
 // Restore the saved airborne controller only while Cyclops still occupies
 // the throw-recovery action. Never overwrite a legitimate later action.
 #include <cstdint>
@@ -15,7 +31,13 @@
 #include <cstdlib>
 #include <cstring>
 namespace XM87121 {
-static const unsigned ReleaseDelayFrames=36u;
+static const unsigned ReleaseDelayFrames=24u;
+// Max age of a known neutral air controller while a combo is in progress.
+// 87.218 observed a 39-frame gap between 0202 and air-throw entry
+// following 1A02 / 0214; a 24f-only snapshot window dropped it.
+static const unsigned ComboNeutralAgeFrames=96u;
+static const unsigned RecentAirAgeFrames=24u;
+static inline bool airFlag(unsigned flag){return flag==1u || flag==2u;}
 static inline unsigned b(const std::uint8_t* r,unsigned addr){return r[(addr&0xFFFFu)^1u];}
 static inline unsigned w(const std::uint8_t* r,unsigned addr){return (b(r,addr)<<8)|b(r,addr+1);}
 static inline std::uint32_t d(const std::uint8_t* r,unsigned a){return (std::uint32_t(w(r,a))<<16)|w(r,a+2);}
@@ -49,9 +71,15 @@ static inline AirState observeAir(const std::uint8_t* r,unsigned p,unsigned f){
     s.valid=true;return s;
 }
 static inline void restoreAir(std::uint8_t* r,unsigned p,const AirState& s){
-    // Restore the EXACT preceding airborne controller; do not start a jump.
+    // Restore the original airborne controller except for horizontal
+    // velocity, which must be neutral on release; do not start a jump.
     sw(r,p+0x06,s.step06);sw(r,p+0x08,s.step08);
-    sd(r,p+0x14,s.velocityX);sd(r,p+0x18,s.motionX);
+    // TEST 87.218: cancel pre-grab forward momentum on release.
+    // The original airborne snapshot is still used for EVERY other
+    // controller field. Only +14 (horizontal velocity) is neutralized;
+    // +18 movement state, +1C vertical velocity, gravity, and world
+    // X/Y are preserved. Never zero it during the grab itself.
+    sd(r,p+0x14,0u);sd(r,p+0x18,s.motionX);
     sd(r,p+0x1C,s.velocityY);sd(r,p+0x20,s.gravity);
     sd(r,p+0x34,s.script);sd(r,p+0x38,s.scriptNext);
     sw(r,p+0x3C,s.ctl3C);sw(r,p+0x3E,s.ctl3E);
@@ -65,7 +93,7 @@ struct Tracker{
     bool initialized,enabled,valid[2],armed[2],pending[2],waiting[2],victimLanded[2];
     unsigned lastFrame,previous[2],until[2],attempt[2];
     unsigned lastAnim42[2],animationAdvances[2],recoveryTicks[2];
-    AirState lastAir[2],selected[2];
+    AirState lastAir[2],lastComboAir[2],selected[2];
     std::FILE* log;
     Tracker():initialized(false),enabled(false),lastFrame(~0u),log(NULL){
         for(unsigned i=0;i<2;++i){
@@ -93,6 +121,7 @@ struct Tracker{
         for(unsigned i=0;i<2;++i){
             valid[i]=armed[i]=pending[i]=waiting[i]=victimLanded[i]=false;
             lastAir[i].valid=false;
+            lastComboAir[i].valid=false;
             until[i]=lastAnim42[i]=animationAdvances[i]=recoveryTicks[i]=0;
         }
     }
@@ -127,16 +156,32 @@ struct Tracker{
                     emit(f,i,"SCOPE_END",r,p,other,"CYCLOPS_ID_OR_BANK_CHANGED");
                 valid[i]=armed[i]=pending[i]=waiting[i]=victimLanded[i]=false;
                 lastAir[i].valid=false;
+                lastComboAir[i].valid=false;
                 animationAdvances[i]=recoveryTicks[i]=0;
                 continue;
             }
-            // ROM trace: 0200 / 0202, mode 1C, airborne flag 1 (rising) / 2 (descending).
-            // Save the native airborne controller by actual airborne
-            // actions and altitude. Requiring EXACT mode 1C and AA 1/2
-            // discarded the pre-throw state on some otherwise valid jumps.
-            bool inJump=(action==0x0200u || action==0x0202u) &&
-                         w(r,p+0x10u)<472u;
+            // Keep the proven neutral airborne 0200/0202 controller.
+            // The 87.218 native trace demonstrates that Y=472 does NOT
+            // define the floor on every stage: real air grabs occurred
+            // at Y=681..865 with native AA airborne flags 1/2.
+            // Native mode 1C also identifies air controller states;
+            // accepting it avoids reintroducing the old strict AA gate.
+            const unsigned mode=w(r,p+0xA0u)>>8;
+            const unsigned air=w(r,p+0xAAu)>>8;
+            const bool nativeAir=airFlag(air)||mode==0x1Cu;
+            const bool inJump=(action==0x0200u||action==0x0202u) &&
+                              nativeAir;
             if(inJump)lastAir[i]=observeAir(r,p,f);
+
+            // Combo air substates 020C/0214 were seen immediately before
+            // the five missed grabs. Save their OWN native controller
+            // only if both mode 1C and the actual airborne flag agree.
+            // Never synthesize an action/script/animation or use a stale
+            // neutral state from 473 frames earlier (recorded at 17625).
+            const bool comboAir=(action>=0x0200u&&action<=0x021Eu &&
+                     action!=0x0200u&&action!=0x0202u &&
+                     mode==0x1Cu&&airFlag(air));
+            if(comboAir)lastComboAir[i]=observeAir(r,p,f);
             if(valid[i] && action==0x200Cu && previous[i]!=0x200Cu){
                 // A new grab is a new transaction, even if the previous
                 // attempt still had a follow-log window. It must NEVER
@@ -145,18 +190,31 @@ struct Tracker{
                 ++attempt[i];
                 pending[i]=waiting[i]=victimLanded[i]=false;
                 recoveryTicks[i]=animationAdvances[i]=0;
-                // A throw can enter after multiple airborne game updates; 2u
-                // rejected otherwise valid saved air states intermittently.
-                armed[i]=lastAir[i].valid && f>=lastAir[i].frame &&
-                         f-lastAir[i].frame<=24u;
-                if(armed[i])selected[i]=lastAir[i];
-                emit(f,i,"THROW_CAPTURE",r,p,other,armed[i]?"AIRBORNE_SAVED":"NO_AIRBORNE_BASELINE");
+                // Proven neutral air controller takes priority even when
+                // an aerial combo lasts longer than 24 frames. If none
+                // is recent, use the newest *native* 020C/0214 air
+                // substate. No synthetic jump or arbitrary stale script.
+                const bool neutral=lastAir[i].valid &&
+                    f>=lastAir[i].frame &&
+                    f-lastAir[i].frame<=ComboNeutralAgeFrames;
+                const bool combo=lastComboAir[i].valid &&
+                    f>=lastComboAir[i].frame &&
+                    f-lastComboAir[i].frame<=RecentAirAgeFrames;
+                armed[i]=neutral||combo;
+                if(neutral)selected[i]=lastAir[i];
+                else if(combo)selected[i]=lastComboAir[i];
+                emit(f,i,"THROW_CAPTURE",r,p,other,
+                    neutral?(f-lastAir[i].frame<=RecentAirAgeFrames?
+                        "AIRBORNE_SAVED":"COMBO_NEUTRAL_RETAINED"):
+                    combo?"COMBO_AIR_SAVED":"NO_AIRBORNE_BASELINE");
             }
             // The transition itself is the reliable grab-end boundary.
             // The old exact +06/+08/+A0/+AA signature excluded valid
             // 200C->200E states and never started the recovery clock.
+            // The 200C->200E event is independent of absolute world Y.
+            // It was blocked outright on high-Y combo stages.
             const bool firstFlip=valid[i] && previous[i]==0x200Cu &&
-                                 action==0x200Eu && w(r,p+0x10u)<472u;
+                                 action==0x200Eu;
             if(firstFlip){
                 waiting[i]=enabled && armed[i];
                 recoveryTicks[i]=0;
@@ -165,10 +223,10 @@ struct Tracker{
                 victimLanded[i]=w(r,other+0x10u)>=472u;
                 emit(f,i,"GRAB_ENDED",r,p,other,
                     !enabled?"DISABLED":!armed[i]?"NO_AIRBORNE_BASELINE":
-                    "WAIT_36_NATIVE_FRAMES");
+                    "WAIT_24_NATIVE_FRAMES");
                 armed[i]=false;
             }else if(waiting[i]){
-                // A throw may progress through 200F/2010/etc before 100
+                // A throw may progress through 200F/2010/etc before 24
                 // frames elapse. Keep the countdown for genuine throw
                 // family substates, not only the first 200E action.
                 const bool inThrowFamily=(action&0xFFE0u)==0x2000u;
@@ -176,10 +234,12 @@ struct Tracker{
                 // The action code can leave 2000..201F before the ROM
                 // clears its throw-mode controller. Retain the same
                 // event while mode32 still proves it is throw-bound.
-                if((!inThrowFamily && !inThrowMode) ||
-                   w(r,p+0x10u)>=472u){
+                // Do not cancel a confirmed native throw merely because
+                // its world Y is >=472. Cancel only after both native
+                // action and throw mode relinquish ownership. Player
+                // X cancel is genuine user input and stays unmodified.
+                if(!inThrowFamily && !inThrowMode){
                     emit(f,i,"RELEASE_CANCEL",r,p,other,
-                         w(r,p+0x10u)>=472u?"CYCLOPS_LANDED":
                          "LEFT_THROW_ACTION_AND_MODE");
                     waiting[i]=false;
                 }else{
@@ -198,17 +258,17 @@ struct Tracker{
                         victimLanded[i]=true; // landing is a latch
                     if(recoveryTicks[i]==1u || reachedDeadlineThisFrame)
                         emit(f,i,"RECOVERY_TICK",r,p,other,
-                             "FIXED_0_6_SECOND_DELAY");
+                             "FIXED_0_4_SECOND_DELAY");
                     if(recoveryTicks[i]>=ReleaseDelayFrames){
                         // The 87.213 runtime trace proves the opponent had
                         // already landed at grab end, but Cyclops himself
                         // naturally landed at 51-52 frames, canceling the
-                        // previous 100-frame release. At 0.6s, the native
+                        // previous 100-frame release. At 0.4s, the native
                         // throw controller still owns Cyclops; release it
                         // on schedule, with no victim-action veto.
                         restoreAir(r,p,selected[i]);
                         emit(f,i,"RELEASED",r,p,other,
-                             "RESTORED_AFTER_0_6_SECONDS");
+                             "RESTORED_AFTER_0_4_SECONDS");
                         waiting[i]=false;
                         pending[i]=true;until[i]=f+16u; // follow log only
                     }
@@ -216,7 +276,7 @@ struct Tracker{
             }else if(pending[i]){
                 emit(f,i,"FOLLOW",r,p,other,
                    (w(r,p+0xA0u)>>8)==0x1Cu?"AIRBORNE_CONTROL":"OTHER_CONTROL");
-                if(f>=until[i] || w(r,p+0x10u)>=472u)pending[i]=false;
+                if(f>=until[i])pending[i]=false;
             }
             if(action!=0x200Cu && action!=0x200Eu && !inJump &&
                !pending[i] && !waiting[i])armed[i]=false;

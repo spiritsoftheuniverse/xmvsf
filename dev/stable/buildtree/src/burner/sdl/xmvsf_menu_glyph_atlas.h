@@ -22,6 +22,9 @@ class Atlas {
     SDL_Texture* logoFx_ = nullptr; // streaming color-group pulse layer
     std::vector<Uint8> originalLogo_;
     std::vector<Uint8> animatedLogo_;
+    // A CPU copy of the REAL SF2 small PNG for the 384x224 native
+    // game-render popup layer. Never synthesize a substitute bitmap.
+    std::vector<Uint8> nativeSmallRGBA_;
     Uint32 lastLogoFX_=0;
     int logoWidth_=0,logoHeight_=0;
     bool logoFxWarning_=false;
@@ -137,7 +140,7 @@ public:
         if(logoFx_)SDL_DestroyTexture(logoFx_);
         if(logo_)SDL_DestroyTexture(logo_);
         large_=small_=logoFx_=logo_=nullptr;
-        originalLogo_.clear();animatedLogo_.clear();
+        originalLogo_.clear();animatedLogo_.clear();nativeSmallRGBA_.clear();
         lastLogoFX_=0;logoWidth_=logoHeight_=0;logoFxWarning_=false;
         renderer_=nullptr;logoSource_={0,0,0,0};attempted_=false;
         for(int i=0;i<2;i++)for(int c=0;c<128;c++)metrics_[i][c]=Glyph{};
@@ -162,6 +165,17 @@ public:
             if(s->w==128 && s->h==48){
                 measure(s,metrics_[1],8);
                 small_=texture(renderer,s);
+                SDL_Surface* native=SDL_ConvertSurfaceFormat(
+                    s,SDL_PIXELFORMAT_RGBA32,0);
+                if(native && SDL_LockSurface(native)==0){
+                    nativeSmallRGBA_.resize(128u*48u*4u);
+                    for(int y=0;y<48;++y)
+                        std::memcpy(nativeSmallRGBA_.data()+y*128*4,
+                                    (const Uint8*)native->pixels+y*native->pitch,
+                                    128u*4u);
+                    SDL_UnlockSurface(native);
+                }
+                if(native)SDL_FreeSurface(native);
             }
             else std::fprintf(stderr,"XM MENU ATLAS unexpected small sheet %dx%d\n",s->w,s->h);
             SDL_FreeSurface(s);
@@ -247,40 +261,15 @@ public:
         SDL_SetTextureColorMod(font,255,255,255);
         return true;
     }
-    // Frame-data labels share the original SF2 small glyph atlas.
-    // Compress only HORIZONTAL destination coordinates after the apex;
-    // height stays at its original native pixel scale. One existing
-    // SDL renderer and one present, without any intermediate texture.
-    bool floatingText(SDL_Renderer* renderer,const char* string,int cx,int top,
-                      double horizontal,Uint8 alpha,int scale=2){
+    // Caller uses this SOURCE RGBA32 data only for the native 384x224
+    // game-pixel raster. Never draw popup text through the SDL window
+    // logical canvas or via scaled glyph rectangles.
+    bool nativeSmallPixels(SDL_Renderer* renderer,const Uint8*& pixels,
+                           int& pitch){
         ensure(renderer);
-        if(!renderer||!string||!small_||horizontal<=0.0||alpha==0)return false;
-        if(horizontal>1.0)horizontal=1.0;
-        scale=std::max(1,scale);
-        const Glyph* glyphs=metrics_[1];
-        int total=0;
-        for(const unsigned char* p=(const unsigned char*)string;*p;++p){
-            const unsigned char ch=*p;
-            total+=(ch<128&&glyphs[ch].advance>0)?glyphs[ch].advance:4;
-        }
-        const int whole=std::max(1,int(total*scale*horizontal+0.5));
-        const int left=cx-whole/2;
-        SDL_SetTextureAlphaMod(small_,alpha);
-        SDL_SetTextureColorMod(small_,255,255,255);
-        int pen=0;
-        for(const unsigned char* p=(const unsigned char*)string;*p;++p){
-            const unsigned char ch=*p;
-            const Glyph& g=glyphs[ch<128?ch:32];
-            if(ch>=33&&ch<=126&&g.src.w>0){
-                const int x0=left+int(pen*scale*horizontal+0.5);
-                const int x1=left+int((pen+g.src.w)*scale*horizontal+0.5);
-                const SDL_Rect dst={x0,top,std::max(1,x1-x0),g.src.h*scale};
-                SDL_RenderCopy(renderer,small_,&g.src,&dst);
-            }
-            pen+=(ch<128&&g.advance>0)?g.advance:4;
-        }
-        SDL_SetTextureAlphaMod(small_,255);
-        return true;
+        pixels=nativeSmallRGBA_.empty()?nullptr:nativeSmallRGBA_.data();
+        pitch=pixels?128*4:0;
+        return pixels!=nullptr;
     }
     // Draw the SOURCE ART, not the transparent 400x300 export canvas.
     // Its visible aspect ratio is maintained inside the requested target

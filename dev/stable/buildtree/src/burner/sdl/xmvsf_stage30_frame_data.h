@@ -140,11 +140,12 @@ struct XM30Track {
     unsigned previousActiveBases[12]={};
 };
 struct XM30FrameData {
-    // Original 120 native-frame ascent to the 40px apex, then a
-    // 20-frame width-only collapse and another full text-height rise.
+    // Preserve the 120-native-frame ascent to the 40px apex, then
+    // squeeze width across SIX native frames while rising one glyph
+    // height IN THE 384x224 SOURCE IMAGE (never SDL window coordinates).
     // This modifies presentation timing, never attack measurements.
     static const int HISTORY=24, FLOATS=8, MAX_WAIT=120;
-    static const int FLOAT_APEX=120, FLOAT_EXIT=20;
+    static const int FLOAT_APEX=120, FLOAT_EXIT=6;
     static const int FLOAT_LIFE=FLOAT_APEX+FLOAT_EXIT;
     bool enabled=false;
     bool inCombat=false;
@@ -418,10 +419,10 @@ struct XM30FrameData {
         }
     }
 };
-// Stage 87.214: floating popup geometry determined ONLY by the native
-// frame-data clock. Apex holds the original 40px rise, then over 20
-// frames squeeze horizontal width to zero while moving up the actual
-// on-screen font height. Vertical glyph size never compresses.
+// Stage 87.217: native pixel-space geometry, deterministic frame-data
+// clock. Rise 40 SOURCE pixels to the apex, then in SIX real game
+// frames squeeze only width and travel one font height (8 source px).
+// No SDL logical/window scaling participates in these coordinates.
 struct XM30FloatPose {
     int rise=0;
     int alpha=255;

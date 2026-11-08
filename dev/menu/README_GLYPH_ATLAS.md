@@ -537,7 +537,101 @@ recompilation. Details: `dev/dhc/INCREMENTAL_BUILD_CACHE.md`.
 No Stable, original game logic, UI art or runtime save files changed.
 Local Windows native build is pending.
 
-## Native TEST version 87.216 and local verification
+## TEST 87.217 — Cyclops earlier air release; native frame-data popups
+
+**Cyclops:** The user's 87.216 native gameplay confirms the 36-frame
+release is now consistent. This proves why the earlier 100-frame and
+animation-state-trigger attempts failed: real throw recovery naturally
+ends near 51–52 frames, and `+0x42` pose changes do not measure elapsed
+emulation time. The new experimental release is **24 committed native
+frames after `200C -> 200E` grab end (0.4 seconds at 60Hz)**. Existing
+non-run-ahead event capture, per-throw ID/rearming, native mode32 scope
+and exact saved-airborne-state restoration remain intact. Reference
+`dev/dhc/CYCLOPS_AIR_THROW_ENGINE_QUIRK.md` before modifying it again.
+
+**Startup labels:** Floating `S:##F` training frame-data popups no longer
+paint inside `xm30Overlay` or the window's logical SDL pixel space.
+They are instead built into a **384×224 native-resolution game image
+layer**, in the same pixel coordinates as the recorded fighter hitboxes.
+`xmvsf_stage87_217_native_float.h` performs the CPU pixel raster using
+the exact alpha/color pixels from `_art/sf2fontsmall.png`, provided
+by the existing XMGlyph atlas. `vid_sdl2.cpp` uploads the resulting
+transparent 384×224 buffer and composites it with the game viewport
+for both the original CPS2 and custom Wily stage renders, before
+external UI/panels. This is not an SDL font draw or a scaled logical
+canvas animation. Native glyph height is **8 source pixels**.
+
+Popups keep their 120-native-frame ascent of 40 **source pixels**.
+Beginning at the apex they horizontally squeeze to zero over **six
+native game frames** (ages 120–125), while rising a further **8 source
+pixels** (one full native glyph height) and fading. Glyph height stays
+constant and the source image is cleared each paint, avoiding ghost
+trails. The frame-data history/cards in the external panel remain
+unchanged. Native font art is not modified.
+
+`dev/dhc/tests/test_stun_and_cyclops_217.cpp` replaces the 214
+regression in the cached local build: it verifies Cyclops 24-frame
+release, repeated throws, and full native pixel-space font geometry,
+including 6-frame width collapse, 8px extra ascent, transparent last
+frame, and the original stun-bar stencil. All native gameplay
+verification must be performed locally with BUILD_TEST.bat.
+
+## TEST 87.218 — Neutralize Cyclops X velocity at release only
+
+TEST 87.217 established the **24-committed-frame (0.4-second)**
+Cyclops air-throw release. At release, the saved airborne state also
+restored Cyclops's old `velocityX` at fighter RAM `+0x14`; this
+explains his inherited forward drift after grabbing.
+
+TEST 87.218 changes just that one restoration write to **0**.
+The distinct `+0x18` motion field, `+0x1C` vertical velocity,
+`+0x20` gravity, previous airborne script/action, world position,
+opponent, and the working per-throw event lifecycle are untouched.
+There is no continuous velocity override during normal gameplay.
+
+`dev/dhc/tests/test_stun_and_cyclops_218.cpp` replaces the earlier
+cached regression and checks exact 24-frame release, zero X velocity,
+unchanged adjacent movement/vertical values, two separate throws with
+different pre-grab X speeds, natural action exit protection, the existing
+native 6-frame SF2 popup animation, and stun-bar geometry.
+
+See `dev/dhc/CYCLOPS_AIR_THROW_ENGINE_QUIRK.md` for the underlying
+ROM/recovery event-scope quirk. Local Windows runtime verification is
+still required. Stable and earlier TEST executables remain untouched.
+
+## TEST 87.219 — Cyclops air-throw cancel after a combo
+
+The **87.218 native observer** proved the 0.4-second release itself
+works (four completed throws at exactly 24 frames). It also recorded
+five otherwise legitimate native air throws denied a baseline because
+world Y was between **681–865** instead of below 472. The DHC trace
+shows combo actions `020C` and `0214` occurring just before such
+attempts; these are native airborne controller substates, not arbitrary
+synthetic jump requests.
+
+TEST 87.219 removes the stage-specific world-Y restriction from
+airborne snapshot capture, `200C->200E` grab-end detection and native
+throw recovery. The proven neutral-air `0200/0202` controller is
+preserved through extended combos (up to 96 committed frames). Where
+there is no recent neutral snapshot, the tracker may restore a recorded
+native `020C/0214` combo-air controller only when both mode `1C`
+and airborne flag `AA=1/2` agree. Observer decisions distinguish
+`AIRBORNE_SAVED`, `COMBO_NEUTRAL_RETAINED` and
+`COMBO_AIR_SAVED`.
+
+**User clarification:** the X cancel seen in successful 87.218
+attempts is deliberate player input. No automated X-cancel suppression
+or continuous velocity override has been added. Release timing remains
+**24 committed frames (0.4s)**, and X velocity is zeroed **once**
+at release. Native game-pixel frame-data labels remain six-frame exits.
+`dev/dhc/tests/test_stun_and_cyclops_219.cpp` covers high-Y normal
+throws, long-combo neutral snapshots, native 020C fallback, unqualified
+nonair states, and untouched input-driven exits. See
+`dev/dhc/CYCLOPS_AIR_THROW_ENGINE_QUIRK.md` for the source evidence.
+
+The native Windows build and actual combo gameplay remain unverified.
+
+## Native TEST version 87.219 and local verification
 
 **Pulling only main does not include this branch.** The source modifications
 are on feature/menu-logo-glyph-atlas-selection-dimming. In the Windows
@@ -551,16 +645,16 @@ Preserve any uncommitted local work before switching branches. Keep the
 original _art PNG files; do not resample or replace them.
 
 1. Run BUILD_TEST.bat. It now publishes ONLY
-   runtime/stable/XMVSF_Test_87_216.exe after compiling current source.
+   runtime/stable/XMVSF_Test_87_219.exe after compiling current source.
    A missing executable or modified menu/video/audio/crash header refreshes
    only main.cpp, run.cpp, vid_sdl2.cpp, aud_sdl.cpp, cps_obj.cpp, cps_draw.cpp
    and cps_run.cpp without deleting warm build objects, older binaries, or Stable.
-2. Read test/build_logs/BUILD_TEST.log for the 87.216 success line and
+2. Read test/build_logs/BUILD_TEST.log for the 87.219 success line and
    the SHA256 hashes of the compiled executable, four source PNGs and GIF.
    If an asset or the glyph-header include is missing, the builder gives
    a precise error instead of silently building a legacy-looking menu.
 3. Run RUN_TEST.bat option 1. The menu window title and bottom-right
-   main-menu label both say TEST 87.216. If they do not, you are not
+   main-menu label both say TEST 87.219. If they do not, you are not
    looking at the newly compiled native XMVSF build.
 4. The gameplay path is still the native XMVSF app's zero-ROM-argument
    boot selector, NOT the separate MVC1 capture/ROM playback mode.
@@ -569,7 +663,7 @@ original _art PNG files; do not resample or replace them.
 5. Verify the unselected text is dim, selected text is bright, and that
    I, i, l, 1, punctuation and word gaps no longer waste full cell widths.
 6. New F9 replays, observer/chat diagnostics and replay verification live
-   under test/87.216. Legacy test/87.203 capture data is not modified;
+   under test/87.219. Legacy test/87.203 capture data is not modified;
    original replay files remain accessible through RUN_REPLAY.bat.
 
 This source audit includes inspection of the tracked code, unchanged font

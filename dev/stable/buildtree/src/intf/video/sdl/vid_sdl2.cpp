@@ -18,6 +18,7 @@
 #include "xmvsf_stage87_140_chat_overlay.h" // XM87.140 opt-in DHC history
 #include "../../../burner/sdl/xmvsf_stage87_206_crash_report.h" // FIGHT exception breadcrumbs
 #include "../../../burner/sdl/xmvsf_stage23_ui.h" /* XMVSF_STAGE23_TRAINING_MENU */
+#include "../../../burner/sdl/xmvsf_stage87_217_native_float.h" /* game-pixel SF2 popups */
 #include "../../../burner/sdl/xmvsf_stage24_versus.h" /* XMVSF_STAGE24_VERSUS */
 #include <SDL_image.h>
 #include "../../../burner/sdl/xmvsf_stage86_52_window_state.h" /* XM86.52 */
@@ -46,6 +47,8 @@ extern SDL_Window* sdlWindow;
 SDL_Renderer* sdlRenderer = NULL;
 static SDL_Texture* sdlTexture = NULL;
 static SDL_Texture* xm8733Texture = NULL;
+static SDL_Texture* xm87217FloatTexture = NULL;
+static std::vector<Uint8> xm87217FloatRGBA(384u*224u*4u,0u);
 static unsigned char xm8733Pixels[384*224*4]={};
 static void xm8733Overlay(SDL_Renderer*,const SDL_Rect&);
 static int  nRotateGame = 0;
@@ -168,6 +171,10 @@ static int Exit()
     XM8773Present::State().Close(); // XM87.73 release exact-pen overlay texture
     xm8649VideoCleanup(); // XM86.49 release textures before renderer destruction
     if(xm8733Texture){SDL_DestroyTexture(xm8733Texture);xm8733Texture=NULL;}
+    if(xm87217FloatTexture){
+        SDL_DestroyTexture(xm87217FloatTexture);
+        xm87217FloatTexture=NULL;
+    }
     xm8656Cleanup(sdlRenderer); // XM86.56 release final compositor on exit
 	SDL_DestroyTexture(sdlTexture);
 	sdlTexture = NULL;
@@ -645,6 +652,49 @@ static void xm8733Overlay(SDL_Renderer* render,const SDL_Rect& view) {
         SDL_RenderCopy(render,xm8733Texture,NULL,&view);
 }
 
+// Stage 87.217: frame-data labels are a 384x224 NATIVE GAME PIXEL layer.
+// All movement, font sampling, and six-frame horizontal compression happen
+// in source pixels BEFORE the texture is scaled into the gameplay viewport.
+// No window/logical-space SDL text is used. This game layer is shared by the
+// regular CPS2 canvas and the native Wily stage compositor. It is rebuilt
+// from transparent pixels each paint, so repeated paused paints cannot smear.
+static void xm87217NativeFloat(SDL_Renderer* render,const SDL_Rect& gameView){
+    if(!render || !xm14TrainingMode || !xm23State.combat ||
+       xm23State.menuOpen || nVidImageWidth!=384 || nVidImageHeight!=224 ||
+       !XM87217::any(xm23State.frameData))return;
+    const char* driver=BurnDrvGetTextA(DRV_NAME);
+    if(!driver || std::strncmp(driver,"xmvsf",5)!=0)return;
+    const Uint8* glyphPixels=nullptr;
+    int glyphPitch=0;
+    if(!XMGlyph::atlas().nativeSmallPixels(render,glyphPixels,glyphPitch))
+        return; // no invented font when source asset is absent
+    XM87217::Font font;
+    if(!font.prepare(glyphPixels,128,48,glyphPitch))return;
+    if(!xm87217FloatTexture){
+        xm87217FloatTexture=SDL_CreateTexture(
+            render,SDL_PIXELFORMAT_RGBA32,SDL_TEXTUREACCESS_STREAMING,384,224);
+        if(!xm87217FloatTexture){
+            std::fprintf(stderr,"XM87.217 NATIVE_FLOAT_TEXTURE_FAILED %s\n",
+                         SDL_GetError());
+            return;
+        }
+        SDL_SetTextureBlendMode(xm87217FloatTexture,SDL_BLENDMODE_BLEND);
+#if SDL_VERSION_ATLEAST(2,0,12)
+        SDL_SetTextureScaleMode(xm87217FloatTexture,SDL_ScaleModeNearest);
+#endif
+        std::fprintf(stderr,
+            "XM87.217 NATIVE_FLOAT_READY 384x224 source_pixels=1 exit_frames=6 font=sf2fontsmall.png\n");
+    }
+    std::memset(xm87217FloatRGBA.data(),0,xm87217FloatRGBA.size());
+    XM87217::Image image;
+    image.rgba=xm87217FloatRGBA.data();
+    image.w=384;image.h=224;image.pitch=384*4;
+    XM87217::draw(image,font,xm23State.frameData);
+    if(SDL_UpdateTexture(xm87217FloatTexture,NULL,
+                         xm87217FloatRGBA.data(),384*4)==0)
+        SDL_RenderCopy(render,xm87217FloatTexture,NULL,&gameView);
+}
+
 // Paint the BlitFX surface onto the primary surface
 static int Paint(int bValidate)
 {
@@ -700,6 +750,10 @@ static int Paint(int bValidate)
     // Keep native UI order: scene -> stun bar -> other HUD/notifications.
     // Wily's compositor draws the same stun UI itself, so skip a second pass.
     if(!xm8649Painted)xm8733Overlay(sdlRenderer,xm87127View);
+    // The label layer belongs to the GAME viewport, not SDL logical UI.
+    // Its source pixels are already rasterized at 384x224 and scale with
+    // the original stage, including custom Wily and Double Feature.
+    xm87217NativeFloat(sdlRenderer,xm87127View);
 	RenderMessage();
 	xm23Overlay(sdlRenderer,xm87127View,nVidImageWidth,nVidImageHeight); /* XMVSF_STAGE23_TRAINING_MENU */
 	XM87206Crash::mark(430,nFramesEmulated);
