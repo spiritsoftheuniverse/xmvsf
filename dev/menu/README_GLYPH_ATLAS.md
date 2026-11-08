@@ -411,7 +411,51 @@ The TEST build/launchers now target only
 `runtime/stable/XMVSF_Test_87_212.exe`. Source checks do not replace
 a local Windows gameplay verification.
 
-## Native TEST version 87.212 and local verification
+## TEST 87.213 — Cyclops recovery event scope and repeated throws
+
+User observation: a previous release succeeded **on one attempt**, then
+failed on later attempts; it did NOT succeed for only one visual frame.
+That points to event lifetime/rearming, not necessarily an immediate
+ROM overwrite. This pass keeps the requested **100 native frames**.
+
+**Concrete frame-hook defect:** `cps_run.cpp` invoked
+`XM87121::state().frame()` without `!bBurnRunAheadFrame`, even though
+nearby native observers explicitly exclude speculative emulation.
+The Cyclops tracker is process-static host state, not serialized as part
+of CPS2 savestates. A speculative run-ahead invocation could update
+`lastFrame`, capture the throw event, or advance the countdown while
+the associated `CpsRamFF` state is later discarded. The real committed
+frame with the same frame ID could then be skipped as a duplicate.
+The hook now runs **only on committed, non-run-ahead CPS2 frames**.
+
+**Per-throw scope:** Every fresh 200C entry increments `throw_id`
+and clears the prior release's `pending`, `waiting`,
+`victimLanded`, and `recoveryTicks` before capturing a new airborne
+baseline. The saved airborne controller can now be recognized from
+native airborne actions `0200/0202` and altitude even when transient
+mode/AA flags differ. The countdown can continue if Cyclops's throw
+action leaves 2000..201F but his native mode remains `32` (still in
+throw recovery). Repeated combat phase exits and fighter-ID changes
+log `SCOPE_END` with a named reason.
+
+**Verification target:** `dev/dhc/tests/test_stun_and_cyclops_213.cpp`
+adds two successful grabs in one synthetic match, with the second
+starting during the first's 16-frame follow-up window. Both must
+independently reach their 100-frame release, and the second event must
+not inherit the first's timer. A separate synthetic recovery sequence
+allows action 3400 while native throw mode 32 remains active. The
+previous stun-bar reference geometry tests and victim-grounded,
+opt-out and natural-exit checks remain.
+
+These source changes address real lifecycle hazards but **do not prove**
+which one occurred in the user's native run without a Cyclops TSV.
+The native launcher logs to
+`test/87.213/observer/cyclops_air_throw_release.tsv`.
+`throw_id`, `THROW_CAPTURE`, `GRAB_ENDED`, `SCOPE_END`,
+`RELEASE_CANCEL` and `RELEASED` identify how each attempt progressed.
+No Stable, ROM, stun HUD, or DHC logic changes.
+
+## Native TEST version 87.213 and local verification
 
 **Pulling only main does not include this branch.** The source modifications
 are on feature/menu-logo-glyph-atlas-selection-dimming. In the Windows
@@ -425,16 +469,16 @@ Preserve any uncommitted local work before switching branches. Keep the
 original _art PNG files; do not resample or replace them.
 
 1. Run BUILD_TEST.bat. It now publishes ONLY
-   runtime/stable/XMVSF_Test_87_212.exe after compiling current source.
+   runtime/stable/XMVSF_Test_87_213.exe after compiling current source.
    A missing executable or modified menu/video/audio/crash header refreshes
    only main.cpp, run.cpp, vid_sdl2.cpp, aud_sdl.cpp, cps_obj.cpp, cps_draw.cpp
    and cps_run.cpp without deleting warm build objects, older binaries, or Stable.
-2. Read test/build_logs/BUILD_TEST.log for the 87.212 success line and
+2. Read test/build_logs/BUILD_TEST.log for the 87.213 success line and
    the SHA256 hashes of the compiled executable, four source PNGs and GIF.
    If an asset or the glyph-header include is missing, the builder gives
    a precise error instead of silently building a legacy-looking menu.
 3. Run RUN_TEST.bat option 1. The menu window title and bottom-right
-   main-menu label both say TEST 87.212. If they do not, you are not
+   main-menu label both say TEST 87.213. If they do not, you are not
    looking at the newly compiled native XMVSF build.
 4. The gameplay path is still the native XMVSF app's zero-ROM-argument
    boot selector, NOT the separate MVC1 capture/ROM playback mode.
@@ -443,7 +487,7 @@ original _art PNG files; do not resample or replace them.
 5. Verify the unselected text is dim, selected text is bright, and that
    I, i, l, 1, punctuation and word gaps no longer waste full cell widths.
 6. New F9 replays, observer/chat diagnostics and replay verification live
-   under test/87.212. Legacy test/87.203 capture data is not modified;
+   under test/87.213. Legacy test/87.203 capture data is not modified;
    original replay files remain accessible through RUN_REPLAY.bat.
 
 This source audit includes inspection of the tracked code, unchanged font
