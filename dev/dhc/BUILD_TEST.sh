@@ -204,41 +204,14 @@ echo "Dependencies: GNU Make + persistent obj/**/*.d header dependency files"
 # BUILD_TEST.log as well as the console. set -e preserves make's exit code.
 # Do not use awk warning filters or truncate diagnostics when compilation fails.
 # No make clean, forced rebuild, source timestamp changes, or Stable writes.
-# TEST 87.214 changes multiple native frontend translation units.
-# First 87.214 build or newer UI/audio/crash header: force just the four
-# affected .cpp files through make (without clean, Stable writes, or Actions).
-# Warm cached ROM/68000/CPS-2 objects remain untouched.
-FRESHEN=()
-if [[ ! -s "$DEST" ||
-      "$TREE/src/burner/sdl/xmvsf_menu_glyph_atlas.h" -nt "$DEST" ||
-      "$TREE/src/burner/sdl/xmvsf_menu_color_fx.h" -nt "$DEST" ||
-      "$TREE/src/burner/sdl/xmvsf_stage87_195_menu_gif.h" -nt "$DEST" ||
-      "$TREE/src/burner/sdl/xmvsf_stage87_206_crash_report.h" -nt "$DEST" ||
-      "$TREE/src/burner/sdl/xmvsf_stage87_140_super_chat.h" -nt "$DEST" ||
-      "$TREE/src/burner/sdl/xmvsf_stage14_boot.h" -nt "$DEST" ||
-      "$TREE/src/burner/sdl/xm20_vs_transition.h" -nt "$DEST" ||
-      "$TREE/src/burner/sdl/xmvsf_stage30_frame_data.h" -nt "$DEST" ||
-      "$TREE/src/burner/sdl/xmvsf_stage23_ui.h" -nt "$DEST" ||
-      "$TREE/src/burner/sdl/xmvsf_stage25_5_ui.h" -nt "$DEST" ||
-      "$TREE/src/intf/video/sdl/xmvsf_stage87_140_chat_overlay.h" -nt "$DEST" ||
-      "$TREE/src/intf/video/sdl/vid_sdl2.cpp" -nt "$DEST" ||
-      "$TREE/src/burn/drv/capcom/xmvsf_stage87_33_dizzy_hud.h" -nt "$DEST" ||
-      "$TREE/src/burn/drv/capcom/xmvsf_stage87_121_cyclops_release.h" -nt "$DEST" ||
-      "$PROJECT/dev/dhc/tests/test_stun_and_cyclops_214.cpp" -nt "$DEST" ||
-      "$TREE/src/burn/drv/capcom/cps_draw.cpp" -nt "$DEST" ||
-      "$TREE/src/burn/drv/capcom/cps_run.cpp" -nt "$DEST" ||
-      "$TREE/src/intf/audio/sdl/xm20_wasapi_impl.h" -nt "$DEST" ]]; then
-  echo "87.214 STUN BAR+CRASH+FADE: rebuilding native SDL frontend and CPS2 HUD source (other build objects preserved)."
-  FRESHEN=(-W src/burner/sdl/main.cpp
-           -W src/burner/sdl/run.cpp
-           -W src/intf/video/sdl/vid_sdl2.cpp
-           -W src/intf/audio/sdl/aud_sdl.cpp
-           -W src/burn/drv/capcom/cps_obj.cpp
-           -W src/burn/drv/capcom/cps_draw.cpp
-           -W src/burn/drv/capcom/cps_run.cpp)
-fi
+# XMVSF 87.215: NO broad -W, no clean, and no seven-unit FRESHEN.
+# Native .d files specify exact transitive source/header dependencies.
+# A compiler/signature change makes only signature-dependent objects stale.
+# With an unchanged signature and unchanged files Make compiles NOTHING.
+touch "$BUILD_START"
 MAKELEVEL=1 make -f makefile.sdl2 LSB_FIRST=1 INCLUDE_7Z_SUPPORT=1 DEPEND=1 \
-  "${FRESHEN[@]}" -j"${XMVSF_BUILD_JOBS:-12}" all
+  "XMVSF_BUILD_SIGNATURE=../../../test/build_cache/compiler.signature" \
+  "${MAKE_COMPILER[@]}" -j"${XMVSF_BUILD_JOBS:-12}" all
 
 BUILT=""
 for exe in "$TREE/fbneo.exe" "$TREE/fbneo"; do
