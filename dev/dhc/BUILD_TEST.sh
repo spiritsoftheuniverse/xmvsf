@@ -133,6 +133,10 @@ else
 fi
 echo "BUILD CACHE: fingerprint=$compiler_identity"
 echo "BUILD CACHE: native objects=$TREE/obj; state=$CACHE_DIR"
+# Opt-in, ROM-free dependency smoke check. Does not touch native objects.
+if [[ "${XMVSF_CACHE_SMOKE:-0}" == 1 ]]; then
+  bash "$PROJECT/dev/dhc/tests/test_incremental_cache.sh"
+fi
 
 # Optional second-layer content cache for branch switching. Keep its
 # storage on the project disk, not the Windows OS drive. No install gate.
