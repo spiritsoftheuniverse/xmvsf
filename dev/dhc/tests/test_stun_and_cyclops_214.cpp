@@ -1,0 +1,195 @@
+// TEST 87.214, standalone C++11 regression of the original PNG-HUD
+// geometry and the previously successful 87.121 Cyclops air-throw release.
+// Does NOT need CPS2 ROMs, SDL, F9 sessions, Windows GPU or Stable.
+#include <cassert>
+#include <cstdio>
+#include <cstdint>
+#include <cstring>
+#include <vector>
+#include <algorithm>
+#include "xmvsf_stage87_33_dizzy_hud.h"
+#include "xmvsf_stage87_121_cyclops_release.h"
+#include "xmvsf_stage30_frame_data.h"
+
+static std::uint32_t pixel(const std::vector<unsigned char>& image,int x,int y){
+    std::uint32_t p=0;
+    std::memcpy(&p,&image[((std::size_t)y*384u+(std::size_t)x)*4u],4);
+    return p;
+}
+static void checkStun(){
+    // Synthetic 61x6 source, with a slanted border and distinct pixels.
+    // The actual production PNG is loaded in native video (not this test).
+    std::vector<unsigned char> art(61u*6u*4u,0);
+    for(int row=0;row<6;row++)
+        for(int x=row;x<=60-(5-row);x++){
+            const std::size_t p=((std::size_t)row*61u+(std::size_t)x)*4u;
+            art[p]=(unsigned char)(80+x);
+            art[p+1]=(unsigned char)(100+row);
+            art[p+2]=90;
+            art[p+3]=255;
+        }
+    XM8733::BarArt base;
+    base.rgba=art.data();base.width=61;base.height=6;base.pitch=244;
+    assert(base.valid());
+    // Recover the exact original example geometry, not PNG alpha width:
+    // 44-pixel partial active fill at 44/54; 2px gray tip stays visible.
+    for(int row=0;row<6;row++){
+        int first=0,last=-1,faceLeft=0,faceRight=0;
+        XM8733::SourceSpan(base,row,faceLeft,faceRight);
+        assert(faceLeft==row && faceRight==row+53);
+        assert(XM8733::FillBounds(base,row,44,54,first,last));
+        assert(first==row+10 && last==row+53);
+        assert(XM8733::FillBounds(base,row,54,54,first,last));
+        assert(first==row && last==row+53);
+        assert(XM8733::FillBounds(base,row,30,54,first,last));
+        assert(first==row+24); // LIVE tip follows accumulated stun
+        assert(!XM8733::FillBounds(base,row,0,54,first,last));
+    }
+
+    std::vector<unsigned char> right(384u*224u*4u,0);
+    std::vector<unsigned char> left(right.size(),0);
+    XM8733::Reading partial;partial.total=54;partial.used=44;
+    XM8733::DrawOne(right.data(),384*4,1,partial,false,200,&base);
+    XM8733::DrawOne(left.data(),384*4,0,partial,false,200,&base);
+    // Both P1 and P2 have EXACT mirrored fill, including moving tip.
+    for(int row=0;row<8;row++)
+        for(int x=0;x<61;x++){
+            const int y=43+row;
+            assert(pixel(right,262+x,y)==pixel(left,61+(60-x),y));
+        }
+    // Warm partial fill does not use rainbow, and remains one-pixel sharp.
+    int first=0,stop=0;
+    assert(XM8733::FillBounds(base,0,44,54,first,stop));
+    assert(pixel(right,262+first+1,43)==XM8733::WarmStun(0));
+    assert(pixel(right,262+first-1,43)==0u);
+
+    // Bottom shadow is clipped to the SAME currently growing fill; it
+    // neither paints two extra pixels nor the unmoving original 76px meter.
+    assert(XM8733::FillBounds(base,5,44,54,first,stop));
+    for(int x=0;x<61;x++){
+        if(x<first||x>stop+1)
+            assert(pixel(right,262+x,49)!=XM8733::PackRGBA(67,68,69));
+    }
+    // The artist's sample has the single extra lower shadow pixel at
+    // x59, not x60; do not recreate the former 2-pixel overrun.
+    assert(stop==58);
+    assert(pixel(right,262+59,49)==XM8733::PackRGBA(67,68,69));
+    assert(pixel(right,262+60,49)!=XM8733::PackRGBA(67,68,69));
+
+    XM8733::Reading full=partial;full.used=54;
+    std::fill(right.begin(),right.end(),0);
+    XM8733::DrawOne(right.data(),384*4,1,full,false,201,&base);
+    assert(XM8733::FillBounds(base,0,54,54,first,stop));
+    assert(first==0 && stop==53);
+    assert(pixel(right,262+53,43)==XM8733::RainbowPan(201,53,0));
+    assert(pixel(right,262+54,43)==0u); // the two-pixel bevel remains clear
+    assert(pixel(right,262+first+5,43)==XM8733::RainbowPan(201,first+5,0));
+    assert(pixel(right,262+first+5,43)!=XM8733::WarmStun(0));
+    assert(XM8733::RainbowPan(201,12,0)!=
+           XM8733::RainbowPan(203,12,0)); // rapid diagonal pan
+
+    // Stage 06 draws ONLY the empty base immediately as combat screen
+    // begins (before 08 FIGHT), never at 04 Versus/02 character select.
+    std::fill(right.begin(),right.end(),0);
+    std::vector<unsigned char> ram(65536u,0);
+    XM8733::Draw(ram.data(),right.data(),384*4,4,202,6,false,&base);
+    assert(pixel(right,262+1,45)!=0u);
+    assert(pixel(right,262+10,43)==0u); // no false rainbow during intro
+    std::fill(right.begin(),right.end(),0);
+    XM8733::Draw(ram.data(),right.data(),384*4,4,203,4,false,&base);
+    assert(pixel(right,262+1,45)==0u); // Versus has no stun meter
+
+    // A missing PNG must NOT resurrect the old 76-pixel custom meter.
+    std::fill(right.begin(),right.end(),0);
+    XM8733::DrawOne(right.data(),384*4,1,full,false,202,nullptr);
+    for(unsigned char byte:right)assert(byte==0);
+    std::puts("87.214 STUN_UI_PASS: mirrored source, full coverage, live tip, 1px shadow, threshold");
+}
+static void setW(std::vector<std::uint8_t>& r,unsigned p,unsigned v){
+    XM87121::sw(r.data(),p,v);
+}
+static void setD(std::vector<std::uint8_t>& r,unsigned p,std::uint32_t v){
+    XM87121::sd(r.data(),p,v);
+}
+static void setFixture(std::vector<std::uint8_t>& r){
+    XM87121::sb(r.data(),0x5000u,8u);
+    setW(r,0x4000u,0x0101u);setW(r,0x4040u,0x0021u);
+    setW(r,0x4010u,400u);setW(r,0x4060u,0x0200u);
+    setW(r,0x40A0u,0x1C00u);setW(r,0x40AAu,0x0100u);
+    setD(r,0x4014u,0x00028000u);setD(r,0x401Cu,0xFFFA0000u);
+    setD(r,0x4034u,0x000A5F4Au);
+    setW(r,0x400Cu,233u);
+    setW(r,0x4410u,472u);setW(r,0x4460u,0x1C34u);
+}
+static void enter(std::vector<std::uint8_t>& r,XM87121::Tracker& t,
+                  unsigned base){
+    setW(r,0x4060u,0x0200u);
+    setW(r,0x40A0u,0x1C00u);
+    t.frame(base,r.data());
+    setW(r,0x4060u,0x200Cu);
+    t.frame(base+1u,r.data());
+    setW(r,0x4060u,0x200Eu);
+    setW(r,0x40A0u,0x3200u);
+    t.frame(base+2u,r.data());
+    assert(t.recoveryTicks[0]==0u);
+}
+static void testRelease(bool enabled){
+    std::vector<std::uint8_t> r(65536u,0u);setFixture(r);
+    XM87121::Tracker t;t.initialized=true;t.enabled=enabled;
+    enter(r,t,100u);
+    assert(t.waiting[0]==enabled);
+    for(unsigned tick=1u;tick<=XM87121::ReleaseDelayFrames;tick++){
+        const unsigned f=102u+tick;
+        // Hold animation fixed: release is the 36th REAL update.
+        setW(r,0x4042u,0x7000u);
+        t.frame(f,r.data());
+        assert(XM87121::w(r.data(),0x4060u)==
+            (enabled&&tick==XM87121::ReleaseDelayFrames?0x0200u:0x200Eu));
+        t.frame(f,r.data()); // duplicate callback must be inert
+        if(enabled)assert(t.recoveryTicks[0]==tick);
+    }
+    assert(XM87121::w(r.data(),0x400Cu)==233u);
+    assert(XM87121::w(r.data(),0x4010u)==400u);
+}
+static void testRepeatedThrow(){
+    std::vector<std::uint8_t> r(65536u,0u);setFixture(r);
+    XM87121::Tracker t;t.initialized=true;t.enabled=true;
+    enter(r,t,100u);
+    for(unsigned f=103u;f<=138u;f++)t.frame(f,r.data());
+    assert(XM87121::w(r.data(),0x4060u)==0x0200u);
+    assert(t.attempt[0]==1u);
+    enter(r,t,139u);
+    assert(t.attempt[0]==2u);
+    for(unsigned f=142u;f<=177u;f++)t.frame(f,r.data());
+    assert(XM87121::w(r.data(),0x4060u)==0x0200u);
+}
+static void testNaturalExit(){
+    std::vector<std::uint8_t> r(65536u,0u);setFixture(r);
+    XM87121::Tracker t;t.initialized=true;t.enabled=true;
+    enter(r,t,100u);
+    for(unsigned f=103u;f<=115u;f++)t.frame(f,r.data());
+    setW(r,0x4060u,0x3400u);setW(r,0x40A0u,0x0800u);
+    t.frame(116u,r.data());
+    assert(!t.waiting[0]);
+    for(unsigned f=117u;f<=150u;f++)t.frame(f,r.data());
+    assert(XM87121::w(r.data(),0x4060u)==0x3400u);
+}
+static void testFloatPose(){
+    XM30FloatPose p=xm30FloatPose(119,16);
+    assert(p.horizontal==1.0 && p.rise==39 && p.alpha==255);
+    p=xm30FloatPose(120,16);
+    assert(p.horizontal<1.0 && p.rise>=40);
+    p=xm30FloatPose(129,16);
+    assert(p.horizontal==0.5 && p.rise==48);
+    p=xm30FloatPose(139,16);
+    assert(p.horizontal==0.0 && p.rise==56 && p.alpha==0);
+    assert(XM30FrameData::FLOAT_LIFE==140);
+}
+int main(){
+    checkStun();
+    assert(XM87121::ReleaseDelayFrames==36u);
+    testRelease(true);testRelease(false);
+    testRepeatedThrow();testNaturalExit();testFloatPose();
+    std::puts("87.214 PASS: 0.6s Cyclops release and SF2 popup apex/squeeze");
+    return 0;
+}
