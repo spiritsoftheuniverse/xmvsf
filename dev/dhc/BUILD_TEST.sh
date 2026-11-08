@@ -255,6 +255,22 @@ if [[ -z "$BUILT" ]]; then
   exit 2
 fi
 
+# The defective 87.215 run returned success after GCC silently ignored
+# compiler.signature as a non-source input. Never accept another false
+# success: the exact five repaired .o files MUST have been recompiled
+# since this build began, before any TEST publication is permitted.
+if (( ${#REPAIR_NATIVE[@]} )); then
+  for source in "${REPAIR_NATIVE[@]}"; do
+    obj="$TREE/obj/${source#src/}"
+    obj="${obj%.cpp}.o"
+    if [[ ! -s "$obj" || ! "$obj" -nt "$BUILD_START" ]]; then
+      echo "ERROR: CACHE REPAIR failed; expected freshly compiled object $obj" >&2
+      exit 2
+    fi
+  done
+  echo "BUILD CACHE REPAIR: verified all five native object files were freshly compiled."
+fi
+
 # Make's successful return and nonempty executable are authoritative.
 # Do not scan binary strings for arbitrary historical markers.
 # Hash-compare before publishing: a no-op build must NOT overwrite TEST.
