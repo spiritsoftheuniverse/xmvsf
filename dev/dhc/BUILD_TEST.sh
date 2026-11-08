@@ -26,7 +26,7 @@ printf '\nProject: %s\nLog: %s\n' "$PROJECT" "$LOG_FILE"
 trap 'rc=$?; trap - EXIT; printf "XMVSF BUILD END rc=%s time=%s log=%s\n" "$rc" "$(date "+%Y-%m-%d %H:%M:%S")" "$LOG_FILE"; exit "$rc"' EXIT
 
 TREE="$PROJECT/dev/stable/buildtree"
-DEST="$PROJECT/runtime/stable/XMVSF_Test_87_234.exe"
+DEST="$PROJECT/runtime/stable/XMVSF_Test_87_235.exe"
 PENDING="$PROJECT/runtime/stable/.XMVSF_Test_87_234_pending.exe"
 # Machine-local cache: never stored in Git and never mutates Stable.
 CACHE_DIR="$PROJECT/test/build_cache"
@@ -276,6 +276,10 @@ run_cached_unit \
 # 87.234 replaces the 87.224/225 Charlie multiplier regression with the
 # new native-HP / severe-HK and repeated-dash-reentry expectations.
 
+# 87.235: native C++ timeline covers 1000/3500/500ms and input-gate edges.
+run_cached_unit \
+  "$PROJECT/dev/dhc/tests/test_menu_intro_timeline_235.cpp" \
+  "$CACHE_DIR/unit_tests/test_menu_intro_timeline_235.exe"
 # 87.234: source-level regression of the exact native SDL call order.
 # No GPU/ROM or test executable required; run before native compile.
 if command -v python3 >/dev/null 2>&1; then
@@ -287,7 +291,7 @@ else
 fi
 # Preserve warm cache and anything already built on failures. Never run make clean.
 cd "$TREE"
-echo "XMVSF Stage 87.234 TEST: incremental build; preserving cached objects"
+echo "XMVSF Stage 87.235 TEST: incremental build; preserving cached objects"
 if command -v git >/dev/null 2>&1; then
   echo "Source branch: $(git -C "$PROJECT" branch --show-current 2>/dev/null || true)"
   echo "Source revision: $(git -C "$PROJECT" rev-parse --short HEAD 2>/dev/null || true)"
