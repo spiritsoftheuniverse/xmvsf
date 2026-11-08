@@ -139,6 +139,11 @@ static int xmvsfBootSelector(bool returningFromGame=false) {
         rendererInfoRc==0 && info.name?info.name:"unknown",
         outputRc,outputW,outputH);
     std::fflush(stderr);
+    // Center the physical window once BEFORE asking SDL to compute the
+    // output-dependent logical letterbox. On multi-DPI desktops a window
+    // move can change the renderer's physical output dimensions.
+    if (!(SDL_GetWindowFlags(window)&SDL_WINDOW_SHOWN)) SDL_ShowWindow(window);
+    if(xm87226FirstWindow)xm8652CenterInitialWindow(window);
     XM87195Menu::Background menuBackground;
     // Stage 27: the video backend can leave a non-default renderer target,
     // viewport, clip, or scale after game teardown. Explicitly restore the
@@ -152,11 +157,8 @@ static int xmvsfBootSelector(bool returningFromGame=false) {
     SDL_SetRenderDrawBlendMode(render,SDL_BLENDMODE_NONE);
     menuBackground.load(render);
     XMGlyph::preload(render);
-    if (!(SDL_GetWindowFlags(window)&SDL_WINDOW_SHOWN)) SDL_ShowWindow(window);
-    // The initial SDL_CREATE centered hint may be lost under restored
-    // window sizing/DPI on Windows. Center the real desktop HWND ONCE,
-    // before the first menu frame; never recenter after the user moves it.
-    if(xm87226FirstWindow)xm8652CenterInitialWindow(window);
+    // The OS window was centered before configuring the logical output.
+    // Returning from game never moves an already-positioned window.
     xm8655RenderColor(render,8,16,36,255); /* XMVSF_STAGE32_NAVY */
     SDL_RenderClear(render);
     menuBackground.draw(render,SDL_GetTicks());
