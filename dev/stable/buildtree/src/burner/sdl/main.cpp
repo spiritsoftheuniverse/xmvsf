@@ -309,6 +309,9 @@ void DoGame(int gameToRun)
 	{
         std::fprintf(stderr,"XM86.32 HOST MediaInit begin\n");std::fflush(stderr);
 		MediaInit();
+        // TEST 87.222: Classic/Tournament returns re-enter the SDL/native
+        // driver in the same process; preserve crash reporting on re-entry.
+        XM87206Crash::rearm();
         XM87206Crash::mark(160);
         if(xm14TrainingMode){
             // The Frame Data toggle is persisted, but an SDL session's
