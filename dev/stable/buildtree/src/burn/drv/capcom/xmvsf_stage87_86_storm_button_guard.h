@@ -133,6 +133,14 @@ struct Actor {
     // Per-victim, per-combo state; only a fresh connected airborne hit counts.
     bool observed,prevAttackNow,pendingSevere,nativeLaunched,pendingStormRepeatHK;
     bool stormFlightUsedUntilLanding=false;
+    // TEST 87.228: source trace proved the 87.223 one-boost latch does
+    // not stop *native* 1C14/0210 relaunches before landing. Arm a
+    // severe groundward recovery only on the first native launch
+    // restarted while a Storm-style flying screen remains in effect.
+    bool stormFlightNeedsNativeLanding=false;
+    bool postFlightRelaunchPending=false;
+    unsigned postFlightRelaunchAge=1000u,postFlightAttacker=~0u;
+    unsigned postFlightVictim=~0u;
     unsigned prevAction,prevProfile,prevSubstate,prevReaction,prevVictimY;
     unsigned prevAttackerAction,attackSerial,lastConfirmedSerial,connectedAirHits,connectedStormHeavyHits,attackAge;
     unsigned pendingAge,pendingAction,pendingButton,pendingBank,pendingAttackerId,lastAttackerId,lastVictimId;
@@ -141,7 +149,16 @@ struct Actor {
       prevReaction(0),prevVictimY(0),prevAttackerAction(0),attackSerial(0),
       lastConfirmedSerial(0),connectedAirHits(0),connectedStormHeavyHits(0),attackAge(1000),pendingAge(1000),pendingAction(0),pendingButton(0),pendingBank(0),pendingAttackerId(0),lastAttackerId(0),lastVictimId(0),
       previousButtons(0),recentButton(0),recentButtonAge(1000),pressSequence(0),consumedSequence(0){}
-    void clearChain(){connectedAirHits=0;connectedStormHeavyHits=0;attackSerial=0;lastConfirmedSerial=0;attackAge=1000;prevAttackNow=false;pendingSevere=false;pendingStormRepeatHK=false;pendingAge=1000;pendingButton=0;nativeLaunched=false;}
+    void clearChain(){
+        connectedAirHits=0;connectedStormHeavyHits=0;attackSerial=0;
+        lastConfirmedSerial=0;attackAge=1000;prevAttackNow=false;
+        pendingSevere=false;pendingStormRepeatHK=false;
+        pendingAge=1000;pendingButton=0;nativeLaunched=false;
+        postFlightRelaunchPending=false;postFlightRelaunchAge=1000u;
+        // This air-sequence gate deliberately survives ordinary combo
+        // gaps. Only tag-out, a confirmed landing, or match exit clears
+        // stormFlightNeedsNativeLanding.
+    }
     // Bit order is LP MP HP LK MK HK. These are driver-level button states,
     // sampled after CpsRwGetInp, not guessed from a ROM action code.
     Decision evaluate(std::uint8_t* r,unsigned victim,unsigned attacker,bool enabled,bool combat,unsigned buttons=0u){
@@ -164,8 +181,10 @@ struct Actor {
         d.attackerId=wordAt(r,attacker+0x52u);
         d.victimId=wordAt(r,victim+0x52u);
         // A tag must not inherit another fighter's combo/launch latch.
-        if(observed && d.victimId!=lastVictimId)
+        if(observed && d.victimId!=lastVictimId){
             stormFlightUsedUntilLanding=false; // a tagged-in victim is new
+            stormFlightNeedsNativeLanding=false;
+        }
         if(observed && (d.attackerId!=lastAttackerId || d.victimId!=lastVictimId))clearChain();
         lastAttackerId=d.attackerId;lastVictimId=d.victimId;
         // A single synthetic flight boost per continuous aerial sequence.
@@ -174,7 +193,12 @@ struct Actor {
         const unsigned airFlag=wordAt(r,victim+0xaau)>>8u;
         const bool nativeLanded=floor>0u && floor<2048u &&
             wordAt(r,victim+0x10u)>=floor && airFlag==0u;
-        if(!combat || nativeLanded)stormFlightUsedUntilLanding=false;
+        if(!combat || nativeLanded){
+            stormFlightUsedUntilLanding=false;
+            stormFlightNeedsNativeLanding=false;
+            postFlightRelaunchPending=false;
+            postFlightRelaunchAge=1000u;
+        }
         d.attackerBank=wordAt(r,attacker+0x40u);
         d.attackerAction=wordAt(r,attacker+0x60u);
         d.attackerPointer=wordAt(r,attacker+0x42u);
@@ -211,6 +235,20 @@ struct Actor {
         d.hitConfirmed=combat && attackerAir && attackNow && d.reaction==0x000Cu &&
           d.y<472u && freshReaction && attackAge<=24u && attackSerial!=lastConfirmedSerial;
         if(d.hitConfirmed){
+            // TEST 87.228: the 87.227 trace proves a post-Storm-FS
+            // opponent can be relaunched natively into 1C14/0210 many
+            // times before EVER landing, while the host one-boost gate
+            // correctly refuses synthetic FS. Only the first such fresh
+            // ROM launch in a NEW attack can arm groundward resolution.
+            // Do not touch medium/ordinary soft followup hit states.
+            if(stormFlightNeedsNativeLanding &&
+               nativeLaunchReaction(d.victimActionBefore,d.victimProfileBefore) &&
+               d.substate==0u && !nativeLanded){
+                postFlightRelaunchPending=true;
+                postFlightRelaunchAge=0u;
+                postFlightAttacker=d.attackerId;
+                postFlightVictim=d.victimId;
+            }
             // A new hit invalidates any older pending severe-velocity write.
             pendingSevere=false;pendingStormRepeatHK=false;pendingAge=1000u;pendingButton=0u;
             // Bind each button press to at most one confirmed hit. Do not let a
@@ -307,6 +345,43 @@ struct Actor {
             d.connectedAfter=connectedAirHits;
             if(d.airAttackStart)d.outcome="AIR_ATTACK_ATTEMPT_UNCONFIRMED";
         }
+        // Resolve the actual native relaunch only AFTER the ROM has
+        // advanced from impact step 0 to step 2, otherwise the CPU's
+        // next frame can overwrite the intervention (87.223 finding).
+        // This does not consume another synthetic Storm flight and does
+        // not edit the accepted Charlie HK severe or native air HP.
+        if(postFlightRelaunchPending && !d.hitConfirmed){
+            if(postFlightRelaunchAge<1000u)++postFlightRelaunchAge;
+            const bool sameVictim=d.victimId==postFlightVictim;
+            const bool sameAttacker=d.attackerId==postFlightAttacker;
+            const bool nativePaired=paired ||
+                nativeLaunchReaction(d.victimActionBefore,d.victimProfileBefore);
+            const bool expired=postFlightRelaunchAge>24u || !combat ||
+                !stormFlightNeedsNativeLanding || !sameVictim ||
+                !sameAttacker || nativeLanded || d.reaction!=0x000cu ||
+                d.y>=472u;
+            if(expired){
+                postFlightRelaunchPending=false;
+                postFlightRelaunchAge=1000u;
+            }else if(d.substate==2u && nativePaired){
+                // Cyclops' verified native severe fall, NOT another
+                // Storm boost. It deliberately breaks the native
+                // launch/relaunch loop and forces a real ground approach.
+                // Choose facing from existing native victim motion;
+                // never mirror an incompatible ROM script between actors.
+                const std::int64_t nativeVX=signedFixed(d.beforeX);
+                const std::uint32_t severeX=nativeVX<0?
+                    TARGET_LEFT:TARGET_RIGHT;
+                applyCyclopsSevereFlight(r,victim,severeX);
+                d.afterX=severeX;d.afterY=TARGET_DOWN;
+                d.velocityWritten=true;
+                d.stateWritten=(d.victimActionBefore!=SEVERE_ACTION ||
+                                d.victimProfileBefore!=SEVERE_PROFILE);
+                d.outcome="POST_STORM_FS_NATIVE_RELAUNCH_SEVERE_LANDING";
+                postFlightRelaunchPending=false;
+                postFlightRelaunchAge=1000u;
+            }
+        }
         if(pendingSevere && !d.hitConfirmed){
             ++pendingAge;
             const bool stale=stormFlightUsedUntilLanding || pendingAge>24u || !combat || !attackerAir ||
@@ -361,6 +436,10 @@ struct Actor {
                             "STORM_HP_NATIVE_SIGNATURE_FS_INDEX_AND_VELOCITY";
                     }
                     stormFlightUsedUntilLanding=true;
+                    // Only the gentle Storm flight should arm the
+                    // follow-up native-relaunch anti-infinite. Charlie HK
+                    // already applies Cyclops severe directly.
+                    stormFlightNeedsNativeLanding=!charlieHK;
                     d.velocityWritten=true;
                     const unsigned fsAction=charlieHK?
                         SEVERE_ACTION:XM87223Flight::flightAction();
