@@ -17,6 +17,11 @@ namespace XM87224CharliePC {
 static inline unsigned rb(const std::uint8_t* r,unsigned a){
     return r[(a&0xffffu)^1u];
 }
+// Decrypted 68000 opcode stream uses host word-swapped byte order.
+static inline unsigned opcodeWord(const std::uint8_t* op,unsigned len,unsigned pc){
+    if(!op || (pc&1u) || pc+1u>=len)return 0u;
+    return (unsigned(op[pc^1u])<<8u)|unsigned(op[(pc+1u)^1u]);
+}
 static inline unsigned rw(const std::uint8_t* r,unsigned a){
     return (rb(r,a)<<8u)|rb(r,a+1u);
 }
@@ -68,6 +73,8 @@ struct Recorder {
     unsigned frame=0,side=0,move=0,events=0,visited=0;
     unsigned base=0;
     const std::uint8_t* ram=nullptr;
+    const std::uint8_t* opcodes=nullptr;
+    unsigned opcodeLen=0u;
     Native previous;
     int (*prior)(int)=nullptr;
     std::FILE* log=nullptr;
@@ -92,10 +99,14 @@ struct Recorder {
                    "\tprev_index\tnext_index\tprev_vx\tnext_vx"
                    "\tprev_vy\tnext_vy\tprev_air\tnext_air"
                    "\tprev_82\tnext_82\tprev_83\tnext_83"
-                   "\tprev_x\tnext_x\tprev_mode\tnext_mode\ttrace_kind\n",log);
+                   "\tprev_x\tnext_x\tprev_mode\tnext_mode\ttrace_kind"
+                   "\tpc_now\topcode_at_ppc\topcode_ppc_plus2"
+                   "\topcode_ppc_plus4\topcode_ppc_plus6"
+                   "\tD0_D7\tA0_A7\tnative_y\tnative_floor\n",log);
     }
     void begin(const std::uint8_t* source,unsigned tick,bool xmvsf,
-               bool tournament,bool runahead){
+               bool tournament,bool runahead,const std::uint8_t* code=nullptr,
+               unsigned codeLength=0u){
         if(active || !xmvsf || !tournament || runahead || !source)return;
         init();
         if(!enabled || rb(source,0x5000u)!=8u)return;
@@ -131,6 +142,7 @@ struct Recorder {
         }
         if(selected>=2u)return;
         frame=tick;side=selected;move=selectedMove;ram=source;
+        opcodes=code;opcodeLen=codeLength;
         base=tracingDash?(side?0x4400u:0x4000u):
                          (side?0x4000u:0x4400u);
         previous=read(ram,base);
@@ -162,12 +174,26 @@ struct Recorder {
             const unsigned pc=SekGetPPC(-1)&0x00ffffffu;
             const unsigned a6=unsigned(m68k_get_reg(nullptr,M68K_REG_A6))&
                 0x00ffffffu;
+            char ds[96]={0},as[96]={0};
+            unsigned dn=0u,an=0u;
+            for(int i=0;i<8;++i){
+                const unsigned dr=unsigned(m68k_get_reg(nullptr,M68K_REG_D0+i));
+                const unsigned ar=unsigned(m68k_get_reg(nullptr,M68K_REG_A0+i));
+                dn+=(unsigned)std::snprintf(ds+dn,sizeof(ds)-dn,
+                    i?",%08X":"%08X",dr);
+                an+=(unsigned)std::snprintf(as+an,sizeof(as)-an,
+                    i?",%08X":"%08X",ar);
+            }
+            const unsigned nativePC=unsigned(m68k_get_reg(
+                nullptr,M68K_REG_PC))&0x00ffffffu;
             std::fprintf(log,
                 "%u\t%u\t%04X\t%06X\t%06X\t%d\t%u\t%04X"
                 "\t%04X\t%04X\t%04X\t%04X\t%04X\t%04X"
                 "\t%04X\t%04X\t%08X\t%08X\t%08X\t%08X"
                 "\t%04X\t%04X\t%02X\t%02X\t%02X\t%02X"
-                "\t%08X\t%08X\t%04X\t%04X\t%s\n",
+                "\t%08X\t%08X\t%04X\t%04X\t%s"
+                "\t%06X\t%04X\t%04X\t%04X\t%04X"
+                "\t%s\t%s\t%u\t%u\n",
                 frame,side+1u,move,pc,a6,cycles,visited,flags,
                 previous.reaction,current.reaction,previous.step,current.step,
                 previous.action,current.action,previous.index,current.index,
@@ -175,7 +201,13 @@ struct Recorder {
                 previous.air,current.air,previous.gate82,current.gate82,
                 previous.gate83,current.gate83,
                 previous.x,current.x,previous.mode,current.mode,
-                tracingDash?"FS_DASH":"AIR_HEAVY");
+                tracingDash?"FS_DASH":"AIR_HEAVY",
+                nativePC,
+                opcodeWord(opcodes,opcodeLen,pc),
+                opcodeWord(opcodes,opcodeLen,pc+2u),
+                opcodeWord(opcodes,opcodeLen,pc+4u),
+                opcodeWord(opcodes,opcodeLen,pc+6u),
+                ds,as,rw(ram,base+0x10u),rw(ram,base+0x254u));
         }
         ++events;
         previous=current;
@@ -191,7 +223,7 @@ struct Recorder {
                     frame,events-MAX_EVENTS_PER_FRAME);
             std::fflush(log);
         }
-        ram=nullptr;
+        ram=nullptr;opcodes=nullptr;opcodeLen=0u;
     }
 };
 inline Recorder& state(){static Recorder s;return s;}
