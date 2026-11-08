@@ -25,8 +25,8 @@ inline void mark(LONG step,LONG frameNumber=-1) {
 }
 inline LONG WINAPI onUnhandled(EXCEPTION_POINTERS* error){
     CreateDirectoryA("test",nullptr);
-    CreateDirectoryA("test\\87.228",nullptr);
-    CreateDirectoryA("test\\87.228\\observer",nullptr);
+    CreateDirectoryA("test\\87.229",nullptr);
+    CreateDirectoryA("test\\87.229\\observer",nullptr);
     const DWORD code=error && error->ExceptionRecord?
         error->ExceptionRecord->ExceptionCode:0;
     const void* address=error && error->ExceptionRecord?
@@ -41,7 +41,7 @@ inline LONG WINAPI onUnhandled(EXCEPTION_POINTERS* error){
         (unsigned long)GetCurrentThreadId(),
         !(std::getenv("XM8755_TOURNAMENT_MODE") &&
           std::strcmp(std::getenv("XM8755_TOURNAMENT_MODE"),"1")==0));
-    HANDLE log=CreateFileA("test\\87.228\\observer\\crash_report.log",
+    HANDLE log=CreateFileA("test\\87.229\\observer\\crash_report.log",
            FILE_APPEND_DATA,FILE_SHARE_READ|FILE_SHARE_WRITE,nullptr,
            OPEN_ALWAYS,FILE_ATTRIBUTE_NORMAL,nullptr);
     if(log!=INVALID_HANDLE_VALUE){
@@ -60,7 +60,7 @@ inline LONG WINAPI onUnhandled(EXCEPTION_POINTERS* error){
         const DumpFn dump=reinterpret_cast<DumpFn>(
             GetProcAddress(dll,"MiniDumpWriteDump"));
         if(dump){
-            HANDLE file=CreateFileA("test\\87.228\\observer\\crash.dmp",GENERIC_WRITE,
+            HANDLE file=CreateFileA("test\\87.229\\observer\\crash.dmp",GENERIC_WRITE,
                 FILE_SHARE_READ,nullptr,CREATE_ALWAYS,FILE_ATTRIBUTE_NORMAL,nullptr);
             if(file!=INVALID_HANDLE_VALUE){
                 MINIDUMP_EXCEPTION_INFORMATION info={};
@@ -88,7 +88,7 @@ inline void install(){
     installed=true;
     rearm();
     std::fprintf(stderr,
-        "XM87.228 CRASH_REPORT armed: test/87.228/observer/crash_report.log and crash.dmp\n");
+        "XM87.229 CRASH_REPORT armed: test/87.229/observer/crash_report.log and crash.dmp\n");
 }
 } // namespace XM87206Crash
 #else
