@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Stage 87.234 native TEST: retained native game + real logo/glyph assets. Called ONLY by root BUILD_TEST.bat.
+# Stage 87.235 native TEST: retained native game + real logo/glyph assets. Called ONLY by root BUILD_TEST.bat.
 # Build the CURRENT local source in place using the warm FBNeo object cache.
 # Never touch Stable executable, Stable manifests, user source, or old TEST binaries.
 set -euo pipefail
@@ -21,13 +21,13 @@ if ! command -v tee >/dev/null; then
   exit 2
 fi
 exec > >(tee -a "$LOG_FILE") 2>&1
-printf '\n========== XMVSF TEST 87.234 BUILD BEGIN %s ==========' "$(date '+%Y-%m-%d %H:%M:%S')"
+printf '\n========== XMVSF TEST 87.235 BUILD BEGIN %s ==========' "$(date '+%Y-%m-%d %H:%M:%S')"
 printf '\nProject: %s\nLog: %s\n' "$PROJECT" "$LOG_FILE"
 trap 'rc=$?; trap - EXIT; printf "XMVSF BUILD END rc=%s time=%s log=%s\n" "$rc" "$(date "+%Y-%m-%d %H:%M:%S")" "$LOG_FILE"; exit "$rc"' EXIT
 
 TREE="$PROJECT/dev/stable/buildtree"
 DEST="$PROJECT/runtime/stable/XMVSF_Test_87_235.exe"
-PENDING="$PROJECT/runtime/stable/.XMVSF_Test_87_234_pending.exe"
+PENDING="$PROJECT/runtime/stable/.XMVSF_Test_87_235_pending.exe"
 # Machine-local cache: never stored in Git and never mutates Stable.
 CACHE_DIR="$PROJECT/test/build_cache"
 SIGNATURE="$CACHE_DIR/compiler.signature"
@@ -53,6 +53,7 @@ if [[ ! -f "$TREE/makefile.sdl2" ||
       ! -f "$TREE/src/burn/drv/capcom/xmvsf_stage87_203_stage_capture.h" ||
       ! -s "$TREE/src/burner/sdl/xmvsf_stage87_195_menu_gif.h" ||
       ! -s "$TREE/src/burner/sdl/xmvsf_menu_color_fx.h" ||
+      ! -s "$TREE/src/burner/sdl/xmvsf_stage87_235_menu_intro_timeline.h" ||
       ! -s "$TREE/src/burner/sdl/xmvsf_stage87_206_crash_report.h" ||
       ! -s "$TREE/src/intf/audio/sdl/xm20_wasapi_impl.h" ||
       ! -s "$TREE/src/burn/drv/capcom/xmvsf_stage87_33_dizzy_hud.h" ||
@@ -61,7 +62,7 @@ if [[ ! -f "$TREE/makefile.sdl2" ||
       ! -s "$TREE/src/burner/sdl/xmvsf_stage87_217_native_float.h" ||
       ! -s "$TREE/src/burner/sdl/xmvsf_menu_glyph_atlas.h" ||
       ! -s "$TREE/src/burner/sdl/xmvsf_stage14_boot.h" ]]; then
-  echo "ERROR: 87.234 required native source missing or empty:" >&2
+  echo "ERROR: 87.235 required native source missing or empty:" >&2
   for source in \
     "$TREE/makefile.sdl2" \
     "$TREE/src/burner/sdl/xmvsf_stage87_217_native_float.h" \
@@ -75,20 +76,20 @@ if [[ ! -f "$TREE/makefile.sdl2" ||
 fi
 for asset in logo.png sf2font.png sf2fontsmall.png menuanimation.gif stunbar_base.png; do
   if [[ ! -s "$PROJECT/_art/$asset" ]]; then
-    echo "ERROR: 87.234 requires original nonempty _art/$asset" >&2
+    echo "ERROR: 87.235 requires original nonempty _art/$asset" >&2
     exit 2
   fi
 done
 if ! grep -Fq 'xmvsf_menu_glyph_atlas.h' "$TREE/src/burner/sdl/xmvsf_stage14_boot.h"; then
-  echo "ERROR: 87.234 glyph header is not wired into the native boot menu" >&2
+  echo "ERROR: 87.235 glyph header is not wired into the native boot menu" >&2
   exit 2
 fi
 # Do not gate an otherwise valid build on a particular draw helper name.
-# Stage 87.234 uses menuLogo(render), which superseded logo(render).
+# Stage 87.235 uses menuLogo(render), which superseded logo(render).
 # The C++ compiler checks the actual call and linking; the runtime atlas
 # reports whether the title PNG loaded successfully.
-echo "87.234 menu preflight: native boot and glyph/FX sources present; logo, fonts and menuanimation.gif verified."
-echo "87.234 draw path is verified by native compile and runtime, not a stale grep for XMGlyph::logo(render)."
+echo "87.235 menu preflight: native boot and glyph/FX sources present; logo, fonts and menuanimation.gif verified."
+echo "87.235 draw path is verified by native compile and runtime, not a stale grep for XMGlyph::logo(render)."
 if [[ ! -f "$TREE/src/burn/drv/capcom/cps_run.cpp" ||
       ! -f "$TREE/src/intf/video/sdl/xmvsf_stage86_49_painter.h" ]]; then
   echo "ERROR: Native TEST buildtree source is incomplete." >&2
@@ -231,7 +232,7 @@ run_cached_unit \
 run_cached_unit \
   "$PROJECT/dev/dhc/tests/test_storm_flying_screen_223.cpp" \
   "$CACHE_DIR/unit_tests/test_storm_flying_screen_223.exe"
-# TEST 87.234 replaces the old Charlie 1.5x experiment.
+# TEST 87.235 replaces the old Charlie 1.5x experiment.
 # Keep the archived 87.224 test file intact for historical comparison.
 run_cached_unit \
   "$PROJECT/dev/dhc/tests/test_charlie_severe_hk_226.cpp" \
@@ -242,38 +243,38 @@ run_cached_unit \
 run_cached_unit \
   "$PROJECT/dev/dhc/tests/test_flying_screen_dash_controller_227.cpp" \
   "$CACHE_DIR/unit_tests/test_flying_screen_dash_controller_227.exe"
-# 87.234: the original decrypted Motorola 68000 source already
+# 87.235: the original decrypted Motorola 68000 source already
 # exists under local_rom_dump. Decode only small windows around the REAL
 # executed X/mode writer PCs. Diagnostic failure must never gate the build.
 if command -v python3 >/dev/null 2>&1; then
   if ! python3 "$PROJECT/dev/dhc/tools/ANALYZE_FS_ENTRY_68K_232.py" \
-     --output "$PROJECT/test/87.234/observer/fs_entry_68000_opcode_windows.tsv"; then
-    echo "WARNING: 87.234 68000 source window analysis unavailable; native build continues." >&2
+     --output "$PROJECT/test/87.235/observer/fs_entry_68000_opcode_windows.tsv"; then
+    echo "WARNING: 87.235 68000 source window analysis unavailable; native build continues." >&2
   fi
 elif command -v python >/dev/null 2>&1; then
   if ! python "$PROJECT/dev/dhc/tools/ANALYZE_FS_ENTRY_68K_232.py" \
-     --output "$PROJECT/test/87.234/observer/fs_entry_68000_opcode_windows.tsv"; then
-    echo "WARNING: 87.234 68000 source window analysis unavailable; native build continues." >&2
+     --output "$PROJECT/test/87.235/observer/fs_entry_68000_opcode_windows.tsv"; then
+    echo "WARNING: 87.235 68000 source window analysis unavailable; native build continues." >&2
   fi
 fi
-# 87.234 native 68k offscreen-entry and no-delay voluntary-dash isolation.
+# 87.235 native 68k offscreen-entry and no-delay voluntary-dash isolation.
 run_cached_unit \
   "$PROJECT/dev/dhc/tests/test_fs_native_offscreen_entry_232.cpp" \
   "$CACHE_DIR/unit_tests/test_fs_native_offscreen_entry_232.exe"
-# TEST 87.234: airborne offscreen is grounded BEFORE native ground dash
+# TEST 87.235: airborne offscreen is grounded BEFORE native ground dash
 # dispatch, and the 87.232 original 1400/1600 controller handles entry.
 run_cached_unit \
   "$PROJECT/dev/dhc/tests/test_fs_airborne_offscreen_entry_233.cpp" \
   "$CACHE_DIR/unit_tests/test_fs_airborne_offscreen_entry_233.exe"
-# 87.234: this unit now guards against delayed severe knockback spilling
+# 87.235: this unit now guards against delayed severe knockback spilling
 # from HK into later LP/LK/MP (87.228 frame 8193 / 8862 / 10055 / 10327).
-# 87.234 replaces the broader 87.228/229 native relaunch rule.
-# Keep 87.230's old permissive (no Storm) unit in history; 87.234
+# 87.235 replaces the broader 87.228/229 native relaunch rule.
+# Keep 87.230's old permissive (no Storm) unit in history; 87.235
 # now asserts Storm on every confirmed FS normal, severe only for two cases.
 run_cached_unit \
   "$PROJECT/dev/dhc/tests/test_fs_storm_baseline_231.cpp" \
   "$CACHE_DIR/unit_tests/test_fs_storm_baseline_231.exe"
-# 87.234 replaces the 87.224/225 Charlie multiplier regression with the
+# 87.235 replaces the 87.224/225 Charlie multiplier regression with the
 # new native-HP / severe-HK and repeated-dash-reentry expectations.
 
 # 87.235: native C++ timeline covers 1000/3500/500ms and input-gate edges.
@@ -288,14 +289,14 @@ elif command -v python >/dev/null 2>&1; then
 else
   echo "WARNING: 87.235 cold boot source test skipped (Python unavailable)." >&2
 fi
-# 87.234: source-level regression of the exact native SDL call order.
+# 87.235: source-level regression of the exact native SDL call order.
 # No GPU/ROM or test executable required; run before native compile.
 if command -v python3 >/dev/null 2>&1; then
   python3 "$PROJECT/dev/dhc/tests/test_boot_renderer_viewport_234.py"
 elif command -v python >/dev/null 2>&1; then
   python "$PROJECT/dev/dhc/tests/test_boot_renderer_viewport_234.py"
 else
-  echo "WARNING: 87.234 centered boot viewport source test skipped (Python unavailable)." >&2
+  echo "WARNING: 87.235 centered boot viewport source test skipped (Python unavailable)." >&2
 fi
 # Preserve warm cache and anything already built on failures. Never run make clean.
 cd "$TREE"
@@ -320,7 +321,7 @@ echo "Dependencies: GNU Make + persistent obj/**/*.d header dependency files"
 # BUILD_TEST.log as well as the console. set -e preserves make's exit code.
 # Do not use awk warning filters or truncate diagnostics when compilation fails.
 # No make clean, forced rebuild, source timestamp changes, or Stable writes.
-# XMVSF 87.234: NO broad -W, no clean, and no seven-unit FRESHEN.
+# XMVSF 87.235: NO broad -W, no clean, and no seven-unit FRESHEN.
 # Native .d files specify exact transitive source/header dependencies.
 # A compiler/signature change makes only signature-dependent objects stale.
 # With an unchanged signature and unchanged files Make compiles NOTHING.
@@ -417,9 +418,9 @@ if (( ${#REPAIR_NATIVE[@]} )); then
   printf 'repaired_source_revision=%s\n' "$(git -C "$PROJECT" rev-parse HEAD 2>/dev/null || true)" > "$REPAIR_MARK"
   echo "BUILD CACHE REPAIR: completed five-source recovery."
 fi
-echo "87.234 compiled TEST sha256: $built_sha"
-echo "87.234 menu source asset checksums:"
+echo "87.235 compiled TEST sha256: $built_sha"
+echo "87.235 menu source asset checksums:"
 sha256sum "$PROJECT/_art/logo.png" "$PROJECT/_art/sf2font.png" \
   "$PROJECT/_art/sf2fontsmall.png" "$PROJECT/_art/menuanimation.gif" \
   "$PROJECT/_art/stunbar_base.png"
-echo "Stage 87.234: native sources dependency-cached; Stable and previous TESTs untouched."
+echo "Stage 87.235: native sources dependency-cached; Stable and previous TESTs untouched."
