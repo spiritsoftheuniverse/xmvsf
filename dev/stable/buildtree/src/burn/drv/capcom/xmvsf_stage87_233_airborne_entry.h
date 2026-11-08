@@ -31,6 +31,7 @@ enum Decision {
     NONE=0, OUTSIDE_AIR_CANDIDATE, GROUND_BEFORE_NATIVE_DASH,
     REGROUND_BEFORE_NATIVE_DASH, WAIT_FOR_NATIVE_DASH,
     NATIVE_GROUND_DASH_READY, NATIVE_GROUND_DASH_BAD_X,
+    NATIVE_GROUND_DASH_WARPED_X,
     RETURN_ABORTED, NATIVE_DASH_NOT_OBSERVED
 };
 struct Tracker {
@@ -52,11 +53,15 @@ struct Tracker {
         if(fighter!=n.fighter){reset();fighter=n.fighter;}
         const bool base=safe(n);
         const bool separated=base && outsideView(n.x,n.opponentX);
+        const std::int64_t relative=std::int64_t(std::int32_t(n.x))-
+            std::int64_t(std::int32_t(n.opponentX));
+        const bool insideFight=validX(n.x) &&
+            relative>-0x01000000LL && relative<0x01000000LL;
         if(!separated && validX(n.x))blockedUntilBackInView=false;
         if(pending){
             // A different move/reaction or a return to the camera cancels
             // rather than forcing an airborne attack onto the floor.
-            if(!base || (validX(n.x) && !separated)){
+            if(!base || (!groundDash(n.mode) && insideFight)){
                 pending=false;outsideFrames=0u;
                 return RETURN_ABORTED;
             }
@@ -64,9 +69,17 @@ struct Tracker {
                 pending=false;outsideFrames=0u;
                 blockedUntilBackInView=true;
                 // The native 68000 has accepted the original 1400/1600
-                // ground-dash dispatch. No fabricated script or velocity.
-                return validX(n.x)?NATIVE_GROUND_DASH_READY:
-                                  NATIVE_GROUND_DASH_BAD_X;
+                // ground-dash dispatch. Preserve ordinary movement, but
+                // reject a large 1-2 frame on-screen X teleport during
+                // entry and restart at the proven offscreen anchor.
+                if(!validX(n.x))return NATIVE_GROUND_DASH_BAD_X;
+                const std::int64_t jump=
+                    std::int64_t(std::int32_t(n.x))-
+                    std::int64_t(std::int32_t(anchor));
+                if(pendingFrames<=2u &&
+                   (jump>0x00800000LL || jump<-0x00800000LL))
+                    return NATIVE_GROUND_DASH_WARPED_X;
+                return NATIVE_GROUND_DASH_READY;
             }
             if(!validX(n.x)){
                 pending=false;outsideFrames=0u;
