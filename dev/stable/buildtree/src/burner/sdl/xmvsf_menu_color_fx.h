@@ -60,8 +60,7 @@ static inline void backgroundHue(const std::vector<Uint8>& source,
         if(chroma<1.0f || source[n+3]==0){
             output[n]=r;output[n+1]=g;output[n+2]=b;continue;
         }
-        float h=hueDegrees(r,g,b)+turn;
-        if(h>=360.0f)h-=360.0f;
+        const float h=std::fmod(hueDegrees(r,g,b)+turn,360.0f);
         const float sector=h/60.0f;
         const float x=chroma*(1.0f-std::fabs(std::fmod(sector,2.0f)-1.0f));
         const float m=float(lo);
