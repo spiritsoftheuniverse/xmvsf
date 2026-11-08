@@ -377,7 +377,7 @@ struct MainLayout {
     enum {
         LogoX=235, LogoY=51, LogoW=544, LogoH=289,
         TextCenter=489, FirstRowY=347, RowStep=31,
-        HintY=495, ExitY=522, ExitCenter=500, VersionRight=942
+        HintY=495, ExitY=522, ExitLeft=18, VersionRight=942
     };
 };
 static inline bool menuLogo(SDL_Renderer* r){
@@ -395,8 +395,8 @@ static inline bool menuHint(SDL_Renderer* r,const char* s,Uint8 brightness){
         MainLayout::HintY,true,1.375,brightness,1);
 }
 static inline bool menuExit(SDL_Renderer* r,const char* s){
-    return atlas().textScaled(r,s,MainLayout::ExitCenter,
-        MainLayout::ExitY,true,1.20,105,1);
+    return atlas().textScaled(r,s,MainLayout::ExitLeft,
+        MainLayout::ExitY,true,1.08,185,0);
 }
 static inline bool menuVersion(SDL_Renderer* r,const char* s){
     return atlas().textScaled(r,s,MainLayout::VersionRight,
