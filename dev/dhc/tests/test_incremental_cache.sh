@@ -25,12 +25,14 @@ SRC
 cat > Makefile <<'MAKE'
 .DEFAULT_GOAL := all
 all: a.o b.o
-a.o: a.cpp compiler.signature
-	@echo a >> rebuild.log
-	@g++ -MMD -MP -MF a.d -MT a.o -c a.cpp -o a.o
-b.o: b.cpp compiler.signature
-	@echo b >> rebuild.log
-	@g++ -MMD -MP -MF b.d -MT b.o -c b.cpp -o b.o
+# Regression: explicit signature prerequisites stole Make's $< from the
+# true .cpp and GCC silently skipped compilation. .EXTRA_PREREQS does
+# NOT alter $< or $^; test this using implicit pattern rules as FBNeo does.
+a.o b.o: .EXTRA_PREREQS = compiler.signature
+%.o: %.cpp
+	@case "$<" in *.cpp) ;; *) echo "CACHE FAIL: signature became source: $<" >&2; exit 1;; esac
+	@echo $* >> rebuild.log
+	@g++ -MMD -MP -MF "$*.d" -MT "$@" -c "$<" -o "$@"
 -include a.d b.d
 MAKE
 printf 'v1\n' > compiler.signature
