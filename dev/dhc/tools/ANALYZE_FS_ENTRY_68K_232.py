@@ -17,6 +17,8 @@ PCs = (
     (0x012844, "native_controller_reset"),
     (0x01284A, "enable_ground_dash_1400"),
     (0x01038E, "native_action_dispatch_after_dash"),
+    (0x01273E, "native_superjump_air_flag_test"),
+    (0x012772, "native_superjump_mode_enter"),
     (0x0137B2, "air_dash_dispatch_reference"),
 )
 
