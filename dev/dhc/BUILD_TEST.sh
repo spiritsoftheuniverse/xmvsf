@@ -101,7 +101,7 @@ command -v sdl2-config >/dev/null || {
   echo "ERROR: sdl2-config required by native SDL build." >&2; exit 2;
 }
 mkdir -p "$CACHE_DIR"
-# The uploaded 87.217 BUILD_TEST log shows Make compiling the signature
+# The historical 87.215 BUILD_TEST log showed Make compiling the signature
 # instead of five actual C++ sources. Fix exactly this known bad manifest,
 # without invalidating 1,174 otherwise usable cached native objects.
 REPAIR_NATIVE=()
@@ -111,7 +111,7 @@ if [[ ! -e "$REPAIR_MARK" && -s "$SUCCESS_STATE" ]] &&
    grep -Fq $'native_objects_recompiled\t0' "$SUCCESS_STATE" &&
    grep -Fq $'test_executable_published\t1' "$SUCCESS_STATE" &&
    grep -Fq $'compiler_signature\ta7fefd01dd1626afd8fd6802c066b869708257059794c1a54918040ead11c7f2' "$SUCCESS_STATE"; then
-  echo "BUILD CACHE REPAIR: 87.217 signature compiled instead of five source units."
+  echo "BUILD CACHE REPAIR: old 87.215 signature was compiled instead of five source units."
   REPAIR_NATIVE=(
     src/burn/drv/capcom/cps_draw.cpp
     src/burn/drv/capcom/cps_run.cpp
