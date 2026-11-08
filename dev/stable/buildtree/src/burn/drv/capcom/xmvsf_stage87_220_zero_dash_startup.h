@@ -158,7 +158,7 @@ struct Controller {
     // 87.221's native-controller restoration in Classic. A stale neutral
     // ROM script from Tournament cannot cross a rule-mode switch.
     void frame(unsigned frame,std::uint8_t* r,bool xmvsf,bool tournament=true){
-        if(lastFrame==frame)return;
+        if(lastFrame==frame && haveRuleMode && lastTournament==tournament)return;
         const bool rewound=lastFrame!=~0u && frame<lastFrame;
         if(rewound)reset(); // replay/snapshot or fresh DrvInit
         lastFrame=frame;
