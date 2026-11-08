@@ -35,6 +35,12 @@ static inline bool ground(unsigned action){
 }
 static inline bool air(unsigned action){return (action&0xff00u)==0x3c00u;}
 static inline bool dash(unsigned action){return ground(action)||air(action);}
+static inline bool plausibleWorldX(std::uint32_t x){
+    const std::int64_t s=std::int64_t(std::int32_t(x));
+    // A small negative world X is valid for an offscreen entrant.
+    // Reject multi-thousand-pixel PC 0109B4 corruptions (e.g. B27C0700).
+    return s>=-0x02000000LL && s<0x10000000LL;
+}
 static inline bool timerMayAdvance(unsigned timer){
     // 0000 can be a native sentinel; high-bit durations (7FFF) can
     // deliberately hold a frame. Never turn either into a dash skip.
@@ -52,6 +58,12 @@ struct Actor {
     // TEST 87.226: last stage-plausible native X (87.225 capture leapt
     // from ~0x02B00000 to 0x7041D600 before an endless 37f dash loop).
     bool safeValid=false,recoveryActive=false,neutralSnapshotValid=false;
+    // 87.232: distinguish CPU-scripted offscreen entry from a voluntary
+    // dash. The scripted entry needs its original frame staging, but an
+    // ordinary player dash retains the 87.220 zero-wait modification.
+    bool autoReturn=false,returnAnchorValid=false;
+    unsigned failedReturnFrames=0,advancingReturnFrames=0;
+    std::uint32_t returnAnchor=0;
     unsigned mode=0,identity=~0u,entryFrame=0,dashAge=0;
     // 87.232: old unconditional 36f watchdog killed an actually moving
     // native dash at capture frame 6570.
@@ -86,6 +98,54 @@ struct Controller {
         }
     }
     void reset(){actor[0]=Actor{};actor[1]=Actor{};}
+    // Grounding is sourced from the ORIGINAL fighter's +254 floor, never
+    // from an invented Y or a copied opponent controller. +AA's low byte
+    // can contain other native state; clear only the documented air byte.
+    static bool settleReturnOnNativeFloor(std::uint8_t* r,unsigned p){
+        const unsigned floor=word(r,p+0x254u);
+        if(!floor || floor>=2048u)return false;
+        setWord(r,p+0x10u,floor);
+        setWord(r,p+0x12u,0u);
+        setLong(r,p+0x1cu,0u);
+        setWord(r,p+0xaau,word(r,p+0xaau)&0x00ffu);
+        return true;
+    }
+    // A real visible opponent gives us a grounded world-space reference
+    // without guessing the level camera or the stage's absolute left/right
+    // limits. 384 CPS2 native horizontal pixels plus 64 of sprite clearance
+    // puts a returning fighter definitively outside the opponent's view.
+    // No valid opponent, native floor or established prior side => fail
+    // closed and retain the older safe controller restoration.
+    static bool nativeOffscreenAnchor(const std::uint8_t* r,unsigned p,
+                                       const Actor& a,std::uint32_t& anchor){
+        if(!a.safeValid || !word(r,p+0x254u) ||
+           word(r,p+0x254u)>=2048u)return false;
+        const unsigned other=p==0x4000u?0x4400u:0x4000u;
+        if(!word(r,other) || word(r,other+0x52u)>0x24u)return false;
+        const std::uint32_t otherX=longword(r,other+0x0cu);
+        if(!plausibleWorldX(otherX))return false;
+        const std::int64_t me=std::int64_t(std::int32_t(a.safeX));
+        const std::int64_t them=std::int64_t(std::int32_t(otherX));
+        if(me==them)return false;
+        const std::int64_t nativeScreen=384LL*65536LL;
+        const std::int64_t clearance=64LL*65536LL;
+        const std::int64_t candidate=them+
+            (me<them?-(nativeScreen+clearance):(nativeScreen+clearance));
+        if(candidate<-0x02000000LL || candidate>=0x10000000LL)return false;
+        anchor=std::uint32_t(std::int32_t(candidate));
+        return true;
+    }
+    // A native ground-dash mode and its ROM script remain in place: the
+    // engine, not a host-generated velocity, supplies actual dash motion.
+    static bool stageNativeGroundEntry(std::uint8_t* r,unsigned p,Actor& a){
+        std::uint32_t anchor=0;
+        if(!nativeOffscreenAnchor(r,p,a,anchor))return false;
+        if(!settleReturnOnNativeFloor(r,p))return false;
+        setLong(r,p+0x0cu,anchor);
+        a.returnAnchor=anchor;a.returnAnchorValid=true;
+        a.autoReturn=true;
+        return true;
+    }
     // Only a demonstrably broken dash may use this controller restoration.
     // Script, action, pose and mode all come from this fighter's own
     // previously captured native neutral, never an invented idle pointer.
@@ -142,13 +202,51 @@ struct Controller {
         // Save the most recent physically plausible stage coordinate;
         // the 87.225 flying-screen dash had X≈0x70000000, or >28k
         // world pixels, whereas legitimate observed combat was <0x03000000.
-        const bool saneX=x>=0x00010000u && x<0x10000000u;
-        if(saneX && !a.recoveryActive && control==0u){
+        const bool saneX=plausibleWorldX(x) && x!=0u;
+        if(saneX && !a.recoveryActive && !a.autoReturn && control==0u){
             a.safeValid=true;a.safeX=x;a.safeFrame=frame;
         }
-        const bool brokenX=!saneX && x>=0x10000000u;
+        const bool brokenX=!plausibleWorldX(x);
         const bool canRecover=a.neutral.valid &&
             a.neutral.identity==identity && a.neutral.script && a.neutral.next;
+        // Recover CPU-scripted offscreen entry BEFORE generic native-neutral
+        // watchdog recovery. The 87.231 original-CPU trace observed PPC
+        // 0109B4 write X=B27C0700 and PPC 01284A set native mode 1400.
+        // Do NOT shorten the original entry frame timer: that may be the
+        // actual anchor/ground staging interval.
+        if(a.autoReturn){
+            if(!ground(mode) || control){
+                a.autoReturn=false;
+                a.failedReturnFrames=0u;a.advancingReturnFrames=0u;
+                a.returnAnchorValid=false;
+            }else if(brokenX && a.returnAnchorValid){
+                if(++a.failedReturnFrames<=4u &&
+                   settleReturnOnNativeFloor(r,p)){
+                    setLong(r,p+0x0cu,a.returnAnchor);
+                    if(log)std::fprintf(log,
+                        "%u\t%u\t%04X\t%04X\t0\t%08X\t%08X\t%08X\t%u\t%u\tFS_NATIVE_ENTRY_68K_REASSERTED_X\n",
+                        frame,side+1u,identity,mode,x,longword(r,p+0x14u),
+                        longword(r,p+0x34u),word(r,p+0x3eu),
+                        word(r,p+0x3eu));
+                    return e;
+                }
+                // Four failed native retries mean 0109B4 is STILL
+                // rebuilding the invalid coordinate. Do not silently
+                // keep the actor in an invented host-driven dash.
+                a.autoReturn=false;a.recoveryActive=true;
+                a.suppressedFrames=0u;a.quietFrames=0u;
+                restoreNeutral(r,p,a,true);
+                settleReturnOnNativeFloor(r,p);
+                setLong(r,p+0x0cu,a.returnAnchor);
+                if(log)std::fprintf(log,
+                    "%u\t%u\t%04X\t%04X\t0\t%08X\t%08X\t%08X\t%u\t%u\tFS_NATIVE_ENTRY_UNRESOLVED_68K_SOURCE\n",
+                    frame,side+1u,identity,mode,x,0u,
+                    a.neutral.script,a.neutral.timer,a.neutral.timer);
+                return e;
+            }else if(saneX && ++a.advancingReturnFrames>=2u){
+                a.failedReturnFrames=0u;
+            }
+        }
         // The 87.221 36-frame watchdog exited 12 consecutive native dashes
         // in the 87.225 log. Each re-entered within 1f; suppressing further
         // dash state is needed until the native CPU stays OUT of dash for
@@ -161,6 +259,7 @@ struct Controller {
                     a.quietFrames=0u;
                     a.suppressedFrames=0u;
                     a.snapshotRestores=0u;
+                    a.returnAnchorValid=false;
                 }
             }else if(!control && canRecover){
                 ++a.suppressedFrames;
@@ -173,6 +272,14 @@ struct Controller {
                     ((a.suppressedFrames-4u)%16u)==0u &&
                     restoreNativeNeutral(r,p,a,frame);
                 if(!recoverSnapshot)restoreNeutral(r,p,a,true);
+                // Once native 0109B4 has corrupted X, do not make a
+                // recovered actor drop out of the SKY or pop back into
+                // visible middle-stage space. Keep the grounded offscreen
+                // anchor while original CPU controller retries continue.
+                if(a.returnAnchorValid){
+                    settleReturnOnNativeFloor(r,p);
+                    setLong(r,p+0x0cu,a.returnAnchor);
+                }
                 if(log && (recoverSnapshot || a.suppressedFrames==1u ||
                            a.suppressedFrames%64u==0u)){
                     std::fprintf(log,"%u\t%u\t%04X\t%04X\t0\t%08X\t%08X\t%08X\t%u\t%u\t%s\n",
@@ -188,11 +295,23 @@ struct Controller {
         if(ground(mode) && !control && canRecover &&
            a.safeValid && frame>=a.safeFrame && frame-a.safeFrame<=600u &&
            brokenX){
+            // Prefer the native actor's own automatic dash controller
+            // with a world-space offscreen start and original delay.
+            if(stageNativeGroundEntry(r,p,a)){
+                a.failedReturnFrames=0u;a.advancingReturnFrames=0u;
+                if(log)std::fprintf(log,
+                    "%u\t%u\t%04X\t%04X\t0\t%08X\t%08X\t%08X\t%u\t%u\tFS_NATIVE_GROUND_OFFSCREEN_ENTRY\n",
+                    frame,side+1u,identity,mode,x,longword(r,p+0x14u),
+                    longword(r,p+0x34u),word(r,p+0x3eu),
+                    word(r,p+0x3eu));
+                return e;
+            }
             a.recoveryActive=true;a.quietFrames=0u;
             a.suppressedFrames=0u;
             a.snapshotRestores=0u;
             a.lastRecoveryFrame=frame;
             restoreNeutral(r,p,a,true);
+            settleReturnOnNativeFloor(r,p);
             if(log){
                 std::fprintf(log,"%u\t%u\t%04X\t%04X\t0\t%08X\t%08X\t%08X\t%u\t%u\tFS_DASH_INVALID_WORLD_X_RECOVERED\n",
                     frame,side+1u,identity,mode,x,0u,
@@ -292,7 +411,7 @@ struct Controller {
             (air(mode) || vx==0u);
         e.timerBefore=word(r,p+0x3eu);
         e.timerAfter=e.timerBefore;
-        if(waiting && timerMayAdvance(e.timerBefore)){
+        if(waiting && !a.autoReturn && timerMayAdvance(e.timerBefore)){
             setWord(r,p+0x3eu,1u);
             e.timerAfter=1u;
             e.patched=true;
