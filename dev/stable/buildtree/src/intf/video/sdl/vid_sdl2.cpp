@@ -195,13 +195,13 @@ static int Exit()
         SDL_RenderSetClipRect(sdlRenderer,nullptr);
         SDL_SetRenderDrawBlendMode(sdlRenderer,SDL_BLENDMODE_NONE);
         std::fprintf(stderr,
-            "XM87.227 MENU_RENDERER_HANDOFF retained window=%p renderer=%p\\n",
+            "XM87.227 MENU_RENDERER_HANDOFF retained window=%p renderer=%p\n",
             (void*)sdlWindow,(void*)sdlRenderer);
         std::fflush(stderr);
     }else{
         if(sdlRenderer)SDL_DestroyRenderer(sdlRenderer);
         std::fprintf(stderr,
-            "XM87.227 VIDEO_RENDERER_DESTROY exit_not_menu=1\\n");
+            "XM87.227 VIDEO_RENDERER_DESTROY exit_not_menu=1\n");
     }
     // Ownership ends with VideoExit. The boot selector will get the
     // retained renderer with SDL_GetRenderer(sdlWindow) if applicable.
