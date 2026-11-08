@@ -117,6 +117,22 @@ int main(){
     // Medium attacks must also remain native.
     tryLightNative(actor,0x1808u,2u);
 
+    // Exact 87.228 leak reproduction: LP native hit onset, eight more
+    // native 68000 frames with substate 0, then the player switches to
+    // LK just as the victim reaches substate 2. No delayed severe write.
+    nativeRelaunchOnset(actor,0x1800u,1u,false);
+    for(unsigned i=0u;i<8u;++i){
+        const Decision held=actor.evaluate(ram,V,A,true,true,0u);
+        assert(!held.velocityWritten);
+        assert(!actor.postFlightRelaunchPending);
+    }
+    sw(A+0x60u,0x1a00u);sw(V+0x08u,2u);
+    const Decision lpToLk=actor.evaluate(ram,V,A,true,true,8u);
+    assert(!lpToLk.velocityWritten && !lpToLk.stateWritten);
+    assert(!actor.postFlightRelaunchPending);
+    assert(rw(V+0x60u)==0x1c14u);
+    assert(rl(V+0x1cu)==0xfffc6000u);
+
     // If a fresh verified HP/HK itself really starts the native launcher,
     // that SAME action can still receive Cyclops severe at substate 2.
     tryConfirmedHeavy(actor,0x1a04u,32u);
