@@ -9,6 +9,8 @@
 // recovery substates, and restore the SAVED airborne controller before
 // Cyclops's natural ~51-52-frame landing. 36 native frames was stable;
 // 24 is the requested earlier release experiment (0.4s at 60Hz).
+// TEST 87.218: the snapshot also carries pre-throw X velocity into the
+// released action. Zero ONLY +0x14 at restoration to prevent that drift.
 // Resume Cyclops's ACTUAL preceding airborne controller after air throw impact.
 // No fresh super-jump launch, no arbitrary animation/script/ROM address.
 // Never modify the opponent, world X/Y, HP, meter or character identity.
@@ -57,9 +59,15 @@ static inline AirState observeAir(const std::uint8_t* r,unsigned p,unsigned f){
     s.valid=true;return s;
 }
 static inline void restoreAir(std::uint8_t* r,unsigned p,const AirState& s){
-    // Restore the EXACT preceding airborne controller; do not start a jump.
+    // Restore the original airborne controller except for horizontal
+    // velocity, which must be neutral on release; do not start a jump.
     sw(r,p+0x06,s.step06);sw(r,p+0x08,s.step08);
-    sd(r,p+0x14,s.velocityX);sd(r,p+0x18,s.motionX);
+    // TEST 87.218: cancel pre-grab forward momentum on release.
+    // The original airborne snapshot is still used for EVERY other
+    // controller field. Only +14 (horizontal velocity) is neutralized;
+    // +18 movement state, +1C vertical velocity, gravity, and world
+    // X/Y are preserved. Never zero it during the grab itself.
+    sd(r,p+0x14,0u);sd(r,p+0x18,s.motionX);
     sd(r,p+0x1C,s.velocityY);sd(r,p+0x20,s.gravity);
     sd(r,p+0x34,s.script);sd(r,p+0x38,s.scriptNext);
     sw(r,p+0x3C,s.ctl3C);sw(r,p+0x3E,s.ctl3E);
