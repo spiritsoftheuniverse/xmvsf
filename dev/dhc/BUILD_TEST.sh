@@ -26,8 +26,8 @@ printf '\nProject: %s\nLog: %s\n' "$PROJECT" "$LOG_FILE"
 trap 'rc=$?; trap - EXIT; printf "XMVSF BUILD END rc=%s time=%s log=%s\n" "$rc" "$(date "+%Y-%m-%d %H:%M:%S")" "$LOG_FILE"; exit "$rc"' EXIT
 
 TREE="$PROJECT/dev/stable/buildtree"
-DEST="$PROJECT/runtime/stable/XMVSF_Test_87_219.exe"
-PENDING="$PROJECT/runtime/stable/.XMVSF_Test_87_219_pending.exe"
+DEST="$PROJECT/runtime/stable/XMVSF_Test_87_220.exe"
+PENDING="$PROJECT/runtime/stable/.XMVSF_Test_87_220_pending.exe"
 # Machine-local cache: never stored in Git and never mutates Stable.
 CACHE_DIR="$PROJECT/test/build_cache"
 SIGNATURE="$CACHE_DIR/compiler.signature"
