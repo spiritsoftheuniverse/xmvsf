@@ -50,7 +50,7 @@ struct Machine {
     float fadeFrom=0.5f,fadeSeconds=0.f,fadeElapsed=0.f;
     bool moveOn = false, confirmOn = false, fight = false, gameStarted = false;
     bool crashOn=false,welcomeOn=false,fightVoiceOn=false;
-    bool musicEnabled=true; // 87.235 cold intro alone pauses the music clock
+    bool musicEnabled=false; // no music before explicit menu start/reveal
     uint32_t gameHz = 48000;
     int16_t* game = nullptr;
     uint64_t produced = 0;
@@ -330,6 +330,7 @@ void xm20MenuStart(){
     xm20::start();
     if(!xm20::m.csReady)return;
     EnterCriticalSection(&xm20::m.lock);
+    xm20::m.musicEnabled=true; // regular return/replay starts normally
     // XM86.55: return to menu means a NEW audio phase, not a continuation
     // of a combat queue or the previous character-select state. This is only
     // performed when game PCM was actually queued or combat had started.
