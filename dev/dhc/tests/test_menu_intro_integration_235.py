@@ -36,6 +36,23 @@ assert "XM87235Intro::menuReveal(introElapsed)" in boot
 assert "if(selection<=2)xm20MenuFight();" in boot
 assert "XMMenuColor::introLogoDither" in atlas
 assert "bayer[(y&3)*4+(x&3)]>=level" in atlas
-assert "backgroundHue(originalPixels_,huePixels_,now,introStrength)" in gif
+assert "backgroundHue(originalPixels_,huePixels_,now,introStrength,width_)" in gif
+# Revised 87.235: both first frames are PURE WHITE, and background/title
+# restore through source-space Bayer thresholded hue strobing.
+assert 'introEnabled?255:8' in boot
+assert 'introEnabled?255:16' in boot
+assert 'introEnabled?255:36' in boot
+assert 'const Uint8 brightness=static_cast<Uint8>(77+int(178.0f*s))' in gif
+assert 'output[n+ch]=byte(float(flash[ch])*(1.0f-white)+255.0f*white)' in fx
+assert 'bayer[(row&3u)*4u+(col&3u)]' in fx
+assert 'result[p]=byte(rr*(1.0f-whiten)+255.0f*whiten)' in fx
+assert 'remaining<threshold' in fx
+assert "XM87235Intro::MenuStart" in boot
+assert "xm20MenuIntroMusic();musicFired=true;" in boot
+assert "xm20MenuIntroSilence();xm20MenuCrash();" in boot
+assert "m.musicEnabled=false" in mixer
+assert "if(m.musicEnabled)advanceClip(m.music,musicStep,true);" in mixer
+assert "xm20::m.musicGain=0.f;xm20::m.musicTarget=0.5f" in mixer
+assert "xm20::m.fadeSeconds=0.5f;" in mixer
 assert "TEST 87.235" in boot
 print("XMVSF 87.235 cold boot/menu/Fight audio and SDL integration: PASS")
