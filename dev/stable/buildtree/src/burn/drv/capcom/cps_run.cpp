@@ -8,6 +8,7 @@
 #include "xmvsf_stage87_83_rom_flight_guard.h" // XM87.83 ROM-qualified flying-screen hit gate
 #include "xmvsf_stage87_84_air_heavy_finisher.h" // XM87.84 second-or-later airborne heavy finisher
 #include "xmvsf_stage87_85_connected_air_heavy.h" // XM87.85 connected aerial heavy qualifier
+#include "xmvsf_stage87_223_storm_native_flight.h" // 87.223 read-only 68000 Storm HP velocity + native flight index
 #include "xmvsf_stage87_86_storm_button_guard.h" // XM87.86 CPS2 physical MK/HK evidence
 #include "xmvsf_stage87_95_native_dizzy_air_collision.h" // XM87.95 dizzy init and per-frame gate/f6 source-backed native opcode override
 #include "xmvsf_stage87_96_tournament_dizzy_handoff.h" // XM87.96 native dizzy stand handoff
@@ -863,6 +864,17 @@ INT32 Cps2Frame()
     const unsigned xm8786_p2_buttons =
         (CpsInp000[4]&1u) | ((CpsInp000[5]&1u)<<1) | ((CpsInp000[6]&1u)<<2) |
         ((CpsInp011[4]&1u)<<3) | ((CpsInp011[5]&1u)<<4) | ((CpsInp020[6]&1u)<<5);
+    // TEST 87.223: observe native 68000 Storm HP hit velocity, reaction,
+    // +E0 flight index and candidate A6 writers BEFORE the Tournament
+    // 87.86 host flight conversion. This probe does not modify RAM/ROM.
+    if(!bBurnRunAheadFrame){
+        const char* nativeDriver=BurnDrvGetTextA(DRV_NAME);
+        XM87223Flight::state().frame((unsigned)GetCurrentFrame(),CpsRamFF,
+            CpsCode,(unsigned)nCpsCodeLen,
+            nativeDriver && std::strncmp(nativeDriver,"xmvsf",5)==0,
+            XM8795Native::env("XM8755_TOURNAMENT_MODE"),
+            xm8786_p1_buttons,xm8786_p2_buttons);
+    }
     // TEST 87.223: track Storm's original attack action independently of
     // Classic/Tournament. The Z80/QSound sample can arrive after this pose.
     if(!bBurnRunAheadFrame){
