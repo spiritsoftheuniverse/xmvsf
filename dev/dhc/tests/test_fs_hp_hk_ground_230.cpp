@@ -65,6 +65,10 @@ static void expectSevere(const Decision& d,const char* label){
     assert(rl(V+0x1cu)==TARGET_DOWN);
 }
 int main(){
+    assert(groundedNormalAttack(0x1000u));
+    assert(groundedNormalAttack(0x1002u));
+    assert(groundedNormalAttack(0x1208u));
+    assert(!groundedNormalAttack(0x1a00u));
     assert(groundedNormalHeavy(0x1004u));
     assert(groundedNormalHeavy(0x100au));
     assert(groundedNormalHeavy(0x1204u));
@@ -156,11 +160,24 @@ int main(){
     const Decision plain=onset(noFS,4u);
     assert(!plain.velocityWritten && !noFS.fsConditionalPending);
 
-    // Grounded MP during active FS, and air LK after HK, stay native.
+    // A grounded MP is a real CONNECTED HIT and replaces the previous
+    // HP in the hit ledger. It must never itself induce severe.
     setup(0u,0x21u,0x1002u,true);
     Actor mp=primed(4u);
-    mp.evaluate(mem,V,A,true,true,2u);
+    const Decision mpHit=onset(mp,2u);
+    assert(mpHit.hitConfirmed && !mpHit.velocityWritten);
+    assert(mp.lastConnectedButton==2u);
     assert(!mp.fsConditionalPending);
+
+    // Wolverine Drill Claw cannot masquerade as a preceding normal HP.
+    setup(0u,0x21u,0x2c1eu);
+    Actor drill=primed(4u);
+    const Decision special=onset(drill,4u);
+    assert(special.excluded);
+    assert(!drill.fsConditionalPending);
+    assert(drill.lastConnectedButton==0u);
+
+    // Air LK after HK stays native.
     setup(0u,0x21u,0x1a00u);
     Actor lk=primed(4u);
     const Decision lpAfter=onset(lk,8u);
