@@ -280,6 +280,14 @@ run_cached_unit \
 run_cached_unit \
   "$PROJECT/dev/dhc/tests/test_menu_intro_timeline_235.cpp" \
   "$CACHE_DIR/unit_tests/test_menu_intro_timeline_235.exe"
+# 87.235: confirm actual integration with authored repo WAVs and input gate.
+if command -v python3 >/dev/null 2>&1; then
+  python3 "$PROJECT/dev/dhc/tests/test_menu_intro_integration_235.py"
+elif command -v python >/dev/null 2>&1; then
+  python "$PROJECT/dev/dhc/tests/test_menu_intro_integration_235.py"
+else
+  echo "WARNING: 87.235 cold boot source test skipped (Python unavailable)." >&2
+fi
 # 87.234: source-level regression of the exact native SDL call order.
 # No GPU/ROM or test executable required; run before native compile.
 if command -v python3 >/dev/null 2>&1; then
