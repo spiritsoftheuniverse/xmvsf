@@ -62,7 +62,7 @@ struct Actor {
     // dash. The scripted entry needs its original frame staging, but an
     // ordinary player dash retains the 87.220 zero-wait modification.
     bool autoReturn=false,returnAnchorValid=false;
-    unsigned failedReturnFrames=0,advancingReturnFrames=0;
+    unsigned failedReturnFrames=0,advancingReturnFrames=0,returnMode=0;
     std::uint32_t returnAnchor=0;
     unsigned mode=0,identity=~0u,entryFrame=0,dashAge=0;
     // 87.232: old unconditional 36f watchdog killed an actually moving
@@ -156,7 +156,10 @@ struct Controller {
         if(!settleReturnOnNativeFloor(r,p))return false;
         setLong(r,p+0x0cu,anchor);
         a.returnAnchor=anchor;a.returnAnchorValid=true;
+        a.returnMode=word(r,p+0xa0u);
         a.autoReturn=true;
+        a.ready=false;a.tracking=false;a.dashAge=0u;
+        a.stalledFrames=0u;a.scriptLoopsAtOrigin=0u;a.lastScript=0u;
         return true;
     }
     // Only a demonstrably broken dash may use this controller restoration.
@@ -228,7 +231,7 @@ struct Controller {
         // Do NOT shorten the original entry frame timer: that may be the
         // actual anchor/ground staging interval.
         if(a.autoReturn){
-            if(!ground(mode) || control){
+            if(!ground(mode) || control || mode!=a.returnMode){
                 a.autoReturn=false;
                 a.failedReturnFrames=0u;a.advancingReturnFrames=0u;
                 a.returnAnchorValid=false;
@@ -269,8 +272,10 @@ struct Controller {
             // The original 68000 already supplied a valid offscreen X.
             // Do not rewrite it or substitute an invented native script.
             a.autoReturn=true;a.returnAnchorValid=true;
-            a.returnAnchor=x;a.failedReturnFrames=0u;
-            a.advancingReturnFrames=0u;
+            a.returnAnchor=x;a.returnMode=mode;
+            a.failedReturnFrames=0u;a.advancingReturnFrames=0u;
+            a.ready=false;a.tracking=false;a.dashAge=0u;
+            a.stalledFrames=0u;a.scriptLoopsAtOrigin=0u;a.lastScript=0u;
             if(log)std::fprintf(log,
                 "%u\t%u\t%04X\t%04X\t0\t%08X\t%08X\t%08X\t%u\t%u\tFS_NATIVE_VALID_OFFSCREEN_GROUNDED\n",
                 frame,side+1u,identity,mode,x,longword(r,p+0x14u),
