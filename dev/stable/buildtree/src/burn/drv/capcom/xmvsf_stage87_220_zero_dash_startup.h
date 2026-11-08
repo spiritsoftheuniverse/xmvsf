@@ -58,6 +58,7 @@ struct Event {
 struct Controller {
     Actor actor[2];
     unsigned lastFrame=~0u;
+    bool haveRuleMode=false,lastTournament=false;
     std::FILE* log=nullptr;
     bool initialized=false;
     ~Controller(){if(log)std::fclose(log);}
@@ -71,7 +72,7 @@ struct Controller {
         }
     }
     void reset(){actor[0]=Actor{};actor[1]=Actor{};}
-    Event sample(std::uint8_t* r,unsigned p,unsigned frame,unsigned side){
+    Event sample(std::uint8_t* r,unsigned p,unsigned frame,unsigned side,bool tournament){
         Event e;
         Actor& a=actor[side];
         const unsigned identity=word(r,p+0x52u);
@@ -111,7 +112,7 @@ struct Controller {
         // 87.220 replay: ordinary dashes finish by ~30f, but Storm's
         // flying-screen 1400 loop lasts 455f and repeatedly snaps X back.
         // At 36f exit into this SAME fighter's recorded neutral controller.
-        if(ground(mode) && a.dashAge>=36u && a.neutral.valid &&
+        if(tournament && ground(mode) && a.dashAge>=36u && a.neutral.valid &&
            a.neutral.identity==identity && frame>=a.neutral.frame &&
            frame-a.neutral.frame<=600u && a.neutral.script && a.neutral.next){
             const Neutral& n=a.neutral;
@@ -152,14 +153,24 @@ struct Controller {
         }
         return e;
     }
-    void frame(unsigned frame,std::uint8_t* r,bool xmvsf){
+    // An emulation/Classic/Tournament transition is a session boundary.
+    // Keep 87.220 zero-wait startup active in BOTH modes, but never use
+    // 87.221's native-controller restoration in Classic. A stale neutral
+    // ROM script from Tournament cannot cross a rule-mode switch.
+    void frame(unsigned frame,std::uint8_t* r,bool xmvsf,bool tournament=true){
         if(lastFrame==frame)return;
-        if(lastFrame!=~0u && frame<lastFrame)reset(); // replay/snapshot reset
+        const bool rewound=lastFrame!=~0u && frame<lastFrame;
+        if(rewound)reset(); // replay/snapshot or fresh DrvInit
         lastFrame=frame;
-        if(!xmvsf||!r||byte(r,0x5000u)!=8u){reset();return;}
+        if(!xmvsf||!r||byte(r,0x5000u)!=8u){
+            reset();haveRuleMode=false;return;
+        }
         init();
-        sample(r,0x4000u,frame,0u);
-        sample(r,0x4400u,frame,1u);
+        if(!haveRuleMode || tournament!=lastTournament || rewound){
+            reset();haveRuleMode=true;lastTournament=tournament;
+        }
+        sample(r,0x4000u,frame,0u,tournament);
+        sample(r,0x4400u,frame,1u,tournament);
         if(log && (frame%120u)==0u)std::fflush(log);
     }
 };
