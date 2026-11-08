@@ -153,6 +153,7 @@ struct Actor {
     // Grounded normal HP/HK during FS is a second independent rule.
     bool postFlightNeedsNativeLanding=false;
     bool fsConditionalPending=false,fsPendingGround=false,fsPendingSevere=false,fsPendingCharlieHK=false;
+    bool fsPendingOriginGrounded=false;
     unsigned fsPendingAge=1000u,fsPendingAction=0u,fsPendingSerial=0u;
     unsigned fsPendingPreviousHitButton=0u;
     unsigned fsPendingAttacker=~0u,fsPendingVictim=~0u;
@@ -255,8 +256,17 @@ struct Actor {
         const bool continuity=observed && combat && attackerAir && d.y<472u &&
           d.reaction==0x000Cu && prevReaction==0x000Cu && prevVictimY<472u;
         d.comboContinuous=continuity;
-        if(!combat || (!attackerAir && !groundAttackNow) ||
-           d.y>=472u || (observed && d.reaction!=0x000Cu))clearChain();
+        // Once an original ROM impact is confirmed, do not discard its
+        // pending conversion merely because the attacker lands/jumps while
+        // the SAME move is settling. Eligibility was frozen at hit onset;
+        // identity/action/serial changes still cancel below.
+        const bool samePendingAttack=fsConditionalPending && combat &&
+            !nativeLanded && d.attackerId==fsPendingAttacker &&
+            d.victimId==fsPendingVictim &&
+            d.attackerAction==fsPendingAction;
+        if((!combat || (!attackerAir && !groundAttackNow) ||
+            d.y>=472u || (observed && d.reaction!=0x000Cu)) &&
+            !samePendingAttack)clearChain();
         // Require an observed native launch action/profile, not just a hit
         // counter, airborne Y, or a soft hit-reaction profile.
         if(combat && d.reaction==0x000Cu && d.y<472u &&
@@ -347,6 +357,7 @@ struct Actor {
                                                 d.attackerAction,d.taggedButton);
                 fsPendingSevere=hpThenHK || groundedFSHeavy || fsPendingCharlieHK;
                 fsPendingGround=groundedFSHeavy;
+                fsPendingOriginGrounded=attackerGrounded;
                 fsPendingPreviousHitButton=d.previousHitButton;
                 fsPendingAge=0u;
                 fsPendingAction=d.attackerAction;
@@ -470,8 +481,7 @@ struct Actor {
             const bool expired=fsPendingAge>24u || !enabled || !combat ||
                 !sameHit || nativeLanded ||
                 !(postFlightNeedsNativeLanding || stormFlightUsedUntilLanding) ||
-                d.reaction!=0x000cu || d.y>=472u ||
-                (fsPendingGround?!attackerGrounded:!attackerAir);
+                d.reaction!=0x000cu || d.y>=472u;
             if(expired){
                 fsConditionalPending=false;
                 fsPendingSevere=false;fsPendingCharlieHK=false;
@@ -482,6 +492,7 @@ struct Actor {
                 // Report the preceding hit from the originating substate-0
                 // snapshot, not the now-updated lastConnectedButton ledger.
                 d.previousHitButton=fsPendingPreviousHitButton;
+                d.groundedAttacker=unsigned(fsPendingOriginGrounded);
                 const bool originalSteep=severe &&
                     signedFixed(d.beforeY)>=0x00100000LL &&
                     magnitude(signedFixed(d.beforeX))<=0x000a0000LL;
