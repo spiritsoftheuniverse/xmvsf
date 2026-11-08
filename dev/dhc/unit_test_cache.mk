@@ -13,7 +13,8 @@ ifndef UNIT_SIGNATURE
 $(error UNIT_SIGNATURE is required)
 endif
 unit: $(UNIT_OUTPUT)
-$(UNIT_OUTPUT): $(UNIT_SOURCE) $(UNIT_SIGNATURE)
+# Only unit tests depend on changes to THIS test-build recipe.
+$(UNIT_OUTPUT): $(UNIT_SOURCE) $(UNIT_SIGNATURE) $(firstword $(MAKEFILE_LIST))
 	@mkdir -p "$(dir $@)"
 	@echo "UNIT COMPILE: $(notdir $@)"
 	@g++ -std=c++11 -Wall -Wextra -Werror \
