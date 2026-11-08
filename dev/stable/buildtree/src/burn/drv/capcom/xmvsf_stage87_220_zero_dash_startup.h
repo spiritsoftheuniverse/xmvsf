@@ -26,6 +26,9 @@ static inline void setWord(std::uint8_t* r,unsigned a,unsigned v){
     r[(a&0xffffu)^1u]=std::uint8_t(v>>8u);
     r[((a+1u)&0xffffu)^1u]=std::uint8_t(v);
 }
+static inline void setLong(std::uint8_t* r,unsigned a,std::uint32_t v){
+    setWord(r,a,v>>16u);setWord(r,a+2u,v);
+}
 static inline bool ground(unsigned action){
     return (action&0xff00u)==0x1400u || (action&0xff00u)==0x1600u;
 }
@@ -36,9 +39,16 @@ static inline bool timerMayAdvance(unsigned timer){
     // deliberately hold a frame. Never turn either into a dash skip.
     return timer>1u && timer<0x1000u;
 }
+// Authentic pre-dash neutral controller; no invented idle script pointers.
+struct Neutral {
+    bool valid=false;
+    unsigned identity=~0u,frame=0,step06=0,step08=0,timer=0,anim=0,mode=0,action=0,air=0;
+    std::uint32_t script=0,next=0;
+};
 struct Actor {
+    Neutral neutral;
     bool ready=false,tracking=false;
-    unsigned mode=0,identity=~0u,entryFrame=0;
+    unsigned mode=0,identity=~0u,entryFrame=0,dashAge=0;
     std::uint32_t lastX=0,entryX=0;
 };
 struct Event {
@@ -70,9 +80,21 @@ struct Controller {
         const unsigned control=word(r,p+0x06u);
         // Original record must be in player control, not hitstun, tag,
         // guard-stun or a DHC host-owned controller transaction.
-        if(!active || identity>0x24u || (identity&1u) || control ||
-           !dash(mode)){
-            a=Actor{};
+        if(!active || identity>0x24u || (identity&1u)){
+            a=Actor{};return e;
+        }
+        // Retain ROM-owned neutral animation and action from this character.
+        if(!control && (mode&0xff00u)==0u &&
+           (word(r,p+0xaau)>>8u)==0u && longword(r,p+0x14u)==0u){
+            Neutral& n=a.neutral;
+            n.valid=true;n.identity=identity;n.frame=frame;
+            n.step06=word(r,p+0x06u);n.step08=word(r,p+0x08u);
+            n.timer=word(r,p+0x3eu);n.anim=word(r,p+0x42u);
+            n.mode=mode;n.action=word(r,p+0x60u);n.air=word(r,p+0xaau);
+            n.script=longword(r,p+0x34u);n.next=longword(r,p+0x38u);
+        }
+        if(control || !dash(mode)){
+            a.ready=false;a.tracking=false;a.dashAge=0;
             return e;
         }
         e.mode=mode;e.identity=identity;
@@ -81,10 +103,33 @@ struct Controller {
         e.entered=!a.ready || a.mode!=mode || a.identity!=identity;
         if(e.entered){
             a.tracking=true;a.entryFrame=frame;a.entryX=x;
+            a.dashAge=0;
         }else if(x!=a.lastX || x!=a.entryX){
             a.tracking=false;
             e.moving=true;
         }
+        // 87.220 replay: ordinary dashes finish by ~30f, but Storm's
+        // flying-screen 1400 loop lasts 455f and repeatedly snaps X back.
+        // At 36f exit into this SAME fighter's recorded neutral controller.
+        if(ground(mode) && a.dashAge>=36u && a.neutral.valid &&
+           a.neutral.identity==identity && frame>=a.neutral.frame &&
+           frame-a.neutral.frame<=600u && a.neutral.script && a.neutral.next){
+            const Neutral& n=a.neutral;
+            setWord(r,p+0x06u,n.step06);setWord(r,p+0x08u,n.step08);
+            setLong(r,p+0x14u,0u);setLong(r,p+0x18u,0u);
+            setLong(r,p+0x34u,n.script);setLong(r,p+0x38u,n.next);
+            setWord(r,p+0x3eu,n.timer?n.timer:1u);
+            setWord(r,p+0x42u,n.anim);setWord(r,p+0x60u,n.action);
+            setWord(r,p+0xa0u,n.mode);setWord(r,p+0xaau,n.air);
+            if(log){
+                std::fprintf(log,"%u\\t%u\\t%04X\\t%04X\\t0\\t%08X\\t%08X\\t%08X\\t%u\\t%u\\tFS_DASH_LOOP_EXIT\\n",
+                    frame,side+1u,identity,mode,x,vx,n.script,n.timer,n.timer);
+                std::fflush(log);
+            }
+            a.ready=false;a.tracking=false;a.dashAge=0;
+            return e;
+        }
+        if(a.dashAge<1000u)++a.dashAge;
         // For airborne dash only touch the ENTRY animation frame.
         // Ground dash may use several original wind-up frames; advance
         // each held frame until actual X movement starts, then disengage.
