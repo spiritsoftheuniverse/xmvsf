@@ -455,7 +455,46 @@ The native launcher logs to
 `RELEASE_CANCEL` and `RELEASED` identify how each attempt progressed.
 No Stable, ROM, stun HUD, or DHC logic changes.
 
-## Native TEST version 87.213 and local verification
+## TEST 87.214 — Cyclops release at 0.6 seconds and SF2 floating frame data
+
+**Native evidence from attached `87.213.zip`:** The Cyclops observer
+recorded grab-end frames 3954 and 4851, then cancellations at 4006
+and 4904. The first counted 51 native recovery updates and the second
+52. The ROM had already naturally landed Cyclops by then
+(`RELEASE_CANCEL/CYCLOPS_LANDED`). This was not a 100-frame timer
+overflow or a mysterious one-frame release. A 36-frame delay
+(approximately 0.6s on a 60fps combat clock) fits inside both observed
+recovery windows.
+
+**Change:** Stage87.121's event scope/rearming and committed-real-frame
+guard remain as in 87.213. `ReleaseDelayFrames=36` now triggers the
+saved pre-throw airborne controller precisely on the 36th committed
+update after the `200C -> 200E` grab-end event, as long as Cyclops is
+still in the native throw recovery and airborne. The opponent's transient
+`1C34` landing code is no longer a release veto: the supplied logs show
+the victim already grounded at grab end, and release is intentionally
+earlier than Cyclops's own landing. No source ROM/HP/meter/opponent writes,
+DHC logic, Stable executable, or pre-existing HUD presentation changes.
+
+**Floating frame data:** The existing Training `S:##F` popup above
+fighters now uses the *actual* `_art/sf2fontsmall.png` glyph atlas rather
+than the fallback 5×7 procedural font. The popup still rises 40 screen
+pixels across its prior 120 native ticks. After the apex, it rises
+another **16px (one glyph height)** during exactly **20 native frames**,
+shrinking only its horizontal width to zero and fading out. The glyphs'
+vertical height never compresses. All rendering remains in the existing
+SDL UI pass, no new compositor or game-state readbacks.
+
+The ROM-free C++11 regression
+`dev/dhc/tests/test_stun_and_cyclops_214.cpp` covers the release
+on update 36, not before; consecutive grabs, disabled mode, natural
+action exit, original 61px stun composition, and popup age 119,120,129,
+and 139 including 50% width and the full 16px extra ascent.
+
+Native BUILD_TEST.bat and RUN_TEST.bat publish TEST 87.214 only;
+Windows gameplay confirmation remains outstanding.
+
+## Native TEST version 87.214 and local verification
 
 **Pulling only main does not include this branch.** The source modifications
 are on feature/menu-logo-glyph-atlas-selection-dimming. In the Windows
@@ -469,16 +508,16 @@ Preserve any uncommitted local work before switching branches. Keep the
 original _art PNG files; do not resample or replace them.
 
 1. Run BUILD_TEST.bat. It now publishes ONLY
-   runtime/stable/XMVSF_Test_87_213.exe after compiling current source.
+   runtime/stable/XMVSF_Test_87_214.exe after compiling current source.
    A missing executable or modified menu/video/audio/crash header refreshes
    only main.cpp, run.cpp, vid_sdl2.cpp, aud_sdl.cpp, cps_obj.cpp, cps_draw.cpp
    and cps_run.cpp without deleting warm build objects, older binaries, or Stable.
-2. Read test/build_logs/BUILD_TEST.log for the 87.213 success line and
+2. Read test/build_logs/BUILD_TEST.log for the 87.214 success line and
    the SHA256 hashes of the compiled executable, four source PNGs and GIF.
    If an asset or the glyph-header include is missing, the builder gives
    a precise error instead of silently building a legacy-looking menu.
 3. Run RUN_TEST.bat option 1. The menu window title and bottom-right
-   main-menu label both say TEST 87.213. If they do not, you are not
+   main-menu label both say TEST 87.214. If they do not, you are not
    looking at the newly compiled native XMVSF build.
 4. The gameplay path is still the native XMVSF app's zero-ROM-argument
    boot selector, NOT the separate MVC1 capture/ROM playback mode.
@@ -487,7 +526,7 @@ original _art PNG files; do not resample or replace them.
 5. Verify the unselected text is dim, selected text is bright, and that
    I, i, l, 1, punctuation and word gaps no longer waste full cell widths.
 6. New F9 replays, observer/chat diagnostics and replay verification live
-   under test/87.213. Legacy test/87.203 capture data is not modified;
+   under test/87.214. Legacy test/87.203 capture data is not modified;
    original replay files remain accessible through RUN_REPLAY.bat.
 
 This source audit includes inspection of the tracked code, unchanged font
