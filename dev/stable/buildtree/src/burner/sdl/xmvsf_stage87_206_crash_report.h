@@ -77,11 +77,16 @@ inline LONG WINAPI onUnhandled(EXCEPTION_POINTERS* error){
     // Preserve Windows Error Reporting's standard crash behavior/status.
     return EXCEPTION_CONTINUE_SEARCH;
 }
+inline void rearm(){
+    // A native driver / SDL media reinitialization may replace the process
+    // unhandled-exception filter; reclaim it on every TEST game entry.
+    SetUnhandledExceptionFilter(onUnhandled);
+}
 inline void install(){
     static bool installed=false;
     if(installed)return;
     installed=true;
-    SetUnhandledExceptionFilter(onUnhandled);
+    rearm();
     std::fprintf(stderr,
         "XM87.206 CRASH_REPORT armed: test/87.206/crash_report.log and crash.dmp\n");
 }
@@ -89,6 +94,7 @@ inline void install(){
 #else
 namespace XM87206Crash {
 inline void mark(int,int=-1){}
+inline void rearm(){}
 inline void install(){}
 }
 #endif
