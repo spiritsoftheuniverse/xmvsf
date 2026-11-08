@@ -170,16 +170,16 @@ run_cached_unit(){
 }
 run_cached_unit \
   "$PROJECT/dev/dhc/tests/test_dhc_air_followup_rebound_202.cpp" \
-  "$PROJECT/test/87.202/unit_tests/test_dhc_air_followup_rebound_202.exe"
+  "$CACHE_DIR/unit_tests/test_dhc_air_followup_rebound_202.exe"
 mkdir -p "$PROJECT/test/87.203/unit_tests/capture_smoke"
 export XM87203_STAGE_CAPTURE_DIR="$PROJECT/test/87.203/unit_tests/capture_smoke"
 export XM87203_BATCH_FRAMES=300
 run_cached_unit \
   "$PROJECT/dev/stage_capture/test_native_stage_capture.cpp" \
-  "$PROJECT/test/87.203/unit_tests/test_native_stage_capture_203.exe"
+  "$CACHE_DIR/unit_tests/test_native_stage_capture_203.exe"
 run_cached_unit \
   "$PROJECT/dev/dhc/tests/test_stun_and_cyclops_214.cpp" \
-  "$PROJECT/test/87.214/unit_tests/test_stun_and_cyclops_214.exe"
+  "$CACHE_DIR/unit_tests/test_stun_and_cyclops_214.exe"
 
 # Preserve warm cache and anything already built on failures. Never run make clean.
 cd "$TREE"
