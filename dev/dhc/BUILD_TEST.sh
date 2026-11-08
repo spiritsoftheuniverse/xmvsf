@@ -222,31 +222,63 @@ if [[ -z "$BUILT" ]]; then
   exit 2
 fi
 
-# The compiler and linker are the authoritative success gates.
-# Stage 87.203 demonstrated why scanning a linked FBNeo executable for
-# every historical debug string is not a valid freshness or correctness test:
-# GCC may fold/omit string literals, or only some modules may reference them.
-# The 87.184 log shows make/link SUCCESS followed by an erroneous marker
-# rejection. Do not block publishing a valid TEST build on binary strings.
-# Keep source presence checks, make's nonzero error handling, nonempty
-# executable check, and atomic TEST-only staging below. Never touch Stable.
-echo "Build/link succeeded; publishing TEST binary without brittle debug-string marker gates."
+# Make's successful return and nonempty executable are authoritative.
+# Do not scan binary strings for arbitrary historical markers.
+# Hash-compare before publishing: a no-op build must NOT overwrite TEST.
+built_sha="$(sha256sum "$BUILT" | cut -d ' ' -f 1)"
 mkdir -p "$PROJECT/runtime/stable"
-# Publish only after successful link and nonempty output verification.
-# Write a pending file first, then atomically rename TEST only.
-# Stable and all previous numbered TEST executables remain untouched.
-# cp exits nonzero on failure (set -e); Bash -s checks copied content
-# exists and is nonempty. Do not depend on an uninstalled 'cmp' binary.
-cp -p "$BUILT" "$PENDING"
-if [[ ! -s "$PENDING" ]]; then
-  echo "ERROR: Copied TEST binary is empty or missing." >&2
-  exit 2
+published=0
+if [[ -s "$DEST" && "$(sha256sum "$DEST" | cut -d ' ' -f 1)" == "$built_sha" ]]; then
+  echo "TEST PUBLISH: identical executable, keeping previous TEST file untouched."
+else
+  cp -p "$BUILT" "$PENDING"
+  if [[ ! -s "$PENDING" ]]; then
+    echo "ERROR: Pending TEST executable missing or empty." >&2
+    exit 2
+  fi
+  if [[ "$(sha256sum "$PENDING" | cut -d ' ' -f 1)" != "$built_sha" ]]; then
+    echo "ERROR: Pending TEST executable checksum mismatch." >&2
+    exit 2
+  fi
+  mv -f "$PENDING" "$DEST"
+  published=1
+  echo "TEST PUBLISH: atomic TEST-only update completed."
 fi
-mv -f "$PENDING" "$DEST"
 echo "TEST BUILD READY: $DEST"
-if command -v sha256sum >/dev/null 2>&1; then
-  echo "87.214 compiled TEST sha256: $(sha256sum "$DEST")"
-  echo "87.214 menu source assets sha256:"
-  sha256sum "$PROJECT/_art/logo.png" "$PROJECT/_art/sf2font.png" "$PROJECT/_art/sf2fontsmall.png" "$PROJECT/_art/menuanimation.gif" "$PROJECT/_art/stunbar_base.png"
-fi
-echo "Stage 87.214: native title + proportional font, original ROM/combat paths retained; Stable untouched."
+
+# Persist a machine-local inventory and last-success manifest. Timestamp
+# comparison is used only to REPORT changed objects; Make's .d graph
+# controls real recompilation. No object or dependency cache is deleted.
+find "$TREE/obj" -type f -name '*.o' -newer "$BUILD_START" \
+  -printf '%P\n' | sort > "$REBUILT_LIST.pending"
+find "$TREE/obj" -type f -name '*.o' \
+  -printf '%P\t%s\t%T@\n' | sort > "$OBJECT_INVENTORY.pending"
+rebuilt="$(wc -l < "$REBUILT_LIST.pending" | tr -d ' ')"
+object_count="$(wc -l < "$OBJECT_INVENTORY.pending" | tr -d ' ')"
+reused=$((object_count - rebuilt))
+mv -f "$REBUILT_LIST.pending" "$REBUILT_LIST"
+mv -f "$OBJECT_INVENTORY.pending" "$OBJECT_INVENTORY"
+{
+  printf 'field\tvalue\n'
+  printf 'source_branch\t%s\n' "$(git -C "$PROJECT" branch --show-current 2>/dev/null || true)"
+  printf 'source_revision\t%s\n' "$(git -C "$PROJECT" rev-parse HEAD 2>/dev/null || true)"
+  printf 'successful_build\t%s\n' "$(date '+%Y-%m-%d %H:%M:%S')"
+  printf 'compiler_signature\t%s\n' "$compiler_identity"
+  printf 'native_objects_present\t%s\n' "$object_count"
+  printf 'native_objects_recompiled\t%s\n' "$rebuilt"
+  printf 'native_objects_reused\t%s\n' "$reused"
+  printf 'test_executable\t%s\n' "$DEST"
+  printf 'test_executable_sha256\t%s\n' "$built_sha"
+  printf 'test_executable_published\t%s\n' "$published"
+} > "$SUCCESS_STATE.pending"
+mv -f "$SUCCESS_STATE.pending" "$SUCCESS_STATE"
+echo "BUILD CACHE SUMMARY: rebuilt $rebuilt of $object_count local objects; reused $reused."
+echo "BUILD CACHE INVENTORY: $OBJECT_INVENTORY"
+echo "BUILD CACHE REBUILT FILES: $REBUILT_LIST"
+echo "BUILD CACHE LAST SUCCESS: $SUCCESS_STATE"
+echo "87.215 compiled TEST sha256: $built_sha"
+echo "87.215 menu source asset checksums:"
+sha256sum "$PROJECT/_art/logo.png" "$PROJECT/_art/sf2font.png" \
+  "$PROJECT/_art/sf2fontsmall.png" "$PROJECT/_art/menuanimation.gif" \
+  "$PROJECT/_art/stunbar_base.png"
+echo "Stage 87.215: native sources dependency-cached; Stable and previous TESTs untouched."
