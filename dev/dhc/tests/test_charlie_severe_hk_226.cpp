@@ -83,12 +83,30 @@ int main(){
     assert(std::strcmp(ambiguous.outcome,
         "CHARLIE_HK_CYCLOPS_SEVERE_KNOCKDOWN")!=0);
     assert(rl(V+0x14u)==XM87223Flight::NativeObservedVX);
-    assert(rl(V+0x1cu)==XM87223Flight::NativeObservedVY);
+    // Storm keeps an already stronger *native* downward Y in 87.223.
+    // setup() gives the victim 0x00010000, above Storm's 0x0000B000.
+    assert(rl(V+0x1cu)==0x00010000u);
 
     // The rest of the roster retains the 87.223 Storm X/Y variant.
     Decision storm=release(0x04u,0x22u,0x1a04u,4u);
     assert(storm.launch);
     assert(rl(V+0x14u)==XM87223Flight::NativeObservedVX);
+    // Storm keeps an already stronger *native* downward Y in 87.223.
+    // setup() gives the victim 0x00010000, above Storm's 0x0000B000.
+    assert(rl(V+0x1cu)==0x00010000u);
+
+    // Conversely, weaker initial native Y is raised to Storm's
+    // reference. Test both branches of the 87.223 Y-selection rule.
+    setup(0x04u,0x22u,0x1a04u);
+    sl(V+0x1cu,0x00002000u);
+    Actor weak;
+    weak.nativeLaunched=true;
+    weak.pendingSevere=true;
+    weak.pendingAction=0x1a04u;
+    weak.pendingBank=0x22u;
+    weak.pendingAttackerId=0x04u;
+    Decision baseline=weak.evaluate(mem,V,A,true,true,0u);
+    assert(baseline.launch);
     assert(rl(V+0x1cu)==XM87223Flight::NativeObservedVY);
 
     // Existing severe native slam is authoritative; do not override
