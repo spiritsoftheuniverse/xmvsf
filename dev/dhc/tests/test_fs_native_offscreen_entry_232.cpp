@@ -52,6 +52,21 @@ int main(){
         assert(rw(P+0xa0u)==0x1400u);
         assert(!moving.actor[0].recoveryActive);
     }
+    // Original 87.221 Storm case: X MOVES within an animation cycle but
+    // snaps to its original entry position when the same ROM script wraps.
+    // Two verified origin/script loops still trigger anti-infinite recovery.
+    base();Controller originalLoop;
+    originalLoop.frame(1u,ram,true);
+    for(unsigned frame=2u;frame<=42u;++frame){
+        const unsigned phase=(frame-2u)%20u;
+        dash(0x02000000u+phase*0x00010000u,4u,0x00010000u);
+        l(P+0x34u,phase==0u?0x000ac268u:0x000ac2ecu);
+        originalLoop.frame(frame,ram,true);
+        if(frame<42u)assert(rw(P+0xa0u)==0x1400u);
+    }
+    assert(rw(P+0xa0u)==0u);
+    assert(!originalLoop.actor[0].ready);
+
     // The zero-wait modification still applies to voluntary native dashes.
     base();Controller voluntary;voluntary.frame(1u,ram,true);
     dash(0x02b90000u,9u,0u);
