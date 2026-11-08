@@ -167,16 +167,6 @@ alldep	= $(foreach file,$(autobj:.o=.c), \
 
 autdrv := $(drvsrc:.cpp=.o)
 
-# XMVSF local incremental cache (87.215): compiler/settings fingerprint.
-# Normal source/header dependencies remain authoritative through %.d.
-# This additional prerequisite changes ONLY when the local compiler,
-# effective build settings or build rules change. When its timestamp is
-# unchanged, no object is rebuilt merely because BUILD_TEST was run or a
-# Git commit exists. Unlike -W, this never forces seven unrelated units.
-# Do not attach this to drivers.o: that link recipe uses $^ as object files.
-ifneq ($(strip $(XMVSF_BUILD_SIGNATURE)),)
-$(allobj) $(autdrv) $(autdep) $(drvdep): $(XMVSF_BUILD_SIGNATURE)
-endif
 
 #
 #
@@ -367,6 +357,18 @@ else
 all:	$(NAME)
 
 endif
+
+# XMVSF local incremental cache (87.215): compiler/settings fingerprint.
+# Normal source/header dependencies remain authoritative through %.d.
+# This additional prerequisite changes ONLY when the local compiler,
+# effective build settings or build rules change. When its timestamp is
+# unchanged, no object is rebuilt merely because BUILD_TEST was run or a
+# Git commit exists. Unlike -W, this never forces seven unrelated units.
+# Do not attach this to drivers.o: that link recipe uses $^ as object files.
+ifneq ($(strip $(XMVSF_BUILD_SIGNATURE)),)
+$(allobj) $(autdrv) $(autdep) $(drvdep): $(XMVSF_BUILD_SIGNATURE)
+endif
+
 
 #
 #
