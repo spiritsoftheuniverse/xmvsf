@@ -67,6 +67,21 @@ Set `XMVSF_CCACHE=0` to disable it. Set `XMVSF_CCACHE_DIR` to choose
 another directory. GNU Make still decides when to compile; ccache
 only accelerates those compiler calls.
 
+## Optional dependency smoke test
+
+Set `XMVSF_CACHE_SMOKE=1` for a single `BUILD_TEST.bat` invocation
+to run `dev/dhc/tests/test_incremental_cache.sh`. It builds two tiny
+generated files under ignored `test/build_cache/cache_smoke/` and checks:
+
+1. The first build compiles both tiny objects.
+2. Re-running unchanged compiles neither object.
+3. Editing one included header recompiles only its dependent object.
+4. Changing the compiler signature recompiles both.
+
+The fixture is isolated from real CPS2 sources and artifacts. On success,
+the log prints `INCREMENTAL_CACHE_PASS`. Normally leave this disabled
+to avoid spending ~2 seconds on an intentionally repeated test.
+
 ## Troubleshooting
 
 Run `BUILD_TEST.bat` and inspect
