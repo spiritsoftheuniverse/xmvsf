@@ -477,9 +477,16 @@ struct Actor {
         }
         if(pendingSevere && !d.hitConfirmed){
             ++pendingAge;
+            // A source-native steep Cyclops slam must reach the
+            // existing NATIVE_STEEP_SLAM_PRESERVED branch below. Do not
+            // cancel it merely because its genuine 1C18/0230+VX pair
+            // was recognized as active FS this frame.
+            const bool alreadyNativeSteep=severe &&
+                signedFixed(d.beforeY)>=0x00100000LL &&
+                magnitude(signedFixed(d.beforeX))<=0x000a0000LL;
             const bool stale=stormFlightUsedUntilLanding ||
-              postFlightNeedsNativeLanding || pendingAge>24u ||
-              !combat || !attackerAir ||
+              (postFlightNeedsNativeLanding && !alreadyNativeSteep) ||
+              pendingAge>24u || !combat || !attackerAir ||
               d.reaction!=0x000Cu || d.y>=472u ||
               d.attackerAction!=pendingAction || d.attackerBank!=pendingBank ||
               d.attackerId!=pendingAttackerId || (!nativeLaunched && !pendingStormRepeatHK);
