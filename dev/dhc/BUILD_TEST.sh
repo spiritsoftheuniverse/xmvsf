@@ -242,6 +242,18 @@ run_cached_unit \
 run_cached_unit \
   "$PROJECT/dev/dhc/tests/test_flying_screen_dash_controller_227.cpp" \
   "$CACHE_DIR/unit_tests/test_flying_screen_dash_controller_227.exe"
+# 87.232: the original decrypted Motorola 68000 source already
+# exists under local_rom_dump. Decode only small windows around the REAL
+# executed X/mode writer PCs. Diagnostic failure must never gate the build.
+if command -v python3 >/dev/null 2>&1; then
+  if ! python3 "$PROJECT/dev/dhc/tools/ANALYZE_FS_ENTRY_68K_232.py"; then
+    echo "WARNING: 87.232 68000 source window analysis unavailable; native build continues." >&2
+  fi
+elif command -v python >/dev/null 2>&1; then
+  if ! python "$PROJECT/dev/dhc/tools/ANALYZE_FS_ENTRY_68K_232.py"; then
+    echo "WARNING: 87.232 68000 source window analysis unavailable; native build continues." >&2
+  fi
+fi
 # 87.232 native 68k offscreen-entry and no-delay voluntary-dash isolation.
 run_cached_unit \
   "$PROJECT/dev/dhc/tests/test_fs_native_offscreen_entry_232.cpp" \
