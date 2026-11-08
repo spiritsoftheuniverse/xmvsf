@@ -366,7 +366,11 @@ endif
 # Git commit exists. Unlike -W, this never forces seven unrelated units.
 # Do not attach this to drivers.o: that link recipe uses $^ as object files.
 ifneq ($(strip $(XMVSF_BUILD_SIGNATURE)),)
-$(allobj) $(autdrv) $(autdep) $(drvdep): $(XMVSF_BUILD_SIGNATURE)
+# .EXTRA_PREREQS participates in freshness checks but is excluded
+# from automatic variables like $< and $^. A normal explicit prerequisite
+# made $< become compiler.signature instead of the real .cpp/.c source.
+# This silently 'compiled' the signature and left objects stale.
+$(allobj) $(autdrv) $(autdep) $(drvdep): .EXTRA_PREREQS = $(XMVSF_BUILD_SIGNATURE)
 endif
 
 
