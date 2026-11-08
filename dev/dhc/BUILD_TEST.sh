@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Stage 87.217 native TEST: retained native game + real logo/glyph assets. Called ONLY by root BUILD_TEST.bat.
+# Stage 87.218 native TEST: retained native game + real logo/glyph assets. Called ONLY by root BUILD_TEST.bat.
 # Build the CURRENT local source in place using the warm FBNeo object cache.
 # Never touch Stable executable, Stable manifests, user source, or old TEST binaries.
 set -euo pipefail
@@ -21,13 +21,13 @@ if ! command -v tee >/dev/null; then
   exit 2
 fi
 exec > >(tee -a "$LOG_FILE") 2>&1
-printf '\n========== XMVSF TEST 87.217 BUILD BEGIN %s ==========' "$(date '+%Y-%m-%d %H:%M:%S')"
+printf '\n========== XMVSF TEST 87.218 BUILD BEGIN %s ==========' "$(date '+%Y-%m-%d %H:%M:%S')"
 printf '\nProject: %s\nLog: %s\n' "$PROJECT" "$LOG_FILE"
 trap 'rc=$?; trap - EXIT; printf "XMVSF BUILD END rc=%s time=%s log=%s\n" "$rc" "$(date "+%Y-%m-%d %H:%M:%S")" "$LOG_FILE"; exit "$rc"' EXIT
 
 TREE="$PROJECT/dev/stable/buildtree"
-DEST="$PROJECT/runtime/stable/XMVSF_Test_87_217.exe"
-PENDING="$PROJECT/runtime/stable/.XMVSF_Test_87_217_pending.exe"
+DEST="$PROJECT/runtime/stable/XMVSF_Test_87_218.exe"
+PENDING="$PROJECT/runtime/stable/.XMVSF_Test_87_218_pending.exe"
 # Machine-local cache: never stored in Git and never mutates Stable.
 CACHE_DIR="$PROJECT/test/build_cache"
 SIGNATURE="$CACHE_DIR/compiler.signature"
@@ -58,28 +58,28 @@ if [[ ! -f "$TREE/makefile.sdl2" ||
       ! -s "$TREE/src/burn/drv/capcom/xmvsf_stage87_33_dizzy_hud.h" ||
       ! -s "$TREE/src/burn/drv/capcom/xmvsf_stage87_121_cyclops_release.h" ||
       ! -s "$PROJECT/dev/dhc/tests/test_stun_and_cyclops_218.cpp" ||
-      ! -s "$TREE/src/burner/sdl/xmvsf_stage87_217_native_float.h" ||
+      ! -s "$TREE/src/burner/sdl/xmvsf_stage87_218_native_float.h" ||
       ! -s "$TREE/src/burner/sdl/xmvsf_menu_glyph_atlas.h" ||
       ! -s "$TREE/src/burner/sdl/xmvsf_stage14_boot.h" ]]; then
-  echo "ERROR: 87.217 native menu/glyph sources missing; inspect checked-out branch" >&2
+  echo "ERROR: 87.218 native menu/glyph sources missing; inspect checked-out branch" >&2
   exit 2
 fi
 for asset in logo.png sf2font.png sf2fontsmall.png menuanimation.gif stunbar_base.png; do
   if [[ ! -s "$PROJECT/_art/$asset" ]]; then
-    echo "ERROR: 87.217 requires original nonempty _art/$asset" >&2
+    echo "ERROR: 87.218 requires original nonempty _art/$asset" >&2
     exit 2
   fi
 done
 if ! grep -Fq 'xmvsf_menu_glyph_atlas.h' "$TREE/src/burner/sdl/xmvsf_stage14_boot.h"; then
-  echo "ERROR: 87.217 glyph header is not wired into the native boot menu" >&2
+  echo "ERROR: 87.218 glyph header is not wired into the native boot menu" >&2
   exit 2
 fi
 # Do not gate an otherwise valid build on a particular draw helper name.
-# Stage 87.217 uses menuLogo(render), which superseded logo(render).
+# Stage 87.218 uses menuLogo(render), which superseded logo(render).
 # The C++ compiler checks the actual call and linking; the runtime atlas
 # reports whether the title PNG loaded successfully.
-echo "87.217 menu preflight: native boot and glyph/FX sources present; logo, fonts and menuanimation.gif verified."
-echo "87.217 draw path is verified by native compile and runtime, not a stale grep for XMGlyph::logo(render)."
+echo "87.218 menu preflight: native boot and glyph/FX sources present; logo, fonts and menuanimation.gif verified."
+echo "87.218 draw path is verified by native compile and runtime, not a stale grep for XMGlyph::logo(render)."
 if [[ ! -f "$TREE/src/burn/drv/capcom/cps_run.cpp" ||
       ! -f "$TREE/src/intf/video/sdl/xmvsf_stage86_49_painter.h" ]]; then
   echo "ERROR: Native TEST buildtree source is incomplete." >&2
@@ -213,7 +213,7 @@ run_cached_unit \
 
 # Preserve warm cache and anything already built on failures. Never run make clean.
 cd "$TREE"
-echo "XMVSF Stage 87.217 TEST: incremental build; preserving cached objects"
+echo "XMVSF Stage 87.218 TEST: incremental build; preserving cached objects"
 if command -v git >/dev/null 2>&1; then
   echo "Source branch: $(git -C "$PROJECT" branch --show-current 2>/dev/null || true)"
   echo "Source revision: $(git -C "$PROJECT" rev-parse --short HEAD 2>/dev/null || true)"
@@ -234,7 +234,7 @@ echo "Dependencies: GNU Make + persistent obj/**/*.d header dependency files"
 # BUILD_TEST.log as well as the console. set -e preserves make's exit code.
 # Do not use awk warning filters or truncate diagnostics when compilation fails.
 # No make clean, forced rebuild, source timestamp changes, or Stable writes.
-# XMVSF 87.217: NO broad -W, no clean, and no seven-unit FRESHEN.
+# XMVSF 87.218: NO broad -W, no clean, and no seven-unit FRESHEN.
 # Native .d files specify exact transitive source/header dependencies.
 # A compiler/signature change makes only signature-dependent objects stale.
 # With an unchanged signature and unchanged files Make compiles NOTHING.
@@ -331,9 +331,9 @@ if (( ${#REPAIR_NATIVE[@]} )); then
   printf 'repaired_source_revision=%s\n' "$(git -C "$PROJECT" rev-parse HEAD 2>/dev/null || true)" > "$REPAIR_MARK"
   echo "BUILD CACHE REPAIR: completed five-source recovery."
 fi
-echo "87.217 compiled TEST sha256: $built_sha"
-echo "87.217 menu source asset checksums:"
+echo "87.218 compiled TEST sha256: $built_sha"
+echo "87.218 menu source asset checksums:"
 sha256sum "$PROJECT/_art/logo.png" "$PROJECT/_art/sf2font.png" \
   "$PROJECT/_art/sf2fontsmall.png" "$PROJECT/_art/menuanimation.gif" \
   "$PROJECT/_art/stunbar_base.png"
-echo "Stage 87.217: native sources dependency-cached; Stable and previous TESTs untouched."
+echo "Stage 87.218: native sources dependency-cached; Stable and previous TESTs untouched."
