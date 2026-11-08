@@ -7,7 +7,6 @@
 /fbneo/*.log
 /runtime/stable/xmvsfu_*
 /dev/stable/buildtree/fbneo.exe
-test/build_logs/BUILD_TEST.log
 *.o
 *.d
 *.zip
@@ -20,3 +19,4 @@ test/build_logs/BUILD_TEST.log
 # diagnostics private; users can attach BUILD_TEST.log when a build fails.
 /test/build_logs/
 *.ini
+test/build_logs/BUILD_TEST.log
