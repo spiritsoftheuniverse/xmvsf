@@ -53,6 +53,10 @@ struct Actor {
     // from ~0x02B00000 to 0x7041D600 before an endless 37f dash loop).
     bool safeValid=false,recoveryActive=false,neutralSnapshotValid=false;
     unsigned mode=0,identity=~0u,entryFrame=0,dashAge=0;
+    // 87.232: old unconditional 36f watchdog killed an actually moving
+    // native dash at capture frame 6570.
+    unsigned stalledFrames=0,scriptLoopsAtOrigin=0;
+    std::uint32_t lastScript=0;
     unsigned safeFrame=0,lastRecoveryFrame=~0u,quietFrames=0;
     unsigned suppressedFrames=0,snapshotFrame=0,snapshotRestores=0;
     std::uint32_t lastX=0,entryX=0,safeX=0;
@@ -100,6 +104,7 @@ struct Controller {
         setWord(r,p+0xa0u,n.mode);
         setWord(r,p+0xaau,n.air);
         a.ready=false;a.tracking=false;a.dashAge=0;
+        a.stalledFrames=0;a.scriptLoopsAtOrigin=0;a.lastScript=0;
     }
     static bool restoreNativeNeutral(std::uint8_t* r,unsigned p,Actor& a,
                                      unsigned frame){
@@ -116,6 +121,7 @@ struct Controller {
         setLong(r,p+0x14u,0u);
         setLong(r,p+0x18u,0u);
         a.ready=false;a.tracking=false;a.dashAge=0u;
+        a.stalledFrames=0;a.scriptLoopsAtOrigin=0;a.lastScript=0;
         ++a.snapshotRestores;
         return true;
     }
@@ -229,22 +235,42 @@ struct Controller {
         }
         if(control || !dash(mode)){
             a.ready=false;a.tracking=false;a.dashAge=0;
+            a.stalledFrames=0;a.scriptLoopsAtOrigin=0;a.lastScript=0;
             return e;
         }
         e.mode=mode;e.identity=identity;
         const std::uint32_t vx=longword(r,p+0x14u);
         e.entered=!a.ready || a.mode!=mode || a.identity!=identity;
+        const std::uint32_t script=longword(r,p+0x34u);
         if(e.entered){
             a.tracking=true;a.entryFrame=frame;a.entryX=x;
             a.dashAge=0;
-        }else if(x!=a.lastX || x!=a.entryX){
-            a.tracking=false;
-            e.moving=true;
+            a.stalledFrames=0;a.scriptLoopsAtOrigin=0;
+            a.lastScript=script;
+        }else{
+            const bool changedX=x!=a.lastX;
+            if(changedX){
+                a.tracking=false;
+                e.moving=true;
+                a.stalledFrames=0;
+            }else if(a.stalledFrames<1000u)++a.stalledFrames;
+            // Script wraps are only suspicious if the actor also loops
+            // back near its starting world coordinate. A continuously
+            // travelling fighter can legitimately wrap animation frames.
+            const std::int64_t relative=
+                std::int64_t(std::int32_t(x))-
+                std::int64_t(std::int32_t(a.entryX));
+            const bool returnedToOrigin=relative>=-0x00100000LL &&
+                                        relative<= 0x00100000LL;
+            if(script<a.lastScript && returnedToOrigin &&
+               a.scriptLoopsAtOrigin<1000u)++a.scriptLoopsAtOrigin;
+            a.lastScript=script;
         }
-        // 87.220 replay: ordinary dashes finish by ~30f, but Storm's
-        // flying-screen 1400 loop lasts 455f and repeatedly snaps X back.
-        // At 36f exit into this SAME fighter's recorded neutral controller.
-        if(ground(mode) && a.dashAge>=36u && canRecover &&
+        // A valid 37+ frame native return dash must finish naturally.
+        // Exit only a demonstrably motionless or repeated-origin loop.
+        const bool confirmedDashLoop=a.stalledFrames>=36u ||
+            (a.scriptLoopsAtOrigin>=2u && a.dashAge>=36u);
+        if(ground(mode) && confirmedDashLoop && canRecover &&
            frame>=a.neutral.frame && frame-a.neutral.frame<=600u){
             const Neutral n=a.neutral;
             // Do not preempt a normal native ROM dash sooner than 36f.
