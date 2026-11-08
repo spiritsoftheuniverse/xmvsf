@@ -239,8 +239,8 @@ run_cached_unit \
 run_cached_unit \
   "$PROJECT/dev/dhc/tests/test_flying_screen_dash_reentry_226.cpp" \
   "$CACHE_DIR/unit_tests/test_flying_screen_dash_reentry_226.exe"
-# 87.226: test_charlie_air_fs_224 now verifies fixed Storm X/Y reference,
-# regardless of the victim\'s previous downward velocity or learned reference.
+# 87.226 replaces the 87.224/225 Charlie multiplier regression with the
+# new native-HP / severe-HK and repeated-dash-reentry expectations.
 
 # Preserve warm cache and anything already built on failures. Never run make clean.
 cd "$TREE"
