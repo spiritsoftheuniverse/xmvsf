@@ -515,7 +515,29 @@ No Stable executable, game rules, art assets, Cyclops state, DHC or HUD
 changes are introduced by this infrastructure pass. Native Windows
 compilation is still required before declaring the build verified.
 
-## Native TEST version 87.215 and local verification
+## TEST 87.216 — Fix false-success incremental compilation
+
+The uploaded 87.215 build manifest reported **0 recompiled / 1,174
+reused**. The accompanying compiler transcript proved this report was
+incorrect: GNU Make tried to compile `compiler.signature` in place of
+five actual `.cpp` files, and GCC silently skipped their compilation.
+The previously published 87.215 TEST executable cannot be accepted as
+proof of the changed native code.
+
+Native Make now uses `.EXTRA_PREREQS` to track the compiler
+signature WITHOUT displacing the actual source in `$<`. The
+dependency-cache smoke test explicitly verifies the source filename.
+The builder recognizes only the confirmed bad 87.215 manifest and
+forces the five affected native translation units to recompile ONCE,
+preserving all other cached objects. It refuses to publish 87.216
+unless those five fresh `.o` outputs are confirmed. Normal builds
+afterward use incremental `.d` dependencies without forced
+recompilation. Details: `dev/dhc/INCREMENTAL_BUILD_CACHE.md`.
+
+No Stable, original game logic, UI art or runtime save files changed.
+Local Windows native build is pending.
+
+## Native TEST version 87.216 and local verification
 
 **Pulling only main does not include this branch.** The source modifications
 are on feature/menu-logo-glyph-atlas-selection-dimming. In the Windows
@@ -529,16 +551,16 @@ Preserve any uncommitted local work before switching branches. Keep the
 original _art PNG files; do not resample or replace them.
 
 1. Run BUILD_TEST.bat. It now publishes ONLY
-   runtime/stable/XMVSF_Test_87_215.exe after compiling current source.
+   runtime/stable/XMVSF_Test_87_216.exe after compiling current source.
    A missing executable or modified menu/video/audio/crash header refreshes
    only main.cpp, run.cpp, vid_sdl2.cpp, aud_sdl.cpp, cps_obj.cpp, cps_draw.cpp
    and cps_run.cpp without deleting warm build objects, older binaries, or Stable.
-2. Read test/build_logs/BUILD_TEST.log for the 87.215 success line and
+2. Read test/build_logs/BUILD_TEST.log for the 87.216 success line and
    the SHA256 hashes of the compiled executable, four source PNGs and GIF.
    If an asset or the glyph-header include is missing, the builder gives
    a precise error instead of silently building a legacy-looking menu.
 3. Run RUN_TEST.bat option 1. The menu window title and bottom-right
-   main-menu label both say TEST 87.215. If they do not, you are not
+   main-menu label both say TEST 87.216. If they do not, you are not
    looking at the newly compiled native XMVSF build.
 4. The gameplay path is still the native XMVSF app's zero-ROM-argument
    boot selector, NOT the separate MVC1 capture/ROM playback mode.
@@ -547,7 +569,7 @@ original _art PNG files; do not resample or replace them.
 5. Verify the unselected text is dim, selected text is bright, and that
    I, i, l, 1, punctuation and word gaps no longer waste full cell widths.
 6. New F9 replays, observer/chat diagnostics and replay verification live
-   under test/87.215. Legacy test/87.203 capture data is not modified;
+   under test/87.216. Legacy test/87.203 capture data is not modified;
    original replay files remain accessible through RUN_REPLAY.bat.
 
 This source audit includes inspection of the tracked code, unchanged font
