@@ -48,8 +48,12 @@ struct Neutral {
 struct Actor {
     Neutral neutral;
     bool ready=false,tracking=false;
+    // TEST 87.226: last stage-plausible native X (87.225 capture leapt
+    // from ~0x02B00000 to 0x7041D600 before an endless 37f dash loop).
+    bool safeValid=false,recoveryActive=false;
     unsigned mode=0,identity=~0u,entryFrame=0,dashAge=0;
-    std::uint32_t lastX=0,entryX=0;
+    unsigned safeFrame=0,lastRecoveryFrame=~0u,quietFrames=0;
+    std::uint32_t lastX=0,entryX=0,safeX=0;
 };
 struct Event {
     bool entered=false,patched=false,moving=false;
@@ -72,6 +76,25 @@ struct Controller {
         }
     }
     void reset(){actor[0]=Actor{};actor[1]=Actor{};}
+    // Only a demonstrably broken dash may use this controller restoration.
+    // Script, action, pose and mode all come from this fighter's own
+    // previously captured native neutral, never an invented idle pointer.
+    static void restoreNeutral(std::uint8_t* r,unsigned p,Actor& a,bool restoreX){
+        const Neutral& n=a.neutral;
+        setWord(r,p+0x06u,n.step06);
+        setWord(r,p+0x08u,n.step08);
+        setLong(r,p+0x14u,0u);
+        setLong(r,p+0x18u,0u);
+        if(restoreX && a.safeValid)setLong(r,p+0x0cu,a.safeX);
+        setLong(r,p+0x34u,n.script);
+        setLong(r,p+0x38u,n.next);
+        setWord(r,p+0x3eu,n.timer?n.timer:1u);
+        setWord(r,p+0x42u,n.anim);
+        setWord(r,p+0x60u,n.action);
+        setWord(r,p+0xa0u,n.mode);
+        setWord(r,p+0xaau,n.air);
+        a.ready=false;a.tracking=false;a.dashAge=0;
+    }
     Event sample(std::uint8_t* r,unsigned p,unsigned frame,unsigned side){
         Event e;
         Actor& a=actor[side];
@@ -79,10 +102,73 @@ struct Controller {
         const unsigned mode=word(r,p+0xa0u);
         const unsigned active=word(r,p);
         const unsigned control=word(r,p+0x06u);
+        const std::uint32_t x=longword(r,p+0x0cu);
         // Original record must be in player control, not hitstun, tag,
         // guard-stun or a DHC host-owned controller transaction.
         if(!active || identity>0x24u || (identity&1u)){
             a=Actor{};return e;
+        }
+        if(a.neutral.valid && a.neutral.identity!=identity)a=Actor{};
+        // Save the most recent physically plausible stage coordinate;
+        // the 87.225 flying-screen dash had X≈0x70000000, or >28k
+        // world pixels, whereas legitimate observed combat was <0x03000000.
+        const bool saneX=x>=0x00010000u && x<0x10000000u;
+        if(saneX && !a.recoveryActive && control==0u){
+            a.safeValid=true;a.safeX=x;a.safeFrame=frame;
+        }
+        const bool brokenX=!saneX && x>=0x10000000u;
+        const bool canRecover=a.neutral.valid &&
+            a.neutral.identity==identity && a.neutral.script && a.neutral.next;
+        // The 87.221 36-frame watchdog exited 12 consecutive native dashes
+        // in the 87.225 log. Each re-entered within 1f; suppressing further
+        // dash state is needed until the native CPU stays OUT of dash for
+        // three consecutive full frames.
+        if(a.recoveryActive){
+            if(!ground(mode)){
+                if(++a.quietFrames>=3u){
+                    a.recoveryActive=false;
+                    a.lastRecoveryFrame=~0u;
+                    a.quietFrames=0u;
+                }
+            }else if(!control && canRecover){
+                restoreNeutral(r,p,a,true);
+                if(log){
+                    std::fprintf(log,"%u\t%u\t%04X\t%04X\t0\t%08X\t%08X\t%08X\t%u\t%u\tFS_DASH_REENTRY_SUPPRESSED\n",
+                        frame,side+1u,identity,mode,x,longword(r,p+0x14u),
+                        a.neutral.script,a.neutral.timer,a.neutral.timer);
+                    std::fflush(log);
+                }
+                return e;
+            }
+        }
+        if(ground(mode) && !control && canRecover &&
+           a.safeValid && frame>=a.safeFrame && frame-a.safeFrame<=600u &&
+           brokenX){
+            a.recoveryActive=true;a.quietFrames=0u;
+            a.lastRecoveryFrame=frame;
+            restoreNeutral(r,p,a,true);
+            if(log){
+                std::fprintf(log,"%u\t%u\t%04X\t%04X\t0\t%08X\t%08X\t%08X\t%u\t%u\tFS_DASH_INVALID_WORLD_X_RECOVERED\n",
+                    frame,side+1u,identity,mode,x,0u,
+                    a.neutral.script,a.neutral.timer,a.neutral.timer);
+                std::fflush(log);
+            }
+            return e;
+        }
+        // A second ROM-ground dash immediately after watchdog recovery is
+        // the characteristic FS loop, not a fresh independently queued dash.
+        if(ground(mode) && !control && canRecover &&
+           a.lastRecoveryFrame!=~0u && frame>=a.lastRecoveryFrame &&
+           frame-a.lastRecoveryFrame<=5u){
+            a.recoveryActive=true;a.quietFrames=0u;
+            restoreNeutral(r,p,a,a.safeValid);
+            if(log){
+                std::fprintf(log,"%u\t%u\t%04X\t%04X\t0\t%08X\t%08X\t%08X\t%u\t%u\tFS_DASH_REPEAT_AFTER_WATCHDOG\n",
+                    frame,side+1u,identity,mode,x,0u,
+                    a.neutral.script,a.neutral.timer,a.neutral.timer);
+                std::fflush(log);
+            }
+            return e;
         }
         // Retain ROM-owned neutral animation and action from this character.
         if(!control && (mode&0xff00u)==0u &&
@@ -99,7 +185,6 @@ struct Controller {
             return e;
         }
         e.mode=mode;e.identity=identity;
-        const std::uint32_t x=longword(r,p+0x0cu);
         const std::uint32_t vx=longword(r,p+0x14u);
         e.entered=!a.ready || a.mode!=mode || a.identity!=identity;
         if(e.entered){
@@ -112,22 +197,17 @@ struct Controller {
         // 87.220 replay: ordinary dashes finish by ~30f, but Storm's
         // flying-screen 1400 loop lasts 455f and repeatedly snaps X back.
         // At 36f exit into this SAME fighter's recorded neutral controller.
-        if(ground(mode) && a.dashAge>=36u && a.neutral.valid &&
-           a.neutral.identity==identity && frame>=a.neutral.frame &&
-           frame-a.neutral.frame<=600u && a.neutral.script && a.neutral.next){
-            const Neutral& n=a.neutral;
-            setWord(r,p+0x06u,n.step06);setWord(r,p+0x08u,n.step08);
-            setLong(r,p+0x14u,0u);setLong(r,p+0x18u,0u);
-            setLong(r,p+0x34u,n.script);setLong(r,p+0x38u,n.next);
-            setWord(r,p+0x3eu,n.timer?n.timer:1u);
-            setWord(r,p+0x42u,n.anim);setWord(r,p+0x60u,n.action);
-            setWord(r,p+0xa0u,n.mode);setWord(r,p+0xaau,n.air);
+        if(ground(mode) && a.dashAge>=36u && canRecover &&
+           frame>=a.neutral.frame && frame-a.neutral.frame<=600u){
+            const Neutral n=a.neutral;
+            // Do not preempt a normal native ROM dash sooner than 36f.
+            restoreNeutral(r,p,a,false);
+            a.lastRecoveryFrame=frame;
             if(log){
                 std::fprintf(log,"%u\t%u\t%04X\t%04X\t0\t%08X\t%08X\t%08X\t%u\t%u\tFS_DASH_LOOP_EXIT\n",
                     frame,side+1u,identity,mode,x,vx,n.script,n.timer,n.timer);
                 std::fflush(log);
             }
-            a.ready=false;a.tracking=false;a.dashAge=0;
             return e;
         }
         if(a.dashAge<1000u)++a.dashAge;
