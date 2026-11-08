@@ -8,6 +8,7 @@
 #include "xmvsf_stage87_83_rom_flight_guard.h" // XM87.83 ROM-qualified flying-screen hit gate
 #include "xmvsf_stage87_84_air_heavy_finisher.h" // XM87.84 second-or-later airborne heavy finisher
 #include "xmvsf_stage87_85_connected_air_heavy.h" // XM87.85 connected aerial heavy qualifier
+#include "xmvsf_stage87_127_storm_voice_mute.h" // 87.223 all-mode QSound native attack source state
 #include "xmvsf_stage87_223_storm_native_flight.h" // 87.223 read-only 68000 Storm HP velocity + native flight index
 #include "xmvsf_stage87_86_storm_button_guard.h" // XM87.86 CPS2 physical MK/HK evidence
 #include "xmvsf_stage87_95_native_dizzy_air_collision.h" // XM87.95 dizzy init and per-frame gate/f6 source-backed native opcode override
