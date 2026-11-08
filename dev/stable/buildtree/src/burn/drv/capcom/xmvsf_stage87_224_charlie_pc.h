@@ -66,7 +66,11 @@ struct Recorder {
     // TEST 87.227: trace only four original CPU frames after a confirmed
     // same-actor stuck dash. We need the real PC that reasserts 1400/bad X.
     unsigned observedDashFrames[2]={0u,0u};
-    bool tracingDash=false;
+    // 87.233: capture executed 68k A6 X/mode/air-state writers BEFORE
+    // the airborne fighter reaches 1400. Prior FS_DASH traces were
+    // blind until the ground entry mode already existed.
+    unsigned observedAirEntryFrames[2]={0u,0u};
+    bool tracingDash=false,tracingAirEntry=false;
     unsigned frame=0,side=0,move=0,events=0,visited=0;
     unsigned base=0;
     const std::uint8_t* ram=nullptr;
@@ -120,6 +124,25 @@ struct Recorder {
             break;
         }
         tracingDash=false;
+        tracingAirEntry=false;
+        if(selected>=2u){
+            // Original CPU-only offscreen Y/floor-to-ground handoff:
+            // record any fighter with a pending 87.233 airborne return,
+            // bounded to 12 original 68000 frames per side.
+            for(unsigned s=0u;s<2u;++s){
+                const auto& a=XM87220Dash::state().actor[s];
+                if(!a.airReturn.pending ||
+                   observedAirEntryFrames[s]>=12u)continue;
+                const unsigned p=s?0x4400u:0x4000u;
+                if(rw(source,p+0x52u)>0x24u ||
+                   (rw(source,p+0x52u)&1u))continue;
+                selected=s;
+                selectedMove=rw(source,p+0xa0u);
+                tracingDash=true;tracingAirEntry=true;
+                ++observedAirEntryFrames[s];
+                break;
+            }
+        }
         if(selected>=2u){
             // The original 87.224 trace only sampled Charlie's air hits,
             // so it missed the 497-frame 87.226 dash restart entirely.
@@ -133,6 +156,7 @@ struct Recorder {
                 selected=s;
                 selectedMove=rw(source,p+0xa0u);
                 tracingDash=true;
+                tracingAirEntry=false;
                 ++observedDashFrames[s];
                 break;
             }
@@ -198,7 +222,8 @@ struct Recorder {
                 previous.air,current.air,previous.gate82,current.gate82,
                 previous.gate83,current.gate83,
                 previous.x,current.x,previous.mode,current.mode,
-                tracingDash?"FS_DASH":"AIR_HEAVY",
+                tracingAirEntry?"FS_AIR_RETURN":
+                    tracingDash?"FS_DASH":"AIR_HEAVY",
                 nativePC,
                 opcodeWord(opcodes,opcodeLen,pc),
                 opcodeWord(opcodes,opcodeLen,pc+2u),
