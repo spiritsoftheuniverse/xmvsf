@@ -27,6 +27,11 @@ static inline std::int64_t mag(std::int64_t v){return v<0?-v:v;}
 // together; 87.223 observer prints every measured candidate for validation.
 static constexpr std::uint32_t NativeObservedVX=0x0010AA00u;
 static constexpr std::uint32_t NativeObservedVY=0x0000B000u;
+// Storm 1A04/5DAA -> native 1C18/0230 in the existing 87.86
+// original-ROM impact capture. Keep this exact native pair as a fallback
+// until we can observe a verified Storm HP event in the new TEST session.
+static constexpr unsigned NativeStormFSAction=0x1C18u;
+static constexpr unsigned NativeStormFSIndex=0x0230u;
 static constexpr unsigned MaximumFlightBoostsBeforeLanding=1u;
 struct Motion {
     bool valid=false;
@@ -35,7 +40,8 @@ struct Motion {
     unsigned fighter=0,attack=0,anim=0,frame=0;
 };
 struct Source {
-    unsigned hpFrame=~0u,priorAction=0,priorVictimAction=0,priorVictimIndex=0;
+    unsigned hpFrame=~0u,pressFrame=~0u;
+    unsigned priorButtons=0,priorAction=0,priorVictimAction=0,priorVictimIndex=0;
     bool priorReaction=false;
 };
 struct Tracker {
@@ -64,9 +70,8 @@ struct Tracker {
     static bool motionFromStormHP(unsigned action,unsigned profile,unsigned reaction,
                                  unsigned substate,std::uint32_t vx){
         return reaction==0x000cu && substate==2u &&
-               ((action==0x1c18u && profile==0x0230u) ||
-                (action==0x1c16u && profile==0x0220u)) &&
-               mag(signed32(vx))>=0x00060000LL &&
+               action==NativeStormFSAction && profile==NativeStormFSIndex &&
+               mag(signed32(vx))>=0x000c0000LL &&
                mag(signed32(vx))<=0x00300000LL;
     }
     // 68000 MOVE.[B/W/L] #imm,(d16,A6) patterns. This is a source-code
@@ -116,10 +121,20 @@ struct Tracker {
             Source&s=source[side];
             const unsigned action=w(ram,a+0x60u);
             const bool hp=nativeStormHP(w(ram,a+0x52u),w(ram,a+0x40u),action);
-            if(!hp){s.hpFrame=~0u;s.priorAction=action;continue;}
-            if((buttons[side]&(1u<<2u))!=0u)s.hpFrame=tick;
-            const unsigned age=(s.hpFrame!=~0u&&tick>=s.hpFrame)?
+            // The original CPU can enter HP several frames after the
+            // physical button edge. Remember that edge, then track the
+            // victim's reaction for 24 frames even if Storm's pose advances.
+            const unsigned bnow=buttons[side];
+            if((bnow&4u) && !(s.priorButtons&4u))s.pressFrame=tick;
+            s.priorButtons=bnow;
+            if(hp && s.pressFrame!=~0u && tick>=s.pressFrame &&
+               tick-s.pressFrame<=12u && s.hpFrame==~0u)
+                s.hpFrame=s.pressFrame;
+            const unsigned age=(s.hpFrame!=~0u && tick>=s.hpFrame)?
                 tick-s.hpFrame:~0u;
+            if(age>24u){s.hpFrame=~0u;s.priorReaction=false;}
+            if(!hp && age>24u){s.priorAction=action;continue;}
+
             const unsigned va=w(ram,v+0x60u),index=w(ram,v+0xe0u),
                  reaction=w(ram,v+0x06u),step=w(ram,v+0x08u);
             const std::uint32_t vx=d(ram,v+0x14u),vy=d(ram,v+0x1cu);
@@ -159,6 +174,17 @@ struct Tracker {
             s.priorVictimAction=va;s.priorVictimIndex=index;
         }
     }
+    unsigned action()const{
+        return observed.valid && observed.action==NativeStormFSAction &&
+            observed.profile==NativeStormFSIndex?
+            observed.action:NativeStormFSAction;
+    }
+    unsigned index()const{
+        return observed.valid && observed.action==NativeStormFSAction &&
+            observed.profile==NativeStormFSIndex?
+            observed.profile:NativeStormFSIndex;
+    }
+    bool learned()const{return observed.valid;}
     std::uint32_t speedX()const{
         const std::int64_t v=observed.valid?mag(signed32(observed.vx)):0;
         return v>=0x00060000LL && v<=0x00300000LL?
@@ -172,5 +198,8 @@ struct Tracker {
 static inline Tracker& state(){static Tracker instance;return instance;}
 static inline unsigned flightVX(){return state().speedX();}
 static inline unsigned flightVY(){return state().speedY();}
+static inline unsigned flightAction(){return state().action();}
+static inline unsigned flightIndex(){return state().index();}
+static inline bool flightLearned(){return state().learned();}
 } // namespace XM87223Flight
 #endif
