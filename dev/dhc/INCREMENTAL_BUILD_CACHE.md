@@ -1,4 +1,4 @@
-# XMVSF native incremental build cache — TEST 87.215
+# XMVSF native incremental build cache — TEST 87.216
 
 This system runs **entirely on the local Windows/MSYS2 UCRT64 machine**.
 GitHub manages source history. There are **no GitHub Actions, hosted
@@ -8,7 +8,7 @@ builds, setup gates, compiler downloads or Stable changes**.
 
 `BUILD_TEST.bat` remains the only build entry point. It calls
 `dev/dhc/BUILD_TEST.sh` and publishes ONLY
-`runtime/stable/XMVSF_Test_87_215.exe` after successful native Make
+`runtime/stable/XMVSF_Test_87_216.exe` after successful native Make
 validation and nonempty executable checks. `RUN_TEST.bat` continues to
 launch that numbered TEST.
 
@@ -81,6 +81,34 @@ generated files under ignored `test/build_cache/cache_smoke/` and checks:
 The fixture is isolated from real CPS2 sources and artifacts. On success,
 the log prints `INCREMENTAL_CACHE_PASS`. Normally leave this disabled
 to avoid spending ~2 seconds on an intentionally repeated test.
+
+## 87.216 correction: 87.215 false-success build
+
+The 87.215 `last_success.tsv` and `BUILD_TEST.log` revealed an unsafe
+Make prerequisite: `compiler.signature` was passed as `$<` to GCC
+instead of the `.cpp` source. GCC warned that the file was an unused
+linker input and exited successfully. Consequently the manifest reported
+**0 recompiled / 1,174 reused**, even though five native dependency
+files were regenerated and the executable was published. **Do not rely
+on the 87.215 executable as evidence that new source was compiled.**
+
+This was fixed by using GNU Make's target-specific `.EXTRA_PREREQS`.
+That participates in freshness checks without changing `$<` or `$^`.
+The smoke test now uses the same implicit `%.o: %.cpp` recipe and
+explicitly rejects anything except a `.cpp` as the compiler input.
+
+One-time automatic cache repair matches the **exact uploaded 87.215
+manifest identity**. It recompiles the five source units named in the
+log (`cps_draw.cpp`, `cps_run.cpp`, `main.cpp`, `run.cpp`,
+`vid_sdl2.cpp`) using temporary Make `-W` overrides **only for this
+known-bad build**. It neither deletes nor forces the other cached
+objects. Before TEST publishing, the builder checks the five output
+`.o` files were actually recreated during the build. A successful
+repair writes a local one-time marker; subsequent builds return to
+ordinary dependency-only compilation.
+
+The build number is now **87.216**. Native Windows compilation and the
+new repair outcome still require local verification with BUILD_TEST.bat.
 
 ## Troubleshooting
 
