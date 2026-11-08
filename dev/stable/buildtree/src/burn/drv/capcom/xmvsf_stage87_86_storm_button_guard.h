@@ -125,6 +125,7 @@ struct Decision {
     bool nativeLaunched,characterHPExcluded;
     unsigned attackerBank,attackerAction,attackerPointer,airAttackIndex,attackerId,victimId,buttonBits,taggedButton,buttonAge,victimActionBefore,victimActionAfter;
     unsigned victimProfileBefore,victimProfileAfter,substate,reaction,y,connectedBefore,connectedAfter;
+    unsigned previousHitButton=0u,groundedAttacker=0u,activeFS=0u;
     std::uint32_t beforeX,beforeY,afterX,afterY;
     const char* outcome;
     Decision():onset(false),candidate(false),launch(false),excluded(false),velocityWritten(false),stateWritten(false),
@@ -235,6 +236,7 @@ struct Actor {
             (wordAt(r,attacker+0xaau)>>8u)==0u;
         const bool groundHeavyNow=attackerGrounded &&
             groundedNormalHeavy(d.attackerAction);
+        d.groundedAttacker=unsigned(attackerGrounded);
         const bool attackNow=(attackerAir &&
             (normalAirAttack(d.attackerAction)||isDrillCandidate(d.attackerAction))) ||
             groundHeavyNow;
@@ -264,6 +266,9 @@ struct Actor {
            d.y<472u && magnitude(signedFixed(d.beforeX))>=0x00060000LL &&
            magnitude(signedFixed(d.beforeX))<=0x00300000LL)
             postFlightNeedsNativeLanding=true;
+        d.activeFS=unsigned(stormFlightUsedUntilLanding ||
+                             postFlightNeedsNativeLanding);
+        d.previousHitButton=lastConnectedButton;
         const bool stateChanged=!observed || prevAction!=d.victimActionBefore || prevProfile!=d.victimProfileBefore;
         // Fresh victim hit onset: game transition from native hit substate 2 to 0,
         // or a new hit reaction. It must coincide with a NEW airborne move.
@@ -552,7 +557,7 @@ struct Controller {
         const char* path=std::getenv("XM8786_STORM_BUTTON_LOG_FILE");
         if(path && *path){
             log=std::fopen(path,"wb");
-            if(log)std::fputs("frame\tvictim\tattacker_bank\tattacker_action\tattacker_pointer\treaction\tsubstate\ty\tvictim_action_before\tvictim_profile_before\toriginal_vx\toriginal_vy\tfinal_vx\tfinal_vy\tvictim_action_after\tvictim_profile_after\trom_signature_matched\tfirst_air_followup\tair_attack_index\theavy_followup\tnew_air_attack\tconnected_hits_before\tconnected_hits_after\tcombo_continuous\thit_confirmed\tvelocity_written\tstate_pair_written\texcluded\tbutton_bits\tbutton_tag\tbutton_age\tbutton_evidence\tstorm_mk\tstorm_heavy\tdecision\tattacker_id\tvictim_id\tobserved_native_launch\tcharacter_hp_excluded\n",log);
+            if(log)std::fputs("frame\tvictim\tattacker_bank\tattacker_action\tattacker_pointer\treaction\tsubstate\ty\tvictim_action_before\tvictim_profile_before\toriginal_vx\toriginal_vy\tfinal_vx\tfinal_vy\tvictim_action_after\tvictim_profile_after\trom_signature_matched\tfirst_air_followup\tair_attack_index\theavy_followup\tnew_air_attack\tconnected_hits_before\tconnected_hits_after\tcombo_continuous\thit_confirmed\tvelocity_written\tstate_pair_written\texcluded\tbutton_bits\tbutton_tag\tbutton_age\tbutton_evidence\tstorm_mk\tstorm_heavy\tdecision\tattacker_id\tvictim_id\tobserved_native_launch\tcharacter_hp_excluded\tprevious_confirmed_hit_button\tattacker_grounded\tfs_active\n",log);
         }
         std::fprintf(stderr,"XM87.226 STORM_FS_OR_CYCLOPS_CHARLIE_HK_READY enabled=%d fallback_x=0010AA00 fallback_y=0000B000 index=0230 one_launch_until_landing=1 protected_drill=2C1E,2C46\n",int(enabled));
     }
@@ -579,15 +584,20 @@ struct Controller {
         const bool combat=byteAt(r,0x5000u)==8u||byteAt(r,0x5001u)==8u;
         for(unsigned i=0;i<2u;++i){
             Decision d=actor[i].evaluate(r,i?0x4400u:0x4000u,i?0x4000u:0x4400u,enabled,combat,i?p1Buttons:p2Buttons);
-            if(!d.hitConfirmed && !d.airAttackStart && !d.launch && !(d.excluded && d.candidate))continue;
+            if(!d.hitConfirmed && !d.airAttackStart && !d.launch &&
+               !d.velocityWritten && !(d.excluded && d.candidate) &&
+               std::strcmp(d.outcome,"FS_CONDITIONAL_SEVERE_CANCELLED")!=0)
+                continue;
             if(log){
-                std::fprintf(log,"%u\t%u\t%04X\t%04X\t%04X\t%04X\t%04X\t%u\t%04X\t%04X\t%08X\t%08X\t%08X\t%08X\t%04X\t%04X\t%u\t%u\t%u\t%u\t%u\t%u\t%u\t%u\t%u\t%u\t%u\t%u\t%u\t%u\t%u\t%u\t%u\t%u\t%s\t%04X\t%04X\t%u\t%u\n",
+                std::fprintf(log,"%u\t%u\t%04X\t%04X\t%04X\t%04X\t%04X\t%u\t%04X\t%04X\t%08X\t%08X\t%08X\t%08X\t%04X\t%04X\t%u\t%u\t%u\t%u\t%u\t%u\t%u\t%u\t%u\t%u\t%u\t%u\t%u\t%u\t%u\t%u\t%u\t%u\t%s\t%04X\t%04X\t%u\t%u\t%u\t%u\t%u\n",
                   tick,i+1,d.attackerBank,d.attackerAction,d.attackerPointer,d.reaction,d.substate,d.y,
                   d.victimActionBefore,d.victimProfileBefore,d.beforeX,d.beforeY,d.afterX,d.afterY,
                   d.victimActionAfter,d.victimProfileAfter,unsigned(d.signatureKnown),unsigned(d.openingFollowup),d.airAttackIndex,
                   unsigned(d.heavyFollowup),unsigned(d.airAttackStart),d.connectedBefore,d.connectedAfter,unsigned(d.comboContinuous),unsigned(d.hitConfirmed),unsigned(d.velocityWritten),unsigned(d.stateWritten),unsigned(d.excluded),d.buttonBits,d.taggedButton,d.buttonAge,
                   unsigned(d.buttonEvidence),unsigned(d.stormMediumButton),unsigned(d.stormHeavyButton),d.outcome,
-                  d.attackerId,d.victimId,unsigned(d.nativeLaunched),unsigned(d.characterHPExcluded));
+                  d.attackerId,d.victimId,unsigned(d.nativeLaunched),
+                   unsigned(d.characterHPExcluded),
+                   d.previousHitButton,d.groundedAttacker,d.activeFS);
                 std::fflush(log);
             }
             if(d.launch)std::fprintf(stderr,"XM87.86 FLIGHT frame=%u victim=P%u bank=%04X action=%04X anim=%04X decision=%s\n",
