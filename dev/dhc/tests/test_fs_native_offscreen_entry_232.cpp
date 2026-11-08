@@ -7,7 +7,7 @@
 #include <cstdio>
 #include <cstring>
 #include "xmvsf_stage87_220_zero_dash_startup.h"
-#include "xmvsf_stage87_224_charlie_pc.h"
+#include "xmvsf_stage87_232_native_pc_words.h"
 using namespace XM87220Dash;
 static std::uint8_t ram[65536]={};
 static constexpr unsigned P=0x4000u,Q=0x4400u;
@@ -118,9 +118,9 @@ int main(){
     // Read 68k opcodes using actual decrypted host-word-swapped layout.
     const std::uint8_t fakeCode[8]={0x34,0x12,0x78,0x56,
                                      0xbcu,0x9au,0xf0u,0xdeu};
-    assert(XM87224CharliePC::opcodeWord(fakeCode,8u,0u)==0x1234u);
-    assert(XM87224CharliePC::opcodeWord(fakeCode,8u,2u)==0x5678u);
-    assert(XM87224CharliePC::opcodeWord(fakeCode,8u,4u)==0x9abcu);
-    assert(XM87224CharliePC::opcodeWord(fakeCode,8u,7u)==0u);
+    assert(XM87232NativePC::opcodeWord(fakeCode,8u,0u)==0x1234u);
+    assert(XM87232NativePC::opcodeWord(fakeCode,8u,2u)==0x5678u);
+    assert(XM87232NativePC::opcodeWord(fakeCode,8u,4u)==0x9abcu);
+    assert(XM87232NativePC::opcodeWord(fakeCode,8u,7u)==0u);
     std::puts("87.232 native 68k FS ground-entry / moving dash / opcode trace: PASS");
 }
