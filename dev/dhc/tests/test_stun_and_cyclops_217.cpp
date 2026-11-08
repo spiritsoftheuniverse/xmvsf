@@ -228,7 +228,8 @@ static void testNativePixels(){
     frame.floats[0].x=192;
     frame.floats[0].y=160;
     std::vector<std::uint8_t> native(384u*224u*4u,0u);
-    XM87217::Image image{native.data(),384,224,384*4};
+    XM87217::Image image;
+    image.rgba=native.data();image.w=384;image.h=224;image.pitch=384*4;
     auto renderAt=[&](int age){
         std::fill(native.begin(),native.end(),0u); // one fresh frame
         frame.floats[0].age=age;
