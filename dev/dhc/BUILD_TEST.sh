@@ -50,7 +50,7 @@ if [[ ! -f "$TREE/makefile.sdl2" ||
       ! -s "$TREE/src/intf/audio/sdl/xm20_wasapi_impl.h" ||
       ! -s "$TREE/src/burn/drv/capcom/xmvsf_stage87_33_dizzy_hud.h" ||
       ! -s "$TREE/src/burn/drv/capcom/xmvsf_stage87_121_cyclops_release.h" ||
-      ! -s "$PROJECT/dev/dhc/tests/test_stun_and_cyclops_213.cpp" ||
+      ! -s "$PROJECT/dev/dhc/tests/test_stun_and_cyclops_214.cpp" ||
       ! -s "$TREE/src/burner/sdl/xmvsf_menu_glyph_atlas.h" ||
       ! -s "$TREE/src/burner/sdl/xmvsf_stage14_boot.h" ]]; then
   echo "ERROR: 87.213 native menu/glyph sources missing; inspect checked-out branch" >&2
@@ -108,9 +108,10 @@ XM87203_BATCH_FRAMES=300 \
 mkdir -p "$PROJECT/test/87.213/unit_tests"
 g++ -std=c++11 -Wall -Wextra -Werror \
   -I"$TREE/src/burn/drv/capcom" \
-  "$PROJECT/dev/dhc/tests/test_stun_and_cyclops_213.cpp" \
-  -o "$PROJECT/test/87.213/unit_tests/test_stun_and_cyclops_213.exe"
-"$PROJECT/test/87.213/unit_tests/test_stun_and_cyclops_213.exe"
+  -I"$TREE/src/burner/sdl" \
+  "$PROJECT/dev/dhc/tests/test_stun_and_cyclops_214.cpp" \
+  -o "$PROJECT/test/87.213/unit_tests/test_stun_and_cyclops_214.exe"
+"$PROJECT/test/87.213/unit_tests/test_stun_and_cyclops_214.exe"
 
 # Preserve warm cache and anything already built on failures. Never run make clean.
 cd "$TREE"
@@ -148,13 +149,14 @@ if [[ ! -s "$DEST" ||
       "$TREE/src/burner/sdl/xmvsf_stage87_140_super_chat.h" -nt "$DEST" ||
       "$TREE/src/burner/sdl/xmvsf_stage14_boot.h" -nt "$DEST" ||
       "$TREE/src/burner/sdl/xm20_vs_transition.h" -nt "$DEST" ||
+      "$TREE/src/burner/sdl/xmvsf_stage30_frame_data.h" -nt "$DEST" ||
       "$TREE/src/burner/sdl/xmvsf_stage23_ui.h" -nt "$DEST" ||
       "$TREE/src/burner/sdl/xmvsf_stage25_5_ui.h" -nt "$DEST" ||
       "$TREE/src/intf/video/sdl/xmvsf_stage87_140_chat_overlay.h" -nt "$DEST" ||
       "$TREE/src/intf/video/sdl/vid_sdl2.cpp" -nt "$DEST" ||
       "$TREE/src/burn/drv/capcom/xmvsf_stage87_33_dizzy_hud.h" -nt "$DEST" ||
       "$TREE/src/burn/drv/capcom/xmvsf_stage87_121_cyclops_release.h" -nt "$DEST" ||
-      "$PROJECT/dev/dhc/tests/test_stun_and_cyclops_213.cpp" -nt "$DEST" ||
+      "$PROJECT/dev/dhc/tests/test_stun_and_cyclops_214.cpp" -nt "$DEST" ||
       "$TREE/src/burn/drv/capcom/cps_draw.cpp" -nt "$DEST" ||
       "$TREE/src/burn/drv/capcom/cps_run.cpp" -nt "$DEST" ||
       "$TREE/src/intf/audio/sdl/xm20_wasapi_impl.h" -nt "$DEST" ]]; then
