@@ -11,6 +11,8 @@
 #include <windows.h>
 #include <dbghelp.h>
 #include <cstdio>
+#include <cstdlib>
+#include <cstring>
 #include <cstdint>
 #include <algorithm>
 
@@ -23,7 +25,8 @@ inline void mark(LONG step,LONG frameNumber=-1) {
 }
 inline LONG WINAPI onUnhandled(EXCEPTION_POINTERS* error){
     CreateDirectoryA("test",nullptr);
-    CreateDirectoryA("test\\87.206",nullptr);
+    CreateDirectoryA("test\\87.222",nullptr);
+    CreateDirectoryA("test\\87.222\\observer",nullptr);
     const DWORD code=error && error->ExceptionRecord?
         error->ExceptionRecord->ExceptionCode:0;
     const void* address=error && error->ExceptionRecord?
@@ -33,10 +36,12 @@ inline LONG WINAPI onUnhandled(EXCEPTION_POINTERS* error){
     char report[1024]={};
     const int len=std::snprintf(report,sizeof(report),
         "XM87.206 UNHANDLED_EXCEPTION code=0x%08lX address=%p "
-        "module_offset=0x%llX phase=%ld emulated_frame=%ld thread=%lu\r\n",
+        "module_offset=0x%llX phase=%ld emulated_frame=%ld thread=%lu classic=%d\r\n",
         (unsigned long)code,address,offset,(long)phase(),(long)frame(),
-        (unsigned long)GetCurrentThreadId());
-    HANDLE log=CreateFileA("test\\87.206\\crash_report.log",
+        (unsigned long)GetCurrentThreadId(),
+        !(std::getenv("XM8755_TOURNAMENT_MODE") &&
+          std::strcmp(std::getenv("XM8755_TOURNAMENT_MODE"),"1")==0));
+    HANDLE log=CreateFileA("test\\87.222\\observer\\crash_report.log",
            FILE_APPEND_DATA,FILE_SHARE_READ|FILE_SHARE_WRITE,nullptr,
            OPEN_ALWAYS,FILE_ATTRIBUTE_NORMAL,nullptr);
     if(log!=INVALID_HANDLE_VALUE){
@@ -55,7 +60,7 @@ inline LONG WINAPI onUnhandled(EXCEPTION_POINTERS* error){
         const DumpFn dump=reinterpret_cast<DumpFn>(
             GetProcAddress(dll,"MiniDumpWriteDump"));
         if(dump){
-            HANDLE file=CreateFileA("test\\87.206\\crash.dmp",GENERIC_WRITE,
+            HANDLE file=CreateFileA("test\\87.222\\observer\\crash.dmp",GENERIC_WRITE,
                 FILE_SHARE_READ,nullptr,CREATE_ALWAYS,FILE_ATTRIBUTE_NORMAL,nullptr);
             if(file!=INVALID_HANDLE_VALUE){
                 MINIDUMP_EXCEPTION_INFORMATION info={};
