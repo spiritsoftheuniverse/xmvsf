@@ -82,14 +82,19 @@ static inline bool normalAirAttack(unsigned action){
 static inline bool heavyAirAttack(unsigned action){
     return action==0x1804u || action==0x180Au || action==0x1A04u || action==0x1A0Au;
 }
-// TEST 87.230: grounded normal heavy actions, NOT super-jump 1Axx.
-// Strength must also be independently verified by an HP/HK button edge.
-// This is an action-family gate, not proof that an attack connected.
-static inline bool groundedNormalHeavy(unsigned action){
+// Ground normals are 100x/120x/140x, never super-jump 1Axx.
+// Include ordinary light/medium hits in the PREVIOUS CONNECTED HIT
+// ledger so a landed MP between HP and HK correctly breaks the chain.
+static inline bool groundedNormalAttack(unsigned action){
     const unsigned group=action&0xfff0u;
     const unsigned suffix=action&0x000eu;
     return (group==0x1000u || group==0x1200u || group==0x1400u) &&
-           (suffix==0x0004u || suffix==0x000au) && !(action&1u);
+           suffix<=0x000au && !(action&1u);
+}
+static inline bool groundedNormalHeavy(unsigned action){
+    const unsigned suffix=action&0x000eu;
+    return groundedNormalAttack(action) &&
+           (suffix==0x0004u || suffix==0x000au);
 }
 // XM87.124: fighter +0x52 is the ROM's character-id field. Values below
 // follow the native roster convention (Cyclops=0x02 in 87.119 snapshots).
@@ -234,18 +239,20 @@ struct Actor {
             attackerY==0u) && !attackerAir &&
             wordAt(r,attacker)!=0u &&
             (wordAt(r,attacker+0xaau)>>8u)==0u;
-        const bool groundHeavyNow=attackerGrounded &&
+        const bool groundAttackNow=attackerGrounded &&
+            groundedNormalAttack(d.attackerAction);
+        const bool groundHeavyNow=groundAttackNow &&
             groundedNormalHeavy(d.attackerAction);
         d.groundedAttacker=unsigned(attackerGrounded);
         const bool attackNow=(attackerAir &&
             (normalAirAttack(d.attackerAction)||isDrillCandidate(d.attackerAction))) ||
-            groundHeavyNow;
+            groundAttackNow;
         // A gap in native reaction, victim landing or attacker landing ends the
         // linked air combo; one later heavy cannot inherit an old hit counter.
         const bool continuity=observed && combat && attackerAir && d.y<472u &&
           d.reaction==0x000Cu && prevReaction==0x000Cu && prevVictimY<472u;
         d.comboContinuous=continuity;
-        if(!combat || (!attackerAir && !groundHeavyNow) ||
+        if(!combat || (!attackerAir && !groundAttackNow) ||
            d.y>=472u || (observed && d.reaction!=0x000Cu))clearChain();
         // Require an observed native launch action/profile, not just a hit
         // counter, airborne Y, or a soft hit-reaction profile.
@@ -307,7 +314,11 @@ struct Actor {
             // Regardless of whether this hit becomes a finisher, the
             // preceding-hit identity is now this confirmed native hit.
             // A connecting light or medium breaks the HP->HK sequence.
-            lastConnectedButton=d.taggedButton;
+            // A special such as Wolverine's Drill Claw does not count
+            // as a preceding NORMAL HP, even if the physical HP button
+            // happens to be pressed at impact.
+            lastConnectedButton=(normalAirAttack(d.attackerAction) ||
+                groundAttackNow)?d.taggedButton:0u;
             lastConnectedAttacker=d.attackerId;
             lastConnectedVictim=d.victimId;
             if(enabled && (hpThenHK || groundedFSHeavy)){
