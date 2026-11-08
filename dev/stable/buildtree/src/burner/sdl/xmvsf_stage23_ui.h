@@ -538,34 +538,9 @@ static inline void xm41DrawFrameCard(SDL_Renderer* r,const SDL_Rect& card,
 static inline void xm23DrawText(SDL_Renderer* r,const char* text,int x,int y){
     xm23DrawTextSized(r,text,x,y,10000,2);
 }
-// Bold 5x7 pixel glyphs: black 1-pixel outline, white center, alpha fade.
-static inline void xm30OutlinedText(SDL_Renderer* r,const char* str,int cx,int y,int px,Uint8 alpha){
-    if(!r||!str)return;
-    int len=(int)std::strlen(str);
-    int x=cx-(len*6*px)/2;
-    for(const char* t=str;*t;++t,x+=6*px){
-        const unsigned char* glyph=xm23Glyph(*t);
-        if(!glyph)continue;
-        for(int row=0;row<7;++row)for(int col=0;col<5;++col){
-            if(!(glyph[row]&(1u<<(4-col))))continue;
-            const int xx=x+col*px,yy=y+row*px;
-            SDL_SetRenderDrawColor(r,0,0,0,alpha);
-            SDL_Rect border={xx-1,yy-1,px+2,px+2}; SDL_RenderFillRect(r,&border);
-        }
-    }
-    x=cx-(len*6*px)/2;
-    SDL_SetRenderDrawColor(r,255,255,255,alpha);
-    for(const char* t=str;*t;++t,x+=6*px){
-        const unsigned char* glyph=xm23Glyph(*t);
-        if(!glyph)continue;
-        for(int row=0;row<7;++row)for(int col=0;col<5;++col)
-            if(glyph[row]&(1u<<(4-col))){
-                SDL_Rect pixel={x+col*px,y+row*px,px,px}; SDL_RenderFillRect(r,&pixel);
-            }
-    }
-}
-// Panel is in its own logical column OUTSIDE gameDest. Popups remain over
-// the game itself. One GPU renderer, one present, no readback or extra frames.
+// Stage 87.217: the external FRAME DATA panel remains SDL UI. Floating
+// S:##F popups are composited in the native 384x224 game pixel layer
+// (vid_sdl2.cpp::xm87217NativeFloat) and are NOT drawn in this overlay.
 static inline void xm30Overlay(SDL_Renderer* r,const SDL_Rect& dest,int sw,int sh){
     XM30FrameData& f=xm23State.frameData;
     if(!f.enabled || !xm31ExternalPane || sw<=0 || sh<=0)return;
@@ -598,24 +573,7 @@ static inline void xm30Overlay(SDL_Renderer* r,const SDL_Rect& dest,int sw,int s
         xm23DrawTextSized(r,"QC DP HC DQ  PR=PROJECTILE",panel.x+8,top+panel.h-26,panelW-14,1);
         xm23DrawTextSized(r,"NEWEST AT BOTTOM",panel.x+8,top+panel.h-13,panelW-14,1);
     }
-    if(xm23State.menuOpen)return;
-    for(int i=0;i<XM30FrameData::FLOATS;++i){
-        const XM30Float& fl=f.floats[i];
-        if(!fl.visible)continue;
-        const int x=dest.x+(fl.x*dest.w)/sw;
-        // Stage 87.214: actual SF2 font is 8 native pixels tall at
-        // scale 2, hence 16px. At age 120 the popup has reached its
-        // original 40px apex. Over the following 20 game updates rise
-        // another 16px and squeeze WIDTH to zero, not glyph height.
-        const int fontHeight=16;
-        const XM30FloatPose pose=xm30FloatPose(fl.age,fontHeight);
-        const int y=dest.y+(fl.y*dest.h)/sh-pose.rise-17;
-        char popup[32];std::snprintf(popup,sizeof(popup),"S:%dF",fl.startup);
-        const int safeX=std::max(dest.x+25,std::min(x,dest.x+dest.w-25));
-        const int safeY=std::max(dest.y+5,y);
-        XMGlyph::atlas().floatingText(r,popup,safeX,safeY,
-                                      pose.horizontal,(Uint8)pose.alpha,2);
-    }
+
 }
 static inline void xm23Overlay(SDL_Renderer* renderer, const SDL_Rect& gameDest,
                               int sourceWidth,int sourceHeight) {
