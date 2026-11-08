@@ -5,6 +5,8 @@
 void xm20MenuStart();
 void xm20MenuMovement();
 void xm20MenuConfirm();
+void xm20MenuIntroSilence();
+void xm20MenuIntroMusic();
 void xm20MenuCrash();
 void xm20MenuWelcome();
 void xm20MenuFight();
