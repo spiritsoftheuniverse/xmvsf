@@ -16,7 +16,7 @@ static constexpr std::uint32_t StrikeFrames=StrikeCount*FramesPerStrike;
 static constexpr std::uint32_t StrikeDurationMs=(StrikeFrames*1000u+StrikeFps-1u)/StrikeFps;
 static constexpr std::uint32_t LogoStart=BackgroundMs;
 static constexpr std::uint32_t StrikeStart=LogoStart+LogoMs;
-static constexpr std::uint32_t AnnouncerStart=LogoStart; // welcome starts with logo at t=1.0s
+static constexpr std::uint32_t AnnouncerStart=0u; // one-second WAV lead-in before logo first appears
 static constexpr std::uint32_t MenuStart=StrikeStart+StrikeDurationMs;
 static constexpr std::uint32_t TotalMs=MenuStart+MenuMs;
 static inline float progress(std::uint32_t elapsed,std::uint32_t start,
