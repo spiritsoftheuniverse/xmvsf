@@ -857,12 +857,9 @@ int RunMessageLoop()
                 event.type==SDL_JOYHATMOTION))continue;
             if(xm29HandleDisplayHotkey(event,sdlWindow))continue;
             if(!xm14TrainingMode && !xm24VersusMode && event.type==SDL_KEYDOWN && !event.key.repeat){
-                if(event.key.keysym.sym==SDLK_5){
-                    xm258ArcadeMenuOpen=!xm258ArcadeMenuOpen;
-                    xm25MenuSound(xm258ArcadeMenuOpen);
-                    if(!xm258ArcadeMenuOpen)xm25BeginInputHandoff();
-                    continue;
-                }
+                // Coin (including keyboard 5) is edge-polled in the
+                // shared Arcade menu handler. Do not also toggle on KEYDOWN:
+                // that would open and immediately close the overlay.
                 if(xm258ArcadeMenuOpen && (event.key.keysym.sym==SDLK_ESCAPE ||
                                             event.key.keysym.sym==SDLK_BACKSPACE)){
                     xm258ArcadeMenuOpen=false;xm25MenuSound(false);
