@@ -19,14 +19,22 @@ struct XM13_Player {
     int active;
     char guid[33];
     int occurrence; // 0-based ordinal among identical GUIDs; -1 for keyboard
+    char deviceName[96]; // system name, used only if the hardware GUID changes
+    int nameOccurrence; // separate identical-name controllers by their ordinal
     XM13_Binding binding[XM13_ACTIONS]; // LP MP HP LK MK HK 3P 3K COIN START LEFT RIGHT UP DOWN
 };
-struct XM13_Settings { XM13_Player player[2]; };
+#define XM13_MAX_PROFILES 24
+struct XM13_Settings {
+    XM13_Player player[2];
+    XM13_Player profiles[XM13_MAX_PROFILES]; // remembers devices no longer assigned
+    int profileCount;
+};
 
 static void xm13Default(XM13_Settings* s) {
     memset(s,0,sizeof(*s));
     for(int p=0;p<2;p++) {
         s->player[p].occurrence=0;
+        s->player[p].nameOccurrence=-1;
         for(int a=0;a<XM13_ACTIONS;a++) {
             s->player[p].binding[a].type='N';
             s->player[p].binding[a].index=-1;
@@ -41,70 +49,198 @@ static int xm13ValidGuid(const char* g) {
 static inline bool xm13IsKeyboard(const XM13_Player* p) {
     return p && p->active && strcmp(p->guid,"KEYBOARD")==0;
 }
-static int xm13Load(XM13_Settings* s) {
+// A saved hardware name is a recovery key, not a replacement for the
+// precise GUID. The ordinal disambiguates multiple devices of one name.
+// Legacy controller maps are imported and upgraded without losing bindings.
+static void xm13DeviceDisplayName(int device,char* out,size_t capacity);
+static int xm13NameOrdinal(int device);
+static int xm13FindDevice(const XM13_Player* p);
+static int xm13Save(const XM13_Settings* s);
+
+static inline bool xm13HasName(const XM13_Player* p) {
+    return p && p->deviceName[0]!=0 && strcmp(p->deviceName,"UNKNOWN CONTROLLER")!=0;
+}
+static bool xm13SameDevice(const XM13_Player* saved,const XM13_Player* requested) {
+    if(!saved || !requested || !saved->active || !requested->active)return false;
+    if(!strcmp(saved->guid,requested->guid) &&
+       saved->occurrence==requested->occurrence)return true;
+    return xm13HasName(saved) && xm13HasName(requested) &&
+           !strcmp(saved->deviceName,requested->deviceName) &&
+           saved->nameOccurrence==requested->nameOccurrence;
+}
+static void xm13RememberProfile(XM13_Settings* s,const XM13_Player* p) {
+    if(!s || !p || !p->active || xm13IsKeyboard(p))return;
+    int index=-1;
+    // Prefer a precise hardware identity; fall back to name+ordinal
+    // when Windows/SDL presents the same pad through a different driver.
+    for(int i=0;i<s->profileCount;i++) {
+        if(!strcmp(s->profiles[i].guid,p->guid) &&
+           s->profiles[i].occurrence==p->occurrence){index=i;break;}
+    }
+    if(index<0 && xm13HasName(p))for(int i=0;i<s->profileCount;i++) {
+        if(xm13HasName(&s->profiles[i]) &&
+           !strcmp(s->profiles[i].deviceName,p->deviceName) &&
+           s->profiles[i].nameOccurrence==p->nameOccurrence){index=i;break;}
+    }
+    if(index<0){
+        if(s->profileCount>=XM13_MAX_PROFILES)return;
+        index=s->profileCount++;
+    }
+    s->profiles[index]=*p;
+}
+static void xm13NameToHex(const char* name,char* dst,size_t capacity) {
+    static const char alphabet[]="0123456789ABCDEF";
+    if(!dst || !capacity)return;
+    size_t i=0;
+    if(name)for(;*name && i+2<capacity;++name){
+        const unsigned char ch=(unsigned char)*name;
+        dst[i++]=alphabet[ch>>4];dst[i++]=alphabet[ch&15];
+    }
+    if(!i && capacity>1)dst[i++]='-';
+    dst[i]=0;
+}
+static int xm13FromHex(char c){
+    if(c>='0' && c<='9')return c-'0';
+    if(c>='a' && c<='f')return c-'a'+10;
+    if(c>='A' && c<='F')return c-'A'+10;
+    return -1;
+}
+static bool xm13HexToName(const char* hex,char* out,size_t size){
+    if(!out || !size || !hex)return false;
+    out[0]=0;
+    if(!strcmp(hex,"-"))return true;
+    const size_t length=strlen(hex);
+    if(length%2 || length/2>=size)return false;
+    for(size_t i=0;i<length/2;i++){
+        const int high=xm13FromHex(hex[i*2]);
+        const int low=xm13FromHex(hex[i*2+1]);
+        if(high<0 || low<0)return false;
+        const unsigned char value=(unsigned char)((high<<4)|low);
+        if(value<32 || value>=127)return false;
+        out[i]=(char)value;
+    }
+    out[length/2]=0;
+    return true;
+}
+static bool xm13ParseRecord(char* line,XM13_Player* dst,int version){
+    if(!line || !dst)return false;
+    XM13_Player parsed={};
+    parsed.nameOccurrence=-1;
+    for(int a=0;a<XM13_ACTIONS;a++){
+        parsed.binding[a].type='N';parsed.binding[a].index=-1;
+    }
+    char* tok=strtok(line," \t\r\n"); // initial P1/P2/D label
+    if(!tok)return false;
+    tok=strtok(nullptr," \t\r\n");
+    if(!tok || strlen(tok)>=sizeof(parsed.guid))return false;
+    snprintf(parsed.guid,sizeof(parsed.guid),"%s",tok);
+    if(strcmp(parsed.guid,"KEYBOARD") &&
+       (!xm13ValidGuid(parsed.guid) ||
+       !strcmp(parsed.guid,"00000000000000000000000000000000")))return false;
+    if(version==1 && !strcmp(parsed.guid,"KEYBOARD"))return false;
+    tok=strtok(nullptr," \t\r\n");
+    if(!tok)return false;
+    char extra=0;int ordinal=0;
+    if(sscanf(tok,"%d%c",&ordinal,&extra)!=1)return false;
+    if(!strcmp(parsed.guid,"KEYBOARD")){
+        if(ordinal!=-1)return false;
+    }else if(ordinal<0 || ordinal>7)return false;
+    parsed.occurrence=ordinal;
+    parsed.active=1;
+    if(version>=3){
+        tok=strtok(nullptr," \t\r\n");
+        if(!tok || !xm13HexToName(tok,parsed.deviceName,sizeof(parsed.deviceName)))return false;
+        tok=strtok(nullptr," \t\r\n");
+        if(!tok || sscanf(tok,"%d%c",&parsed.nameOccurrence,&extra)!=1 ||
+           parsed.nameOccurrence<-1 || parsed.nameOccurrence>7)return false;
+    }
+    const int oldSlots[8]={0,1,2,3,4,5,8,9};
+    for(int a=0;a<(version==1?8:XM13_ACTIONS);a++){
+        tok=strtok(nullptr," \t\r\n");
+        char kind='N';int index=-1;char trailing=0;
+        if(!tok || sscanf(tok,"%c:%d%c",&kind,&index,&trailing)!=2 ||
+           (kind!='B' && kind!='A' && kind!='K' && kind!='N') ||
+           (version==1 && kind=='K') ||
+           index < -1 || index >= (kind=='K'?SDL_NUM_SCANCODES:128))return false;
+        const int slot=version==1?oldSlots[a]:a;
+        parsed.binding[slot].type=kind;
+        parsed.binding[slot].index=index;
+    }
+    *dst=parsed;
+    return true;
+}
+static int xm13Load(XM13_Settings* s){
     xm13Default(s);
     FILE* f=fopen("xmvsf_controller_map.ini","r");
     if(!f)return 0;
     char line[1024]={};
     if(!fgets(line,sizeof(line),f)){fclose(f);return 0;}
-    // The original eight-action file remains loadable. Its Coin/Start
-    // entries migrate to indexes 8/9, leaving 3P/3K and directions empty.
-    const bool oldFormat=strncmp(line,"XMVSF_CONTROLLERS_1",19)==0;
-    if(!oldFormat && strncmp(line,"XMVSF_CONTROLLERS_2",19)!=0){fclose(f);return 0;}
-    const int oldIndices[8]={0,1,2,3,4,5,8,9};
+    const int version=strncmp(line,"XMVSF_CONTROLLERS_1",19)==0?1:
+                      strncmp(line,"XMVSF_CONTROLLERS_2",19)==0?2:
+                      strncmp(line,"XMVSF_CONTROLLERS_3",19)==0?3:0;
+    if(!version){fclose(f);return 0;}
     for(int p=0;p<2;p++){
         if(!fgets(line,sizeof(line),f))break;
-        char* tok=strtok(line," \t\r\n");
-        int number=0;
-        if(!tok || sscanf(tok,"P%d",&number)!=1 || number!=p+1)continue;
-        tok=strtok(NULL," \t\r\n");
-        if(!tok)continue;
-        char guid[40]={};snprintf(guid,sizeof(guid),"%s",tok);
-        const bool keyboard=!strcmp(guid,"KEYBOARD") && !oldFormat;
-        if(!keyboard && (!xm13ValidGuid(guid) ||
-           !strcmp(guid,"00000000000000000000000000000000")))continue;
-        tok=strtok(NULL," \t\r\n");
-        if(!tok)continue;
-        const int occurrence=atoi(tok);
-        if((keyboard && occurrence!=-1) ||
-           (!keyboard && (occurrence<0||occurrence>7)))continue;
-        XM13_Player* player=&s->player[p];
-        snprintf(player->guid,sizeof(player->guid),"%s",guid);
-        player->occurrence=occurrence;
-        player->active=1;
-        for(int a=0;a<(oldFormat?8:XM13_ACTIONS);a++){
-            tok=strtok(NULL," \t\r\n");
-            char type='N';int ix=-1;
-            if(!tok || sscanf(tok,"%c:%d",&type,&ix)!=2 ||
-               (type!='B'&&type!='A'&&type!='K'&&type!='N') ||
-               ix < -1 || ix >= (type=='K'?SDL_NUM_SCANCODES:128) ||
-               (oldFormat && type=='K')){
-                player->active=0;break;
-            }
-            const int idx=oldFormat?oldIndices[a]:a;
-            player->binding[idx].type=type;
-            player->binding[idx].index=ix;
-        }
+        char expected[3]={'P',(char)('1'+p),0};
+        if(strncmp(line,expected,2)!=0 || (line[2]!=' ' && line[2]!='\t'))continue;
+        xm13ParseRecord(line,&s->player[p],version);
+    }
+    if(version>=3)while(s->profileCount<XM13_MAX_PROFILES &&
+                         fgets(line,sizeof(line),f)){
+        if(strncmp(line,"D ",2)!=0)continue;
+        XM13_Player profile={};
+        if(xm13ParseRecord(line,&profile,version))
+            xm13RememberProfile(s,&profile);
     }
     fclose(f);
+    bool recoveredName=false;
+    // Old map migration: fill in system names for any attached saved GUID.
+    // Offline devices retain their original GUID until the name is known.
+    for(int p=0;p<2;p++){
+        XM13_Player* player=&s->player[p];
+        if(!player->active || xm13IsKeyboard(player) || xm13HasName(player))continue;
+        const int found=xm13FindDevice(player);
+        if(found<0)continue;
+        xm13DeviceDisplayName(found,player->deviceName,sizeof(player->deviceName));
+        player->nameOccurrence=xm13NameOrdinal(found);
+        if(xm13HasName(player))recoveredName=true;
+    }
+    // One-time upgrade when an old mapping and its hardware are present.
+    if(recoveredName || version<3){
+        XM13_Settings snapshot=*s;
+        for(int p=0;p<2;p++)xm13RememberProfile(&snapshot,&snapshot.player[p]);
+        if(recoveredName && xm13Save(&snapshot))*s=snapshot;
+    }
     return 1;
 }
-static int xm13Save(const XM13_Settings* s) {
+static void xm13WriteRecord(FILE* f,const char* marker,const XM13_Player* p){
+    char nameHex[sizeof(p->deviceName)*2+2]={};
+    xm13NameToHex(p->deviceName,nameHex,sizeof(nameHex));
+    fprintf(f,"%s %s %d %s %d",marker,p->active?p->guid:
+        "00000000000000000000000000000000",p->occurrence,
+        nameHex,p->nameOccurrence);
+    for(int a=0;a<XM13_ACTIONS;a++)
+        fprintf(f," %c:%d",p->binding[a].type,p->binding[a].index);
+    fputc('\n',f);
+}
+static int xm13Save(const XM13_Settings* s){
+    if(!s)return 0;
+    XM13_Settings snapshot=*s;
+    for(int p=0;p<2;p++)xm13RememberProfile(&snapshot,&snapshot.player[p]);
     FILE* f=fopen("xmvsf_controller_map.ini.tmp","w");
     if(!f)return 0;
-    fputs("XMVSF_CONTROLLERS_2\n",f);
-    for(int p=0;p<2;p++) {
-        const XM13_Player* v=&s->player[p];
-        fprintf(f,"P%d %s %d",p+1,v->active?v->guid:"00000000000000000000000000000000",v->occurrence);
-        for(int a=0;a<XM13_ACTIONS;a++)fprintf(f," %c:%d",v->binding[a].type,v->binding[a].index);
-        fputc('\n',f);
+    fputs("XMVSF_CONTROLLERS_3\n",f);
+    for(int p=0;p<2;p++){
+        char label[3]={'P',(char)('1'+p),0};
+        xm13WriteRecord(f,label,&snapshot.player[p]);
     }
-    if(fclose(f)!=0) {remove("xmvsf_controller_map.ini.tmp");return 0;}
-    // Windows rename() cannot replace an existing file. Preserve backup first.
+    for(int i=0;i<snapshot.profileCount;i++)
+        xm13WriteRecord(f,"D",&snapshot.profiles[i]);
+    if(fclose(f)!=0){remove("xmvsf_controller_map.ini.tmp");return 0;}
     remove("xmvsf_controller_map.ini.bak");
     rename("xmvsf_controller_map.ini","xmvsf_controller_map.ini.bak");
-    if(rename("xmvsf_controller_map.ini.tmp","xmvsf_controller_map.ini")!=0) {
-        rename("xmvsf_controller_map.ini.bak","xmvsf_controller_map.ini"); return 0;
+    if(rename("xmvsf_controller_map.ini.tmp","xmvsf_controller_map.ini")!=0){
+        rename("xmvsf_controller_map.ini.bak","xmvsf_controller_map.ini");return 0;
     }
     return 1;
 }
