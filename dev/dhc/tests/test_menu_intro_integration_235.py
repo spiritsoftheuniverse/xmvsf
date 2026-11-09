@@ -100,8 +100,8 @@ assert 'if(gameRow==0)XM8755Mode::Toggle();' in boot
 assert 'else if(gameRow==1)xm8655Toggle();' in boot
 assert 'else xm8733DizzyToggle();' in boot
 assert 'if(screen==4 && optionsTab==2 && capture>=0)' in boot
-assert 'capture=controlsRow==0?controlsPage:2+controlsPage*8+(controlsRow-1);' in boot
-assert 'for(int row=0;row<9;row++)' in boot
+assert 'capture=controlsRow==0?controlsPage:2+controlsPage*XM13_ACTIONS+(controlsRow-1);' in boot
+assert 'for(int row=0;row<=XM13_ACTIONS;row++)' in boot
 assert 'for(int p=0;p<2;p++) for(int a=0;a<6;a++)' not in boot
 assert 'screen=1;' not in boot
 assert 'DEVICE USED OR SAVE FAILED' not in boot
@@ -110,5 +110,38 @@ assert 'updated.player[player]=updated.player[other];' in controls
 assert 'updated.player[other]=prior;' in controls
 assert 'if(!xm13Save(&updated))return 0;' in controls
 assert '*settings=updated;' in controls
+assert '#define XM13_ACTIONS 14' in controls
+assert 'XMVSF_CONTROLLERS_2' in controls and 'XMVSF_CONTROLLERS_1' in controls
+assert 'const int oldIndices[8]={0,1,2,3,4,5,8,9};' in controls
+assert 'SDL_JoystickNameForIndex(device)' in controls
+assert 'SDL_GameControllerNameForIndex(device)' in controls
+assert 'xm13DeviceDisplayName(device,systemName,sizeof(systemName));' in boot
+assert 'char systemName[44]={};' in boot
+assert 'XM13_3P' in controls and 'XM13_3K' in controls
+assert 'xm13BindingPressed(p->binding[XM13_3P],joy)' in controls
+assert 'xm13BindingPressed(p->binding[XM13_3K],joy)' in controls
+assert 'xm13AssignKeyboard(&config,capture)' in boot
+assert 'SDL_GetScancodeName((SDL_Scancode)binding.index)' in boot
+assert 'if(sc==SDL_SCANCODE_UNKNOWN || sc==SDL_SCANCODE_F9' in boot
+assert 'LEFT","RIGHT","UP","DOWN"' in boot
+assert 'controlsRow=(controlsRow+XM13_ACTIONS+1+direction)%(XM13_ACTIONS+1)' in boot
+assert '174+row*19' in boot
+assert 'xmvsfPixelText(render,"LB/Q",112,76,2,149,111,69)' in boot
+assert 'xmvsfPixelText(render,"RB/E",862,76,2,149,111,69)' in boot
+assert '"LB / RB TABS   Q / E TABS"' not in boot
+assert "if(controlsRow>0 && !config.player[controlsPage].active)" in boot
+assert "xm13BindingPressed(p->binding[idx],joy)" in controls
+assert "static int xm13AssignKeyboard(" in controls
+assert 'SDL_GetKeyboardState(nullptr)' in controls
+assert 'SDL_SCANCODE_A,SDL_SCANCODE_D,SDL_SCANCODE_W,SDL_SCANCODE_S' in controls
+mapper=(SDL/"input_sdl2.cpp").read_text(encoding="utf-8")
+game_input=(ROOT/"dev/stable/buildtree/src/intf/input/sdl/inp_sdl2.cpp").read_text(encoding="utf-8")
+gate=(SDL/"xmvsf_stage25_8_menu_gate.h").read_text(encoding="utf-8")
+assert 'if(!xm13Loaded || (Uint32)(now-xm13MappedAt)>100u)' in mapper
+assert '(Uint32)(xm13Now-xm13LastReload)>=250u' in game_input
+assert '#define JOYSTICK_DETECT_MS 0' in game_input
+assert '#define JOYSTICK_DETECT_MS 600' in game_input
+assert '(uint32_t)(now-neutralSince)>=20' in gate
+
 assert "TEST 87.236" in boot
 print("XMVSF 87.235 cold boot/menu/Fight audio and SDL integration: PASS")
