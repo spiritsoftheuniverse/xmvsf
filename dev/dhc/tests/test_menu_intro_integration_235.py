@@ -107,7 +107,7 @@ assert 'screen=1;' not in boot
 assert 'DEVICE USED OR SAVE FAILED' not in boot
 controls=(SDL/"xmvsf_stage13_controls.h").read_text(encoding="utf-8")
 assert 'updated.player[player]=updated.player[other];' in controls
-assert 'updated.player[other]=prior;' in controls
+assert 'updated.player[other]=previous;' in controls
 assert 'if(!xm13Save(&updated))return 0;' in controls
 assert '*settings=updated;' in controls
 assert '#define XM13_ACTIONS 14' in controls
