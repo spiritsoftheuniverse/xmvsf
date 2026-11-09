@@ -5,6 +5,7 @@
 #include <cstdio>
 #include <cstring>
 #include <cerrno>
+#include <cstdlib>
 
 namespace xm23 {
 static inline unsigned r8(cpu_core_config* c,unsigned a) {return c->read(a)&0xffu;}
@@ -320,6 +321,57 @@ static inline void xm38HitSourceProbe(cpu_core_config* c){
     std::fflush(out);
 }
 
+// Optional, bounded read-only proof of ROM +85 versus the Training clock.
+// Enable with XMVSF_FRAME_TRACE=1 before RUN_TEST.bat; the TSV is placed
+// next to the TEST executable. No GPU capture, memory writes or timing hooks.
+static inline void xm243FrameClockTrace(
+        cpu_core_config* c,const XM30Sample (&samples)[2],
+        const XM41ActorSample (&actors)[2],
+        unsigned long long before,unsigned long long after){
+    static int armed=-1;
+    static FILE* file=nullptr;
+    static unsigned long long sample=0;
+    static unsigned logged=0,tail=0;
+    if(armed<0){
+        const char* flag=std::getenv("XMVSF_FRAME_TRACE");
+        armed=flag && flag[0]=='1' && !flag[1] ? 1 : 0;
+        if(armed){
+            file=xm36OpenTrace("xmvsf_frame_clock_243.tsv",
+                "host_sample\\tlogical_before\\tlogical_after\\t"
+                "p1_2e\\tp1_hitstop\\tp1_mode\\tp1_action\\tp1_phase\\t"
+                "p1_step\\tp1_control\\tp1_anim_timer\\tp1_anim_ptr\\t"
+                "p1_hp\\tp1_melee\\tp1_proj\\t"
+                "p2_2e\\tp2_hitstop\\tp2_mode\\tp2_action\\tp2_phase\\t"
+                "p2_step\\tp2_control\\tp2_anim_timer\\tp2_anim_ptr\\t"
+                "p2_hp\\tp2_melee\\tp2_proj\\tevents\\n");
+            if(!file)armed=0;
+        }
+    }
+    if(!armed || !file || logged>=2400u)return;
+    ++sample;
+    const bool super=xm30NativeAttackFamily(actors[0])==0x2Eu ||
+                     xm30NativeAttackFamily(actors[1])==0x2Eu;
+    if(super || actors[0].hitStop || actors[1].hitStop)tail=120u;
+    if(!tail)return;
+    --tail;
+    std::fprintf(file,"%llu\\t%llu\\t%llu",
+                 sample,before,after);
+    for(int p=0;p<2;++p){
+        const unsigned base=0xFF4000u+(unsigned)p*0x400u;
+        std::fprintf(file,"\\t%u\\t%u\\t%04X\\t%04X\\t%02X\\t"
+                "%04X\\t%04X\\t%04X\\t%08X\\t%u\\t%u\\t%u",
+            xm30NativeAttackFamily(actors[p])==0x2Eu?1u:0u,
+            actors[p].hitStop,actors[p].mode,actors[p].nativeAction,
+            actors[p].attackPhase,actors[p].nativeStep,
+            xm23::r16(c,base+0x06u),xm23::r16(c,base+0x3Eu),
+            xm23::r32(c,base+0x34u),actors[p].health,
+            samples[p].melee.active?1u:0u,
+            samples[p].projectile.active?1u:0u);
+    }
+    std::fprintf(file,"\\t%d\\n",xm23State.frameData.count);
+    if(++logged%60u==0u)std::fflush(file);
+}
+
 static inline void xm23OnRealFrame(int ready) {
     if(!xm14TrainingMode || !ready || bBurnRunAheadFrame) {
         if(!xm14TrainingMode) {xm23State.menuOpen=false;xm23State.combat=false;xm23State.count=0;xm23State.frameData.clear();}
@@ -421,7 +473,10 @@ static inline void xm23OnRealFrame(int ready) {
         }
         // Do not use the FF5009 round subcounter for cinematic stop:
         // Training can hold it fixed while native fighter actions progress.
+        const unsigned long long logicalBefore=xm23State.frameData.frame;
         xm23State.frameData.onFrame(sample[0],sample[1],actor[0],actor[1]);
+        xm243FrameClockTrace(c,sample,actor,logicalBefore,
+                             xm23State.frameData.frame);
     }
     c->close();
 }
