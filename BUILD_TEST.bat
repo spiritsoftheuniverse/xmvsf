@@ -50,6 +50,16 @@ if errorlevel 1 (
   popd
   goto :fail
 )
+REM Validate the compact-link helper too; its fallback must never hide a syntax error.
+if exist FAST_MENU_LINK_INPUTS_235.sh (
+  bash.exe -n FAST_MENU_LINK_INPUTS_235.sh
+  if errorlevel 1 (
+    echo ERROR: FAST_MENU_LINK_INPUTS_235.sh has a shell syntax error; no build started.
+    >>"%BUILDLOG%" echo ERROR: FAST_MENU_LINK_INPUTS_235.sh shell syntax invalid
+    popd
+    goto :fail
+  )
+)
 bash.exe BUILD_TEST.sh
 set "RC=%ERRORLEVEL%"
 popd
