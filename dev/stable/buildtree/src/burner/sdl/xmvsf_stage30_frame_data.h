@@ -345,6 +345,21 @@ struct XM30FrameData {
         // inconclusive; a genuine exit still uses its last matching frame.
         for(int p=0;p<2;++p){
             if(landed[p])contactExitGrace[p]=2;
+            // A point-blank super can run many sequential ROM +85
+            // stop-countdown ticks AFTER its first hit. Keep the action
+            // handoff grace refreshed until the final stopped tick, then
+            // allow up to two unfrozen samples to prove it resumed or exited.
+            // Never refresh on a stale, unchanged +85 value.
+            if(stopCounterMoved && stops[p]>0u){
+                for(int i=count-1;i>=0;--i){
+                    const XM30Event& old=history[i];
+                    if(old.player==p && old.attackObserved &&
+                       !old.attackEnded && old.attackFamily==0x2Eu){
+                        contactExitGrace[p]=3;
+                        break;
+                    }
+                }
+            }
             pendingContact[p]=false;
         }
         ++frame;
