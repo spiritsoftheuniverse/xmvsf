@@ -325,10 +325,11 @@ static inline void xm38HitSourceProbe(cpu_core_config* c){
 // versus the Training clock.
 // Enable with XMVSF_FRAME_TRACE=1 before RUN_TEST.bat; the TSV is placed
 // next to the TEST executable. No GPU capture, memory writes or timing hooks.
-static inline void xm244FrameClockTrace(
+static inline void xm245FrameClockTrace(
         cpu_core_config* c,const XM30Sample (&samples)[2],
         const XM41ActorSample (&actors)[2],
-        unsigned long long before,unsigned long long after){
+        unsigned long long before,unsigned long long after,
+        unsigned long long p1Before,unsigned long long p2Before){
     static int armed=-1;
     static FILE* file=nullptr;
     static unsigned long long sample=0;
@@ -337,8 +338,9 @@ static inline void xm244FrameClockTrace(
         const char* flag=std::getenv("XMVSF_FRAME_TRACE");
         armed=flag && flag[0]=='1' && !flag[1] ? 1 : 0;
         if(armed){
-            file=xm36OpenTrace("xmvsf_frame_clock_244.tsv",
+            file=xm36OpenTrace("xmvsf_frame_clock_245.tsv",
                 "host_sample\tlogical_before\tlogical_after\t"
+                "p1_clock_before\tp1_clock_after\tp2_clock_before\tp2_clock_after\t"
                 "p1_2e\tp1_hitstop\tp1_mode\tp1_action\tp1_phase\t"
                 "p1_step\tp1_control\tp1_anim_timer\tp1_anim_ptr\t"
                 "p1_hp\tp1_melee\tp1_proj\t"
@@ -365,8 +367,9 @@ static inline void xm244FrameClockTrace(
         tail=150u;
     if(!tail)return;
     --tail;
-    std::fprintf(file,"%llu\t%llu\t%llu",
-                 sample,before,after);
+    std::fprintf(file,"%llu\t%llu\t%llu\t%llu\t%llu\t%llu\t%llu",
+                 sample,before,after,p1Before,xm23State.frameData.playerFrame[0],
+                 p2Before,xm23State.frameData.playerFrame[1]);
     for(int p=0;p<2;++p){
         const unsigned base=0xFF4000u+(unsigned)p*0x400u;
         std::fprintf(file,"\t%u\t%u\t%04X\t%04X\t%02X\t"
@@ -499,9 +502,11 @@ static inline void xm23OnRealFrame(int ready) {
         // Do not use the FF5009 round subcounter for cinematic stop:
         // Training can hold it fixed while native fighter actions progress.
         const unsigned long long logicalBefore=xm23State.frameData.frame;
+        const unsigned long long p1Before=xm23State.frameData.playerFrame[0];
+        const unsigned long long p2Before=xm23State.frameData.playerFrame[1];
         xm23State.frameData.onFrame(sample[0],sample[1],actor[0],actor[1]);
-        xm244FrameClockTrace(c,sample,actor,logicalBefore,
-                             xm23State.frameData.frame);
+        xm245FrameClockTrace(c,sample,actor,logicalBefore,
+                             xm23State.frameData.frame,p1Before,p2Before);
     }
     c->close();
 }
