@@ -291,6 +291,15 @@ struct XM30FrameData {
             recordContacts(actors,frame);
             return;
         }
+        // A strike can change the attack controller on the exact impact
+        // sample. Protect that one contact frame from being misread as a
+        // completed attack, then resume normal ROM-owned exit detection.
+        const bool landed[2]={
+            actors[1].valid && healthSeeded[1] &&
+                actors[1].health<previousHealth[1],
+            actors[0].valid && healthSeeded[0] &&
+                actors[0].health<previousHealth[0]
+        };
         ++frame;
         for(int i=0;i<FLOATS;++i)if(floats[i].visible){
             if(++floats[i].age>=FLOAT_LIFE)floats[i].visible=false;
@@ -314,7 +323,8 @@ struct XM30FrameData {
                 XM30Event& e=history[i];
                 if(e.player!=p || !e.attackObserved || e.attackEnded)continue;
                 if(xm30SameNativeAttack(actors[p],e.attackFamily,e.attackAction) ||
-                   (e.attackFamily==0x2Eu && (actors[p].attackPhase&0x80u)!=0u))
+                   (e.attackFamily==0x2Eu && (actors[p].attackPhase&0x80u)!=0u) ||
+                   landed[p])
                     e.attackLastFrame=frame;
                 else {
                     // First nonmatching ROM frame is already the NEXT action.
@@ -336,7 +346,8 @@ struct XM30FrameData {
                     if(xm30SameNativeAttack(actors[p],t.pendingAttackFamily,
                                             t.pendingAttackAction) ||
                        (t.pendingAttackFamily==0x2Eu &&
-                        (actors[p].attackPhase&0x80u)!=0u))
+                        (actors[p].attackPhase&0x80u)!=0u) ||
+                       landed[p])
                         t.pendingAttackLast=frame;
                     else
                         t.pendingAttackEnd=t.pendingAttackLast;
