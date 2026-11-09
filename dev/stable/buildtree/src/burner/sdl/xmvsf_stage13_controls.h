@@ -108,6 +108,26 @@ static int xm13FindDevice(const XM13_Player* p) {
     }
     return -1; // disconnected devices must NOT control somebody else's player
 }
+// The label is read live from SDL (which queries the OS driver), never
+// persisted as an identity. GUID + occurrence remains the assignment key.
+static void xm13DeviceDisplayName(int device,char* out,size_t capacity) {
+    if(!out || capacity==0)return;
+    out[0]=0;
+    if(device<0 || device>=SDL_NumJoysticks())return;
+    const char* name=SDL_JoystickNameForIndex(device);
+    if((!name || !*name) && SDL_IsGameController(device))
+        name=SDL_GameControllerNameForIndex(device);
+    if(!name || !*name)name="UNKNOWN CONTROLLER";
+    // Keep an intelligible SDL/OS name even for drivers with punctuation
+    // outside the menu bitmap glyph atlas. Never display a made-up pad ID.
+    size_t i=0;
+    for(;*name && i+1<capacity;++name){
+        const unsigned char ch=(unsigned char)*name;
+        if(ch>=32 && ch<127)out[i++]=(char)ch;
+        else if(i && out[i-1]!=' ')out[i++]=' ';
+    }
+    out[i]=0;
+}
 static void xm13SetDefaultButtons(XM13_Player* p,int device) {
     const SDL_GameControllerButton names[XM13_ACTIONS]={
         SDL_CONTROLLER_BUTTON_X, SDL_CONTROLLER_BUTTON_Y, SDL_CONTROLLER_BUTTON_LEFTSHOULDER,
