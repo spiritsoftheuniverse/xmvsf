@@ -35,7 +35,10 @@ assert "ev.type!=SDL_QUIT)continue;" in boot
 assert "XM87235Intro::backgroundStrength(introElapsed)" in boot
 assert "XM87235Intro::logoStrength(introElapsed)" in boot
 assert "XM87235Intro::menuReveal(introElapsed)" in boot
-assert "if(selection<=2)xm20MenuFight();" in boot
+assert "if(selection==0 || selection==2)xm20MenuFight();" in boot
+assert "if(pendingMode==1)xm20MenuFight();" in boot
+assert "else xm25MenuSound(true);" in boot
+assert "if(selection<=2)xm20MenuFight();" not in boot
 assert "XMMenuColor::introLogoDither" in atlas
 assert "bayer[(y&3)*4+(x&3)]>=level" in atlas
 assert "backgroundHue(originalPixels_,huePixels_,now,introStrength,width_)" in gif
@@ -139,8 +142,31 @@ assert 'xm13AssignKeyboard(&config,capture)' in boot
 assert 'SDL_GetScancodeName((SDL_Scancode)binding.index)' in boot
 assert 'if(sc==SDL_SCANCODE_UNKNOWN || sc==SDL_SCANCODE_F9' in boot
 assert 'LEFT","RIGHT","UP","DOWN"' in boot
-assert 'controlsRow=(controlsRow+XM13_ACTIONS+1+direction)%(XM13_ACTIONS+1)' in boot
-assert '174+row*19' in boot
+assert 'const int rowCount=xm14VisibleInputs(config,controlsPage)+1;' in boot
+assert 'controlsRow=(controlsRow+rowCount+direction)%rowCount;' in boot
+assert 'const int inputY=deviceY+16+12;' in boot
+assert 'const int inputLeft=480-widest/2;' in boot
+assert 'XMGlyph::smallTextWidth(render,inputLabels[a],2)' in boot
+assert 'XMGlyph::left(render,inputLabels[a],inputLeft,inputY+a*18,0,2,intensity);' in boot
+assert 'return xm13IsKeyboard(&settings.player[page])?XM13_ACTIONS:XM13_START+1;' in boot
+assert 'xmvsfPixelText(render,"A SELECT   B/ESC BACK"' in boot
+font=(SDL/"xmvsf_menu_glyph_atlas.h").read_text(encoding="utf-8")
+assert 'int textWidth(SDL_Renderer* renderer,const char* s,bool small,int scale)' in font
+assert 'static inline int smallTextWidth(SDL_Renderer* r,const char* s,int scale)' in font
+coin=(SDL/"xmvsf_stage24_3_menu_poll.h").read_text(encoding="utf-8")
+assert 'coin=xm243Button(j,p.mapping.binding[XM13_COIN]);' in coin
+assert 'p.mapping.binding[6]' not in coin
+assert 'xm258PreviousKeyboardCoin' in coin and 'xm243PreviousKeyboardCoin' in coin
+assert 'xm13BindingPressed(binding,joy)' in coin
+run=(SDL/"run.cpp").read_text(encoding="utf-8")
+versus=(SDL/"xmvsf_stage24_versus.h").read_text(encoding="utf-8")
+assert 'xm258ArcadeMenuOpen=!xm258ArcadeMenuOpen;' not in run
+assert 'e.key.keysym.sym==SDLK_5' not in versus
+assert 'xm258PollArcadeMenu();' in run
+assert 'xm258ArcadeReturnRequested=true' in run
+for path in ("xmvsf_stage25_5_ui.h","xmvsf_stage23_ui.h"):
+    assert 'B/ESC BACK' in (SDL/path).read_text(encoding="utf-8")
+
 assert 'xmvsfPixelText(render,"LB/Q",112,76,2,149,111,69)' in boot
 assert 'xmvsfPixelText(render,"RB/E",862,76,2,149,111,69)' in boot
 assert '"LB / RB TABS   Q / E TABS"' not in boot
