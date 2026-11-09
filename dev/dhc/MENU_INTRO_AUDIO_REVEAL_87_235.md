@@ -33,6 +33,16 @@ The completed `logo_II.png` alpha bounds are unioned with `logo.png`'s visible b
 - The bottom live-button highlighting strip remains removed. Windows gameplay input init skips its former up-to-600ms joystick wait because the menu already initialized SDL devices. UI page navigation additionally uses a 20ms post-release settle instead of 80ms; the separate gameplay handoff gate is untouched to prevent leaked confirms.
 - Cold-boot announcer WAV now starts at t=0 (next to crash) **before the first logo frame at t=1.0**; this provides one second of audio preroll for the spoken phrase. The WAV itself is not trimmed, retimed, or sped up; audible syllable alignment requires a Windows listening check.
 
+## TEST 87.239 Training super-frame measurements
+
+The Training frame-data pane now samples three read-only ROM timing signals alongside its existing hitbox and native 2E action identity: the round-clock subsecond at `FF5009` (not the Training-overridden 99-second byte at `FF5008`), fighter +`85` hit-stop, and fighter +`64` attack-phase flags (`80` attack, `40` recovery). The tracker first witnesses a changing clock so a permanently held countdown cannot masquerade as a freeze.
+
+- During a native super, clock-stalled frames and explicitly stopped fighter frames are excluded from startup, active, attack duration, projectile motion, frame popups, and all logical frame arithmetic. The *actual emulator/ROM continues unchanged*; only the read-only Training meter's clock pauses.
+- A verified native `2E` super row stays active through temporary missing fighter or projectile collision boxes while the ROM still signals an attack phase. The original even `2E` continuation step at fighter +`08` (at least `04`) bridges intermittent attack-phase flags **only after a real hitbox has already established the move**, and never while the ROM reports `40` recovery. The tracker does not invent an active attack during the initial portrait animation.
+- The chart distinguishes this as `ACT` / `SUPER DURATION`, rather than implying that a collision box was physically present for every sampled frame. Projectiles remain linked to their original object base for spawn, movement and disappearance.
+- `test_frame_data_super_clock_239.cpp` runs as a warm-cached standalone native C++ regression before compilation. It checks cinematic freeze exclusion, a Shinryuuken-like temporary hitbox gap, continued projectile activity after the first box disappears, and unchanged normal-hitbox termination.
+- Build / run scripts now name **TEST 87.239**. This is source-level code; verifying real-time super-freeze detection, move animation, and active periods remains a Windows gameplay test.
+
 ## TEST 87.238 controller layout, Coin menu and Fight cue
 
 - **Controller tab:** The selected device sits exactly **12 canvas pixels** above the first input's glyph row (one 16px native SF2 small-font line plus a 12px blank margin). Input rows use 18px pitch and are left-aligned to one shared x position. The widest label is measured using the actual `sf2fontsmall.png` glyph advances, and the entire input column is centered as a block at x=480. The device+input group is vertically centered between the upper page prompt and lower player selector.
