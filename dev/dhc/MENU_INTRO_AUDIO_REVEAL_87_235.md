@@ -33,6 +33,13 @@ The completed `logo_II.png` alpha bounds are unioned with `logo.png`'s visible b
 - The bottom live-button highlighting strip remains removed. Windows gameplay input init skips its former up-to-600ms joystick wait because the menu already initialized SDL devices. UI page navigation additionally uses a 20ms post-release settle instead of 80ms; the separate gameplay handoff gate is untouched to prevent leaked confirms.
 - Cold-boot announcer WAV now starts at t=0 (next to crash) **before the first logo frame at t=1.0**; this provides one second of audio preroll for the spoken phrase. The WAV itself is not trimmed, retimed, or sped up; audible syllable alignment requires a Windows listening check.
 
+## TEST 87.241 Multi-hit meter continuity
+
+- 87.240 had a hit-stop handoff error: the defender's HP loss was consumed inside a frozen `onFrame` callback. That callback returned without advancing the gameplay clock. The first unfrozen frame then saw *no new health delta* and could end the attack on its transient impact controller state, making both frame-data lanes appear to restart on subsequent hits.
+- A per-attacker `pendingContact` latch now carries frozen damage into the first resumed gameplay frame. A bounded contact exit grace lets the original native attack controller return; a genuine exit still closes at its last actually matched ROM frame (no fabricated duration).
+- Melee and projectile super hitbox lanes remain attached through that impact handoff without inventing attack-box activity during frozen or blank frames. A repeated hitbox rise on the same ongoing `2E` super and action selector does **not** append a second event, even when an intervening mapped button edge changed the pending input epoch.
+- The 87.240 standalone contact test now covers hit -> native stop -> transient action -> re-enter original super -> new hit, asserting one card, a monotonic frame count, and accumulated red markers. Warm-cache native unit tests remain local. GAMEPLAY runtime verification remains pending.
+
 ## TEST 87.240 Training hit markers and horizontal stun meter
 
 - The native Training clock no longer uses a stalled `FF5009` subsecond round-clock value to infer super freeze. That held countdown could cause the previous frame-data implementation to stop tracking **both** players indefinitely. The panel now pauses on actual per-fighter `+85` hit-stop transitions (onset/decrement), and any repeated nonzero stale hit-stop value cannot deadlock it. Normal ROM actions continue counting after release.
