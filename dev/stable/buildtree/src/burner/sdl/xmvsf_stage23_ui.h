@@ -399,7 +399,8 @@ static inline void xm41DrawFrameCard(SDL_Renderer* r,const SDL_Rect& card,
     std::snprintf(caption,sizeof(caption),"P%d %s B%d %s",e.player+1,
         e.source==1?"PROJ":xm32MotionTag(e.motion),
         e.code>=0x80 && e.code<=0x85?e.code-0x80+1:0,
-        e.noBox?"NO BOX":(e.closed?"DONE":"LIVE"));
+        e.noBox?"NO BOX":(e.attackObserved&&!e.attackEnded?"LIVE":
+                              (e.closed?"DONE":"LIVE")));
     xm32ColoredText(r,caption,left,card.y+6,1,159,199,255);
     SDL_SetRenderDrawColor(r,53,78,110,255);
     SDL_RenderDrawLine(r,left,card.y+19,right,card.y+19);
@@ -512,6 +513,14 @@ static inline void xm41DrawFrameCard(SDL_Renderer* r,const SDL_Rect& card,
             tick(px(e.attackEndFrame),card.y+90,11,255,229,196);
     }else{
         xm32ColoredText(r,"UNKNOWN",left+2,card.y+91,1,157,169,185);
+    }
+    // A red vertical tick records each CONFIRMED damage frame independently
+    // of the fighter's action and hitbox duration. It is drawn last, on both
+    // lanes, so a hit never visually terminates the orange attack timeline.
+    for(int i=0;i<e.contactCount && i<XM30Event::CONTACTS;++i){
+        const int contactX=px(e.contactFrames[i]);
+        tick(contactX,card.y+44,56,249,57,66);
+        tick(contactX+1,card.y+44,3,255,126,126);
     }
     SDL_SetRenderDrawColor(r,53,78,110,255);
     SDL_RenderDrawLine(r,left,card.y+105,right,card.y+105);
