@@ -415,6 +415,7 @@ static inline void xm23OnRealFrame(int ready) {
             actor[p].nativeAction=xm23::r16(c,base+0x60);
             actor[p].mode=xm23::r16(c,base+0xA0); // controller; independent of jump/directions
             actor[p].attackPhase=xm23::r8(c,base+0x64); // original ROM: 80=attack, 40=recovery
+            actor[p].nativeStep=xm23::r16(c,base+0x08); // original ROM 2E substage
             actor[p].hitStop=xm23::r8(c,base+0x85); // original ROM per-player freeze counter
         }
         // ROM subsecond fight-clock at FF5009 is independent of the 99-second
