@@ -1,4 +1,10 @@
 #include <stdint.h>
+// FBNeo deliberately maps __TEXT to its SDL TCHAR mode. On MinGW the
+// Windows SDK may already define it; undefine first to preserve the same
+// expansion without GCC's noisy '__TEXT' redefined diagnostic.
+#ifdef __TEXT
+#undef __TEXT
+#endif
 #ifdef _UNICODE
 //TODO: bah
 #include <wchar.h>
