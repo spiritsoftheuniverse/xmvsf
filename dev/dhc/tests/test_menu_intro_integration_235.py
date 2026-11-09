@@ -52,8 +52,8 @@ assert 'remaining<threshold' in fx
 assert "XM87235Intro::MenuStart" in boot
 assert "xm20MenuIntroMusic();musicFired=true;" in boot
 assert "xm20MenuIntroSilence();xm20MenuCrash();" in boot
-assert "static constexpr std::uint32_t AnnouncerStart=LogoStart;" in timeline
-assert "introElapsed>=XM87235Intro::AnnouncerStart" in boot
+assert "static constexpr std::uint32_t AnnouncerStart=0u;" in timeline
+assert "if(introEnabled){xm20MenuIntroSilence();xm20MenuCrash();xm20MenuWelcome();}" in boot
 assert "LogoX=208, LogoY=51, LogoW=544, LogoH=289" in atlas
 assert "combinedCenterShiftX(scale)" in atlas
 assert "setLogoIIAlphaBounds(render,final_?finalBounds_" in strikes
@@ -90,5 +90,25 @@ assert "float musicGain = 1.f, musicTarget = 1.f" in mixer
 assert "xm20::m.musicGain=1.f;" in mixer
 assert "xm20::m.musicTarget=1.f;" in mixer
 assert "musicDuck=m.fightVoiceOn?0.64f:1.0f" in mixer
+assert 'const char* entries[4]={"ARCADE","TRAINING","VERSUS","OPTIONS"}' in boot
+assert 'const char* tabs[3]={"GAME","GRAPHICS","CONTROLLER"}' in boot
+assert 'optionsTab=(optionsTab+3+step)%3' in boot
+assert 'SDL_CONTROLLER_BUTTON_LEFTSHOULDER' in boot
+assert 'SDL_CONTROLLER_BUTTON_RIGHTSHOULDER' in boot
+assert 'graphicsRow<XM29_PRESET_COUNT' in boot
+assert 'if(gameRow==0)XM8755Mode::Toggle();' in boot
+assert 'else if(gameRow==1)xm8655Toggle();' in boot
+assert 'else xm8733DizzyToggle();' in boot
+assert 'if(screen==4 && optionsTab==2 && capture>=0)' in boot
+assert 'capture=controlsRow==0?controlsPage:2+controlsPage*8+(controlsRow-1);' in boot
+assert 'for(int row=0;row<9;row++)' in boot
+assert 'for(int p=0;p<2;p++) for(int a=0;a<6;a++)' not in boot
+assert 'screen=1;' not in boot
+assert 'DEVICE USED OR SAVE FAILED' not in boot
+controls=(SDL/"xmvsf_stage13_controls.h").read_text(encoding="utf-8")
+assert 'updated.player[player]=updated.player[other];' in controls
+assert 'updated.player[other]=prior;' in controls
+assert 'if(!xm13Save(&updated))return 0;' in controls
+assert '*settings=updated;' in controls
 assert "TEST 87.235" in boot
 print("XMVSF 87.235 cold boot/menu/Fight audio and SDL integration: PASS")
