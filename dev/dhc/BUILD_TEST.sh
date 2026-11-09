@@ -323,6 +323,12 @@ run_cached_unit \
 run_cached_unit \
   "$PROJECT/dev/dhc/tests/test_frame_data_combo_244.cpp" \
   "$CACHE_DIR/unit_tests/test_frame_data_combo_244.exe"
+# TEST 87.245: real 87.243 native trace reproducer - 45 callbacks of
+# 2E stage02 phase81 cinematic, then 52 native 2E stage04 steps while
+# defender +85 reloads; attacker must not be globally stopped.
+run_cached_unit \
+  "$PROJECT/dev/dhc/tests/test_frame_data_asymmetric_stop_245.cpp" \
+  "$CACHE_DIR/unit_tests/test_frame_data_asymmetric_stop_245.exe"
 run_cached_unit \
   "$PROJECT/dev/dhc/tests/test_stun_horizontal_240.cpp" \
   "$CACHE_DIR/unit_tests/test_stun_horizontal_240.exe"
