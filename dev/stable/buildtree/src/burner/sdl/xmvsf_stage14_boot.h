@@ -90,6 +90,7 @@ static void xmvsfPixelText(SDL_Renderer* render, const char* text, int cx, int y
 #include "xmvsf_stage29_display.h" /* XMVSF_STAGE29_SCALABLE_DISPLAY */
 #include "xmvsf_stage87_195_menu_gif.h" /* animated local _art menu background at 30% brightness */
 #include "xmvsf_stage87_235_menu_intro_timeline.h"
+#include "xmvsf_stage87_235_ii_strikes.h" /* four ten-frame masks and tip particles */
 #include "xmvsf_stage25_sets.h"
 #include "xmvsf_stage77_selection.h" /* XMVSF_STAGE25_SETS */
 #include "xmvsf_stage20_api.h" /* XMVSF_STAGE20_WASAPI */
@@ -146,6 +147,7 @@ static int xmvsfBootSelector(bool returningFromGame=false) {
     if (!(SDL_GetWindowFlags(window)&SDL_WINDOW_SHOWN)) SDL_ShowWindow(window);
     if(xm87226FirstWindow)xm8652CenterInitialWindow(window);
     XM87195Menu::Background menuBackground;
+    XM87235II::Painter iiPainter; // own source art and masked textures per menu
     // Stage 27: the video backend can leave a non-default renderer target,
     // viewport, clip, or scale after game teardown. Explicitly restore the
     // presentation canvas and present a clean first frame on the SAME window.
@@ -158,6 +160,7 @@ static int xmvsfBootSelector(bool returningFromGame=false) {
     SDL_SetRenderDrawBlendMode(render,SDL_BLENDMODE_NONE);
     menuBackground.load(render);
     XMGlyph::preload(render);
+    iiPainter.load(render);
     // Cold boot only: replay and return-to-menu retain instantaneous access.
     // Open the ALREADY EXISTING WASAPI sink before presenting the first frame.
     const bool introEnabled=xm87226FirstWindow && !XM8764::isPlayback();
@@ -172,8 +175,11 @@ static int xmvsfBootSelector(bool returningFromGame=false) {
                       introEnabled?255:36,255); /* white first-frame strobe */
     SDL_RenderClear(render);
     menuBackground.draw(render,SDL_GetTicks(),introEnabled?1.0f:0.0f);
-    if(!introEnabled && !XMGlyph::menuLogo(render))
-        xmvsfPixelText(render,"X-MEN VS STREET FIGHTER",480,130,3,255,255,255);
+    if(!introEnabled){
+        if(!XMGlyph::menuLogo(render))
+            xmvsfPixelText(render,"X-MEN VS STREET FIGHTER",480,130,3,255,255,255);
+        iiPainter.draw(render,XM87235Intro::TotalMs,false);
+    }
     xm8656Present(render); /* XM86.56 global final pass */
     SDL_PumpEvents();
     xm8652FocusWindowOnce(window,returningFromGame?"boot-return":"boot-startup");
@@ -191,6 +197,7 @@ static int xmvsfBootSelector(bool returningFromGame=false) {
             // No driver should launch if all movie sessions are consumed.
             // Close exactly the resources this selector owns.
             menuBackground.release();
+            iiPainter.release();
             SDL_DestroyRenderer(render);
             if(window==sdlWindow)sdlWindow=nullptr;
             SDL_DestroyWindow(window);
@@ -467,6 +474,10 @@ static int xmvsfBootSelector(bool returningFromGame=false) {
                     XM87235Intro::logoStrength(introElapsed):0.0f;
                 if(!XMGlyph::menuLogo(render,remaining))
                     xmvsfPixelText(render,"X-MEN VS STREET FIGHTER",480,130,3,255,255,255);
+                // Draw II separately after the base title. The four source
+                // exports reveal in A/B/C/D order at ten frames each;
+                // original II PNG remains the final, exact palette layer.
+                iiPainter.draw(render,introElapsed,introEnabled);
             }
             if(!introEnabled||XM87235Intro::menuVisible(introElapsed)){
                 XMGlyph::menuReveal(render,introEnabled?
@@ -605,6 +616,7 @@ static int xmvsfBootSelector(bool returningFromGame=false) {
     }
     xm8652TrackWindowGeometry(window,true,"boot-exit");
     menuBackground.release(); // lifetime ends before shared SDL renderer changes owner
+    iiPainter.release();
     XMGlyph::release(); // clean asset textures before game reuses the renderer
     std::fprintf(stderr,"XM27: boot selector EXIT mode=%d\n",outcome);
     std::fflush(stderr);
