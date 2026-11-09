@@ -104,7 +104,11 @@ assert 'else if(gameRow==1)xm8655Toggle();' in boot
 assert 'else xm8733DizzyToggle();' in boot
 assert 'if(screen==4 && optionsTab==2 && capture>=0)' in boot
 assert 'capture=controlsRow==0?controlsPage:2+controlsPage*XM13_ACTIONS+(controlsRow-1);' in boot
-assert 'for(int row=0;row<=XM13_ACTIONS;row++)' in boot
+# The device is drawn once; input rows are now dynamically sized for a
+# ten-action gamepad and fourteen-action keyboard, not a fixed 15-row loop.
+assert 'for(int a=0;a<visibleInputs;a++)' in boot
+assert 'const int visibleInputs=xm14VisibleInputs(config,controlsPage);' in boot
+assert 'return xm13IsKeyboard(&settings.player[page])?XM13_ACTIONS:XM13_START+1;' in boot
 assert 'for(int p=0;p<2;p++) for(int a=0;a<6;a++)' not in boot
 assert 'screen=1;' not in boot
 assert 'DEVICE USED OR SAVE FAILED' not in boot
