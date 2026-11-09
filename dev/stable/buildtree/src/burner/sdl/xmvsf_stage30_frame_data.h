@@ -396,6 +396,10 @@ struct XM30FrameData {
                         if(e.attackFamily==0x2Eu &&
                            (superPhaseActive || (e.nativeSuperPhase && superStageActive))){
                             e.nativeSuperPhase=true;++e.active;
+                        }else if(e.attackFamily==0x2Eu &&
+                                 (landed[p] || contactExitGrace[p]>0)){
+                            // Do not close a super projectile on the hitstop
+                            // handoff; the ROM will resume or actually exit.
                         }else{e.closed=true;e.endFrame=frame-1;}
                     }
                 }else{
@@ -411,6 +415,10 @@ struct XM30FrameData {
                             (superPhaseActive || (e.nativeSuperPhase && superStageActive)))){
                             if(superPhaseActive || superStageActive)e.nativeSuperPhase=true;
                             ++e.active;
+                        }else if(e.attackFamily==0x2Eu &&
+                                 (landed[p] || contactExitGrace[p]>0)){
+                            // Missing damage box during impact is not the end
+                            // of the move. Preserve this card across stop.
                         }else{e.closed=true;e.endFrame=frame-1;}
                     }
                     if(e.positionKnown && (x!=e.lastProjectileX || y!=e.lastProjectileY)){
@@ -468,6 +476,10 @@ struct XM30FrameData {
                     if(hits[0].active || nativeSuperOffense){
                         if(nativeSuperOffense)e.nativeSuperPhase=true;
                         ++e.active;
+                    }else if(e.attackFamily==0x2Eu &&
+                             (landed[p] || contactExitGrace[p]>0)){
+                        // No attack frames are invented for a blank box, but
+                        // the hit freeze must not retire the original row.
                     }else{
                         e.closed=true;e.endFrame=frame-1;
                         meleeIndex=-1;
