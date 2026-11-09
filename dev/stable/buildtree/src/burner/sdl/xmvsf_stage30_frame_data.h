@@ -292,7 +292,6 @@ struct XM30FrameData {
             return;
         }
         ++frame;
-        recordContacts(actors,frame);
         for(int i=0;i<FLOATS;++i)if(floats[i].visible){
             if(++floats[i].age>=FLOAT_LIFE)floats[i].visible=false;
         }
@@ -535,6 +534,9 @@ struct XM30FrameData {
             for(int k=0;k<t.previousProjectileCount;++k)
                 t.previousProjectileBases[k]=samples[p].projectileBases[k];
         }
+        // After rising-edge creation: first active frame and first actual
+        // damage sample may be identical. Assign the marker to the new row.
+        recordContacts(actors,frame);
     }
 };
 // Stage 87.217: native pixel-space geometry, deterministic frame-data
