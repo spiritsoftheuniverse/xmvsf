@@ -91,7 +91,26 @@ static void hitstopThenComboHandoff(){
     assert(f.history[0].endFrame==1);
     assert(f.history[1].firstFrame==2);
 }
+static void newComboStartsOnHitstopOnset(){
+    XM30FrameData f{};f.setEnabled(true);f.beginCombat();
+    XM30Sample box=oneContinuousBox(),none{};
+    XM41ActorSample a=fighter(0x2800,0x2800),b=fighter(0,0,0);
+    f.press(0,0x80);f.onFrame(box,none,a,b);
+    f.press(0,0x81);
+    a.nativeAction=0x2810;
+    a.hitStop=3; // first impact of new normal on the same sample
+    f.onFrame(box,none,a,b);
+    assert(f.frame==2 && f.count==2);
+    assert(f.history[0].closed && f.history[0].endFrame==1);
+    assert(f.history[1].firstFrame==2);
+    a.hitStop=2;f.onFrame(box,none,a,b);
+    a.hitStop=1;f.onFrame(box,none,a,b);
+    assert(f.frame==2);
+    a.hitStop=0;f.onFrame(box,none,a,b);
+    assert(f.frame==3 && f.history[1].active==2);
+}
 int main(){
+    newComboStartsOnHitstopOnset();
     comboNormalsWithoutBoxGap();
     comboCancelNormalIntoSuper();
     noPhantomComboWithoutNativeAcceptance();
