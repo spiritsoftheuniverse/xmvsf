@@ -12,7 +12,7 @@ struct XM258MenuGate {
         if(!active)return false;
         if(anyHeld)neutralSince=0;
         else if(!neutralSince)neutralSince=now?now:1;
-        else if((uint32_t)(now-neutralSince)>=80){active=false;}
+        else if((uint32_t)(now-neutralSince)>=20){active=false;} // ~one frame after release, no artificial menu pause
         return active;
     }
 };
