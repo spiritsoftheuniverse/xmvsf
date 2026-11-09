@@ -22,12 +22,12 @@ if ! command -v tee >/dev/null; then
   exit 2
 fi
 exec > >(tee -a "$LOG_FILE") 2>&1
-printf '\n========== XMVSF TEST 87.236 BUILD BEGIN %s ==========' "$(date '+%Y-%m-%d %H:%M:%S')"
+printf '\n========== XMVSF TEST 87.237 BUILD BEGIN %s ==========' "$(date '+%Y-%m-%d %H:%M:%S')"
 printf '\nProject: %s\nLog: %s\n' "$PROJECT" "$LOG_FILE"
 trap 'rc=$?; trap - EXIT; printf "XMVSF BUILD END rc=%s elapsed_seconds=%s time=%s log=%s\n" "$rc" "$((SECONDS-BUILD_WALL_START))" "$(date "+%Y-%m-%d %H:%M:%S")" "$LOG_FILE"; exit "$rc"' EXIT
 
 TREE="$PROJECT/dev/stable/buildtree"
-DEST="$PROJECT/runtime/stable/XMVSF_Test_87_236.exe"
+DEST="$PROJECT/runtime/stable/XMVSF_Test_87_237.exe"
 PENDING="$PROJECT/runtime/stable/.XMVSF_Test_87_236_pending.exe"
 # Machine-local cache: never stored in Git and never mutates Stable.
 CACHE_DIR="$PROJECT/test/build_cache"
@@ -347,7 +347,7 @@ fi
 echo "BUILD PHASE full_regression_end duration_seconds=$((SECONDS-BUILD_TESTS_START))"
 # Preserve warm cache and anything already built on failures. Never run make clean.
 cd "$TREE"
-echo "XMVSF Stage 87.236 TEST: incremental build; preserving cached objects"
+echo "XMVSF Stage 87.237 TEST: incremental build; preserving cached objects"
 if command -v git >/dev/null 2>&1; then
   echo "Source branch: $(git -C "$PROJECT" branch --show-current 2>/dev/null || true)"
   echo "Source revision: $(git -C "$PROJECT" rev-parse --short HEAD 2>/dev/null || true)"
@@ -562,9 +562,9 @@ if (( ${#REPAIR_NATIVE[@]} )); then
   printf 'repaired_source_revision=%s\n' "$(git -C "$PROJECT" rev-parse HEAD 2>/dev/null || true)" > "$REPAIR_MARK"
   echo "BUILD CACHE REPAIR: completed five-source recovery."
 fi
-echo "87.236 compiled TEST sha256: $built_sha"
+echo "87.237 compiled TEST sha256: $built_sha"
 echo "87.235 menu source asset checksums:"
 sha256sum "$PROJECT/_art/logo.png" "$PROJECT/_art/sf2font.png" \
   "$PROJECT/_art/sf2fontsmall.png" "$PROJECT/_art/menuanimation.gif" \
   "$PROJECT/_art/stunbar_base.png"
-echo "Stage 87.236: native sources dependency-cached; Stable and previous TESTs untouched."
+echo "Stage 87.237: native sources dependency-cached; Stable and previous TESTs untouched."
