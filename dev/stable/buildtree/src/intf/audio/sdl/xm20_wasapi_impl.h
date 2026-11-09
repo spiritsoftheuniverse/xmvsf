@@ -44,7 +44,7 @@ struct Machine {
     Clip crash, welcome, fightVoice; // authored 87.235; same WASAPI device
     double meterPos[2] = {0.0,0.0};
     bool meterOn[2] = {false,false};
-    float musicGain = 0.5f, musicTarget = 0.5f, gameGain = 1.f;
+    float musicGain = 1.f, musicTarget = 1.f, gameGain = 1.f;
     // Frame-rate independent WASAPI envelope. Derived from the current
     // audible level; a 500 ms fight handoff ends exactly at zero.
     float fadeFrom=0.5f,fadeSeconds=0.f,fadeElapsed=0.f;
@@ -207,7 +207,9 @@ static void fillFrames(BYTE* output, UINT32 count, const WAVEFORMATEX* fmt) {
             const float crashSfx=m.crashOn?linearClip(m.crash,m.crash.pos,ch)*0.88f:0.f;
             const float welcomeVoice=m.welcomeOn?linearClip(m.welcome,m.welcome.pos,ch)*0.95f:0.f;
             const float fightVoice=m.fightVoiceOn?linearClip(m.fightVoice,m.fightVoice.pos,ch)*0.95f:0.f;
-            const float musicDuck=(m.crashOn||m.welcomeOn||m.fightVoiceOn)?0.64f:1.0f;
+            // Crash and welcome complete before or near the first menu notes.
+            // Keep full normal music level from its first audible frame.
+            const float musicDuck=m.fightVoiceOn?0.64f:1.0f;
             // Before confirmed combat, original QSound is muted. This also mutes game SFX;
             // selective QSound music routing is NOT implemented in this stage.
             channelsOut[ch]=clamp(game+m.musicGain*0.70f*0.70f*music*musicDuck /* 49% base, duck for authored voices */+movement+confirmation+meterSound+crashSfx+welcomeVoice+fightVoice); /* XMVSF_STAGE22_SELECTION_SFX: native game SFX always audible; sound CPU suppresses BGM */
@@ -341,9 +343,9 @@ void xm20MenuStart(){
         xm20::m.fight=false;
         xm20::m.music.pos=0;
         xm20::m.musicEnabled=true;
-        xm20::m.musicGain=0.5f;
-        xm20::m.musicTarget=0.5f;
-        xm20::m.fadeFrom=0.5f;
+        xm20::m.musicGain=1.f;
+        xm20::m.musicTarget=1.f;
+        xm20::m.fadeFrom=1.f;
         xm20::m.fadeSeconds=0.f;
         xm20::m.fadeElapsed=0.f;
         xm20::m.moveOn=false;
@@ -371,7 +373,7 @@ void xm20MenuIntroMusic(){
     if(!xm20::m.csReady)return;
     EnterCriticalSection(&xm20::m.lock);
     xm20::m.music.pos=0;
-    xm20::m.musicGain=0.f;xm20::m.musicTarget=0.5f;
+    xm20::m.musicGain=0.f;xm20::m.musicTarget=1.f;
     xm20::m.fadeFrom=0.f;xm20::m.fadeElapsed=0.f;
     xm20::m.fadeSeconds=0.5f;
     xm20::m.musicEnabled=true;
