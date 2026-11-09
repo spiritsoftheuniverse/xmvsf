@@ -434,7 +434,7 @@ if (( WARM_MENU_PASS )); then
     MAKELEVEL=2 make -rR -f makefile.sdl2 LSB_FIRST=1 INCLUDE_7Z_SUPPORT=1 DEPEND=1 \
       "XMVSF_BUILD_SIGNATURE=../../../test/build_cache/compiler.signature" \
       "allobj=$XM235_LINK_OBJECTS" "alldep=$XM235_LINK_DEPFILES" \
-      "autdrv=" "autdep=" "drvdep=" \
+      "autdrv=" "autdep=" "drvdep=" "drvsrc=" "autobj=" \
       "${MAKE_COMPILER[@]}" -j"${XMVSF_BUILD_JOBS:-12}" all
     echo "BUILD PHASE compact_make_end elapsed_seconds=$((SECONDS-BUILD_WALL_START))"
   else
