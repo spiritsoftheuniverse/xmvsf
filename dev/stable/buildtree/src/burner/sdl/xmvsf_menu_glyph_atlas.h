@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <cstdio>
 #include <cstring>
+#include <cmath>
 #include <string>
 #include <vector>
 #include "xmvsf_menu_color_fx.h"
@@ -35,6 +36,7 @@ class Atlas {
     int logoWidth_=0,logoHeight_=0;
     bool logoFxWarning_=false;
     SDL_Rect logoSource_ = {0,0,0,0};
+    SDL_Rect logoCombined_ = {0,0,0,0}; // alpha union of base logo and finished II
     // A fixed atlas grid is for locating sprites, not laying out text.
     // Per-glyph bounds discard empty side columns, keeping colored pixels intact.
     struct Glyph {
@@ -154,7 +156,7 @@ public:
         revealedLargeRGBA_.clear();revealedSmallRGBA_.clear();
         revealOn_=false;revealStep_=lastIntroLogoStep_=-1;
         lastLogoFX_=0;logoWidth_=logoHeight_=0;logoFxWarning_=false;
-        renderer_=nullptr;logoSource_={0,0,0,0};attempted_=false;
+        renderer_=nullptr;logoSource_={0,0,0,0};logoCombined_={0,0,0,0};attempted_=false;
         for(int i=0;i<2;i++)for(int c=0;c<128;c++)metrics_[i][c]=Glyph{};
     }
     void ensure(SDL_Renderer* renderer){
@@ -227,6 +229,24 @@ public:
             logoSource_.x,logoSource_.y,logoSource_.w,logoSource_.h,
             metrics_[0]['A'].advance,metrics_[0]['I'].advance,
             metrics_[1]['a'].advance,metrics_[1]['i'].advance);
+    }
+    // Fit the original logo as before, but translate both layers so their
+    // combined alpha bounds (base logo + completed II) center on screen.
+    void setLogoIIAlphaBounds(SDL_Renderer* renderer,const SDL_Rect& ii){
+        ensure(renderer);
+        logoCombined_=logoSource_;
+        if(ii.w<=0||ii.h<=0||logoSource_.w<=0||logoSource_.h<=0)return;
+        const int left=std::min(logoSource_.x,ii.x);
+        const int top=std::min(logoSource_.y,ii.y);
+        const int right=std::max(logoSource_.x+logoSource_.w,ii.x+ii.w);
+        const int bottom=std::max(logoSource_.y+logoSource_.h,ii.y+ii.h);
+        logoCombined_={left,top,right-left,bottom-top};
+    }
+    int combinedCenterShiftX(double scale)const{
+        if(logoCombined_.w<=0)return 0;
+        const double baseCenter=double(logoSource_.x)+double(logoSource_.w)/2.0;
+        const double combinedCenter=double(logoCombined_.x)+double(logoCombined_.w)/2.0;
+        return int(std::round((baseCenter-combinedCenter)*scale));
     }
     // Intrinsic source pixels determine advances. This is the normalization
     // pass: narrow I/i/l/1 and punctuation no longer consume a full cell.
@@ -356,7 +376,7 @@ public:
                                     double(target.h)/logoSource_.h);
         const int width=std::max(1,int(logoSource_.w*scale+0.5));
         const int height=std::max(1,int(logoSource_.h*scale+0.5));
-        SDL_Rect dst={target.x+(target.w-width)/2,
+        SDL_Rect dst={target.x+(target.w-width)/2+combinedCenterShiftX(scale),
                       target.y+(target.h-height)/2,width,height};
         SDL_RenderCopy(renderer,logoFx_?logoFx_:logo_,&logoSource_,&dst);
         return true;
@@ -373,7 +393,7 @@ public:
                                     double(target.h)/logoSource_.h);
         const int width=std::max(1,int(logoSource_.w*scale+0.5));
         const int height=std::max(1,int(logoSource_.h*scale+0.5));
-        const SDL_Rect cropped={target.x+(target.w-width)/2,
+        const SDL_Rect cropped={target.x+(target.w-width)/2+combinedCenterShiftX(scale),
                                 target.y+(target.h-height)/2,width,height};
         fullCanvas={cropped.x-int(logoSource_.x*scale+0.5),
                     cropped.y-int(logoSource_.y*scale+0.5),
@@ -459,6 +479,9 @@ struct MainLayout {
         HintY=495, ExitY=522, ExitLeft=18, VersionRight=942
     };
 };
+static inline void setLogoIIAlphaBounds(SDL_Renderer* renderer,const SDL_Rect& bounds){
+    atlas().setLogoIIAlphaBounds(renderer,bounds);
+}
 static inline bool menuLogoFullCanvas(SDL_Renderer* renderer,SDL_Rect& fullCanvas){
     const SDL_Rect target={MainLayout::LogoX,MainLayout::LogoY,
                            MainLayout::LogoW,MainLayout::LogoH};
