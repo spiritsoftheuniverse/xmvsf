@@ -337,13 +337,13 @@ static inline void xm243FrameClockTrace(
         armed=flag && flag[0]=='1' && !flag[1] ? 1 : 0;
         if(armed){
             file=xm36OpenTrace("xmvsf_frame_clock_243.tsv",
-                "host_sample\\tlogical_before\\tlogical_after\\t"
-                "p1_2e\\tp1_hitstop\\tp1_mode\\tp1_action\\tp1_phase\\t"
-                "p1_step\\tp1_control\\tp1_anim_timer\\tp1_anim_ptr\\t"
-                "p1_hp\\tp1_melee\\tp1_proj\\t"
-                "p2_2e\\tp2_hitstop\\tp2_mode\\tp2_action\\tp2_phase\\t"
-                "p2_step\\tp2_control\\tp2_anim_timer\\tp2_anim_ptr\\t"
-                "p2_hp\\tp2_melee\\tp2_proj\\tevents\\n");
+                "host_sample\tlogical_before\tlogical_after\t"
+                "p1_2e\tp1_hitstop\tp1_mode\tp1_action\tp1_phase\t"
+                "p1_step\tp1_control\tp1_anim_timer\tp1_anim_ptr\t"
+                "p1_hp\tp1_melee\tp1_proj\t"
+                "p2_2e\tp2_hitstop\tp2_mode\tp2_action\tp2_phase\t"
+                "p2_step\tp2_control\tp2_anim_timer\tp2_anim_ptr\t"
+                "p2_hp\tp2_melee\tp2_proj\tevents\n");
             if(!file)armed=0;
         }
     }
@@ -354,12 +354,12 @@ static inline void xm243FrameClockTrace(
     if(super || actors[0].hitStop || actors[1].hitStop)tail=120u;
     if(!tail)return;
     --tail;
-    std::fprintf(file,"%llu\\t%llu\\t%llu",
+    std::fprintf(file,"%llu\t%llu\t%llu",
                  sample,before,after);
     for(int p=0;p<2;++p){
         const unsigned base=0xFF4000u+(unsigned)p*0x400u;
-        std::fprintf(file,"\\t%u\\t%u\\t%04X\\t%04X\\t%02X\\t"
-                "%04X\\t%04X\\t%04X\\t%08X\\t%u\\t%u\\t%u",
+        std::fprintf(file,"\t%u\t%u\t%04X\t%04X\t%02X\t"
+                "%04X\t%04X\t%04X\t%08X\t%u\t%u\t%u",
             xm30NativeAttackFamily(actors[p])==0x2Eu?1u:0u,
             actors[p].hitStop,actors[p].mode,actors[p].nativeAction,
             actors[p].attackPhase,actors[p].nativeStep,
@@ -368,7 +368,7 @@ static inline void xm243FrameClockTrace(
             samples[p].melee.active?1u:0u,
             samples[p].projectile.active?1u:0u);
     }
-    std::fprintf(file,"\\t%d\\n",xm23State.frameData.count);
+    std::fprintf(file,"\t%d\n",xm23State.frameData.count);
     if(++logged%60u==0u)std::fflush(file);
 }
 
