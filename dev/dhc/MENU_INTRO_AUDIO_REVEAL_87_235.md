@@ -33,6 +33,16 @@ The completed `logo_II.png` alpha bounds are unioned with `logo.png`'s visible b
 - The bottom live-button highlighting strip remains removed. Windows gameplay input init skips its former up-to-600ms joystick wait because the menu already initialized SDL devices. UI page navigation additionally uses a 20ms post-release settle instead of 80ms; the separate gameplay handoff gate is untouched to prevent leaked confirms.
 - Cold-boot announcer WAV now starts at t=0 (next to crash) **before the first logo frame at t=1.0**; this provides one second of audio preroll for the spoken phrase. The WAV itself is not trimmed, retimed, or sped up; audible syllable alignment requires a Windows listening check.
 
+## TEST 87.242 Point-blank super contact / dual-meter clock
+
+The 87.239–87.241 read-only frame-data clock used the fighter +85 hit-stop countdown as a global stop signal. During a point-blank multi-hit super that countdown continually decreases or reloads as additional attacks connect. A global return therefore made the **P1 and P2 frame-data meters appear permanently stopped**, even though the original ROM was progressing through attacks. No guest gameplay was paused.
+
+- Limit the +85 freeze exclusion to *pre-offensive native 2E cinematic time*. The first visible offensive hitbox, any confirmed defender HP loss, carried impact, or an existing live super event proves the action is already fighting: from that moment, the shared frame-data clock advances regardless of fighter +85 countdowns. A held `FF5009` round timer is still not used as a pause signal.
+- Each new point-blank hit adds a red tick to the existing super card. An ongoing super retains its original action start frame; continued hitstop cannot create new frame-data epochs or globally stop the other player's meter.
+- Refresh the bounded impact action-exit grace on *changing*, nonzero +85 stop counters while that fighter owns an existing super, then leave two post-stop samples to distinguish an actual ROM exit from transient contact/controller changes. Unchanged stale counters do not extend grace.
+- Expanded `test_frame_data_hit_clock_240.cpp` to exercise first-offensive-frame point-blank damage, simultaneous player hitstop, eight successive counter ticks, reloaded hitstop on a second hit, continuous dual-player clock and two red markers, and continuation across a transient ROM controller change.
+- Native Windows build and gameplay confirmation remain necessary. Stable and previous TEST binaries are unchanged.
+
 ## TEST 87.241 Multi-hit meter continuity
 
 - 87.240 had a hit-stop handoff error: the defender's HP loss was consumed inside a frozen `onFrame` callback. That callback returned without advancing the gameplay clock. The first unfrozen frame then saw *no new health delta* and could end the attack on its transient impact controller state, making both frame-data lanes appear to restart on subsequent hits.
