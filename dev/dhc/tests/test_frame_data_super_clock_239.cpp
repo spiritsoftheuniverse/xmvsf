@@ -31,17 +31,20 @@ static void superPortraitAndShinryuuken() {
     XM30Sample none{};
     XM41ActorSample a=superActor();
     f.onFrame(none,none,a,{},30);
-    f.onFrame(none,none,a,{},29); // clock is calibrated
+    f.onFrame(none,none,a,{},29); // clock advances
     assert(f.frame==2 && f.count==0);
-    f.onFrame(none,none,a,{},29); // super portrait: no logical update
-    assert(f.frame==2 && f.superFreezeFrames==1);
+    f.onFrame(none,none,a,{},29); // clock STALL is not a freeze signal
+    assert(f.frame==3 && f.superFreezeFrames==0);
     a.hitStop=2;
-    f.onFrame(none,none,a,{},28); // explicit native freeze despite clock changing
-    assert(f.frame==2 && f.superFreezeFrames==2);
+    f.onFrame(none,none,a,{},28); // ROM +85 native stop begins
+    assert(f.frame==3 && f.superFreezeFrames==1);
+    a.hitStop=1;
+    f.onFrame(none,none,a,{},28); // native stop decremented
+    assert(f.frame==3 && f.superFreezeFrames==2);
     a.hitStop=0;a.attackPhase=0x80;
     XM30Sample hit{};hit.melee.active=true;hit.melee.x=88;hit.melee.y=45;
     f.onFrame(hit,none,a,{},27); // first hitbox AFTER portraits
-    assert(f.count==1 && f.history[0].startup==3 && f.history[0].active==1);
+    assert(f.count==1 && f.history[0].startup==4 && f.history[0].active==1);
     a.attackPhase=0; // phase byte may go blank between 2E super substeps
     for(unsigned c=26;c>=23;--c){
         // Shinryuuken is still in native 2E attack step 04 while box70/72
@@ -53,8 +56,8 @@ static void superPortraitAndShinryuuken() {
     a.attackPhase=0x40;
     f.onFrame(none,none,a,{},22);
     assert(f.history[0].closed && f.history[0].active==5);
-    assert(f.history[0].endFrame==7);
-    // ROM attack tenure includes actual recovery but never the two frozen ticks.
+    assert(f.history[0].endFrame==8);
+    // ROM attack tenure includes actual recovery but never the two native-stop ticks.
     assert(f.history[0].attackObserved);
 }
 static void normalHitboxGapStillCloses() {
