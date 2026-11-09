@@ -128,14 +128,33 @@ class Painter {
     static int dot(const Stroke& p,int x,int y){
         return x*p.dx+y*p.dy;
     }
+    // The exports include dark shadows/backing around their neon strokes.
+    // Follow the colored/bright ink for projection and tip particles, not
+    // the rectangular dark matte; the COMPLETE RGBA is still revealed.
+    static bool coloredInk(const Stroke& p,int x,int y){
+        const size_t n=(size_t(y)*CanvasWidth+x)*4u;
+        if(p.pixels[n+3]<=12)return false;
+        const Uint8 r=p.pixels[n],g=p.pixels[n+1],b=p.pixels[n+2];
+        const Uint8 hi=std::max(r,std::max(g,b));
+        const Uint8 lo=std::min(r,std::min(g,b));
+        return hi>=90u&&(hi-lo>=25u||hi>=190u);
+    }
     static float cut(const Stroke& p,int step){
         return float(p.minDot)+float(p.maxDot-p.minDot)*float(step)/FramesPerStroke;
     }
     static void calculateTips(Stroke& p){
         p.minDot=2147483647;p.maxDot=-2147483647;
+        bool hasColor=false;
+        for(int y=p.bounds.y;y<p.bounds.y+p.bounds.h;++y)
+        for(int x=p.bounds.x;x<p.bounds.x+p.bounds.w;++x)
+            if(coloredInk(p,x,y))hasColor=true;
+        const auto tipMaterial=[&](int x,int y){
+            return hasColor?coloredInk(p,x,y):
+                p.pixels[(size_t(y)*CanvasWidth+x)*4+3]>12;
+        };
         for(int y=p.bounds.y;y<p.bounds.y+p.bounds.h;++y)
         for(int x=p.bounds.x;x<p.bounds.x+p.bounds.w;++x){
-            if(p.pixels[(size_t(y)*CanvasWidth+x)*4+3]<=12)continue;
+            if(!tipMaterial(x,y))continue;
             const int n=dot(p,x,y);
             p.minDot=std::min(p.minDot,n);
             p.maxDot=std::max(p.maxDot,n);
@@ -147,13 +166,13 @@ class Painter {
             float closest=1e9f;
             for(int y=p.bounds.y;y<p.bounds.y+p.bounds.h;++y)
             for(int x=p.bounds.x;x<p.bounds.x+p.bounds.w;++x){
-                if(p.pixels[(size_t(y)*CanvasWidth+x)*4+3]<=12)continue;
+                if(!tipMaterial(x,y))continue;
                 closest=std::min(closest,std::fabs(float(dot(p,x,y))-leading));
             }
             float px=0.f,py=0.f;int count=0;
             for(int y=p.bounds.y;y<p.bounds.y+p.bounds.h;++y)
             for(int x=p.bounds.x;x<p.bounds.x+p.bounds.w;++x){
-                if(p.pixels[(size_t(y)*CanvasWidth+x)*4+3]<=12)continue;
+                if(!tipMaterial(x,y))continue;
                 if(std::fabs(float(dot(p,x,y))-leading)>closest+1.f)continue;
                 px+=x;py+=y;++count;
             }
