@@ -361,6 +361,26 @@ public:
         SDL_RenderCopy(renderer,logoFx_?logoFx_:logo_,&logoSource_,&dst);
         return true;
     }
+    // Shared 400x300 source-pixel alignment for independently painted II
+    // strokes. The main PNG's alpha crop/fit remains the sole authority.
+    // No per-stroke auto-fit: every exported part uses the same art canvas.
+    bool logoFullCanvas(SDL_Renderer* renderer,const SDL_Rect& target,
+                        SDL_Rect& fullCanvas){
+        ensure(renderer);
+        if(!renderer||!logo_||logoSource_.w<=0||logoSource_.h<=0 ||
+           logoWidth_<=0||logoHeight_<=0)return false;
+        const double scale=std::min(double(target.w)/logoSource_.w,
+                                    double(target.h)/logoSource_.h);
+        const int width=std::max(1,int(logoSource_.w*scale+0.5));
+        const int height=std::max(1,int(logoSource_.h*scale+0.5));
+        const SDL_Rect cropped={target.x+(target.w-width)/2,
+                                target.y+(target.h-height)/2,width,height};
+        fullCanvas={cropped.x-int(logoSource_.x*scale+0.5),
+                    cropped.y-int(logoSource_.y*scale+0.5),
+                    std::max(1,int(logoWidth_*scale+0.5)),
+                    std::max(1,int(logoHeight_*scale+0.5))};
+        return true;
+    }
     // Pixel-art nearest-neighbor rendering with fractional visual scale.
     // The glyph geometry remains derived from the actual PNG atlas and the
     // advance is proportional. Destination edges snap to integer pixels.
@@ -439,6 +459,11 @@ struct MainLayout {
         HintY=495, ExitY=522, ExitLeft=18, VersionRight=942
     };
 };
+static inline bool menuLogoFullCanvas(SDL_Renderer* renderer,SDL_Rect& fullCanvas){
+    const SDL_Rect target={MainLayout::LogoX,MainLayout::LogoY,
+                           MainLayout::LogoW,MainLayout::LogoH};
+    return atlas().logoFullCanvas(renderer,target,fullCanvas);
+}
 static inline bool menuLogo(SDL_Renderer* r,float introRemaining=0.0f){
     const SDL_Rect dst={MainLayout::LogoX,MainLayout::LogoY,
                         MainLayout::LogoW,MainLayout::LogoH};
