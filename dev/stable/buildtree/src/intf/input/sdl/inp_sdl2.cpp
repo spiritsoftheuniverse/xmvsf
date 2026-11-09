@@ -26,7 +26,13 @@ static SDL_Joystick* JoyList[MAX_JOYSTICKS];
 static SDL_GameController *GCList[MAX_JOYSTICKS];
 static int* JoyPrevAxes = NULL;
 /* static */ int nJoystickCount = 0;						// Number of joysticks connected to this machine
-#define JOYSTICK_DETECT_MS 600								// how long to wait for async pad enumeration (see SDLinpInit)
+// The Windows boot selector has already initialized/enumerated SDL pads.
+// Do not stall EVERY game transition for 600ms if only the keyboard is used.
+#if defined(_WIN32)
+#define JOYSTICK_DETECT_MS 0
+#else
+#define JOYSTICK_DETECT_MS 600
+#endif
 int buttons [4][8]= { {-1,-1,-1,-1,-1,-1,-1,-1}, {-1,-1,-1,-1,-1,-1,-1,-1}, {-1,-1,-1,-1,-1,-1,-1,-1}, {-1,-1,-1,-1,-1,-1,-1,-1} }; // 4 joysticks buttons 0 -5 and start / select
 
 void setup_kemaps(void)
@@ -685,8 +691,16 @@ int SDLinpState(int nCode)
     // Stage 13: route virtual P1/P2 joystick codes to saved SDL hardware.
     // ReadJoystick() already updates joystick state once per game frame.
     static XM13_Settings xm13Config;
-    static int xm13Loaded=0;
-    if(!xm13Loaded) {xm13Load(&xm13Config);xm13Loaded=1;}
+    static bool xm13Loaded=false;
+    static Uint32 xm13LastReload=0;
+    // Options can change a mapping while SDL input remains initialized across
+    // game->menu->game. Refresh it periodically without reopening the driver.
+    const Uint32 xm13Now=SDL_GetTicks();
+    if(!xm13Loaded || (Uint32)(xm13Now-xm13LastReload)>=250u){
+        xm13Load(&xm13Config);
+        xm13Loaded=true;
+        xm13LastReload=xm13Now;
+    }
     if(nCode>=0x4000 && nCode<0x4200) {
         int p=(nCode-0x4000)>>8;
         // XMVSF_STAGE14_INPUT_HANDOFF: F6 switches P1's controller from P1 to P2
