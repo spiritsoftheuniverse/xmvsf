@@ -400,11 +400,30 @@ if [[ "${XMVSF_WARM_MENU_SINGLE_PASS:-1}" == 1 &&
      git -C "$PROJECT" cat-file -e "${last_native_rev}^{commit}" 2>/dev/null; then
     # Include both committed changes since the last native build and local
     # tracked edits. Exclude the tracked append-only build transcript.
-    changed_paths="$(
-      { git -C "$PROJECT" diff --name-only "$last_native_rev" HEAD --;
-        git -C "$PROJECT" diff --name-only HEAD --; } |
-      grep -v '^test/build_logs/BUILD_TEST.log
-
+    changed_paths="$( { git -C "$PROJECT" diff --name-only "$last_native_rev" HEAD --; git -C "$PROJECT" diff --name-only HEAD --; } | sed '/^test\/build_logs\/BUILD_TEST[.]log$/d' | sort -u )"
+    if [[ -n "$changed_paths" ]]; then
+      WARM_MENU_PASS=1
+      while IFS= read -r changed; do
+        case "$changed" in
+          _art/*|audio/*|dev/dhc/tests/*|dev/dhc/MENU_INTRO_AUDIO_REVEAL_87_235.md|dev/stable/buildtree/src/burner/sdl/xmvsf_menu_*|dev/stable/buildtree/src/burner/sdl/xmvsf_stage14_boot.h|dev/stable/buildtree/src/burner/sdl/xmvsf_stage87_195_menu_gif.h|dev/stable/buildtree/src/burner/sdl/xmvsf_stage87_235_*|dev/stable/buildtree/src/burner/sdl/xmvsf_stage20_api.h|dev/stable/buildtree/src/intf/audio/sdl/xm20_wasapi_impl.h|dev/dhc/BUILD_TEST.sh|BUILD_TEST.bat|RUN_TEST.bat|RUN_REPLAY.bat)
+            ;;
+          *) WARM_MENU_PASS=0; break ;;
+        esac
+      done <<< "$changed_paths"
+      # Never take the shortened dependency pass if there are new native sources.
+      untracked_sources="$(git -C "$PROJECT" ls-files --others --exclude-standard '*.cpp' '*.c' '*.h' '*.hpp' '*.cc' '*.mk' '*.asm')"
+      if [[ -n "$untracked_sources" ]]; then WARM_MENU_PASS=0; fi
+    fi
+  fi
+fi
+if (( WARM_MENU_PASS )); then
+  echo "BUILD MODE: warm menu-only single-pass native Make; native dependencies retained."
+  echo "BUILD MODE: engine and driver changes still use standard two-pass Make."
+  MAKELEVEL=2 make -f makefile.sdl2 LSB_FIRST=1 INCLUDE_7Z_SUPPORT=1 DEPEND=1 "XMVSF_BUILD_SIGNATURE=../../../test/build_cache/compiler.signature" "${MAKE_COMPILER[@]}" -j"${XMVSF_BUILD_JOBS:-12}" all
+else
+  echo "BUILD MODE: standard dependency-safe two-pass native Make."
+  MAKELEVEL=1 make -f makefile.sdl2 LSB_FIRST=1 INCLUDE_7Z_SUPPORT=1 DEPEND=1 "XMVSF_BUILD_SIGNATURE=../../../test/build_cache/compiler.signature" "${MAKE_COMPILER[@]}" "${REPAIR_ARGS[@]}" -j"${XMVSF_BUILD_JOBS:-12}" all
+fi
 echo "BUILD PHASE native_make_end duration_seconds=$((SECONDS-BUILD_NATIVE_START))"
 BUILT=""
 for exe in "$TREE/fbneo.exe" "$TREE/fbneo"; do
