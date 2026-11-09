@@ -405,7 +405,7 @@ if [[ "${XMVSF_WARM_MENU_SINGLE_PASS:-1}" == 1 &&
       WARM_MENU_PASS=1
       while IFS= read -r changed; do
         case "$changed" in
-          _art/*|audio/*|dev/dhc/tests/*|dev/dhc/MENU_INTRO_AUDIO_REVEAL_87_235.md|dev/stable/buildtree/src/burner/sdl/xmvsf_menu_*|dev/stable/buildtree/src/burner/sdl/xmvsf_stage14_boot.h|dev/stable/buildtree/src/burner/sdl/xmvsf_stage87_195_menu_gif.h|dev/stable/buildtree/src/burner/sdl/xmvsf_stage87_235_*|dev/stable/buildtree/src/burner/sdl/xmvsf_stage20_api.h|dev/stable/buildtree/src/intf/audio/sdl/xm20_wasapi_impl.h|dev/dhc/BUILD_TEST.sh|BUILD_TEST.bat|RUN_TEST.bat|RUN_REPLAY.bat)
+          _art/*|audio/*|dev/dhc/tests/*|dev/dhc/MENU_INTRO_AUDIO_REVEAL_87_235.md|dev/stable/buildtree/src/burner/sdl/xmvsf_menu_*|dev/stable/buildtree/src/burner/sdl/xmvsf_stage14_boot.h|dev/stable/buildtree/src/burner/sdl/xmvsf_stage87_195_menu_gif.h|dev/stable/buildtree/src/burner/sdl/xmvsf_stage87_235_*|dev/stable/buildtree/src/burner/sdl/xmvsf_stage20_api.h|dev/stable/buildtree/src/intf/audio/sdl/xm20_wasapi_impl.h|dev/dhc/BUILD_TEST.sh|dev/dhc/FAST_MENU_LINK_INPUTS_235.sh|dev/dhc/*.md|BUILD_TEST.bat|RUN_TEST.bat|RUN_REPLAY.bat)
             ;;
           *) WARM_MENU_PASS=0; break ;;
         esac
@@ -417,12 +417,36 @@ if [[ "${XMVSF_WARM_MENU_SINGLE_PASS:-1}" == 1 &&
   fi
 fi
 if (( WARM_MENU_PASS )); then
-  echo "BUILD MODE: warm menu-only single-pass native Make; native dependencies retained."
-  echo "BUILD MODE: engine and driver changes still use standard two-pass Make."
-  MAKELEVEL=2 make -f makefile.sdl2 LSB_FIRST=1 INCLUDE_7Z_SUPPORT=1 DEPEND=1 "XMVSF_BUILD_SIGNATURE=../../../test/build_cache/compiler.signature" "${MAKE_COMPILER[@]}" -j"${XMVSF_BUILD_JOBS:-12}" all
+  # The ordinary pass-2 still constructs FBNeo's full Make wildcard/vpath
+  # graph. Reuse the linker-map object's EXACT ordered list instead, and
+  # include only the four SDL .d files affected by menu/boot/audio edits.
+  # This is still REAL dependency-aware Make: changed source and headers
+  # regenerate their .d and .o, and all link inputs remain present.
+  # No driver or CPS2 source can use this route (strict Git whitelist above).
+  if [[ "${XMVSF_COMPACT_MENU_MAKE:-1}" == 1 &&
+        -s "$PROJECT/dev/dhc/FAST_MENU_LINK_INPUTS_235.sh" ]] &&
+     source "$PROJECT/dev/dhc/FAST_MENU_LINK_INPUTS_235.sh" &&
+     xm235_fast_link_inputs "$TREE"; then
+    echo "BUILD MODE: compact menu graph, $XM235_LINK_OBJECT_COUNT cached link objects."
+    echo "BUILD MODE: skipping 1,174-driver wildcard scan; 4 SDL .d graphs checked."
+    echo "BUILD PHASE compact_make_start elapsed_seconds=$((SECONDS-BUILD_WALL_START))"
+    MAKELEVEL=2 make -rR -f makefile.sdl2 LSB_FIRST=1 INCLUDE_7Z_SUPPORT=1 DEPEND=1 \
+      "XMVSF_BUILD_SIGNATURE=../../../test/build_cache/compiler.signature" \
+      "allobj=$XM235_LINK_OBJECTS" "alldep=$XM235_LINK_DEPFILES" \
+      "autdrv=" "autdep=" "drvdep=" \
+      "${MAKE_COMPILER[@]}" -j"${XMVSF_BUILD_JOBS:-12}" all
+    echo "BUILD PHASE compact_make_end elapsed_seconds=$((SECONDS-BUILD_WALL_START))"
+  else
+    echo "BUILD MODE: cached linker object map unavailable; using normal warm Make."
+    MAKELEVEL=2 make -f makefile.sdl2 LSB_FIRST=1 INCLUDE_7Z_SUPPORT=1 DEPEND=1 \
+      "XMVSF_BUILD_SIGNATURE=../../../test/build_cache/compiler.signature" \
+      "${MAKE_COMPILER[@]}" -j"${XMVSF_BUILD_JOBS:-12}" all
+  fi
 else
   echo "BUILD MODE: standard dependency-safe two-pass native Make."
-  MAKELEVEL=1 make -f makefile.sdl2 LSB_FIRST=1 INCLUDE_7Z_SUPPORT=1 DEPEND=1 "XMVSF_BUILD_SIGNATURE=../../../test/build_cache/compiler.signature" "${MAKE_COMPILER[@]}" "${REPAIR_ARGS[@]}" -j"${XMVSF_BUILD_JOBS:-12}" all
+  MAKELEVEL=1 make -f makefile.sdl2 LSB_FIRST=1 INCLUDE_7Z_SUPPORT=1 DEPEND=1 \
+    "XMVSF_BUILD_SIGNATURE=../../../test/build_cache/compiler.signature" \
+    "${MAKE_COMPILER[@]}" "${REPAIR_ARGS[@]}" -j"${XMVSF_BUILD_JOBS:-12}" all
 fi
 echo "BUILD PHASE native_make_end duration_seconds=$((SECONDS-BUILD_NATIVE_START))"
 BUILT=""
