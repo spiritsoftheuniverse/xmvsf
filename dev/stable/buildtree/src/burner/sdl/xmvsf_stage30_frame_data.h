@@ -63,6 +63,7 @@ struct XM41ActorSample {
     unsigned attackPhase=0;     // ROM +64: 0x80 attacking, 0x40 recovery
     unsigned nativeStep=0;      // ROM +08: super 2E script stage, not a frame timer
     unsigned hitStop=0;         // ROM +85: explicit per-fighter stop steps
+    unsigned health=0;          // ROM +210 word: confirmed damage, not an inferred box hit
 };
 // Native action-family classification from recorded ROM traces:
 // A0=28xx: normal punches/kicks; A0=2Axx + action=2Cxx: specials;
@@ -99,6 +100,12 @@ struct XM30Event {
     // offensive collision box vanishes. The ROM phase, not a guessed move
     // name or timeout, continues its active span through such substeps.
     bool nativeSuperPhase=false;
+    // Separate hit confirmations from the lifetime of the attack. A hit
+    // cannot end a ROM-owned super (or a normal attack), and multi-hit
+    // attacks may record multiple distinct health-loss frames.
+    static const int CONTACTS=32;
+    unsigned long long contactFrames[CONTACTS]={};
+    int contactCount=0;
     unsigned long long motionBits[16]={}; // exact movement-edge frames, up to 1024f
     bool motionOverflow=false;
     bool positionKnown=false;
@@ -158,8 +165,13 @@ struct XM30FrameData {
     bool inCombat=false;
     unsigned long long frame=0;
     unsigned long long superFreezeFrames=0; // excluded from ALL S/A/duration clocks
-    bool clockSeeded=false, clockAdvanced=false;
-    unsigned previousClock=0;
+    // Unlike the FF5009 round clock, ROM hit-stop counters count down to
+    // zero. They cannot permanently stall the meter when the round timer is
+    // deliberately held at 99 in Training.
+    bool hitStopSeeded=false;
+    unsigned previousHitStop[2]={0,0};
+    bool healthSeeded[2]={false,false};
+    unsigned previousHealth[2]={0,0};
     int count=0, floatNext=0;
     XM30Event history[HISTORY];
     XM30Float floats[FLOATS];
@@ -168,7 +180,9 @@ struct XM30FrameData {
     void clear(bool preserveToggle=true) {
         const bool setting=enabled;
         frame=0; superFreezeFrames=0; count=0; floatNext=0; inCombat=false;
-        clockSeeded=false;clockAdvanced=false;previousClock=0;
+        hitStopSeeded=false;previousHitStop[0]=previousHitStop[1]=0;
+        healthSeeded[0]=healthSeeded[1]=false;
+        previousHealth[0]=previousHealth[1]=0;
         for(int i=0;i<HISTORY;++i)history[i]=XM30Event{};
         for(int i=0;i<FLOATS;++i)floats[i]=XM30Float{};
         for(int i=0;i<2;++i){track[i]=XM30Track{};directions[i]=XM32MotionHistory{};}
@@ -215,34 +229,70 @@ struct XM30FrameData {
          }
         return count++;
     }
-    // clockValue is the ROM's FF5009 round-clock subcounter. During a native
-    // super's portrait/streak pause the game clock stops even though the
-    // emulator still renders. Calibrate on actual ticking first: Training
-    // configurations that hold the clock constant cannot fake a freeze.
+    // Train on native ROM samples, not on displayed video frames.
+    // FF5009 is deliberately ignored: a constant clock is not evidence of
+    // super freeze, and it previously locked BOTH meters indefinitely.
+    // One hit-confirm marker per defender HP drop. Record it on the
+    // attacker's newest live frame-data row, not against any unrelated old
+    // projectile. A contact does NOT close or shorten the move's action.
+    void recordContacts(const XM41ActorSample actors[2],
+                        unsigned long long at){
+        for(int victim=0;victim<2;++victim){
+            if(!actors[victim].valid){healthSeeded[victim]=false;continue;}
+            const unsigned health=actors[victim].health;
+            const bool damaged=healthSeeded[victim] &&
+                               health<previousHealth[victim];
+            previousHealth[victim]=health;
+            healthSeeded[victim]=true;
+            if(!damaged)continue;
+            const int attacker=1-victim;
+            for(int i=count-1;i>=0;--i){
+                XM30Event& e=history[i];
+                if(e.player!=attacker || e.noBox || e.firstFrame>at)continue;
+                // Collision may disappear on contact; keep the most recent
+                // move if the damage is synchronous with its exit.
+                if(e.closed && at>e.endFrame+1u &&
+                   (e.attackEnded || at>e.attackLastFrame+1u))continue;
+                if(e.contactCount>0 &&
+                   e.contactFrames[e.contactCount-1]==at)break;
+                if(e.contactCount==XM30Event::CONTACTS){
+                    for(int k=1;k<XM30Event::CONTACTS;++k)
+                        e.contactFrames[k-1]=e.contactFrames[k];
+                    --e.contactCount;
+                }
+                e.contactFrames[e.contactCount++]=at;
+                break;
+            }
+        }
+    }
     void onFrame(const XM30Sample& p1,const XM30Sample& p2,
                  const XM41ActorSample& a1=XM41ActorSample{},
                  const XM41ActorSample& a2=XM41ActorSample{},
                  unsigned clockValue=~0u){
         if(!enabled)return;
         beginCombat();
+        (void)clockValue; // retained for older callers/tests, never a freeze gate
         const XM30Sample samples[2]={p1,p2};
         const XM41ActorSample actors[2]={a1,a2};
-        const bool superAction=xm30NativeAttackFamily(a1)==0x2Eu ||
-                               xm30NativeAttackFamily(a2)==0x2Eu;
-        bool clockPaused=false;
-        if(clockValue!=~0u){
-            if(clockSeeded && clockValue!=previousClock)clockAdvanced=true;
-            clockPaused=clockSeeded && clockAdvanced && clockValue==previousClock;
-            clockSeeded=true;previousClock=clockValue;
-        }
-        // Do not count portrait freeze or hitstop as move startup, active,
-        // recovery, motion, or even floating-caption elapsed time.
-        const bool nativeStop=a1.hitStop!=0u || a2.hitStop!=0u;
-        if(superAction && (clockPaused || nativeStop)){
+        const unsigned stops[2]={a1.hitStop,a2.hitStop};
+        // Freeze only while an actual ROM stop countdown is initiated or
+        // changing. A stale nonzero byte cannot freeze the panel forever.
+        const bool nativeStop=hitStopSeeded &&
+            ((stops[0]>0u && (previousHitStop[0]==0u ||
+                             stops[0]<previousHitStop[0])) ||
+             (stops[1]>0u && (previousHitStop[1]==0u ||
+                             stops[1]<previousHitStop[1])));
+        previousHitStop[0]=stops[0];previousHitStop[1]=stops[1];
+        hitStopSeeded=true;
+        if(nativeStop){
             ++superFreezeFrames;
+            // Damage may land on the first stopped sample. Keep the current
+            // logical tick for contact; do not advance startup/active/duration.
+            recordContacts(actors,frame);
             return;
         }
         ++frame;
+        recordContacts(actors,frame);
         for(int i=0;i<FLOATS;++i)if(floats[i].visible){
             if(++floats[i].age>=FLOAT_LIFE)floats[i].visible=false;
         }
