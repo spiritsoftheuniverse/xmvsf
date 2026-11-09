@@ -679,8 +679,8 @@ int SDLinpState(int nCode)
     if(XM87110::state().pending!=XM87110::NONE)return 0;
     if(XM87110::state().releaseArmed &&
        XM87110::state().gate(xm25HandoffAnyInputHeld()))return 0;
-    if(!xm14TrainingMode && !xm24VersusMode){
-        // The Coin key and both mapped Coin buttons now belong to the Arcade menu.
+    if(!xm14TrainingMode){
+        // Coin belongs to the Arcade or Versus overlay (both use the same key).
         if(nCode==SDL_SCANCODE_5 || (nCode>=0x4000 && nCode<0x4200 && (nCode&0xff)==0x86))return 0;
     }
     // XMVSF_STAGE25_7_1_INPUT_GATE: Gate ALL FBNeo game-input routes at
