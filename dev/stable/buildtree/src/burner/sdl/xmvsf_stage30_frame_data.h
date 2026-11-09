@@ -115,6 +115,8 @@ struct XM30Event {
     bool attackObserved=false,attackEnded=false;
     unsigned attackFamily=0,attackAction=0;
     unsigned long long attackStartFrame=0,attackLastFrame=0,attackEndFrame=0;
+    unsigned attackExitPending=0; // unresolved native controller during impact
+
 };
 struct XM30Float {
     bool visible=false;
@@ -172,6 +174,10 @@ struct XM30FrameData {
     unsigned previousHitStop[2]={0,0};
     bool healthSeeded[2]={false,false};
     unsigned previousHealth[2]={0,0};
+    // Damage can be first observed on a frozen host tick. Carry it into
+    // the NEXT real combat sample rather than consuming it at the return.
+    bool pendingContact[2]={false,false};
+    unsigned contactExitGrace[2]={0,0};
     int count=0, floatNext=0;
     XM30Event history[HISTORY];
     XM30Float floats[FLOATS];
@@ -183,6 +189,8 @@ struct XM30FrameData {
         hitStopSeeded=false;previousHitStop[0]=previousHitStop[1]=0;
         healthSeeded[0]=healthSeeded[1]=false;
         previousHealth[0]=previousHealth[1]=0;
+        pendingContact[0]=pendingContact[1]=false;
+        contactExitGrace[0]=contactExitGrace[1]=0;
         for(int i=0;i<HISTORY;++i)history[i]=XM30Event{};
         for(int i=0;i<FLOATS;++i)floats[i]=XM30Float{};
         for(int i=0;i<2;++i){track[i]=XM30Track{};directions[i]=XM32MotionHistory{};}
@@ -236,9 +244,12 @@ struct XM30FrameData {
     // attacker's newest live frame-data row, not against any unrelated old
     // projectile. A contact does NOT close or shorten the move's action.
     void recordContacts(const XM41ActorSample actors[2],
-                        unsigned long long at){
+                        unsigned long long at,bool stopped=false){
         for(int victim=0;victim<2;++victim){
-            if(!actors[victim].valid){healthSeeded[victim]=false;continue;}
+            if(!actors[victim].valid){
+                healthSeeded[victim]=false;pendingContact[1-victim]=false;
+                continue;
+            }
             const unsigned health=actors[victim].health;
             const bool damaged=healthSeeded[victim] &&
                                health<previousHealth[victim];
@@ -246,6 +257,10 @@ struct XM30FrameData {
             healthSeeded[victim]=true;
             if(!damaged)continue;
             const int attacker=1-victim;
+            // An impact while frozen has no new gameplay frame. Its red
+            // marker belongs to this tick, but the native-action handoff
+            // must remember the strike until the next counted frame.
+            if(stopped)pendingContact[attacker]=true;
             for(int i=count-1;i>=0;--i){
                 XM30Event& e=history[i];
                 if(e.player!=attacker || e.noBox || e.firstFrame>at)continue;
@@ -288,18 +303,25 @@ struct XM30FrameData {
             ++superFreezeFrames;
             // Damage may land on the first stopped sample. Keep the current
             // logical tick for contact; do not advance startup/active/duration.
-            recordContacts(actors,frame);
+            recordContacts(actors,frame,true);
             return;
         }
         // A strike can change the attack controller on the exact impact
         // sample. Protect that one contact frame from being misread as a
         // completed attack, then resume normal ROM-owned exit detection.
         const bool landed[2]={
-            actors[1].valid && healthSeeded[1] &&
-                actors[1].health<previousHealth[1],
-            actors[0].valid && healthSeeded[0] &&
-                actors[0].health<previousHealth[0]
+            pendingContact[0] || (actors[1].valid && healthSeeded[1] &&
+                                  actors[1].health<previousHealth[1]),
+            pendingContact[1] || (actors[0].valid && healthSeeded[0] &&
+                                  actors[0].health<previousHealth[0])
         };
+        // The first real post-stop sample gets the carried contact signal.
+        // At most two subsequent action-family transition samples may be
+        // inconclusive; a genuine exit still uses its last matching frame.
+        for(int p=0;p<2;++p){
+            if(landed[p])contactExitGrace[p]=2;
+            pendingContact[p]=false;
+        }
         ++frame;
         for(int i=0;i<FLOATS;++i)if(floats[i].visible){
             if(++floats[i].age>=FLOAT_LIFE)floats[i].visible=false;
@@ -323,12 +345,16 @@ struct XM30FrameData {
                 XM30Event& e=history[i];
                 if(e.player!=p || !e.attackObserved || e.attackEnded)continue;
                 if(xm30SameNativeAttack(actors[p],e.attackFamily,e.attackAction) ||
-                   (e.attackFamily==0x2Eu && (actors[p].attackPhase&0x80u)!=0u) ||
-                   landed[p])
+                   (e.attackFamily==0x2Eu && (actors[p].attackPhase&0x80u)!=0u)){
+                    // Any match proves the action survived impact.
                     e.attackLastFrame=frame;
-                else {
-                    // First nonmatching ROM frame is already the NEXT action.
-                    // Last matching frame is the exact inclusive end frame.
+                    e.attackExitPending=0;
+                }else if(landed[p] || contactExitGrace[p]>0){
+                    // Hitstop can temporarily expose a different action
+                    // controller. Retain the last true ROM-owned tick and
+                    // defer the exit decision, rather than reset the meter.
+                    e.attackExitPending++;
+                }else{
                     e.attackEndFrame=e.attackLastFrame;
                     e.attackEnded=true;
                 }
@@ -347,7 +373,7 @@ struct XM30FrameData {
                                             t.pendingAttackAction) ||
                        (t.pendingAttackFamily==0x2Eu &&
                         (actors[p].attackPhase&0x80u)!=0u) ||
-                       landed[p])
+                       landed[p] || contactExitGrace[p]>0)
                         t.pendingAttackLast=frame;
                     else
                         t.pendingAttackEnd=t.pendingAttackLast;
@@ -544,6 +570,7 @@ struct XM30FrameData {
             t.previousProjectileCount=(samples[p].projectileCount<12?samples[p].projectileCount:12);
             for(int k=0;k<t.previousProjectileCount;++k)
                 t.previousProjectileBases[k]=samples[p].projectileBases[k];
+            if(contactExitGrace[p]>0)--contactExitGrace[p];
         }
         // After rising-edge creation: first active frame and first actual
         // damage sample may be identical. Assign the marker to the new row.
