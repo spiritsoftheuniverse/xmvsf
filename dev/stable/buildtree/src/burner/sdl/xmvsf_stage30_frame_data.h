@@ -60,6 +60,8 @@ struct XM41ActorSample {
     unsigned action=0;          // legacy +A0 high byte (diagnostic only)
     unsigned nativeAction=0;    // full native fighter action +60
     unsigned mode=0;            // full native action controller +A0
+    unsigned attackPhase=0;     // ROM +64: 0x80 attacking, 0x40 recovery
+    unsigned hitStop=0;         // ROM +85: explicit per-fighter stop steps
 };
 // Native action-family classification from recorded ROM traces:
 // A0=28xx: normal punches/kicks; A0=2Axx + action=2Cxx: specials;
@@ -92,6 +94,10 @@ struct XM30Event {
     unsigned projectileBase=0;
     unsigned long long firstMotionFrame=0,lastMotionFrame=0,despawnFrame=0;
     int moveFrames=0, lastProjectileX=0, lastProjectileY=0;
+    // A native 2E super may keep its attacking phase after the first
+    // offensive collision box vanishes. The ROM phase, not a guessed move
+    // name or timeout, continues its active span through such substeps.
+    bool nativeSuperPhase=false;
     unsigned long long motionBits[16]={}; // exact movement-edge frames, up to 1024f
     bool motionOverflow=false;
     bool positionKnown=false;
@@ -150,6 +156,9 @@ struct XM30FrameData {
     bool enabled=false;
     bool inCombat=false;
     unsigned long long frame=0;
+    unsigned long long superFreezeFrames=0; // excluded from ALL S/A/duration clocks
+    bool clockSeeded=false, clockAdvanced=false;
+    unsigned previousClock=0;
     int count=0, floatNext=0;
     XM30Event history[HISTORY];
     XM30Float floats[FLOATS];
@@ -157,7 +166,8 @@ struct XM30FrameData {
     XM32MotionHistory directions[2];
     void clear(bool preserveToggle=true) {
         const bool setting=enabled;
-        frame=0; count=0; floatNext=0; inCombat=false;
+        frame=0; superFreezeFrames=0; count=0; floatNext=0; inCombat=false;
+        clockSeeded=false;clockAdvanced=false;previousClock=0;
         for(int i=0;i<HISTORY;++i)history[i]=XM30Event{};
         for(int i=0;i<FLOATS;++i)floats[i]=XM30Float{};
         for(int i=0;i<2;++i){track[i]=XM30Track{};directions[i]=XM32MotionHistory{};}
@@ -204,14 +214,34 @@ struct XM30FrameData {
          }
         return count++;
     }
+    // clockValue is the ROM's FF5009 round-clock subcounter. During a native
+    // super's portrait/streak pause the game clock stops even though the
+    // emulator still renders. Calibrate on actual ticking first: Training
+    // configurations that hold the clock constant cannot fake a freeze.
     void onFrame(const XM30Sample& p1,const XM30Sample& p2,
                  const XM41ActorSample& a1=XM41ActorSample{},
-                 const XM41ActorSample& a2=XM41ActorSample{}){
+                 const XM41ActorSample& a2=XM41ActorSample{},
+                 unsigned clockValue=~0u){
         if(!enabled)return;
         beginCombat();
-        ++frame;
         const XM30Sample samples[2]={p1,p2};
         const XM41ActorSample actors[2]={a1,a2};
+        const bool superAction=xm30NativeAttackFamily(a1)==0x2Eu ||
+                               xm30NativeAttackFamily(a2)==0x2Eu;
+        bool clockPaused=false;
+        if(clockValue!=~0u){
+            if(clockSeeded && clockValue!=previousClock)clockAdvanced=true;
+            clockPaused=clockSeeded && clockAdvanced && clockValue==previousClock;
+            clockSeeded=true;previousClock=clockValue;
+        }
+        // Do not count portrait freeze or hitstop as move startup, active,
+        // recovery, motion, or even floating-caption elapsed time.
+        const bool nativeStop=a1.hitStop!=0u || a2.hitStop!=0u;
+        if(superAction && (clockPaused || nativeStop)){
+            ++superFreezeFrames;
+            return;
+        }
+        ++frame;
         for(int i=0;i<FLOATS;++i)if(floats[i].visible){
             if(++floats[i].age>=FLOAT_LIFE)floats[i].visible=false;
         }
@@ -221,10 +251,13 @@ struct XM30FrameData {
             // Record native action tenure without consulting current direction,
             // held buttons, Y-position, jumping, or the later idle stance.
             const unsigned family=xm30NativeAttackFamily(actors[p]);
+            const bool superPhaseActive=family==0x2Eu &&
+                (actors[p].attackPhase&0x80u)!=0u;
             for(int i=0;i<count;++i){
                 XM30Event& e=history[i];
                 if(e.player!=p || !e.attackObserved || e.attackEnded)continue;
-                if(xm30SameNativeAttack(actors[p],e.attackFamily,e.attackAction))
+                if(xm30SameNativeAttack(actors[p],e.attackFamily,e.attackAction) ||
+                   (e.attackFamily==0x2Eu && (actors[p].attackPhase&0x80u)!=0u))
                     e.attackLastFrame=frame;
                 else {
                     // First nonmatching ROM frame is already the NEXT action.
@@ -244,7 +277,9 @@ struct XM30FrameData {
                     t.pendingAttackStart=t.pendingAttackLast=frame;
                 }else if(t.pendingAttackFamily && !t.pendingAttackEnd){
                     if(xm30SameNativeAttack(actors[p],t.pendingAttackFamily,
-                                            t.pendingAttackAction))
+                                            t.pendingAttackAction) ||
+                       (t.pendingAttackFamily==0x2Eu &&
+                        (actors[p].attackPhase&0x80u)!=0u))
                         t.pendingAttackLast=frame;
                     else
                         t.pendingAttackEnd=t.pendingAttackLast;
@@ -256,20 +291,30 @@ struct XM30FrameData {
             // its chart and closes its attack-box lifetime.
             for(int i=0;i<count;++i){
                 XM30Event& e=history[i];
-                if(e.player!=p || e.source!=1 || !e.projectileBase || e.despawnFrame)continue;
+                if(e.player!=p || e.source!=1 || !e.projectileBase ||
+                   (e.despawnFrame && e.closed))continue;
                 int slot=-1;
                 for(int j=0;j<samples[p].projectileCount && j<12;++j)
                     if(samples[p].projectileBases[j]==e.projectileBase){slot=j;break;}
                 if(slot<0){
-                    e.despawnFrame=frame; // first frame the linked object is absent
-                    if(!e.closed){e.closed=true;e.endFrame=frame-1;}
+                    if(!e.despawnFrame)e.despawnFrame=frame; // actual object removal
+                    if(!e.closed){
+                        if(e.attackFamily==0x2Eu && superPhaseActive){
+                            e.nativeSuperPhase=true;++e.active;
+                        }else{e.closed=true;e.endFrame=frame-1;}
+                    }
                 }else{
                     const int x=samples[p].projectileX[slot],y=samples[p].projectileY[slot];
                     const XM30Hit& own=samples[p].projectileHits[slot];
                     const bool ownAttack=own.active && own.sourceBase==e.projectileBase;
                     if(!e.closed && frame>e.firstFrame){
-                        if(ownAttack)++e.active;
-                        else {e.closed=true;e.endFrame=frame-1;}
+                        // Native super attack phase can cover successive beam /
+                        // cinematic substeps with temporarily absent collision
+                        // boxes. Its explicit ROM recovery phase stops the run.
+                        if(ownAttack || (e.attackFamily==0x2Eu && superPhaseActive)){
+                            if(superPhaseActive)e.nativeSuperPhase=true;
+                            ++e.active;
+                        }else{e.closed=true;e.endFrame=frame-1;}
                     }
                     if(e.positionKnown && (x!=e.lastProjectileX || y!=e.lastProjectileY)){
                         if(!e.firstMotionFrame)e.firstMotionFrame=frame;
@@ -316,11 +361,20 @@ struct XM30FrameData {
             // Projectile active frames are handled above PER LINKED OBJECT.
             int& meleeIndex=t.eventIndex[0];
             if(meleeIndex>=0){
-                if(!hits[0].active){
-                    if(meleeIndex<count){history[meleeIndex].closed=true;history[meleeIndex].endFrame=frame-1;}
-                    meleeIndex=-1;
-                }else if(meleeIndex<count)++history[meleeIndex].active;
-                else meleeIndex=-1;
+                if(meleeIndex>=count){meleeIndex=-1;}
+                else {
+                    XM30Event& e=history[meleeIndex];
+                    const bool nativeSuperOffense=e.attackFamily==0x2Eu && superPhaseActive;
+                    // Shinryuuken and other long 2E supers may temporarily
+                    // clear box70/72 without leaving their ROM attack phase.
+                    if(hits[0].active || nativeSuperOffense){
+                        if(nativeSuperOffense)e.nativeSuperPhase=true;
+                        ++e.active;
+                    }else{
+                        e.closed=true;e.endFrame=frame-1;
+                        meleeIndex=-1;
+                    }
+                }
             }
             const long long age=t.pending>=0?(long long)frame-t.pending:-1;
             if(t.pending>=0 && age<=MAX_WAIT){
@@ -346,6 +400,7 @@ struct XM30FrameData {
                     const int idx=appendEvent();
                     XM30Event& e=history[idx];e=XM30Event{};
                     e.player=p;e.startup=(int)age;e.active=1;
+                    e.nativeSuperPhase=t.pendingAttackFamily==0x2Eu && superPhaseActive;
                     e.attackObserved=t.pendingAttackFamily!=0u;
                     e.attackFamily=t.pendingAttackFamily;
                     e.attackAction=t.pendingAttackAction;
