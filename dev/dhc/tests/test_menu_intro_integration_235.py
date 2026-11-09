@@ -110,5 +110,5 @@ assert 'updated.player[player]=updated.player[other];' in controls
 assert 'updated.player[other]=prior;' in controls
 assert 'if(!xm13Save(&updated))return 0;' in controls
 assert '*settings=updated;' in controls
-assert "TEST 87.235" in boot
+assert "TEST 87.236" in boot
 print("XMVSF 87.235 cold boot/menu/Fight audio and SDL integration: PASS")
