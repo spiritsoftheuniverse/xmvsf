@@ -283,8 +283,8 @@ static int xm13FindDevice(const XM13_Player* p) {
     }
     return -1;
 }
-// The label is read live from SDL (which queries the OS driver), never
-// persisted as an identity. GUID + occurrence remains the assignment key.
+// Read the exact name reported through SDL/OS. Display it live and persist
+// a sanitized copy as a fallback profile key; GUID remains the first choice.
 static void xm13DeviceDisplayName(int device,char* out,size_t capacity) {
     if(!out || capacity==0)return;
     out[0]=0;
