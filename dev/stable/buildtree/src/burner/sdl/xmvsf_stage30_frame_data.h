@@ -63,7 +63,7 @@ struct XM41ActorSample {
     unsigned attackPhase=0;     // ROM +64: 0x80 attacking, 0x40 recovery
     unsigned nativeStep=0;      // ROM +08: super 2E script stage, not a frame timer
     unsigned hitStop=0;         // ROM +85: explicit per-fighter stop steps
-    unsigned health=0;          // ROM +210 word: confirmed damage, not an inferred box hit
+    unsigned health=0;          // HUD-resolved active fighter HP; real hit confirmation
 };
 // Native action-family classification from recorded ROM traces:
 // A0=28xx: normal punches/kicks; A0=2Axx + action=2Cxx: specials;
@@ -172,8 +172,12 @@ struct XM30FrameData {
     static const int FLOAT_LIFE=FLOAT_APEX+FLOAT_EXIT;
     bool enabled=false;
     bool inCombat=false;
-    unsigned long long frame=0;
-    unsigned long long superFreezeFrames=0; // excluded from ALL S/A/duration clocks
+    // A shared host-frame axis cannot time two fighters independently:
+    // the attacker continues 2E during defender-only hitstop. Event
+    // timestamps are on the owning fighter's unfrozen native step axis.
+    unsigned long long frame=0; // display/observation tick when either player advances
+    unsigned long long playerFrame[2]={0,0};
+    unsigned long long superFreezeFrames=0; // callbacks with neither player advancing
     // Unlike the FF5009 round clock, ROM hit-stop counters count down to
     // zero. They cannot permanently stall the meter when the round timer is
     // deliberately held at 99 in Training.
@@ -192,7 +196,8 @@ struct XM30FrameData {
     XM32MotionHistory directions[2];
     void clear(bool preserveToggle=true) {
         const bool setting=enabled;
-        frame=0; superFreezeFrames=0; count=0; floatNext=0; inCombat=false;
+        frame=0; playerFrame[0]=playerFrame[1]=0;
+        superFreezeFrames=0; count=0; floatNext=0; inCombat=false;
         hitStopSeeded=false;previousHitStop[0]=previousHitStop[1]=0;
         healthSeeded[0]=healthSeeded[1]=false;
         previousHealth[0]=previousHealth[1]=0;
@@ -209,16 +214,16 @@ struct XM30FrameData {
         if(!enabled||!inCombat||player<0||player>1)return;
         const int x=(right&&!left)?1:((left&&!right)?-1:0);
         const int y=(up&&!down)?1:((down&&!up)?-1:0);
-        directions[player].direction(5+x+3*y,frame);
+        directions[player].direction(5+x+3*y,playerFrame[player]);
     }
     void press(int player,int code){
         if(!enabled||!inCombat||player<0||player>1 || code<0x80||code>0x85)return;
         XM30Track& t=track[player];
         // A+B pressed on the same frame is one candidate, not two moves.
-        if(t.pending>=0 && (long long)frame-t.pending<=2)return;
+        if(t.pending>=0 && (long long)playerFrame[player]-t.pending<=2)return;
         // Do not reject new attack inputs just because an older projectile is
         // still on screen. A new row still requires a NEW hitbox edge.
-        t.pending=(long long)frame;
+        t.pending=(long long)playerFrame[player];
         t.pendingSpawnBase=0;
         t.pendingSpawnFrame=0;
         // A new button edge only starts the next candidate. It NEVER ends an
@@ -233,7 +238,7 @@ struct XM30FrameData {
         t.pendingPositionKnown=false;t.pendingMotionOverflow=false;
         for(int word=0;word<16;++word)t.pendingMotionBits[word]=0;
         t.code=code;
-        t.motion=directions[player].classify(frame);
+        t.motion=directions[player].classify(playerFrame[player]);
         if(t.motion!=XM32_NORMAL)directions[player].count=0;
     }
     int appendEvent(){
@@ -255,7 +260,7 @@ struct XM30FrameData {
     // attacker's newest live frame-data row, not against any unrelated old
     // projectile. A contact does NOT close or shorten the move's action.
     void recordContacts(const XM41ActorSample actors[2],
-                        unsigned long long at,bool stopped=false){
+                        const bool advanced[2]){
         for(int victim=0;victim<2;++victim){
             if(!actors[victim].valid){
                 healthSeeded[victim]=false;pendingContact[1-victim]=false;
@@ -271,7 +276,8 @@ struct XM30FrameData {
             // An impact while frozen has no new gameplay frame. Its red
             // marker belongs to this tick, but the native-action handoff
             // must remember the strike until the next counted frame.
-            if(stopped)pendingContact[attacker]=true;
+            if(!advanced[attacker])pendingContact[attacker]=true;
+            const unsigned long long at=playerFrame[attacker];
             for(int i=count-1;i>=0;--i){
                 XM30Event& e=history[i];
                 if(e.player!=attacker || e.noBox || e.firstFrame>at)continue;
@@ -301,61 +307,58 @@ struct XM30FrameData {
         const XM30Sample samples[2]={p1,p2};
         const XM41ActorSample actors[2]={a1,a2};
         const unsigned stops[2]={a1.hitStop,a2.hitStop};
-        // +85 is the ROM's HIT-STOP COUNTDOWN, not a signal that gameplay
-        // completed another animation step. It remains nonzero throughout
-        // point-blank multi-hit freeze, even after an offensive box appears.
-        // A previous pass ignored it after first contact and silently added
-        // frozen emulation frames to both duration charts.
-        const bool stopped=(a1.valid && stops[0]>0u) ||
-                           (a2.valid && stops[1]>0u);
-        const bool newlyStopped=stopped &&
-            (!hitStopSeeded ||
-             (stops[0]>0u && previousHitStop[0]==0u) ||
-             (stops[1]>0u && previousHitStop[1]==0u));
-        // The first offensive sample can already contain +85 after a
-        // point-blank collision. Count THAT attack/impact frame once so
-        // its card is established, then discard the frozen countdown
-        // ticks until native hit-stop clears. The game must supply either
-        // a real offensive box or a confirmed HP drop: never infer one
-        // from the cinematic's portrait and screen streaks.
-        bool firstOffensiveImpact=false;
-        if(newlyStopped)for(int p=0;p<2;++p){
-            const XM30Track& t=track[p];
-            if(t.pending<0 || t.pendingAttackEnd)continue;
-            bool priorOffense=false;
-            for(int i=count-1;i>=0;--i){
-                const XM30Event& event=history[i];
-                if(event.player==p && !event.noBox &&
-                   !event.attackEnded && event.attackObserved){
-                    priorOffense=true;break;
+        // Four captured 2E super sequences hold native step 02, phase 81
+        // for ~45 callbacks with BOTH animation timers/pointers unchanged
+        // and BOTH +85 counters zero. This is the actual pre-offense
+        // portrait/streak cinematic missed by the original +85-only gate.
+        const bool cinematicStop=
+            (xm30NativeAttackFamily(a1)==0x2Eu && a1.nativeStep==2u &&
+             a1.attackPhase==0x81u && !p1.melee.active && !p1.projectile.active) ||
+            (xm30NativeAttackFamily(a2)==0x2Eu && a2.nativeStep==2u &&
+             a2.attackPhase==0x81u && !p2.melee.active && !p2.projectile.active);
+        bool advancePlayer[2]={false,false};
+        for(int p=0;p<2;++p){
+            if(!actors[p].valid || cinematicStop)continue;
+            // A newly accepted first impact can show +85 on the very
+            // same native sample as its first offensive box. Count THAT
+            // owner's step once; do not invent the rest of its stop ticks.
+            bool firstImpact=false;
+            if(stops[p]>0u && (!hitStopSeeded || previousHitStop[p]==0u)){
+                const XM30Track& t=track[p];
+                if(t.pending>=0 && !t.pendingAttackEnd){
+                    bool priorOffense=false;
+                    for(int i=count-1;i>=0;--i){
+                        const XM30Event& e=history[i];
+                        if(e.player==p && !e.noBox && !e.attackEnded &&
+                           e.attackObserved){priorOffense=true;break;}
+                    }
+                    const unsigned accepted=xm30NativeAttackFamily(actors[p]);
+                    const bool newCombo=t.pendingOriginValid &&
+                        t.pendingOriginFamily!=0u && accepted!=0u &&
+                        (accepted!=t.pendingOriginFamily ||
+                         (accepted==0x28u &&
+                          actors[p].nativeAction!=t.pendingOriginAction));
+                    if(!priorOffense || newCombo){
+                        bool witnessed=samples[p].melee.active ||
+                                       samples[p].projectile.active;
+                        for(int j=0;j<samples[p].projectileCount && j<12;++j)
+                            if(samples[p].projectileHits[j].active)witnessed=true;
+                        if(actors[1-p].valid && healthSeeded[1-p] &&
+                           actors[1-p].health<previousHealth[1-p])
+                            witnessed=true;
+                        firstImpact=witnessed;
+                    }
                 }
             }
-            const unsigned acceptedFamily=xm30NativeAttackFamily(actors[p]);
-            const bool nativeComboSwitch=t.pendingOriginValid &&
-                t.pendingOriginFamily!=0u && acceptedFamily!=0u &&
-                (acceptedFamily!=t.pendingOriginFamily ||
-                 (acceptedFamily==0x28u &&
-                  actors[p].nativeAction!=t.pendingOriginAction));
-            // The old offensive event blocks repeated hits within ONE super,
-            // but must not block the actual first hit of a new combo attack
-            // whose native ROM selector just changed on the +85 onset.
-            if(priorOffense && !nativeComboSwitch)continue;
-            bool witnessed=samples[p].melee.active || samples[p].projectile.active;
-            for(int j=0;j<samples[p].projectileCount && j<12;++j)
-                if(samples[p].projectileHits[j].active)witnessed=true;
-            if(actors[1-p].valid && healthSeeded[1-p] &&
-               actors[1-p].health<previousHealth[1-p])
-                witnessed=true;
-            if(witnessed){firstOffensiveImpact=true;break;}
+            advancePlayer[p]=stops[p]==0u || firstImpact;
         }
         previousHitStop[0]=stops[0];previousHitStop[1]=stops[1];
         hitStopSeeded=true;
-        const bool nativeStop=stopped && !firstOffensiveImpact;
-        if(nativeStop){
+        if(!advancePlayer[0] && !advancePlayer[1]){
             ++superFreezeFrames;
-            // Record impact while the logical clock is stationary. A
-            // pending contact is carried to the next ACTUAL play step.
-            recordContacts(actors,frame,true);
+            // Even while both fighters are frozen, record HP changes at
+            // the LAST real attacker tick, never at an invented one.
+            recordContacts(actors,advancePlayer);
             return;
         }
         // A strike can change the attack controller on the exact impact
@@ -371,6 +374,7 @@ struct XM30FrameData {
         // At most two subsequent action-family transition samples may be
         // inconclusive; a genuine exit still uses its last matching frame.
         for(int p=0;p<2;++p){
+            if(!advancePlayer[p])continue; // preserve latch until owner resumes
             if(landed[p])contactExitGrace[p]=2;
             pendingContact[p]=false;
         }
@@ -379,6 +383,8 @@ struct XM30FrameData {
             if(++floats[i].age>=FLOAT_LIFE)floats[i].visible=false;
         }
         for(int p=0;p<2;++p){
+            if(!advancePlayer[p])continue;
+            const unsigned long long frame=++playerFrame[p];
             XM30Track& t=track[p];
             const XM30Hit hits[2]={samples[p].melee,samples[p].projectile};
             // Record native action tenure without consulting current direction,
@@ -686,7 +692,7 @@ struct XM30FrameData {
         }
         // After rising-edge creation: first active frame and first actual
         // damage sample may be identical. Assign the marker to the new row.
-        recordContacts(actors,frame);
+        recordContacts(actors,advancePlayer);
     }
 };
 // Stage 87.217: native pixel-space geometry, deterministic frame-data
