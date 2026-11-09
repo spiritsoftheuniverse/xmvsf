@@ -133,13 +133,25 @@ static int xm13Assign(XM13_Settings* settings,int player,int device) {
     char guid[33];xm13GuidForDevice(device,guid);
     if(!xm13ValidGuid(guid))return 0;
     int occ=xm13DeviceOrdinal(device);
-    int other=1-player;
-    if(settings->player[other].active && !strcmp(settings->player[other].guid,guid)
-       && settings->player[other].occurrence==occ) return 0;
-    XM13_Player* p=&settings->player[player];
-    p->active=1;snprintf(p->guid,sizeof(p->guid),"%s",guid);p->occurrence=occ;
-    xm13SetDefaultButtons(p,device);
-    return xm13Save(settings);
+    const int other=1-player;
+    // Reassigning a pad owned by the opposite slot swaps the COMPLETE
+    // player mappings (device identity AND customized button bindings).
+    // If the destination was empty, the previous owner becomes unassigned.
+    // Commit to the active configuration only after the atomic ini save.
+    XM13_Settings updated=*settings;
+    if(updated.player[other].active && !strcmp(updated.player[other].guid,guid)
+       && updated.player[other].occurrence==occ) {
+        const XM13_Player prior=updated.player[player];
+        updated.player[player]=updated.player[other];
+        updated.player[other]=prior;
+    } else {
+        XM13_Player* p=&updated.player[player];
+        p->active=1;snprintf(p->guid,sizeof(p->guid),"%s",guid);p->occurrence=occ;
+        xm13SetDefaultButtons(p,device);
+    }
+    if(!xm13Save(&updated))return 0;
+    *settings=updated;
+    return 1;
 }
 extern int xm24ResultInputCapture; /* XMVSF_STAGE24_3_LIVE_RESULTS */
 static int xm13ReadInput(const XM13_Settings* s, int player, int sub,
