@@ -16,7 +16,7 @@ static constexpr std::uint32_t StrikeFrames=StrikeCount*FramesPerStrike;
 static constexpr std::uint32_t StrikeDurationMs=(StrikeFrames*1000u+StrikeFps-1u)/StrikeFps;
 static constexpr std::uint32_t LogoStart=BackgroundMs;
 static constexpr std::uint32_t StrikeStart=LogoStart+LogoMs;
-static constexpr std::uint32_t AnnouncerStart=LogoStart+3500u; // welcome cue 1.5s later than previous timing
+static constexpr std::uint32_t AnnouncerStart=LogoStart+5500u; // welcome starts at t=6.5s after boot
 static constexpr std::uint32_t MenuStart=StrikeStart+StrikeDurationMs;
 static constexpr std::uint32_t TotalMs=MenuStart+MenuMs;
 static inline float progress(std::uint32_t elapsed,std::uint32_t start,
