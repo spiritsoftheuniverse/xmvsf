@@ -157,7 +157,45 @@ static void frozenContactRetainsOneSuperTimeline(){
     assert(f.count==1 && f.history[0].contactCount==2);
     assert(f.history[0].attackLastFrame==6);
 }
+static void immediatePointBlankSuperDoesNotFreezeMeters(){
+    XM30FrameData f{};
+    f.setEnabled(true);f.beginCombat();
+    f.press(0,0x80);f.press(1,0x80);
+    XM41ActorSample a=actor(0x2A00,0x2E00,144);
+    a.nativeStep=4u;a.attackPhase=0x80u;
+    XM41ActorSample b=actor(0x2800,0x2800,144);
+    XM30Sample hit=melee(),none{};
+    // First offense is point-blank: HP changes and +85 starts on the
+    // SAME sample as the first hitbox. Neither player can be globally
+    // paused merely because stop counters are newly nonzero.
+    f.onFrame(hit,hit,a,b,40);
+    assert(f.frame==1 && f.count==2);
+    a.hitStop=8;b.hitStop=8;b.health=135;
+    f.onFrame(hit,hit,a,b,40);
+    assert(f.frame==2 && f.superFreezeFrames==0 && f.count==2);
+    assert(f.history[0].contactCount==1);
+    for(unsigned k=7;k>0;--k){
+        a.hitStop=k;b.hitStop=k;
+        f.onFrame(hit,hit,a,b,40);
+    }
+    assert(f.frame==9 && f.superFreezeFrames==0);
+    assert(f.history[0].attackLastFrame==9);
+    assert(f.history[1].attackLastFrame==9);
+    assert(f.history[0].contactCount==1);
+    // Second point-blank hit reloads +85; it must add a red tick, not
+    // reset the meters, spawn a second card, or stall the shared clock.
+    a.hitStop=8;b.hitStop=8;b.health=127;
+    f.onFrame(hit,hit,a,b,40);
+    assert(f.frame==10 && f.count==2);
+    assert(f.history[0].contactCount==2);
+    assert(f.history[0].contactFrames[0]==2);
+    assert(f.history[0].contactFrames[1]==10);
+    assert(f.history[0].attackStartFrame==1);
+    assert(f.history[0].attackLastFrame==10);
+    assert(f.history[1].attackLastFrame==10);
+}
 int main(){
+    immediatePointBlankSuperDoesNotFreezeMeters();
     contactPreservesDuration();
     bothMetersResumeAfterStopAndStalledClock();
     multipleSuperHitsKeepOneAction();
