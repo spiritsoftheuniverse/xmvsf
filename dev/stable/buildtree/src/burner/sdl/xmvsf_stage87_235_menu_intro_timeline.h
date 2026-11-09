@@ -7,7 +7,7 @@
 namespace XM87235Intro {
 static constexpr std::uint32_t BackgroundMs=1000u; // logo cue remains at 1s
 static constexpr std::uint32_t BackgroundFadeMs=3000u; // visual fade overlaps logo
-static constexpr std::uint32_t LogoMs=3500u;
+static constexpr std::uint32_t LogoMs=1750u; // 50% faster logo appearance; announcer remains unaltered
 static constexpr std::uint32_t MenuMs=500u;
 static constexpr std::uint32_t StrikeCount=4u;
 static constexpr std::uint32_t FramesPerStrike=10u;
