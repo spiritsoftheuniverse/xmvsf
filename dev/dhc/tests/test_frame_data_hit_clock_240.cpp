@@ -39,7 +39,8 @@ static void contactPreservesDuration(){
     f.onFrame(none,none,attacker,victim,49);
     assert(f.history[0].closed); // hitbox ended, not the attack
     assert(!f.history[0].attackEnded);
-    assert(f.history[0].attackLastFrame==3);
+    assert(f.history[0].attackLastFrame==2);
+    assert(f.history[0].attackExitPending==1); // no invented ROM-owned frame
     assert(f.history[0].contactCount==1);
     assert(f.history[0].contactFrames[0]==3);
     // The native move resumes for recovery: orange duration keeps growing.
@@ -105,12 +106,53 @@ static void multipleSuperHitsKeepOneAction(){
     assert(!f.history[0].closed && !f.history[0].attackEnded);
     a.attackPhase=0x40; a.mode=0;
     f.onFrame(none,none,a,b,37);
-    assert(f.history[0].closed && f.history[0].attackEnded);
+    assert(f.history[0].closed && !f.history[0].attackEnded);
+    f.onFrame(none,none,a,b,36);
+    f.onFrame(none,none,a,b,35);
+    assert(f.history[0].attackEnded);
     assert(f.history[0].attackEndFrame==3);
+}
+static void frozenContactRetainsOneSuperTimeline(){
+    XM30FrameData f{};
+    f.setEnabled(true);
+    f.beginCombat();
+    f.press(0,0x80);
+    XM41ActorSample a=actor(0x2A00,0x2E00,144);
+    a.nativeStep=4u;a.attackPhase=0x80u;
+    XM41ActorSample b=actor(0,0,144);
+    XM30Sample hit=melee(),none{};
+    f.onFrame(hit,none,a,b,40);
+    assert(f.count==1 && f.frame==1);
+    // Contact arrives on a ROM-stopped step: the frame counter is frozen,
+    // but the hit belongs to the already-running attack's existing tick.
+    a.hitStop=3;b.health=140;
+    f.onFrame(none,none,a,b,40);
+    assert(f.frame==1 && f.history[0].contactCount==1);
+    a.hitStop=2;
+    f.onFrame(none,none,a,b,40);
+    assert(f.frame==1 && f.count==1);
+    // The first post-stop sample briefly carries a non-attack controller.
+    a.hitStop=0;a.mode=0;a.attackPhase=0;
+    f.onFrame(none,none,a,b,40);
+    assert(f.frame==2 && f.count==1);
+    assert(!f.history[0].closed && !f.history[0].attackEnded);
+    // A repeated input must not create a new card when 2E/2E00 resumes.
+    f.press(0,0x81);
+    a.mode=0x2A00;a.attackPhase=0x80;
+    f.onFrame(hit,none,a,b,40);
+    assert(f.count==1);
+    assert(f.history[0].attackStartFrame==1);
+    assert(f.history[0].contactCount==1);
+    assert(!f.history[0].attackEnded);
+    b.health=136;
+    f.onFrame(none,none,a,b,40);
+    assert(f.count==1 && f.history[0].contactCount==2);
+    assert(f.history[0].attackLastFrame==4);
 }
 int main(){
     contactPreservesDuration();
     bothMetersResumeAfterStopAndStalledClock();
     multipleSuperHitsKeepOneAction();
+    frozenContactRetainsOneSuperTimeline();
     std::puts("XMVSF 87.240 attack contact and two-meter resume PASS");
 }
