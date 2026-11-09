@@ -31,7 +31,8 @@ static void mirroredNativeBar(){
     using namespace XM8733;
     std::vector<unsigned char> sprite(61u*6u*4u,255u);
     std::vector<unsigned char> canvas(384u*224u*4u,0u);
-    const BarArt base={sprite.data(),61,6,61*4};
+    BarArt base;
+    base.rgba=sprite.data();base.width=61;base.height=6;base.pitch=61*4;
     Reading r; r.total=60;r.used=54;
     DrawOne(canvas.data(),384*4,1,r,false,0u,&base);
     const unsigned c0=StunColorStep(0,53,60);
