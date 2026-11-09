@@ -85,12 +85,8 @@ static inline bool xm24HandleEvent(const SDL_Event& e) {
         if(!xm24Session.resultMenu && xm24Session.seenCombat) xm24ShowResult(xm24Session.winner);
         return true;
     }
-    if(e.type==SDL_KEYDOWN && !e.key.repeat && e.key.keysym.sym==SDLK_5){
-        if(xm25State.quickMenu){xm25State.quickMenu=false;xm24Session.resultMenu=false;xm24ResultInputCapture=0;}
-        else if(!xm24Session.resultMenu){xm25State.quickMenu=true;xm24Session.resultMenu=true;
-            xm24Session.selected=0;xm24ResultInputCapture=1;}
-        return true;
-    } /* XMVSF_STAGE25_1_POLISH */
+    // The Versus quick menu now handles mapped Coin and keyboard 5 together
+    // in xm243PollLiveMenu(), avoiding duplicate toggles on one keypress.
     if(!xm24Session.resultMenu) {
         // Exit any live match to Versus results with Escape (no winner credited).
         if(e.type==SDL_KEYDOWN && !e.key.repeat && e.key.keysym.sym==SDLK_ESCAPE){
