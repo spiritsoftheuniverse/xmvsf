@@ -290,44 +290,42 @@ struct XM30FrameData {
         const XM30Sample samples[2]={p1,p2};
         const XM41ActorSample actors[2]={a1,a2};
         const unsigned stops[2]={a1.hitStop,a2.hitStop};
-        // A 2E portrait/streak freeze is PRE-OFFENSE. Fighter +85 also
-        // counts each successive point-blank HITSTOP, so using its moving
-        // value as a global pause after first contact deadlocks both meters
-        // during multi-hit supers. Once offense is observed, stop sampling
-        // the shared frame clock from individual fighter stop counters.
-        const bool superAction=xm30NativeAttackFamily(a1)==0x2Eu ||
-                               xm30NativeAttackFamily(a2)==0x2Eu;
-        bool combatObserved=false;
-        for(int p=0;p<2;++p){
-            if(samples[p].melee.active || samples[p].projectile.active)
-                combatObserved=true;
+        // +85 is the ROM's HIT-STOP COUNTDOWN, not a signal that gameplay
+        // completed another animation step. It remains nonzero throughout
+        // point-blank multi-hit freeze, even after an offensive box appears.
+        // A previous pass ignored it after first contact and silently added
+        // frozen emulation frames to both duration charts.
+        const bool stopped=(a1.valid && stops[0]>0u) ||
+                           (a2.valid && stops[1]>0u);
+        const bool newlyStopped=stopped &&
+            (!hitStopSeeded ||
+             (stops[0]>0u && previousHitStop[0]==0u) ||
+             (stops[1]>0u && previousHitStop[1]==0u));
+        // The first offensive sample can already contain +85 after a
+        // point-blank collision. Count THAT attack/impact frame once so
+        // its card is established, then discard the frozen countdown
+        // ticks until native hit-stop clears. The game must supply either
+        // a real offensive box or a confirmed HP drop: never infer one
+        // from the cinematic's portrait and screen streaks.
+        bool firstOffensiveImpact=false;
+        if(newlyStopped)for(int p=0;p<2;++p){
+            const XM30Track& t=track[p];
+            if(t.pending<0 || t.pendingAttackEnd)continue;
+            bool witnessed=samples[p].melee.active || samples[p].projectile.active;
             for(int j=0;j<samples[p].projectileCount && j<12;++j)
-                if(samples[p].projectileHits[j].active)combatObserved=true;
+                if(samples[p].projectileHits[j].active)witnessed=true;
             if(actors[1-p].valid && healthSeeded[1-p] &&
                actors[1-p].health<previousHealth[1-p])
-                combatObserved=true;
-            if(pendingContact[p])combatObserved=true;
+                witnessed=true;
+            if(witnessed){firstOffensiveImpact=true;break;}
         }
-        // Once an attack row exists, *never* re-enter the portrait-freeze
-        // gate for that same 2E attack, even if its collision box briefly
-        // clears on a contact or animation substep.
-        if(!combatObserved)for(int i=0;i<count;++i)
-            if(!history[i].noBox && history[i].attackObserved &&
-               !history[i].attackEnded &&
-               history[i].attackFamily==0x2Eu)
-                combatObserved=true;
-        const bool stopCounterMoved=hitStopSeeded &&
-            ((stops[0]>0u && (previousHitStop[0]==0u ||
-                             stops[0]<previousHitStop[0])) ||
-             (stops[1]>0u && (previousHitStop[1]==0u ||
-                             stops[1]<previousHitStop[1])));
         previousHitStop[0]=stops[0];previousHitStop[1]=stops[1];
         hitStopSeeded=true;
-        const bool nativeStop=superAction && !combatObserved && stopCounterMoved;
+        const bool nativeStop=stopped && !firstOffensiveImpact;
         if(nativeStop){
             ++superFreezeFrames;
-            // Damage may land on the first stopped sample. Keep the current
-            // logical tick for contact; do not advance startup/active/duration.
+            // Record impact while the logical clock is stationary. A
+            // pending contact is carried to the next ACTUAL play step.
             recordContacts(actors,frame,true);
             return;
         }
@@ -345,21 +343,6 @@ struct XM30FrameData {
         // inconclusive; a genuine exit still uses its last matching frame.
         for(int p=0;p<2;++p){
             if(landed[p])contactExitGrace[p]=2;
-            // A point-blank super can run many sequential ROM +85
-            // stop-countdown ticks AFTER its first hit. Keep the action
-            // handoff grace refreshed until the final stopped tick, then
-            // allow up to two unfrozen samples to prove it resumed or exited.
-            // Never refresh on a stale, unchanged +85 value.
-            if(stopCounterMoved && stops[p]>0u){
-                for(int i=count-1;i>=0;--i){
-                    const XM30Event& old=history[i];
-                    if(old.player==p && old.attackObserved &&
-                       !old.attackEnded && old.attackFamily==0x2Eu){
-                        contactExitGrace[p]=3;
-                        break;
-                    }
-                }
-            }
             pendingContact[p]=false;
         }
         ++frame;
