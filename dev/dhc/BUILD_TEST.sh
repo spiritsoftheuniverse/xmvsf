@@ -177,6 +177,7 @@ echo "BUILD CACHE: native objects=$TREE/obj; state=$CACHE_DIR"
 # Opt-in, ROM-free dependency smoke check. Does not touch native objects.
 if [[ "${XMVSF_CACHE_SMOKE:-0}" == 1 ]]; then
   bash "$PROJECT/dev/dhc/tests/test_incremental_cache.sh"
+  bash "$PROJECT/dev/dhc/tests/test_fast_menu_link_inputs_235.sh"
 fi
 
 # No-op fast path: Git's *unchanged tracked source* plus our last
