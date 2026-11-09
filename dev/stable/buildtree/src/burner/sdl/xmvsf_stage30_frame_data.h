@@ -311,6 +311,15 @@ struct XM30FrameData {
         if(newlyStopped)for(int p=0;p<2;++p){
             const XM30Track& t=track[p];
             if(t.pending<0 || t.pendingAttackEnd)continue;
+            bool priorOffense=false;
+            for(int i=count-1;i>=0;--i){
+                const XM30Event& event=history[i];
+                if(event.player==p && !event.noBox &&
+                   !event.attackEnded && event.attackObserved){
+                    priorOffense=true;break;
+                }
+            }
+            if(priorOffense)continue; // a subsequent hit is NOT a new move
             bool witnessed=samples[p].melee.active || samples[p].projectile.active;
             for(int j=0;j<samples[p].projectileCount && j<12;++j)
                 if(samples[p].projectileHits[j].active)witnessed=true;
