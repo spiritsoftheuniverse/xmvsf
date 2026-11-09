@@ -150,6 +150,13 @@ struct XM30Track {
     // Existing events retain independent ROM-state tracking after new presses.
     unsigned pendingAttackFamily=0,pendingAttackAction=0;
     unsigned long long pendingAttackStart=0,pendingAttackLast=0,pendingAttackEnd=0;
+    // At the INPUT EDGE the previous native action may still be active.
+    // Combo cancels frequently inherit a continuously active box70/72.
+    // The old code only watched !previousHitbox and missed those attacks.
+    unsigned lastNativeFamily=0,lastNativeAction=0;
+    bool lastNativeValid=false;
+    unsigned pendingOriginFamily=0,pendingOriginAction=0;
+    bool pendingOriginValid=false,pendingComboTransition=false;
     int previousProjectileCount=0;
     unsigned previousProjectileBases[12]={};
     int previousActiveCount=0;
@@ -218,6 +225,10 @@ struct XM30FrameData {
         // earlier attack: each existing card stops on native ROM action exit.
         t.pendingAttackFamily=t.pendingAttackAction=0u;
         t.pendingAttackStart=t.pendingAttackLast=t.pendingAttackEnd=0u;
+        t.pendingOriginFamily=t.lastNativeFamily;
+        t.pendingOriginAction=t.lastNativeAction;
+        t.pendingOriginValid=t.lastNativeValid;
+        t.pendingComboTransition=false;
         t.pendingFirstMotion=0;t.pendingLastMotion=0;t.pendingMoveFrames=0;
         t.pendingPositionKnown=false;t.pendingMotionOverflow=false;
         for(int word=0;word<16;++word)t.pendingMotionBits[word]=0;
@@ -396,10 +407,22 @@ struct XM30FrameData {
             // rearm from unrelated walking/jumping/another special later.
             if(t.pending>=0 && frame>=(unsigned long long)t.pending &&
                frame-(unsigned long long)t.pending<=MAX_WAIT){
-                if(!t.pendingAttackFamily && family){
+                const bool originStillActive=t.pendingOriginValid &&
+                    t.pendingOriginFamily!=0u &&
+                    family==t.pendingOriginFamily &&
+                    (family!=0x28u ||
+                     actors[p].nativeAction==t.pendingOriginAction);
+                // A second normal press during the first normal's recovery
+                // is NOT automatically a new move. Wait for a changed ROM
+                // action selector (or a different native attack family).
+                // 2C/2E can change internal substeps, so their same-family
+                // transitions remain owned by the existing move.
+                if(!t.pendingAttackFamily && family && !originStillActive){
                     t.pendingAttackFamily=family;
                     t.pendingAttackAction=actors[p].nativeAction;
                     t.pendingAttackStart=t.pendingAttackLast=frame;
+                    t.pendingComboTransition=t.pendingOriginValid &&
+                        t.pendingOriginFamily!=0u;
                 }else if(t.pendingAttackFamily && !t.pendingAttackEnd){
                     if(xm30SameNativeAttack(actors[p],t.pendingAttackFamily,
                                             t.pendingAttackAction) ||
@@ -495,6 +518,14 @@ struct XM30FrameData {
                 }
             }
             // Fighter-attached hitboxes retain their own rising-edge counter.
+            // A new native action can be accepted DURING a continuing old
+            // box (light->medium, normal->special, normal->super). Its new
+            // attack must claim the box instead of extending the old row.
+            const bool nativeComboEdge=t.pending>=0 &&
+                t.pendingComboTransition &&
+                t.pendingAttackFamily!=0u &&
+                hits[0].active &&
+                (actors[p].attackPhase&0x80u)!=0u;
             // Projectile active frames are handled above PER LINKED OBJECT.
             int& meleeIndex=t.eventIndex[0];
             if(meleeIndex>=0){
@@ -503,9 +534,15 @@ struct XM30FrameData {
                     XM30Event& e=history[meleeIndex];
                     const bool nativeSuperOffense=e.attackFamily==0x2Eu &&
                         (superPhaseActive || (e.nativeSuperPhase && superStageActive));
-                    // Shinryuuken and other long 2E supers may temporarily
-                    // clear box70/72 without leaving their ROM attack phase.
-                    if(hits[0].active || nativeSuperOffense){
+                    // A native combo handoff closes the OLD hitbox lane
+                    // at its last frame even when RAM box70/72 did not fall.
+                    // The new move's first active frame is THIS frame.
+                    if(nativeComboEdge &&
+                       (e.attackFamily!=t.pendingAttackFamily ||
+                        e.attackAction!=t.pendingAttackAction)){
+                        e.closed=true;e.endFrame=frame-1;
+                        meleeIndex=-1;
+                    }else if(hits[0].active || nativeSuperOffense){
                         if(nativeSuperOffense)e.nativeSuperPhase=true;
                         ++e.active;
                     }else if(e.attackFamily==0x2Eu &&
@@ -520,7 +557,8 @@ struct XM30FrameData {
             }
             const long long age=t.pending>=0?(long long)frame-t.pending:-1;
             if(t.pending>=0 && age<=MAX_WAIT){
-                const bool meleeRise=hits[0].active && !t.previous[0];
+                const bool meleeRise=hits[0].active &&
+                    (!t.previous[0] || nativeComboEdge);
                 XM30Hit newProjectile{};
                 for(int j=0;j<samples[p].projectileCount && j<12;++j){
                     const XM30Hit& h=samples[p].projectileHits[j];
@@ -624,6 +662,9 @@ struct XM30FrameData {
             }
             t.previous[0]=hits[0].active;
             t.previous[1]=hits[1].active;
+            t.lastNativeFamily=family;
+            t.lastNativeAction=actors[p].nativeAction;
+            t.lastNativeValid=actors[p].valid;
             t.previousActiveCount=0;
             for(int j=0;j<samples[p].projectileCount && j<12;++j)
                 if(samples[p].projectileHits[j].active &&
