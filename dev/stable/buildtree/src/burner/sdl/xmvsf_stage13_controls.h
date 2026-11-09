@@ -225,8 +225,17 @@ static int xm13Assign(XM13_Settings* settings,int player,int device) {
         updated.player[other]=prior;
     } else {
         XM13_Player* p=&updated.player[player];
+        // A genuinely new device must not inherit keyboard keys or macro
+        // bindings left behind by the previous assigned device.
+        const bool sameDevice=p->active && !strcmp(p->guid,guid) &&
+                              p->occurrence==occ;
+        if(!sameDevice){
+            for(int a=0;a<XM13_ACTIONS;a++){
+                p->binding[a].type='N';p->binding[a].index=-1;
+            }
+        }
         p->active=1;snprintf(p->guid,sizeof(p->guid),"%s",guid);p->occurrence=occ;
-        xm13SetDefaultButtons(p,device);
+        if(!sameDevice)xm13SetDefaultButtons(p,device);
     }
     if(!xm13Save(&updated))return 0;
     *settings=updated;
