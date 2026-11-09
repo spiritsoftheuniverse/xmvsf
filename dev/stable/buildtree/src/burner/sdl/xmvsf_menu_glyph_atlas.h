@@ -474,7 +474,7 @@ static inline bool left(SDL_Renderer* r,const char* s,int x,int y,int maxWidth,
 // This retains source-pixel proportions; no image stretching is necessary.
 struct MainLayout {
     enum {
-        LogoX=235, LogoY=51, LogoW=544, LogoH=289,
+        LogoX=208, LogoY=51, LogoW=544, LogoH=289,
         TextCenter=489, FirstRowY=347, RowStep=31,
         HintY=495, ExitY=522, ExitLeft=18, VersionRight=942
     };
