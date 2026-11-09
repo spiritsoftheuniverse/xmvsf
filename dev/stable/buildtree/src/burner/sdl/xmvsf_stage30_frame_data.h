@@ -330,7 +330,16 @@ struct XM30FrameData {
                     priorOffense=true;break;
                 }
             }
-            if(priorOffense)continue; // a subsequent hit is NOT a new move
+            const unsigned acceptedFamily=xm30NativeAttackFamily(actors[p]);
+            const bool nativeComboSwitch=t.pendingOriginValid &&
+                t.pendingOriginFamily!=0u && acceptedFamily!=0u &&
+                (acceptedFamily!=t.pendingOriginFamily ||
+                 (acceptedFamily==0x28u &&
+                  actors[p].nativeAction!=t.pendingOriginAction));
+            // The old offensive event blocks repeated hits within ONE super,
+            // but must not block the actual first hit of a new combo attack
+            // whose native ROM selector just changed on the +85 onset.
+            if(priorOffense && !nativeComboSwitch)continue;
             bool witnessed=samples[p].melee.active || samples[p].projectile.active;
             for(int j=0;j<samples[p].projectileCount && j<12;++j)
                 if(samples[p].projectileHits[j].active)witnessed=true;
