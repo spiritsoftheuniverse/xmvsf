@@ -290,15 +290,40 @@ struct XM30FrameData {
         const XM30Sample samples[2]={p1,p2};
         const XM41ActorSample actors[2]={a1,a2};
         const unsigned stops[2]={a1.hitStop,a2.hitStop};
-        // Freeze only while an actual ROM stop countdown is initiated or
-        // changing. A stale nonzero byte cannot freeze the panel forever.
-        const bool nativeStop=hitStopSeeded &&
+        // A 2E portrait/streak freeze is PRE-OFFENSE. Fighter +85 also
+        // counts each successive point-blank HITSTOP, so using its moving
+        // value as a global pause after first contact deadlocks both meters
+        // during multi-hit supers. Once offense is observed, stop sampling
+        // the shared frame clock from individual fighter stop counters.
+        const bool superAction=xm30NativeAttackFamily(a1)==0x2Eu ||
+                               xm30NativeAttackFamily(a2)==0x2Eu;
+        bool combatObserved=false;
+        for(int p=0;p<2;++p){
+            if(samples[p].melee.active || samples[p].projectile.active)
+                combatObserved=true;
+            for(int j=0;j<samples[p].projectileCount && j<12;++j)
+                if(samples[p].projectileHits[j].active)combatObserved=true;
+            if(actors[1-p].valid && healthSeeded[1-p] &&
+               actors[1-p].health<previousHealth[1-p])
+                combatObserved=true;
+            if(pendingContact[p])combatObserved=true;
+        }
+        // Once an attack row exists, *never* re-enter the portrait-freeze
+        // gate for that same 2E attack, even if its collision box briefly
+        // clears on a contact or animation substep.
+        if(!combatObserved)for(int i=0;i<count;++i)
+            if(!history[i].noBox && history[i].attackObserved &&
+               !history[i].attackEnded &&
+               history[i].attackFamily==0x2Eu)
+                combatObserved=true;
+        const bool stopCounterMoved=hitStopSeeded &&
             ((stops[0]>0u && (previousHitStop[0]==0u ||
                              stops[0]<previousHitStop[0])) ||
              (stops[1]>0u && (previousHitStop[1]==0u ||
                              stops[1]<previousHitStop[1])));
         previousHitStop[0]=stops[0];previousHitStop[1]=stops[1];
         hitStopSeeded=true;
+        const bool nativeStop=superAction && !combatObserved && stopCounterMoved;
         if(nativeStop){
             ++superFreezeFrames;
             // Damage may land on the first stopped sample. Keep the current
