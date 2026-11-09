@@ -280,6 +280,21 @@ public:
         stage(largeReveal_,originalLargeRGBA_,revealedLargeRGBA_,190,70);
         stage(smallReveal_,originalSmallRGBA_,revealedSmallRGBA_,128,48);
     }
+    // Width in the actual new SF2 glyph atlas, including proportional advances.
+    // Used to left-align an entire input list before centering its measured block.
+    int textWidth(SDL_Renderer* renderer,const char* s,bool small,int scale){
+        ensure(renderer);
+        if(!s || scale<1)return 0;
+        const Glyph* glyphs=metrics_[small?1:0];
+        const int fallback=(small?8:12)/2;
+        int units=0;
+        for(const unsigned char* p=(const unsigned char*)s;*p;++p){
+            const unsigned c=*p;
+            units+=(c>=32 && c<=126 && glyphs[c].advance>0)
+                ?glyphs[c].advance:fallback;
+        }
+        return units*scale;
+    }
     bool text(SDL_Renderer* renderer,const char* s,int x,int y,int maxWidth,
               bool centered,bool small,int scale,Uint8 brightness=255){
         ensure(renderer);
@@ -464,6 +479,9 @@ static inline bool center(SDL_Renderer* r,const char* s,int cx,int y,int pixel,
     const int scale=useSmall?(pixel<=1?1:2):(pixel>=6?3:2);
     const Uint8 light=(Uint8)((unsigned(red)+green+blue)/3);
     return atlas().text(r,s,cx,y,0,true,useSmall,scale,light);
+}
+static inline int smallTextWidth(SDL_Renderer* r,const char* s,int scale){
+    return atlas().textWidth(r,s,true,scale);
 }
 static inline bool left(SDL_Renderer* r,const char* s,int x,int y,int maxWidth,
                         int scale,Uint8 brightness){
