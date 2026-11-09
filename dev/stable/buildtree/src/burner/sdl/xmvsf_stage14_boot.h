@@ -98,6 +98,16 @@ static void xmvsfPixelText(SDL_Renderer* render, const char* text, int cx, int y
 // 0=Arcade, -1=Quit. Training is still disabled, never starts an ordinary match.
 extern SDL_Window* sdlWindow;
 extern bool xm26PersistentShell; // Persistent window is owned by application lifecycle.
+// Dynamic controller-page layout. Whole device+input group is centered in the
+// space between the page caption and the P1/P2 cycler. Its first input is
+// exactly 12 physical canvas pixels below the device's 16px sprite-glyph line.
+static inline int xm14VisibleInputs(const XM13_Settings& settings,int page){
+    return xm13IsKeyboard(&settings.player[page])?XM13_ACTIONS:XM13_START+1;
+}
+static inline int xm14DeviceLineY(int actions){
+    const int groupHeight=16+12+16+(actions-1)*18;
+    return 156+(296-groupHeight)/2;
+}
 static int xmvsfBootSelector(bool returningFromGame=false) {
     xm8655Load();
     xm8733DizzyLoad();
@@ -305,8 +315,14 @@ static int xmvsfBootSelector(bool returningFromGame=false) {
                                 if(mx>=264 && mx<=468){controlsPage=0;controlsRow=0;xm25MenuSound(false);menuGate.begin();continue;}
                                 if(mx>=492 && mx<=696){controlsPage=1;controlsRow=0;xm25MenuSound(false);menuGate.begin();continue;}
                             }
-                            if(my>=168 && my<456 && mx>=160 && mx<=800){
-                                controlsRow=std::min(XM13_ACTIONS,(my-168)/19);continue;
+                            const int count=xm14VisibleInputs(config,controlsPage);
+                            const int deviceY=xm14DeviceLineY(count);
+                            const int inputY=deviceY+16+12;
+                            if(my>=deviceY-3 && my<deviceY+17 && mx>=160 && mx<=800){
+                                controlsRow=0;continue;
+                            }
+                            if(my>=inputY-3 && my<inputY+count*18 && mx>=160 && mx<=800){
+                                controlsRow=std::min(count,1+(my-inputY+3)/18);continue;
                             }
                         }
                         continue;
@@ -436,7 +452,8 @@ static int xmvsfBootSelector(bool returningFromGame=false) {
                 if(back){screen=returnScreen;menuGate.begin();continue;}
                 if(direction){stageRow=1-stageRow;xm25MenuSound(false);}
                 if(accept){
-                    xm25MenuSound(true);
+                    if(pendingMode==1)xm20MenuFight(); // Training: cue at stage confirmation
+                    else xm25MenuSound(true);
                     xm77StageChoice=stageRow;
                     xm77RollStage(); // Resolve once per match; game-side request follows during emulation.
                     std::fprintf(stderr,"XM86.32 STAGE MENU CONFIRM mode=%d selected=%d resolved=%d\n",pendingMode,xm77StageChoice,xm77StageResolved);std::fflush(stderr);
@@ -482,7 +499,8 @@ static int xmvsfBootSelector(bool returningFromGame=false) {
                         controlsRow=0;xm25MenuSound(false);menuGate.begin();
                     }
                     if(direction){
-                        controlsRow=(controlsRow+XM13_ACTIONS+1+direction)%(XM13_ACTIONS+1);
+                        const int rowCount=xm14VisibleInputs(config,controlsPage)+1;
+                        controlsRow=(controlsRow+rowCount+direction)%rowCount;
                         xm25MenuSound(false);
                     }
                     if(accept){
@@ -533,7 +551,9 @@ static int xmvsfBootSelector(bool returningFromGame=false) {
                     {running=0;outcome=-1;}
                 if(direction){xmvsfHost::cursorMove();selection=(selection+4+direction)%4;}
                 if(accept){
-                    if(selection<=2)xm20MenuFight();
+                    // Training enters a stage picker first: announce Fight
+                    // only after that choice, not at the main menu.
+                    if(selection==0 || selection==2)xm20MenuFight();
                     else xmvsfHost::confirm();
                     if(selection==0){xm25BeginInputHandoff();outcome=0;running=0;}
                     else if(selection==1){
@@ -590,8 +610,8 @@ static int xmvsfBootSelector(bool returningFromGame=false) {
                 xmvsfPixelText(render,message,
                     XMGlyph::MainLayout::TextCenter,
                     XMGlyph::MainLayout::HintY,2,255,132,132);
-            else if(!XMGlyph::menuHint(render,"A SELECT  B BACK",235))
-                xmvsfPixelText(render,"A SELECT  B BACK",480,
+            else if(!XMGlyph::menuHint(render,"A SELECT  B/ESC BACK",235))
+                xmvsfPixelText(render,"A SELECT  B/ESC BACK",480,
                     XMGlyph::MainLayout::HintY,2,235,235,235);
             if(!XMGlyph::menuExit(render,"ESC TO QUIT"))
                 xmvsfPixelText(render,"ESC TO QUIT",58,
@@ -609,7 +629,7 @@ static int xmvsfBootSelector(bool returningFromGame=false) {
                 xmvsfPixelText(render,stages[i],480,y,4,bright,bright,bright);
             }
             xmvsfPixelText(render,"RANDOM INCLUDES WILY FACTORY",480,405,2,137,177,215);
-            xmvsfPixelText(render,"A SELECT  B BACK",480,465,2,152,192,235);
+            xmvsfPixelText(render,"A SELECT  B/ESC BACK",480,465,2,152,192,235);
         } else if(screen==2) { /* XMVSF_STAGE25_5_SCOREBOARD_RESET */
             xm255BootVersus(render);
         } else if(screen==3) {
@@ -644,35 +664,51 @@ static int xmvsfBootSelector(bool returningFromGame=false) {
                 xmvsfPixelText(render,"CTRL + / - RESIZE   ALT + ENTER FULLSCREEN",480,480,2,124,151,181);
             } else {
                 xmvsfPixelText(render,"LEFT / RIGHT PAGE",480,134,2,129,160,190);
-                for(int row=0;row<=XM13_ACTIONS;row++){
-                    char label[128]={};
-                    if(row==0){
-                        const int device=xm13FindDevice(&config.player[controlsPage]);
-                        if(!config.player[controlsPage].active)
-                            snprintf(label,sizeof(label),"P%d DEVICE : NOT ASSIGNED",controlsPage+1);
-                        else if(xm13IsKeyboard(&config.player[controlsPage]))
-                            snprintf(label,sizeof(label),"P%d DEVICE : KEYBOARD",controlsPage+1);
-                        else if(device<0)
-                            snprintf(label,sizeof(label),"P%d DEVICE : DISCONNECTED",controlsPage+1);
-                        else {
-                            char systemName[44]={};
-                            xm13DeviceDisplayName(device,systemName,sizeof(systemName));
-                            snprintf(label,sizeof(label),"P%d DEVICE : %s",controlsPage+1,systemName);
-                        }
-                    } else {
-                        const XM13_Binding binding=config.player[controlsPage].binding[row-1];
-                        if(binding.type=='N')snprintf(label,sizeof(label),"P%d %s : NONE",
-                            controlsPage+1,actionNames[row-1]);
-                        else if(binding.type=='K'){
-                            const char* key=SDL_GetScancodeName((SDL_Scancode)binding.index);
-                            snprintf(label,sizeof(label),"P%d %s : KEY %s",
-                                controlsPage+1,actionNames[row-1],key&&*key?key:"UNKNOWN");
-                        } else snprintf(label,sizeof(label),"P%d %s : %s %d",
-                            controlsPage+1,actionNames[row-1],
-                            binding.type=='A'?"AXIS":"BUTTON",binding.index);
+                const int visibleInputs=xm14VisibleInputs(config,controlsPage);
+                const int deviceY=xm14DeviceLineY(visibleInputs);
+                const int inputY=deviceY+16+12; // exactly 12px below glyph bottom
+                char deviceLabel[128]={};
+                const XM13_Player& player=config.player[controlsPage];
+                const int device=xm13FindDevice(&player);
+                if(!player.active)
+                    std::snprintf(deviceLabel,sizeof(deviceLabel),"P%d DEVICE : NOT ASSIGNED",controlsPage+1);
+                else if(xm13IsKeyboard(&player))
+                    std::snprintf(deviceLabel,sizeof(deviceLabel),"P%d DEVICE : KEYBOARD",controlsPage+1);
+                else if(device<0)
+                    std::snprintf(deviceLabel,sizeof(deviceLabel),"P%d DEVICE : DISCONNECTED",controlsPage+1);
+                else {
+                    char systemName[44]={};
+                    xm13DeviceDisplayName(device,systemName,sizeof(systemName));
+                    std::snprintf(deviceLabel,sizeof(deviceLabel),"P%d DEVICE : %s",controlsPage+1,systemName);
+                }
+                xmvsfPixelText(render,deviceLabel,480,deviceY,2,
+                               controlsRow==0?255:110,controlsRow==0?255:136,controlsRow==0?255:164);
+
+                // Measure every label using the real sf2fontsmall.png advances.
+                // Left-align all labels to the same origin, then center that
+                // measured column on the native 960px canvas.
+                char inputLabels[XM13_ACTIONS][128]={};
+                int widest=0;
+                for(int a=0;a<visibleInputs;a++){
+                    const XM13_Binding binding=player.binding[a];
+                    if(binding.type=='N'){
+                        std::snprintf(inputLabels[a],sizeof(inputLabels[a]),"%s : NONE",actionNames[a]);
+                    }else if(binding.type=='K'){
+                        const char* name=SDL_GetScancodeName((SDL_Scancode)binding.index);
+                        std::snprintf(inputLabels[a],sizeof(inputLabels[a]),"%s : KEY %s",
+                                      actionNames[a],name&&*name?name:"UNKNOWN");
+                    }else{
+                        std::snprintf(inputLabels[a],sizeof(inputLabels[a]),"%s : %s %d",
+                                      actionNames[a],binding.type=='A'?"AXIS":"BUTTON",binding.index);
                     }
-                    const Uint8 bright=row==controlsRow?255:85;
-                    xmvsfPixelText(render,label,480,174+row*19,2,bright,bright,bright);
+                    widest=std::max(widest,XMGlyph::smallTextWidth(render,inputLabels[a],2));
+                }
+                const int inputLeft=480-widest/2;
+                for(int a=0;a<visibleInputs;a++){
+                    const Uint8 intensity=controlsRow==a+1?255:92;
+                    // Explicitly use the authored SF2 small-glyph sheet,
+                    // never the legacy bitmap or per-row centered text.
+                    XMGlyph::left(render,inputLabels[a],inputLeft,inputY+a*18,0,2,intensity);
                 }
                 if(capture>=0)
                     xmvsfPixelText(render,"PRESS KEY OR CONTROLLER BUTTON",480,462,2,255,208,82);
@@ -685,7 +721,7 @@ static int xmvsfBootSelector(bool returningFromGame=false) {
                     controlsPage==1?255:98,controlsPage==1?255:122,controlsPage==1?255:150);
                 xmvsfPixelText(render,">",685,490,2,127,157,187);
             }
-            xmvsfPixelText(render,"A SELECT   B BACK",480,518,2,129,157,188);
+            xmvsfPixelText(render,"A SELECT   B/ESC BACK",480,518,2,129,157,188);
         }
         // F9 is also armed at the CUSTOM BOOT MENU, not only in combat.
         // The legacy indicator lived exclusively in the CPS2 presenter.
