@@ -429,13 +429,40 @@ if (( WARM_MENU_PASS )); then
      source "$PROJECT/dev/dhc/FAST_MENU_LINK_INPUTS_235.sh" &&
      xm235_fast_link_inputs "$TREE"; then
     echo "BUILD MODE: compact menu graph, $XM235_LINK_OBJECT_COUNT cached link objects."
-    echo "BUILD MODE: skipping 1,174-driver wildcard scan; 4 SDL .d graphs checked."
+    echo "BUILD MODE: skipping FBNeo driver wildcard scan; refreshing 4 SDL .d files."
     echo "BUILD PHASE compact_make_start elapsed_seconds=$((SECONDS-BUILD_WALL_START))"
-    MAKELEVEL=2 make -rR -f makefile.sdl2 LSB_FIRST=1 INCLUDE_7Z_SUPPORT=1 DEPEND=1 \
-      "XMVSF_BUILD_SIGNATURE=../../../test/build_cache/compiler.signature" \
-      "allobj=$XM235_LINK_OBJECTS" "alldep=$XM235_LINK_DEPFILES" \
-      "autdrv=" "autdep=" "drvdep=" "drvsrc=" "autobj=" \
-      "${MAKE_COMPILER[@]}" -j"${XMVSF_BUILD_JOBS:-12}" all
+    compact_args=(LSB_FIRST=1 INCLUDE_7Z_SUPPORT=1 DEPEND=1
+      "XMVSF_BUILD_SIGNATURE=../../../test/build_cache/compiler.signature"
+      "allobj=$XM235_LINK_OBJECTS" "alldep=$XM235_LINK_DEPFILES"
+      "autdrv=" "autdep=" "drvdep=" "drvsrc=" "autobj="
+      "${MAKE_COMPILER[@]}" "-j${XMVSF_BUILD_JOBS:-12}")
+    # GNU Make's pass-2 checks existing .d header lists but does not always
+    # regenerate them when a header adds another include. Explicitly rebuild
+    # the FOUR SDL .d files in a tiny pass-1 invocation, not every driver.
+    # -W affects only these dependency-scans, never native object targets.
+    compact_deps_ready=0
+    if MAKELEVEL=1 make -rR -f makefile.sdl2 "${compact_args[@]}" \
+         -W src/burner/sdl/main.cpp -W src/burner/sdl/run.cpp \
+         -W src/intf/audio/sdl/aud_sdl.cpp \
+         -W src/intf/video/sdl/vid_sdl2.cpp \
+         main.d run.d aud_sdl.d vid_sdl2.d; then
+      compact_deps_ready=1
+      for dep in ${XM235_LINK_DEPFILES}; do
+        if [[ ! -s "$TREE/$dep" || "$TREE/$dep" -ot "$BUILD_START" ]]; then
+          compact_deps_ready=0
+          echo "BUILD CACHE: SDL dependency refresh missing/stale: $dep" >&2
+        fi
+      done
+    fi
+    if (( compact_deps_ready )); then
+      echo "BUILD MODE: compact SDL deps refreshed; compiling/linking from cached object graph."
+      MAKELEVEL=2 make -rR -f makefile.sdl2 "${compact_args[@]}" all
+    else
+      echo "BUILD MODE: compact dependency scan unavailable; using full two-pass Make."
+      MAKELEVEL=1 make -f makefile.sdl2 LSB_FIRST=1 INCLUDE_7Z_SUPPORT=1 DEPEND=1 \
+        "XMVSF_BUILD_SIGNATURE=../../../test/build_cache/compiler.signature" \
+        "${MAKE_COMPILER[@]}" -j"${XMVSF_BUILD_JOBS:-12}" all
+    fi
     echo "BUILD PHASE compact_make_end elapsed_seconds=$((SECONDS-BUILD_WALL_START))"
   else
     echo "BUILD MODE: cached linker object map unavailable; using normal warm Make."
