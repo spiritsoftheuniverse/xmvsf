@@ -8,7 +8,7 @@ int main(){
     static_assert(BackgroundMs==1000u && BackgroundFadeMs==3000u && LogoMs==2000u &&
                   MenuMs==500u && StrikeCount==4u && FramesPerStrike==10u &&
                   StrikeFrames==40u && StrikeDurationMs==667u &&
-                  StrikeStart==3000u && MenuStart==3667u && TotalMs==4167u,"87.235 timings changed");
+                  StrikeStart==3000u && AnnouncerStart==3000u && MenuStart==3667u && TotalMs==4167u,"87.235 timings changed");
     assert(backgroundStrength(0u)==1.0f);
     assert(backgroundStrength(500u)>0.0f);
     assert(backgroundStrength(500u)<1.0f);
