@@ -300,6 +300,7 @@ public:
         loadStroke(1,"logo_II_B.png",0,-1);
         loadStroke(2,"logo_II_C.png",0,1);
         loadStroke(3,"logo_II_D.png",1,-1);
+        XMGlyph::setLogoIIAlphaBounds(render,final_?finalBounds_:SDL_Rect{0,0,0,0});
         std::fprintf(stderr,"XM87.235 II_FINAL loaded=%d bounds=%d,%d,%d,%d\n",
                      final_!=nullptr,finalBounds_.x,finalBounds_.y,
                      finalBounds_.w,finalBounds_.h);
