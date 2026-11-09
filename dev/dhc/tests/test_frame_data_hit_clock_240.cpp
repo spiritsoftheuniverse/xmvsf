@@ -73,19 +73,21 @@ static void bothMetersResumeAfterStopAndStalledClock(){
     assert(f.frame==7 && f.superFreezeFrames==0);
     assert(f.history[0].attackLastFrame==7);
     assert(f.history[1].attackLastFrame==7);
-    // Hitstop starts and counts down. Only those actual stop steps freeze.
+    // Point-blank offensive hitstop MUST NOT repeatedly suspend the
+    // single shared clock. An individual +85 counter is not a global
+    // cinematic pause when a super already has live offensive boxes.
     a.hitStop=3;
     f.onFrame(hit,hit,a,b,39);
     a.hitStop=2;
     f.onFrame(hit,hit,a,b,39);
-    assert(f.frame==7 && f.superFreezeFrames==2);
-    // Repeated stale nonzero values cannot deadlock both meters.
+    assert(f.frame==9 && f.superFreezeFrames==0);
+    // Repeated and stale nonzero values cannot deadlock either meter.
     f.onFrame(hit,hit,a,b,39);
-    assert(f.frame==8);
+    assert(f.frame==10);
     a.hitStop=0;
     f.onFrame(hit,hit,a,b,39);
-    assert(f.frame==9 && f.history[0].attackLastFrame==9 &&
-           f.history[1].attackLastFrame==9);
+    assert(f.frame==11 && f.history[0].attackLastFrame==11 &&
+           f.history[1].attackLastFrame==11);
 }
 static void multipleSuperHitsKeepOneAction(){
     XM30FrameData f{};
@@ -127,18 +129,20 @@ static void frozenContactRetainsOneSuperTimeline(){
     XM30Sample hit=melee(),none{};
     f.onFrame(hit,none,a,b,40);
     assert(f.count==1 && f.frame==1);
-    // Contact arrives on a ROM-stopped step: the frame counter is frozen,
-    // but the hit belongs to the already-running attack's existing tick.
+    // Point-blank contact starts repeated native hitstop, but both meters
+    // continue their logical frame clock because offense already began.
     a.hitStop=3;b.health=140;
     f.onFrame(none,none,a,b,40);
-    assert(f.frame==1 && f.history[0].contactCount==1);
+    assert(f.frame==2 && f.history[0].contactCount==1);
+    assert(f.history[0].contactFrames[0]==2);
     a.hitStop=2;
     f.onFrame(none,none,a,b,40);
-    assert(f.frame==1 && f.count==1);
-    // The first post-stop sample briefly carries a non-attack controller.
+    assert(f.frame==3 && f.count==1);
+    // The next sample briefly carries a non-attack controller. The
+    // contact grace protects that ROM transition without a new card.
     a.hitStop=0;a.mode=0;a.attackPhase=0;
     f.onFrame(none,none,a,b,40);
-    assert(f.frame==2 && f.count==1);
+    assert(f.frame==4 && f.count==1);
     assert(!f.history[0].closed && !f.history[0].attackEnded);
     // A repeated input must not create a new card when 2E/2E00 resumes.
     f.press(0,0x81);
@@ -151,7 +155,7 @@ static void frozenContactRetainsOneSuperTimeline(){
     b.health=136;
     f.onFrame(none,none,a,b,40);
     assert(f.count==1 && f.history[0].contactCount==2);
-    assert(f.history[0].attackLastFrame==4);
+    assert(f.history[0].attackLastFrame==6);
 }
 int main(){
     contactPreservesDuration();
