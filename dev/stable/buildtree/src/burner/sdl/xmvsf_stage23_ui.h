@@ -399,7 +399,7 @@ static inline void xm41DrawFrameCard(SDL_Renderer* r,const SDL_Rect& card,
     std::snprintf(caption,sizeof(caption),"P%d %s B%d %s",e.player+1,
         e.source==1?"PROJ":xm32MotionTag(e.motion),
         e.code>=0x80 && e.code<=0x85?e.code-0x80+1:0,
-        e.noBox?"NO BOX":((e.source==1?e.despawnFrame!=0:e.closed)?"DONE":"LIVE"));
+        e.noBox?"NO BOX":(e.closed?"DONE":"LIVE"));
     xm32ColoredText(r,caption,left,card.y+6,1,159,199,255);
     SDL_SetRenderDrawColor(r,53,78,110,255);
     SDL_RenderDrawLine(r,left,card.y+19,right,card.y+19);
@@ -487,14 +487,17 @@ static inline void xm41DrawFrameCard(SDL_Renderer* r,const SDL_Rect& card,
     // A terminal border tick shows object removal, without a fake OUT phase.
     if(e.source==1 && e.despawnFrame)
         tick(px(e.despawnFrame),card.y+44,11,195,213,234);
-    xm32ColoredText(r,"HIT",left,card.y+55,1,118,155,199);
+    // A native super's ROM attack phase can extend beyond visible box70/72.
+    // Distinguish active ROM ownership from sampled collision pixels.
+    xm32ColoredText(r,e.nativeSuperPhase?"ACT":"HIT",left,card.y+55,1,118,155,199);
     xm32ColoredText(r,"MOVE",right-25,card.y+55,1,86,193,243);
     SDL_SetRenderDrawColor(r,53,78,110,255);
     SDL_RenderDrawLine(r,left,card.y+74,right,card.y+74);
     // The ROM action is the sole duration clock. Each attack owns its
     // start, last valid frame and exit; button holds, movement, and Y
     // position cannot keep the timeline running beyond action end.
-    xm32ColoredText(r,"ATTACK DURATION",left,card.y+78,1,177,188,211);
+    xm32ColoredText(r,e.nativeSuperPhase?"SUPER DURATION":"ATTACK DURATION",
+                    left,card.y+78,1,177,188,211);
     if(e.attackObserved){
         const unsigned long long actionEnd=e.attackEnded?
             e.attackEndFrame:e.attackLastFrame;
