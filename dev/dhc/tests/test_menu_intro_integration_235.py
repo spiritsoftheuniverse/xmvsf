@@ -52,7 +52,7 @@ assert 'remaining<threshold' in fx
 assert "XM87235Intro::MenuStart" in boot
 assert "xm20MenuIntroMusic();musicFired=true;" in boot
 assert "xm20MenuIntroSilence();xm20MenuCrash();" in boot
-assert "static constexpr std::uint32_t AnnouncerStart=LogoStart+5500u;" in timeline
+assert "static constexpr std::uint32_t AnnouncerStart=LogoStart+2000u;" in timeline
 assert "introElapsed>=XM87235Intro::AnnouncerStart" in boot
 assert "LogoX=208, LogoY=51, LogoW=544, LogoH=289" in atlas
 assert "combinedCenterShiftX(scale)" in atlas
