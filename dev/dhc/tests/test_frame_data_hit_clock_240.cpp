@@ -73,19 +73,22 @@ static void bothMetersResumeAfterStopAndStalledClock(){
     assert(f.frame==7 && f.superFreezeFrames==0);
     assert(f.history[0].attackLastFrame==7);
     assert(f.history[1].attackLastFrame==7);
-    // ROM +85 freezes BOTH fighters even after the first attack box is
-    // active. None of these countdown host frames are playable move frames.
+    // Only P1 has +85 stop; P2's own native normal attack continues
+    // on its own timeline, exactly as in the captured 2E super sequence.
     a.hitStop=3;
     f.onFrame(hit,hit,a,b,39);
     a.hitStop=2;
     f.onFrame(hit,hit,a,b,39);
-    assert(f.frame==7 && f.superFreezeFrames==2);
-    f.onFrame(hit,hit,a,b,39); // unchanged nonzero is STILL frozen
-    assert(f.frame==7 && f.superFreezeFrames==3);
+    f.onFrame(hit,hit,a,b,39); // unchanged nonzero still freezes P1
+    assert(f.frame==10 && f.playerFrame[0]==7 && f.playerFrame[1]==10);
+    assert(f.superFreezeFrames==0);
+    assert(f.history[0].attackLastFrame==7);
+    assert(f.history[1].attackLastFrame==10);
     a.hitStop=0;
     f.onFrame(hit,hit,a,b,39);
-    assert(f.frame==8 && f.history[0].attackLastFrame==8 &&
-           f.history[1].attackLastFrame==8);
+    assert(f.frame==11 && f.playerFrame[0]==8 && f.playerFrame[1]==11);
+    assert(f.history[0].attackLastFrame==8);
+    assert(f.history[1].attackLastFrame==11);
 }
 static void multipleSuperHitsKeepOneAction(){
     XM30FrameData f{};
@@ -131,15 +134,15 @@ static void frozenContactRetainsOneSuperTimeline(){
     // +85 countdown is host work, not additional attack time.
     a.hitStop=3;b.health=140;
     f.onFrame(none,none,a,b,40);
-    assert(f.frame==1 && f.history[0].contactCount==1);
+    assert(f.playerFrame[0]==1 && f.history[0].contactCount==1);
     assert(f.history[0].contactFrames[0]==1);
     a.hitStop=2;
     f.onFrame(none,none,a,b,40);
-    assert(f.frame==1 && f.count==1);
+    assert(f.playerFrame[0]==1 && f.count==1);
     // Native ROM resumes and temporarily exposes a transition controller.
     a.hitStop=0;a.mode=0;a.attackPhase=0;
     f.onFrame(none,none,a,b,40);
-    assert(f.frame==2 && f.count==1);
+    assert(f.playerFrame[0]==2 && f.count==1);
     assert(!f.history[0].closed && !f.history[0].attackEnded);
     // A repeated input must not create a new card when 2E/2E00 resumes.
     f.press(0,0x81);
@@ -215,14 +218,16 @@ static void firstImpactAlreadyStoppedCreatesOneCard(){
     for(unsigned k=7;k>0;--k){
         a.hitStop=k;
         f.onFrame(none,none,a,b,40);
-        assert(f.frame==2 && f.count==1);
+        assert(f.playerFrame[0]==2 && f.count==1);
     }
     a.hitStop=0;
     f.onFrame(none,none,a,b,40);
-    assert(f.frame==3 && f.count==1);
+    assert(f.playerFrame[0]==3 && f.count==1);
     assert(f.history[0].attackStartFrame==1);
     assert(f.history[0].attackLastFrame==3);
-    assert(f.superFreezeFrames==7);
+    // P2 kept advancing during P1-only stop, so this was not a
+    // simultaneous/cinematic freeze of the shared display timeline.
+    assert(f.superFreezeFrames==0 && f.playerFrame[1]==10);
 }
 
 int main(){
