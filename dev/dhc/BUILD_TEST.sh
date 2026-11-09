@@ -318,6 +318,11 @@ run_cached_unit \
 run_cached_unit \
   "$PROJECT/dev/dhc/tests/test_frame_data_hit_clock_240.cpp" \
   "$CACHE_DIR/unit_tests/test_frame_data_hit_clock_240.exe"
+# TEST 87.244: a new native attack selector may be accepted while
+# box70/72 remains high through a combo; it must create a separate card.
+run_cached_unit \
+  "$PROJECT/dev/dhc/tests/test_frame_data_combo_244.cpp" \
+  "$CACHE_DIR/unit_tests/test_frame_data_combo_244.exe"
 run_cached_unit \
   "$PROJECT/dev/dhc/tests/test_stun_horizontal_240.cpp" \
   "$CACHE_DIR/unit_tests/test_stun_horizontal_240.exe"
