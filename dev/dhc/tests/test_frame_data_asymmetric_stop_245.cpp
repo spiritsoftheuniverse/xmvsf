@@ -31,19 +31,19 @@ static void traceBasedSuperCinematicAndDefenderStop(){
     f.onFrame(none,none,a,b); // host 87, step 02 native startup
     assert(f.frame==1 && f.playerFrame[0]==1 && f.playerFrame[1]==1);
     a.attackPhase=0x81;
-    for(int i=0;i<45;++i)f.onFrame(none,none,a,b);
+    for(int i=0;i<43;++i)f.onFrame(none,none,a,b);
     // Host 88..130 in capture: phase 81, +85=0 on BOTH players,
     // unchanged native animation timers/pointers (portrait/streak pause).
     assert(f.frame==1 && f.count==0);
     assert(f.playerFrame[0]==1 && f.playerFrame[1]==1);
-    assert(f.superFreezeFrames==45);
+    assert(f.superFreezeFrames==43);
     a.attackPhase=0x80;f.onFrame(none,none,a,b);
     assert(f.frame==2 && f.playerFrame[0]==2 && f.playerFrame[1]==2);
 
     a.nativeStep=4;
     f.onFrame(shot,none,a,b); // verified offensive 2E stage 04
     assert(f.count==1 && f.history[0].source==1);
-    assert(f.history[0].startup==3); // never includes 45 portrait samples
+    assert(f.history[0].startup==3); // never includes 43 portrait samples
     assert(f.history[0].active==1);
     const unsigned long long startP1=f.playerFrame[0];
     const unsigned long long startP2=f.playerFrame[1];
@@ -59,7 +59,7 @@ static void traceBasedSuperCinematicAndDefenderStop(){
     assert(f.frame==startP1+52);
     assert(f.history[0].active==53);
     assert(f.history[0].contactCount==11); // 11 actual health drops
-    assert(f.superFreezeFrames==45);
+    assert(f.superFreezeFrames==43);
     const unsigned long long attackLast=f.history[0].attackLastFrame;
     a.nativeStep=6;a.nativeAction=0x2E02;a.attackPhase=0x40;
     f.onFrame(none,none,a,b);
