@@ -501,8 +501,7 @@ struct XM30FrameData {
                         const XM30Event& old=history[k];
                         if(old.player!=p || !old.attackObserved ||
                            old.attackEnded || old.attackFamily!=0x2Eu)continue;
-                        if(old.attackAction==t.pendingAttackAction &&
-                           old.attackStartFrame==t.pendingAttackStart){
+                        if(old.attackAction==t.pendingAttackAction){
                             continuingSuper=true;break;
                         }
                     }
