@@ -7,7 +7,7 @@
 namespace XM87235Intro {
 static constexpr std::uint32_t BackgroundMs=1000u; // logo cue remains at 1s
 static constexpr std::uint32_t BackgroundFadeMs=3000u; // visual fade overlaps logo
-static constexpr std::uint32_t LogoMs=2000u; // logo resolves over two seconds; announcer remains unaltered
+static constexpr std::uint32_t LogoMs=2000u; // logo resolves over two seconds
 static constexpr std::uint32_t MenuMs=500u;
 static constexpr std::uint32_t StrikeCount=4u;
 static constexpr std::uint32_t FramesPerStrike=10u;
@@ -16,6 +16,7 @@ static constexpr std::uint32_t StrikeFrames=StrikeCount*FramesPerStrike;
 static constexpr std::uint32_t StrikeDurationMs=(StrikeFrames*1000u+StrikeFps-1u)/StrikeFps;
 static constexpr std::uint32_t LogoStart=BackgroundMs;
 static constexpr std::uint32_t StrikeStart=LogoStart+LogoMs;
+static constexpr std::uint32_t AnnouncerStart=LogoStart+2000u; // delay welcome cue exactly two seconds
 static constexpr std::uint32_t MenuStart=StrikeStart+StrikeDurationMs;
 static constexpr std::uint32_t TotalMs=MenuStart+MenuMs;
 static inline float progress(std::uint32_t elapsed,std::uint32_t start,
