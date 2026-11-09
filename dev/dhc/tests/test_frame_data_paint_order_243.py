@@ -20,10 +20,16 @@ assert skipped.count("xm23OnRealFrame(bDrvOkay);") == 1
 assert body.count("xm23OnRealFrame(bDrvOkay);") == 2
 assert "xm23Overlay(sdlRenderer" in video
 assert "XM87217::draw(image,font,xm23State.frameData);" in video
-assert "const bool nativeStop=stopped && !firstOffensiveImpact;" in clock
+assert "const bool cinematicStop=" in clock
+assert "a1.nativeStep==2u" in clock
+assert "a1.attackPhase==0x81u" in clock
+assert "advancePlayer[p]=stops[p]==0u || firstImpact;" in clock
+assert "const unsigned long long frame=++playerFrame[p];" in clock
+assert "recordContacts(actors,advancePlayer);" in clock
+assert "xm41DrawFrameCard(r,card,e,f.playerFrame[e.player]);" in (root / "dev/stable/buildtree/src/burner/sdl/xmvsf_stage23_ui.h").read_text(encoding="utf-8")
 assert "recordContacts(actors,frame,true);" in clock
-assert "xm244FrameClockTrace(c,sample,actor,logicalBefore," in engine
-assert "xmvsf_frame_clock_244.tsv" in engine
+assert "xm245FrameClockTrace(c,sample,actor,logicalBefore," in engine
+assert "xmvsf_frame_clock_245.tsv" in engine
 assert "t.pendingOriginAction" in engine
 assert "XMVSF_FRAME_TRACE" in engine
-print("XMVSF 87.243 PASS: sampled once per native frame, before paint; +85 frozen ticks excluded")
+print("XMVSF 87.245 PASS: sampled before paint; per-fighter native clocks and 2E portrait stop")
