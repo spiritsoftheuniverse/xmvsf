@@ -164,6 +164,7 @@ static int xmvsfBootSelector(bool returningFromGame=false) {
     // Cold boot only: replay and return-to-menu retain instantaneous access.
     // Open the ALREADY EXISTING WASAPI sink before presenting the first frame.
     const bool introEnabled=xm87226FirstWindow && !XM8764::isPlayback();
+    static_assert(XM87235Intro::AnnouncerStart==0u,"announce before logo, not after entry");
     if(introEnabled){xm20MenuIntroSilence();xm20MenuCrash();xm20MenuWelcome();} // play voice before first logo frame
     const Uint32 introStart=SDL_GetTicks();
     bool musicFired=false,introHandoffFinished=false;
@@ -298,8 +299,8 @@ static int xmvsfBootSelector(bool returningFromGame=false) {
                         }
                         if(optionsTab==2){
                             if(my>=446 && my<=503){
-                                if(mx>=136 && mx<=359){controlsPage=0;controlsRow=0;xm25MenuSound(false);menuGate.begin();continue;}
-                                if(mx>=602 && mx<=822){controlsPage=1;controlsRow=0;xm25MenuSound(false);menuGate.begin();continue;}
+                                if(mx>=264 && mx<=468){controlsPage=0;controlsRow=0;xm25MenuSound(false);menuGate.begin();continue;}
+                                if(mx>=492 && mx<=696){controlsPage=1;controlsRow=0;xm25MenuSound(false);menuGate.begin();continue;}
                             }
                             if(my>=151 && my<448 && mx>=160 && mx<=800){
                                 controlsRow=std::min(8,(my-151)/33);continue;
@@ -624,8 +625,12 @@ static int xmvsfBootSelector(bool returningFromGame=false) {
                     xmvsfPixelText(render,"PRESS A PHYSICAL BUTTON",480,459,2,255,208,82);
                 else if(SDL_GetTicks()<messageUntil)
                     xmvsfPixelText(render,message,480,459,2,245,171,109);
-                xmvsfPixelText(render,controlsPage==0?"< PLAYER 1     PLAYER 2 >":"< PLAYER 1     PLAYER 2 >",
-                    480,487,2,153,186,221);
+                xmvsfPixelText(render,"<",275,487,2,153,186,221);
+                xmvsfPixelText(render,"PLAYER 1",375,487,2,
+                    controlsPage==0?255:82,controlsPage==0?255:82,controlsPage==0?255:82);
+                xmvsfPixelText(render,"PLAYER 2",585,487,2,
+                    controlsPage==1?255:82,controlsPage==1?255:82,controlsPage==1?255:82);
+                xmvsfPixelText(render,">",685,487,2,153,186,221);
                 // The old live bottom LP/MP/HP/LK/MK/HK indicators are
                 // intentionally omitted to make room for per-player paging.
             }
