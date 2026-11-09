@@ -54,6 +54,7 @@ if [[ ! -f "$TREE/makefile.sdl2" ||
       ! -s "$TREE/src/burner/sdl/xmvsf_stage87_195_menu_gif.h" ||
       ! -s "$TREE/src/burner/sdl/xmvsf_menu_color_fx.h" ||
       ! -s "$TREE/src/burner/sdl/xmvsf_stage87_235_menu_intro_timeline.h" ||
+      ! -s "$TREE/src/burner/sdl/xmvsf_stage87_235_ii_strikes.h" ||
       ! -s "$TREE/src/burner/sdl/xmvsf_stage87_206_crash_report.h" ||
       ! -s "$TREE/src/intf/audio/sdl/xm20_wasapi_impl.h" ||
       ! -s "$TREE/src/burn/drv/capcom/xmvsf_stage87_33_dizzy_hud.h" ||
@@ -74,7 +75,7 @@ if [[ ! -f "$TREE/makefile.sdl2" ||
   done
   exit 2
 fi
-for asset in logo.png sf2font.png sf2fontsmall.png menuanimation.gif stunbar_base.png; do
+for asset in logo.png logo_II.png logo_II_A.png logo_II_B.png logo_II_C.png logo_II_D.png sf2font.png sf2fontsmall.png menuanimation.gif stunbar_base.png; do
   if [[ ! -s "$PROJECT/_art/$asset" ]]; then
     echo "ERROR: 87.235 requires original nonempty _art/$asset" >&2
     exit 2
