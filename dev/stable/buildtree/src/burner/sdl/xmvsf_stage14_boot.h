@@ -247,7 +247,7 @@ static int xmvsfBootSelector(bool returningFromGame=false) {
         const Uint32 introElapsed=introEnabled?
             (Uint32)(now-introStart):XM87235Intro::TotalMs;
         if(introEnabled && !welcomeFired &&
-           introElapsed>=XM87235Intro::LogoStart){
+           introElapsed>=XM87235Intro::AnnouncerStart){
             xm20MenuWelcome();welcomeFired=true;
             std::fprintf(stderr,"XM87.235 INTRO_WELCOME elapsed=%u\n",introElapsed);
         }
