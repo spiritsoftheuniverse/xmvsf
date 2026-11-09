@@ -580,7 +580,9 @@ static inline void xm30Overlay(SDL_Renderer* r,const SDL_Rect& dest,int sw,int s
         for(int i=first;i<f.count;++i){
             const XM30Event& e=f.history[i];
             const SDL_Rect card={panel.x+4,top+52+(i-first)*rowHeight,panelW-8,rowHeight-3};
-            xm41DrawFrameCard(r,card,e,f.frame);
+            // Each card uses the owning fighter's unfrozen native clock.
+            // A defender in +85 stop must not stretch the attacker's chart.
+            xm41DrawFrameCard(r,card,e,f.playerFrame[e.player]);
         }
         xm23DrawTextSized(r,"QC DP HC DQ  PR=PROJECTILE",panel.x+8,top+panel.h-26,panelW-14,1);
         xm23DrawTextSized(r,"NEWEST AT BOTTOM",panel.x+8,top+panel.h-13,panelW-14,1);
