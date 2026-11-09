@@ -321,10 +321,11 @@ static inline void xm38HitSourceProbe(cpu_core_config* c){
     std::fflush(out);
 }
 
-// Optional, bounded read-only proof of ROM +85 versus the Training clock.
+// Optional, bounded read-only proof of ROM +85 and native combo moves
+// versus the Training clock.
 // Enable with XMVSF_FRAME_TRACE=1 before RUN_TEST.bat; the TSV is placed
 // next to the TEST executable. No GPU capture, memory writes or timing hooks.
-static inline void xm243FrameClockTrace(
+static inline void xm244FrameClockTrace(
         cpu_core_config* c,const XM30Sample (&samples)[2],
         const XM41ActorSample (&actors)[2],
         unsigned long long before,unsigned long long after){
@@ -336,22 +337,32 @@ static inline void xm243FrameClockTrace(
         const char* flag=std::getenv("XMVSF_FRAME_TRACE");
         armed=flag && flag[0]=='1' && !flag[1] ? 1 : 0;
         if(armed){
-            file=xm36OpenTrace("xmvsf_frame_clock_243.tsv",
+            file=xm36OpenTrace("xmvsf_frame_clock_244.tsv",
                 "host_sample\tlogical_before\tlogical_after\t"
                 "p1_2e\tp1_hitstop\tp1_mode\tp1_action\tp1_phase\t"
                 "p1_step\tp1_control\tp1_anim_timer\tp1_anim_ptr\t"
                 "p1_hp\tp1_melee\tp1_proj\t"
+                "p1_origin_family\tp1_origin_action\tp1_pending_family\t"
+                "p1_pending_action\tp1_pending\tp1_prev_box\tp1_last_contacts\t"
                 "p2_2e\tp2_hitstop\tp2_mode\tp2_action\tp2_phase\t"
                 "p2_step\tp2_control\tp2_anim_timer\tp2_anim_ptr\t"
-                "p2_hp\tp2_melee\tp2_proj\tevents\n");
+                "p2_hp\tp2_melee\tp2_proj\t"
+                "p2_origin_family\tp2_origin_action\tp2_pending_family\t"
+                "p2_pending_action\tp2_pending\tp2_prev_box\tp2_last_contacts\t"
+                "events\n");
             if(!file)armed=0;
         }
     }
     if(!armed || !file || logged>=2400u)return;
     ++sample;
-    const bool super=xm30NativeAttackFamily(actors[0])==0x2Eu ||
-                     xm30NativeAttackFamily(actors[1])==0x2Eu;
-    if(super || actors[0].hitStop || actors[1].hitStop)tail=120u;
+    const bool attack=xm30NativeAttackFamily(actors[0])!=0u ||
+                      xm30NativeAttackFamily(actors[1])!=0u;
+    const bool pending=xm23State.frameData.track[0].pending>=0 ||
+                       xm23State.frameData.track[1].pending>=0;
+    // Also capture normal->normal and normal->special combo handoffs,
+    // even when the fighter's +85 is zero and no super is on screen.
+    if(attack || pending || actors[0].hitStop || actors[1].hitStop)
+        tail=150u;
     if(!tail)return;
     --tail;
     std::fprintf(file,"%llu\t%llu\t%llu",
@@ -367,6 +378,17 @@ static inline void xm243FrameClockTrace(
             xm23::r32(c,base+0x34u),actors[p].health,
             samples[p].melee.active?1u:0u,
             samples[p].projectile.active?1u:0u);
+        const XM30Track& t=xm23State.frameData.track[p];
+        unsigned lastContacts=0u;
+        for(int i=xm23State.frameData.count-1;i>=0;--i)
+            if(xm23State.frameData.history[i].player==p){
+                lastContacts=(unsigned)xm23State.frameData.history[i].contactCount;
+                break;
+            }
+        std::fprintf(file,"\t%02X\t%04X\t%02X\t%04X\t%d\t%u\t%u",
+            t.pendingOriginFamily,t.pendingOriginAction,
+            t.pendingAttackFamily,t.pendingAttackAction,
+            t.pending>=0?1:0,t.previous[0]?1u:0u,lastContacts);
     }
     std::fprintf(file,"\t%d\n",xm23State.frameData.count);
     if(++logged%60u==0u)std::fflush(file);
@@ -478,7 +500,7 @@ static inline void xm23OnRealFrame(int ready) {
         // Training can hold it fixed while native fighter actions progress.
         const unsigned long long logicalBefore=xm23State.frameData.frame;
         xm23State.frameData.onFrame(sample[0],sample[1],actor[0],actor[1]);
-        xm243FrameClockTrace(c,sample,actor,logicalBefore,
+        xm244FrameClockTrace(c,sample,actor,logicalBefore,
                              xm23State.frameData.frame);
     }
     c->close();
