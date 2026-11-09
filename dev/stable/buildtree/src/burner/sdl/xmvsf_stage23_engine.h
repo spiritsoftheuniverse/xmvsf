@@ -414,8 +414,14 @@ static inline void xm23OnRealFrame(int ready) {
             actor[p].action=xm23::r8(c,base+0xA0);
             actor[p].nativeAction=xm23::r16(c,base+0x60);
             actor[p].mode=xm23::r16(c,base+0xA0); // controller; independent of jump/directions
+            actor[p].attackPhase=xm23::r8(c,base+0x64); // original ROM: 80=attack, 40=recovery
+            actor[p].hitStop=xm23::r8(c,base+0x85); // original ROM per-player freeze counter
         }
-        xm23State.frameData.onFrame(sample[0],sample[1],actor[0],actor[1]);
+        // ROM subsecond fight-clock at FF5009 is independent of the 99-second
+        // Training override at FF5008. It exposes cinematic super time stops
+        // without altering guest timing or making a render frame count as play.
+        const unsigned roundTick=xm23::r8(c,0xFF5009u);
+        xm23State.frameData.onFrame(sample[0],sample[1],actor[0],actor[1],roundTick);
     }
     c->close();
 }
