@@ -41,6 +41,15 @@ if errorlevel 1 (
   >>"%BUILDLOG%" echo ERROR: Cannot enter dev\dhc build directory
   goto :fail
 )
+REM Native shell syntax check is fast and catches a damaged build launcher
+REM before touching any native objects or TEST output.
+bash.exe -n BUILD_TEST.sh
+if errorlevel 1 (
+  echo ERROR: BUILD_TEST.sh has a shell syntax error; no build started.
+  >>"%BUILDLOG%" echo ERROR: BUILD_TEST.sh shell syntax invalid
+  popd
+  goto :fail
+)
 bash.exe BUILD_TEST.sh
 set "RC=%ERRORLEVEL%"
 popd
