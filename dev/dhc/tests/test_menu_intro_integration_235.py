@@ -188,5 +188,5 @@ assert '#define JOYSTICK_DETECT_MS 0' in game_input
 assert '#define JOYSTICK_DETECT_MS 600' in game_input
 assert '(uint32_t)(now-neutralSince)>=20' in gate
 
-assert "TEST 87.240" in boot
+assert "TEST 87.241" in boot
 print("XMVSF 87.235 cold boot/menu/Fight audio and SDL integration: PASS")
