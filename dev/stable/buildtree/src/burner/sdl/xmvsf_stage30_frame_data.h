@@ -61,6 +61,7 @@ struct XM41ActorSample {
     unsigned nativeAction=0;    // full native fighter action +60
     unsigned mode=0;            // full native action controller +A0
     unsigned attackPhase=0;     // ROM +64: 0x80 attacking, 0x40 recovery
+    unsigned nativeStep=0;      // ROM +08: super 2E script stage, not a frame timer
     unsigned hitStop=0;         // ROM +85: explicit per-fighter stop steps
 };
 // Native action-family classification from recorded ROM traces:
@@ -251,8 +252,15 @@ struct XM30FrameData {
             // Record native action tenure without consulting current direction,
             // held buttons, Y-position, jumping, or the later idle stance.
             const unsigned family=xm30NativeAttackFamily(actors[p]);
+            // ROM attack flag is authoritative; 2E's post-startup script
+            // stage is a fallback once the move has a proven hitbox.
+            // 0x40 recovery explicitly cancels both active indicators.
             const bool superPhaseActive=family==0x2Eu &&
                 (actors[p].attackPhase&0x80u)!=0u;
+            const bool superStageActive=family==0x2Eu &&
+                actors[p].nativeStep>=4u &&
+                (actors[p].nativeStep&1u)==0u &&
+                (actors[p].attackPhase&0x40u)==0u;
             for(int i=0;i<count;++i){
                 XM30Event& e=history[i];
                 if(e.player!=p || !e.attackObserved || e.attackEnded)continue;
@@ -299,7 +307,8 @@ struct XM30FrameData {
                 if(slot<0){
                     if(!e.despawnFrame)e.despawnFrame=frame; // actual object removal
                     if(!e.closed){
-                        if(e.attackFamily==0x2Eu && superPhaseActive){
+                        if(e.attackFamily==0x2Eu &&
+                           (superPhaseActive || (e.nativeSuperPhase && superStageActive))){
                             e.nativeSuperPhase=true;++e.active;
                         }else{e.closed=true;e.endFrame=frame-1;}
                     }
@@ -311,8 +320,10 @@ struct XM30FrameData {
                         // Native super attack phase can cover successive beam /
                         // cinematic substeps with temporarily absent collision
                         // boxes. Its explicit ROM recovery phase stops the run.
-                        if(ownAttack || (e.attackFamily==0x2Eu && superPhaseActive)){
-                            if(superPhaseActive)e.nativeSuperPhase=true;
+                        if(ownAttack ||
+                           (e.attackFamily==0x2Eu &&
+                            (superPhaseActive || (e.nativeSuperPhase && superStageActive)))){
+                            if(superPhaseActive || superStageActive)e.nativeSuperPhase=true;
                             ++e.active;
                         }else{e.closed=true;e.endFrame=frame-1;}
                     }
@@ -364,7 +375,8 @@ struct XM30FrameData {
                 if(meleeIndex>=count){meleeIndex=-1;}
                 else {
                     XM30Event& e=history[meleeIndex];
-                    const bool nativeSuperOffense=e.attackFamily==0x2Eu && superPhaseActive;
+                    const bool nativeSuperOffense=e.attackFamily==0x2Eu &&
+                        (superPhaseActive || (e.nativeSuperPhase && superStageActive));
                     // Shinryuuken and other long 2E supers may temporarily
                     // clear box70/72 without leaving their ROM attack phase.
                     if(hits[0].active || nativeSuperOffense){
@@ -400,7 +412,8 @@ struct XM30FrameData {
                     const int idx=appendEvent();
                     XM30Event& e=history[idx];e=XM30Event{};
                     e.player=p;e.startup=(int)age;e.active=1;
-                    e.nativeSuperPhase=t.pendingAttackFamily==0x2Eu && superPhaseActive;
+                    e.nativeSuperPhase=t.pendingAttackFamily==0x2Eu &&
+                        (superPhaseActive || superStageActive);
                     e.attackObserved=t.pendingAttackFamily!=0u;
                     e.attackFamily=t.pendingAttackFamily;
                     e.attackAction=t.pendingAttackAction;
