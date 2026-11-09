@@ -164,9 +164,9 @@ static int xmvsfBootSelector(bool returningFromGame=false) {
     // Cold boot only: replay and return-to-menu retain instantaneous access.
     // Open the ALREADY EXISTING WASAPI sink before presenting the first frame.
     const bool introEnabled=xm87226FirstWindow && !XM8764::isPlayback();
-    if(introEnabled){xm20MenuIntroSilence();xm20MenuCrash();}
+    if(introEnabled){xm20MenuIntroSilence();xm20MenuCrash();xm20MenuWelcome();} // play voice before first logo frame
     const Uint32 introStart=SDL_GetTicks();
-    bool welcomeFired=false,musicFired=false,introHandoffFinished=false;
+    bool musicFired=false,introHandoffFinished=false;
     std::fprintf(stderr,"XM87.235 INTRO_BEGIN enabled=%d first_window=%d\n",
                  int(introEnabled),int(xm87226FirstWindow));
     // The OS window was centered before configuring the logical output.
@@ -235,7 +235,7 @@ static int xmvsfBootSelector(bool returningFromGame=false) {
     }
     XM13_Settings config;xm13Load(&config);
     xm25OpenSetup(); /* XMVSF_STAGE25_SETS */
-    int selection=0,controlsRow=0,displayRow=3+xm29NearestPreset(window),screen=0,capture=-1,outcome=-1,running=1;
+    int selection=0,controlsRow=0,controlsPage=0,optionsTab=0,gameRow=0,graphicsRow=xm29NearestPreset(window),screen=0,capture=-1,outcome=-1,running=1;
     int stageRow=xm77StageChoice,pendingMode=1,returnScreen=0;
     std::fprintf(stderr,"XM86.32 BOOT SELECTOR: stage submenu available\n");std::fflush(stderr);
     char message[96]="";Uint32 messageUntil=0,inputCooldown=0;
@@ -246,11 +246,6 @@ static int xmvsfBootSelector(bool returningFromGame=false) {
         const Uint32 now=SDL_GetTicks();
         const Uint32 introElapsed=introEnabled?
             (Uint32)(now-introStart):XM87235Intro::TotalMs;
-        if(introEnabled && !welcomeFired &&
-           introElapsed>=XM87235Intro::AnnouncerStart){
-            xm20MenuWelcome();welcomeFired=true;
-            std::fprintf(stderr,"XM87.235 INTRO_WELCOME elapsed=%u\n",introElapsed);
-        }
         if(introEnabled && !musicFired &&
            introElapsed>=XM87235Intro::MenuStart){
             xm20MenuIntroMusic();musicFired=true;
@@ -281,7 +276,7 @@ static int xmvsfBootSelector(bool returningFromGame=false) {
             if(ev.type==SDL_QUIT) {outcome=-1;running=0;continue;}
             if(xm29HandleDisplayHotkey(ev,window)){menuGate.begin();continue;}
             if(menuGate.active)continue; // Discard BOTH SDL GameController and raw Joystick events.
-            if(screen==2 || screen==3) {
+            if(screen==2 || screen==3 || screen==4) {
                 if (ev.type==SDL_MOUSEBUTTONDOWN && ev.button.button==SDL_BUTTON_LEFT) {
                     // Correct mouse coordinates for maximized/letterboxed windows.
                     float logicalX=0.0f,logicalY=0.0f;
@@ -296,6 +291,22 @@ static int xmvsfBootSelector(bool returningFromGame=false) {
                     logicalY=((float)ev.button.y-top)/scale;
 #endif
                     int mx=(int)logicalX,my=(int)logicalY;
+                    if(screen==4){
+                        if(my>=59 && my<=104 && mx>=96 && mx<=862){
+                            optionsTab=mx<347?0:mx<610?1:2;
+                            capture=-1;xm25MenuSound(false);menuGate.begin();continue;
+                        }
+                        if(optionsTab==2){
+                            if(my>=446 && my<=503){
+                                if(mx>=136 && mx<=359){controlsPage=0;controlsRow=0;xm25MenuSound(false);menuGate.begin();continue;}
+                                if(mx>=602 && mx<=822){controlsPage=1;controlsRow=0;xm25MenuSound(false);menuGate.begin();continue;}
+                            }
+                            if(my>=151 && my<448 && mx>=160 && mx<=800){
+                                controlsRow=std::min(8,(my-151)/33);continue;
+                            }
+                        }
+                        continue;
+                    }
                     if(screen==3 && my>=456 && my<=491) {
                         if(mx>=78 && mx<=280){xm25State.page=std::max(0,xm25State.page-1);xm25MenuSound(false);continue;}
                         if(mx>=680 && mx<=866){xm25State.page=std::min(xm255MaxPage(),xm25State.page+1);xm25MenuSound(false);continue;}
@@ -316,7 +327,7 @@ static int xmvsfBootSelector(bool returningFromGame=false) {
                 if(ev.type==SDL_KEYDOWN && ev.key.keysym.sym==SDLK_BACKSPACE &&
                    screen==2 && xm25State.focus>=0) {xm25Backspace(xm25State.focus);continue;}
             } /* XMVSF_STAGE25_SETS */
-            if(screen==1 && capture>=0) {
+            if(screen==4 && optionsTab==2 && capture>=0) {
                 if(ev.type==SDL_KEYDOWN && ev.key.keysym.sym==SDLK_ESCAPE) {
                     capture=-1;snprintf(message,sizeof(message),"CAPTURE CANCELLED");messageUntil=SDL_GetTicks()+2000;continue;
                 }
@@ -330,8 +341,14 @@ static int xmvsfBootSelector(bool returningFromGame=false) {
                     if(ev.type==SDL_JOYAXISMOTION && ev.jaxis.value<=20000)continue;
                     if(capture<2) {
                         if(ev.type!=SDL_JOYBUTTONDOWN)continue;
-                        if(xm13Assign(&config,capture,device))snprintf(message,sizeof(message),"PLAYER %d CONTROLLER SAVED",capture+1);
-                        else snprintf(message,sizeof(message),"DEVICE USED OR SAVE FAILED");
+                        const int other=1-capture;
+                        char candidateGuid[33];xm13GuidForDevice(device,candidateGuid);
+                        const bool wasAssigned=config.player[other].active &&
+                            !strcmp(config.player[other].guid,candidateGuid) &&
+                            config.player[other].occurrence==xm13DeviceOrdinal(device);
+                        if(xm13Assign(&config,capture,device))
+                            snprintf(message,sizeof(message),wasAssigned?"PLAYER %d SLOT SWAPPED":"PLAYER %d CONTROLLER SAVED",capture+1);
+                        else snprintf(message,sizeof(message),"CONTROLLER SAVE FAILED");
                     } else {
                         int p=(capture-2)/8, a=(capture-2)%8;
                         int selectedDevice=xm13FindDevice(&config.player[p]);
@@ -349,16 +366,25 @@ static int xmvsfBootSelector(bool returningFromGame=false) {
             }
             if(SDL_GetTicks()<inputCooldown &&
                (ev.type==SDL_CONTROLLERBUTTONDOWN || ev.type==SDL_KEYDOWN)) continue;
-            int direction=0,accept=0,back=0;
+            int direction=0,accept=0,back=0,tabDirection=0,pageDirection=0;
             if(ev.type==SDL_KEYDOWN && !ev.key.repeat) {
                 SDL_Keycode k=ev.key.keysym.sym;
                 if(k==SDLK_UP)direction=-1;
                 if(k==SDLK_DOWN)direction=1;
+                if(k==SDLK_LEFT)pageDirection=-1;
+                if(k==SDLK_RIGHT)pageDirection=1;
+                if(k==SDLK_q || k==SDLK_PAGEUP)tabDirection=-1;
+                if(k==SDLK_e || k==SDLK_PAGEDOWN)tabDirection=1;
+                if(k==SDLK_TAB)tabDirection=(ev.key.keysym.mod&KMOD_SHIFT)?-1:1;
                 if(k==SDLK_RETURN || k==SDLK_SPACE)accept=1;
                 if(k==SDLK_ESCAPE)back=1;
             } else if(ev.type==SDL_CONTROLLERBUTTONDOWN) {
                 if(ev.cbutton.button==SDL_CONTROLLER_BUTTON_DPAD_UP)direction=-1;
                 if(ev.cbutton.button==SDL_CONTROLLER_BUTTON_DPAD_DOWN)direction=1;
+                if(ev.cbutton.button==SDL_CONTROLLER_BUTTON_DPAD_LEFT)pageDirection=-1;
+                if(ev.cbutton.button==SDL_CONTROLLER_BUTTON_DPAD_RIGHT)pageDirection=1;
+                if(ev.cbutton.button==SDL_CONTROLLER_BUTTON_LEFTSHOULDER)tabDirection=-1;
+                if(ev.cbutton.button==SDL_CONTROLLER_BUTTON_RIGHTSHOULDER)tabDirection=1;
                 if(ev.cbutton.button==SDL_CONTROLLER_BUTTON_A)accept=1;
                 if(ev.cbutton.button==SDL_CONTROLLER_BUTTON_B)back=1;
             }
@@ -379,18 +405,55 @@ static int xmvsfBootSelector(bool returningFromGame=false) {
                 }
                 continue;
             }
-            if(screen==4) { // Display options remain inside the persistent SDL window.
-                if(back){screen=0;menuGate.begin();continue;}
-                if(direction){displayRow=(displayRow+XM29_PRESET_COUNT+5+direction)%(XM29_PRESET_COUNT+5);xm25MenuSound(false);}
-                if(accept){
-                    xm25MenuSound(true);
-                    if(displayRow==0)XM8755Mode::Toggle();
-                    else if(displayRow==1)xm8655Toggle();
-                    else if(displayRow==2)xm8733DizzyToggle();
-                    else if(displayRow<=XM29_PRESET_COUNT+2)xm29WindowPreset(window,displayRow-3);
-                    else if(displayRow==XM29_PRESET_COUNT+3)xm29DesktopFit(window);
-                    else xm29WindowMaximize(window);
-                    menuGate.begin(); // One press cannot activate another entry.
+            if(screen==4) { // Game / Graphics / Controller: persistent L/R tabs.
+                if(back){screen=0;capture=-1;menuGate.begin();continue;}
+                // LB/RB or keyboard Q/E (also Tab/Shift-Tab) cycles the tabs.
+                // D-pad left/right cycles tabs except on Controller, where it pages P1/P2.
+                if(tabDirection || (optionsTab!=2 && pageDirection)){
+                    const int step=tabDirection?tabDirection:pageDirection;
+                    optionsTab=(optionsTab+3+step)%3;
+                    capture=-1;xm25MenuSound(false);menuGate.begin();continue;
+                }
+                if(optionsTab==0){
+                    if(direction){gameRow=(gameRow+3+direction)%3;xm25MenuSound(false);}
+                    if(accept){
+                        xm25MenuSound(true);
+                        if(gameRow==0)XM8755Mode::Toggle();
+                        else if(gameRow==1)xm8655Toggle();
+                        else xm8733DizzyToggle();
+                        menuGate.begin();
+                    }
+                } else if(optionsTab==1){
+                    const int rows=XM29_PRESET_COUNT+2;
+                    if(direction){graphicsRow=(graphicsRow+rows+direction)%rows;xm25MenuSound(false);}
+                    if(accept){
+                        xm25MenuSound(true);
+                        if(graphicsRow<XM29_PRESET_COUNT)xm29WindowPreset(window,graphicsRow);
+                        else if(graphicsRow==XM29_PRESET_COUNT)xm29DesktopFit(window);
+                        else xm29WindowMaximize(window);
+                        menuGate.begin();
+                    }
+                } else {
+                    if(pageDirection){
+                        controlsPage=(controlsPage+2+pageDirection)%2;
+                        controlsRow=0;xm25MenuSound(false);menuGate.begin();
+                    }
+                    if(direction){
+                        controlsRow=(controlsRow+9+direction)%9;
+                        xm25MenuSound(false);
+                    }
+                    if(accept){
+                        xmvsfHost::confirm();
+                        capture=controlsRow==0?controlsPage:2+controlsPage*8+(controlsRow-1);
+                        menuGate.begin();
+                        snprintf(message,sizeof(message),"PRESS DEVICE BUTTON TO ASSIGN");
+                        messageUntil=SDL_GetTicks()+5000;
+                        if(controlsRow>0 && !config.player[controlsPage].active){
+                            capture=-1;
+                            snprintf(message,sizeof(message),"ASSIGN CONTROLLER FIRST");
+                            messageUntil=SDL_GetTicks()+2400;
+                        }
+                    }
                 }
                 continue;
             }
@@ -422,34 +485,21 @@ static int xmvsfBootSelector(bool returningFromGame=false) {
                 continue;
             }
             if(screen==0) {
-                // B remains Back in submenus, but only ESC (or SDL_QUIT) may quit at root.
+                // B remains Back in submenus; only ESC or SDL_QUIT quits root.
                 if(ev.type==SDL_KEYDOWN && ev.key.keysym.sym==SDLK_ESCAPE)
                     {running=0;outcome=-1;}
-                if(direction){xmvsfHost::cursorMove();selection=(selection+5+direction)%5; /* XMVSF_STAGE24_VERSUS */} /* XMVSF_STAGE20_WASAPI */
-                if(accept) {
-                    // "Fight!" is the confirmation for each GAME MODE.
-                    // The one-shot keeps playing as the same sink enters game.
+                if(direction){xmvsfHost::cursorMove();selection=(selection+4+direction)%4;}
+                if(accept){
                     if(selection<=2)xm20MenuFight();
-                    else xmvsfHost::confirm(); /* XMVSF_STAGE20_WASAPI */
+                    else xmvsfHost::confirm();
                     if(selection==0){xm25BeginInputHandoff();outcome=0;running=0;}
-                    else if(selection==1) {
+                    else if(selection==1){
                         pendingMode=1;returnScreen=0;stageRow=xm77StageChoice;screen=5;menuGate.begin();
                         std::fprintf(stderr,"XM86.32 TRAINING ENTER STAGE MENU selection=%d\n",stageRow);std::fflush(stderr);
-                    } else if(selection==2){screen=2;xm25State.setupRow=xm25State.modeIndex;menuGate.begin();} /* XMVSF_STAGE25_SETS */
-                    else if(selection==3){screen=1;controlsRow=0;menuGate.begin();}
-                    else {screen=4;displayRow=0;menuGate.begin();}
-                }
-            } else {
-                if(back){screen=0;capture=-1;menuGate.begin();}
-                if(direction){xmvsfHost::cursorMove();controlsRow=(controlsRow+18+direction)%18;} /* XMVSF_STAGE20_WASAPI */
-                if(accept) { xmvsfHost::confirm(); /* XMVSF_STAGE20_WASAPI */
-                    capture=controlsRow;
-                    menuGate.begin(); // Accept used to open capture is not a captured binding.
-                    snprintf(message,sizeof(message),"PRESS DEVICE BUTTON TO ASSIGN");
-                    messageUntil=SDL_GetTicks()+5000;
-                    if(controlsRow>=2 && !config.player[(controlsRow-2)/8].active) {
-                        capture=-1;
-                        snprintf(message,sizeof(message),"ASSIGN CONTROLLER FIRST");messageUntil=SDL_GetTicks()+2400;
+                    } else if(selection==2){
+                        screen=2;xm25State.setupRow=xm25State.modeIndex;menuGate.begin();
+                    } else {
+                        screen=4;optionsTab=0;gameRow=0;capture=-1;menuGate.begin();
                     }
                 }
             }
@@ -482,8 +532,8 @@ static int xmvsfBootSelector(bool returningFromGame=false) {
             if(!introEnabled||XM87235Intro::menuVisible(introElapsed)){
                 XMGlyph::menuReveal(render,introEnabled?
                     XM87235Intro::menuReveal(introElapsed):1.0f);
-            const char* entries[5]={"ARCADE","TRAINING","VERSUS","CONTROLS","OPTIONS"};
-            for(int a=0;a<5;a++) {
+            const char* entries[4]={"ARCADE","TRAINING","VERSUS","OPTIONS"};
+            for(int a=0;a<4;a++) {
                 const int y=XMGlyph::MainLayout::FirstRowY+
                             a*XMGlyph::MainLayout::RowStep;
                 const Uint8 bright=(a==selection)?255:80;
@@ -522,59 +572,64 @@ static int xmvsfBootSelector(bool returningFromGame=false) {
         } else if(screen==3) {
             xm255BootScoreboard(render);
         } else if(screen==4) {
-            xmvsfPixelText(render,"OPTIONS",480,47,4,108,193,255);
-            for(int i=0;i<XM29_PRESET_COUNT+5;i++){
-                const char* label="";
-                char optionName[64]={};
-                if(i==0){
-                    std::snprintf(optionName,sizeof(optionName),"GAME MODE : %s",XM8755Mode::Label());
-                    label=optionName;
-                }else if(i==1){
-                    std::snprintf(optionName,sizeof(optionName),"DOUBLE FEATURE : %s",xm8655DoubleFeature()?"ON":"OFF");
-                    label=optionName;
-                }else if(i==2){
-                    std::snprintf(optionName,sizeof(optionName),"DIZZY BAR : %s",xm8733DizzyEnabled()?"ON":"OFF");
-                    label=optionName;
-                }else if(i<=XM29_PRESET_COUNT+2)label=xm29Presets[i-3].label;
-                else label=(i==XM29_PRESET_COUNT+3?"FULLSCREEN FIT":"MAXIMIZE WINDOW");
-                const int y=96+i*31;
-                const Uint8 bright=(i==displayRow)?255:77;
-                xmvsfPixelText(render,label,480,y,2,bright,bright,bright);
+            xmvsfPixelText(render,"OPTIONS",480,24,4,108,193,255);
+            const char* tabs[3]={"GAME","GRAPHICS","CONTROLLER"};
+            for(int i=0;i<3;i++){
+                const Uint8 bright=i==optionsTab?255:80;
+                xmvsfPixelText(render,tabs[i],220+i*260,75,3,bright,bright,bright);
             }
-            xmvsfPixelText(render,"A SELECT  B BACK",480,468,2,148,179,210);
-            xmvsfPixelText(render,"CTRL + / - RESIZE   ALT + ENTER FULLSCREEN",480,506,2,120,148,184);
-        } else {
-            xmvsfPixelText(render,"CONTROLS",480,30,5,105,181,255);
-            xmvsfPixelText(render,"PLAYER 1 / PLAYER 2",480,86,2,117,142,203);
-            int page=controlsRow/9,first=page*9;
-            for(int a=first;a<first+9;a++) {
-                char label[128]={0};
-                if(a<2) {
-                    int device=xm13FindDevice(&config.player[a]);
-                    if(!config.player[a].active)snprintf(label,sizeof(label),"P%d DEVICE : NOT ASSIGNED",a+1);
-                    else if(device<0)snprintf(label,sizeof(label),"P%d DEVICE : DISCONNECTED",a+1);
-                    else snprintf(label,sizeof(label),"P%d DEVICE : PAD %d",a+1,device+1);
-                } else {
-                    int p=(a-2)/8, action=(a-2)%8;
-                    XM13_Binding b=config.player[p].binding[action];
-                    if(b.type=='N')snprintf(label,sizeof(label),"P%d %s : NONE",p+1,actionNames[action]);
-                    else snprintf(label,sizeof(label),"P%d %s : %s %d",p+1,actionNames[action],b.type=='A'?"AXIS":"BUTTON",b.index);
+            xmvsfPixelText(render,"LB / RB TABS   Q / E TABS",480,117,2,126,172,222);
+            if(optionsTab==0){
+                for(int i=0;i<3;i++){
+                    char label[80]={};
+                    if(i==0)std::snprintf(label,sizeof(label),"GAME MODE : %s",XM8755Mode::Label());
+                    else if(i==1)std::snprintf(label,sizeof(label),"DOUBLE FEATURE : %s",xm8655DoubleFeature()?"ON":"OFF");
+                    else std::snprintf(label,sizeof(label),"DIZZY BAR : %s",xm8733DizzyEnabled()?"ON":"OFF");
+                    const Uint8 bright=i==gameRow?255:78;
+                    xmvsfPixelText(render,label,480,190+i*65,3,bright,bright,bright);
                 }
-                int y=132+(a-first)*33;
-                const Uint8 bright=(a==controlsRow)?255:78;
-                xmvsfPixelText(render,label,480,y,2,bright,bright,bright);
+            } else if(optionsTab==1){
+                for(int i=0;i<XM29_PRESET_COUNT+2;i++){
+                    const char* label=i<XM29_PRESET_COUNT?xm29Presets[i].label:
+                        i==XM29_PRESET_COUNT?"FULLSCREEN FIT":"MAXIMIZE WINDOW";
+                    const Uint8 bright=i==graphicsRow?255:78;
+                    xmvsfPixelText(render,label,480,151+i*38,2,bright,bright,bright);
+                }
+                xmvsfPixelText(render,"CTRL + / - RESIZE   ALT + ENTER FULLSCREEN",480,480,2,120,148,184);
+            } else {
+                xmvsfPixelText(render,controlsPage==0?"PLAYER 1   LEFT / RIGHT PAGE":"PLAYER 2   LEFT / RIGHT PAGE",
+                    480,133,2,166,197,229);
+                for(int row=0;row<9;row++){
+                    char label[128]={0};
+                    if(row==0){
+                        const int device=xm13FindDevice(&config.player[controlsPage]);
+                        if(!config.player[controlsPage].active)
+                            snprintf(label,sizeof(label),"P%d DEVICE : NOT ASSIGNED",controlsPage+1);
+                        else if(device<0)
+                            snprintf(label,sizeof(label),"P%d DEVICE : DISCONNECTED",controlsPage+1);
+                        else
+                            snprintf(label,sizeof(label),"P%d DEVICE : PAD %d",controlsPage+1,device+1);
+                    } else {
+                        const XM13_Binding binding=config.player[controlsPage].binding[row-1];
+                        if(binding.type=='N')
+                            snprintf(label,sizeof(label),"P%d %s : NONE",controlsPage+1,actionNames[row-1]);
+                        else
+                            snprintf(label,sizeof(label),"P%d %s : %s %d",controlsPage+1,actionNames[row-1],
+                                binding.type=='A'?"AXIS":"BUTTON",binding.index);
+                    }
+                    const Uint8 bright=row==controlsRow?255:78;
+                    xmvsfPixelText(render,label,480,155+row*33,2,bright,bright,bright);
+                }
+                if(capture>=0)
+                    xmvsfPixelText(render,"PRESS A PHYSICAL BUTTON",480,459,2,255,208,82);
+                else if(SDL_GetTicks()<messageUntil)
+                    xmvsfPixelText(render,message,480,459,2,245,171,109);
+                xmvsfPixelText(render,controlsPage==0?"< PLAYER 1     PLAYER 2 >":"< PLAYER 1     PLAYER 2 >",
+                    480,487,2,153,186,221);
+                // The old live bottom LP/MP/HP/LK/MK/HK indicators are
+                // intentionally omitted to make room for per-player paging.
             }
-            if(capture>=0) xmvsfPixelText(render,"PRESS A PHYSICAL BUTTON",480,441,2,255,208,82);
-            else if(SDL_GetTicks()<messageUntil)xmvsfPixelText(render,message,480,441,2,245,171,109);
-            else xmvsfPixelText(render,"A ASSIGN  B BACK",480,441,2,117,160,193);
-            xmvsfPixelText(render,page==0?"PAGE 1 / 2":"PAGE 2 / 2",480,466,2,105,105,129);
-            SDL_GameControllerUpdate();
-            for(int p=0;p<2;p++) for(int a=0;a<6;a++) {
-                char testLabel[16];snprintf(testLabel,sizeof(testLabel),"P%d %s",p+1,actionNames[a]);
-                int pressed=xm13ReadInput(&config,p,0x80+a,menuSticks,menuPads,8);
-                xmvsfPixelText(render,testLabel,118+a*145,487+p*24,2,
-                               pressed>0?245:79,pressed>0?246:91,pressed>0?255:130);
-            }
+            xmvsfPixelText(render,"A SELECT   B BACK",480,519,2,148,179,210);
         }
         // F9 is also armed at the CUSTOM BOOT MENU, not only in combat.
         // The legacy indicator lived exclusively in the CPS2 presenter.
