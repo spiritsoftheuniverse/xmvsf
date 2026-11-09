@@ -33,6 +33,21 @@ The completed `logo_II.png` alpha bounds are unioned with `logo.png`'s visible b
 - The bottom live-button highlighting strip remains removed. Windows gameplay input init skips its former up-to-600ms joystick wait because the menu already initialized SDL devices. UI page navigation additionally uses a 20ms post-release settle instead of 80ms; the separate gameplay handoff gate is untouched to prevent leaked confirms.
 - Cold-boot announcer WAV now starts at t=0 (next to crash) **before the first logo frame at t=1.0**; this provides one second of audio preroll for the spoken phrase. The WAV itself is not trimmed, retimed, or sped up; audible syllable alignment requires a Windows listening check.
 
+## TEST 87.244 Combo attack handoff and native diagnostic coverage
+
+The user's `87.235.zip` contains native DHC/super diagnostic captures and an `observer_health_summary.json` confirming combat ran, but contains **no 87.243 frame-clock TSV** and no chronological native Training input/hitbox trace. It cannot validate the previous 87.243 hit-stop change. The supplied `BUILD_TEST(9).log` ends with a **87.241 regression assertion failure** after 87.240 built, not with proof of a succeeding 87.243 gameplay run.
+
+A separate source issue caused many combo attacks to be unobserved:
+
+- `XM30FrameData` originally made an event only on `hits[0].active && !t.previous[0]`, i.e. a collision-box falling/rising edge. In chained normals or normal->special/super cancels, a *new native ROM action selector* may begin while box70/72 remains high from the prior action, so no event is created. The old attack then incorrectly receives the new hitbox frames.
+- Record the prior native family/action at each counted step, snapshot them at every new input edge, and defer recording that candidate while the original normal action is still current. A genuinely new normal selector or a transition to a different attack family now claims the already-live box, closes the older card at its real previous frame, and opens the new card on its own first observed offensive frame. Same-family internal 2C/2E script steps are not presumed to be separate moves.
+- A newly accepted native combo attack can begin on the same callback that +85 becomes nonzero. The *first* offensive sample for that new action may create a row, but subsequent +85 countdown callbacks never increment either player's durations.
+- Hit confirmation uses the **already resolved active teammate HP** shown in the Training HUD; the previous fixed-slot `base+0x210` 16-bit read could follow the wrong fighter and contained an unrelated adjacent byte.
+- Added `test_frame_data_combo_244.cpp`: light->medium with continuously high box, normal->super with uninterrupted box, rejected/unaccepted input doesn't fabricate a combo, input queued in hit-stop, and accepted combo coinciding with first +85 stop.
+- Optional `XMVSF_FRAME_TRACE=1` now produces `xmvsf_frame_clock_244.tsv` next to the TEST executable, with both ROM modes/actions, +85, hitbox state, active HP, prior action/input selector, pending status, red tick count, emulated and logical frames. It captures normals and their cancels as well as supers. This is read-only and bounded.
+
+Native Windows compilation and combo gameplay confirmation are still needed. Stable, prior TEST executables and the persistent local build cache are untouched.
+
 ## TEST 87.243 Investigation: actual ROM hit-stop vs emulator callbacks
 
 The 87.242 fix intentionally bypassed native +85 hit-stop once offense was visible, and therefore counted frozen emulator frames as attack-duration frames. The number only appeared once the display next painted, exacerbated by the separate ordering defect: `RunFrame` sampled `xm23OnRealFrame` **after** `VidPaint`. Both were observable source-level errors.
