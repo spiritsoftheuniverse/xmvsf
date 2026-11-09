@@ -78,15 +78,15 @@ static void hitstopThenComboHandoff(){
     f.press(0,0x80);f.onFrame(box,none,a,b);
     a.hitStop=3;
     f.onFrame(box,none,a,b);
-    assert(f.frame==1);
+    assert(f.playerFrame[0]==1);
     // Player has queued next action while ROM hitstop holds its old box.
     f.press(0,0x81);
     a.hitStop=2;f.onFrame(box,none,a,b);
     a.hitStop=1;f.onFrame(box,none,a,b);
-    assert(f.count==1 && f.frame==1);
+    assert(f.count==1 && f.playerFrame[0]==1);
     a.hitStop=0;a.nativeAction=0x2810;
     f.onFrame(box,none,a,b);
-    assert(f.frame==2 && f.count==2);
+    assert(f.playerFrame[0]==2 && f.count==2);
     assert(f.history[0].active==1);
     assert(f.history[0].endFrame==1);
     assert(f.history[1].firstFrame==2);
@@ -105,9 +105,9 @@ static void newComboStartsOnHitstopOnset(){
     assert(f.history[1].firstFrame==2);
     a.hitStop=2;f.onFrame(box,none,a,b);
     a.hitStop=1;f.onFrame(box,none,a,b);
-    assert(f.frame==2);
+    assert(f.playerFrame[0]==2);
     a.hitStop=0;f.onFrame(box,none,a,b);
-    assert(f.frame==3 && f.history[1].active==2);
+    assert(f.playerFrame[0]==3 && f.history[1].active==2);
 }
 int main(){
     newComboStartsOnHitstopOnset();
