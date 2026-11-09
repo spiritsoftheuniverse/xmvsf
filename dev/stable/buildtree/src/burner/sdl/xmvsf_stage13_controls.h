@@ -258,16 +258,30 @@ static int xm13DeviceOrdinal(int device) {
     return count;
 }
 static int xm13FindDevice(const XM13_Player* p) {
-    if(!p->active)return -1;
-    int ordinal=0;
+    if(!p || !p->active || xm13IsKeyboard(p))return -1;
+    // Exact GUID + occurrence wins whenever it is available.
+    int guidOrdinal=0;
     for(int i=0;i<SDL_NumJoysticks();i++) {
-        char candidate[33];xm13GuidForDevice(i,candidate);
-        if(strcmp(p->guid,candidate)==0) {
-            if(ordinal==p->occurrence)return i;
-            ordinal++;
+        char guid[33];xm13GuidForDevice(i,guid);
+        if(strcmp(p->guid,guid)==0) {
+            if(guidOrdinal==p->occurrence)return i;
+            ++guidOrdinal;
         }
     }
-    return -1; // disconnected devices must NOT control somebody else's player
+    // Driver updates can change GUID. Restore the saved controls if the
+    // system-reported name and ordinal still match this physical device.
+    if(xm13HasName(p) && p->nameOccurrence>=0) {
+        int nameOrdinal=0;
+        for(int i=0;i<SDL_NumJoysticks();i++){
+            char current[96]={};
+            xm13DeviceDisplayName(i,current,sizeof(current));
+            if(strcmp(p->deviceName,current)==0){
+                if(nameOrdinal==p->nameOccurrence)return i;
+                ++nameOrdinal;
+            }
+        }
+    }
+    return -1;
 }
 // The label is read live from SDL (which queries the OS driver), never
 // persisted as an identity. GUID + occurrence remains the assignment key.
@@ -288,6 +302,29 @@ static void xm13DeviceDisplayName(int device,char* out,size_t capacity) {
         else if(i && out[i-1]!=' ')out[i++]=' ';
     }
     out[i]=0;
+}
+static int xm13NameOrdinal(int device){
+    if(device<0 || device>=SDL_NumJoysticks())return -1;
+    char candidate[96]={};
+    xm13DeviceDisplayName(device,candidate,sizeof(candidate));
+    if(!candidate[0] || !strcmp(candidate,"UNKNOWN CONTROLLER"))return -1;
+    int ordinal=0;
+    for(int i=0;i<device;i++){
+        char prior[96]={};
+        xm13DeviceDisplayName(i,prior,sizeof(prior));
+        if(!strcmp(candidate,prior))++ordinal;
+    }
+    return ordinal;
+}
+static XM13_Player xm13IdentityForDevice(int device){
+    XM13_Player result={};
+    if(device<0 || device>=SDL_NumJoysticks())return result;
+    result.active=1;
+    xm13GuidForDevice(device,result.guid);
+    result.occurrence=xm13DeviceOrdinal(device);
+    xm13DeviceDisplayName(device,result.deviceName,sizeof(result.deviceName));
+    result.nameOccurrence=xm13NameOrdinal(device);
+    return result;
 }
 static void xm13SetDefaultButtons(XM13_Player* p,int device){
     // Only actual CPS2 buttons get default assignments. Three-punch and
@@ -318,6 +355,9 @@ static int xm13AssignKeyboard(XM13_Settings* settings,int player){
     XM13_Settings updated=*settings;
     XM13_Player* p=&updated.player[player];
     const bool alreadyKeyboard=xm13IsKeyboard(p);
+    if(!alreadyKeyboard)xm13RememberProfile(&updated,p);
+    p->deviceName[0]=0;
+    p->nameOccurrence=-1;
     p->active=1;
     snprintf(p->guid,sizeof(p->guid),"KEYBOARD");
     p->occurrence=-1;
@@ -343,36 +383,61 @@ static int xm13AssignKeyboard(XM13_Settings* settings,int player){
     *settings=updated;
     return 1;
 }
-static int xm13Assign(XM13_Settings* settings,int player,int device) {
-    if(player<0||player>1||device<0||device>=SDL_NumJoysticks())return 0;
-    char guid[33];xm13GuidForDevice(device,guid);
-    if(!xm13ValidGuid(guid))return 0;
-    int occ=xm13DeviceOrdinal(device);
-    const int other=1-player;
-    // Reassigning a pad owned by the opposite slot swaps the COMPLETE
-    // player mappings (device identity AND customized button bindings).
-    // If the destination was empty, the previous owner becomes unassigned.
-    // Commit to the active configuration only after the atomic ini save.
+static int xm13Assign(XM13_Settings* settings,int player,int device){
+    if(!settings || player<0 || player>1 || device<0 ||
+       device>=SDL_NumJoysticks())return 0;
+    const XM13_Player wanted=xm13IdentityForDevice(device);
+    if(!xm13ValidGuid(wanted.guid))return 0;
     XM13_Settings updated=*settings;
-    if(updated.player[other].active && !strcmp(updated.player[other].guid,guid)
-       && updated.player[other].occurrence==occ) {
-        const XM13_Player prior=updated.player[player];
+    const int other=1-player;
+    // Swaps retain customized mappings for BOTH users, not only pad IDs.
+    if(xm13SameDevice(&updated.player[other],&wanted)){
+        const XM13_Player previous=updated.player[player];
         updated.player[player]=updated.player[other];
-        updated.player[other]=prior;
-    } else {
-        XM13_Player* p=&updated.player[player];
-        // A genuinely new device must not inherit keyboard keys or macro
-        // bindings left behind by the previous assigned device.
-        const bool sameDevice=p->active && !strcmp(p->guid,guid) &&
-                              p->occurrence==occ;
-        if(!sameDevice){
-            for(int a=0;a<XM13_ACTIONS;a++){
-                p->binding[a].type='N';p->binding[a].index=-1;
+        updated.player[other]=previous;
+        // A device can come back with a new GUID after a driver change.
+        snprintf(updated.player[player].guid,sizeof(updated.player[player].guid),"%s",wanted.guid);
+        updated.player[player].occurrence=wanted.occurrence;
+        snprintf(updated.player[player].deviceName,sizeof(updated.player[player].deviceName),
+                 "%s",wanted.deviceName);
+        updated.player[player].nameOccurrence=wanted.nameOccurrence;
+    }else{
+        XM13_Player* target=&updated.player[player];
+        const bool keepBindings=xm13SameDevice(target,&wanted);
+        if(!keepBindings){
+            // Retain the outgoing device's profile even if it is unplugged.
+            xm13RememberProfile(&updated,target);
+            int saved=-1;
+            for(int i=0;i<updated.profileCount;i++){
+                if(!strcmp(updated.profiles[i].guid,wanted.guid) &&
+                   updated.profiles[i].occurrence==wanted.occurrence){
+                    saved=i;break;
+                }
+            }
+            if(saved<0 && xm13HasName(&wanted))for(int i=0;i<updated.profileCount;i++){
+                if(xm13HasName(&updated.profiles[i]) &&
+                   !strcmp(updated.profiles[i].deviceName,wanted.deviceName) &&
+                   updated.profiles[i].nameOccurrence==wanted.nameOccurrence){
+                    saved=i;break;
+                }
+            }
+            if(saved>=0)*target=updated.profiles[saved];
+            else {
+                XM13_Player clean={};
+                for(int a=0;a<XM13_ACTIONS;a++){
+                    clean.binding[a].type='N';clean.binding[a].index=-1;
+                }
+                *target=clean;
+                xm13SetDefaultButtons(target,device);
             }
         }
-        p->active=1;snprintf(p->guid,sizeof(p->guid),"%s",guid);p->occurrence=occ;
-        if(!sameDevice)xm13SetDefaultButtons(p,device);
+        target->active=1;
+        snprintf(target->guid,sizeof(target->guid),"%s",wanted.guid);
+        target->occurrence=wanted.occurrence;
+        snprintf(target->deviceName,sizeof(target->deviceName),"%s",wanted.deviceName);
+        target->nameOccurrence=wanted.nameOccurrence;
     }
+    xm13RememberProfile(&updated,&updated.player[player]);
     if(!xm13Save(&updated))return 0;
     *settings=updated;
     return 1;
