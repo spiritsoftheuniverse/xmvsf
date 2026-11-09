@@ -12,6 +12,8 @@ atlas=(SDL/"xmvsf_menu_glyph_atlas.h").read_text(encoding="utf-8")
 gif=(SDL/"xmvsf_stage87_195_menu_gif.h").read_text(encoding="utf-8")
 mixer=(AUDIO/"xm20_wasapi_impl.h").read_text(encoding="utf-8")
 api=(SDL/"xmvsf_stage20_api.h").read_text(encoding="utf-8")
+strikes=(SDL/"xmvsf_stage87_235_ii_strikes.h").read_text(encoding="utf-8")
+timeline=(SDL/"xmvsf_stage87_235_menu_intro_timeline.h").read_text(encoding="utf-8")
 for name in ("crash.wav","xmvsf_welcome.wav","fight!.wav"):
     assert (ROOT/"audio"/name).is_file(), f"missing root/audio/{name}"
     assert f'clipLoadRepoAudio(m.' in mixer
@@ -52,7 +54,36 @@ assert "xm20MenuIntroMusic();musicFired=true;" in boot
 assert "xm20MenuIntroSilence();xm20MenuCrash();" in boot
 assert "m.musicEnabled=false" in mixer
 assert "if(m.musicEnabled)advanceClip(m.music,musicStep,true);" in mixer
-assert "xm20::m.musicGain=0.f;xm20::m.musicTarget=0.5f" in mixer
+assert "xm20::m.musicGain=0.f;xm20::m.musicTarget=1.f" in mixer
 assert "xm20::m.fadeSeconds=0.5f;" in mixer
+# Each of four user-exported source canvases is painted in its own
+# ten-step projected mask, using the source-pixel advancing tip for sparks.
+for name in ("logo_II.png","logo_II_A.png","logo_II_B.png","logo_II_C.png","logo_II_D.png"):
+    assert (ROOT/"_art"/name).is_file(), name
+    assert name in strikes, name
+assert "XMGlyph::menuLogoFullCanvas(render,canvas)" in strikes
+assert 'loadStroke(0,"logo_II_A.png",1,-1)' in strikes
+assert 'loadStroke(1,"logo_II_B.png",0,-1)' in strikes
+assert 'loadStroke(2,"logo_II_C.png",0,1)' in strikes
+assert 'loadStroke(3,"logo_II_D.png",1,-1)' in strikes
+assert "p.masked[n]=0" in strikes
+assert "tip[FramesPerStroke]" in strikes
+assert "void particles(" in strikes
+assert "SDL_RenderFillRect(render,&spark)" in strikes
+assert "const std::uint32_t StrokeCount=4u" not in timeline # constexpr uses namespace syntax
+assert "static constexpr std::uint32_t StrikeCount=4u;" in timeline
+assert "static constexpr std::uint32_t FramesPerStrike=10u;" in timeline
+assert "static constexpr std::uint32_t StrikeFps=60u;" in timeline
+assert "static constexpr std::uint32_t StrikeStart=LogoStart+LogoMs;" in timeline
+assert "static constexpr std::uint32_t MenuStart=StrikeStart+StrikeDurationMs;" in timeline
+assert "XM87235II::Painter iiPainter;" in boot
+assert "iiPainter.draw(render,introElapsed,introEnabled);" in boot
+assert "iiPainter.release();" in boot
+assert "XM87235Intro::MenuStart" in boot
+# Restore nominal menu volume: the menu music, not the voice/Fight one-shots.
+assert "float musicGain = 1.f, musicTarget = 1.f" in mixer
+assert "xm20::m.musicGain=1.f;" in mixer
+assert "xm20::m.musicTarget=1.f;" in mixer
+assert "musicDuck=m.fightVoiceOn?0.64f:1.0f" in mixer
 assert "TEST 87.235" in boot
 print("XMVSF 87.235 cold boot/menu/Fight audio and SDL integration: PASS")
