@@ -312,6 +312,15 @@ run_cached_unit \
 run_cached_unit \
   "$PROJECT/dev/dhc/tests/test_fs_airborne_offscreen_entry_233.cpp" \
   "$CACHE_DIR/unit_tests/test_fs_airborne_offscreen_entry_233.exe"
+# TEST 87.240: native attack duration stays live across hit-confirm
+# ticks; both player meters resume after hitstop; native stun gradient
+# is horizontal in ten equal-value bands at 50/60 capacity.
+run_cached_unit \
+  "$PROJECT/dev/dhc/tests/test_frame_data_hit_clock_240.cpp" \
+  "$CACHE_DIR/unit_tests/test_frame_data_hit_clock_240.exe"
+run_cached_unit \
+  "$PROJECT/dev/dhc/tests/test_stun_horizontal_240.cpp" \
+  "$CACHE_DIR/unit_tests/test_stun_horizontal_240.exe"
 # 87.239: real native-clock super freeze and long 2E super attack-phase
 # continuity, with normal and projectile non-regression.
 run_cached_unit \
