@@ -106,10 +106,11 @@ static void multipleSuperHitsKeepOneAction(){
     assert(!f.history[0].closed && !f.history[0].attackEnded);
     a.attackPhase=0x40; a.mode=0;
     f.onFrame(none,none,a,b,37);
-    assert(f.history[0].closed && !f.history[0].attackEnded);
+    assert(!f.history[0].closed && !f.history[0].attackEnded);
     f.onFrame(none,none,a,b,36);
+    assert(!f.history[0].closed && !f.history[0].attackEnded);
     f.onFrame(none,none,a,b,35);
-    assert(f.history[0].attackEnded);
+    assert(f.history[0].closed && f.history[0].attackEnded);
     assert(f.history[0].attackEndFrame==3);
 }
 static void frozenContactRetainsOneSuperTimeline(){
