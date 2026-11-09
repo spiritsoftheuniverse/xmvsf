@@ -3,6 +3,7 @@
 # Build the CURRENT local source in place using the warm FBNeo object cache.
 # Never touch Stable executable, Stable manifests, user source, or old TEST binaries.
 set -euo pipefail
+BUILD_WALL_START=$SECONDS
 PROJECT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
 # Permanent TEST build transcript. This starts BEFORE checking toolchains,
@@ -23,7 +24,7 @@ fi
 exec > >(tee -a "$LOG_FILE") 2>&1
 printf '\n========== XMVSF TEST 87.235 BUILD BEGIN %s ==========' "$(date '+%Y-%m-%d %H:%M:%S')"
 printf '\nProject: %s\nLog: %s\n' "$PROJECT" "$LOG_FILE"
-trap 'rc=$?; trap - EXIT; printf "XMVSF BUILD END rc=%s time=%s log=%s\n" "$rc" "$(date "+%Y-%m-%d %H:%M:%S")" "$LOG_FILE"; exit "$rc"' EXIT
+trap 'rc=$?; trap - EXIT; printf "XMVSF BUILD END rc=%s elapsed_seconds=%s time=%s log=%s\n" "$rc" "$((SECONDS-BUILD_WALL_START))" "$(date "+%Y-%m-%d %H:%M:%S")" "$LOG_FILE"; exit "$rc"' EXIT
 
 TREE="$PROJECT/dev/stable/buildtree"
 DEST="$PROJECT/runtime/stable/XMVSF_Test_87_235.exe"
@@ -147,7 +148,9 @@ compiler_identity="$(
     sha256sum "$TREE/makefile.sdl2" "$TREE/makefile.burn_rules"
   } | sha256sum | cut -d ' ' -f 1
 )"
+CACHE_SIGNATURE_UNCHANGED=1
 if [[ ! -s "$SIGNATURE" ]]; then
+  CACHE_SIGNATURE_UNCHANGED=0
   printf '%s\n' "$compiler_identity" > "$SIGNATURE.pending"
   mv -f "$SIGNATURE.pending" "$SIGNATURE"
   # Bootstrap pre-existing warm objects without a needless full rebuild.
@@ -155,6 +158,7 @@ if [[ ! -s "$SIGNATURE" ]]; then
   touch -t 200001010000 "$SIGNATURE"
   echo "BUILD CACHE: initialized fingerprint; adopting warm Make objects."
 elif [[ "$(cat "$SIGNATURE")" != "$compiler_identity" ]]; then
+  CACHE_SIGNATURE_UNCHANGED=0
   printf '%s\n' "$compiler_identity" > "$SIGNATURE.pending"
   mv -f "$SIGNATURE.pending" "$SIGNATURE"
   if (( ${#REPAIR_NATIVE[@]} )); then
@@ -175,6 +179,44 @@ if [[ "${XMVSF_CACHE_SMOKE:-0}" == 1 ]]; then
   bash "$PROJECT/dev/dhc/tests/test_incremental_cache.sh"
 fi
 
+# No-op fast path: Git's *unchanged tracked source* plus our last
+# successful native TEST record are more authoritative than running the
+# enormous FBNeo Make graph again when there is literally nothing to do.
+# The tracked BUILD_TEST.log is intentionally excluded: this script appends
+# to it even on success. All real source, asset, build-script and config
+# edits invalidate this shortcut. Do not use this for changed revisions,
+# failed builds, missing artifacts or compiler/signature changes.
+if [[ "${XMVSF_FORCE_NATIVE:-0}" != 1 &&
+      "${XMVSF_CACHE_SMOKE:-0}" != 1 &&
+      "$CACHE_SIGNATURE_UNCHANGED" == 1 &&
+      ${#REPAIR_NATIVE[@]} -eq 0 &&
+      -s "$SUCCESS_STATE" && -s "$DEST" && -s "$TREE/fbneo.exe" ]] &&
+   command -v git >/dev/null 2>&1; then
+  cached_rev="$(sed -n 's/^source_revision[[:space:]]*//p' "$SUCCESS_STATE" | tail -n 1)"
+  cached_sig="$(sed -n 's/^compiler_signature[[:space:]]*//p' "$SUCCESS_STATE" | tail -n 1)"
+  cached_sha="$(sed -n 's/^test_executable_sha256[[:space:]]*//p' "$SUCCESS_STATE" | tail -n 1)"
+  current_rev="$(git -C "$PROJECT" rev-parse HEAD 2>/dev/null || true)"
+  # Exclude only this tracked append-only transcript. This still detects
+  # edited headers, source, makefiles, tests, scripts and original PNG/WAVs.
+  if [[ -n "$cached_rev" && "$cached_rev" == "$current_rev" &&
+        "$cached_sig" == "$compiler_identity" &&
+        "${#cached_sha}" == 64 ]] &&
+     git -C "$PROJECT" diff --quiet HEAD -- . ':(exclude)test/build_logs/BUILD_TEST.log' &&
+     [[ -z "$(git -C "$PROJECT" ls-files --others --exclude-standard                   '*.cpp' '*.c' '*.h' '*.hpp' '*.cc' '*.mk' '*.asm' | head -n 1)" ]]; then
+    native_sha="$(sha256sum "$TREE/fbneo.exe" | cut -d ' ' -f 1)"
+    test_sha="$(sha256sum "$DEST" | cut -d ' ' -f 1)"
+    if [[ "$native_sha" == "$cached_sha" && "$test_sha" == "$cached_sha" ]]; then
+      echo "BUILD CACHE FAST HIT: source=$current_rev compiler=$compiler_identity"
+      echo "BUILD CACHE FAST HIT: 0 native objects changed; existing TEST SHA256=$test_sha"
+      echo "BUILD CACHE FAST HIT: skipped 1,174-object Make traversal, linking and cached tests."
+      echo "TEST PUBLISH: identical executable, previous TEST file untouched."
+      echo "TEST BUILD READY: $DEST"
+      echo "BUILD PHASE no_op_fast_hit elapsed_seconds=$((SECONDS-BUILD_WALL_START))"
+      exit 0
+    fi
+  fi
+fi
+
 # Optional second-layer content cache for branch switching. Keep its
 # storage on the project disk, not the Windows OS drive. No install gate.
 MAKE_COMPILER=()
@@ -188,6 +230,8 @@ else
   echo "BUILD CACHE: optional ccache unavailable/disabled; normal gcc."
 fi
 
+BUILD_TESTS_START=$SECONDS
+echo "BUILD PHASE full_regression_start elapsed_seconds=$((SECONDS-BUILD_WALL_START))"
 # Each ROM-free test also retains an executable AND compiler-produced .d.
 # It is recompiled only when its own source, transitive project headers,
 # or the toolchain signature actually changed.
@@ -299,6 +343,7 @@ elif command -v python >/dev/null 2>&1; then
 else
   echo "WARNING: 87.235 centered boot viewport source test skipped (Python unavailable)." >&2
 fi
+echo "BUILD PHASE full_regression_end duration_seconds=$((SECONDS-BUILD_TESTS_START))"
 # Preserve warm cache and anything already built on failures. Never run make clean.
 cd "$TREE"
 echo "XMVSF Stage 87.235 TEST: incremental build; preserving cached objects"
@@ -326,6 +371,8 @@ echo "Dependencies: GNU Make + persistent obj/**/*.d header dependency files"
 # Native .d files specify exact transitive source/header dependencies.
 # A compiler/signature change makes only signature-dependent objects stale.
 # With an unchanged signature and unchanged files Make compiles NOTHING.
+BUILD_NATIVE_START=$SECONDS
+echo "BUILD PHASE native_make_start elapsed_seconds=$((SECONDS-BUILD_WALL_START))"
 touch "$BUILD_START"
 # One-time in-memory invalidation for five known uncompiled units only.
 # No source or object file timestamps are changed manually.
@@ -335,6 +382,7 @@ MAKELEVEL=1 make -f makefile.sdl2 LSB_FIRST=1 INCLUDE_7Z_SUPPORT=1 DEPEND=1 \
   "XMVSF_BUILD_SIGNATURE=../../../test/build_cache/compiler.signature" \
   "${MAKE_COMPILER[@]}" "${REPAIR_ARGS[@]}" -j"${XMVSF_BUILD_JOBS:-12}" all
 
+echo "BUILD PHASE native_make_end duration_seconds=$((SECONDS-BUILD_NATIVE_START))"
 BUILT=""
 for exe in "$TREE/fbneo.exe" "$TREE/fbneo"; do
   if [[ -s "$exe" ]]; then BUILT="$exe"; break; fi
@@ -384,6 +432,7 @@ else
 fi
 echo "TEST BUILD READY: $DEST"
 
+echo "BUILD PHASE publish_complete duration_seconds=$((SECONDS-BUILD_NATIVE_START))"
 # Persist a machine-local inventory and last-success manifest. Timestamp
 # comparison is used only to REPORT changed objects; Make's .d graph
 # controls real recompilation. No object or dependency cache is deleted.
