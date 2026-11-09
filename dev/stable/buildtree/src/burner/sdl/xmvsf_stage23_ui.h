@@ -652,7 +652,7 @@ static inline void xm23Overlay(SDL_Renderer* renderer, const SDL_Rect& gameDest,
             if(!XMGlyph::left(renderer,lineText,x+5,yy+2,w-10,fontScale,selected?255:82))
                 xm23DrawTextSized(renderer,lineText,x+5,yy+2,w-10,fontScale);
         }
-        xm23DrawTextSized(renderer,"UP/DOWN  A SELECT  B BACK",x,bg.y+bg.h-17,w,1);
+        xm23DrawTextSized(renderer,"UP/DOWN  A SELECT  B/ESC BACK",x,bg.y+bg.h-17,w,1);
     }
     SDL_SetRenderDrawBlendMode(renderer,oldBlend);
 }
