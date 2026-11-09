@@ -33,6 +33,34 @@ The completed `logo_II.png` alpha bounds are unioned with `logo.png`'s visible b
 - The bottom live-button highlighting strip remains removed. Windows gameplay input init skips its former up-to-600ms joystick wait because the menu already initialized SDL devices. UI page navigation additionally uses a 20ms post-release settle instead of 80ms; the separate gameplay handoff gate is untouched to prevent leaked confirms.
 - Cold-boot announcer WAV now starts at t=0 (next to crash) **before the first logo frame at t=1.0**; this provides one second of audio preroll for the spoken phrase. The WAV itself is not trimmed, retimed, or sped up; audible syllable alignment requires a Windows listening check.
 
+## TEST 87.245 ROM trace: independent attacker/defender clocks and the missing portrait-freeze gate
+
+The user supplied `xmvsf_frame_clock_243.tsv` (2047 chronological native samples, host indices 31–2201). The trace resolves the prior contradictory fixes: the previous single Training `frame` counter *both* advanced through a super cinematic *and* remained frozen throughout a live super's attack because it treated the defender's +85 hit-stop as a universal game pause.
+
+There are four complete and highly repeatable native 2E sequences in the supplied trace, at host samples 69–208, 519–658, 815–954 and 1943–2082. All have stage `02` for 70 samples, stage `04` for 52 samples and recovery stage `06` for 18 samples.
+
+| 2E host sequence | Native stage 02 phase 81 (cinematic) | Old clock incorrectly advanced | Native stage 04 while defender +85 nonzero | Old clock advanced during stage 04 |
+| --- | ---: | ---: | ---: | ---: |
+| 69–208 | 43 | 43 | 52 | 0 |
+| 519–658 | 43 | 43 | 52 | 0 |
+| 815–954 | 44 | 44 | 52 | 0 |
+| 1943–2082 | 44 | 44 | 52 | 0 |
+
+During native `2E00` stage `02` phase `81`, both P1 and P2 animation frame pointers/timers are constant, **both fighter +85 counters are zero**, and no offensive box is active. This is a native *super portrait/streak freeze* distinct from ordinary hit-stop. The existing +85 clock never excluded these 43–44 samples.
+
+During native `2E00` stage `04`, **P1 +85 remains zero**, native P1 animation and projectile box state change, and P2 health decreases across successive hits. However, P2's +85 counter repeatedly reloads at 10, and the global Training clock remains constant for all 52 samples. Specifically, host 139–190 holds `logical_before=logical_after=105` while P1 completes its actual super attack stage. Host 191–196 holds the same old clock through the start of P1's `2E02` recovery. This explains the user's point-blank freeze and loss of actual active/duration frames; it is **not** an SDL rendering delay.
+
+TEST 87.245 source corrections:
+- Add `XM30FrameData::playerFrame[2]`. Each fighter's action owner, input age, native attack duration, box lifetime, movement timestamps and red contact ticks now use **that fighter's** unfrozen step axis. A fighter's own +85 excludes its own time, not the opponent's. The shared `frame` is only a host/update display index advancing whenever at least one fighter progresses.
+- Independently identify the trace-observed 2E cinematic: active native family 2E, script stage `02`, attack phase `0x81`, with no offensive box. Neither fighter's clock advances during this native hold, despite both +85 bytes reading zero. This specific ROM condition is evidence-based; other super variants still need native verification.
+- Keep the accepted new-move first-impact exception if its +85 is already nonzero on the very first observed offensive sample, without counting any subsequent stopped samples.
+- Draw each chart on `playerFrame[e.player]` rather than the shared display clock; no catch-up frames after the defender exits stop.
+- `recordContacts` assigns each confirmed HP loss to the attacking fighter's own current tick, including while the opponent is frozen, preserving red ticks.
+- Add `test_frame_data_asymmetric_stop_245.cpp` covering a 43-sample portrait freeze, 52 consecutive defender-only stop samples during a 2E super, separate P1/P2 clock values, red ticks, active frames, recovery, and simultaneous +85 stop. Existing frame-data unit tests were updated to assert the correct owning fighter clock rather than a falsely universal stop.
+- Expand the optional trace to `xmvsf_frame_clock_245.tsv`, including each player's logical clock *before and after* every sample so the actual causal fix can be confirmed next run.
+
+Source-level contract checks are **not** a substitute for local C++ compilation or real Windows/ROM gameplay. No GitHub Actions, no Stable overwrite, and no native game-state writes were introduced.
+
 ## TEST 87.244 Combo attack handoff and native diagnostic coverage
 
 The user's `87.235.zip` contains native DHC/super diagnostic captures and an `observer_health_summary.json` confirming combat ran, but contains **no 87.243 frame-clock TSV** and no chronological native Training input/hitbox trace. It cannot validate the previous 87.243 hit-stop change. The supplied `BUILD_TEST(9).log` ends with a **87.241 regression assertion failure** after 87.240 built, not with proof of a succeeding 87.243 gameplay run.
