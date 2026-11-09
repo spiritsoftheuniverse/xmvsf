@@ -21,6 +21,15 @@ The three WAVs are copied from main into this branch as identical Git blobs at `
 
 The completed `logo_II.png` alpha bounds are unioned with `logo.png`'s visible bounds in the shared 400×300 source canvas. Both draw calls use the same translated canvas, centered on x=480 of the 960-wide logical display. The base art fit/scale and the four independent II stroke trajectories remain unchanged; the menu glyph layout remains unchanged.
 
+## Options / controller UI
+
+- Main menu: **ARCADE / TRAINING / VERSUS / OPTIONS**. Controller assignment no longer has a separate main-menu entry.
+- Options has three tabs: **Game** (Game Mode, Double Feature, Dizzy Bar), **Graphics** (six window presets, Fullscreen Fit, Maximize Window), and **Controller** (device and eight action bindings for each player).
+- LB/RB or Q/E/Tab changes tabs. Left/right changes the selected tab on Game/Graphics; on Controller it pages between P1 and P2. Up/down chooses one of the nine fields on each controller page; A/Enter starts capture, B/Escape returns.
+- If a physical pad is already assigned to the opposite slot, choosing that pad on the target player swaps complete slot mappings, including custom binding arrays, and persists the result. An empty destination leaves the old slot unassigned.
+- The bottom live-button highlighting strip is removed. Controller pages now display all eight actions for one player together, with a dedicated player pager.
+- Cold-boot announcer WAV now starts at t=0 (next to crash) **before the first logo frame at t=1.0**; this provides one second of audio preroll for the spoken phrase. The WAV itself is not trimmed, retimed, or sped up; audible syllable alignment requires a Windows listening check.
+
 ## Local verification
 
 Run `BUILD_TEST.bat` to compile local `XMVSF_Test_87_235.exe`, with ROM-free C++ timeline test `test_menu_intro_timeline_235.cpp` and Python source integration test `test_menu_intro_integration_235.py`. Run `RUN_TEST.bat` for true visual/audio verification on Windows. Confirm crash and welcome cues at boot (t=0), with the welcome already in progress when the logo enters at t=1.0, four ten-frame source-pixel II strikes with emitting tip particles, the full numeral without seams, normal-volume menu music after the strikes, full dithered menu before the first input, and Fight audio during all three game-mode confirmations. Verify replay and returning from a match skip the intro. Native compile and hardware playback are not verified in GitHub.
