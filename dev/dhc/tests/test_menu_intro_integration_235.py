@@ -111,10 +111,25 @@ assert 'updated.player[other]=prior;' in controls
 assert 'if(!xm13Save(&updated))return 0;' in controls
 assert '*settings=updated;' in controls
 assert '#define XM13_ACTIONS 14' in controls
-assert 'XMVSF_CONTROLLERS_2' in controls and 'XMVSF_CONTROLLERS_1' in controls
-assert 'const int oldIndices[8]={0,1,2,3,4,5,8,9};' in controls
+assert 'XMVSF_CONTROLLERS_3' in controls and 'XMVSF_CONTROLLERS_2' in controls and 'XMVSF_CONTROLLERS_1' in controls
+assert 'const int oldSlots[8]={0,1,2,3,4,5,8,9};' in controls
 assert 'SDL_JoystickNameForIndex(device)' in controls
 assert 'SDL_GameControllerNameForIndex(device)' in controls
+assert 'char deviceName[96];' in controls
+assert 'int nameOccurrence;' in controls
+assert 'XM13_MAX_PROFILES 24' in controls
+assert 'static void xm13RememberProfile(' in controls
+assert 'static bool xm13HexToName(' in controls
+assert 'static void xm13NameToHex(' in controls
+assert 'xm13WriteRecord(f,"D",&snapshot.profiles[i]);' in controls
+assert 'xm13RememberProfile(&updated,target);' in controls
+assert 'xm13SameDevice(&updated.player[other],&wanted)' in controls
+assert 'xm13SameDevice(target,&wanted)' in controls
+assert 'xm13NameOrdinal(device)' in controls
+assert 'strcmp(p->deviceName,current)==0' in controls
+assert 'xm13DeviceDisplayName(found,player->deviceName,sizeof(player->deviceName));' in controls
+assert 'version==1?oldSlots[a]:a' in controls
+assert 'xm13Save(&snapshot)' in controls
 assert 'xm13DeviceDisplayName(device,systemName,sizeof(systemName));' in boot
 assert 'char systemName[44]={};' in boot
 assert 'XM13_3P' in controls and 'XM13_3K' in controls
