@@ -63,8 +63,15 @@ INT32 MapJoystick(struct GameInp* pgi, char* szi, INT32 nPlayer, INT32 nDevice)
     // The existing SDLinpState() resolves that slot to the assigned device.
     // Crucially, no extra frame of buffering or keyboard simulation occurs.
     static XM13_Settings xm13Config;
-    static int xm13Loaded=0;
-    if(!xm13Loaded) {xm13Load(&xm13Config);xm13Loaded=1;}
+    static Uint32 xm13MappedAt=0;
+    static bool xm13Loaded=false;
+    // Re-read between matches so a controller/keyboard assignment made in
+    // Options is used even when the process never exits.
+    const Uint32 now=SDL_GetTicks();
+    if(!xm13Loaded || (Uint32)(now-xm13MappedAt)>100u){
+        xm13Load(&xm13Config);
+        xm13MappedAt=now;xm13Loaded=true;
+    }
     if(nPlayer>=0 && nPlayer<2 && xm13Config.player[nPlayer].active) {
         if(!szi || szi[0]!='p' || szi[1]!=('1'+nPlayer) || szi[2]!=' ') return 1;
         const char* what=szi+3;
