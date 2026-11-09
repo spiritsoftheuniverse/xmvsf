@@ -312,6 +312,11 @@ run_cached_unit \
 run_cached_unit \
   "$PROJECT/dev/dhc/tests/test_fs_airborne_offscreen_entry_233.cpp" \
   "$CACHE_DIR/unit_tests/test_fs_airborne_offscreen_entry_233.exe"
+# 87.239: real native-clock super freeze and long 2E super attack-phase
+# continuity, with normal and projectile non-regression.
+run_cached_unit \
+  "$PROJECT/dev/dhc/tests/test_frame_data_super_clock_239.cpp" \
+  "$CACHE_DIR/unit_tests/test_frame_data_super_clock_239.exe"
 # 87.235: this unit now guards against delayed severe knockback spilling
 # from HK into later LP/LK/MP (87.228 frame 8193 / 8862 / 10055 / 10327).
 # 87.235 replaces the broader 87.228/229 native relaunch rule.
