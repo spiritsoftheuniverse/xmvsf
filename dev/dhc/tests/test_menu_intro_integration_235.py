@@ -52,6 +52,8 @@ assert 'remaining<threshold' in fx
 assert "XM87235Intro::MenuStart" in boot
 assert "xm20MenuIntroMusic();musicFired=true;" in boot
 assert "xm20MenuIntroSilence();xm20MenuCrash();" in boot
+assert "static constexpr std::uint32_t AnnouncerStart=LogoStart+2000u;" in timeline
+assert "introElapsed>=XM87235Intro::AnnouncerStart" in boot
 assert "m.musicEnabled=false" in mixer
 assert "if(m.musicEnabled)advanceClip(m.music,musicStep,true);" in mixer
 assert "xm20::m.musicGain=0.f;xm20::m.musicTarget=1.f" in mixer
