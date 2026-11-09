@@ -9,6 +9,7 @@
 static XM41ActorSample superActor(unsigned phase=0) {
     XM41ActorSample a{};
     a.valid=true;a.mode=0x2A00u;a.nativeAction=0x2E00u;
+    a.nativeStep=4u; // verified 2E attack/continuation stage
     a.attackPhase=phase;
     return a;
 }
@@ -41,8 +42,10 @@ static void superPortraitAndShinryuuken() {
     XM30Sample hit{};hit.melee.active=true;hit.melee.x=88;hit.melee.y=45;
     f.onFrame(hit,none,a,{},27); // first hitbox AFTER portraits
     assert(f.count==1 && f.history[0].startup==3 && f.history[0].active==1);
+    a.attackPhase=0; // phase byte may go blank between 2E super substeps
     for(unsigned c=26;c>=23;--c){
-        // Shinryuuken keeps ROM attack phase with temporarily absent box70/72.
+        // Shinryuuken is still in native 2E attack step 04 while box70/72
+        // is temporarily absent; no false recovery or first-box-only chart.
         f.onFrame(none,none,a,{},c);
     }
     assert(f.history[0].active==5 && f.history[0].nativeSuperPhase);
