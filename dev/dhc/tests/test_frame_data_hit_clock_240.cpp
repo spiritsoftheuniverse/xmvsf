@@ -107,11 +107,14 @@ static void multipleSuperHitsKeepOneAction(){
     a.attackPhase=0x40; a.mode=0;
     f.onFrame(none,none,a,b,37);
     assert(!f.history[0].closed && !f.history[0].attackEnded);
+    // The prior contact grace expires here. The actor has genuinely
+    // left 2E for recovery, so the last ROM-owned attack frame is 3;
+    // do NOT invent two additional active/attack ticks.
     f.onFrame(none,none,a,b,36);
-    assert(!f.history[0].closed && !f.history[0].attackEnded);
-    f.onFrame(none,none,a,b,35);
     assert(f.history[0].closed && f.history[0].attackEnded);
     assert(f.history[0].attackEndFrame==3);
+    f.onFrame(none,none,a,b,35);
+    assert(f.history[0].closed && f.history[0].attackEndFrame==3);
 }
 static void frozenContactRetainsOneSuperTimeline(){
     XM30FrameData f{};
