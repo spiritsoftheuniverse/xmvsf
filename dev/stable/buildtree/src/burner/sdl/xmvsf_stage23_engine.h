@@ -417,12 +417,11 @@ static inline void xm23OnRealFrame(int ready) {
             actor[p].attackPhase=xm23::r8(c,base+0x64); // original ROM: 80=attack, 40=recovery
             actor[p].nativeStep=xm23::r16(c,base+0x08); // original ROM 2E substage
             actor[p].hitStop=xm23::r8(c,base+0x85); // original ROM per-player freeze counter
+            actor[p].health=xm23::r16(c,base+0x210); // native health word: confirmed hit damage
         }
-        // ROM subsecond fight-clock at FF5009 is independent of the 99-second
-        // Training override at FF5008. It exposes cinematic super time stops
-        // without altering guest timing or making a render frame count as play.
-        const unsigned roundTick=xm23::r8(c,0xFF5009u);
-        xm23State.frameData.onFrame(sample[0],sample[1],actor[0],actor[1],roundTick);
+        // Do not use the FF5009 round subcounter for cinematic stop:
+        // Training can hold it fixed while native fighter actions progress.
+        xm23State.frameData.onFrame(sample[0],sample[1],actor[0],actor[1]);
     }
     c->close();
 }
