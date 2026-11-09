@@ -358,6 +358,15 @@ elif command -v python >/dev/null 2>&1; then
 else
   echo "WARNING: 87.235 centered boot viewport source test skipped (Python unavailable)." >&2
 fi
+# TEST 87.243: source integration prevents a repeat of the one-frame
+# overlay lag or counting frozen +85 host ticks as gameplay steps.
+if command -v python3 >/dev/null 2>&1; then
+  python3 "$PROJECT/dev/dhc/tests/test_frame_data_paint_order_243.py"
+elif command -v python >/dev/null 2>&1; then
+  python "$PROJECT/dev/dhc/tests/test_frame_data_paint_order_243.py"
+else
+  echo "WARNING: 87.243 frame-data source timing regression skipped (Python unavailable)." >&2
+fi
 echo "BUILD PHASE full_regression_end duration_seconds=$((SECONDS-BUILD_TESTS_START))"
 # Preserve warm cache and anything already built on failures. Never run make clean.
 cd "$TREE"
