@@ -8,7 +8,7 @@ int main(){
     static_assert(BackgroundMs==1000u && BackgroundFadeMs==3000u && LogoMs==1000u &&
                   MenuMs==500u && StrikeCount==4u && FramesPerStrike==10u &&
                   StrikeFrames==40u && StrikeDurationMs==667u &&
-                  StrikeStart==2000u && AnnouncerStart==1000u && MenuStart==2667u && TotalMs==3167u,"87.235 timings changed");
+                  StrikeStart==2000u && AnnouncerStart==0u && MenuStart==2667u && TotalMs==3167u,"87.235 timings changed");
     assert(backgroundStrength(0u)==1.0f);
     assert(backgroundStrength(500u)>0.0f);
     assert(backgroundStrength(500u)<1.0f);
@@ -29,8 +29,8 @@ int main(){
     assert(strokeFrame(2500u)==30u); // C done
     assert(strokeFrame(2666u)==39u);
     assert(strokeFrame(2667u)==40u); // D done; menu begins
-    assert(AnnouncerStart-LogoStart==0u);
-    assert(StrikeStart-AnnouncerStart==1000u);
+    assert(LogoStart-AnnouncerStart==1000u);
+    assert(StrikeStart-AnnouncerStart==2000u);
     assert(!menuVisible(2666u));
     assert(menuVisible(2667u));
     assert(menuReveal(2667u)==0.0f);
