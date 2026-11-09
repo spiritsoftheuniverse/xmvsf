@@ -493,6 +493,24 @@ struct XM30FrameData {
                     newProjectile=hits[1];
                 const bool projectileRise=newProjectile.active;
                 if(meleeRise || projectileRise){
+                    // Multi-hit super collision boxes may disappear during
+                    // hit-stop and rise again. The original 2E action owns
+                    // ONE duration card; a second hit is not a new move.
+                    bool continuingSuper=false;
+                    if(t.pendingAttackFamily==0x2Eu)for(int k=count-1;k>=0;--k){
+                        const XM30Event& old=history[k];
+                        if(old.player!=p || !old.attackObserved ||
+                           old.attackEnded || old.attackFamily!=0x2Eu)continue;
+                        if(old.attackAction==t.pendingAttackAction &&
+                           old.attackStartFrame==t.pendingAttackStart){
+                            continuingSuper=true;break;
+                        }
+                    }
+                    if(continuingSuper){
+                        t.pending=-1;
+                        t.previous[0]=hits[0].active;
+                        t.previous[1]=hits[1].active;
+                    }else{
                     const int source=(projectileRise && (!meleeRise || t.motion!=XM32_NORMAL))?1:0;
                     const XM30Hit& chosen=source==1?newProjectile:hits[0];
                     const int idx=appendEvent();
@@ -542,6 +560,7 @@ struct XM30FrameData {
                     popup.visible=true;popup.player=p;popup.startup=e.startup;
                     popup.x=e.x;popup.y=e.y;
                     t.pending=-1;
+                    }
                 }
             }
             if(t.pending>=0 && age>MAX_WAIT){
