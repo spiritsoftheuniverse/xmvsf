@@ -31,6 +31,7 @@
 #include "xmvsf_stage87_198_native_super_freeze_cue.h"
 #include "xmvsf_stage87_202_air_followup_rebound.h" // verified 87.201 air selector rebound // first native Ken offensive activation, not initial 2E
 #include "xmvsf_stage87_177_dhc_punch_chords.h" // explicit 3P host / native 2P helper dependency
+#include "xmvsf_stage87_262_game_version.h"
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
@@ -149,12 +150,15 @@ struct State {
         if(initialized)return;
         initialized=true;
         const char* setting=std::getenv("XM87144_DHC_NATIVE_TEST");
-        const bool requested=setting && std::strcmp(setting,"1")==0;
+        // Version 4 owns DHC even when launched without RUN_TEST's
+        // historical experiment environment; explicit 0 still opts out.
+        const bool v4=XM87262Game::version4();
+        const bool requested=v4 && (!setting || std::strcmp(setting,"0")!=0);
         const char* proof=std::getenv("XM87156_PROOF_NATIVE");
         const char* fast=std::getenv("XM87157_EARLY_CANCEL");
         proofNative=requested && proof && std::strcmp(proof,"1")==0;
-        earlyCancel=requested && !proofNative && fast &&
-                    std::strcmp(fast,"1")==0;
+        earlyCancel=requested && !proofNative &&
+                    (!fast || std::strcmp(fast,"1")==0);
         const char* legacy=std::getenv("XM87144_DHC_LEGACY_TAG_WRITER");
         // Proof: intact natural 87.156 sequence. Early cancel: verified
         // 87.150 late-Ryu tag/first-Ken-arrival cancellation plus 87.156

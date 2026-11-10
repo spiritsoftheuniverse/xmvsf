@@ -648,6 +648,9 @@ struct Controller {
         // Re-evaluate each frame because the Options menu changes the mode
         // without restarting the process. Missing/unknown means Classic.
         const bool tournament=XM87262Game::tournamentKnockdowns();
+        // No external TEST flag is required for the selected ruleset.
+        // Tournament controls exactly this knockdown writer.
+        enabled=tournament;
         if(lastMode!=int(tournament)){
             // Never carry a connected-hit latch between different rulesets.
             actor[0]=Actor();actor[1]=Actor();
