@@ -363,7 +363,11 @@ struct XM30FrameData {
                 e.firstFrame=at;e.endFrame=at;e.inputFrame=
                     t.pending>=0?(unsigned long long)t.pending:at;
                 e.inputObserved=t.pending>=0 && !t.pendingNativeOnly;
-                e.code=t.code;e.motion=t.motion;
+                e.code=t.pending>=0?t.code:0;
+                e.motion=t.pending>=0?t.motion:XM32_NORMAL;
+                e.nativeSuperPhase=accepted==0x2Eu &&
+                    actors[attacker].nativeStep>=4u &&
+                    (actors[attacker].attackPhase&0x40u)==0u;
                 e.attackObserved=true;
                 e.attackFamily=accepted;
                 e.attackAction=t.pendingAttackFamily?
@@ -448,12 +452,12 @@ struct XM30FrameData {
         // those dark-screen frames into both clocks. The conservative
         // animation-stasis rule remains for phase80 2C specials.
         const bool superPortrait =
-            ((xm30NativeAttackFamily(a1)==0x2Eu &&
-              a1.nativeStep==2u && a1.attackPhase==0x81u) ||
-             (xm30NativeAttackFamily(a2)==0x2Eu &&
-              a2.nativeStep==2u && a2.attackPhase==0x81u)) &&
-            !p1.melee.active && !p1.projectile.active &&
-            !p2.melee.active && !p2.projectile.active;
+            (xm30NativeAttackFamily(a1)==0x2Eu &&
+             a1.nativeStep==2u && a1.attackPhase==0x81u) ||
+            (xm30NativeAttackFamily(a2)==0x2Eu &&
+             a2.nativeStep==2u && a2.attackPhase==0x81u);
+        // The ROM stage/phase is a GLOBAL freeze. Lingering projectile
+        // boxes from earlier attacks must not make blackout time count.
         const bool cinematicStop=superPortrait ||
                                  (nativeSetup && bothAnimationsStatic);
         // Before hit-stop gating, recognize an accepted ROM action so the
@@ -538,6 +542,10 @@ struct XM30FrameData {
                             if(samples[p].projectileHits[j].active)witnessed=true;
                         if(actors[1-p].valid && healthSeeded[1-p] &&
                            actors[1-p].health<previousHealth[1-p])
+                            witnessed=true;
+                        // Training may have restored HP during this tick.
+                        // A new ROM combo hit can also prove first impact.
+                        if(comboSeeded[p] && actors[p].combo>previousCombo[p])
                             witnessed=true;
                         firstImpact=witnessed;
                     }
