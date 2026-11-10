@@ -27,6 +27,10 @@ static void traceBasedSuperCinematicAndDefenderStop(){
     f.press(0,0x80);
     XM41ActorSample a=fighter(0x2A28,0x2E00,2,0x80,144);
     XM41ActorSample b=fighter(0x3636,0x1C04,0,0,130);
+    // 87.247 clocks exclude proved native animation stalls only when
+    // the ROM supplies both actual animation script pointers.
+    a.animPtr=0xA997Eu;a.animTimer=2u;
+    b.animPtr=0xD0FC4u;b.animTimer=3u;
     XM30Sample none{},shot=projectile();
     f.onFrame(none,none,a,b); // host 87, step 02 native startup
     assert(f.frame==1 && f.playerFrame[0]==1 && f.playerFrame[1]==1);
@@ -37,7 +41,7 @@ static void traceBasedSuperCinematicAndDefenderStop(){
     assert(f.frame==1 && f.count==0);
     assert(f.playerFrame[0]==1 && f.playerFrame[1]==1);
     assert(f.superFreezeFrames==43);
-    a.attackPhase=0x80;f.onFrame(none,none,a,b);
+    a.attackPhase=0x80;a.animPtr+=16u;f.onFrame(none,none,a,b);
     assert(f.frame==2 && f.playerFrame[0]==2 && f.playerFrame[1]==2);
 
     a.nativeStep=4;
