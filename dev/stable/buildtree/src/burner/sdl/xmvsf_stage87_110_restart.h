@@ -12,14 +12,14 @@ static inline void log(const char* format,...) {
  va_list args;va_start(args,format);
  std::vsnprintf(line,sizeof(line),format,args);
  va_end(args);
- std::fprintf(stderr,"XM87.271 RELOCATOR %s\n",line);
+ std::fprintf(stderr,"XM87.272 RELOCATOR %s\n",line);
  const char* configured=std::getenv("XM87110_LOG_FILE");
  const char* path=(configured && *configured)?configured:"xmvsf_training_relocator.log";
  FILE* f=std::fopen(path,"a");
- if(f){std::fprintf(f,"XM87.271 RELOCATOR %s\n",line);std::fclose(f);}
+ if(f){std::fprintf(f,"XM87.272 RELOCATOR %s\n",line);std::fclose(f);}
 }
 enum Preset { NONE=0, NORMAL=1, RIGHT=2, LEFT=3 };
-// TEST 87.271: the two taunt markers in 87.270's side-switch record.
+// TEST 87.272: the two taunt markers in 87.270's side-switch record.
 // Source of truth for placement is XM87111::fighterX() in the corner header.
 static const unsigned RIGHT_P1_X=689u;
 static const unsigned RIGHT_P2_X=747u;
