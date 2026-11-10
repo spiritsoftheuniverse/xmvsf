@@ -9,14 +9,17 @@ static const unsigned VIEWPORT_WIDTH=384u;
 static const unsigned CAMERA_MIN=192u; // XM86.54 WILY_PRESENT frame=2
 static const unsigned CAMERA_MAX=384u; // XM86.54 WILY_PRESENT frame=601
 static const unsigned CAMERA_BIAS=64u; // XM86.49: s16(FF524C)+64
-static const unsigned WORLD_LEFT=CAMERA_MIN; // left visible world edge = 192
+static const unsigned WORLD_LEFT=0u; // 87.270 side-switch capture reaches X=21
 static const unsigned WORLD_RIGHT=CAMERA_MAX+VIEWPORT_WIDTH; // 768
-static const unsigned DUMMY_CORNER_INSET=WORLD_RIGHT-725u; // 43, observed dummy
-static const unsigned FIGHTER_SPACING=725u-568u; // 157, observed separation
-// Final fixed LEFT coordinates from the 2026-11-03 native capture.
-// Do not mirror the right preset or fall back to the old 87.115 snapshot.
-static const unsigned LEFT_P1_X=217u;
-static const unsigned LEFT_P2_X=46u;
+// 87.270 training_side_switch.log: FIRST RIGHT reference 689/747,
+// SECOND LEFT reference 79/21. Both sum to 768 for the same fighter,
+// giving 58 native pixels of separation and an exact world-X mirror.
+// Treat LEFT as the canonical reference so RIGHT cannot drift separately.
+static const unsigned MIRROR_SUM=WORLD_RIGHT;
+static const unsigned LEFT_P1_X=79u;
+static const unsigned LEFT_P2_X=21u;
+static const unsigned RIGHT_P1_X=MIRROR_SUM-LEFT_P1_X; // 689
+static const unsigned RIGHT_P2_X=MIRROR_SUM-LEFT_P2_X; // 747
 static const unsigned LEFT_CAMERA_X=0u;
 static const unsigned CORNER_Y=472u;
 // Normal match-start X coordinates measured from 87.109 live capture, frame 1534.
@@ -32,12 +35,10 @@ static inline unsigned centerCameraX(unsigned p1,unsigned p2){
 }
 static inline unsigned fighterX(unsigned selection,unsigned fighter) {
  // Called only for stage 05, SIDE=RIGHT(2) or LEFT(3).
- const bool right=selection==2u;
- const unsigned dummy=right? WORLD_RIGHT-DUMMY_CORNER_INSET : WORLD_LEFT+DUMMY_CORNER_INSET;
- return right?(fighter==1u?dummy:dummy-FIGHTER_SPACING):
-              (fighter==0u?LEFT_P1_X:LEFT_P2_X);
+ const unsigned left=(fighter==0u?LEFT_P1_X:LEFT_P2_X);
+ return selection==2u?MIRROR_SUM-left:left;
 }
-// The LEFT target is outside the earlier camera measurement [192,384].
+// The LEFT camera target is outside the older center-only estimate [192,384].
 // The native camera word is signed: target 0 is stored as -64 (0xFFC0).
 static inline unsigned cameraX(unsigned selection) {return selection==2u?CAMERA_MAX:LEFT_CAMERA_X;}
 static inline unsigned nativeCameraX(unsigned word) {
