@@ -408,6 +408,50 @@ static inline int xm248FindAssignedDevice(const XM13_Settings* settings,int play
     return -1;
 }
 
+// Resolve saved GUID/name identities no more than once per 100ms, not
+// for each of the game's 14 mapped buttons. Device state is STILL read
+// every input frame; a changed profile/instance invalidates this cache.
+struct XM266Route {int device=-1, exact=-1;};
+static inline XM266Route xm266ControllerRoute(
+        const XM13_Settings* settings,int player,int openCount){
+    if(!settings || player<0 || player>1)return XM266Route{};
+    struct Cache {
+        bool valid=false; Uint32 at=0; int count=-1;
+        XM13_Player profile{};
+        bool selected=false;
+        SDL_JoystickID session=-1,otherSession=-1,otherOwner=-1;
+        XM266Route result{};
+    };
+    static Cache entries[2];
+    Cache& c=entries[player];
+    const Uint32 now=SDL_GetTicks();
+    const bool selected=xm249SessionPad[player].selected;
+    const SDL_JoystickID session=xm249SessionPad[player].instance;
+    const SDL_JoystickID otherSession=xm249SessionPad[1-player].instance;
+    const SDL_JoystickID otherOwner=xm248RuntimeOwner[1-player].instance;
+    if(!c.valid || (Uint32)(now-c.at)>=100u || c.count!=openCount ||
+       c.selected!=selected || c.session!=session ||
+       c.otherSession!=otherSession || c.otherOwner!=otherOwner ||
+       std::memcmp(&c.profile,&settings->player[player],
+                   sizeof(XM13_Player))!=0){
+        const Uint32 begin=SDL_GetTicks();
+        c.result.device=xm248FindAssignedDevice(settings,player);
+        c.result.exact=selected?xm13FindDevice(&settings->player[player]):-1;
+        const Uint32 duration=(Uint32)(SDL_GetTicks()-begin);
+        if(duration>=50u)std::fprintf(stderr,
+            "XM87.266 SLOW_PAD_ROUTE player=%d ms=%u\n",
+            player+1,(unsigned)duration);
+        c.valid=true;c.at=SDL_GetTicks()?SDL_GetTicks():1u;
+        c.count=openCount;c.profile=settings->player[player];
+        c.selected=selected;
+        // Identity resolution may itself bind a new SDL instance.
+        c.session=xm249SessionPad[player].instance;
+        c.otherSession=xm249SessionPad[1-player].instance;
+        c.otherOwner=xm248RuntimeOwner[1-player].instance;
+    }
+    return c.result;
+}
+
 // Read the exact name reported through SDL/OS. Display it live and persist
 // a sanitized copy as a fallback profile key; GUID remains the first choice.
 static void xm13DeviceDisplayName(int device,char* out,size_t capacity) {
@@ -713,7 +757,8 @@ static int xm13ReadInput(const XM13_Settings* s,int player,int sub,
     const bool savedActive=p->active!=0;
     const bool fromMenu=xm249SessionPad[player].selected;
     if(!XM249Policy::needsVirtualMap(savedActive,fromMenu))return -1;
-    const int device=xm248FindAssignedDevice(s,player);
+    const XM266Route route=xm266ControllerRoute(s,player,count);
+    const int device=route.device;
     SDL_Joystick* joy=device>=0 && device<count && raw[device] &&
         SDL_JoystickGetAttached(raw[device])?raw[device]:nullptr;
     SDL_GameController* pad=joy && gc?gc[device]:nullptr;
@@ -722,7 +767,7 @@ static int xm13ReadInput(const XM13_Settings* s,int player,int sub,
     // current device differs from the saved profile. Same-device profiles
     // retain every user's custom binding.
     const bool useSessionDefaults=joy && XM249Policy::useSemanticPad(
-        fromMenu,savedActive,xm13IsKeyboard(p),xm13FindDevice(p)==device);
+        fromMenu,savedActive,xm13IsKeyboard(p),route.exact==device);
     const bool allowSaved=!useSessionDefaults || xm13IsKeyboard(p);
     if(sub>=0 && sub<=3){
         const int idx=XM13_LEFT+sub;
