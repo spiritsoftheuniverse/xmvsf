@@ -66,6 +66,7 @@ struct XM41ActorSample {
     unsigned animPtr=0;         // ROM +34 native animation script pointer
     unsigned animTimer=0;       // ROM +3E native animation frame countdown
     unsigned health=0;          // HUD-resolved active fighter HP; real hit confirmation
+    unsigned combo=0;           // ROM combo counter: confirms hits when HP is restored before sampling
 };
 // Native action-family classification from recorded ROM traces:
 // A0=28xx: normal punches/kicks; A0=2Axx + action=2Cxx: specials;
@@ -204,6 +205,8 @@ struct XM30FrameData {
     unsigned previousHitStop[2]={0,0};
     bool healthSeeded[2]={false,false};
     unsigned previousHealth[2]={0,0};
+    bool comboSeeded[2]={false,false};
+    unsigned previousCombo[2]={0,0};
     // Damage can be first observed on a frozen host tick. Carry it into
     // the NEXT real combat sample rather than consuming it at the return.
     bool pendingContact[2]={false,false};
@@ -225,6 +228,8 @@ struct XM30FrameData {
         hitStopSeeded=false;previousHitStop[0]=previousHitStop[1]=0;
         healthSeeded[0]=healthSeeded[1]=false;
         previousHealth[0]=previousHealth[1]=0;
+        comboSeeded[0]=comboSeeded[1]=false;
+        previousCombo[0]=previousCombo[1]=0;
         pendingContact[0]=pendingContact[1]=false;
         contactExitGrace[0]=contactExitGrace[1]=0;
         for(int i=0;i<HISTORY;++i)history[i]=XM30Event{};
@@ -281,48 +286,114 @@ struct XM30FrameData {
          }
         return count++;
     }
-    // Train on native ROM samples, not on displayed video frames.
-    // FF5009 is deliberately ignored: a constant clock is not evidence of
-    // super freeze, and it previously locked BOTH meters indefinitely.
-    // One hit-confirm marker per defender HP drop. Record it on the
-    // attacker's newest live frame-data row, not against any unrelated old
-    // projectile. A contact does NOT close or shorten the move's action.
+    // Train on native ROM samples, not displayed frames. HP can be restored
+    // by Training before this post-emulation observer runs; a rising ROM
+    // combo counter is independent confirmation of a hit in that case.
+    // Neither signal is allowed to reset an attack or increment its clock.
     void recordContacts(const XM41ActorSample actors[2],
                         const bool advanced[2]){
+        bool comboRise[2]={false,false};
+        for(int p=0;p<2;++p){
+            if(!actors[p].valid){
+                comboSeeded[p]=false;previousCombo[p]=0;
+                continue;
+            }
+            comboRise[p]=comboSeeded[p] &&
+                         actors[p].combo>previousCombo[p];
+            previousCombo[p]=actors[p].combo;
+            comboSeeded[p]=true;
+        }
         for(int victim=0;victim<2;++victim){
             if(!actors[victim].valid){
-                healthSeeded[victim]=false;pendingContact[1-victim]=false;
+                healthSeeded[victim]=false;
+                pendingContact[1-victim]=false;
                 continue;
             }
             const unsigned health=actors[victim].health;
-            const bool damaged=healthSeeded[victim] &&
-                               health<previousHealth[victim];
+            const bool hpDrop=healthSeeded[victim] &&
+                              health<previousHealth[victim];
             previousHealth[victim]=health;
             healthSeeded[victim]=true;
-            if(!damaged)continue;
             const int attacker=1-victim;
-            // An impact while frozen has no new gameplay frame. Its red
-            // marker belongs to this tick, but the native-action handoff
-            // must remember the strike until the next counted frame.
+            if(!hpDrop && !comboRise[attacker])continue;
+            if(!actors[attacker].valid)continue;
+            // De-duplicate HP and combo evidence from the same native tick.
+            // Never move the marker to the end of a +85 stop interval.
             if(!advanced[attacker])pendingContact[attacker]=true;
             const unsigned long long at=playerFrame[attacker];
+            const XM30Track& t=track[attacker];
+            int selected=-1;
             for(int i=count-1;i>=0;--i){
-                XM30Event& e=history[i];
-                if(e.player!=attacker || e.noBox || e.firstFrame>at)continue;
-                // Collision may disappear on contact; keep the most recent
-                // move if the damage is synchronous with its exit.
-                if(e.closed && at>e.endFrame+1u &&
+                const XM30Event& e=history[i];
+                if(e.player!=attacker || e.firstFrame>at)continue;
+                if(e.noBox && !e.attackObserved)continue;
+                if(e.attackEnded && at>e.attackEndFrame+1u)continue;
+                if(e.closed && !e.noBox && at>e.endFrame+1u &&
                    (e.attackEnded || at>e.attackLastFrame+1u))continue;
-                if(e.contactCount>0 &&
-                   e.contactFrames[e.contactCount-1]==at)break;
-                if(e.contactCount==XM30Event::CONTACTS){
-                    for(int k=1;k<XM30Event::CONTACTS;++k)
-                        e.contactFrames[k-1]=e.contactFrames[k];
-                    --e.contactCount;
-                }
-                e.contactFrames[e.contactCount++]=at;
+                // The new accepted native move owns this damage, not a
+                // previous fighter box or a lingering old projectile.
+                if(t.pendingAttackFamily!=0u && e.attackObserved &&
+                   (e.attackFamily!=t.pendingAttackFamily ||
+                    (e.attackFamily==0x28u &&
+                     (e.attackAction!=t.pendingAttackAction ||
+                      e.attackMode!=t.pendingAttackMode)) ||
+                    (e.attackFamily==0x2Cu &&
+                     t.pendingOriginFamily==0x2Cu &&
+                     t.pendingOriginStep>=4u &&
+                     e.attackAction!=t.pendingAttackAction)))continue;
+                const unsigned liveFamily=xm30NativeAttackFamily(actors[attacker]);
+                if(liveFamily!=0u && e.attackObserved &&
+                   e.attackFamily!=liveFamily)continue;
+                selected=i;
                 break;
             }
+            if(selected<0){
+                // A Ken / combo / super strike can be ROM-accepted without
+                // an observed RAM collision box or SDL edge. Confirmation
+                // permits a card, but NEVER an invented S or A measurement.
+                const unsigned nativeFamily=xm30NativeAttackFamily(actors[attacker]);
+                const unsigned accepted=t.pendingAttackFamily?
+                    t.pendingAttackFamily:nativeFamily;
+                if(!accepted ||
+                   (!t.pendingAttackFamily &&
+                    (actors[attacker].attackPhase&0x40u)!=0u))continue;
+                const int idx=appendEvent();
+                XM30Event& e=history[idx];e=XM30Event{};
+                e.player=attacker;e.noBox=true;e.closed=true;
+                e.firstFrame=at;e.endFrame=at;e.inputFrame=
+                    t.pending>=0?(unsigned long long)t.pending:at;
+                e.inputObserved=t.pending>=0 && !t.pendingNativeOnly;
+                e.code=t.code;e.motion=t.motion;
+                e.attackObserved=true;
+                e.attackFamily=accepted;
+                e.attackAction=t.pendingAttackFamily?
+                    t.pendingAttackAction:actors[attacker].nativeAction;
+                e.attackMode=t.pendingAttackFamily?
+                    t.pendingAttackMode:actors[attacker].mode;
+                e.attackStartFrame=t.pendingAttackStart?
+                    t.pendingAttackStart:(at?at:1u);
+                e.attackLastFrame=t.pendingAttackLast?
+                    t.pendingAttackLast:at;
+                // Mark this as the accepted ROM action, preventing a
+                // late appearing box from reopening the same move.
+                XM30Track& writable=track[attacker];
+                writable.pending=-1;
+                writable.lastNativeFamily=accepted;
+                writable.lastNativeAction=e.attackAction;
+                writable.lastNativeMode=e.attackMode;
+                writable.lastNativeStep=actors[attacker].nativeStep;
+                writable.lastNativeValid=true;
+                selected=idx;
+            }
+            XM30Event& e=history[selected];
+            if(e.contactCount>0 &&
+               e.contactFrames[e.contactCount-1]==at)continue;
+            if(e.contactCount==XM30Event::CONTACTS){
+                for(int k=1;k<XM30Event::CONTACTS;++k)
+                    e.contactFrames[k-1]=e.contactFrames[k];
+                --e.contactCount;
+            }
+            e.contactFrames[e.contactCount++]=at;
         }
     }
     void onFrame(const XM30Sample& p1,const XM30Sample& p2,
@@ -371,7 +442,20 @@ struct XM30FrameData {
             previousAnimStep[p]=a.nativeStep;
         }
         animationSeeded=true;
-        const bool cinematicStop=nativeSetup && bothAnimationsStatic;
+        // 2E/step02/phase81 is a ROM-verified *global super portrait
+        // blackout*, including the opening samples where the native
+        // animation pointer changes. Requiring stasis alone had allowed
+        // those dark-screen frames into both clocks. The conservative
+        // animation-stasis rule remains for phase80 2C specials.
+        const bool superPortrait =
+            ((xm30NativeAttackFamily(a1)==0x2Eu &&
+              a1.nativeStep==2u && a1.attackPhase==0x81u) ||
+             (xm30NativeAttackFamily(a2)==0x2Eu &&
+              a2.nativeStep==2u && a2.attackPhase==0x81u)) &&
+            !p1.melee.active && !p1.projectile.active &&
+            !p2.melee.active && !p2.projectile.active;
+        const bool cinematicStop=superPortrait ||
+                                 (nativeSetup && bothAnimationsStatic);
         // Before hit-stop gating, recognize an accepted ROM action so the
         // FIRST contact can create a card even if the SDL button edge was
         // missed and the ROM already set +85 on that exact host callback.
