@@ -618,23 +618,40 @@ static void xm249TryLateGameControllerClaim() {
 // Read the actual FBNeo game binding, rather than assuming a virtual 0x4087.
 static int JoystickState(int i, int nSubCode); // defined below
 static int xm87110ReadBoundAction(unsigned p,const char* action){
-    for(unsigned i=0;i<nGameInpCount;++i){
-        BurnInputInfo info={};
-        if(BurnDrvGetInputInfo(&info,i)!=0 || !info.szInfo ||
-           tolower((unsigned char)info.szInfo[0])!='p' || info.szInfo[1]!=(char)('1'+p) ||
-           info.szInfo[2]!=' ' || strcmp(info.szInfo+3,action)!=0)continue;
-        const struct GameInp& binding=GameInp[i];
-        if(binding.nInput!=GIT_SWITCH)return 0;
-        const unsigned code=(unsigned)binding.Input.Switch.nCode;
-        if(code<0x100u){
-            const Uint8* keys=SDL_GetKeyboardState(NULL);
-            const int scan=code<512u?FBKtoSDL[code]:0;
-            return keys && scan>0 && keys[scan]!=0;
-        }
-        if(code>=0x4200u && code<0x8000u)
-            return JoystickState((int)((code-0x4000u)>>8),(int)(code&255u));
-        return 0;
+    if(p>1u)return 0;
+    const int which=strcmp(action,"start")==0?0:strcmp(action,"left")==0?1:2;
+    // Cache stable FBNeo action indices, not mutable keyboard/joystick codes.
+    // Only look up BurnInputInfo once per action, never each input frame.
+    static int slots[2][3]={{-2,-2,-2},{-2,-2,-2}};
+    static unsigned knownCount=0;
+    if(knownCount!=nGameInpCount){
+        knownCount=nGameInpCount;
+        for(unsigned j=0;j<2u;++j)for(unsigned k=0;k<3u;++k)slots[j][k]=-2;
     }
+    int& index=slots[p][which];
+    if(index==-2){
+        index=-1;
+        for(unsigned i=0;i<nGameInpCount;++i){
+            BurnInputInfo info={};
+            if(BurnDrvGetInputInfo(&info,i)!=0 || !info.szInfo ||
+               tolower((unsigned char)info.szInfo[0])!='p' ||
+               info.szInfo[1]!=(char)('1'+p) ||
+               info.szInfo[2]!=' ' || strcmp(info.szInfo+3,action)!=0)continue;
+            index=(int)i;
+            break;
+        }
+    }
+    if(index<0)return 0;
+    const struct GameInp& binding=GameInp[index];
+    if(binding.nInput!=GIT_SWITCH)return 0;
+    const unsigned code=(unsigned)binding.Input.Switch.nCode;
+    if(code<0x100u){
+        const Uint8* keys=SDL_GetKeyboardState(NULL);
+        const int scan=FBKtoSDL[code];
+        return keys && scan>0 && keys[scan]!=0;
+    }
+    if(code>=0x4200u && code<0x8000u)
+        return JoystickState((int)((code-0x4000u)>>8),(int)(code&255u));
     return 0;
 }
 
