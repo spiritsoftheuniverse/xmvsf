@@ -39,8 +39,8 @@ assert "recordContacts(actors,samples,advancePlayer);" in clock
 assert "xm41DrawFrameCard(r,card,e,f);" in (root / "dev/stable/buildtree/src/burner/sdl/xmvsf_stage23_ui.h").read_text(encoding="utf-8")
 assert "recordContacts(actors,samples,advancePlayer);" in clock
 assert "recordContacts(actors,frame,true);" not in clock  # removed global-clock API
-assert "xm258FrameClockTrace(c,sample,actor,logicalBefore," in engine
-assert "xmvsf_frame_clock_258.tsv" in engine
+assert "xm259FrameClockTrace(c,sample,actor,logicalBefore," in engine
+assert "xmvsf_frame_clock_259.tsv" in engine
 assert "t.pendingOriginAction" in engine
 assert "t.pendingOriginMode" in engine
 assert "t.pendingNativeOnly" in engine

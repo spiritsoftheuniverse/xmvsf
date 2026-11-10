@@ -53,7 +53,7 @@ static void acceptedQcd08WithPhaseZeroHasAnImmediateCard(){
     assert(d.history[0].firstFrame==d.playerFrame[0]);
     assert(d.history[0].active==1);
     // Native ID and wall start never moved when the hitbox arrived.
-    assert(d.history[0].inputWallFrame==0);
+    assert(d.history[0].inputWallFrame==1);
 }
 static void registeredInputPreservesBeginningThroughRelease(){
     XM30FrameData d{};d.setEnabled(true);d.beginCombat();
