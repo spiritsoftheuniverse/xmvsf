@@ -28,8 +28,14 @@ assert "const unsigned long long frame=++playerFrame[p];" in clock
 assert "recordContacts(actors,advancePlayer);" in clock
 assert "xm41DrawFrameCard(r,card,e,f.playerFrame[e.player]);" in (root / "dev/stable/buildtree/src/burner/sdl/xmvsf_stage23_ui.h").read_text(encoding="utf-8")
 assert "recordContacts(actors,frame,true);" not in clock  # removed global-clock API
-assert "xm245FrameClockTrace(c,sample,actor,logicalBefore," in engine
-assert "xmvsf_frame_clock_245.tsv" in engine
+assert "xm246FrameClockTrace(c,sample,actor,logicalBefore," in engine
+assert "xmvsf_frame_clock_246.tsv" in engine
 assert "t.pendingOriginAction" in engine
+assert "events_created" in engine
+assert "xm23State.frameData.eventsCreated" in engine
+assert "const bool nativeCandidateAccepted=" in clock
+assert "(meleeRise || projectileRise) && nativeCandidateAccepted" in clock
+assert "t.pendingOriginLeft=false;" in clock
+assert "++eventsCreated;" in clock
 assert "XMVSF_FRAME_TRACE" in engine
-print("XMVSF 87.245 PASS: sampled before paint; per-fighter native clocks and 2E portrait stop")
+print("XMVSF 87.246 PASS: per-fighter native clock, 2E portrait stop and accepted-action gating")
