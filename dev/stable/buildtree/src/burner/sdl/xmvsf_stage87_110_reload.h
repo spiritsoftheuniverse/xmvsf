@@ -20,6 +20,8 @@ static inline void xm87111CheckCameraAfterFrame(bool ready,unsigned frame) {
  cpu->close();
  std::fprintf(stderr,"XM87.111 CAMERA_VERIFY frame=%u stage=%u native_camera=%u expected=%u remaining=%u\n",
     frame,stage,cam,ch.expected,ch.remaining);
+ XM87110::log("CAMERA_VERIFY frame=%u stage=%u native_camera=%u expected=%u remaining=%u",
+    frame,stage,cam,ch.expected,ch.remaining);
  --ch.remaining;
 }
 static inline void xm87114CenterInitialTrainingView(bool ready,unsigned frame){
@@ -152,6 +154,8 @@ static inline bool xm87110RestartAfterFrame(bool ready,unsigned frame){
        frame,stage,phase,ptr,x1,x2);
    }
    cpu->close();
+  }else{
+   XM87110::log("POSITION_REFUSED frame=%u reason=native_cpu_unavailable",frame);
   }
  }
  // Verify all four native identities, not just the on-screen pair.
