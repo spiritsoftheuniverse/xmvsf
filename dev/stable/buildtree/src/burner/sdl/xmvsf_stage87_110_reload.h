@@ -82,7 +82,7 @@ static inline bool xm87110RestartAfterFrame(bool ready,unsigned frame){
  // Load only at the safe post-CPU real-frame boundary.
  const int rc=BurnStateLoad((TCHAR*)loadPath.c_str(),1,NULL);
  if(rc){std::fprintf(stderr,"XM87.111 RESTART_REFUSED frame=%u load_rc=%d\n",frame,rc);return false;}
- bool positioned=selection==XM87110::NORMAL;
+ bool positioned=false;
  {
   cpu_core_config* cpu=GetCpuCoreConfig(0);
   if(cpu && cpu->open && cpu->close && cpu->read && cpu->write){
@@ -95,8 +95,9 @@ static inline bool xm87110RestartAfterFrame(bool ready,unsigned frame){
    const unsigned x2=xm18Read32(cpu,bases[1]+0x0Cu)>>16;
    if(phase==8u && ptr==0x00FF4000u && stage==XM87111::STAGE &&
       XM87102Lab::read8(cpu,bases[0])!=0u && XM87102Lab::read8(cpu,bases[1])!=0u &&
-      x1!=x2 && x1>=XM87111::WORLD_LEFT && x1<=XM87111::WORLD_RIGHT &&
-      x2>=XM87111::WORLD_LEFT && x2<=XM87111::WORLD_RIGHT){
+      // The final LEFT target legitimately puts a fighter at X=46,
+      // outside the older camera-derived 192..768 visibility estimate.
+      x1!=x2 && x1<=XM87111::WORLD_RIGHT && x2<=XM87111::WORLD_RIGHT){
      if(selection==XM87110::NORMAL){
        // The original snapshot is the authoritative DEFAULT fighter position.
        // Only re-center the camera: never move either fighter for NORMAL.
