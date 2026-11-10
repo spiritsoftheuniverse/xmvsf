@@ -113,7 +113,7 @@ static inline bool xm87110RestartAfterFrame(bool ready,unsigned frame){
      // 217/46, Y=472, camera=0 target, never a snapshot-only fallback.
      // Keep each actor and its fractional X. NEVER swap the fighters' data.
      const bool changeFacing=XM87111::flipFacing(selection,x1<x2);
-     const unsigned oldCamera=XM87102Lab::read16(cpu,0xFF524Cu)+XM87111::CAMERA_BIAS;
+     const unsigned oldCamera=XM87111::nativeCameraX(XM87102Lab::read16(cpu,0xFF524Cu));
      const unsigned oldFace1=XM87102Lab::read8(cpu,bases[0]+0x4Bu);
      const unsigned oldFace2=XM87102Lab::read8(cpu,bases[1]+0x4Bu);
      for(unsigned i=0;i<2u;++i){
