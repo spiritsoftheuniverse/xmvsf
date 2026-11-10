@@ -1,8 +1,20 @@
 #ifndef XMVSF_STAGE87_110_RESTART_H
 #define XMVSF_STAGE87_110_RESTART_H
-// Training-only triple Start gesture. All timing is input-edge based; no
-// changes to the ROM's own Start, position switch, or fighter rules.
+// Training-only triple Start gesture. Observe each physical Start edge once
+// per real input frame, independent of FBNeo's game-input query order.
+#include <cstdio>
+#include <cstdarg>
 namespace XM87110 {
+// Event-only diagnostics. RUN_TEST.bat launches with FBNeo as the CWD.
+static inline void log(const char* format,...) {
+ char line[512];
+ va_list args;va_start(args,format);
+ std::vsnprintf(line,sizeof(line),format,args);
+ va_end(args);
+ std::fprintf(stderr,"XM87.268 RELOCATOR %s\n",line);
+ FILE* f=std::fopen("xmvsf_training_relocator.log","a");
+ if(f){std::fprintf(f,"XM87.268 RELOCATOR %s\n",line);std::fclose(f);}
+}
 enum Preset { NONE=0, NORMAL=1, RIGHT=2, LEFT=3 };
 static const unsigned RIGHT_P1_X=568u; // session_20261102_175317_190, settled
 static const unsigned RIGHT_P2_X=725u;
@@ -34,13 +46,15 @@ struct State {
   if(!pressed){t.down=false;return false;}
   if(t.down)return false;
   t.down=true;
-  if(t.count==0 || (unsigned)(now-t.lastMs)>450u || (unsigned)(now-t.firstMs)>1000u){
+  if(t.count==0 || (unsigned)(now-t.lastMs)>750u || (unsigned)(now-t.firstMs)>2200u){
    t.count=1;t.firstMs=now;
   }else ++t.count;
   t.lastMs=now;
+  log("START_EDGE player=%u tap=%u left=%u right=%u ms=%u",player+1,t.count,(unsigned)left,(unsigned)right,now);
   if(t.count<3u)return false;
   pending=(right&&!left)?RIGHT:((left&&!right)?LEFT:NORMAL);
   lastSelection=pending;
+  log("START_TRIGGER player=%u preset=%s",player+1,pending==LEFT?"LEFT":pending==RIGHT?"RIGHT":"NORMAL");
   keys[0].clear();keys[1].clear();
   return true;
  }
