@@ -125,6 +125,71 @@ static void counterFlipAndFollowupWithoutBoxes(){
     assert(f.history[0].attackEnded);
     assert(f.history[1].attackFamily==0x2Cu);
 }
+
+static void whiffedGrabControllerWithoutCollisionStillHasARealCard(){
+    // A ROM-accepted command grab whiff may animate in controller 30,
+    // never reaching successful catch controller 32 or action 2E.
+    XM30FrameData f{};f.setEnabled(true);f.beginCombat();
+    XM30Sample none{};auto b=dummy();
+    auto p=actor(0x3000u,0x0200u,2u,0u,0xAA610u);
+    f.press(0,0x80);f.onFrame(none,none,p,b);
+    assert(f.count==1 && f.eventsCreated==1u);
+    assert(f.history[0].attackFamily==XM30_THROW_FAMILY);
+    assert(f.history[0].noBox && f.history[0].active==0);
+    assert(f.history[0].inputObserved && f.history[0].contactCount==0);
+    const auto wall=f.history[0].inputWallFrame;
+    p.nativeAction=0x0202u;p.animTimer+=1u;
+    f.onFrame(none,none,p,b);
+    assert(f.count==1 && !f.history[0].attackEnded);
+    p=actor(0x3200u,0x020Cu,4u,0u,0xAA620u);
+    f.onFrame(none,none,p,b);
+    assert(f.count==1 && f.history[0].inputWallFrame==wall);
+    p=actor(0x3600u,0x1C00u,0u,0u,0xAA630u);
+    f.onFrame(none,none,p,b);
+    assert(f.count==1 && f.history[0].attackEnded);
+}
+static void whiffedSuperGrabDoesNotDuplicateWhen2EAppears(){
+    XM30FrameData f{};f.setEnabled(true);f.beginCombat();
+    XM30Sample none{};auto b=dummy();
+    auto p=actor(0x2000u,0x0200u,2u,0u,0xAA640u);
+    f.press(0,0x80);f.onFrame(none,none,p,b);
+    assert(f.count==1 && f.history[0].noBox);
+    p=actor(0x2A28u,0x2E00u,2u,0x81u,0xAA641u);
+    f.onFrame(none,none,p,b);
+    assert(f.count==1 && f.eventsCreated==1u);
+    assert(f.history[0].attackFamily==0x2Eu);
+}
+static void passiveWhiffControllersNeverInventCards(){
+    XM30FrameData f{};f.setEnabled(true);f.beginCombat();
+    XM30Sample none{};auto b=dummy();
+    auto p=actor(0x3000u,0x0200u,2u,0u,0xAA650u);
+    f.onFrame(none,none,p,b);
+    assert(f.count==0 && f.eventsCreated==0u);
+    p=actor(0x2000u,0x0202u,4u,0u,0xAA651u);
+    f.onFrame(none,none,p,b);
+    assert(f.count==0);
+}
+static void superVictimHitstopIsVisualNotANativeClockFreeze(){
+    XM30FrameData f{};f.setEnabled(true);f.beginCombat();
+    XM30Sample none{};auto b=dummy();
+    auto p=actor(0x2A28u,0x2E00u,4u,0x80u,0xAA660u);
+    f.onFrame(none,none,p,b);
+    assert(f.count==1 && f.history[0].attackFamily==0x2Eu);
+    const auto earlier=f.playerFrame[0];
+    b.hitStop=5u;
+    p.animTimer+=1u;
+    f.onFrame(none,none,p,b);
+    const auto tick=f.wallTick(0,2);
+    assert(tick.wall==2u && !tick.stopped && tick.opponentHitStop);
+    assert(f.playerFrame[0]==earlier+1u);
+    assert(xm30VisualHeld(tick,f.history[0],2u,tick.native));
+    const XM30Event& e=f.history[0];
+    XM30Event normal=e;normal.attackFamily=0x28u;
+    assert(!xm30VisualHeld(tick,normal,2u,tick.native));
+    XM30WallTick idle=tick;idle.opponentHitStop=false;
+    assert(!xm30VisualHeld(idle,e,2u,tick.native));
+    assert(!xm30VisualHeld(tick,e,2u,e.attackStartFrame-1u));
+}
 int main(){
     portraitPhase81AcrossNativeSubstages();
     stageTwoPhase80StasisMakesRealGrayTime();
@@ -133,6 +198,10 @@ int main(){
     passiveGrabbedFighterNeverGetsAnAttackCard();
     standaloneThrowAndRealChainedThrow();
     counterFlipAndFollowupWithoutBoxes();
-    std::puts("XMVSF 87.259 native portrait/grab/counter/flip coverage PASS");
+    whiffedGrabControllerWithoutCollisionStillHasARealCard();
+    whiffedSuperGrabDoesNotDuplicateWhen2EAppears();
+    passiveWhiffControllersNeverInventCards();
+    superVictimHitstopIsVisualNotANativeClockFreeze();
+    std::puts("XMVSF 87.260 grab whiff and defender hitstop display coverage PASS");
     return 0;
 }

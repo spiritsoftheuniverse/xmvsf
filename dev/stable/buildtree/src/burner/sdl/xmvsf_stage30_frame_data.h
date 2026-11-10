@@ -93,13 +93,18 @@ static inline unsigned xm30NativeAttackFamily(const XM41ActorSample& a){
     const unsigned mode=(a.mode>>8u)&255u;
     const unsigned actionFamily=(a.nativeAction>>8u)&255u;
     if(mode==0x28u)return 0x28u;
-    if(mode==0x32u)return XM30_THROW_FAMILY;
     if(mode==0x2Au || (a.attackPhase&0x80u)!=0u){
-        // During an early command/counter stage the +60 ROM action can
-        // precede the usual 2A controller. The real 2C/2E opcode is proof.
+        // An actual special or super action takes precedence over any
+        // auxiliary controller. Preserve Cammy's proven 2C transitions.
         if(actionFamily==0x2Cu || actionFamily==0x2Eu)
             return actionFamily;
     }
+    // A whiffed native command grab can run its attempt under 20/30
+    // before any successful catch switches to throw controller 32.
+    // The family alone is not enough to CREATE a card: the 87.259
+    // input-backed freshThrow gate remains mandatory for a new root.
+    if(mode==0x20u || mode==0x30u || mode==0x32u)
+        return XM30_THROW_FAMILY;
     return 0u;
 }
 static inline bool xm30SameNativeAttack(const XM41ActorSample& a,
@@ -279,7 +284,27 @@ struct XM30TimelineWrap {
 struct XM30WallTick {
     unsigned long long wall=0,native=0;
     bool stopped=false;
+    bool opponentHitStop=false; // visual evidence, never alters native clock
 };
+// Mark an already-observed 2E card with dark gray while the opposing
+// fighter's native +85 stop is live. The attacker can still run its own
+// native clock during a beam/lightning hit: changing that clock would
+// corrupt measured action duration. Do not gray ordinary attacks,
+// unrelated cards, or time after a super/projectile has ended.
+static inline bool xm30VisualHeld(const XM30WallTick& tick,
+                                   const XM30Event& e,
+                                   unsigned long long wall,
+                                   unsigned long long native){
+    if(!tick.wall)return false;
+    if(tick.stopped)return true;
+    if(!tick.opponentHitStop || e.attackFamily!=0x2Eu ||
+       !e.attackObserved || wall<e.inputWallFrame ||
+       wall>e.lastWallFrame || native<e.attackStartFrame)
+        return false;
+    if(!e.attackEnded || native<=e.attackEndFrame)return true;
+    return e.source==1 && e.projectileBase &&
+           (!e.despawnFrame || native<=e.despawnFrame);
+}
 struct XM30FrameData {
     // Preserve the 120-native-frame ascent to the 40px apex, then
     // squeeze width across SIX native frames while rising one glyph
@@ -324,6 +349,9 @@ struct XM30FrameData {
             XM30WallTick& t=wallTicks[p][wallFrame[p]%WALL_HISTORY];
             t.wall=wallFrame[p];t.native=playerFrame[p];
             t.stopped=!advanced[p];
+            // previousHitStop[] has the CURRENT sampled +85 values.
+            // Keep the opponent's stop for the card renderer only.
+            t.opponentHitStop=previousHitStop[1-p]!=0u;
         }
         for(int i=0;i<count;++i){
             XM30Event& e=history[i];

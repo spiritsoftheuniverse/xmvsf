@@ -100,4 +100,4 @@ assert "XM32_QCD" in clock
 assert "++wallFrame[0];++wallFrame[1];" in clock
 assert "recordWallTicks(advancePlayer);" in clock
 assert "e.contactWallFrames" in clock
-print("XMVSF 87.259 PASS: independent native clocks, combo HP fallback, actual box duration and opt-in diagnostics")
+print("XMVSF 87.260 PASS: independent native clocks, combo HP fallback, actual box duration and opt-in diagnostics")

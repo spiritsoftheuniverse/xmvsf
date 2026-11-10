@@ -487,12 +487,13 @@ static inline void xm41DrawFrameCard(SDL_Renderer* r,const SDL_Rect& card,
             const XM30WallTick sample=f.wallTick(e.player,at);
             const unsigned long long native=sample.wall?sample.native:
                  e.inputFrame+(at-startWall);
-            const bool held=sample.wall && sample.stopped;
+            const bool held=xm30VisualHeld(sample,e,at,native);
             const int x=x0+(int)(at-base);
             Uint8 red=113,green=133,blue=160;
             if(held){
-                // A darker gray tick occupies EACH held host sample,
-                // including the cinematic phase before portrait release.
+                // Show both the owner's true held native samples and
+                // opponent hit-stop during its accepted super. The latter
+                // never freezes or rewrites the attacker's native frame clock.
                 red=43;green=48;blue=57;
             }else if(!e.noBox && native>=e.firstFrame &&
                      native<=activeEnd){
