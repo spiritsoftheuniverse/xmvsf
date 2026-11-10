@@ -33,6 +33,21 @@ The completed `logo_II.png` alpha bounds are unioned with `logo.png`'s visible b
 - The bottom live-button highlighting strip remains removed. Windows gameplay input init skips its former up-to-600ms joystick wait because the menu already initialized SDL devices. UI page navigation additionally uses a 20ms post-release settle instead of 80ms; the separate gameplay handoff gate is untouched to prevent leaked confirms.
 - Cold-boot announcer WAV now starts at t=0 (next to crash) **before the first logo frame at t=1.0**; this provides one second of audio preroll for the spoken phrase. The WAV itself is not trimmed, retimed, or sped up; audible syllable alignment requires a Windows listening check.
 
+## TEST 87.246: 87.245 trace proves recurrent super-card creation during live 2E
+
+Inspected the uploaded `xmvsf_frame_clock_245.tsv` (2,400 read-only host samples) and accompanying `87.235(1).zip` (native DHC, menu and battle observer captures, no newer frame-data regression log). The new independent P1/P2 clocks **behave correctly on the captured super**: at host samples **1329–1373**, 45 native `2E00` stage `02`, phase `81` cinematic samples advance neither fighter; later the P1 super progresses while P2's +85 remains loaded. 37 first-hit normal samples advance the owning fighter once at +85 onset, while all subsequent nonzero +85 countdown samples freeze that fighter's own logical clock.
+
+A distinct, reproducible **event-identity bug remains** in 87.245. Within ONE uninterrupted `2E00`, native stage `04` super, P1's last-card contact count drops to zero at host **1397 and 1428** even though P1's family, action, phase and stage never changed. P1's pending attack at each reset still reports `pending_family=00`, `pending_origin_family=2E`. The pending button edge was not accepted by the ROM; it was merely seen while the old super was running. The prior event constructor nevertheless allowed a new projectile-box edge to create a new card. Since the frame-data history is capped at 24 rows, the trace's `events` column remains 24 and concealed those extra creations. In that same uninterrupted super the defender loses HP **14 times**. A correct super record should retain all corresponding red contact ticks on the SAME card rather than restarting its duration on each projectile appearance.
+
+Fixed source:
+- A second attack input made while an older native family is still in progress cannot steal any newly linked projectile/hitbox merely because the projectile object changes. Require `pendingAttackFamily` to identify a **new ROM-accepted action**, except for the existing legacy first-attack case with no previous live native family.
+- Track when an old action actually exits (`pendingOriginLeft`), so back-to-back actions using the same action ID are still recognized if they truly restart.
+- If an input never became a newly accepted native attack, discard it on timeout instead of producing a false `NO BOX` card.
+- A monotonic `eventsCreated` counter now complements the fixed 24-row history and is exported in opt-in `xmvsf_frame_clock_246.tsv`. The next run can prove whether cards were incorrectly created even once the history ring is full.
+- Added `test_frame_data_super_identity_246.cpp` to the local build suite: repeated inputs, disappearing/reappearing projectile boxes with new native bases, 14 hit confirmations on one super, timeout of a rejected input, and a separate legitimate new super after the previous native attack exits. Retained all earlier hit-clock, combo, asymmetric-stop and pre-paint tests.
+
+Source integration validation and braces are checked; local native Windows compile and gameplay of TEST 87.246 are **not** verified. No GitHub Actions or Stable changes.
+
 ## TEST 87.245 ROM trace: independent attacker/defender clocks and the missing portrait-freeze gate
 
 The user supplied `xmvsf_frame_clock_243.tsv` (2047 chronological native samples, host indices 31–2201). The trace resolves the prior contradictory fixes: the previous single Training `frame` counter *both* advanced through a super cinematic *and* remained frozen throughout a live super's attack because it treated the defender's +85 hit-stop as a universal game pause.
