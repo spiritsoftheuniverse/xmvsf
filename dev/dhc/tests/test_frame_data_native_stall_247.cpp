@@ -2,6 +2,7 @@
 // +85 can be zero during 43-44 idle animation samples of BOTH 2C36
 // (phase81) and 2C12 (phase80), not only during 2E super portraits.
 // Native move acceptance can also be observed without a mapped input edge.
+#include <algorithm>
 #include <cassert>
 #include <cstdio>
 #include <cstdint>
