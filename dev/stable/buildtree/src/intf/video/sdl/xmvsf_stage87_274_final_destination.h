@@ -7,6 +7,7 @@
 #include <SDL.h>
 #include <SDL_image.h>
 #include <algorithm>
+#include <cstdlib> // std::abs
 #include <cstdint>
 #include <cstdio>
 #include <string>
