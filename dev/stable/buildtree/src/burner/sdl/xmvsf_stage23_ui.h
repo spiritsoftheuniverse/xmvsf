@@ -239,7 +239,7 @@ static inline void xm257PollTrainingMenu(bool training){
        (p.joystick && !SDL_JoystickGetAttached(p.joystick))){
         p.lastProbeAt=now ? now : 1;
         XM13_Settings settings{};xm13Load(&settings);
-        const int id=xm13FindDevice(&settings.player[0]);
+        const int id=xm248FindAssignedDevice(&settings,0);
         deviceChanged=xm248ReconcileMenuPad(id,p.joystick,p.controller,p.instance);
     }
     if(!p.joystick || !SDL_JoystickGetAttached(p.joystick)){
