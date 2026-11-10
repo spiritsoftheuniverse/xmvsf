@@ -728,7 +728,13 @@ int SDLinpState(int nCode)
         if (xm17BlockSlot(p)) return 0; // XMVSF_STAGE17_AUTO P2 waits for P1 team
         const int xm14Source=xm14ReadControllerFor(p);
         if (xm14Source<0) return xm15SyntheticButton(p,nCode&0xff);
-        if(xm13Config.player[xm14Source].active) {
+        // The menu-selected Xbox/DS4Windows pad is a real P1 owner even
+        // when the saved controller map is inactive. The old saved-only
+        // check returned synthetic 0 for EVERY CPS2 control, so all menu
+        // buttons worked while Arcade received absolutely nothing.
+        if(XM249Policy::needsVirtualMap(
+               xm13Config.player[xm14Source].active!=0,
+               xm249SessionPad[xm14Source].selected)) {
             if(ReadJoystick()!=0) return 0;
             // Read-only route evidence: distinguish a saved assignment
             // not found from an enumerated-but-not-ready device. Emit only
@@ -749,6 +755,20 @@ int SDLinpState(int nCode)
                     lastRoute[xm14Source]=route;
                     lastLive[xm14Source]=(int)live;
                     lastInstance[xm14Source]=id;
+                }
+            }
+            if(xm249SessionPad[xm14Source].selected) {
+                static SDL_JoystickID reported[2]={-1,-1};
+                const int d=xm249FindSessionDevice(xm14Source);
+                const SDL_JoystickID id=d>=0?SDL_JoystickGetDeviceInstanceID(d):-1;
+                if(reported[xm14Source]!=id) {
+                    reported[xm14Source]=id;
+                    fprintf(stderr,
+                        "XM87.249 PAD_GAME_OWNER p=%d device=%d instance=%d attached=%d profile=%d\\n",
+                        xm14Source+1,d,(int)id,
+                        d>=0 && d<nJoystickCount && JoyList[d] &&
+                        SDL_JoystickGetAttached(JoyList[d])?1:0,
+                        xm13Config.player[xm14Source].active?1:0);
                 }
             }
             const int xm15Sub=nCode&0xff;
