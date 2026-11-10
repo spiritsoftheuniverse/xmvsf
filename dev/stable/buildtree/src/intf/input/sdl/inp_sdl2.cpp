@@ -650,7 +650,7 @@ static int xm87110ReadBoundAction(unsigned p,const char* action){
         const int scan=FBKtoSDL[code];
         return keys && scan>0 && keys[scan]!=0;
     }
-    if(code>=0x4200u && code<0x8000u)
+    if(code>=0x4000u && code<0x8000u)
         return JoystickState((int)((code-0x4000u)>>8),(int)(code&255u));
     return 0;
 }
@@ -658,6 +658,11 @@ static int xm87110ReadBoundAction(unsigned p,const char* action){
 // Call before checking for Input in a frame
 int SDLinpStart()
 {
+    // Preserve input-edge observability even if the combat gate is closed.
+    // Only rising edges and state transitions are logged (no frame spam).
+    static bool relocatorMonitorOn=false;
+    static bool relocatorPrevStart[2]={false,false};
+    static int relocatorPrevEnabled=-1;
 	// Update SDL event queue
 	SDL_PumpEvents();
     SDLinpRecheckJoysticks(); // bounded hotplug detection and HID retries
@@ -674,8 +679,18 @@ int SDLinpStart()
     // isn't obliged to query for every input route. Missing that query
     // made triple Start silently do nothing while ordinary controls worked.
     if(bDrvOkay && xm14TrainingMode && !bBurnRunAheadFrame){
+        if(!relocatorMonitorOn){
+            XM87110::log("INPUT_MONITOR_ON training=1 driver_ready=1");
+            relocatorMonitorOn=true;
+        }
         xm13RefreshMapping();
         const bool enabled=(xm18Position.combat || xm23State.combat) && !xm23State.menuOpen;
+        if(relocatorPrevEnabled!=(int)enabled){
+            XM87110::log("INPUT_GATE enabled=%u combat18=%u combat23=%u menu=%u",
+                (unsigned)enabled,(unsigned)xm18Position.combat,
+                (unsigned)xm23State.combat,(unsigned)xm23State.menuOpen);
+            relocatorPrevEnabled=(int)enabled;
+        }
         const unsigned now=(unsigned)SDL_GetTicks();
         for(unsigned p=0;p<2u;++p){
             const bool virtualMap=XM249Policy::needsVirtualMap(
@@ -690,11 +705,20 @@ int SDLinpStart()
             const int right=virtualMap?
                 xm13ReadInput(&xm13Config,(int)p,1,JoyList,GCList,nJoystickCount):
                 xm87110ReadBoundAction(p,"right");
-            XM87110::state().observe(p,start>0,left>0,right>0,now,enabled);
+            const bool pressed=start>0;
+            if(pressed && !relocatorPrevStart[p])
+                XM87110::log("INPUT_RISE player=%u route=%s enabled=%u left=%u right=%u ms=%u",
+                    p+1,virtualMap?"PROFILE_OR_MENU":"FBNEO_BOUND",
+                    (unsigned)enabled,(unsigned)(left>0),(unsigned)(right>0),now);
+            relocatorPrevStart[p]=pressed;
+            XM87110::state().observe(p,pressed,left>0,right>0,now,enabled);
             if(XM87110::state().pending!=XM87110::NONE)break;
         }
     } else if(!xm14TrainingMode){
         XM87110::state().reset();
+        relocatorMonitorOn=false;
+        relocatorPrevEnabled=-1;
+        relocatorPrevStart[0]=relocatorPrevStart[1]=false;
     }
 
 	// Keyboard not read this frame
