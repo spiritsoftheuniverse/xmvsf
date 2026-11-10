@@ -19,10 +19,12 @@ static inline void log(const char* format,...) {
  if(f){std::fprintf(f,"XM87.270 RELOCATOR %s\n",line);std::fclose(f);}
 }
 enum Preset { NONE=0, NORMAL=1, RIGHT=2, LEFT=3 };
-static const unsigned RIGHT_P1_X=568u; // session_20261102_175317_190, settled
-static const unsigned RIGHT_P2_X=725u;
-static const unsigned LEFT_P1_X=217u; // final 2026-11-03 native capture
-static const unsigned LEFT_P2_X=46u;
+// TEST 87.271: the two taunt markers in 87.270's side-switch record.
+// Source of truth for placement is XM87111::fighterX() in the corner header.
+static const unsigned RIGHT_P1_X=689u;
+static const unsigned RIGHT_P2_X=747u;
+static const unsigned LEFT_P1_X=79u;
+static const unsigned LEFT_P2_X=21u;
 static inline unsigned targetX(unsigned preset,unsigned fighter){
  return preset==LEFT ? (fighter==0?LEFT_P1_X:LEFT_P2_X)
                      : (fighter==0?RIGHT_P1_X:RIGHT_P2_X);
