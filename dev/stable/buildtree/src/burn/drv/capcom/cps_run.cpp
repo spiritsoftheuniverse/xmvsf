@@ -684,7 +684,7 @@ INT32 Cps2Frame()
        XM87144::state().cinematicFreezeTest)
         XM87144::state().cinematicFreeze.beforeCPU(
             CpsRamFF,unsigned(XM87144::state().phase[0]));
-    // XM87.95 Tournament-only native dizzy initializer AND per-frame state handler bypass.
+    // XM87.262: Version-4-only dizzy initializer and native state handler; Tournament does not affect this patch.
     XM8795Native::state().before(CpsCode,(unsigned)nCpsCodeLen,
         BurnDrvGetTextA(DRV_NAME),(unsigned)GetCurrentFrame(),
         xm262V4,
@@ -701,8 +701,8 @@ INT32 Cps2Frame()
         xm262V4,
         xm262V4,
         XM8795Native::state().installed,XM8796Native::state().installed);
-    // Tournament is not just a menu label: verify which actual native
-    // patches and latest grounded-flight rules are enabled at runtime.
+    // Version 4's native installation is audited independently of the
+    // Tournament knockdown-only selection.
     // Read-only; do not bypass any original-ROM signature verification.
     if(!bBurnRunAheadFrame)
         XM87149Rules::state().frame((unsigned)GetCurrentFrame(),
@@ -711,7 +711,7 @@ INT32 Cps2Frame()
             XM8795Native::state().installed,
             XM8796Native::state().installed,
             XM8799Ground::state().installed);
-    // XM87.125: only active when verified native dizzy patches are installed.
+    // XM87.125: Version 4 only; requires verified native dizzy patch ownership.
     XM87125Stun::state().before(CpsRamFF,(unsigned)GetCurrentFrame(),
         xm262V4 &&
         XM8795Native::state().installed && XM8796Native::state().installed);
