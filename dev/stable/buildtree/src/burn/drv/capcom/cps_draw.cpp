@@ -534,7 +534,7 @@ static void xm8657BeginNativeGrade(){
     // except during ROM-native full-screen effects. Keep their original white
     // for the flash classifier in BOTH normal and Double Feature modes.
     // Fighter-specific monochrome, HUD and FX palette arrays remain unchanged.
-    const bool wilyNativeUnmodifiedBg=(xm77StageResolved==1 &&
+    const bool wilyNativeUnmodifiedBg=((xm77StageResolved==1 || xm77StageResolved==2) &&
              xm8649Visual.sceneActive && xm8649Visual.stage==5);
     static bool reportedWilyNativeBg=false;
     if(wilyNativeUnmodifiedBg && !reportedWilyNativeBg){
