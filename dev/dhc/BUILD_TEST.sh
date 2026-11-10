@@ -340,6 +340,10 @@ run_cached_unit \
 run_cached_unit \
   "$PROJECT/dev/dhc/tests/test_frame_data_native_stall_247.cpp" \
   "$CACHE_DIR/unit_tests/test_frame_data_native_stall_247.exe"
+# TEST 87.249: Xbox/DS4Windows boot controller is an explicit P1 source.
+run_cached_unit \
+  "$PROJECT/dev/dhc/tests/test_controller_session_249.cpp" \
+  "$CACHE_DIR/unit_tests/test_controller_session_249.exe"
 run_cached_unit \
   "$PROJECT/dev/dhc/tests/test_stun_horizontal_240.cpp" \
   "$CACHE_DIR/unit_tests/test_stun_horizontal_240.exe"
@@ -397,6 +401,15 @@ elif command -v python >/dev/null 2>&1; then
   python "$PROJECT/dev/dhc/tests/test_controller_reconnect_248.py"
 else
   echo "WARNING: 87.248 controller reconnection source test skipped (Python unavailable)." >&2
+fi
+# TEST 87.249: ensure menu-confirmed controller virtual routing remains
+# active even when the user's saved P1 profile is unassigned.
+if command -v python3 >/dev/null 2>&1; then
+  python3 "$PROJECT/dev/dhc/tests/test_controller_session_249.py"
+elif command -v python >/dev/null 2>&1; then
+  python "$PROJECT/dev/dhc/tests/test_controller_session_249.py"
+else
+  echo "WARNING: 87.249 controller session integration check skipped (no Python)." >&2
 fi
 echo "BUILD PHASE full_regression_end duration_seconds=$((SECONDS-BUILD_TESTS_START))"
 # Preserve warm cache and anything already built on failures. Never run make clean.
