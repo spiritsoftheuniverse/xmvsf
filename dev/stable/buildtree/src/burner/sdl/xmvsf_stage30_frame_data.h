@@ -490,6 +490,12 @@ struct XM30FrameData {
             const unsigned health=actors[victim].health;
             const bool damaged=healthSeeded[victim] &&
                                health<previousHealth[victim];
+            // When Training pins HP at 1, a successful hit cannot lower
+            // the health counter. Only THEN can independent combo/+85
+            // evidence substitute for HP loss. While HP can still fall,
+            // +85 reloads and delayed combo updates are not new hits.
+            const bool healthPinned=healthSeeded[victim] &&
+                                    health==1u && previousHealth[victim]==1u;
             previousHealth[victim]=health;healthSeeded[victim]=true;
             const int attacker=1-victim;
             const unsigned family=xm30NativeAttackFamily(actors[attacker]);
@@ -523,14 +529,14 @@ struct XM30FrameData {
                 xm30NativeAttackFamily(actors[victim])!=0u &&
                 (samples[victim].melee.active ||
                  samples[victim].projectile.active);
-            const bool comboProof=offense &&
+            const bool comboProof=healthPinned && offense &&
                 (comboRise[attacker] ||
                  (comboRise[victim] && !victimOffense));
-            const bool reloadProof=offense && stopReload[victim] &&
-                (observedBox || liveOwned);
-            // HP changes still have priority. A combo increment or a
-            // defender's actual +85 reload proves an impact at HP=1.
-            // Rising +85 during a boxless cinematic is NOT a hit.
+            const bool reloadProof=healthPinned && offense &&
+                stopReload[victim] && (observedBox || liveOwned);
+            // HP loss is authoritative when measurable. Combo/+85 are
+            // bounded fallback evidence ONLY at the proven HP=1 floor;
+            // a counter reload with HP>1 never invents another red tick.
             if(!damaged && !comboProof && !reloadProof)continue;
             if(damaged)++hpContactProofs[attacker];
             else if(comboProof)++comboContactProofs[attacker];

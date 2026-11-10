@@ -38,8 +38,8 @@ assert "recordContacts(actors,samples,advancePlayer);" in clock
 assert "xm41DrawFrameCard(r,card,e,f);" in (root / "dev/stable/buildtree/src/burner/sdl/xmvsf_stage23_ui.h").read_text(encoding="utf-8")
 assert "recordContacts(actors,samples,advancePlayer);" in clock
 assert "recordContacts(actors,frame,true);" not in clock  # removed global-clock API
-assert "xm254FrameClockTrace(c,sample,actor,logicalBefore," in engine
-assert "xmvsf_frame_clock_254.tsv" in engine
+assert "xm255FrameClockTrace(c,sample,actor,logicalBefore," in engine
+assert "xmvsf_frame_clock_255.tsv" in engine
 assert "t.pendingOriginAction" in engine
 assert "t.pendingOriginMode" in engine
 assert "t.pendingNativeOnly" in engine
@@ -99,4 +99,18 @@ assert "XM32_QCD" in clock
 assert "++wallFrame[0];++wallFrame[1];" in clock
 assert "recordWallTicks(advancePlayer);" in clock
 assert "e.contactWallFrames" in clock
-print("XMVSF 87.254 PASS: independent native clocks, combo HP fallback, actual box duration and opt-in diagnostics")
+# 87.255: no inferred hit confirmation while defender HP can still
+# fall; counter reloads cannot fabricate a new red tick before HP=1.
+assert "const bool healthPinned=" in clock
+assert "const bool comboProof=healthPinned && offense &&" in clock
+assert "const bool reloadProof=healthPinned && offense &&" in clock
+# The local release gate executes all C++ and Python regressions before
+# the native build, reporting every failure in the same BUILD_TEST.log.
+build_script = (root / "dev/dhc/BUILD_TEST.sh").read_text(encoding="utf-8")
+assert "REGRESSION_FAILURES=()" in build_script
+assert "run_required_python(){" in build_script
+assert "test_frame_data_hit_proof_gate_255.cpp" in build_script
+assert "REGRESSION SUMMARY:" in build_script
+assert "Native build and TEST publishing blocked" in build_script
+assert build_script.index("REGRESSION SUMMARY:") < build_script.index('cd "$TREE"')
+print("XMVSF 87.255 PASS: independent native clocks, combo HP fallback, actual box duration and opt-in diagnostics")

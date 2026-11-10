@@ -22,12 +22,12 @@ if ! command -v tee >/dev/null; then
   exit 2
 fi
 exec > >(tee -a "$LOG_FILE") 2>&1
-printf '\n========== XMVSF TEST 87.254 BUILD BEGIN %s ==========' "$(date '+%Y-%m-%d %H:%M:%S')"
+printf '\n========== XMVSF TEST 87.255 BUILD BEGIN %s ==========' "$(date '+%Y-%m-%d %H:%M:%S')"
 printf '\nProject: %s\nLog: %s\n' "$PROJECT" "$LOG_FILE"
 trap 'rc=$?; trap - EXIT; printf "XMVSF BUILD END rc=%s elapsed_seconds=%s time=%s log=%s\n" "$rc" "$((SECONDS-BUILD_WALL_START))" "$(date "+%Y-%m-%d %H:%M:%S")" "$LOG_FILE"; exit "$rc"' EXIT
 
 TREE="$PROJECT/dev/stable/buildtree"
-DEST="$PROJECT/runtime/stable/XMVSF_Test_87_254.exe"
+DEST="$PROJECT/runtime/stable/XMVSF_Test_87_255.exe"
 PENDING="$PROJECT/runtime/stable/.XMVSF_Test_87_236_pending.exe"
 # Machine-local cache: never stored in Git and never mutates Stable.
 CACHE_DIR="$PROJECT/test/build_cache"
@@ -236,23 +236,71 @@ echo "BUILD PHASE full_regression_start elapsed_seconds=$((SECONDS-BUILD_WALL_ST
 # Each ROM-free test also retains an executable AND compiler-produced .d.
 # It is recompiled only when its own source, transitive project headers,
 # or the toolchain signature actually changed.
+# The TEST build is a release gate, not a debugger's first-error stop.
+# Run EVERY cached C++ unit and required Python integration check, collect
+# all failures, and prohibit native compile/publish unless the entire suite
+# succeeds. Existing Stable and previous TEST binaries are not touched.
+REGRESSION_FAILURES=()
+REGRESSION_PASSES=0
 run_cached_unit(){
-  local source="$1" output="$2"
+  local source="$1" output="$2" rc=0
   local args=(-s -f "$PROJECT/dev/dhc/unit_test_cache.mk"
     "UNIT_SOURCE=$source" "UNIT_OUTPUT=$output"
     "UNIT_SIGNATURE=$SIGNATURE"
     "UNIT_INCLUDE_CAPCOM=$TREE/src/burn/drv/capcom"
     "UNIT_INCLUDE_SDL=$TREE/src/burner/sdl")
   mkdir -p "$(dirname "$output")"
+  echo "REGRESSION CHECK: $(basename "$source")"
   if [[ ! -s "$output.d" ]]; then
     echo "UNIT CACHE: first dependency scan for $(basename "$output")."
-    # -W applies to this ONE tiny test source for .d bootstrap,
-    # NEVER to the seven native translation units.
-    make "${args[@]}" -W "$source" unit
+    if make "${args[@]}" -W "$source" unit; then
+      :
+    else
+      rc=$?
+    fi
   else
-    make "${args[@]}" unit
+    if make "${args[@]}" unit; then
+      :
+    else
+      rc=$?
+    fi
   fi
-  "$output"
+  if (( rc != 0 )); then
+    REGRESSION_FAILURES+=("COMPILE $(basename "$source") rc=$rc")
+    echo "REGRESSION FAIL: compile $(basename "$source") rc=$rc" >&2
+    return 0
+  fi
+  if "$output"; then
+    ((REGRESSION_PASSES+=1))
+    echo "REGRESSION PASS: $(basename "$source")"
+  else
+    rc=$?
+    REGRESSION_FAILURES+=("RUN $(basename "$source") rc=$rc")
+    echo "REGRESSION FAIL: run $(basename "$source") rc=$rc" >&2
+  fi
+  return 0
+}
+run_required_python(){
+  local script="$1" py="" rc=0
+  if command -v python3 >/dev/null 2>&1; then
+    py=python3
+  elif command -v python >/dev/null 2>&1; then
+    py=python
+  else
+    REGRESSION_FAILURES+=("PYTHON MISSING $(basename "$script")")
+    echo "REGRESSION FAIL: Python interpreter missing for $(basename "$script")" >&2
+    return 0
+  fi
+  echo "REGRESSION CHECK: $(basename "$script")"
+  if "$py" "$script"; then
+    ((REGRESSION_PASSES+=1))
+    echo "REGRESSION PASS: $(basename "$script")"
+  else
+    rc=$?
+    REGRESSION_FAILURES+=("PYTHON $(basename "$script") rc=$rc")
+    echo "REGRESSION FAIL: Python $(basename "$script") rc=$rc" >&2
+  fi
+  return 0
 }
 run_cached_unit \
   "$PROJECT/dev/dhc/tests/test_dhc_air_followup_rebound_202.cpp" \
@@ -312,67 +360,72 @@ run_cached_unit \
 run_cached_unit \
   "$PROJECT/dev/dhc/tests/test_fs_airborne_offscreen_entry_233.cpp" \
   "$CACHE_DIR/unit_tests/test_fs_airborne_offscreen_entry_233.exe"
-# TEST 87.254: native attack duration stays live across hit-confirm
+# TEST 87.255: native attack duration stays live across hit-confirm
 # ticks; both player meters resume after hitstop; native stun gradient
 # is horizontal in ten equal-value bands at 50/60 capacity.
 run_cached_unit \
   "$PROJECT/dev/dhc/tests/test_frame_data_hit_clock_240.cpp" \
   "$CACHE_DIR/unit_tests/test_frame_data_hit_clock_240.exe"
-# TEST 87.254: a new native attack selector may be accepted while
+# TEST 87.255: a new native attack selector may be accepted while
 # box70/72 remains high through a combo; it must create a separate card.
 run_cached_unit \
   "$PROJECT/dev/dhc/tests/test_frame_data_combo_244.cpp" \
   "$CACHE_DIR/unit_tests/test_frame_data_combo_244.exe"
-# TEST 87.254: real 87.243 native trace reproducer - 43 callbacks of
+# TEST 87.255: real 87.243 native trace reproducer - 43 callbacks of
 # 2E stage02 phase81 cinematic, then 52 native 2E stage04 steps while
 # defender +85 reloads; attacker must not be globally stopped.
 run_cached_unit \
   "$PROJECT/dev/dhc/tests/test_frame_data_asymmetric_stop_245.cpp" \
   "$CACHE_DIR/unit_tests/test_frame_data_asymmetric_stop_245.exe"
-# TEST 87.254: the exact 87.254 trace defect - an accepted ongoing
+# TEST 87.255: the exact 87.255 trace defect - an accepted ongoing
 # 2E super must never produce a second card because a button was pressed
 # and the beam's linked projectile changed at host 1397 / 1428.
 run_cached_unit \
   "$PROJECT/dev/dhc/tests/test_frame_data_super_identity_246.cpp" \
   "$CACHE_DIR/unit_tests/test_frame_data_super_identity_246.exe"
-# TEST 87.254: special 2C36 / 2C12 native 44F animation holds,
+# TEST 87.255: special 2C36 / 2C12 native 44F animation holds,
 # independent fighter movement and native-only combo acquisition.
 run_cached_unit \
   "$PROJECT/dev/dhc/tests/test_frame_data_native_stall_247.cpp" \
   "$CACHE_DIR/unit_tests/test_frame_data_native_stall_247.exe"
-# TEST 87.254: missing-box confirmed combo hit, later 2C stage04
+# TEST 87.255: missing-box confirmed combo hit, later 2C stage04
 # 44F stasis and stale melee boxes that outlive native action exit.
 run_cached_unit \
   "$PROJECT/dev/dhc/tests/test_frame_data_combo_stasis_250.cpp" \
   "$CACHE_DIR/unit_tests/test_frame_data_combo_stasis_250.exe"
-# TEST 87.254: delayed Cyclops 2E beam, overwritten input protection,
+# TEST 87.255: delayed Cyclops 2E beam, overwritten input protection,
 # linked-projectile damage fallback and old-projectile attribution guard.
 run_cached_unit \
   "$PROJECT/dev/dhc/tests/test_frame_data_projectile_super_251.cpp" \
   "$CACHE_DIR/unit_tests/test_frame_data_projectile_super_251.exe"
-# TEST 87.254: normalize linked-2E supers, aimed beams, post-exit
+# TEST 87.255: normalize linked-2E supers, aimed beams, post-exit
 # projectile hits, Ken-style melee contacts and early frozen red ticks.
 run_cached_unit \
   "$PROJECT/dev/dhc/tests/test_frame_data_super_universal_252.cpp" \
   "$CACHE_DIR/unit_tests/test_frame_data_super_universal_252.exe"
-# TEST 87.254: QCD+PP command, min-HP red hit proofs and a display
+# TEST 87.255: QCD+PP command, min-HP red hit proofs and a display
 # axis that darkens the hitstop ticks on BOTH frame-data lanes.
 run_cached_unit \
   "$PROJECT/dev/dhc/tests/test_frame_data_hitstop_visual_253.cpp" \
   "$CACHE_DIR/unit_tests/test_frame_data_hitstop_visual_253.exe"
-# TEST 87.254: immediate ROM-accepted super cards (including QCD 2E08),
+# TEST 87.255: immediate ROM-accepted super cards (including QCD 2E08),
 # fixed 1px/tick overflow rows, no portrait delay or old card rescaling.
 run_cached_unit \
   "$PROJECT/dev/dhc/tests/test_frame_data_native_entry_wrap_254.cpp" \
   "$CACHE_DIR/unit_tests/test_frame_data_native_entry_wrap_254.exe"
-# TEST 87.254: Xbox/DS4Windows boot controller is an explicit P1 source.
+# TEST 87.255: HP=1-only combo/+85 hit-proof fallback; repeated
+# hitstop reloads above that floor never fabricate additional red ticks.
+run_cached_unit \
+  "$PROJECT/dev/dhc/tests/test_frame_data_hit_proof_gate_255.cpp" \
+  "$CACHE_DIR/unit_tests/test_frame_data_hit_proof_gate_255.exe"
+# TEST 87.255: Xbox/DS4Windows boot controller is an explicit P1 source.
 run_cached_unit \
   "$PROJECT/dev/dhc/tests/test_controller_session_249.cpp" \
   "$CACHE_DIR/unit_tests/test_controller_session_249.exe"
 run_cached_unit \
   "$PROJECT/dev/dhc/tests/test_stun_horizontal_240.cpp" \
   "$CACHE_DIR/unit_tests/test_stun_horizontal_240.exe"
-# 87.254: real native-clock super freeze and long 2E super attack-phase
+# 87.255: real native-clock super freeze and long 2E super attack-phase
 # continuity, with normal and projectile non-regression.
 run_cached_unit \
   "$PROJECT/dev/dhc/tests/test_frame_data_super_clock_239.cpp" \
@@ -393,53 +446,35 @@ run_cached_unit \
   "$PROJECT/dev/dhc/tests/test_menu_intro_timeline_235.cpp" \
   "$CACHE_DIR/unit_tests/test_menu_intro_timeline_235.exe"
 # 87.235: confirm actual integration with authored repo WAVs and input gate.
-if command -v python3 >/dev/null 2>&1; then
-  python3 "$PROJECT/dev/dhc/tests/test_menu_intro_integration_235.py"
-elif command -v python >/dev/null 2>&1; then
-  python "$PROJECT/dev/dhc/tests/test_menu_intro_integration_235.py"
-else
-  echo "WARNING: 87.235 cold boot source test skipped (Python unavailable)." >&2
-fi
+run_required_python "$PROJECT/dev/dhc/tests/test_menu_intro_integration_235.py"
 # 87.235: source-level regression of the exact native SDL call order.
 # No GPU/ROM or test executable required; run before native compile.
-if command -v python3 >/dev/null 2>&1; then
-  python3 "$PROJECT/dev/dhc/tests/test_boot_renderer_viewport_234.py"
-elif command -v python >/dev/null 2>&1; then
-  python "$PROJECT/dev/dhc/tests/test_boot_renderer_viewport_234.py"
-else
-  echo "WARNING: 87.235 centered boot viewport source test skipped (Python unavailable)." >&2
-fi
-# TEST 87.254: source integration prevents a repeat of the one-frame
+run_required_python "$PROJECT/dev/dhc/tests/test_boot_renderer_viewport_234.py"
+# TEST 87.255: source integration prevents a repeat of the one-frame
 # overlay lag or counting frozen +85 host ticks as gameplay steps.
-if command -v python3 >/dev/null 2>&1; then
-  python3 "$PROJECT/dev/dhc/tests/test_frame_data_paint_order_243.py"
-elif command -v python >/dev/null 2>&1; then
-  python "$PROJECT/dev/dhc/tests/test_frame_data_paint_order_243.py"
-else
-  echo "WARNING: 87.254 frame-data source timing regression skipped (Python unavailable)." >&2
-fi
-# TEST 87.254: prevent one-time controller enumeration, stale SDL
+run_required_python "$PROJECT/dev/dhc/tests/test_frame_data_paint_order_243.py"
+# TEST 87.255: prevent one-time controller enumeration, stale SDL
 # instance handles and infinite menu-confirm lockout from regressing.
-if command -v python3 >/dev/null 2>&1; then
-  python3 "$PROJECT/dev/dhc/tests/test_controller_reconnect_248.py"
-elif command -v python >/dev/null 2>&1; then
-  python "$PROJECT/dev/dhc/tests/test_controller_reconnect_248.py"
-else
-  echo "WARNING: 87.254 controller reconnection source test skipped (Python unavailable)." >&2
-fi
-# TEST 87.254: ensure menu-confirmed controller virtual routing remains
+run_required_python "$PROJECT/dev/dhc/tests/test_controller_reconnect_248.py"
+# TEST 87.255: ensure menu-confirmed controller virtual routing remains
 # active even when the user's saved P1 profile is unassigned.
-if command -v python3 >/dev/null 2>&1; then
-  python3 "$PROJECT/dev/dhc/tests/test_controller_session_249.py"
-elif command -v python >/dev/null 2>&1; then
-  python "$PROJECT/dev/dhc/tests/test_controller_session_249.py"
-else
-  echo "WARNING: 87.254 controller session integration check skipped (no Python)." >&2
-fi
+run_required_python "$PROJECT/dev/dhc/tests/test_controller_session_249.py"
 echo "BUILD PHASE full_regression_end duration_seconds=$((SECONDS-BUILD_TESTS_START))"
+echo "REGRESSION SUMMARY: passed=$REGRESSION_PASSES failed=${#REGRESSION_FAILURES[@]}"
+if (( ${#REGRESSION_FAILURES[@]} > 0 )); then
+  echo "================= REGRESSION FAILURES =================" >&2
+  for failure in "${REGRESSION_FAILURES[@]}"; do
+    echo "  FAIL: $failure" >&2
+  done
+  echo "Native build and TEST publishing blocked by regression failures." >&2
+  echo "All independent checks were attempted in this one run." >&2
+  echo "Existing Stable and previous TEST binaries preserved." >&2
+  exit 1
+fi
+echo "REGRESSION GATE PASS: all tests green; native compile permitted."
 # Preserve warm cache and anything already built on failures. Never run make clean.
 cd "$TREE"
-echo "XMVSF Stage 87.254 TEST: incremental build; preserving cached objects"
+echo "XMVSF Stage 87.255 TEST: incremental build; preserving cached objects"
 if command -v git >/dev/null 2>&1; then
   echo "Source branch: $(git -C "$PROJECT" branch --show-current 2>/dev/null || true)"
   echo "Source revision: $(git -C "$PROJECT" rev-parse --short HEAD 2>/dev/null || true)"
@@ -654,9 +689,9 @@ if (( ${#REPAIR_NATIVE[@]} )); then
   printf 'repaired_source_revision=%s\n' "$(git -C "$PROJECT" rev-parse HEAD 2>/dev/null || true)" > "$REPAIR_MARK"
   echo "BUILD CACHE REPAIR: completed five-source recovery."
 fi
-echo "87.254 compiled TEST sha256: $built_sha"
+echo "87.255 compiled TEST sha256: $built_sha"
 echo "87.235 menu source asset checksums:"
 sha256sum "$PROJECT/_art/logo.png" "$PROJECT/_art/sf2font.png" \
   "$PROJECT/_art/sf2fontsmall.png" "$PROJECT/_art/menuanimation.gif" \
   "$PROJECT/_art/stunbar_base.png"
-echo "Stage 87.254: native sources dependency-cached; Stable and previous TESTs untouched."
+echo "Stage 87.255: native sources dependency-cached; Stable and previous TESTs untouched."
