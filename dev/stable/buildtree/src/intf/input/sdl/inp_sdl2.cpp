@@ -621,7 +621,7 @@ static int xm87110ReadBoundAction(unsigned p,const char* action){
     for(unsigned i=0;i<nGameInpCount;++i){
         BurnInputInfo info={};
         if(BurnDrvGetInputInfo(&info,i)!=0 || !info.szInfo ||
-           info.szInfo[0]!='p' || info.szInfo[1]!=(char)('1'+p) ||
+           tolower((unsigned char)info.szInfo[0])!='p' || info.szInfo[1]!=(char)('1'+p) ||
            info.szInfo[2]!=' ' || strcmp(info.szInfo+3,action)!=0)continue;
         const struct GameInp& binding=GameInp[i];
         if(binding.nInput!=GIT_SWITCH)return 0;
