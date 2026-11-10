@@ -11,6 +11,7 @@ struct XM25InputHandoff {
     bool blocked=true;
     Uint32 neutralSince=0;
     Uint32 lastProbeAt=0;
+    Uint32 beganAt=0;
 };
 extern XM25InputHandoff xm25InputHandoff;
 
@@ -19,6 +20,7 @@ static inline void xm25BeginInputHandoff() {
     xm25InputHandoff.sampled=false;
     xm25InputHandoff.blocked=true;
     xm25InputHandoff.neutralSince=0;
+    xm25InputHandoff.beganAt=SDL_GetTicks();
 }
 
 static inline bool xm25HandoffAnyInputHeld() {
@@ -57,6 +59,15 @@ static inline bool xm25HandoffAnyInputHeld() {
 static inline bool xm25InputHandoffBlock() {
     if(!xm25InputHandoff.active)return false;
     const Uint32 now=SDL_GetTicks();
+    // Never hold the *entire* game hostage to a stuck controller button,
+    // an unassigned device, or SDL reporting a non-neutral axis forever.
+    // This is only the short menu-confirm handoff. After 400 ms gameplay
+    // inputs must be allowed again, including pads that become ready late.
+    if((Uint32)(now-xm25InputHandoff.beganAt)>=400u){
+        xm25InputHandoff.active=false;
+        xm25InputHandoff.blocked=false;
+        return false;
+    }
     // The gameplay input callback may run hundreds of times per frame.
     if(xm25InputHandoff.sampled && (Uint32)(now-xm25InputHandoff.lastProbeAt)<8)
         return xm25InputHandoff.blocked;
