@@ -389,6 +389,15 @@ elif command -v python >/dev/null 2>&1; then
 else
   echo "WARNING: 87.247 frame-data source timing regression skipped (Python unavailable)." >&2
 fi
+# TEST 87.248: prevent one-time controller enumeration, stale SDL
+# instance handles and infinite menu-confirm lockout from regressing.
+if command -v python3 >/dev/null 2>&1; then
+  python3 "$PROJECT/dev/dhc/tests/test_controller_reconnect_248.py"
+elif command -v python >/dev/null 2>&1; then
+  python "$PROJECT/dev/dhc/tests/test_controller_reconnect_248.py"
+else
+  echo "WARNING: 87.248 controller reconnection source test skipped (Python unavailable)." >&2
+fi
 echo "BUILD PHASE full_regression_end duration_seconds=$((SECONDS-BUILD_TESTS_START))"
 # Preserve warm cache and anything already built on failures. Never run make clean.
 cd "$TREE"
