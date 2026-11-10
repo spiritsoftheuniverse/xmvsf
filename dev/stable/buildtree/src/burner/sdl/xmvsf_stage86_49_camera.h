@@ -17,10 +17,13 @@ static inline int xm8649SignedWord(cpu_core_config* c, unsigned a){
 static inline void xm8649ObserveCamera(bool gameReady){
  static bool previouslyActive=false;
  if(bRunPause)return; // pausing must never reveal the original stage
- if(!gameReady || bBurnRunAheadFrame ||
-   // Wily stage assignment is independent of Double Feature color grading.
-   xm77StageChoice!=1 || xm77StageResolved!=1 ||
-   xm14TrainingMode!=1 || xm24VersusMode!=0){
+ // Share the verified stage-05 camera with both custom renderers.
+ // Wily remains Training-only; Final Destination works in Training/Versus.
+ const bool wily=(xm77StageChoice==1 && xm77StageResolved==1 &&
+                  xm14TrainingMode==1 && xm24VersusMode==0);
+ const bool finalDestination=(xm77StageChoice==2 && xm77StageResolved==2 &&
+                             (xm14TrainingMode==1 || xm24VersusMode==1));
+ if(!gameReady || bBurnRunAheadFrame || (!wily&&!finalDestination)){
   xm8649Visual.sceneActive=false;return;
  }
  const char* name=BurnDrvGetTextA(DRV_NAME);
