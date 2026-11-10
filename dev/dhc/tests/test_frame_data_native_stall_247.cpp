@@ -112,7 +112,28 @@ static void captureDirectSpecialCancelWithoutButtonEdge(){
     f.onFrame(hit,none,a,b);
     assert(f.count==2 && f.eventsCreated==2);
 }
+static void firstAcceptedNativeImpactDuringHitstopWithoutButtonEdge(){
+    XM30FrameData f{};f.setEnabled(true);f.beginCombat();
+    XM41ActorSample a=actor(0x2814u,0x1000u,0u,0x80u,0xA677Au);
+    XM41ActorSample b=actor(0x3636u,0x1C00u,0u,0u,0xD0B0Au);
+    XM30Sample hit=box(),none{};
+    // ROM has already assigned +85 on the first sample. A lost mapped
+    // edge must not erase this genuinely accepted normal.
+    a.hitStop=10;b.hitStop=10;
+    f.onFrame(hit,none,a,b);
+    assert(f.playerFrame[0]==1 && f.playerFrame[1]==0);
+    assert(f.count==1 && f.eventsCreated==1);
+    assert(!f.history[0].inputObserved && f.history[0].active==1);
+    for(unsigned k=9;k>0;--k){
+        a.hitStop=k;b.hitStop=k;
+        f.onFrame(hit,none,a,b);
+        assert(f.playerFrame[0]==1 && f.eventsCreated==1);
+    }
+    a.hitStop=0;b.hitStop=0;f.onFrame(hit,none,a,b);
+    assert(f.playerFrame[0]==2 && f.history[0].active==2);
+}
 int main(){
+    firstAcceptedNativeImpactDuringHitstopWithoutButtonEdge();
     specialCinematicPhase81DoesNotAccumulate44Frames();
     phase80SpecialStillRecognizedAs44FrameHold();
     oneFighterAnimatingDoesNotPauseBoth();
