@@ -36,12 +36,15 @@ assert "const unsigned long long frame=++playerFrame[p];" in clock
 assert "recordContacts(actors,advancePlayer);" in clock
 assert "xm41DrawFrameCard(r,card,e,f.playerFrame[e.player]);" in (root / "dev/stable/buildtree/src/burner/sdl/xmvsf_stage23_ui.h").read_text(encoding="utf-8")
 assert "recordContacts(actors,frame,true);" not in clock  # removed global-clock API
-assert "xm247FrameClockTrace(c,sample,actor,logicalBefore," in engine
-assert "xmvsf_frame_clock_247.tsv" in engine
+assert "xm250FrameClockTrace(c,sample,actor,logicalBefore," in engine
+assert "xmvsf_frame_clock_250.tsv" in engine
 assert "t.pendingOriginAction" in engine
 assert "t.pendingOriginMode" in engine
 assert "t.pendingNativeOnly" in engine
 assert "events_created" in engine
+assert "p1_contact_only" in engine and "p2_contact_only" in engine
+assert "freeze_steps" in engine
+assert "lastBoxFrame=e.hitboxLastFrame;" in engine
 assert "xm23State.frameData.eventsCreated" in engine
 assert "const bool nativeCandidateAccepted=" in clock
 assert "(meleeRise || projectileRise || contactWithoutBox) &&" in clock
@@ -57,4 +60,4 @@ assert "currentFrame:e.hitboxLastFrame" not in ui
 assert "t.pendingOriginLeft=false;" in clock
 assert "++eventsCreated;" in clock
 assert "XMVSF_FRAME_TRACE" in engine
-print("XMVSF 87.247 PASS: native 2C/2E animation stall, per-fighter clocks and ROM combo acceptance")
+print("XMVSF 87.250 PASS: independent native clocks, combo HP fallback, actual box duration and opt-in diagnostics")
