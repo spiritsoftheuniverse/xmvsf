@@ -157,6 +157,9 @@ struct XM30Track {
     bool lastNativeValid=false;
     unsigned pendingOriginFamily=0,pendingOriginAction=0;
     bool pendingOriginValid=false,pendingComboTransition=false;
+    // A rejected input inside a live attack must not steal the next
+    // repeating projectile box or create a timeout NO BOX card.
+    bool pendingOriginLeft=false;
     int previousProjectileCount=0;
     unsigned previousProjectileBases[12]={};
     int previousActiveCount=0;
@@ -177,6 +180,7 @@ struct XM30FrameData {
     // timestamps are on the owning fighter's unfrozen native step axis.
     unsigned long long frame=0; // display/observation tick when either player advances
     unsigned long long playerFrame[2]={0,0};
+    unsigned long long eventsCreated=0; // monotonic, unlike bounded history.count
     unsigned long long superFreezeFrames=0; // callbacks with neither player advancing
     // Unlike the FF5009 round clock, ROM hit-stop counters count down to
     // zero. They cannot permanently stall the meter when the round timer is
@@ -196,7 +200,7 @@ struct XM30FrameData {
     XM32MotionHistory directions[2];
     void clear(bool preserveToggle=true) {
         const bool setting=enabled;
-        frame=0; playerFrame[0]=playerFrame[1]=0;
+        frame=0; playerFrame[0]=playerFrame[1]=0; eventsCreated=0;
         superFreezeFrames=0; count=0; floatNext=0; inCombat=false;
         hitStopSeeded=false;previousHitStop[0]=previousHitStop[1]=0;
         healthSeeded[0]=healthSeeded[1]=false;
@@ -233,7 +237,7 @@ struct XM30FrameData {
         t.pendingOriginFamily=t.lastNativeFamily;
         t.pendingOriginAction=t.lastNativeAction;
         t.pendingOriginValid=t.lastNativeValid;
-        t.pendingComboTransition=false;
+        t.pendingComboTransition=false;t.pendingOriginLeft=false;
         t.pendingFirstMotion=0;t.pendingLastMotion=0;t.pendingMoveFrames=0;
         t.pendingPositionKnown=false;t.pendingMotionOverflow=false;
         for(int word=0;word<16;++word)t.pendingMotionBits[word]=0;
@@ -242,6 +246,7 @@ struct XM30FrameData {
         if(t.motion!=XM32_NORMAL)directions[player].count=0;
     }
     int appendEvent(){
+        ++eventsCreated; // bounded 24-card buffer still identifies every row created
         if(count==HISTORY){
             for(int k=1;k<HISTORY;++k)history[k-1]=history[k];
             --count;
@@ -422,8 +427,14 @@ struct XM30FrameData {
             // rearm from unrelated walking/jumping/another special later.
             if(t.pending>=0 && frame>=(unsigned long long)t.pending &&
                frame-(unsigned long long)t.pending<=MAX_WAIT){
+                if(t.pendingOriginValid && t.pendingOriginFamily!=0u &&
+                   (family!=t.pendingOriginFamily ||
+                    (family==0x28u &&
+                     actors[p].nativeAction!=t.pendingOriginAction)))
+                    t.pendingOriginLeft=true;
                 const bool originStillActive=t.pendingOriginValid &&
                     t.pendingOriginFamily!=0u &&
+                    !t.pendingOriginLeft &&
                     family==t.pendingOriginFamily &&
                     (family!=0x28u ||
                      actors[p].nativeAction==t.pendingOriginAction);
@@ -589,7 +600,17 @@ struct XM30FrameData {
                    (!t.pendingSpawnBase || hits[1].sourceBase==t.pendingSpawnBase))
                     newProjectile=hits[1];
                 const bool projectileRise=newProjectile.active;
-                if(meleeRise || projectileRise){
+                // 87.245 native trace: repeated button edges at host 1385
+                // and 1398 occur while 2E00/stage04 owns ONE super. Its
+                // projectile box cycles at 1397/1428, but the pending input
+                // has NO NEW ROM ACTION (pendingAttackFamily==0). The old
+                // check made a false card from each new projectile object.
+                // Only an accepted new native action may claim that box
+                // while the prior action remains in progress.
+                const bool nativeCandidateAccepted=
+                    t.pendingAttackFamily!=0u ||
+                    !(t.pendingOriginValid && t.pendingOriginFamily!=0u);
+                if((meleeRise || projectileRise) && nativeCandidateAccepted){
                     // Multi-hit super collision boxes may disappear during
                     // hit-stop and rise again. The original 2E action owns
                     // ONE duration card; a second hit is not a new move.
@@ -660,6 +681,13 @@ struct XM30FrameData {
                 }
             }
             if(t.pending>=0 && age>MAX_WAIT){
+                // A button pressed inside an UNCHANGED native move was
+                // rejected/absorbed by that move. It is not a new attack
+                // and must not become an invented NO BOX card at timeout.
+                if(t.pendingOriginValid && t.pendingOriginFamily!=0u &&
+                   t.pendingAttackFamily==0u){
+                    t.pending=-1;
+                }else{
                 // Report missing signal as missing, never fabricate an S/A value.
                 const int idx=appendEvent();
                 XM30Event& e=history[idx];e=XM30Event{};
@@ -674,6 +702,7 @@ struct XM30FrameData {
                 e.inputFrame=(unsigned long long)t.pending;
                 e.endFrame=frame;e.closed=true;
                 t.pending=-1;
+                }
             }
             t.previous[0]=hits[0].active;
             t.previous[1]=hits[1].active;
