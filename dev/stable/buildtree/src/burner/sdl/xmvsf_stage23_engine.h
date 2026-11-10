@@ -508,6 +508,7 @@ static inline void xm23OnRealFrame(int ready) {
             // The old fixed +210 word can follow the wrong bench character
             // after a swap and includes an unrelated high byte.
             actor[p].health=(unsigned)xm23State.health[p];
+            actor[p].combo=(unsigned)xm23State.combo[p];
         }
         // Do not use the FF5009 round subcounter for cinematic stop:
         // Training can hold it fixed while native fighter actions progress.
