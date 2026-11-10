@@ -658,7 +658,7 @@ int SDLinpStart()
     // made triple Start silently do nothing while ordinary controls worked.
     if(bDrvOkay && xm14TrainingMode && !bBurnRunAheadFrame){
         xm13RefreshMapping();
-        const bool enabled=xm18Position.combat && !xm23State.menuOpen;
+        const bool enabled=(xm18Position.combat || xm23State.combat) && !xm23State.menuOpen;
         const unsigned now=(unsigned)SDL_GetTicks();
         for(unsigned p=0;p<2u;++p){
             const bool virtualMap=XM249Policy::needsVirtualMap(
