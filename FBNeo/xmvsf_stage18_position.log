@@ -1,3 +1,10 @@
-player=1 desired=LEFT p1x=368 p2x=26 changed=1
-player=1 desired=LEFT p1x=26 p2x=368 changed=0
-player=1 desired=LEFT p1x=26 p2x=368 changed=0
+player=1 desired=RIGHT p1x=516 p2x=662 changed=1
+player=1 desired=RIGHT p1x=695 p2x=516 changed=0
+player=1 desired=LEFT p1x=638 p2x=747 changed=0
+player=1 desired=LEFT p1x=608 p2x=747 changed=0
+player=1 desired=RIGHT p1x=127 p2x=21 changed=0
+player=1 desired=RIGHT p1x=160 p2x=21 changed=0
+player=1 desired=LEFT p1x=635 p2x=747 changed=0
+player=1 desired=LEFT p1x=608 p2x=747 changed=0
+player=1 desired=RIGHT p1x=272 p2x=512 changed=1
+player=1 desired=RIGHT p1x=536 p2x=272 changed=0
