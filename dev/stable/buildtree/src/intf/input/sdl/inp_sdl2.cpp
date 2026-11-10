@@ -614,6 +614,30 @@ static void xm249TryLateGameControllerClaim() {
     }
 }
 
+// Direct keyboard/legacy joystick fallback when no Stage13 profile is active.
+// Read the actual FBNeo game binding, rather than assuming a virtual 0x4087.
+static int JoystickState(int i, int nSubCode); // defined below
+static int xm87110ReadBoundAction(unsigned p,const char* action){
+    for(unsigned i=0;i<nGameInpCount;++i){
+        BurnInputInfo info={};
+        if(BurnDrvGetInputInfo(&info,i)!=0 || !info.szInfo ||
+           info.szInfo[0]!='p' || info.szInfo[1]!=(char)('1'+p) ||
+           info.szInfo[2]!=' ' || strcmp(info.szInfo+3,action)!=0)continue;
+        const GameInp& binding=GameInp[i];
+        if(binding.nInput!=GIT_SWITCH)return 0;
+        const unsigned code=(unsigned)binding.Input.Switch.nCode;
+        if(code<0x100u){
+            const Uint8* keys=SDL_GetKeyboardState(NULL);
+            const int scan=code<512u?FBKtoSDL[code]:0;
+            return keys && scan>0 && keys[scan]!=0;
+        }
+        if(code>=0x4200u && code<0x8000u)
+            return JoystickState((int)((code-0x4000u)>>8),(int)(code&255u));
+        return 0;
+    }
+    return 0;
+}
+
 // Call before checking for Input in a frame
 int SDLinpStart()
 {
@@ -637,15 +661,18 @@ int SDLinpStart()
         const bool enabled=xm18Position.combat && !xm23State.menuOpen;
         const unsigned now=(unsigned)SDL_GetTicks();
         for(unsigned p=0;p<2u;++p){
-            if(!XM249Policy::needsVirtualMap(
-                 xm13Config.player[p].active!=0,
-                 xm249SessionPad[p].selected)){
-                XM87110::state().observe(p,false,false,false,now,false);
-                continue;
-            }
-            const int start=xm13ReadInput(&xm13Config,(int)p,0x87,JoyList,GCList,nJoystickCount);
-            const int left=xm13ReadInput(&xm13Config,(int)p,0,JoyList,GCList,nJoystickCount);
-            const int right=xm13ReadInput(&xm13Config,(int)p,1,JoyList,GCList,nJoystickCount);
+            const bool virtualMap=XM249Policy::needsVirtualMap(
+                xm13Config.player[p].active!=0,
+                xm249SessionPad[p].selected);
+            const int start=virtualMap?
+                xm13ReadInput(&xm13Config,(int)p,0x87,JoyList,GCList,nJoystickCount):
+                xm87110ReadBoundAction(p,"start");
+            const int left=virtualMap?
+                xm13ReadInput(&xm13Config,(int)p,0,JoyList,GCList,nJoystickCount):
+                xm87110ReadBoundAction(p,"left");
+            const int right=virtualMap?
+                xm13ReadInput(&xm13Config,(int)p,1,JoyList,GCList,nJoystickCount):
+                xm87110ReadBoundAction(p,"right");
             XM87110::state().observe(p,start>0,left>0,right>0,now,enabled);
             if(XM87110::state().pending!=XM87110::NONE)break;
         }
