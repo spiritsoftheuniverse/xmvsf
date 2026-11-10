@@ -26,7 +26,8 @@ static void aimedBeamObjectThenBox(){
     auto a=actor(0x2A28,0x2E00,2,0x80),b=actor(0x3600,0x1C00,0,0);
     XM30Sample none{};
     d.press(0,0x80);d.onFrame(none,none,a,b);
-    assert(d.count==0);
+    assert(d.count==1 && d.eventsCreated==1 && d.history[0].noBox);
+    assert(d.history[0].inputObserved);
     a.nativeStep=4;d.onFrame(shot(0xFF6000),none,a,b);
     assert(d.count==1 && d.eventsCreated==1);
     assert(d.history[0].noBox && !d.history[0].contactOnly);
@@ -87,7 +88,8 @@ static void oldProjectileNotAttributedToNewSuper(){
     d.press(0,0x80);a=actor(0x2A28,0x2E00,2,0x80);
     d.onFrame(old,none,a,b);
     b.health=132;d.onFrame(old,none,a,b);
-    assert(d.count==0 && d.deferredSuperContactCount[0]==0);
+    assert(d.count==1 && d.deferredSuperContactCount[0]==0);
+    assert(d.history[0].contactCount==0);
     a.nativeStep=4;d.onFrame(shot(0xFF6600),none,a,b);
     assert(d.count==1);
     assert(d.history[0].projectileBase==0xFF6600);
@@ -101,7 +103,8 @@ static void preboxFrozenHitDeferredToSuper(){
     a.hitStop=4;b.hitStop=4;d.onFrame(none,none,a,b);
     a.hitStop=3;b.hitStop=3;b.health=140;
     d.onFrame(none,none,a,b);
-    assert(d.count==0 && d.deferredSuperContactCount[0]==1);
+    assert(d.count==1 && d.history[0].contactCount==1);
+    assert(d.deferredSuperContactCount[0]==0);
     a.hitStop=0;b.hitStop=0;a.nativeStep=4;
     d.onFrame(shot(0xFF6800),none,a,b);
     assert(d.count==1 && d.history[0].contactCount==1);

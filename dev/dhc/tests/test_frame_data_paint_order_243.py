@@ -38,8 +38,8 @@ assert "recordContacts(actors,samples,advancePlayer);" in clock
 assert "xm41DrawFrameCard(r,card,e,f);" in (root / "dev/stable/buildtree/src/burner/sdl/xmvsf_stage23_ui.h").read_text(encoding="utf-8")
 assert "recordContacts(actors,samples,advancePlayer);" in clock
 assert "recordContacts(actors,frame,true);" not in clock  # removed global-clock API
-assert "xm253FrameClockTrace(c,sample,actor,logicalBefore," in engine
-assert "xmvsf_frame_clock_253.tsv" in engine
+assert "xm254FrameClockTrace(c,sample,actor,logicalBefore," in engine
+assert "xmvsf_frame_clock_254.tsv" in engine
 assert "t.pendingOriginAction" in engine
 assert "t.pendingOriginMode" in engine
 assert "t.pendingNativeOnly" in engine
@@ -60,16 +60,34 @@ assert "e.hitboxLastFrame=boxMissing?0u:frame;" in clock
 assert "if(e.attackEnded && !landed[p] && contactExitGrace[p]==0u)" in clock
 ui = (root / "dev/stable/buildtree/src/burner/sdl/xmvsf_stage23_ui.h").read_text(encoding="utf-8")
 assert "43,48,57" in ui
-assert "startWall+step" in ui
+assert "const unsigned long long base=startWall+" in ui
+assert "const unsigned long long last=std::min(" in ui
+assert "out.wrap.ticksPerRow=" in ui
+assert "out.height=69+(int)out.wrap.rows()*18;" in ui
+assert "const int h=xm41FrameCardLayout(e,f,cardWidth).height;" in ui
+assert "const int x=x0+(int)(at-base);" in ui
+assert "for(unsigned row=0;row<rows && row<maxRows;++row)" in ui
 assert "f.wallTick(e.player,at)" in ui
 assert "e.contactWallFrames[i]" in ui
 assert "e.hitboxLastFrame" in ui
 assert "e.lastProjectileFrame" in ui
-assert "HIT CONFIRMED - BOX UNKNOWN" in ui
+assert "HIT / BOX ?" in ui
+assert "PRE-BOX" in ui
 assert "currentFrame:e.hitboxLastFrame" not in ui
 assert "t.pendingOriginLeft=false;" in clock
 assert "++eventsCreated;" in clock
 assert "XMVSF_FRAME_TRACE" in engine
+assert "const bool acceptedSuper=actors[p].valid &&" in clock
+assert "const bool superRootReset=" not in clock
+assert "family==0x2Eu && !t.superRootObserved;" in clock
+assert "if(acceptedSuper){" in clock
+assert "e.inputFrame=(unsigned long long)t.pending;" in clock
+assert "e.inputWallFrame=t.pendingWallFrame;" in clock
+assert "e.noBox=true;e.contactOnly=false;e.source=0;" in clock
+assert "e.attackObserved=true;e.attackFamily=0x2Eu;" in clock
+assert "t.superRootObserved=actors[p].valid && family==0x2Eu;" in clock
+assert "p1_super_input_wall" in engine and "p2_super_input_wall" in engine
+assert "p1_super_prebox" in engine and "p2_super_prebox" in engine
 # 87.253: combo counter and native defender +85 reload are independent
 # hit proofs after Training clamps the victim HP to 1.
 assert "actor[p].comboKnown=true;" in engine
@@ -81,4 +99,4 @@ assert "XM32_QCD" in clock
 assert "++wallFrame[0];++wallFrame[1];" in clock
 assert "recordWallTicks(advancePlayer);" in clock
 assert "e.contactWallFrames" in clock
-print("XMVSF 87.253 PASS: independent native clocks, combo HP fallback, actual box duration and opt-in diagnostics")
+print("XMVSF 87.254 PASS: independent native clocks, combo HP fallback, actual box duration and opt-in diagnostics")

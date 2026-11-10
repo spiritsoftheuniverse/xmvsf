@@ -31,15 +31,17 @@ static void acceptedSuperSurvivesRepeatedButtonsUntilLateBeam(){
     XM30Sample none{};
     f.press(0,0x80);
     f.onFrame(none,none,a,b); // ROM accepts 2E00; beam not yet spawned
-    assert(f.count==0 && f.track[0].pendingAttackFamily==0x2Eu);
-    const long long originalPending=f.track[0].pending;
+    assert(f.count==1 && f.history[0].attackFamily==0x2Eu);
+    assert(f.history[0].inputObserved && f.history[0].noBox);
+    const unsigned long long originalInput=f.history[0].inputFrame;
     for(int i=0;i<55;++i){
         if(i==6 || i==22 || i==38)
             f.press(0,0x81); // spurious buttons must not erase 2E00
         f.onFrame(none,none,a,b);
-        assert(f.track[0].pending==originalPending);
-        assert(f.track[0].pendingAttackFamily==0x2Eu);
-        assert(f.count==0);
+        assert(f.track[0].pending<0);
+        assert(f.history[0].inputFrame==originalInput);
+        assert(f.history[0].attackFamily==0x2Eu);
+        assert(f.count==1 && f.eventsCreated==1);
     }
     a.nativeStep=4u;b.health=136u;
     f.onFrame(beam(0xFF6000u,true),none,a,b);
@@ -97,7 +99,8 @@ static void oldProjectileCannotClaimNewNativeSuper(){
     f.onFrame(old,none,a,b);
     b.health=138u;
     f.onFrame(old,none,a,b);
-    assert(f.count==0); // do not assign old beam damage to new 2E
+    assert(f.count==1 && f.history[0].contactCount==0);
+    // New super is visible at ROM entry; old beam does not own red ticks.
     a.nativeStep=4u;b.health=130u;
     f.onFrame(beam(0xFF6600u,false),none,a,b); // new linked beam + damage
     assert(f.count==1 && f.history[0].contactOnly);
@@ -109,7 +112,7 @@ static void nativeOnlySuperAlsoRetainsIdentity(){
     XM41ActorSample b=fighter(0x3600u,0x1C00u,0u,0u);
     XM30Sample none{};
     f.onFrame(none,none,a,b); // SDL input edge was not sampled
-    assert(f.track[0].pendingNativeOnly);
+    assert(f.count==1 && !f.history[0].inputObserved);
     f.press(0,0x81);
     a.nativeStep=4u;b.health=139u;
     f.onFrame(beam(0xFF6800u,false),none,a,b);

@@ -225,6 +225,10 @@ struct XM30Track {
     // The old code only watched !previousHitbox and missed those attacks.
     unsigned lastNativeFamily=0,lastNativeAction=0,lastNativeMode=0,lastNativeStep=0;
     bool lastNativeValid=false;
+    // Observe accepted super roots on the ROM HOST callback, not on
+    // SDL button edges or the delayed first offensive collision box.
+    // Separate latch prevents duplicate portraits during native hitstop.
+    bool superRootObserved=false;
     unsigned pendingOriginFamily=0,pendingOriginAction=0,pendingOriginMode=0,pendingOriginStep=0;
     bool pendingOriginValid=false,pendingComboTransition=false;
     // A rejected input inside a live attack must not steal the next
@@ -234,6 +238,25 @@ struct XM30Track {
     unsigned previousProjectileBases[12]={};
     int previousActiveCount=0;
     unsigned previousActiveBases[12]={};
+};
+// Stable, uncompressed timeline geometry. One observed host tick is
+// exactly one horizontal pixel; overflow moves to the next pair of slim
+// HIT / ACTION lanes. Previous rows never change scale as time accumulates.
+struct XM30TimelineWrap {
+    unsigned long long start=0,finish=0;
+    unsigned ticksPerRow=1;
+    unsigned long long span() const {
+        return finish>=start ? finish-start+1u : 1u;
+    }
+    unsigned rows() const {
+        return (unsigned)((span()+ticksPerRow-1u)/ticksPerRow);
+    }
+    unsigned row(unsigned long long at) const {
+        return (unsigned)((at<=start?0u:at-start)/ticksPerRow);
+    }
+    unsigned column(unsigned long long at) const {
+        return (unsigned)((at<=start?0u:at-start)%ticksPerRow);
+    }
 };
 struct XM30WallTick {
     unsigned long long wall=0,native=0;
@@ -377,6 +400,14 @@ struct XM30FrameData {
     void press(int player,int code){
         if(!enabled||!inCombat||player<0||player>1 || code<0x80||code>0x85)return;
         XM30Track& t=track[player];
+        // Further button edges while the same confirmed 2E super is
+        // running do not restart its visual input clock. The next super
+        // must be accepted independently by the native ROM controller.
+        for(int i=count-1;i>=0;--i){
+            const XM30Event& e=history[i];
+            if(e.player==player && e.attackFamily==0x2Eu &&
+               !e.attackEnded)return;
+        }
         // A+B pressed on the same frame is one candidate, not two moves.
         if(t.pending>=0 && (long long)playerFrame[player]-t.pending<=2)return;
         // 87.251: Cyclops 2E00 begins in stage02, long before its beam's
@@ -518,6 +549,14 @@ struct XM30FrameData {
                     (family!=0x28u ||
                      (e.attackAction==actors[attacker].nativeAction &&
                       e.attackMode==actors[attacker].mode));
+                // A previous move's still-live projectile must not lend
+                // its impact to the freshly accepted portrait-only super.
+                // Native ownership alone is not damage attribution proof
+                // while ONLY unmatched projectile objects exist.
+                if(native && e.attackFamily==0x2Eu && e.noBox &&
+                   samples[attacker].projectileCount>0 && !live &&
+                   !samples[attacker].melee.active)
+                    continue;
                 if(e.closed && at>e.endFrame+1u &&
                    (e.attackEnded || at>e.attackLastFrame+1u) &&
                    !live && !native)continue;
@@ -639,17 +678,23 @@ struct XM30FrameData {
             //     new special; internal 2C50/4E/4C/54 cycling is NOT.
             // 2E: only family entry starts a new super; 2E02/10 substeps
             //     always belong to the original super.
+            // 2E02/2E10 internal stages are NOT fresh supers; only
+            // observed entry into the native 2E family arms a new card.
+            // Do not use a stage-02 restart as an unproven DHC signal.
+            const bool acceptedSuper=actors[p].valid &&
+                family==0x2Eu && !t.superRootObserved;
+            t.superRootObserved=actors[p].valid && family==0x2Eu;
             const bool nativeNewAttack=actors[p].valid &&
-                (actors[p].attackPhase&0x80u)!=0u &&
-                ((family==0x28u &&
-                  (t.lastNativeFamily!=0x28u ||
-                   actors[p].nativeAction!=t.lastNativeAction ||
-                   actors[p].mode!=t.lastNativeMode)) ||
-                 (family==0x2Cu &&
-                  (t.lastNativeFamily!=0x2Cu ||
-                   (t.lastNativeStep>=4u && actors[p].nativeStep==2u &&
-                    actors[p].nativeAction!=t.lastNativeAction))) ||
-                 (family==0x2Eu && t.lastNativeFamily!=0x2Eu));
+                (acceptedSuper ||
+                 ((actors[p].attackPhase&0x80u)!=0u &&
+                  ((family==0x28u &&
+                    (t.lastNativeFamily!=0x28u ||
+                     actors[p].nativeAction!=t.lastNativeAction ||
+                     actors[p].mode!=t.lastNativeMode)) ||
+                   (family==0x2Cu &&
+                    (t.lastNativeFamily!=0x2Cu ||
+                     (t.lastNativeStep>=4u && actors[p].nativeStep==2u &&
+                      actors[p].nativeAction!=t.lastNativeAction))))));
             if(t.pending<0 && nativeNewAttack){
                 // This card has no known mapped button edge. Show that
                 // limitation explicitly rather than fabricating an S value.
@@ -670,6 +715,67 @@ struct XM30FrameData {
                 t.pendingOriginStep=t.lastNativeStep;
                 t.pendingOriginValid=t.lastNativeValid;
                 t.pendingOriginLeft=false;t.pendingComboTransition=false;
+            }
+            if(acceptedSuper){
+                // A new native 2E root is authoritative. Create its ONE
+                // frame-data card immediately, before portrait/cinematic
+                // freeze can return from onFrame(). No box, projectile,
+                // input-pattern or damage observation is required.
+                for(int i=count-1;i>=0;--i){
+                    XM30Event& prior=history[i];
+                    if(prior.player!=p || !prior.attackObserved ||
+                       prior.attackEnded)continue;
+                    // Super entry is a confirmed native CANCEL of any
+                    // previous fighter action, not merely a box rise.
+                    prior.attackEnded=true;
+                    prior.attackEndFrame=prior.attackLastFrame;
+                    // A prior projectile may keep flying after its owner
+                    // exits. Only fighter-attached boxes are shut down.
+                    if(prior.source==0 && !prior.closed){
+                        prior.closed=true;
+                        prior.endFrame=prior.hitboxLastFrame?
+                            prior.hitboxLastFrame:prior.attackLastFrame;
+                    }
+                }
+                if(t.pending<0){
+                    t.pending=(long long)playerFrame[p];
+                    t.pendingWallFrame=wallFrame[p];
+                    t.pendingNativeOnly=true;
+                    t.code=0;t.motion=XM32_NORMAL;
+                }
+                const int idx=appendEvent();
+                XM30Event& e=history[idx];e=XM30Event{};
+                e.player=p;
+                e.inputObserved=!t.pendingNativeOnly;
+                e.inputFrame=(unsigned long long)t.pending;
+                e.inputWallFrame=t.pendingWallFrame;
+                e.lastWallFrame=wallFrame[p];
+                e.code=t.code;e.motion=t.motion;
+                e.noBox=true;e.contactOnly=false;e.source=0;
+                e.startup=0;e.active=0;
+                e.firstFrame=playerFrame[p]; // no collision assertion
+                e.attackObserved=true;e.attackFamily=0x2Eu;
+                e.nativeSuperPhase=true;
+                e.attackAction=actors[p].nativeAction;
+                e.attackMode=actors[p].mode;
+                // The next counted native tick belongs to this new ROM
+                // action. Frozen host observations have their own clock.
+                e.attackStartFrame=playerFrame[p]+1u;
+                e.attackLastFrame=e.attackStartFrame;
+                if(deferredSuperContactCount[p] &&
+                   deferredSuperAction[p]==actors[p].nativeAction){
+                    for(unsigned j=0;j<deferredSuperContactCount[p];++j)
+                        xm30AddContact(e,deferredSuperContacts[p][j],
+                                         deferredSuperContactWalls[p][j]);
+                    if(e.contactCount)e.contactOnly=true;
+                }
+                deferredSuperContactCount[p]=0;
+                // A measured box can promote this early provisional
+                // card. No timeout or first hitbox may create another.
+                t.pending=-1;
+                t.pendingAttackFamily=0;
+                t.eventIndex[0]=-1;
+                t.eventIndex[1]=-1;
             }
         }
         bool advancePlayer[2]={false,false};
@@ -856,7 +962,22 @@ struct XM30FrameData {
                     bool old=false;
                     for(int k=0;k<t.previousProjectileCount;++k)
                         if(t.previousProjectileBases[k]==base)old=true;
-                    if(!old)xm30ClaimProjectile(e,base);
+                    if(!old){
+                        xm30ClaimProjectile(e,base);
+                        if(e.noBox && e.projectileBase==0u){
+                            // Promotion is based on an actual newly linked
+                            // ROM object, not a guessed QCD/QCF button.
+                            e.source=1;e.projectileBase=base;
+                            e.spawnFrame=frame;
+                            e.lastProjectileFrame=frame;
+                            e.positionKnown=true;
+                            e.lastProjectileX=samples[p].projectileX[j];
+                            e.lastProjectileY=samples[p].projectileY[j];
+                            e.x=e.lastProjectileX;e.y=e.lastProjectileY;
+                            if(e.motion==XM32_NORMAL)
+                                e.motion=XM32_PROJECTILE;
+                        }
+                    }
                 }
                 break;
             }

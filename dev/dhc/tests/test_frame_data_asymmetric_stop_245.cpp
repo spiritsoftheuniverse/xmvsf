@@ -38,7 +38,8 @@ static void traceBasedSuperCinematicAndDefenderStop(){
     for(int i=0;i<43;++i)f.onFrame(none,none,a,b);
     // Host 88..130 in capture: phase 81, +85=0 on BOTH players,
     // unchanged native animation timers/pointers (portrait/streak pause).
-    assert(f.frame==1 && f.count==0);
+    assert(f.frame==1 && f.count==1 && f.history[0].noBox);
+    assert(f.history[0].lastWallFrame>=44);
     assert(f.playerFrame[0]==1 && f.playerFrame[1]==1);
     assert(f.superFreezeFrames==43);
     a.attackPhase=0x80;a.animPtr+=16u;f.onFrame(none,none,a,b);

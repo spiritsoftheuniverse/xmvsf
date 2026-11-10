@@ -92,7 +92,9 @@ static void cinematicHitstopWithoutAttackDoesNotProduceRedTicks(){
     d.press(0,0x80);d.onFrame(none,none,a,b);
     a.hitStop=6;b.hitStop=6;
     d.onFrame(none,none,a,b);
-    assert(d.count==0 && d.reloadContactProofs[0]==0);
+    assert(d.count==1 && d.history[0].noBox);
+    assert(d.history[0].contactCount==0);
+    assert(d.reloadContactProofs[0]==0);
     assert(d.wallTick(0,2).stopped);
     assert(d.playerFrame[0]==1 && d.wallFrame[0]==2);
 }
