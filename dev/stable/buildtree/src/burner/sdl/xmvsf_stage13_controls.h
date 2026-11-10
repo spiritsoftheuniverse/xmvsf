@@ -639,21 +639,56 @@ static int xm13BindingPressed(const XM13_Binding& binding,SDL_Joystick* joy){
         return SDL_JoystickGetAxis(joy,binding.index)>16000;
     return 0;
 }
+// These SDL GameController buttons are SEMANTIC, unlike a joystick's
+// device-specific raw button numbers. Xbox XInput and DS4Windows' virtual
+// Xbox device can use completely different raw indices. For a menu-selected
+// pad with no matching saved profile, use the same semantic layout that
+// navigated the boot UI (but DO NOT alter custom saved bindings).
+static inline int xm249DefaultGameAction(SDL_GameController* pad,
+                                          SDL_Joystick* joy,int action) {
+    if(!joy || !SDL_JoystickGetAttached(joy))return 0;
+    const SDL_GameControllerButton names[8]={
+        SDL_CONTROLLER_BUTTON_X,SDL_CONTROLLER_BUTTON_Y,
+        SDL_CONTROLLER_BUTTON_LEFTSHOULDER,
+        SDL_CONTROLLER_BUTTON_A,SDL_CONTROLLER_BUTTON_B,
+        SDL_CONTROLLER_BUTTON_RIGHTSHOULDER,
+        SDL_CONTROLLER_BUTTON_BACK,SDL_CONTROLLER_BUTTON_START
+    };
+    const int fallback[8]={2,3,4,0,1,5,6,7};
+    if(action<0 || action>=8)return 0;
+    if(pad && SDL_GameControllerGetAttached(pad))
+        return SDL_GameControllerGetButton(pad,names[action])!=0;
+    // Non-GameController SDL joysticks retain the existing defaults.
+    return fallback[action]<SDL_JoystickNumButtons(joy) &&
+           SDL_JoystickGetButton(joy,fallback[action])!=0;
+}
 static int xm13ReadInput(const XM13_Settings* s,int player,int sub,
                          SDL_Joystick** raw,SDL_GameController** gc,int count){
     if(xm24ResultInputCapture)return 0;
     if(xm25InputHandoffBlock())return 0;
     extern int xm24VersusMode;
     if(xm24VersusMode && sub==0x86)return 0;
-    if(player<0 || player>1 || !s->player[player].active)return -1;
+    if(!s || player<0 || player>1)return -1;
     const XM13_Player* p=&s->player[player];
+    const bool savedActive=p->active!=0;
+    const bool fromMenu=xm249SessionPad[player].selected;
+    if(!savedActive && !fromMenu)return -1;
     const int device=xm248FindAssignedDevice(s,player);
     SDL_Joystick* joy=device>=0 && device<count && raw[device] &&
         SDL_JoystickGetAttached(raw[device])?raw[device]:nullptr;
-    SDL_GameController* pad=joy?gc[device]:nullptr;
+    SDL_GameController* pad=joy && gc?gc[device]:nullptr;
+    // A saved Fighter Pi profile is not a valid mapping for an Xbox pad
+    // which actually selected Arcade. Use standardized GC buttons if the
+    // current device differs from the saved profile. Same-device profiles
+    // retain every user's custom binding.
+    const bool useSessionDefaults=fromMenu && joy &&
+        (!savedActive || xm13IsKeyboard(p) ||
+         xm13FindDevice(p)!=device);
+    const bool allowSaved=!useSessionDefaults || xm13IsKeyboard(p);
     if(sub>=0 && sub<=3){
         const int idx=XM13_LEFT+sub;
-        const bool bound=xm13BindingPressed(p->binding[idx],joy)!=0;
+        const bool bound=allowSaved &&
+            xm13BindingPressed(p->binding[idx],joy)!=0;
         if(!joy)return bound;
         const int dx=SDL_JoystickNumAxes(joy)>0?SDL_JoystickGetAxis(joy,0):0;
         const int dy=SDL_JoystickNumAxes(joy)>1?SDL_JoystickGetAxis(joy,1):0;
@@ -680,12 +715,17 @@ static int xm13ReadInput(const XM13_Settings* s,int player,int sub,
         const int rawAction=sub-0x80;
         const int action=rawAction<6?rawAction:
                          rawAction==6?XM13_COIN:XM13_START;
-        const int pressed=xm13BindingPressed(p->binding[action],joy);
+        const int pressed=allowSaved &&
+            xm13BindingPressed(p->binding[action],joy);
+        const int session=useSessionDefaults &&
+            xm249DefaultGameAction(pad,joy,rawAction);
         if(rawAction<3)
-            return pressed || xm13BindingPressed(p->binding[XM13_3P],joy);
+            return pressed || session ||
+                (allowSaved && xm13BindingPressed(p->binding[XM13_3P],joy));
         if(rawAction<6)
-            return pressed || xm13BindingPressed(p->binding[XM13_3K],joy);
-        return pressed;
+            return pressed || session ||
+                (allowSaved && xm13BindingPressed(p->binding[XM13_3K],joy));
+        return pressed || session;
     }
     return 0;
 }
