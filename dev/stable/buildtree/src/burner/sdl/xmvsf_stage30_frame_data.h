@@ -248,6 +248,14 @@ struct XM30FrameData {
         XM30Track& t=track[player];
         // A+B pressed on the same frame is one candidate, not two moves.
         if(t.pending>=0 && (long long)playerFrame[player]-t.pending<=2)return;
+        // 87.251: Cyclops 2E00 begins in stage02, long before its beam's
+        // linked projectile first becomes damaging. More button edges during
+        // that very same accepted super must NOT erase the original
+        // input, ROM action root and projectile-spawn candidate. This guard
+        // applies only to a STILL-PENDING 2E; once a card is emitted or the
+        // native family exits, the next genuine attack remains possible.
+        if(t.pending>=0 && t.pendingAttackFamily==0x2Eu &&
+           !t.pendingAttackEnd && t.lastNativeFamily==0x2Eu)return;
         // Do not reject new attack inputs just because an older projectile is
         // still on screen. A new row still requires a NEW hitbox edge.
         t.pending=(long long)playerFrame[player];
@@ -780,10 +788,22 @@ struct XM30FrameData {
                 // rather than silently dropping this combo hit.
                 const bool hpFellNow=actors[1-p].valid && healthSeeded[1-p] &&
                     actors[1-p].health<previousHealth[1-p];
+                // A linked beam object can damage without an observable
+                // kind-5 box at the exact HP-loss sample. Its genuinely new
+                // linked identity is acceptable evidence, whereas an old
+                // projectile from a prior move is NOT allowed to claim this
+                // newly accepted native super.
+                bool linkedProjectileContact=false;
+                if(t.pendingSpawnBase)for(int j=0;
+                    j<samples[p].projectileCount && j<12;++j)
+                    if(samples[p].projectileBases[j]==t.pendingSpawnBase)
+                        linkedProjectileContact=true;
                 const bool contactWithoutBox=hpFellNow &&
                     t.pendingAttackFamily!=0u &&
                     !meleeRise && !projectileRise &&
-                    samples[p].projectileCount==0;
+                    (samples[p].projectileCount==0 || linkedProjectileContact);
+                const bool projectileContactOnly=contactWithoutBox &&
+                    t.pendingSpawnBase!=0u;
                 if((meleeRise || projectileRise || contactWithoutBox) &&
                    nativeCandidateAccepted){
                     // Multi-hit super collision boxes may disappear during
@@ -803,8 +823,13 @@ struct XM30FrameData {
                         t.previous[0]=hits[0].active;
                         t.previous[1]=hits[1].active;
                     }else{
-                    const int source=(projectileRise && (!meleeRise || t.motion!=XM32_NORMAL))?1:0;
-                    const XM30Hit& chosen=source==1?newProjectile:hits[0];
+                    const int source=(projectileRise && (!meleeRise || t.motion!=XM32_NORMAL)) ||
+                                     projectileContactOnly ? 1:0;
+                    XM30Hit chosen=source==1?newProjectile:hits[0];
+                    if(projectileContactOnly){
+                        chosen.sourceBase=t.pendingSpawnBase;
+                        chosen.x=t.pendingX;chosen.y=t.pendingY;
+                    }
                     const int idx=appendEvent();
                     XM30Event& e=history[idx];e=XM30Event{};
                     e.player=p;e.startup=(int)age;
@@ -834,7 +859,10 @@ struct XM30FrameData {
                         (source==1?XM32_PROJECTILE:XM32_NORMAL);
                     if(source==1){
                         e.projectileBase=chosen.sourceBase;
-                        e.lastProjectileFrame=frame;
+                        // Unknown collision timing must never be upgraded to
+                        // a fictional active-box observation.
+                        e.lastProjectileFrame=
+                            (!projectileContactOnly || linkedProjectileContact)?frame:0u;
                         if(e.spawnFrame){
                             e.firstMotionFrame=t.pendingFirstMotion;
                             e.lastMotionFrame=t.pendingLastMotion;

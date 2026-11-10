@@ -37,8 +37,8 @@ assert "const unsigned long long frame=++playerFrame[p];" in clock
 assert "recordContacts(actors,advancePlayer);" in clock
 assert "xm41DrawFrameCard(r,card,e,f.playerFrame[e.player]);" in (root / "dev/stable/buildtree/src/burner/sdl/xmvsf_stage23_ui.h").read_text(encoding="utf-8")
 assert "recordContacts(actors,frame,true);" not in clock  # removed global-clock API
-assert "xm250FrameClockTrace(c,sample,actor,logicalBefore," in engine
-assert "xmvsf_frame_clock_250.tsv" in engine
+assert "xm251FrameClockTrace(c,sample,actor,logicalBefore," in engine
+assert "xmvsf_frame_clock_251.tsv" in engine
 assert "t.pendingOriginAction" in engine
 assert "t.pendingOriginMode" in engine
 assert "t.pendingNativeOnly" in engine
@@ -61,4 +61,4 @@ assert "currentFrame:e.hitboxLastFrame" not in ui
 assert "t.pendingOriginLeft=false;" in clock
 assert "++eventsCreated;" in clock
 assert "XMVSF_FRAME_TRACE" in engine
-print("XMVSF 87.250 PASS: independent native clocks, combo HP fallback, actual box duration and opt-in diagnostics")
+print("XMVSF 87.251 PASS: independent native clocks, combo HP fallback, actual box duration and opt-in diagnostics")
