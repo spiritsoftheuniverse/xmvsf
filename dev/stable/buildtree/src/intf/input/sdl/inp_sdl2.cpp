@@ -10,6 +10,7 @@
 #include "../../../burner/sdl/xmvsf_stage23_ui.h" /* XMVSF_STAGE23_TRAINING_MENU */ // XMVSF_STAGE17_AUTO // XMVSF_STAGE15_MACHINE // XMVSF_STAGE14_INPUT_HANDOFF // XMVSF_STAGE13_CONTROLLERS
 
 #include "burner.h"
+#include "../../../burner/sdl/xmvsf_stage13_1_game_bindings.h" // runtime GameInp remap on late Xbox/DS4Windows claim
 #include "../../../burner/sdl/xmvsf_stage87_97_debug_console.h"
 // Test-only calibration: intercept physical arrow keys in Training selection.
 extern "C" int xm8774SelectorCalibrationConsumesArrows();
@@ -488,12 +489,57 @@ int SDL_KEY_IS_DOWN(int key)
 	} else return 0;
 }
 
+// A newly valid Xbox/DS4Windows pad may appear AFTER Arcade has started,
+// including when P1 was entered with a keyboard. A fresh semantic A press
+// can claim P1 once. This is explicitly NOT the saved control assignment.
+// Preserve a working mapped P1 and never steal an assigned P2 device.
+static void xm249TryLateGameControllerClaim() {
+    if(!bDrvOkay)return; // GameInp must exist and the native game must be live
+    XM13_Settings settings{};xm13Load(&settings);
+    const int p1=xm248FindAssignedDevice(&settings,0);
+    if(p1>=0 && p1<nJoystickCount && JoyList[p1] &&
+       SDL_JoystickGetAttached(JoyList[p1]))return;
+    const int p2=xm248FindAssignedDevice(&settings,1);
+    static SDL_JoystickID known[MAX_JOYSTICKS]={-1,-1,-1,-1,-1,-1,-1,-1};
+    static bool previousA[MAX_JOYSTICKS]={};
+    for(int i=0;i<MAX_JOYSTICKS;++i){
+        if(i>=nJoystickCount || !GCList[i] ||
+           !SDL_GameControllerGetAttached(GCList[i])){
+            known[i]=-1;previousA[i]=false;
+            continue;
+        }
+        const SDL_JoystickID id=xm248Instance[i];
+        const bool down=SDL_GameControllerGetButton(
+            GCList[i],SDL_CONTROLLER_BUTTON_A)!=0;
+        if(known[i]!=id){
+            // Never interpret a pre-held button on a newly enumerated
+            // device as a new controller adoption.
+            known[i]=id;previousA[i]=down;
+            continue;
+        }
+        const bool edge=down && !previousA[i];
+        previousA[i]=down;
+        if(!edge || i==p2)continue;
+        if(xm249SelectSessionPad(0,id)){
+            fprintf(stderr,
+                "XM87.249 PAD_LATE_CLAIM p=1 device=%d instance=%d\\n",
+                i,(int)id);
+            // GameInpDefault already completed. Install the 14 native
+            // P1 virtual switch codes now; no ROM input buffering/write.
+            xm131ApplyGameInputMappings();
+            return;
+        }
+    }
+}
+
 // Call before checking for Input in a frame
 int SDLinpStart()
 {
 	// Update SDL event queue
 	SDL_PumpEvents();
     SDLinpRecheckJoysticks(); // hotplug / reconnect / previously failed open
+    SDL_GameControllerUpdate();
+    xm249TryLateGameControllerClaim();
 
 	// Keyboard not read this frame
 	bKeyboardRead = 0;
