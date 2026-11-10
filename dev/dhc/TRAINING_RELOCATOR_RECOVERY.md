@@ -177,3 +177,38 @@ not assumed from correct triple-Start registration.
 
 Only the current TEST source/launcher version is advanced. Stable, cached
 build objects and the existing local build procedure are unchanged.
+
+## TEST 87.272: stage-06 corner placement (root cause from 87.271.zip)
+
+The `87.271.zip` observer trace identifies the exact reason for the apparent
+bad placement, repeated for nine triple-Start triggers:
+
+`POSITION_REFUSED stage=6 expected_stage=5 phase=8 ptr=00FF4000 x=439,512 actors=1,1`
+
+The controller detected START, loaded a valid first-combat snapshot, and
+restored the fighters at X=439/512. It then refused all position writes
+because the initial placement code was guarded for stage 05 only.
+The user actually played on stage 06. This was *not* a failed controller
+or wrong mirror calculation, and it was a source-side oversight.
+
+The 87.270 side-switch log contains the first RIGHT reference at 689/747
+and second LEFT reference at 79/21; both were recorded in live gameplay.
+On these two pairs alone, stage-06 native positions span the same 0..768
+horizontal coordinates assumed by the mirror formula. TEST 87.272
+now accepts stages 05 and 06 for the side-specific placement path.
+It retains the X mirror and 0/384 corner camera targets, without ever
+extrapolating the camera writes to unmeasured stages.
+
+For stage 06 it restores and keeps the snapshot's ground Y instead of
+forcing the older stage-05 Y=472. NORMAL restores the snapshot on stage
+06 without any extra X, Y or camera writes (no change to center).
+Stage 05 keeps its prior center rule and stage-05 ground positioning.
+Eight bounded `POSITION_VERIFY` records after each corner restore
+report observed/expected P1/P2 X and native camera so a ROM clamp can be
+distinguished from an initial placement failure. This instrumentation
+does not run as a build gate or require per-frame tracing outside those
+eight verification frames.
+
+The code has been source-reviewed on the branch; native Windows
+compilation and actual fighter/camera placement are not yet validated.
+Stable, previous TESTs and the build cache remain untouched.
