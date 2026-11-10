@@ -126,7 +126,7 @@ static inline bool xm87110RestartAfterFrame(bool ready,unsigned frame){
         frame,stage,x1,x2,(unsigned)(stage==6u));
        positioned=true;
      }else{
-     // LEFT = 79/21 and RIGHT = 689/747: actual stage-06 taunt markers.
+     // LEFT = 118/21, RIGHT = 650/747: 97px gap, mirrored around X=384.
      // Native camera endpoints 0/384 match the 768-wide horizontal span.
      // Stage 06 retains snapshot ground Y; do not apply stage-05 Y=472.
      // Keep each actor and its fractional X. NEVER swap the fighters' data.
