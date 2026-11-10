@@ -15,6 +15,7 @@ boot = (tree / "burner/sdl/xmvsf_stage14_boot.h").read_text(encoding="utf-8")
 training = (tree / "burner/sdl/xmvsf_stage23_ui.h").read_text(encoding="utf-8")
 menus = (tree / "burner/sdl/xmvsf_stage24_3_menu_poll.h").read_text(encoding="utf-8")
 handoff = (tree / "burner/sdl/xmvsf_stage25_4_input_handoff.h").read_text(encoding="utf-8")
+main = (tree / "burner/sdl/main.cpp").read_text(encoding="utf-8")
 build = (root / "dev/dhc/BUILD_TEST.sh").read_text(encoding="utf-8")
 
 # Game backend: the SDL enumeration index can change when another pad
@@ -48,6 +49,22 @@ assert "if(!live)" in controls
 assert "if(!stick)" in controls and "SDL_JoystickOpen(device)" in controls
 assert "SDL_GameControllerGetAttached(pad)" in controls
 assert "if(wanted<0)return changed;" in controls
+# Saved player->physical-device ownership must also survive SDL index
+# compaction when two identical-model controllers were initially connected.
+assert "struct XM248RuntimeOwner" in controls
+assert "extern XM248RuntimeOwner xm248RuntimeOwner[2];" in controls
+assert "XM248RuntimeOwner xm248RuntimeOwner[2];" in main
+assert "static inline int xm248FindAssignedDevice(" in controls
+assert "SDL_JoystickGetDeviceInstanceID(i)==saved.instance" in controls
+assert "xm248RuntimeOwner[other].instance" in controls
+assert "otherLive && SDL_JoystickGetDeviceInstanceID(index)==otherInstance" in controls
+assert "const int exact=xm13FindDevice(&p);" in controls
+assert "const int device=xm248FindAssignedDevice(s,player);" in controls
+assert "xm248FindAssignedDevice(&config,player);" in boot
+assert "xm248FindAssignedDevice(&config,controlsPage);" in boot
+assert "xm248FindAssignedDevice(&settings,0);" in training
+assert "xm248FindAssignedDevice(&settings,i);" in menus
+assert "xm248FindAssignedDevice(&xm13Config,xm14Source);" in backend
 
 # Boot: attachment discovery continues even after the UI is visible.
 assert "SDL_JoystickID menuInstances[8]" in boot
