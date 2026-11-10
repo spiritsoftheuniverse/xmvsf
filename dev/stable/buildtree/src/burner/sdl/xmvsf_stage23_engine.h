@@ -325,7 +325,7 @@ static inline void xm38HitSourceProbe(cpu_core_config* c){
 // versus the Training clock.
 // Enable with XMVSF_FRAME_TRACE=1 before RUN_TEST.bat; the TSV is placed
 // next to the TEST executable. No GPU capture, memory writes or timing hooks.
-static inline void xm255FrameClockTrace(
+static inline void xm256FrameClockTrace(
         cpu_core_config* c,const XM30Sample (&samples)[2],
         const XM41ActorSample (&actors)[2],
         unsigned long long before,unsigned long long after,
@@ -338,7 +338,7 @@ static inline void xm255FrameClockTrace(
         const char* flag=std::getenv("XMVSF_FRAME_TRACE");
         armed=flag && flag[0]=='1' && !flag[1] ? 1 : 0;
         if(armed){
-            file=xm36OpenTrace("xmvsf_frame_clock_255.tsv",
+            file=xm36OpenTrace("xmvsf_frame_clock_256.tsv",
                 "host_sample\tlogical_before\tlogical_after\t"
                 "p1_clock_before\tp1_clock_after\tp2_clock_before\tp2_clock_after\t"
                 "p1_2e\tp1_hitstop\tp1_mode\tp1_action\tp1_phase\t"
@@ -563,7 +563,7 @@ static inline void xm23OnRealFrame(int ready) {
         const unsigned long long p1Before=xm23State.frameData.playerFrame[0];
         const unsigned long long p2Before=xm23State.frameData.playerFrame[1];
         xm23State.frameData.onFrame(sample[0],sample[1],actor[0],actor[1]);
-        xm255FrameClockTrace(c,sample,actor,logicalBefore,
+        xm256FrameClockTrace(c,sample,actor,logicalBefore,
                              xm23State.frameData.frame,p1Before,p2Before);
     }
     c->close();

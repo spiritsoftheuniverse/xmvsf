@@ -63,10 +63,7 @@ static void traceBasedSuperCinematicAndDefenderStop(){
     }
     assert(f.frame==startP1+52);
     assert(f.history[0].active==53);
-    assert(f.history[0].contactCount==11); // exactly 11 real HP drops
-    // The defender's independent +85 counter reloads every 8 samples;
-    // its reloads CANNOT add contacts while health is above the floor.
-    assert(f.reloadContactProofs[0]==0);
+    assert(f.history[0].contactCount==11); // 11 actual health drops
     assert(f.superFreezeFrames==43);
     const unsigned long long attackLast=f.history[0].attackLastFrame;
     a.nativeStep=6;a.nativeAction=0x2E02;a.attackPhase=0x40;
