@@ -59,29 +59,30 @@ static inline bool xm87110RestartAfterFrame(bool ready,unsigned frame){
  const char* driver=BurnDrvGetTextA(DRV_NAME);
  if(!driver || std::strcmp(driver,"xmvsfu")!=0){s.take();return false;}
  const unsigned selection=s.take();
+ XM87110::log("RESTART_BEGIN frame=%u preset=%s",frame,selection==XM87110::LEFT?"LEFT":selection==XM87110::RIGHT?"RIGHT":"NORMAL");
  XM87111::cameraCheck().clear(); // normal/unsupported restarts must not inherit a previous camera check
  XM87102Lab::Capture& c=XM87102Lab::capture();
- if(!c.saved){std::fprintf(stderr,"XM87.111 RESTART_REFUSED frame=%u no match-start snapshot\n",frame);return false;}
+ if(!c.saved){XM87110::log("RESTART_REFUSED frame=%u reason=no_match_start_snapshot",frame);return false;}
  // The first-frame snapshot can contain an older character team or a
  // different point fighter after tagging. Never overwrite the live roster.
  XM87135::Team liveTeam;
  if(!XM87135::fromCPU(liveTeam)){
-  std::fprintf(stderr,"XM87.135 RESTART_REFUSED frame=%u live roster unavailable\n",frame);
+  XM87110::log("RESTART_REFUSED frame=%u reason=live_roster_unavailable",frame);
   return false;
  }
  std::string loadPath;
  if(!XM87135::prepare(XM87102Lab::SNAPSHOT,liveTeam,loadPath)){
-  std::fprintf(stderr,"XM87.135 RESTART_REFUSED frame=%u no matching first-frame roster\n",frame);
+  XM87110::log("RESTART_REFUSED frame=%u reason=no_matching_first_frame_roster",frame);
   return false;
  }
  FILE* f=std::fopen(loadPath.c_str(),"rb");
  char sig[4]={};
  const bool valid=f && std::fread(sig,1,4,f)==4 && std::memcmp(sig,"FB1 ",4)==0;
  if(f)std::fclose(f);
- if(!valid){std::fprintf(stderr,"XM87.111 RESTART_REFUSED frame=%u invalid snapshot\n",frame);return false;}
+ if(!valid){XM87110::log("RESTART_REFUSED frame=%u reason=invalid_snapshot path=%s",frame,loadPath.c_str());return false;}
  // Load only at the safe post-CPU real-frame boundary.
  const int rc=BurnStateLoad((TCHAR*)loadPath.c_str(),1,NULL);
- if(rc){std::fprintf(stderr,"XM87.111 RESTART_REFUSED frame=%u load_rc=%d\n",frame,rc);return false;}
+ if(rc){XM87110::log("RESTART_REFUSED frame=%u reason=load_failed rc=%d",frame,rc);return false;}
  bool positioned=false;
  {
   cpu_core_config* cpu=GetCpuCoreConfig(0);
@@ -164,7 +165,7 @@ static inline bool xm87110RestartAfterFrame(bool ready,unsigned frame){
  c.live=true;c.saved=true;c.tried=true;c.postCombatFrames=0;
  s.didRestore();
  xm25BeginInputHandoff();
- std::fprintf(stderr,"XM87.111 TRAINING_TRIPLE_START frame=%u preset=%s positioned=%u input_release_gate=1\n",
+ XM87110::log("TRAINING_TRIPLE_START frame=%u preset=%s positioned=%u input_release_gate=1",
     frame,selection==XM87110::NORMAL?"NORMAL":selection==XM87110::RIGHT?"RIGHT":"LEFT",(unsigned)positioned);
  return true;
 }
