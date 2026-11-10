@@ -1,15 +1,34 @@
 #ifndef XMVSF_STAGE87_110_RESTART_H
 #define XMVSF_STAGE87_110_RESTART_H
-// Training-only triple Start gesture. All timing is input-edge based; no
-// changes to the ROM's own Start, position switch, or fighter rules.
+// Training-only triple Start gesture. Observe each physical Start edge once
+// per real input frame, independent of FBNeo's game-input query order.
+#include <cstdio>
+#include <cstdarg>
+#include <cstdlib>
 namespace XM87110 {
+// Event-only diagnostics follow RUN_TEST.bat's current-version log root.
+static inline void log(const char* format,...) {
+ char line[512];
+ va_list args;va_start(args,format);
+ std::vsnprintf(line,sizeof(line),format,args);
+ va_end(args);
+ std::fprintf(stderr,"XM87.273 RELOCATOR %s\n",line);
+ const char* configured=std::getenv("XM87110_LOG_FILE");
+ const char* path=(configured && *configured)?configured:"xmvsf_training_relocator.log";
+ FILE* f=std::fopen(path,"a");
+ if(f){std::fprintf(f,"XM87.273 RELOCATOR %s\n",line);std::fclose(f);}
+}
 enum Preset { NONE=0, NORMAL=1, RIGHT=2, LEFT=3 };
-static const unsigned RIGHT_P1_X=568u; // session_20261102_175317_190, settled
-static const unsigned RIGHT_P2_X=725u;
-static const unsigned MIRROR_SUM=1024u; // world center X=512
+// TEST 87.273: adjust player to 87.272's repeated taunt marker, keeping
+// Cyclops on the original outer edge. Keep mirrored at world width 768.
+// Source of truth for runtime placement is XM87111::fighterX().
+static const unsigned RIGHT_P1_X=650u;
+static const unsigned RIGHT_P2_X=747u;
+static const unsigned LEFT_P1_X=118u;
+static const unsigned LEFT_P2_X=21u;
 static inline unsigned targetX(unsigned preset,unsigned fighter){
- const unsigned r=fighter==0?RIGHT_P1_X:RIGHT_P2_X;
- return preset==LEFT ? MIRROR_SUM-r : r;
+ return preset==LEFT ? (fighter==0?LEFT_P1_X:LEFT_P2_X)
+                     : (fighter==0?RIGHT_P1_X:RIGHT_P2_X);
 }
 struct Tap {
  bool down=false;
@@ -33,13 +52,15 @@ struct State {
   if(!pressed){t.down=false;return false;}
   if(t.down)return false;
   t.down=true;
-  if(t.count==0 || (unsigned)(now-t.lastMs)>450u || (unsigned)(now-t.firstMs)>1000u){
+  if(t.count==0 || (unsigned)(now-t.lastMs)>750u || (unsigned)(now-t.firstMs)>2200u){
    t.count=1;t.firstMs=now;
   }else ++t.count;
   t.lastMs=now;
+  log("START_EDGE player=%u tap=%u left=%u right=%u ms=%u",player+1,t.count,(unsigned)left,(unsigned)right,now);
   if(t.count<3u)return false;
   pending=(right&&!left)?RIGHT:((left&&!right)?LEFT:NORMAL);
   lastSelection=pending;
+  log("START_TRIGGER player=%u preset=%s",player+1,pending==LEFT?"LEFT":pending==RIGHT?"RIGHT":"NORMAL");
   keys[0].clear();keys[1].clear();
   return true;
  }

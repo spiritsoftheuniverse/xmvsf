@@ -513,6 +513,19 @@ int SDLinpInit()
     return 0;
 }
 
+// Shared map for gameplay and the once-per-frame training Start detector.
+// Avoid a second profile read or a second HID update per button.
+static XM13_Settings xm13Config;
+static bool xm13Loaded=false;
+static Uint32 xm13LastReload=0;
+static void xm13RefreshMapping() {
+    const Uint32 now=SDL_GetTicks();
+    if(!xm13Loaded || (Uint32)(now-xm13LastReload)>=250u){
+        xm13Load(&xm13Config);
+        xm13Loaded=true;
+        xm13LastReload=now;
+    }
+}
 static unsigned char bKeyboardRead = 0;
 const Uint8* SDLinpKeyboardState = NULL;
 
@@ -601,9 +614,55 @@ static void xm249TryLateGameControllerClaim() {
     }
 }
 
+// Direct keyboard/legacy joystick fallback when no Stage13 profile is active.
+// Read the actual FBNeo game binding, rather than assuming a virtual 0x4087.
+static int JoystickState(int i, int nSubCode); // defined below
+static int xm87110ReadBoundAction(unsigned p,const char* action){
+    if(p>1u)return 0;
+    const int which=strcmp(action,"start")==0?0:strcmp(action,"left")==0?1:2;
+    // Cache stable FBNeo action indices, not mutable keyboard/joystick codes.
+    // Only look up BurnInputInfo once per action, never each input frame.
+    static int slots[2][3]={{-2,-2,-2},{-2,-2,-2}};
+    static unsigned knownCount=0;
+    if(knownCount!=nGameInpCount){
+        knownCount=nGameInpCount;
+        for(unsigned j=0;j<2u;++j)for(unsigned k=0;k<3u;++k)slots[j][k]=-2;
+    }
+    int& index=slots[p][which];
+    if(index==-2){
+        index=-1;
+        for(unsigned i=0;i<nGameInpCount;++i){
+            BurnInputInfo info={};
+            if(BurnDrvGetInputInfo(&info,i)!=0 || !info.szInfo ||
+               tolower((unsigned char)info.szInfo[0])!='p' ||
+               info.szInfo[1]!=(char)('1'+p) ||
+               info.szInfo[2]!=' ' || strcmp(info.szInfo+3,action)!=0)continue;
+            index=(int)i;
+            break;
+        }
+    }
+    if(index<0)return 0;
+    const struct GameInp& binding=GameInp[index];
+    if(binding.nInput!=GIT_SWITCH)return 0;
+    const unsigned code=(unsigned)binding.Input.Switch.nCode;
+    if(code<0x100u){
+        const Uint8* keys=SDL_GetKeyboardState(NULL);
+        const int scan=FBKtoSDL[code];
+        return keys && scan>0 && keys[scan]!=0;
+    }
+    if(code>=0x4000u && code<0x8000u)
+        return JoystickState((int)((code-0x4000u)>>8),(int)(code&255u));
+    return 0;
+}
+
 // Call before checking for Input in a frame
 int SDLinpStart()
 {
+    // Preserve input-edge observability even if the combat gate is closed.
+    // Only rising edges and state transitions are logged (no frame spam).
+    static bool relocatorMonitorOn=false;
+    static bool relocatorPrevStart[2]={false,false};
+    static int relocatorPrevEnabled=-1;
 	// Update SDL event queue
 	SDL_PumpEvents();
     SDLinpRecheckJoysticks(); // bounded hotplug detection and HID retries
@@ -615,6 +674,52 @@ int SDLinpStart()
     if(pollMs>=50u)fprintf(stderr,
         "XM87.266 SLOW_PAD_UPDATE ms=%u\n",(unsigned)pollMs);
     xm249TryLateGameControllerClaim();
+    // Sample the effective physical P1/P2 Start once per real frame.
+    // Formerly this ran inside SDLinpState(nCode=0x4087), which FBNeo
+    // isn't obliged to query for every input route. Missing that query
+    // made triple Start silently do nothing while ordinary controls worked.
+    if(bDrvOkay && xm14TrainingMode && !bBurnRunAheadFrame){
+        if(!relocatorMonitorOn){
+            XM87110::log("INPUT_MONITOR_ON training=1 driver_ready=1");
+            relocatorMonitorOn=true;
+        }
+        xm13RefreshMapping();
+        const bool enabled=(xm18Position.combat || xm23State.combat) && !xm23State.menuOpen;
+        if(relocatorPrevEnabled!=(int)enabled){
+            XM87110::log("INPUT_GATE enabled=%u combat18=%u combat23=%u menu=%u",
+                (unsigned)enabled,(unsigned)xm18Position.combat,
+                (unsigned)xm23State.combat,(unsigned)xm23State.menuOpen);
+            relocatorPrevEnabled=(int)enabled;
+        }
+        const unsigned now=(unsigned)SDL_GetTicks();
+        for(unsigned p=0;p<2u;++p){
+            const bool virtualMap=XM249Policy::needsVirtualMap(
+                xm13Config.player[p].active!=0,
+                xm249SessionPad[p].selected);
+            const int start=virtualMap?
+                xm13ReadInput(&xm13Config,(int)p,0x87,JoyList,GCList,nJoystickCount):
+                xm87110ReadBoundAction(p,"start");
+            const int left=virtualMap?
+                xm13ReadInput(&xm13Config,(int)p,0,JoyList,GCList,nJoystickCount):
+                xm87110ReadBoundAction(p,"left");
+            const int right=virtualMap?
+                xm13ReadInput(&xm13Config,(int)p,1,JoyList,GCList,nJoystickCount):
+                xm87110ReadBoundAction(p,"right");
+            const bool pressed=start>0;
+            if(pressed && !relocatorPrevStart[p])
+                XM87110::log("INPUT_RISE player=%u route=%s enabled=%u left=%u right=%u ms=%u",
+                    p+1,virtualMap?"PROFILE_OR_MENU":"FBNEO_BOUND",
+                    (unsigned)enabled,(unsigned)(left>0),(unsigned)(right>0),now);
+            relocatorPrevStart[p]=pressed;
+            XM87110::state().observe(p,pressed,left>0,right>0,now,enabled);
+            if(XM87110::state().pending!=XM87110::NONE)break;
+        }
+    } else if(!xm14TrainingMode){
+        XM87110::state().reset();
+        relocatorMonitorOn=false;
+        relocatorPrevEnabled=-1;
+        relocatorPrevStart[0]=relocatorPrevStart[1]=false;
+    }
 
 	// Keyboard not read this frame
 	bKeyboardRead = 0;
@@ -818,18 +923,8 @@ int SDLinpState(int nCode)
     // Do not reference game-mode globals from this independent translation unit.
     if (xm25InputHandoffBlock()) return 0;
     // Stage 13: route virtual P1/P2 joystick codes to saved SDL hardware.
-    // ReadJoystick() already updates joystick state once per game frame.
-    static XM13_Settings xm13Config;
-    static bool xm13Loaded=false;
-    static Uint32 xm13LastReload=0;
-    // Options can change a mapping while SDL input remains initialized across
-    // game->menu->game. Refresh it periodically without reopening the driver.
-    const Uint32 xm13Now=SDL_GetTicks();
-    if(!xm13Loaded || (Uint32)(xm13Now-xm13LastReload)>=250u){
-        xm13Load(&xm13Config);
-        xm13Loaded=true;
-        xm13LastReload=xm13Now;
-    }
+    // Share the same profile used by the once-per-frame Start detector.
+    xm13RefreshMapping();
     if(nCode>=0x4000 && nCode<0x4200) {
         int p=(nCode-0x4000)>>8;
         // XMVSF_STAGE14_INPUT_HANDOFF: F6 switches P1's controller from P1 to P2
@@ -899,11 +994,9 @@ int SDLinpState(int nCode)
             // XM87.68: ROM accepted-pick count owns handoff, not input edges.
             const int xm18Left=(xm15Sub==0x87)?xm13ReadInput(&xm13Config,xm14Source,0,JoyList,GCList,nJoystickCount):0;
             const int xm18Right=(xm15Sub==0x87)?xm13ReadInput(&xm13Config,xm14Source,1,JoyList,GCList,nJoystickCount):0;
-            const bool xm87110Restart=(xm15Sub==0x87 &&
-                XM87110::state().observe((unsigned)xm14Source,xm15Value!=0,
-                   xm18Left!=0,xm18Right!=0,(unsigned)SDL_GetTicks(),
-                   xm14TrainingMode && xm18Position.combat && !xm23State.menuOpen));
-            const int xm18Val=xm87110Restart?0:xm18ProcessInput(p,xm15Sub,xm15Value,xm18Left,xm18Right);
+            // Relocator Start edges are sampled once in SDLinpStart.
+            // Preserve Stage18's independent direction+Start side switch.
+            const int xm18Val=xm18ProcessInput(p,xm15Sub,xm15Value,xm18Left,xm18Right);
             const int xm8766Delivered=xm23FilterInput(p,xm15Sub,(xm18Val || xm15SyntheticButton(p,xm15Sub)),xm14TrainingMode);
             const int xm8768Delivered=xm17FilterTransferredConfirm(p,xm15Sub,xm8766Delivered);
             XM87137Input::state().mapped((unsigned)p,(unsigned)xm15Sub,xm8768Delivered,(unsigned)GetCurrentFrame()); // XM87.137 no input injection

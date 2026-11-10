@@ -430,6 +430,16 @@ static int RunFrame(int bDraw, int bPause)
     // BEFORE native presentation, exactly once per completed CPU frame.
     xm87118OnRealFrame(bDrvOkay); /* XM87.118 completed super-stock observer */
     xm24OnRealFrame(bDrvOkay); /* XMVSF_STAGE24_VERSUS */
+    // XM87.270: The first-live-frame saver was defined but never CALLED.
+    // Capture at the completed real-frame boundary after all CPU scopes close,
+    // before either triple-Start or KO landing can request a snapshot reload.
+    // This is shared by both Training damage modes and is a one-shot per round.
+    XM87102Lab::Capture& trainingMatch=XM87102Lab::capture();
+    trainingMatch.frame(bDrvOkay,(unsigned)nCurrentFrame);
+    if(trainingMatch.tried && trainingMatch.frames==1u)
+        XM87110::log("MATCH_START_CAPTURE frame=%u saved=%u path=%s",
+            (unsigned)nCurrentFrame,(unsigned)trainingMatch.saved,
+            XM87102Lab::SNAPSHOT);
     // Triple-Start restart takes priority over the KO-landing autoload.
     if(xm87110RestartAfterFrame(bDrvOkay,(unsigned)nCurrentFrame))
         XM8764::checkpoint("TRAINING_TRIPLE_START_RELOAD");
