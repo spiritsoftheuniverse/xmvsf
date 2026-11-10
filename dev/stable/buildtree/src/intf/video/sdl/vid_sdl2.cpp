@@ -14,6 +14,7 @@
 #include <stdio.h>
 #include <SDL.h>
 #include "xmvsf_stage87_74_select_present.h" // XM87.74 native framebuffer matched pen colors
+#include "../../../burn/drv/capcom/xmvsf_stage87_262_game_version.h" // original V3 HUD
 #include "../../../burner/sdl/xmvsf_stage87_139_probe.h" // XM87.139 F10 probe status
 #include "xmvsf_stage87_140_chat_overlay.h" // XM87.140 opt-in DHC history
 #include "../../../burner/sdl/xmvsf_stage87_206_crash_report.h" // FIGHT exception breadcrumbs
@@ -580,6 +581,7 @@ static int Frame(bool bRedraw)                                          // bRedr
 // GetCurrentFrame() is internal burnint.h-only; do not use it in SDL video.
 // This isolates stun HUD from art layers; gameplay RAM is never written.
 extern "C" bool xm8746DizzyHudAllowed(){
+    if(!XM87262Game::version4())return false;
     const char* option=std::getenv("XM8733_DIZZY_BAR");
     return !(option && option[0]=='0' && option[1]==0) &&
            !(xm14TrainingMode && !xm23State.dizzyAllowed);
@@ -639,6 +641,7 @@ static const XM8733::BarArt* xm87207StunArt(){
 }
 // Stun HUD now uses the existing UI stack for both ordinary and Wily stages.
 static void xm8733Overlay(SDL_Renderer* render,const SDL_Rect& view) {
+    if(!XM87262Game::version4())return;
     const char* name=BurnDrvGetTextA(DRV_NAME);
     // Phase 06 is the combat scene's opening/round-intro, ahead of
     // status 08 ("FIGHT!"). Keep the bar hidden on character select
@@ -685,6 +688,7 @@ static void xm8733Overlay(SDL_Renderer* render,const SDL_Rect& view) {
 // regular CPS2 canvas and the native Wily stage compositor. It is rebuilt
 // from transparent pixels each paint, so repeated paused paints cannot smear.
 static void xm87217NativeFloat(SDL_Renderer* render,const SDL_Rect& gameView){
+    if(!XM87262Game::version4())return;
     if(!render || !xm14TrainingMode || !xm23State.combat ||
        xm23State.menuOpen || nVidImageWidth!=384 || nVidImageHeight!=224 ||
        !XM87217::any(xm23State.frameData))return;

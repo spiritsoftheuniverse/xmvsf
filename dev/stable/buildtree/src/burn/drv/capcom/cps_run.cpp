@@ -512,7 +512,11 @@ INT32 Cps2Frame()
          std::strncmp(dhcGame,"xmvsf",5)==0;
     const bool xm262V4=dhcGameMatches && XM87262Game::version4();
     static bool xm262WasV4=false;
-    if(xm262WasV4 && !xm262V4)XM87144::state().reset();
+    if(xm262WasV4 && !xm262V4){
+        XM87144::state().reset();
+        XM87121::state().reset();
+        XM87220Dash::state().reset();
+    }
     xm262WasV4=xm262V4;
     // 87.181: observer log files must be initialized when the XMVSF
     // CPS2 driver starts, NOT only from the late post-CPU DHC hook.
