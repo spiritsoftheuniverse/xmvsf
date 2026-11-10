@@ -10,6 +10,7 @@
 #include "../../../burner/sdl/xmvsf_stage23_ui.h" /* XMVSF_STAGE23_TRAINING_MENU */ // XMVSF_STAGE17_AUTO // XMVSF_STAGE15_MACHINE // XMVSF_STAGE14_INPUT_HANDOFF // XMVSF_STAGE13_CONTROLLERS
 
 #include "burner.h"
+#include "../../../burner/sdl/xmvsf_stage13_1_game_bindings.h" // runtime GameInp remap on late Xbox/DS4Windows claim
 #include "../../../burner/sdl/xmvsf_stage87_97_debug_console.h"
 // Test-only calibration: intercept physical arrow keys in Training selection.
 extern "C" int xm8774SelectorCalibrationConsumesArrows();
@@ -17,6 +18,8 @@ extern "C" void xm8770SelectInput(unsigned slot,unsigned code,int down,unsigned 
 
 #define JOYSTICK_DEAD_ZONE 8000		// Replace DEADZONE to make it coherent with other declarations
 #define MAX_JOYSTICKS 8
+// TEST 87.248: joystick enumeration changes during the SAME running game.
+// The SDL device index is not a stable identity. The instance ID is.
 
 static int FBKtoSDL[512] = { 0 };
 static int SDLtoFBK[512] = { -1 };
@@ -24,10 +27,24 @@ static int SDLtoFBK[512] = { -1 };
 static int nInitedSubsytems = 0;
 static SDL_Joystick* JoyList[MAX_JOYSTICKS];
 static SDL_GameController *GCList[MAX_JOYSTICKS];
+static SDL_JoystickID xm248Instance[MAX_JOYSTICKS] = {-1,-1,-1,-1,-1,-1,-1,-1};
+static SDL_JoystickID xm248ListedInstance[MAX_JOYSTICKS] = {-1,-1,-1,-1,-1,-1,-1,-1};
+static Uint32 xm248LastRetryAt = 0;
+// 87.266: throttle FAILED HID opens only; a new instance bypasses cooldown.
+static SDL_JoystickID xm266FailedJoyID[MAX_JOYSTICKS]={-1,-1,-1,-1,-1,-1,-1,-1};
+static Uint32 xm266FailedJoyAt[MAX_JOYSTICKS]={};
+static SDL_JoystickID xm266FailedGCID[MAX_JOYSTICKS]={-1,-1,-1,-1,-1,-1,-1,-1};
+static Uint32 xm266FailedGCAt[MAX_JOYSTICKS]={};
 static int* JoyPrevAxes = NULL;
 /* static */ int nJoystickCount = 0;						// Number of joysticks connected to this machine
-#define JOYSTICK_DETECT_MS 600								// how long to wait for async pad enumeration (see SDLinpInit)
-int buttons [4][8]= { {-1,-1,-1,-1,-1,-1,-1,-1}, {-1,-1,-1,-1,-1,-1,-1,-1}, {-1,-1,-1,-1,-1,-1,-1,-1}, {-1,-1,-1,-1,-1,-1,-1,-1} }; // 4 joysticks buttons 0 -5 and start / select
+// The Windows boot selector has already initialized/enumerated SDL pads.
+// Do not stall EVERY game transition for 600ms if only the keyboard is used.
+#if defined(_WIN32)
+#define JOYSTICK_DETECT_MS 0
+#else
+#define JOYSTICK_DETECT_MS 600
+#endif
+int buttons[MAX_JOYSTICKS][8] = {}; // each opened SDL slot, not a 4-pad buffer
 
 void setup_kemaps(void)
 {
@@ -292,49 +309,137 @@ SDL_Scancode getScancodefromFBK(int key)
 	return (SDL_Scancode)FBKtoSDL[key];
 }
 
-// Sets up one Joystick (for example the range of the joystick's axes)
-static int SDLinpJoystickInit(int i)
-{
-	SDL_GameControllerButtonBind bind;
-
-	JoyList[i] = SDL_JoystickOpen(i);
-	GCList[i]  = SDL_GameControllerOpen(i);
-
-	if (GCList[i])
-	{
-		bind = SDL_GameControllerGetBindForButton(GCList[i], SDL_CONTROLLER_BUTTON_A );
-		buttons[i][0] = bind.value.button;
-
-		bind = SDL_GameControllerGetBindForButton(GCList[i], SDL_CONTROLLER_BUTTON_B);
-		buttons[i][1] = bind.value.button;
-
-		bind = SDL_GameControllerGetBindForButton(GCList[i], SDL_CONTROLLER_BUTTON_X );
-		buttons[i][2] = bind.value.button;
-
-		bind = SDL_GameControllerGetBindForButton(GCList[i], SDL_CONTROLLER_BUTTON_Y);
-		buttons[i][3] = bind.value.button;
-
-		bind = SDL_GameControllerGetBindForButton(GCList[i], SDL_CONTROLLER_BUTTON_LEFTSHOULDER  );
-		buttons[i][4] = bind.value.button;
-
-		bind = SDL_GameControllerGetBindForButton(GCList[i], SDL_CONTROLLER_BUTTON_RIGHTSHOULDER );
-		buttons[i][5] = bind.value.button;
-
-		bind = SDL_GameControllerGetBindForButton(GCList[i], SDL_CONTROLLER_BUTTON_BACK   );
-		buttons[i][6] = bind.value.button;
-
-		bind = SDL_GameControllerGetBindForButton(GCList[i], SDL_CONTROLLER_BUTTON_START  );
-		buttons[i][7] = bind.value.button;
-   }
-
-	return 0;
+// SDL enumerated indices compact when one controller disconnects. Never
+// assume JoyList[i] remains the physical device currently numbered i.
+static void SDLinpCloseJoystickSlot(int i) {
+    if(i<0 || i>=MAX_JOYSTICKS)return;
+    if(GCList[i]){SDL_GameControllerClose(GCList[i]);GCList[i]=NULL;}
+    if(JoyList[i]){SDL_JoystickClose(JoyList[i]);JoyList[i]=NULL;}
+    xm248Instance[i]=-1;
+    for(int j=0;j<8;++j){
+        buttons[i][j]=-1;
+        if(JoyPrevAxes)JoyPrevAxes[(i<<3)+j]=0;
+    }
 }
-
+static int SDLinpJoystickInit(int i) {
+    if(i<0 || i>=MAX_JOYSTICKS || i>=SDL_NumJoysticks())return 1;
+    if(JoyList[i])SDLinpCloseJoystickSlot(i);
+    const SDL_JoystickID requested=SDL_JoystickGetDeviceInstanceID(i);
+    const Uint32 started=SDL_GetTicks();
+    SDL_Joystick* joy=SDL_JoystickOpen(i);
+    const Uint32 ms=(Uint32)(SDL_GetTicks()-started);
+    if(ms>=50u)fprintf(stderr,
+        "XM87.266 SLOW_JOY_OPEN slot=%d id=%d ms=%u\n",
+        i,(int)requested,(unsigned)ms);
+    if(!joy || !SDL_JoystickGetAttached(joy)){
+        if(joy)SDL_JoystickClose(joy);
+        xm266FailedJoyID[i]=requested;
+        xm266FailedJoyAt[i]=SDL_GetTicks()?SDL_GetTicks():1u;
+        return 1;
+    }
+    xm266FailedJoyID[i]=-1;xm266FailedJoyAt[i]=0;
+    JoyList[i]=joy;
+    xm248Instance[i]=SDL_JoystickInstanceID(joy);
+    if(SDL_IsGameController(i)){
+        const Uint32 gcStarted=SDL_GetTicks();
+        GCList[i]=SDL_GameControllerOpen(i);
+        const Uint32 gcMs=(Uint32)(SDL_GetTicks()-gcStarted);
+        if(gcMs>=50u)fprintf(stderr,
+            "XM87.266 SLOW_GC_OPEN slot=%d ms=%u\n",i,(unsigned)gcMs);
+        if(!GCList[i]){
+            xm266FailedGCID[i]=xm248Instance[i];
+            xm266FailedGCAt[i]=SDL_GetTicks()?SDL_GetTicks():1u;
+        }else{
+            xm266FailedGCID[i]=-1;xm266FailedGCAt[i]=0;
+        }
+    }
+    const SDL_GameControllerButton names[8]={
+        SDL_CONTROLLER_BUTTON_A,SDL_CONTROLLER_BUTTON_B,
+        SDL_CONTROLLER_BUTTON_X,SDL_CONTROLLER_BUTTON_Y,
+        SDL_CONTROLLER_BUTTON_LEFTSHOULDER,SDL_CONTROLLER_BUTTON_RIGHTSHOULDER,
+        SDL_CONTROLLER_BUTTON_BACK,SDL_CONTROLLER_BUTTON_START
+    };
+    if(GCList[i])for(int j=0;j<8;++j) {
+        const SDL_GameControllerButtonBind b=
+            SDL_GameControllerGetBindForButton(GCList[i],names[j]);
+        if(b.bindType==SDL_CONTROLLER_BINDTYPE_BUTTON)
+            buttons[i][j]=b.value.button;
+    }
+    const char* deviceName=SDL_JoystickName(joy);
+    fprintf(stderr,"XM87.248 PAD_OPEN slot=%d instance=%d gamecontroller=%d name=%s\n",
+        i,(int)xm248Instance[i],GCList[i]?1:0,
+        deviceName?deviceName:"UNKNOWN");
+    return 0;
+}
+// Native Windows HID enumeration can block during DS4/XInput reconnect.
+// Enumerate no more than every 250ms, except an attached handle dropping
+// out immediately. Normal reads use already opened SDL device handles.
+static void SDLinpRecheckJoysticks(bool forceRetry=false) {
+    const Uint32 now=SDL_GetTicks();
+    bool retry=forceRetry || !xm248LastRetryAt ||
+        (Uint32)(now-xm248LastRetryAt)>=250u;
+    if(!retry)for(int i=0;i<MAX_JOYSTICKS;++i)
+        if(JoyList[i] && !SDL_JoystickGetAttached(JoyList[i])){
+            retry=true;break;
+        }
+    if(!retry)return;
+    xm248LastRetryAt=now?now:1u;
+    const Uint32 scanStart=SDL_GetTicks();
+    const int discovered=SDL_NumJoysticks();
+    const Uint32 scanMs=(Uint32)(SDL_GetTicks()-scanStart);
+    if(scanMs>=50u)fprintf(stderr,
+        "XM87.266 SLOW_PAD_SCAN ms=%u discovered=%d\n",
+        (unsigned)scanMs,discovered);
+    const int count=discovered<=0?0:
+        (discovered<MAX_JOYSTICKS?discovered:MAX_JOYSTICKS);
+    for(int i=0;i<MAX_JOYSTICKS;++i){
+        const SDL_JoystickID id=i<count?SDL_JoystickGetDeviceInstanceID(i):-1;
+        const bool newlyListed=xm248ListedInstance[i]!=id;
+        xm248ListedInstance[i]=id;
+        const bool current=JoyList[i] && SDL_JoystickGetAttached(JoyList[i]) &&
+            xm248Instance[i]==id && SDL_JoystickInstanceID(JoyList[i])==id;
+        if(!current && (JoyList[i] || GCList[i] || xm248Instance[i]!=-1)) {
+            fprintf(stderr,"XM87.248 PAD_LOST slot=%d instance=%d replacement=%d\n",
+                i,(int)xm248Instance[i],(int)id);
+            SDLinpCloseJoystickSlot(i);
+        }
+        if(i>=count || id<0)continue;
+        if(!JoyList[i]) {
+            // No open storm while Windows/DS4Windows is initializing.
+            // A different SDL instance ID always attempts immediately.
+            if(newlyListed || xm266FailedJoyID[i]!=id || !xm266FailedJoyAt[i] ||
+               (Uint32)(now-xm266FailedJoyAt[i])>=1200u)
+                SDLinpJoystickInit(i);
+        }else if(GCList[i] && (!SDL_GameControllerGetAttached(GCList[i]) ||
+                               !SDL_IsGameController(i))) {
+            SDL_GameControllerClose(GCList[i]);GCList[i]=NULL;
+        }
+        if(JoyList[i] && !GCList[i] && SDL_IsGameController(i) &&
+           (xm266FailedGCID[i]!=id || !xm266FailedGCAt[i] ||
+            (Uint32)(now-xm266FailedGCAt[i])>=1200u)){
+            // Retry the GameController mapping without reopening raw input.
+            const Uint32 gcStarted=SDL_GetTicks();
+            GCList[i]=SDL_GameControllerOpen(i);
+            const Uint32 ms=(Uint32)(SDL_GetTicks()-gcStarted);
+            if(ms>=50u)fprintf(stderr,
+                "XM87.266 SLOW_MAPPING_OPEN slot=%d ms=%u\n",i,(unsigned)ms);
+            if(GCList[i]){
+                xm266FailedGCID[i]=-1;xm266FailedGCAt[i]=0;
+                fprintf(stderr,"XM87.266 PAD_MAPPING_READY slot=%d instance=%d\n",
+                    i,(int)xm248Instance[i]);
+            }else{
+                xm266FailedGCID[i]=id;
+                xm266FailedGCAt[i]=SDL_GetTicks()?SDL_GetTicks():1u;
+            }
+        }
+    }
+    nJoystickCount=count;
+}
 // Read one d-pad direction off a pad.  Returns 0 when the device isn't a
 // recognised game controller (a bare joystick has no d-pad mapping to read).
 static int SDLinpDPad(int i, SDL_GameControllerButton nButton)
 {
-	if (GCList[i] == NULL) {
+	if (GCList[i] == NULL || !SDL_GameControllerGetAttached(GCList[i])) {
 		return 0;
 	}
 
@@ -367,83 +472,45 @@ int SDLinpSetCooperativeLevel(bool bExclusive, bool /*bForeGround*/)
 
 int SDLinpExit()
 {
-	// Close all joysticks
-	for (int i = 0; i < MAX_JOYSTICKS; i++) {
-		if (JoyList[i]) {
-			SDL_JoystickClose(JoyList[i]);
-			JoyList[i] = NULL;
-		}
-		if (GCList[i]) {
-			SDL_GameControllerClose(GCList[i]);
-			GCList[i] = NULL;
-		}
-	}
-
-	nJoystickCount = 0;
-
-	free(JoyPrevAxes);
-	JoyPrevAxes = NULL;
-
-	nInitedSubsytems = 0;
-
-	return 0;
+    for(int i=0;i<MAX_JOYSTICKS;++i){
+        SDLinpCloseJoystickSlot(i);
+        xm248ListedInstance[i]=-1;
+    }
+    nJoystickCount=0;
+    free(JoyPrevAxes);
+    JoyPrevAxes=NULL;
+    nInitedSubsytems=0;
+    xm248LastRetryAt=0;
+    for(int i=0;i<MAX_JOYSTICKS;++i){
+        xm266FailedJoyID[i]=xm266FailedGCID[i]=-1;
+        xm266FailedJoyAt[i]=xm266FailedGCAt[i]=0;
+    }
+    return 0;
 }
 
 int SDLinpInit()
 {
-	int nSize;
-	setup_kemaps();
-	SDLinpExit();
-
-	memset(&JoyList, 0, sizeof(JoyList));
-
-	nSize = MAX_JOYSTICKS * 8 * sizeof(int);
-	if ((JoyPrevAxes = (int*)malloc(nSize)) == NULL) {
-		SDLinpExit();
-		return 1;
-	}
-	memset(JoyPrevAxes, 0, nSize);
-
-	nInitedSubsytems = SDL_WasInit(SDL_INIT_JOYSTICK | SDL_INIT_GAMECONTROLLER);
-
-	if (!(nInitedSubsytems & SDL_INIT_JOYSTICK & SDL_INIT_GAMECONTROLLER)) {
-		SDL_Init(SDL_INIT_JOYSTICK | SDL_INIT_GAMECONTROLLER);
-	}
-
-	// Set up the joysticks.  Device discovery is asynchronous on sdl2-compat/SDL3
-	// (macOS enumerates pads through GameController.framework), so SDL_NumJoysticks()
-	// reads 0 for the first few hundred ms after init.  Pump the queue until a device
-	// shows up, capped so a keyboard-only setup isn't held up for long.
-	nJoystickCount = SDL_NumJoysticks();
-
-	for (int nWait = 0; nJoystickCount == 0 && nWait < JOYSTICK_DETECT_MS; nWait += 20) {
-		SDL_PumpEvents();
-		SDL_Delay(20);
-		nJoystickCount = SDL_NumJoysticks();
-	}
-
-	for (int i = 0; i < nJoystickCount; i++) {
-		SDLinpJoystickInit(i);
-	}
-
-	if (nJoystickCount > 0) {
-		printf("Found %d joystick(s):\n", nJoystickCount);
-		for (int i = 0; i < nJoystickCount; i++) {
-			printf("  Joy %d: %s%s\n", i, SDL_JoystickNameForIndex(i),
-				SDL_IsGameController(i) ? " (game controller)" : "");
-		}
-	}
-
-	SDL_GameControllerEventState(SDL_IGNORE);
-	SDL_JoystickEventState(SDL_IGNORE);
-
-	// Set up the keyboard
-	SDLinpKeyboardInit();
-
-	// Set up the mouse
-	SDLinpMouseInit();
-
-	return 0;
+    setup_kemaps();
+    SDLinpExit();
+    const int nSize=MAX_JOYSTICKS * 8 * (int)sizeof(int);
+    JoyPrevAxes=(int*)malloc(nSize);
+    if(!JoyPrevAxes)return 1;
+    memset(JoyPrevAxes,0,nSize);
+    nInitedSubsytems=SDL_WasInit(SDL_INIT_JOYSTICK | SDL_INIT_GAMECONTROLLER);
+    if((nInitedSubsytems & (SDL_INIT_JOYSTICK | SDL_INIT_GAMECONTROLLER)) !=
+       (SDL_INIT_JOYSTICK | SDL_INIT_GAMECONTROLLER))
+        SDL_InitSubSystem(SDL_INIT_JOYSTICK | SDL_INIT_GAMECONTROLLER);
+    // Preserve event generation for the persistent boot-menu controller
+    // capture when the game returns to the same SDL process.
+    SDL_JoystickEventState(SDL_ENABLE);
+    SDL_GameControllerEventState(SDL_ENABLE);
+    SDL_PumpEvents();
+    SDLinpRecheckJoysticks(true);
+    // Delayed availability is recovered by SDLinpStart, not a blocking
+    // 600-ms cold-boot scan. This also works with no connected devices.
+    SDLinpKeyboardInit();
+    SDLinpMouseInit();
+    return 0;
 }
 
 static unsigned char bKeyboardRead = 0;
@@ -476,11 +543,78 @@ int SDL_KEY_IS_DOWN(int key)
 	} else return 0;
 }
 
+// A newly valid Xbox/DS4Windows pad may appear AFTER Arcade has started,
+// including when P1 was entered with a keyboard. A fresh semantic A press
+// can claim P1 once. This is explicitly NOT the saved control assignment.
+// Preserve a working mapped P1 and never steal an assigned P2 device.
+static void xm249TryLateGameControllerClaim() {
+    if(!bDrvOkay || getenv("XM8764_REPLAY_SESSION") ||
+       getenv("XM8761_REPLAY_MODE"))return;
+    // No additional I/O for an already working P1 pad.
+    if(xm249SessionPad[0].selected){
+        // No enumeration if the selected SDL instance is already attached.
+        for(int i=0;i<nJoystickCount;++i)
+            if(JoyList[i] && SDL_JoystickGetAttached(JoyList[i]) &&
+               xm248Instance[i]==xm249SessionPad[0].instance)return;
+    }
+    static XM13_Settings settings{};
+    static Uint32 checkedAt=0;
+    static bool loaded=false;
+    const Uint32 now=SDL_GetTicks();
+    if(!loaded || (Uint32)(now-checkedAt)>=250u){
+        xm13Load(&settings);
+        checkedAt=now;loaded=true;
+    }
+    const int p1=xm266ControllerRoute(&settings,0,nJoystickCount).device;
+    if(p1>=0 && p1<nJoystickCount && JoyList[p1] &&
+       SDL_JoystickGetAttached(JoyList[p1]))return;
+    const int p2=xm266ControllerRoute(&settings,1,nJoystickCount).device;
+    static SDL_JoystickID known[MAX_JOYSTICKS]={-1,-1,-1,-1,-1,-1,-1,-1};
+    static bool previousA[MAX_JOYSTICKS]={};
+    for(int i=0;i<MAX_JOYSTICKS;++i){
+        if(i>=nJoystickCount || !GCList[i] ||
+           !SDL_GameControllerGetAttached(GCList[i])){
+            known[i]=-1;previousA[i]=false;
+            continue;
+        }
+        const SDL_JoystickID id=xm248Instance[i];
+        const bool down=SDL_GameControllerGetButton(
+            GCList[i],SDL_CONTROLLER_BUTTON_A)!=0;
+        if(known[i]!=id){
+            // Never interpret a pre-held button on a newly enumerated
+            // device as a new controller adoption.
+            known[i]=id;previousA[i]=down;
+            continue;
+        }
+        const bool edge=down && !previousA[i];
+        previousA[i]=down;
+        if(!edge || i==p2)continue;
+        if(xm249SelectSessionPad(0,id)){
+            fprintf(stderr,
+                "XM87.249 PAD_LATE_CLAIM p=1 device=%d instance=%d\n",
+                i,(int)id);
+            // GameInpDefault already completed. Install the 14 native
+            // P1 virtual switch codes now; no ROM input buffering/write.
+            xm131ApplyGameInputMappings();
+            return;
+        }
+    }
+}
+
 // Call before checking for Input in a frame
 int SDLinpStart()
 {
 	// Update SDL event queue
 	SDL_PumpEvents();
+    SDLinpRecheckJoysticks(); // bounded hotplug detection and HID retries
+    XM8797Debug::state().beforeControllerPoll();
+    const Uint32 pollStart=SDL_GetTicks();
+    SDL_GameControllerUpdate(); // one SDL input refresh per emulated frame
+    const Uint32 pollMs=(Uint32)(SDL_GetTicks()-pollStart);
+    XM8797Debug::state().afterControllerPoll();
+    if(pollMs>=50u)fprintf(stderr,
+        "XM87.266 SLOW_PAD_UPDATE ms=%u\n",(unsigned)pollMs);
+    xm249TryLateGameControllerClaim();
 
 	// Keyboard not read this frame
 	bKeyboardRead = 0;
@@ -501,9 +635,8 @@ static int ReadJoystick()
 		return 0;
 	}
 
-    XM8797Debug::state().beforeControllerPoll();
-	SDL_GameControllerUpdate();		// This updates Joysticks too
-    XM8797Debug::state().afterControllerPoll();
+    // SDLinpStart has already refreshed devices and their cached input.
+    // Do not re-enter the HID poll for another mapped button on this frame.
 
 	// All joysticks have been Read this frame
 	bJoystickRead = 1;
@@ -522,7 +655,8 @@ int SDLinpJoyAxis(int i, int nAxis)
 		return 0;
 	}
 
-	if (nAxis >= SDL_JoystickNumAxes(JoyList[i])) {
+	if (!JoyList[i] || !SDL_JoystickGetAttached(JoyList[i]) ||
+        nAxis<0 || nAxis >= SDL_JoystickNumAxes(JoyList[i])) {
 		return 0;
 	}
 
@@ -585,6 +719,7 @@ static int JoystickState(int i, int nSubCode)
 		return 0;
 	}
 
+    if(!JoyList[i] || !SDL_JoystickGetAttached(JoyList[i]))return 0;
 	if (nSubCode < 0x10) {										// Joystick directions
 
 		// we have two checks per axis
@@ -673,8 +808,8 @@ int SDLinpState(int nCode)
     if(XM87110::state().pending!=XM87110::NONE)return 0;
     if(XM87110::state().releaseArmed &&
        XM87110::state().gate(xm25HandoffAnyInputHeld()))return 0;
-    if(!xm14TrainingMode && !xm24VersusMode){
-        // The Coin key and both mapped Coin buttons now belong to the Arcade menu.
+    if(!xm14TrainingMode){
+        // Coin belongs to the Arcade or Versus overlay (both use the same key).
         if(nCode==SDL_SCANCODE_5 || (nCode>=0x4000 && nCode<0x4200 && (nCode&0xff)==0x86))return 0;
     }
     // XMVSF_STAGE25_7_1_INPUT_GATE: Gate ALL FBNeo game-input routes at
@@ -685,8 +820,16 @@ int SDLinpState(int nCode)
     // Stage 13: route virtual P1/P2 joystick codes to saved SDL hardware.
     // ReadJoystick() already updates joystick state once per game frame.
     static XM13_Settings xm13Config;
-    static int xm13Loaded=0;
-    if(!xm13Loaded) {xm13Load(&xm13Config);xm13Loaded=1;}
+    static bool xm13Loaded=false;
+    static Uint32 xm13LastReload=0;
+    // Options can change a mapping while SDL input remains initialized across
+    // game->menu->game. Refresh it periodically without reopening the driver.
+    const Uint32 xm13Now=SDL_GetTicks();
+    if(!xm13Loaded || (Uint32)(xm13Now-xm13LastReload)>=250u){
+        xm13Load(&xm13Config);
+        xm13Loaded=true;
+        xm13LastReload=xm13Now;
+    }
     if(nCode>=0x4000 && nCode<0x4200) {
         int p=(nCode-0x4000)>>8;
         // XMVSF_STAGE14_INPUT_HANDOFF: F6 switches P1's controller from P1 to P2
@@ -703,8 +846,51 @@ int SDLinpState(int nCode)
         if (xm17BlockSlot(p)) return 0; // XMVSF_STAGE17_AUTO P2 waits for P1 team
         const int xm14Source=xm14ReadControllerFor(p);
         if (xm14Source<0) return xm15SyntheticButton(p,nCode&0xff);
-        if(xm13Config.player[xm14Source].active) {
+        // The menu-selected Xbox/DS4Windows pad is a real P1 owner even
+        // when the saved controller map is inactive. The old saved-only
+        // check returned synthetic 0 for EVERY CPS2 control, so all menu
+        // buttons worked while Arcade received absolutely nothing.
+        if(XM249Policy::needsVirtualMap(
+               xm13Config.player[xm14Source].active!=0,
+               xm249SessionPad[xm14Source].selected)) {
             if(ReadJoystick()!=0) return 0;
+            // Read-only route evidence: distinguish a saved assignment
+            // not found from an enumerated-but-not-ready device. Emit only
+            // on changes; no per-frame log flood.
+            if(!xm13IsKeyboard(&xm13Config.player[xm14Source])){
+                static int lastRoute[2]={-2,-2},lastLive[2]={-1,-1};
+                static SDL_JoystickID lastInstance[2]={-2,-2};
+                const int route=xm266ControllerRoute(
+                    &xm13Config,xm14Source,nJoystickCount).device;
+                const bool live=route>=0 && route<nJoystickCount &&
+                    JoyList[route] && SDL_JoystickGetAttached(JoyList[route]);
+                const SDL_JoystickID id=live?SDL_JoystickInstanceID(JoyList[route]):-1;
+                if(lastRoute[xm14Source]!=route ||
+                   lastLive[xm14Source]!=(int)live ||
+                   lastInstance[xm14Source]!=id){
+                    fprintf(stderr,
+                        "XM87.248 PAD_ROUTE saved_p=%d device=%d instance=%d ready=%d\n",
+                        xm14Source+1,route,(int)id,live?1:0);
+                    lastRoute[xm14Source]=route;
+                    lastLive[xm14Source]=(int)live;
+                    lastInstance[xm14Source]=id;
+                }
+            }
+            if(xm249SessionPad[xm14Source].selected) {
+                static SDL_JoystickID reported[2]={-1,-1};
+                const int d=xm266ControllerRoute(
+                    &xm13Config,xm14Source,nJoystickCount).device;
+                const SDL_JoystickID id=d>=0?SDL_JoystickGetDeviceInstanceID(d):-1;
+                if(reported[xm14Source]!=id) {
+                    reported[xm14Source]=id;
+                    fprintf(stderr,
+                        "XM87.249 PAD_GAME_OWNER p=%d device=%d instance=%d attached=%d profile=%d\n",
+                        xm14Source+1,d,(int)id,
+                        d>=0 && d<nJoystickCount && JoyList[d] &&
+                        SDL_JoystickGetAttached(JoyList[d])?1:0,
+                        xm13Config.player[xm14Source].active?1:0);
+                }
+            }
             const int xm15Sub=nCode&0xff;
             const int xm15Value=xm13ReadInput(&xm13Config,xm14Source,xm15Sub,JoyList,GCList,nJoystickCount);
             XM8797Debug::state().mappedInput((unsigned)p,(unsigned)xm15Sub,xm15Value);
@@ -807,7 +993,7 @@ int SDLinpFind(bool CreateBaseline)
 			}
 		}
 
-		for (j = 0x80; j < 0x80 + SDL_JoystickNumButtons(JoyList[i]); j++) {
+		for (j = 0x80; JoyList[i] && j < 0x80 + SDL_JoystickNumButtons(JoyList[i]); j++) {
 			if (JoystickState(i, j)) {
 				nRetVal = 0x4000 | (i << 8) | j;
 				goto End;

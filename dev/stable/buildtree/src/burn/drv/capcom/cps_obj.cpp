@@ -9,6 +9,7 @@
 #include "xmvsf_stage87_06_fx_ramp.h" // Preserve actual pink/green FX palette gradient highlights
 #include "xmvsf_stage87_05_pen_usage.h" // XR87.05 ACTUAL_PEN_USAGE (diagnostic only) // Seed P1 mirror only from post-veto P2 FX
 #include "cps.h"
+#include "xmvsf_stage87_262_game_version.h"
 #include "../../../burner/sdl/xmvsf_stage87_98_latency_trace.h" // XM87.98 DF object draw passes
 #include "xmvsf_stage87_17_provenance.h"
 extern "C" bool xm8746DizzyHudAllowed(); // SDL game-wide + Training option
@@ -713,7 +714,7 @@ INT32 Cps2ObjDraw(INT32 nLevelFrom, INT32 nLevelTo)
     // XM87.73: begin native selector buffer once per real priority-7 pass.
     // FF5113 is zero throughout Training selection; stage assignment is nonzero.
     if(nLevelFrom<=7 && nLevelTo>=7 && !xm8651SpriteCaptureActive){
-        const bool selection=xm14TrainingMode && CpsRamFF && xm8745LivePhase<8 &&
+        const bool selection=XM87262Game::version4() && xm14TrainingMode && CpsRamFF && xm8745LivePhase<8 &&
             CpsRamFF[0x5112u]==0u;
         XM8773::State().Begin((unsigned)GetCurrentFrame(),selection,
             CpsRamFF?(unsigned)CpsRamFF[0x5182u]:0u,
@@ -892,7 +893,8 @@ INT32 Cps2ObjDraw(INT32 nLevelFrom, INT32 nLevelTo)
         // Complete composite OAM entry classified by its decoded pixel pens.
         // Never affect combat, non-Training, or Wily sprite-extraction passes.
         XM8773::Role xm8774Cursor=XM8773::None;
-        if(XM8773::State().enabled && !xm8651SpriteCaptureActive &&
+        if(XM87262Game::version4() && XM8773::State().enabled &&
+           !xm8651SpriteCaptureActive &&
            (unsigned)v==7u && ((unsigned)a&31u)==27u){
             const unsigned wide=(((unsigned)a>>8)&15u)+1u;
             const unsigned tall=(((unsigned)a>>12)&15u)+1u;
@@ -926,7 +928,7 @@ INT32 Cps2ObjDraw(INT32 nLevelFrom, INT32 nLevelTo)
         bool xm8702P1Mirrored=false;
         bool xm8722EchoGray=false;
         bool xm8725FighterObject=false;
-        if(xm8657PaletteActive){
+        if(xm8657PaletteActive && XM87262Game::version4()){
             const unsigned pal=(unsigned)a&31u;
             const unsigned tile=(unsigned)n;
             const unsigned wide=(((unsigned)a>>8)&15u)+1u;
@@ -1335,7 +1337,7 @@ if(!xm8725FighterObject && XM8725::Enabled() &&
 				UINT32 c = nColors[pen];
 				nPortraitPal[pen] = BurnHighCol(((c >> 8) & 15) * 17, ((c >> 4) & 15) * 17, (c & 15) * 17, 0);
 			}
-			if(xm8657PaletteActive){
+			if(xm8657PaletteActive && XM87262Game::version4()){
                 const bool hud=xm8657Hud((unsigned)v,(unsigned)a&31u,(unsigned)n,
                                        (((unsigned)a>>8)&15u)+1u,(((unsigned)a>>12)&15u)+1u);
                 for(unsigned pen=0;pen<16u;++pen)

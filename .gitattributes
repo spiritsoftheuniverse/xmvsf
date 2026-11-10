@@ -1,2 +1,6 @@
 # Auto detect text files and perform LF normalization
 * text=auto
+
+# Generated runtime/build logs may use CRLF or LF on Windows.
+# Preserve their bytes; Git must not warn about CRLF-to-LF normalization.
+*.log -text

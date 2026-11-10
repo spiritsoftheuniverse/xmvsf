@@ -404,12 +404,21 @@ static int RunFrame(int bDraw, int bPause)
         }
 	    if(traceFrame){std::fprintf(stderr,"XM86.34 FRAME1 BEFORE_VIDPAINT\n");std::fflush(stderr);}
         XM87206Crash::mark(325,(int)nCurrentFrame);
+        // Read the completed native frame BEFORE the SDL HUD presents it.
+        // Old order sampled AFTER VidPaint: a frozen point-blank super
+        // could update counters invisibly and show a duration jump later.
+        if(!bPause) xm23OnRealFrame(bDrvOkay);
 	VidPaint(0);
         if(traceFrame){std::fprintf(stderr,"XM86.34 FRAME1 AFTER_VIDPAINT\n");std::fflush(stderr);}                                              // paint the screen (no need to validate)
 	} else {                                       // frame skipping
 		pBurnDraw = NULL;                    // Make sure no image is drawn
 		BurnDrvFrame();
-		if (!bPause) xm14ApplyTrainingCheats(xm14TrainingMode && !xm23State.dizzyAllowed); // XM87.100 non-rendered frame
+		if (!bPause) {
+            xm14ApplyTrainingCheats(xm14TrainingMode && !xm23State.dizzyAllowed); // XM87.100 non-rendered frame
+            // Even skipped pictures must contribute one native sample;
+            // the final drawn frame samples immediately before VidPaint.
+            xm23OnRealFrame(bDrvOkay);
+        }
 	}
 
 	if (!bPause) { /* XM87.44: Training applied before VidPaint, not after */ xm15OnRealFrame(bDrvOkay); xm17OnRealFrame(bDrvOkay); xm18ApplyPosition(bDrvOkay); /* XMVSF_STAGE18_POSITION */
@@ -417,7 +426,8 @@ static int RunFrame(int bDraw, int bPause)
     xm20VsCheck(bDrvOkay,bRunPause); /* XMVSF_STAGE20_1_VERSUS */
     XM87206Crash::mark(341,(int)nCurrentFrame);
     xm22::muteSelectionBgm(bDrvOkay, bRunPause, xm20Vs.triggered); /* XMVSF_STAGE22_SELECTION_SFX */
-    xm23OnRealFrame(bDrvOkay); /* XMVSF_STAGE23_TRAINING_MENU */
+    // XMVSF_STAGE23_TRAINING_MENU already sampled on both draw paths
+    // BEFORE native presentation, exactly once per completed CPU frame.
     xm87118OnRealFrame(bDrvOkay); /* XM87.118 completed super-stock observer */
     xm24OnRealFrame(bDrvOkay); /* XMVSF_STAGE24_VERSUS */
     // Triple-Start restart takes priority over the KO-landing autoload.
@@ -857,12 +867,9 @@ int RunMessageLoop()
                 event.type==SDL_JOYHATMOTION))continue;
             if(xm29HandleDisplayHotkey(event,sdlWindow))continue;
             if(!xm14TrainingMode && !xm24VersusMode && event.type==SDL_KEYDOWN && !event.key.repeat){
-                if(event.key.keysym.sym==SDLK_5){
-                    xm258ArcadeMenuOpen=!xm258ArcadeMenuOpen;
-                    xm25MenuSound(xm258ArcadeMenuOpen);
-                    if(!xm258ArcadeMenuOpen)xm25BeginInputHandoff();
-                    continue;
-                }
+                // Coin (including keyboard 5) is edge-polled in the
+                // shared Arcade menu handler. Do not also toggle on KEYDOWN:
+                // that would open and immediately close the overlay.
                 if(xm258ArcadeMenuOpen && (event.key.keysym.sym==SDLK_ESCAPE ||
                                             event.key.keysym.sym==SDLK_BACKSPACE)){
                     xm258ArcadeMenuOpen=false;xm25MenuSound(false);

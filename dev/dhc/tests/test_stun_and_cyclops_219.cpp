@@ -61,7 +61,8 @@ static void checkStun(){
     // Warm partial fill does not use rainbow, and remains one-pixel sharp.
     int first=0,stop=0;
     assert(XM8733::FillBounds(base,0,44,54,first,stop));
-    assert(pixel(right,262+first+1,43)==XM8733::WarmStun(0));
+    assert(pixel(right,262+first+1,43)==
+           XM8733::WarmStun(XM8733::StunColorStep(0,first+1,partial.total)));
     assert(pixel(right,262+first-1,43)==0u);
 
     // Bottom shadow is clipped to the SAME currently growing fill; it

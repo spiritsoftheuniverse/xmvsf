@@ -138,12 +138,17 @@ static inline std::uint32_t RainbowPan(unsigned frame,int srcX,int row) {
     const int band=(srcX-row+pan+280)/4;
     return colors[(unsigned)band%7u];
 }
-static inline std::uint32_t WarmStun(unsigned row) {
-    static const std::uint32_t colors[6]={
-        PackRGBA(255,225,65),PackRGBA(255,200,41),
-        PackRGBA(255,168,24),PackRGBA(251,146,12),
-        PackRGBA(244,121,6),PackRGBA(230,101,0)};
-    return colors[row<6u?row:5u];
+// Flat colors from top to bottom of the bar have been replaced by a
+// HORIZONTAL ten-step progression. Each step represents 1/10 of the
+// fighter's native stun capacity (5 for 50, 6 for 60).
+static inline std::uint32_t WarmStun(unsigned step) {
+    static const std::uint32_t colors[10]={
+        PackRGBA(255,232,88), PackRGBA(255,217,62),
+        PackRGBA(255,200,41), PackRGBA(255,183,31),
+        PackRGBA(255,166,23), PackRGBA(253,152,16),
+        PackRGBA(250,138,12), PackRGBA(245,125,8),
+        PackRGBA(238,113,4), PackRGBA(230,101,0)};
+    return colors[step<10u?step:9u];
 }
 static inline bool HasBasePixel(const BarArt& art,int x,int row) {
     if(x<0 || x>=art.width || row<0 || row>=art.height)return false;
@@ -160,6 +165,18 @@ static inline void SourceSpan(const BarArt& /*art*/,int row,
                               int& left,int& right){
     left=row;
     right=row+FaceWidth-1; // exact original slanted face: 53..58
+}
+// The native game stores a total stun capacity of 50 or 60. Quantize
+// each source X-position into one of ten capacity-sized bands rather
+// than selecting a color by pixel Y (the old vertical gradient).
+// Measure from the fill origin at the right/slanted leading edge;
+// P1 reverses the entire filled sprite afterwards, not the step order.
+static inline unsigned StunColorStep(int row,int src,int total){
+    if(total<=0)return 0u;
+    const int origin=row+FaceWidth-1;
+    const int accumulated=std::max(0,(origin-src)*total/FaceWidth);
+    const int perStep=std::max(1,total/10);
+    return (unsigned)std::min(9,accumulated/perStep);
 }
 // The colored face and tip always derive from ONE width/leading-edge.
 // Never use sprite alpha as a fill-length mask or a stationary tip.
@@ -198,7 +215,7 @@ static inline void DrawOne(unsigned char* draw,int pitch,int side,
                 const int dx=side?src:(60-src);
                 Pixel(draw,pitch,x+dx,y-2+row,
                       atCapacity?RainbowPan(frame,src,row):
-                                 WarmStun((unsigned)row));
+                                 WarmStun(StunColorStep(row,src,s.total)));
             }
             // (3a) One pixel of shadow IN THE GRAY BASE immediately
             // BEFORE the live diagonal face, not on top of the color.

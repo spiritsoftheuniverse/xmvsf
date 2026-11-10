@@ -1,5 +1,6 @@
 // CPS - Run
 #include "cps.h"
+#include "xmvsf_stage87_262_game_version.h"
 #include "../../../burner/sdl/xmvsf_stage87_98_latency_trace.h" // XM87.98 native state probe
 #include "xmvsf_stage87_79_flight_trace.h" // XM87.79 read-only combat RAM capture
 #include "xmvsf_stage87_80_flying_velocity.h" // XM87.80 Tournament launch normalization
@@ -509,6 +510,14 @@ INT32 Cps2Frame()
     const char* dhcGame=BurnDrvGetTextA(DRV_NAME);
     const bool dhcGameMatches=dhcGame &&
          std::strncmp(dhcGame,"xmvsf",5)==0;
+    const bool xm262V4=dhcGameMatches && XM87262Game::version4();
+    static bool xm262WasV4=false;
+    if(xm262WasV4 && !xm262V4){
+        XM87144::state().reset();
+        XM87121::state().reset();
+        XM87220Dash::state().reset();
+    }
+    xm262WasV4=xm262V4;
     // 87.181: observer log files must be initialized when the XMVSF
     // CPS2 driver starts, NOT only from the late post-CPU DHC hook.
     // Otherwise an early game/menu exit silently creates no TSV at all.
@@ -551,7 +560,7 @@ INT32 Cps2Frame()
              XM87186Opening::state().wantsPcTrace(
                 (unsigned)GetCurrentFrame()));
     XM87144::State::InputMask dhcInput=
-        (!bBurnRunAheadFrame && dhcGameMatches)?
+        (!bBurnRunAheadFrame && xm262V4)?
         XM87144::state().inputForFrame(CpsRamFF,(unsigned)GetCurrentFrame()):
         XM87144::State::InputMask();
     // 87.178: the 87.177 complete 3P shield removed the punch edge that
@@ -564,7 +573,7 @@ INT32 Cps2Frame()
     // allowing the host to recognize QCF+3P normally.
     bool xm87177PrequeueThreePunch=false;
     bool xm87193PrequeueKickToTagPunch=false;
-    if(!dhcInput.active && !bBurnRunAheadFrame && dhcGameMatches && CpsRamFF){
+    if(!dhcInput.active && !bBurnRunAheadFrame && xm262V4 && CpsRamFF){
         const unsigned physicalPunches=
             (CpsInp001[4]&1u)|((CpsInp001[5]&1u)<<1u)|
             ((CpsInp001[6]&1u)<<2u);
@@ -665,49 +674,54 @@ INT32 Cps2Frame()
     // projectile objects before native 68000 collision evaluation.
     // Normal P1 projectiles, P2 objects and Ken's new projectiles are
     // never touched. The image/animation objects remain alive.
-    if(!bBurnRunAheadFrame && dhcGameMatches && CpsRamFF)
+    if(!bBurnRunAheadFrame && xm262V4 && CpsRamFF)
         XM87144::state().oldRyuProjectiles.beforeCPU(
             CpsRamFF,(unsigned)GetCurrentFrame());
     // 87.197: freeze only the non-incoming fighter while Ken's native
     // ROM 0212 fall and stored 2E input keep running at full CPS speed.
     // No global CPU pause, guessed CPS-wide freeze flag or audio reset.
-    if(!bBurnRunAheadFrame && dhcGameMatches && CpsRamFF &&
+    if(!bBurnRunAheadFrame && xm262V4 && CpsRamFF &&
        XM87144::state().cinematicFreezeTest)
         XM87144::state().cinematicFreeze.beforeCPU(
             CpsRamFF,unsigned(XM87144::state().phase[0]));
-    // XM87.95 Tournament-only native dizzy initializer AND per-frame state handler bypass.
+    // XM87.262: Version-4-only dizzy initializer and native state handler; Tournament does not affect this patch.
     XM8795Native::state().before(CpsCode,(unsigned)nCpsCodeLen,
         BurnDrvGetTextA(DRV_NAME),(unsigned)GetCurrentFrame(),
-        XM8795Native::env("XM8755_TOURNAMENT_MODE"),
-        XM8795Native::env("XM8795_NATIVE_HIT_TEST"));
+        xm262V4,
+        xm262V4);
     // XM87.96: native dizzy stand initializer -> ROM normal recovery.
     XM8796Native::state().before(CpsCode,(unsigned)nCpsCodeLen,
         BurnDrvGetTextA(DRV_NAME),(unsigned)GetCurrentFrame(),
-        XM8796Native::env("XM8755_TOURNAMENT_MODE"),
-        XM8796Native::env("XM8796_DIZZY_HANDOFF_TEST"),
+        xm262V4,
+        xm262V4,
         XM8795Native::state().installed);
     // XM87.99: native ROM opcode hook. Parent 95 and 96 must be installed.
     XM8799Ground::state().before(CpsCode,(unsigned)nCpsCodeLen,
         BurnDrvGetTextA(DRV_NAME),(unsigned)GetCurrentFrame(),
-        XM8799Ground::env("XM8755_TOURNAMENT_MODE"),
-        XM8799Ground::env("XM8799_GROUND_DEFENSE_TEST"),
+        xm262V4,
+        xm262V4,
         XM8795Native::state().installed,XM8796Native::state().installed);
-    // Tournament is not just a menu label: verify which actual native
-    // patches and latest grounded-flight rules are enabled at runtime.
+    // Version 4's native installation is audited independently of the
+    // Tournament knockdown-only selection.
     // Read-only; do not bypass any original-ROM signature verification.
     if(!bBurnRunAheadFrame)
         XM87149Rules::state().frame((unsigned)GetCurrentFrame(),
             BurnDrvGetTextA(DRV_NAME),
-            XM8795Native::env("XM8755_TOURNAMENT_MODE"),
+            xm262V4,
             XM8795Native::state().installed,
             XM8796Native::state().installed,
             XM8799Ground::state().installed);
-    // XM87.125: only active when verified native dizzy patches are installed.
+    // XM87.125: Version 4 only; requires verified native dizzy patch ownership.
     XM87125Stun::state().before(CpsRamFF,(unsigned)GetCurrentFrame(),
-        XM8795Native::env("XM8755_TOURNAMENT_MODE") &&
+        xm262V4 &&
         XM8795Native::state().installed && XM8796Native::state().installed);
+    // 87.264: Regenerate is a Training safety rule in BOTH game versions.
+    // It clamps original lethal ROM damage to one HP so the existing
+    // 120-idle-frame refill can occur. "KO Enabled" restores native KO.
+    // Unlike the V4 combat patches, this follows Training's damage option.
     XM87100TrainingKO::state().before(CpsCode,(unsigned)nCpsCodeLen,
-        BurnDrvGetTextA(DRV_NAME),xm14TrainingMode!=0 && xm87102DamageMode==0);
+        BurnDrvGetTextA(DRV_NAME),
+        xm14TrainingMode!=0 && xm87102DamageMode==0);
     xm8634Mark("AFTER CPS INPUT READ");
 
 	if (CpsRunFrameStartCallbackFunction) {
@@ -778,7 +792,7 @@ INT32 Cps2Frame()
     if(!bBurnRunAheadFrame)
         XM87224CharliePC::state().begin(CpsRamFF,
             (unsigned)GetCurrentFrame(),dhcGameMatches,
-            XM8795Native::env("XM8755_TOURNAMENT_MODE"),false,
+            XM87262Game::tournamentKnockdowns(),false,
             CpsCode,(unsigned)nCpsCodeLen);
 
 	SekIdle(nCpsCyclesExtra);
@@ -885,7 +899,7 @@ INT32 Cps2Frame()
         XM87223Flight::state().frame((unsigned)GetCurrentFrame(),CpsRamFF,
             CpsCode,(unsigned)nCpsCodeLen,
             nativeDriver && std::strncmp(nativeDriver,"xmvsf",5)==0,
-            XM8795Native::env("XM8755_TOURNAMENT_MODE"),
+            XM87262Game::tournamentKnockdowns(),
             xm8786_p1_buttons,xm8786_p2_buttons);
     }
     // TEST 87.223: track Storm's original attack action independently of
@@ -893,7 +907,7 @@ INT32 Cps2Frame()
     if(!bBurnRunAheadFrame){
         const char* voiceDriver=BurnDrvGetTextA(DRV_NAME);
         XM87127Voice::state().observe((unsigned)GetCurrentFrame(),CpsRamFF,
-            voiceDriver && std::strncmp(voiceDriver,"xmvsf",5)==0);
+            xm262V4 && voiceDriver && std::strncmp(voiceDriver,"xmvsf",5)==0);
     }
     XM8786Flight::state().frame((unsigned)GetCurrentFrame(),CpsRamFF,
         xm8786_p1_buttons,xm8786_p2_buttons);
@@ -1007,7 +1021,7 @@ INT32 Cps2Frame()
             CpsRamFF,(unsigned)GetCurrentFrame(),
             XM87162ReplaySync::movieFrame(),XM87144::phaseName(phaseBefore),
             dhcInput.active,dhcInput.directions,dhcInput.attacks);
-        XM87144::state().frame(CpsRamFF,CpsRom,(unsigned)nCpsRomLen,
+        if(xm262V4)XM87144::state().frame(CpsRamFF,CpsRom,(unsigned)nCpsRomLen,
             (unsigned)GetCurrentFrame(),dhcWindow);
         XM87186Opening::state().sample(CpsRamFF,
             (unsigned)GetCurrentFrame(),"POST_DHC_HOST",
@@ -1028,7 +1042,7 @@ INT32 Cps2Frame()
             XM87144::rw(CpsRamFF,0x4852u)==0x14u &&
             (dhcPhase==XM87144::WAIT_TAG_CONTROLLER ||
              dhcPhase==XM87144::WAIT_NATIVE_SWAP);
-        XM87144::state().oldRyuProjectiles.afterCPU(
+        if(xm262V4)XM87144::state().oldRyuProjectiles.afterCPU(
             CpsRamFF,(unsigned)GetCurrentFrame(),outgoingRyu);
         const XM87144::Phase phaseAfter=XM87144::state().phase[0];
         if(phaseAfter!=phaseBefore && XM87144::state().enabled){
@@ -1043,17 +1057,17 @@ INT32 Cps2Frame()
     }
     // Read-only after-CPU capture: do not edit fighter RAM or native action.
     XM8795Native::state().after(CpsRamFF,(unsigned)GetCurrentFrame(),
-        XM8795Native::env("XM8755_TOURNAMENT_MODE"));
+        xm262V4);
     // XM87.125: before Stage 87.96 clears the native dizzy marker on pop exit.
     XM87125Stun::state().after(CpsRamFF,(unsigned)GetCurrentFrame(),
-        XM8795Native::env("XM8755_TOURNAMENT_MODE") &&
+        xm262V4 &&
         XM8795Native::state().installed && XM8796Native::state().installed);
     // Clear ONLY native dizzy marker after a real game-state pop exit.
     XM8796Native::state().after(CpsRamFF,(unsigned)GetCurrentFrame(),
-        XM8796Native::env("XM8755_TOURNAMENT_MODE"),
-        XM8796Native::env("XM8796_DIZZY_HANDOFF_TEST"));
+        xm262V4,
+        xm262V4);
     XM8799Ground::state().after(CpsRamFF,(unsigned)GetCurrentFrame(),
-        XM8799Ground::env("XM8755_TOURNAMENT_MODE"));
+        xm262V4);
     XM8779Flight::state().frame((unsigned)GetCurrentFrame(),CpsRamFF,CpsReg,
                                  (unsigned)Cpi01A,(unsigned)Cpi01C,(unsigned)Cpi01E);
     // F10 probe: actual CPS2 attack bits + port values AND the mapped
@@ -1087,7 +1101,7 @@ INT32 Cps2Frame()
     // of a savestate; a runahead invocation can otherwise consume the real
     // frame's grab-end edge and discard the corresponding CpsRamFF write.
     // Exactly one committed native frame can advance the 100-frame clock.
-    if(!bBurnRunAheadFrame && Cps==2 && CpsRamFF && cyclopsGame &&
+    if(!bBurnRunAheadFrame && Cps==2 && CpsRamFF && xm262V4 && cyclopsGame &&
        std::strncmp(cyclopsGame,"xmvsf",5)==0)
         XM87121::state().frame((unsigned)GetCurrentFrame(),CpsRamFF);
     // Stage 87.220: after committed native CPU and after proven 87.219
@@ -1095,8 +1109,8 @@ INT32 Cps2Frame()
     // No dash input synthesis, ROM patch, X velocity or position coercion.
     if(!bBurnRunAheadFrame && Cps==2 && CpsRamFF)
         XM87220Dash::state().frame((unsigned)GetCurrentFrame(),CpsRamFF,
-            cyclopsGame && std::strncmp(cyclopsGame,"xmvsf",5)==0,
-            XM8795Native::env("XM8755_TOURNAMENT_MODE"));
+            xm262V4 && cyclopsGame && std::strncmp(cyclopsGame,"xmvsf",5)==0,
+            XM87262Game::tournamentKnockdowns());
     // XM87.203: source-accurate, read-only stage telemetry, no framebuffer,
     // ROM, gameplay, controller, palette or F9 replay modifications.
     // This private one-shot 68000 source dump is independent of the heavy

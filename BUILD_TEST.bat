@@ -11,9 +11,9 @@ if not exist "%LOGDIR%" mkdir "%LOGDIR%"
 if not exist "%LOGDIR%" goto :no_log
 set "BUILDLOG=%LOGDIR%\BUILD_TEST.log"
 >>"%BUILDLOG%" echo.
->>"%BUILDLOG%" echo ========== XMVSF BUILD_TEST.bat 87.234 START %DATE% %TIME% ==========
+>>"%BUILDLOG%" echo ========== XMVSF BUILD_TEST.bat 87.266 START %DATE% %TIME% ==========
 >>"%BUILDLOG%" echo Project: %PROJECT%
-echo XMVSF 87.234 incremental TEST build
+echo XMVSF 87.266 incremental TEST build
 echo Source: "%PROJECT%\dev\stable\buildtree"
 echo Permanent build transcript: "%BUILDLOG%"
 echo All build output is displayed AND appended to the transcript.
@@ -41,24 +41,43 @@ if errorlevel 1 (
   >>"%BUILDLOG%" echo ERROR: Cannot enter dev\dhc build directory
   goto :fail
 )
+REM Native shell syntax check is fast and catches a damaged build launcher
+REM before touching any native objects or TEST output.
+bash.exe -n BUILD_TEST.sh
+if errorlevel 1 (
+  echo ERROR: BUILD_TEST.sh has a shell syntax error; no build started.
+  >>"%BUILDLOG%" echo ERROR: BUILD_TEST.sh shell syntax invalid
+  popd
+  goto :fail
+)
+REM Validate the compact-link helper too; its fallback must never hide a syntax error.
+if exist FAST_MENU_LINK_INPUTS_235.sh (
+  bash.exe -n FAST_MENU_LINK_INPUTS_235.sh
+  if errorlevel 1 (
+    echo ERROR: FAST_MENU_LINK_INPUTS_235.sh has a shell syntax error; no build started.
+    >>"%BUILDLOG%" echo ERROR: FAST_MENU_LINK_INPUTS_235.sh shell syntax invalid
+    popd
+    goto :fail
+  )
+)
 bash.exe BUILD_TEST.sh
 set "RC=%ERRORLEVEL%"
 popd
 if not "%RC%"=="0" goto :fail
 REM The shell must have actually compiled/linked and published the current
 REM native TEST executable. Never fall back to Stable or a stale numbered TEST.
-if not exist "%PROJECT%\runtime\stable\XMVSF_Test_87_234.exe" (
-  echo ERROR: Native compiler returned success but TEST 87.234 executable is missing.
-  >>"%BUILDLOG%" echo ERROR: TEST 87.234 executable missing after successful make
+if not exist "%PROJECT%\runtime\stable\XMVSF_Test_87_266.exe" (
+  echo ERROR: Native compiler returned success but TEST 87.266 executable is missing.
+  >>"%BUILDLOG%" echo ERROR: TEST 87.266 executable missing after successful make
   goto :fail
 )
-for %%I in ("%PROJECT%\runtime\stable\XMVSF_Test_87_234.exe") do if %%~zI LEQ 0 (
-  echo ERROR: TEST 87.234 output is empty.
-  >>"%BUILDLOG%" echo ERROR: TEST 87.234 executable has zero bytes.
+for %%I in ("%PROJECT%\runtime\stable\XMVSF_Test_87_266.exe") do if %%~zI LEQ 0 (
+  echo ERROR: TEST 87.266 output is empty.
+  >>"%BUILDLOG%" echo ERROR: TEST 87.266 executable has zero bytes.
   goto :fail
 )
 echo.
-echo TEST 87.234 BUILD READY. Run RUN_TEST.bat option 1.
+echo TEST 87.266 BUILD READY. Run RUN_TEST.bat option 1.
 echo Full transcript: "%BUILDLOG%"
 >>"%BUILDLOG%" echo BATCH RESULT: SUCCESS %DATE% %TIME%
 pause

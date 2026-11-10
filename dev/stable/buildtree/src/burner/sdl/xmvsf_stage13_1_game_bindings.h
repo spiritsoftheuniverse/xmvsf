@@ -32,8 +32,10 @@ static void xm131ApplyGameInputMappings() {
     int loaded = xm13Load(&mapping);
     int counts[2] = {0, 0};
     FILE* log = fopen("xmvsf_stage13_1_input.log", "w");
-    if (log) fprintf(log, "Stage13.1 saved-settings-read=%d active-P1=%d active-P2=%d\n",
-                     loaded, mapping.player[0].active, mapping.player[1].active);
+    if (log) fprintf(log,
+        "Stage13.1 saved-settings-read=%d active-P1=%d active-P2=%d menu-P1=%d menu-P2=%d\n",
+        loaded, mapping.player[0].active, mapping.player[1].active,
+        xm249SessionPad[0].selected?1:0,xm249SessionPad[1].selected?1:0);
     for (unsigned int i = 0; i < nGameInpCount; i++) {
         struct BurnInputInfo bii = {};
         if (BurnDrvGetInputInfo(&bii, i) || bii.pVal == NULL || bii.szInfo == NULL)
@@ -42,7 +44,13 @@ static void xm131ApplyGameInputMappings() {
         if (tolower((unsigned char)name[0]) != 'p' || name[1] < '1' || name[1] > '2' || name[2] != ' ')
             continue;
         const int player = name[1] - '1';
-        if (!mapping.player[player].active) continue;
+        // Boot-menu acceptance is an explicit, temporary controller
+        // selection even when P1 has NO saved mapping (common with Xbox
+        // and DS4Windows). Use virtual SDL P1 codes for this match rather
+        // than leaving the FBNeo keyboard/legacy joystick defaults active.
+        if (!XM249Policy::needsVirtualMap(
+                mapping.player[player].active!=0,
+                xm249SessionPad[player].selected))continue;
         const int subcode = xm131InputSubcode(name + 3);
         if (subcode < 0) continue;
         struct GameInp* gi = &GameInp[i];

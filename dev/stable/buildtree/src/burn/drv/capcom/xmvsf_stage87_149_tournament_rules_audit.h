@@ -1,11 +1,12 @@
 #ifndef XMVSF_STAGE87_149_TOURNAMENT_RULES_AUDIT_H
 #define XMVSF_STAGE87_149_TOURNAMENT_RULES_AUDIT_H
-// 87.149: READ-ONLY runtime truth table for the native Classic/Tournament
-// rule hooks. This does not enable patches or change gameplay in either mode.
-// The per-frame CPC-2 guard logic in cps_run.cpp is authoritative.
+// 87.262: read-only truth table for native V4 patch installation and the
+// independent Tournament knockdown switch. No gameplay writes or rule gates
+// are created here. All actual decisions remain in cps_run.cpp.
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include "xmvsf_stage87_262_game_version.h"
 namespace XM87149Rules {
 static inline bool flag(const char*key){
     const char*v=std::getenv(key);
@@ -42,10 +43,10 @@ struct Audit{
         if(path&&*path){
             log=std::fopen(path,"wb");
             if(log)std::fputs(
-                "frame\tevent\tselectedTournament\tstormFlightFlag"
-                "\thit95Flag\thandoff96Flag\tground99Flag"
-                "\thit95Installed\thandoff96Installed\tground99Installed"
-                "\tallTournamentRulesReady\n",log);
+                "frame\tevent\tversion4\ttournamentKnockdowns"
+                "\tdizzy95Flag\thandoff96Flag\tground99Flag"
+                "\tdizzy95Installed\thandoff96Installed\tground99Installed"
+                "\tv4NativeReady\n",log);
         }
     }
     void frame(unsigned now,const char*driver,bool selected,
@@ -53,31 +54,37 @@ struct Audit{
         initialize();
         if(!driver||std::strcmp(driver,"xmvsfu")!=0)return;
         Status s;
-        s.tournament=selected;
-        s.launchFlight=flag("XM8786_STORM_BUTTON_TEST");
-        s.hit95=flag("XM8795_NATIVE_HIT_TEST");
-        s.hand96=flag("XM8796_DIZZY_HANDOFF_TEST");
-        s.ground99=flag("XM8799_GROUND_DEFENSE_TEST");
+        // In this legacy audit signature, selected now means Version 4.
+        // Historical flags are not prerequisites for the official rules.
+        const bool knockdowns=XM87262Game::tournamentKnockdowns();
+        s.tournament=knockdowns;
+        s.launchFlight=knockdowns;
+        s.hit95=selected;
+        s.hand96=selected;
+        s.ground99=selected;
         s.installed95=native95;s.installed96=native96;s.installed99=native99;
         const unsigned next=s.mask();
         if(haveLast&&lastMask==next)return;
         haveLast=true;lastMask=next;++changes;
-        const char*name=!selected?"CLASSIC_NATIVE_RULES":
-                          s.ready()?"TOURNAMENT_RULES_ACTIVE":
-                                    "TOURNAMENT_RULES_INCOMPLETE";
+        const bool nativeReady=!selected ||
+            (native95 && native96 && native99);
+        const char*name=!selected?
+            (knockdowns?"VERSION3_TOURNAMENT_KNOCKDOWNS":"VERSION3_ORIGINAL"):
+            (!nativeReady?"VERSION4_NATIVE_PATCH_INCOMPLETE":
+             knockdowns?"VERSION4_TOURNAMENT_KNOCKDOWNS":
+                       "VERSION4_PATCHED");
         if(log){
             std::fprintf(log,"%u\t%s\t%u\t%u\t%u\t%u\t%u\t%u\t%u\t%u\t%u\n",
-                now,name,unsigned(selected),unsigned(s.launchFlight),
+                now,name,unsigned(selected),unsigned(knockdowns),
                 unsigned(s.hit95),unsigned(s.hand96),unsigned(s.ground99),
                 unsigned(native95),unsigned(native96),unsigned(native99),
-                unsigned(s.ready()));
+                unsigned(nativeReady));
             std::fflush(log);
         }
         std::fprintf(stderr,
-            "XM87.149 RULE_AUDIT %s flight=%u native95=%u native96=%u native99=%u\n",
-            name,unsigned(selected&&s.launchFlight),
-            unsigned(selected&&native95),unsigned(selected&&native96),
-            unsigned(selected&&native99));
+            "XM87.262 RULE_AUDIT %s knockdowns=%u dizzy95=%u handoff96=%u ground99=%u\n",
+            name,unsigned(knockdowns),
+            unsigned(native95),unsigned(native96),unsigned(native99));
     }
 };
 static inline Audit&state(){static Audit audit;return audit;}

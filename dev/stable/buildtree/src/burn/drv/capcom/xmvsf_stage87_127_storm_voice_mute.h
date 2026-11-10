@@ -13,6 +13,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include "xmvsf_stage87_262_game_version.h"
 namespace XM87127Voice {
 static inline unsigned byteAt(const std::uint8_t* r,unsigned p){return r[(p&0xffffu)^1u];}
 static inline unsigned wordAt(const std::uint8_t* r,unsigned p){return (byteAt(r,p)<<8)|byteAt(r,p+1);}
@@ -66,6 +67,7 @@ struct Filter {
     }
     unsigned transform(unsigned frame,unsigned reg,unsigned value,const std::uint8_t* ram){
         init();
+        if(!XM87262Game::version4()){muted12=false;return value;}
         if(!enabled)return value;
         // The channel's sample-position register is 0x61. Its setup always
         // precedes a new PCM voice's 0x66 volume command in the capture.

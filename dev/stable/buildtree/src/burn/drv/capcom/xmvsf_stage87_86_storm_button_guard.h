@@ -25,6 +25,7 @@
 #include <cstdlib>
 #include <cstring>
 #include "xmvsf_stage87_223_storm_native_flight.h" // native HP velocity/index reference
+#include "xmvsf_stage87_262_game_version.h"
 
 namespace XM8786Flight {
 static inline unsigned byteAt(const std::uint8_t* r,unsigned p){return r[(p&0xffffu)^1u];}
@@ -646,8 +647,10 @@ struct Controller {
         // actual live Classic/Tournament selection MUST also authorize writes.
         // Re-evaluate each frame because the Options menu changes the mode
         // without restarting the process. Missing/unknown means Classic.
-        const char* activeMode=std::getenv("XM8755_TOURNAMENT_MODE");
-        const bool tournament=activeMode && std::strcmp(activeMode,"1")==0;
+        const bool tournament=XM87262Game::tournamentKnockdowns();
+        // No external TEST flag is required for the selected ruleset.
+        // Tournament controls exactly this knockdown writer.
+        enabled=tournament;
         if(lastMode!=int(tournament)){
             // Never carry a connected-hit latch between different rulesets.
             actor[0]=Actor();actor[1]=Actor();

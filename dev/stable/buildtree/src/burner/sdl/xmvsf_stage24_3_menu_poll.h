@@ -12,31 +12,33 @@ extern bool xm258ArcadeReturnRequested; /* XMVSF_STAGE25_8_ARCADE_MENU */
 struct XM243Pad {
     SDL_Joystick* joy=nullptr;
     SDL_GameController* controller=nullptr;
+    SDL_JoystickID instance=-1;
     XM13_Player mapping{};
     bool previousUp=false, previousDown=false, previousAccept=false, previousCoin=false, previousCancel=false; /* XMVSF_STAGE25_6_MENU_INPUT_TRAINING */ /* XMVSF_STAGE25_1_POLISH */
 };
 static XM243Pad xm243Pads[2];
 static bool xm243MenuWasOpen=false;
+static Uint32 xm243LastPadProbe=0;
+static bool xm243PreviousKeyboardCoin=false; // retain the traditional '5' shortcut
 
 static inline void xm243ClosePads() {
     for (int i=0; i<2; ++i) {
-        if (xm243Pads[i].controller) SDL_GameControllerClose(xm243Pads[i].controller);
-        if (xm243Pads[i].joy) SDL_JoystickClose(xm243Pads[i].joy);
+        xm248ReconcileMenuPad(-1,xm243Pads[i].joy,
+                              xm243Pads[i].controller,xm243Pads[i].instance);
         xm243Pads[i]=XM243Pad{};
     }
+    xm243LastPadProbe=0;
     xm243MenuWasOpen=false;
 }
 static inline bool xm243Button(SDL_Joystick* joy, XM13_Binding binding) {
-    if (!joy || !SDL_JoystickGetAttached(joy)) return false;
-    if (binding.type=='B' && binding.index>=0 && binding.index<SDL_JoystickNumButtons(joy))
-        return SDL_JoystickGetButton(joy,binding.index)!=0;
-    if (binding.type=='A' && binding.index>=0 && binding.index<SDL_JoystickNumAxes(joy))
-        return SDL_JoystickGetAxis(joy,binding.index)>16000;
-    return false;
+    // Shared backend also supports a keyboard scancode without a joystick.
+    return xm13BindingPressed(binding,joy)!=0;
 }
 static inline void xm243ReadPad(XM243Pad& p, bool& up, bool& down, bool& accept, bool& coin, bool& cancel) {
     up=down=accept=coin=cancel=false;
     SDL_Joystick* j=p.joy;
+    // Coin moved to slot 8 when 3P and 3K were inserted. Slot 6 is 3P!
+    coin=xm243Button(j,p.mapping.binding[XM13_COIN]);
     if (!j || !SDL_JoystickGetAttached(j))return;
     if (SDL_JoystickNumAxes(j)>1) {
         const int y=SDL_JoystickGetAxis(j,1);
@@ -54,27 +56,33 @@ static inline void xm243ReadPad(XM243Pad& p, bool& up, bool& down, bool& accept,
     }
     // Confirm with LP or Start AS ASSIGNED BY THIS PLAYER, not any joystick button.
     accept=SDL_JoystickGetButton(j,0)!=0; /* XMVSF_STAGE25_6_MENU_INPUT_TRAINING: XInput A only */
-    coin=xm243Button(j,p.mapping.binding[6]);
     cancel=SDL_JoystickGetButton(j,1)!=0; /* XInput B */
 }
-static inline void xm243OpenPads() {
-    XM13_Settings settings{};
-    xm13Load(&settings);
-    for (int p=0;p<2;++p) {
-        xm243Pads[p]=XM243Pad{};
-        if(!settings.player[p].active)continue;
-        int device=xm13FindDevice(&settings.player[p]);
-        if(device<0)continue;
-        xm243Pads[p].mapping=settings.player[p];
-        xm243Pads[p].joy=SDL_JoystickOpen(device);
-        if(SDL_IsGameController(device))xm243Pads[p].controller=SDL_GameControllerOpen(device);
+// Shared recovery for BOTH Versus results and Arcade Coin navigation.
+// Reacquire saved device identities after a late/failed open, USB reconnect,
+// Bluetooth wake or SDL index shift, without overwriting controller maps.
+// Newly acquired held buttons seed the previous state (no ghost actions).
+static inline void xm243RefreshPads(XM243Pad pads[2]) {
+    XM13_Settings settings{};xm13Load(&settings);
+    // The game loop pumps SDL events; no duplicate HID update.
+    for(int i=0;i<2;++i){
+        XM243Pad& p=pads[i];
+        p.mapping=settings.player[i];
+        const int device=xm248FindAssignedDevice(&settings,i);
+        const bool changed=xm248ReconcileMenuPad(
+            device,p.joy,p.controller,p.instance);
+        if(changed){
+            xm243ReadPad(p,p.previousUp,p.previousDown,p.previousAccept,
+                        p.previousCoin,p.previousCancel);
+        }
     }
-    SDL_JoystickUpdate();
-    // Treat all buttons held when the result appears as already pressed,
-    // preventing automatic Rematch on a held Start/LP button.
-    for (int p=0;p<2;++p)
-        xm243ReadPad(xm243Pads[p],xm243Pads[p].previousUp,
-                     xm243Pads[p].previousDown,xm243Pads[p].previousAccept,xm243Pads[p].previousCoin,xm243Pads[p].previousCancel);
+}
+static inline void xm243OpenPads() {
+    for(int p=0;p<2;++p)xm243Pads[p]=XM243Pad{};
+    xm243RefreshPads(xm243Pads);
+    xm243LastPadProbe=SDL_GetTicks();
+    const Uint8* keys=SDL_GetKeyboardState(nullptr);
+    xm243PreviousKeyboardCoin=keys && keys[SDL_SCANCODE_5]!=0;
     xm243MenuWasOpen=true;
     xm24Log("RESULT_MENU_PAD_POLL_INITIALIZED");
 }
@@ -87,7 +95,11 @@ static inline void xm243PollLiveMenu() {
         xm243OpenPads();
         return;
     }
-    SDL_JoystickUpdate();
+    const Uint32 now=SDL_GetTicks();
+    if(!xm243LastPadProbe || (Uint32)(now-xm243LastPadProbe)>=150u){
+        xm243LastPadProbe=now ? now : 1;
+        xm243RefreshPads(xm243Pads);
+    }
     int navigate=0;
     bool confirmed=false;
     bool coinPressed=false, cancelPressed=false;
@@ -108,6 +120,12 @@ static inline void xm243PollLiveMenu() {
         p.previousDown=down;
         p.previousAccept=accept;
     }
+    // Keyboard '5' remains a native Coin shortcut even before assigning
+    // a keyboard profile. Combine with mapped Coin into ONE edge.
+    const Uint8* keys=SDL_GetKeyboardState(nullptr);
+    const bool keyFive=keys && keys[SDL_SCANCODE_5]!=0;
+    if(keyFive && !xm243PreviousKeyboardCoin)coinPressed=true;
+    xm243PreviousKeyboardCoin=keyFive;
     if(coinPressed){
         xm25MenuSound(true); /* XMVSF_STAGE25_2_LEDGER_RESULTS */
         if(xm25State.quickMenu){
@@ -172,13 +190,17 @@ static inline void xm243PollLiveMenu() {
 // duplication and does not depend on FBNeo's remappable attack buttons.
 static XM243Pad xm258ArcadePads[2];
 static bool xm258ArcadePadsReady=false;
+static Uint32 xm258LastPadProbe=0;
+static bool xm258PreviousKeyboardCoin=false;
 static inline void xm258CloseArcadePads(){
     for(int i=0;i<2;++i){
-        if(xm258ArcadePads[i].controller)SDL_GameControllerClose(xm258ArcadePads[i].controller);
-        if(xm258ArcadePads[i].joy)SDL_JoystickClose(xm258ArcadePads[i].joy);
+        xm248ReconcileMenuPad(-1,xm258ArcadePads[i].joy,
+                              xm258ArcadePads[i].controller,xm258ArcadePads[i].instance);
         xm258ArcadePads[i]=XM243Pad{};
     }
+    xm258LastPadProbe=0;
     xm258ArcadePadsReady=false;
+    xm258PreviousKeyboardCoin=false;
 }
 static inline void xm258PollArcadeMenu(){
     extern bool xm258ArcadeMenuOpen;
@@ -188,22 +210,20 @@ static inline void xm258PollArcadeMenu(){
         xm258ArcadeMenuOpen=false;
         return;
     }
-    SDL_JoystickUpdate();
+    // SDL_PollEvent and SDLinpStart already update pad state.
     if(!xm258ArcadePadsReady){
-        XM13_Settings settings{};xm13Load(&settings);
-        for(int i=0;i<2;++i){
-            XM243Pad& pad=xm258ArcadePads[i];
-            if(!settings.player[i].active)continue;
-            int device=xm13FindDevice(&settings.player[i]);
-            if(device<0)continue;
-            pad.mapping=settings.player[i];
-            pad.joy=SDL_JoystickOpen(device);
-            if(SDL_IsGameController(device))pad.controller=SDL_GameControllerOpen(device);
-            xm243ReadPad(pad,pad.previousUp,pad.previousDown,pad.previousAccept,
-                         pad.previousCoin,pad.previousCancel); // seed held keys
-        }
+        for(int i=0;i<2;++i)xm258ArcadePads[i]=XM243Pad{};
+        xm243RefreshPads(xm258ArcadePads);
+        xm258LastPadProbe=SDL_GetTicks();
+        const Uint8* keys=SDL_GetKeyboardState(nullptr);
+        xm258PreviousKeyboardCoin=keys && keys[SDL_SCANCODE_5]!=0;
         xm258ArcadePadsReady=true;
         return;
+    }
+    const Uint32 now=SDL_GetTicks();
+    if(!xm258LastPadProbe || (Uint32)(now-xm258LastPadProbe)>=150u){
+        xm258LastPadProbe=now ? now : 1;
+        xm243RefreshPads(xm258ArcadePads);
     }
     bool coinEdge=false, acceptEdge=false, backEdge=false;
     for(int i=0;i<2;++i){
@@ -216,6 +236,12 @@ static inline void xm258PollArcadeMenu(){
         pad.previousUp=up;pad.previousDown=down;
         pad.previousAccept=a;pad.previousCoin=coin;pad.previousCancel=b;
     }
+    // Preserve keyboard 5 as a legacy Coin fallback. A mapped Coin at the
+    // same scancode is OR'ed into the same edge, never toggled twice.
+    const Uint8* keys=SDL_GetKeyboardState(nullptr);
+    const bool keyFive=keys && keys[SDL_SCANCODE_5]!=0;
+    if(keyFive && !xm258PreviousKeyboardCoin)coinEdge=true;
+    xm258PreviousKeyboardCoin=keyFive;
     if(coinEdge){
         xm258ArcadeMenuOpen=!xm258ArcadeMenuOpen;
         xm25MenuSound(xm258ArcadeMenuOpen);

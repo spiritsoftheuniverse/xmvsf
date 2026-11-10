@@ -14,6 +14,7 @@
 #include <stdio.h>
 #include <SDL.h>
 #include "xmvsf_stage87_74_select_present.h" // XM87.74 native framebuffer matched pen colors
+#include "../../../burn/drv/capcom/xmvsf_stage87_262_game_version.h" // original V3 HUD
 #include "../../../burner/sdl/xmvsf_stage87_139_probe.h" // XM87.139 F10 probe status
 #include "xmvsf_stage87_140_chat_overlay.h" // XM87.140 opt-in DHC history
 #include "../../../burner/sdl/xmvsf_stage87_206_crash_report.h" // FIGHT exception breadcrumbs
@@ -24,6 +25,7 @@
 #include "../../../burner/sdl/xmvsf_stage86_52_window_state.h" /* XM86.52 */
 #include "../../../burner/sdl/xmvsf_stage86_56_final.h" /* XM86.56 global final presentation */
 #include "../../../burn/drv/capcom/xmvsf_stage87_33_dizzy_hud.h"
+#include "../../../burn/drv/capcom/xmvsf_stage87_28_interior_mask.h" // CPS2 native fighter opacity stencil
 #include "xmvsf_stage87_40_hud_color.h" // Separate portrait and HP source-colored overlay
 #include "../../../burn/drv/capcom/xmvsf_stage87_35_hud_palette.h" // Exact native HUD chroma overlay // Post-Wily HUD
 extern "C" int xm87132ReplayRecordingFrames(); // XM87.132 shared live recorder status
@@ -50,7 +52,7 @@ static SDL_Texture* xm8733Texture = NULL;
 static SDL_Texture* xm87217FloatTexture = NULL;
 static std::vector<Uint8> xm87217FloatRGBA(384u*224u*4u,0u);
 static unsigned char xm8733Pixels[384*224*4]={};
-static void xm8733Overlay(SDL_Renderer*,const SDL_Rect&);
+static void xm8733Overlay(SDL_Renderer*,const SDL_Rect&,bool nativeStage=false);
 static int  nRotateGame = 0;
 static bool bFlipped = false;
 static SDL_Rect dstrect;
@@ -576,10 +578,11 @@ static int Frame(bool bRedraw)                                          // bRedr
 }
 
 // Native 384x224 alpha overlay AFTER Wily/background/native rendering.
-// Frame source: nFramesEmulated (declared by public burn.h via burner.h).
-// GetCurrentFrame() is internal burnint.h-only; do not use it in SDL video.
+// Bar hue animation uses nFramesEmulated; the fighter-opacity mask uses
+// GetCurrentFrame() from public burn.h, matching Cps2ObjDraw's source frame.
 // This isolates stun HUD from art layers; gameplay RAM is never written.
 extern "C" bool xm8746DizzyHudAllowed(){
+    if(!XM87262Game::version4())return false;
     const char* option=std::getenv("XM8733_DIZZY_BAR");
     return !(option && option[0]=='0' && option[1]==0) &&
            !(xm14TrainingMode && !xm23State.dizzyAllowed);
@@ -638,7 +641,8 @@ static const XM8733::BarArt* xm87207StunArt(){
     return nullptr;
 }
 // Stun HUD now uses the existing UI stack for both ordinary and Wily stages.
-static void xm8733Overlay(SDL_Renderer* render,const SDL_Rect& view) {
+static void xm8733Overlay(SDL_Renderer* render,const SDL_Rect& view,bool nativeStage) {
+    if(!XM87262Game::version4())return;
     const char* name=BurnDrvGetTextA(DRV_NAME);
     // Phase 06 is the combat scene's opening/round-intro, ahead of
     // status 08 ("FIGHT!"). Keep the bar hidden on character select
@@ -674,6 +678,22 @@ static void xm8733Overlay(SDL_Renderer* render,const SDL_Rect& view) {
     if(dizzyBarEnabled) XM8733::Draw(CpsRamFF,xm8733Pixels,384*4,4,(unsigned)nFramesEmulated,
                  xm8658GameStatus,df && df[0]=='1' && df[1]==0,
                  xm87207StunArt());
+    // Wily composites the bar BEFORE the native fighter sprite texture.
+    // Native stages have already composited those fighters in sdlTexture;
+    // use the SAME current-frame fighter opacity to put the stun bar
+    // beneath them, without changing CPS2 sprite priorities or moving
+    // the stun overlay in front of the custom-stage fighters.
+    if(nativeStage && dizzyBarEnabled){
+        const XM8728::Mask& foreground=XM8728::State();
+        if(foreground.started && foreground.ready &&
+           foreground.frame==(unsigned)GetCurrentFrame() &&
+           foreground.width==384 && foreground.height==224 &&
+           foreground.body.size()==384u*224u){
+            for(std::size_t pixel=0;pixel<foreground.body.size();++pixel)
+                if(foreground.body[pixel])
+                    xm8733Pixels[pixel*4u+3u]=0u;
+        }
+    }
     if(SDL_UpdateTexture(xm8733Texture,NULL,xm8733Pixels,384*4)==0)
         SDL_RenderCopy(render,xm8733Texture,NULL,&view);
 }
@@ -685,6 +705,7 @@ static void xm8733Overlay(SDL_Renderer* render,const SDL_Rect& view) {
 // regular CPS2 canvas and the native Wily stage compositor. It is rebuilt
 // from transparent pixels each paint, so repeated paused paints cannot smear.
 static void xm87217NativeFloat(SDL_Renderer* render,const SDL_Rect& gameView){
+    if(!XM87262Game::version4())return;
     if(!render || !xm14TrainingMode || !xm23State.combat ||
        xm23State.menuOpen || nVidImageWidth!=384 || nVidImageHeight!=224 ||
        !XM87217::any(xm23State.frameData))return;
@@ -775,7 +796,7 @@ static int Paint(int bValidate)
 
     // Keep native UI order: scene -> stun bar -> other HUD/notifications.
     // Wily's compositor draws the same stun UI itself, so skip a second pass.
-    if(!xm8649Painted)xm8733Overlay(sdlRenderer,xm87127View);
+    if(!xm8649Painted)xm8733Overlay(sdlRenderer,xm87127View,true);
     // The label layer belongs to the GAME viewport, not SDL logical UI.
     // Its source pixels are already rasterized at 384x224 and scale with
     // the original stage, including custom Wily and Double Feature.

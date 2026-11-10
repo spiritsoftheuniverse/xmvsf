@@ -180,12 +180,13 @@ static inline void xm257TrainingAccept(){
 struct XM257MenuPad {
     SDL_Joystick* joystick=nullptr;
     SDL_GameController* controller=nullptr;
+    SDL_JoystickID instance=-1;
+    Uint32 lastProbeAt=0;
     bool previousA=false, previousB=false, previousUp=false, previousDown=false;
     bool wasOpen=false;
 };
 static inline void xm257CloseTrainingPad(XM257MenuPad& p){
-    if(p.controller)SDL_GameControllerClose(p.controller);
-    if(p.joystick)SDL_JoystickClose(p.joystick);
+    xm248ReconcileMenuPad(-1,p.joystick,p.controller,p.instance);
     p=XM257MenuPad{};
 }
 static inline bool xm87105TrainingHPHotkey(const SDL_Event& e){
@@ -226,23 +227,26 @@ static inline void xm257PollTrainingMenu(bool training){
         if(p.wasOpen)xm257CloseTrainingPad(p);
         return;
     }
-    SDL_JoystickUpdate();
-    if(!p.wasOpen){
+    // SDL game loop has already updated controller state.
+    const Uint32 now=SDL_GetTicks();
+    const bool first=!p.wasOpen;
+    if(first)p.wasOpen=true;
+    bool deviceChanged=false;
+    // Recheck identity and retry missing or not-yet-ready SDL devices
+    // while the Training menu stays open. A reconnection is not a press.
+    if(first || !p.lastProbeAt ||
+       (Uint32)(now-p.lastProbeAt)>=150u ||
+       (p.joystick && !SDL_JoystickGetAttached(p.joystick))){
+        p.lastProbeAt=now ? now : 1;
         XM13_Settings settings{};xm13Load(&settings);
-        int id=xm13FindDevice(&settings.player[0]);
-        if(id>=0){
-            p.joystick=SDL_JoystickOpen(id);
-            if(SDL_IsGameController(id))p.controller=SDL_GameControllerOpen(id);
-        }
-        p.wasOpen=true;
-        // Seed previous state with any held buttons: no carried-over press.
-        if(p.joystick){
-            p.previousA=SDL_JoystickGetButton(p.joystick,0)!=0;
-            p.previousB=SDL_JoystickGetButton(p.joystick,1)!=0;
-        }
+        const int id=xm248FindAssignedDevice(&settings,0);
+        deviceChanged=xm248ReconcileMenuPad(id,p.joystick,p.controller,p.instance);
+        // A reconnect seeds button edges below; do not re-poll the HID driver.
+    }
+    if(!p.joystick || !SDL_JoystickGetAttached(p.joystick)){
+        p.previousA=p.previousB=p.previousUp=p.previousDown=false;
         return;
     }
-    if(!p.joystick || !SDL_JoystickGetAttached(p.joystick))return;
     const bool a=p.controller?SDL_GameControllerGetButton(p.controller,SDL_CONTROLLER_BUTTON_A)!=0:
         SDL_JoystickGetButton(p.joystick,0)!=0;
     const bool b=p.controller?SDL_GameControllerGetButton(p.controller,SDL_CONTROLLER_BUTTON_B)!=0:
@@ -261,6 +265,12 @@ static inline void xm257PollTrainingMenu(bool training){
         const int y=SDL_JoystickGetAxis(p.joystick,1);
         up=up||y< -XM13_DEADZONE;
         down=down||y>XM13_DEADZONE;
+    }
+    // Reconnected buttons can already be held. Seed their states and
+    // require a fresh edge instead of selecting/backing automatically.
+    if(first || deviceChanged){
+        p.previousA=a;p.previousB=b;p.previousUp=up;p.previousDown=down;
+        return;
     }
     if(b && !p.previousB)xm257TrainingBack();
     else if(a && !p.previousA)xm257TrainingAccept();
@@ -310,6 +320,7 @@ static const XM23Glyph xm23Font[] = {
     {'7', {0x1f, 0x01, 0x02, 0x04, 0x04, 0x04, 0x04}},
     {'8', {0x0e, 0x11, 0x11, 0x0e, 0x11, 0x11, 0x0e}},
     {'9', {0x0e, 0x11, 0x11, 0x0f, 0x01, 0x01, 0x1e}},
+    {'+', {0x00,0x04,0x04,0x1f,0x04,0x04,0x00}},
     {'-', {0x00, 0x00, 0x00, 0x1f, 0x00, 0x00, 0x00}},
     {':', {0x00, 0x04, 0x04, 0x00, 0x04, 0x04, 0x00}},
     {'.', {0x00, 0x00, 0x00, 0x00, 0x00, 0x0c, 0x0c}},
@@ -382,158 +393,174 @@ static inline void xm39RoundedCard(SDL_Renderer* r,const SDL_Rect& a){
     SDL_RenderDrawPoint(r,a.x+1,a.y+a.h-2);
     SDL_RenderDrawPoint(r,a.x+a.w-2,a.y+a.h-2);
 }
-struct XM39Mark {const char* label;unsigned long long at;int x=0;int labelX=0;};
-static inline int xm39TimelineStride(unsigned long long span,int availablePixels){
-    const int slots=std::max(1,availablePixels/3);
-    return (int)std::max(1ull,(span+(unsigned long long)slots-1)/(unsigned long long)slots);
+// Stable input display: only actual pressed directions and buttons.
+static inline void xm41AppendInput(char* out,unsigned cap,const char* part){
+    if(!cap)return;
+    const unsigned used=(unsigned)std::strlen(out);
+    if(used<cap)std::snprintf(out+used,cap-used,"%s",part);
 }
-// Stage 87.154: hitbox/projectile lifetime in upper lane and real native
-// attack-action duration below. The latter stops at action-controller exit,
-// including when the next ROM action is walking or jumping.
+static inline void xm41InputTitle(const XM30Event& e,char* out,unsigned cap){
+    if(!cap)return;
+    out[0]=0;
+    if(!e.inputObserved){
+        std::snprintf(out,cap,"INPUT ?");
+        return;
+    }
+    for(unsigned i=0;i<e.inputDirectionCount && i<XM30Event::INPUT_DIRS;++i){
+        const unsigned dir=e.inputDirections[i];
+        if(dir<1u || dir>9u)continue;
+        char part[4];std::snprintf(part,sizeof(part),"%u",dir);
+        if(out[0])xm41AppendInput(out,cap,">");
+        xm41AppendInput(out,cap,part);
+    }
+    unsigned buttons=e.inputButtons;
+    if(!buttons && e.code>=0x80 && e.code<=0x85)
+        buttons=1u<<(unsigned)(e.code-0x80);
+    static const char* buttonNames[6]={"LP","MP","HP","LK","MK","HK"};
+    bool first=true;
+    for(unsigned i=0;i<6;++i){
+        if(!(buttons&(1u<<i)))continue;
+        if(first && out[0])xm41AppendInput(out,cap," + ");
+        else if(!first)xm41AppendInput(out,cap,"+");
+        xm41AppendInput(out,cap,buttonNames[i]);
+        first=false;
+    }
+    if(!buttons)std::snprintf(out,cap,"INPUT ?");
+}
+// Fixed physical-width timeline. Three display pixels per host observation:
+// two colored pixels, one gutter, numbered each ten frames.
+struct XM41FrameCardLayout {
+    static const int PIXELS_PER_FRAME=3;
+    static const int HEAD=20,ROW=26,TAIL=4;
+    XM30TimelineWrap wrap;
+    int height=0;
+};
+static inline XM41FrameCardLayout xm41FrameCardLayout(
+        const XM30Event& e,const XM30FrameData& f,int cardWidth){
+    XM41FrameCardLayout out{};
+    unsigned long long nativeFinish=e.inputFrame;
+    if(e.closed || e.noBox)nativeFinish=std::max(nativeFinish,e.endFrame);
+    if(!e.closed && !e.noBox)
+        nativeFinish=std::max(nativeFinish,e.hitboxLastFrame);
+    if(e.attackObserved)
+        nativeFinish=std::max(nativeFinish,
+            e.attackEnded?e.attackEndFrame:e.attackLastFrame);
+    if(e.despawnFrame)nativeFinish=std::max(nativeFinish,e.despawnFrame);
+    if(e.projectileBase)
+        nativeFinish=std::max(nativeFinish,e.lastProjectileFrame);
+    for(int i=0;i<e.contactCount;++i)
+        nativeFinish=std::max(nativeFinish,e.contactFrames[i]);
+    out.wrap.start=e.inputWallFrame;
+    out.wrap.finish=std::max(e.lastWallFrame,
+        f.wallForNative(e.player,nativeFinish,out.wrap.start));
+    for(int i=0;i<e.contactCount;++i)
+        out.wrap.finish=std::max(out.wrap.finish,e.contactWallFrames[i]);
+    if(out.wrap.finish<out.wrap.start)out.wrap.finish=out.wrap.start;
+    out.wrap.ticksPerRow=(unsigned)std::max(1,
+        std::max(1,cardWidth-17)/XM41FrameCardLayout::PIXELS_PER_FRAME);
+    out.height=XM41FrameCardLayout::HEAD+
+        (int)out.wrap.rows()*XM41FrameCardLayout::ROW+
+        XM41FrameCardLayout::TAIL;
+    return out;
+}
 static inline void xm41DrawFrameCard(SDL_Renderer* r,const SDL_Rect& card,
-                                      const XM30Event& e,unsigned long long currentFrame){
-    if(!r || card.w<105 || card.h<135)return;
+                                       const XM30Event& e,const XM30FrameData& f){
+    if(!r || card.w<105 || card.h<49)return;
     xm39RoundedCard(r,card);
     const int left=card.x+7,right=card.x+card.w-7;
-    char caption[44];
-    std::snprintf(caption,sizeof(caption),"P%d %s B%d %s",e.player+1,
-        e.source==1?"PROJ":xm32MotionTag(e.motion),
-        e.code>=0x80 && e.code<=0x85?e.code-0x80+1:0,
-        e.noBox?"NO BOX":((e.source==1?e.despawnFrame!=0:e.closed)?"DONE":"LIVE"));
-    xm32ColoredText(r,caption,left,card.y+6,1,159,199,255);
+    const int x0=left+2;
+    const XM41FrameCardLayout layout=xm41FrameCardLayout(e,f,card.w);
+    const XM30TimelineWrap& t=layout.wrap;
+    const unsigned long long startWall=t.start,finishWall=t.finish;
+    const int HEAD=XM41FrameCardLayout::HEAD;
+    const int ROW=XM41FrameCardLayout::ROW;
+    const int STEP=XM41FrameCardLayout::PIXELS_PER_FRAME;
+    static const int HIT_Y=13,MOVE_Y=19,BAR_H=3;
+    char title[128];xm41InputTitle(e,title,sizeof(title));
+    xm32ColoredText(r,title,left,card.y+5,1,183,218,253);
     SDL_SetRenderDrawColor(r,53,78,110,255);
-    SDL_RenderDrawLine(r,left,card.y+19,right,card.y+19);
-
-    unsigned long long finish=e.inputFrame;
-    if(e.closed || e.noBox)finish=std::max(finish,e.endFrame);
-    if(!e.closed && !e.noBox)finish=std::max(finish,e.source==1?
-        std::min(currentFrame,e.inputFrame+600ull):currentFrame);
-    if(e.attackObserved)finish=std::max(finish,
-        e.attackEnded?e.attackEndFrame:e.attackLastFrame);
-    if(e.despawnFrame)finish=std::max(finish,e.despawnFrame);
-    else if(e.projectileBase && e.positionKnown)
-        finish=std::max(finish,std::min(currentFrame,e.inputFrame+600ull));
-    // No idle-state timer. Once the ROM exits an attack, nothing in the
-    // second lane advances while the fighter holds a direction or jumps.
-    // A still-pending entry uses its own ongoing elapsed frame range.
-    if(finish<=e.inputFrame)finish=e.inputFrame+1;
-    const unsigned long long span=finish-e.inputFrame+1;
-    const int x0=left+2,x1=right-2;
-    const int stride=xm39TimelineStride(span,x1-x0);
-    auto px=[&](unsigned long long frame)->int{
-        if(frame<e.inputFrame)frame=e.inputFrame;
-        if(frame>finish)frame=finish;
-        return std::min(x1,x0+(int)((frame-e.inputFrame)/(unsigned)stride)*3);
+    SDL_RenderDrawLine(r,left,card.y+17,right,card.y+17);
+    auto nativeWall=[&](unsigned long long native)->unsigned long long{
+        return f.wallForNative(e.player,native,startWall);
     };
-    auto tick=[&](int x,int y,int h,Uint8 rr,Uint8 gg,Uint8 bb){
-        SDL_SetRenderDrawColor(r,rr,gg,bb,245);
-        SDL_Rect t={x,y,1,h};SDL_RenderFillRect(r,&t);
+    auto tick=[&](int x,int y,int h,Uint8 red,Uint8 green,Uint8 blue){
+        SDL_SetRenderDrawColor(r,red,green,blue,245);
+        const SDL_Rect bar={x,y,1,h};
+        SDL_RenderFillRect(r,&bar);
     };
-    // Markers sit ABOVE both chart rows; connecting lines keep the precise
-    // tick location visible even when captions need to be displaced.
-    XM39Mark marks[6];int n=0;
-    marks[n++]={"IN",e.inputFrame};
-    if(e.source==1 && e.spawnFrame)marks[n++]={"SP",e.spawnFrame};
-    if(!e.noBox)marks[n++]={"ON",e.firstFrame};
-    // Projectile lifecycle ends at disappearance, not an artificial "OUT"
-    // control phase. The rightmost tick is the object-lifetime boundary.
-    // Fighter hitboxes still show OFF at last active frame.
-    if(e.source==0 && !e.noBox && e.closed)marks[n++]={"OFF",e.endFrame};
-    if(e.attackObserved && e.attackEnded)
-        marks[n++]={"END",e.attackEndFrame};
-    for(int k=0;k<n;++k){
-        marks[k].x=px(marks[k].at);
-        const int width=(int)std::strlen(marks[k].label)*6;
-        int x=std::max(left,std::min(marks[k].x-width/2,right-width));
-        if(k>0)x=std::max(x,marks[k-1].labelX+(int)std::strlen(marks[k-1].label)*6+3);
-        marks[k].labelX=x;
-    }
-    if(n){
-        const int overflow=marks[n-1].labelX+(int)std::strlen(marks[n-1].label)*6-right;
-        if(overflow>0)for(int k=0;k<n;++k)marks[k].labelX=std::max(left,marks[k].labelX-overflow);
-    }
-    for(int k=0;k<n;++k){
-        const int center=marks[k].labelX+(int)std::strlen(marks[k].label)*3;
-        SDL_SetRenderDrawColor(r,77,101,139,255);
-        SDL_RenderDrawLine(r,center,card.y+36,marks[k].x,card.y+43);
-        xm32ColoredText(r,marks[k].label,marks[k].labelX,card.y+27,1,195,213,234);
-        tick(marks[k].x,card.y+42,2,236,241,251);
-    }
-    // Primary hitbox timeline. Cyan underneath it represents actual tracked
-    // projectile position changes, not assumed movement between frames.
-    for(unsigned long long step=0;step<span;step+=(unsigned)stride){
-        const unsigned long long at=e.inputFrame+step;
-        Uint8 rr=113,gg=133,bb=160;
-        const unsigned long long attackEnd=(e.closed||e.noBox)?e.endFrame:currentFrame;
-        if(!e.noBox && at>=e.firstFrame && at<=attackEnd){rr=93;gg=224;bb=135;}
-        else if(e.source==1 && e.spawnFrame && at>=e.spawnFrame &&
-                (e.despawnFrame==0 || at<e.despawnFrame)) {
-            // Yellow = travel-in before hitbox, blue = post-active travel.
-            if(!e.noBox && at>attackEnd){rr=86;gg=157;bb=204;}
-            else {rr=253;gg=204;bb=96;}
-        }
-        tick(px(at),card.y+46,7,rr,gg,bb);
-        bool measuredMotion=false;
-        if(e.source==1){
-            // Collapse exact frame-motion evidence into the current pixel's
-            // stride bucket. Never fill stationary gaps as if they moved.
-            for(unsigned k=0;k<(unsigned)stride && step+k<1024;++k){
-                const unsigned j=(unsigned)(step+k);
-                if(e.motionBits[j/64]&(1ull<<(j%64))){measuredMotion=true;break;}
+    const unsigned long long activeEnd=(e.closed||e.noBox)?
+        e.endFrame:e.hitboxLastFrame;
+    const unsigned long long actionEnd=e.attackEnded?
+        e.attackEndFrame:e.attackLastFrame;
+    const unsigned rows=t.rows();
+    const unsigned maxRows=card.h>=HEAD+ROW?
+        (unsigned)((card.h-HEAD)/ROW):0u;
+    for(unsigned row=0;row<rows && row<maxRows;++row){
+        const int y=card.y+HEAD+(int)row*ROW;
+        const unsigned long long base=startWall+
+            (unsigned long long)row*t.ticksPerRow;
+        const unsigned long long last=std::min(
+            finishWall,base+(unsigned long long)t.ticksPerRow-1u);
+        for(unsigned long long at=base;at<=last;++at){
+            const XM30WallTick sample=f.wallTick(e.player,at);
+            const unsigned long long native=sample.wall?sample.native:
+                e.inputFrame+(at-startWall);
+            const bool held=xm30VisualHeld(sample,e,at,native);
+            const int x=x0+(int)(at-base)*STEP;
+            const unsigned long long number=at-startWall+1u;
+            const bool ten=number%10u==0u,five=number%5u==0u;
+            // Every frame has an individual notch, with 5/10 emphasis.
+            tick(x+1,y+(ten?8:(five?9:10)),ten?4:(five?3:1),
+                 ten?225:(five?151:81),
+                 ten?235:(five?169:106),
+                 ten?246:(five?198:135));
+            if(number==1u || ten){
+                char label[16];std::snprintf(label,sizeof(label),"%llu",number);
+                const int w=(int)std::strlen(label)*6;
+                const int labelX=std::max(left,std::min(x+1-w/2,right-w));
+                xm32ColoredText(r,label,labelX,y,1,159,181,204);
+            }
+            Uint8 red=113,green=133,blue=160;
+            if(held){red=43;green=48;blue=57;}
+            else if(!e.noBox && native>=e.firstFrame && native<=activeEnd){
+                red=93;green=224;blue=135;
+            }else if(e.source==1 && e.spawnFrame &&
+                     native>=e.spawnFrame &&
+                     (!e.despawnFrame || native<e.despawnFrame)){
+                if(!e.noBox && native>activeEnd){
+                    red=86;green=157;blue=204;
+                }else{red=253;green=204;blue=96;}
+            }
+            for(int w=0;w<STEP-1;++w)
+                tick(x+w,y+HIT_Y,BAR_H,red,green,blue);
+            if(e.source==1 && !held && native>=e.inputFrame){
+                const unsigned long long j=native-e.inputFrame;
+                if(j<1024 && (e.motionBits[j/64]&(1ull<<(j%64))))
+                    tick(x+1,y+HIT_Y+BAR_H,1,86,193,243);
+            }
+            for(int w=0;w<STEP-1;++w){
+                if(held)tick(x+w,y+MOVE_Y,BAR_H,43,48,57);
+                else if(e.attackObserved && native>=e.attackStartFrame &&
+                        native<=actionEnd)
+                    tick(x+w,y+MOVE_Y,BAR_H,236,150,99);
+                else tick(x+w,y+MOVE_Y,BAR_H,74,88,111);
             }
         }
-        if(measuredMotion)tick(px(at),card.y+60,5,86,193,243);
     }
-    // A terminal border tick shows object removal, without a fake OUT phase.
-    if(e.source==1 && e.despawnFrame)
-        tick(px(e.despawnFrame),card.y+44,11,195,213,234);
-    xm32ColoredText(r,"HIT",left,card.y+55,1,118,155,199);
-    xm32ColoredText(r,"MOVE",right-25,card.y+55,1,86,193,243);
-    SDL_SetRenderDrawColor(r,53,78,110,255);
-    SDL_RenderDrawLine(r,left,card.y+74,right,card.y+74);
-    // The ROM action is the sole duration clock. Each attack owns its
-    // start, last valid frame and exit; button holds, movement, and Y
-    // position cannot keep the timeline running beyond action end.
-    xm32ColoredText(r,"ATTACK DURATION",left,card.y+78,1,177,188,211);
-    if(e.attackObserved){
-        const unsigned long long actionEnd=e.attackEnded?
-            e.attackEndFrame:e.attackLastFrame;
-        for(unsigned long long step=0;step<span;step+=(unsigned)stride){
-            const unsigned long long at=e.inputFrame+step;
-            if(at>=e.attackStartFrame && at<=actionEnd)
-                tick(px(at),card.y+92,7,236,150,99);
-            else tick(px(at),card.y+92,7,74,88,111);
-        }
-        tick(px(e.attackStartFrame),card.y+90,11,255,229,196);
-        if(e.attackEnded)
-            tick(px(e.attackEndFrame),card.y+90,11,255,229,196);
-    }else{
-        xm32ColoredText(r,"UNKNOWN",left+2,card.y+91,1,157,169,185);
+    // Isolated red confirmations on the hit lane, never a red strip
+    // cutting through both hit and action bars.
+    for(int i=0;i<e.contactCount && i<XM30Event::CONTACTS;++i){
+        const unsigned long long at=e.contactWallFrames[i]?
+            e.contactWallFrames[i]:nativeWall(e.contactFrames[i]);
+        if(at<startWall || at>finishWall)continue;
+        const unsigned row=t.row(at);
+        if(row>=maxRows)continue;
+        const int x=x0+(int)t.column(at)*STEP;
+        const int y=card.y+HEAD+(int)row*ROW;
+        tick(x+1,y+HIT_Y-3,3,249,57,66);
+        tick(x,y+HIT_Y,2,255,126,126);
+        tick(x+1,y+HIT_Y,2,249,57,66);
     }
-    SDL_SetRenderDrawColor(r,53,78,110,255);
-    SDL_RenderDrawLine(r,left,card.y+105,right,card.y+105);
-    if(e.noBox)xm32ColoredText(r,"NO BOX",left,card.y+112,1,185,190,203);
-    else{
-        char val[24];
-        xm32ColoredText(r,"S:",left,card.y+112,1,255,218,84);
-        std::snprintf(val,sizeof(val),"%dF",e.startup);
-        xm32ColoredText(r,val,left+14,card.y+112,1,255,207,182);
-        xm32ColoredText(r,"A:",left+80,card.y+112,1,102,236,142);
-        std::snprintf(val,sizeof(val),"%dF",e.active);
-        xm32ColoredText(r,val,left+94,card.y+112,1,255,207,182);
-    }
-    char info[56];
-    if(e.attackObserved){
-        const unsigned long long end=e.attackEnded?
-            e.attackEndFrame:e.attackLastFrame;
-        const unsigned long long duration=end>=e.attackStartFrame?
-            end-e.attackStartFrame+1u:0u;
-        std::snprintf(info,sizeof(info),"%lluF %s",
-            duration,e.attackEnded?"COMPLETE":"RUNNING");
-    }else std::snprintf(info,sizeof(info),"DURATION UNKNOWN");
-    xm32ColoredText(r,info,left,card.y+124,1,255,207,182);
-    std::snprintf(info,sizeof(info),"1T=%dF",stride);
-    xm32ColoredText(r,info,right-48,card.y+124,1,128,157,192);
 }
 static inline void xm23DrawText(SDL_Renderer* r,const char* text,int x,int y){
     xm23DrawTextSized(r,text,x,y,10000,2);
@@ -559,18 +586,29 @@ static inline void xm30Overlay(SDL_Renderer* r,const SDL_Rect& dest,int sw,int s
         xm32ColoredText(r,":START  ",panel.x+13,top+27,1,179,199,231);
         xm32ColoredText(r,"A",panel.x+61,top+27,1,102,236,142);
         xm32ColoredText(r,":ACTIVE",panel.x+67,top+27,1,179,199,231);
-        // Stage39: each event has a bounded 1px-rounded card. All text is
-        // outside the chart-line region; collision-prone marker captions are
-        // nudged within the card and connected to their true frame ticks.
-        const int rowHeight=146;
-        const int visible=std::min(f.count,std::max(0,(panel.h-78)/rowHeight));
-        const int first=f.count-visible;
+        // Source cards grow vertically as stable 1px host ticks wrap.
+        // Retain as many NEWEST complete cards as actually fit; long
+        // supers never rescale, overwrite, or erase their first row.
+        const int available=std::max(0,panel.h-85);
+        int first=f.count,used=0;
+        const int cardWidth=panelW-8;
+        for(int i=f.count-1;i>=0;--i){
+            const int h=xm41FrameCardLayout(f.history[i],f,cardWidth).height;
+            if(used+h+(used?3:0)>available)break;
+            used+=h+(used?3:0);
+            first=i;
+        }
+        if(first==f.count && f.count>0)first=f.count-1;
+        int cardY=top+52;
         for(int i=first;i<f.count;++i){
             const XM30Event& e=f.history[i];
-            const SDL_Rect card={panel.x+4,top+52+(i-first)*rowHeight,panelW-8,rowHeight-3};
-            xm41DrawFrameCard(r,card,e,f.frame);
+            const int h=xm41FrameCardLayout(e,f,cardWidth).height;
+            SDL_Rect card={panel.x+4,cardY,cardWidth,
+                           std::min(h,std::max(0,available-(cardY-top-52)))};
+            if(card.h>=50)xm41DrawFrameCard(r,card,e,f);
+            cardY+=h+3;
         }
-        xm23DrawTextSized(r,"QC DP HC DQ  PR=PROJECTILE",panel.x+8,top+panel.h-26,panelW-14,1);
+        xm23DrawTextSized(r,"QC QD DP HC DQ  PR=PROJECTILE",panel.x+8,top+panel.h-26,panelW-14,1);
         xm23DrawTextSized(r,"NEWEST AT BOTTOM",panel.x+8,top+panel.h-13,panelW-14,1);
     }
 
@@ -652,7 +690,7 @@ static inline void xm23Overlay(SDL_Renderer* renderer, const SDL_Rect& gameDest,
             if(!XMGlyph::left(renderer,lineText,x+5,yy+2,w-10,fontScale,selected?255:82))
                 xm23DrawTextSized(renderer,lineText,x+5,yy+2,w-10,fontScale);
         }
-        xm23DrawTextSized(renderer,"UP/DOWN  A SELECT  B BACK",x,bg.y+bg.h-17,w,1);
+        xm23DrawTextSized(renderer,"UP/DOWN  A SELECT  B/ESC BACK",x,bg.y+bg.h-17,w,1);
     }
     SDL_SetRenderDrawBlendMode(renderer,oldBlend);
 }

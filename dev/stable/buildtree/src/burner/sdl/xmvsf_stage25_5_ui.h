@@ -95,7 +95,7 @@ static inline void xm255BootVersus(SDL_Renderer* r){
         xm255Rect(r,left+295,459,40,38,xm255Rgb(191,95,115),false);
         xm255Text(r,"X",left+307,470,20,2,xm255Rgb(255,140,150));
     }
-    xm255Text(r,"UP/DOWN MOVE  A SELECT  B BACK",115,507,740,1,muted);
+    xm255Text(r,"UP/DOWN MOVE  A SELECT  B/ESC BACK",115,507,740,1,muted);
 }
 static inline void xm255BootScoreboard(SDL_Renderer* r){
     const XM255RGB fg=xm255Rgb(227,235,254),muted=xm255Rgb(149,174,207),edge=xm255Rgb(75,116,190);
@@ -131,7 +131,7 @@ static inline void xm255BootScoreboard(SDL_Renderer* r){
     xm255Text(r,"< PREV",100,466,160,2,muted);
     xm255Text(r,page,368,466,246,2,fg);
     xm255Text(r,"NEXT >",698,466,150,2,muted);
-    xm255Text(r,"LEFT/RIGHT PAGE  B BACK   P1/P2 SCORES",115,504,740,1,muted);
+    xm255Text(r,"LEFT/RIGHT PAGE  B/ESC BACK   P1/P2 SCORES",115,504,740,1,muted);
 }
 static inline void xm255InGameScoreboard(SDL_Renderer* r,int x,int y,int w){
     const XM255RGB fg=xm255Rgb(226,238,255),muted=xm255Rgb(153,174,205);
@@ -155,7 +155,7 @@ static inline void xm255InGameScoreboard(SDL_Renderer* r,int x,int y,int w){
     if(xm25State.entries.empty())xm255Text(r,"NO RECORDED SESSIONS",x+12,y+64,w-20,1,muted);
     char footer[80];std::snprintf(footer,sizeof(footer),"< PREV   PAGE %d/%d   NEXT >",xm25State.page+1,xm255MaxPage()+1);
     xm255Text(r,footer,x,y+179,w,1,fg);
-    xm255Text(r,"UP/DOWN PAGE  B BACK",x,y+191,w,1,muted);
+    xm255Text(r,"UP/DOWN PAGE  B/ESC BACK",x,y+191,w,1,muted);
 }
 // Kept only as a compatibility API for older menu call sites.
 // Stage 26 never launches a child process or terminates the running program.
