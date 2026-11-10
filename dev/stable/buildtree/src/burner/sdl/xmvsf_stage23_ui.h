@@ -180,12 +180,13 @@ static inline void xm257TrainingAccept(){
 struct XM257MenuPad {
     SDL_Joystick* joystick=nullptr;
     SDL_GameController* controller=nullptr;
+    SDL_JoystickID instance=-1;
+    Uint32 lastProbeAt=0;
     bool previousA=false, previousB=false, previousUp=false, previousDown=false;
     bool wasOpen=false;
 };
 static inline void xm257CloseTrainingPad(XM257MenuPad& p){
-    if(p.controller)SDL_GameControllerClose(p.controller);
-    if(p.joystick)SDL_JoystickClose(p.joystick);
+    xm248ReconcileMenuPad(-1,p.joystick,p.controller,p.instance);
     p=XM257MenuPad{};
 }
 static inline bool xm87105TrainingHPHotkey(const SDL_Event& e){
@@ -226,23 +227,25 @@ static inline void xm257PollTrainingMenu(bool training){
         if(p.wasOpen)xm257CloseTrainingPad(p);
         return;
     }
-    SDL_JoystickUpdate();
-    if(!p.wasOpen){
+    SDL_GameControllerUpdate();
+    const Uint32 now=SDL_GetTicks();
+    const bool first=!p.wasOpen;
+    if(first)p.wasOpen=true;
+    bool deviceChanged=false;
+    // Recheck identity and retry missing or not-yet-ready SDL devices
+    // while the Training menu stays open. A reconnection is not a press.
+    if(first || !p.lastProbeAt ||
+       (Uint32)(now-p.lastProbeAt)>=150u ||
+       (p.joystick && !SDL_JoystickGetAttached(p.joystick))){
+        p.lastProbeAt=now ? now : 1;
         XM13_Settings settings{};xm13Load(&settings);
-        int id=xm13FindDevice(&settings.player[0]);
-        if(id>=0){
-            p.joystick=SDL_JoystickOpen(id);
-            if(SDL_IsGameController(id))p.controller=SDL_GameControllerOpen(id);
-        }
-        p.wasOpen=true;
-        // Seed previous state with any held buttons: no carried-over press.
-        if(p.joystick){
-            p.previousA=SDL_JoystickGetButton(p.joystick,0)!=0;
-            p.previousB=SDL_JoystickGetButton(p.joystick,1)!=0;
-        }
+        const int id=xm13FindDevice(&settings.player[0]);
+        deviceChanged=xm248ReconcileMenuPad(id,p.joystick,p.controller,p.instance);
+    }
+    if(!p.joystick || !SDL_JoystickGetAttached(p.joystick)){
+        p.previousA=p.previousB=p.previousUp=p.previousDown=false;
         return;
     }
-    if(!p.joystick || !SDL_JoystickGetAttached(p.joystick))return;
     const bool a=p.controller?SDL_GameControllerGetButton(p.controller,SDL_CONTROLLER_BUTTON_A)!=0:
         SDL_JoystickGetButton(p.joystick,0)!=0;
     const bool b=p.controller?SDL_GameControllerGetButton(p.controller,SDL_CONTROLLER_BUTTON_B)!=0:
@@ -261,6 +264,12 @@ static inline void xm257PollTrainingMenu(bool training){
         const int y=SDL_JoystickGetAxis(p.joystick,1);
         up=up||y< -XM13_DEADZONE;
         down=down||y>XM13_DEADZONE;
+    }
+    // Reconnected buttons can already be held. Seed their states and
+    // require a fresh edge instead of selecting/backing automatically.
+    if(first || deviceChanged){
+        p.previousA=a;p.previousB=b;p.previousUp=up;p.previousDown=down;
+        return;
     }
     if(b && !p.previousB)xm257TrainingBack();
     else if(a && !p.previousA)xm257TrainingAccept();
