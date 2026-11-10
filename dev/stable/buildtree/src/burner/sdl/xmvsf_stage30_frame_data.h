@@ -85,22 +85,34 @@ struct XM41ActorSample {
 static inline unsigned xm30ActiveFighterBase(int player,bool reserve){
     return 0xFF4000u+(unsigned)player*0x400u+(reserve?0x800u:0u);
 }
+// Controller 32 is the native throw/grab sequence. Keep it observable
+// rather than treating command grabs, counters and throws as neutral.
+static const unsigned XM30_THROW_FAMILY=0x32u;
 static inline unsigned xm30NativeAttackFamily(const XM41ActorSample& a){
     if(!a.valid)return 0u;
     const unsigned mode=(a.mode>>8u)&255u;
+    const unsigned actionFamily=(a.nativeAction>>8u)&255u;
     if(mode==0x28u)return 0x28u;
-    if(mode==0x2Au){
-        const unsigned family=(a.nativeAction>>8u)&255u;
-        if(family==0x2Cu || family==0x2Eu)return family;
+    if(mode==0x32u)return XM30_THROW_FAMILY;
+    if(mode==0x2Au || (a.attackPhase&0x80u)!=0u){
+        // During an early command/counter stage the +60 ROM action can
+        // precede the usual 2A controller. The real 2C/2E opcode is proof.
+        if(actionFamily==0x2Cu || actionFamily==0x2Eu)
+            return actionFamily;
     }
     return 0u;
 }
 static inline bool xm30SameNativeAttack(const XM41ActorSample& a,
                                        unsigned family,unsigned firstAction,
                                        unsigned firstMode=0u){
-    if(xm30NativeAttackFamily(a)!=family)return false;
-    // Normal +60 action changes identify a new punch/kick in a sequence.
-    // A super's 2E00->2E02->2E10 transitions belong to ONE super.
+    const unsigned current=xm30NativeAttackFamily(a);
+    // A 2C special or 2E grab super can enter ROM throw controller 32
+    // during the catch/hold/release without becoming another move.
+    if(current==XM30_THROW_FAMILY &&
+       (family==0x2Cu || family==0x2Eu))return true;
+    if(current!=family)return false;
+    // Normal +60 action changes identify new punches/kicks.
+    // 2C/2E/32 have internal substages owned by the original action.
     return family!=0x28u ||
            (a.nativeAction==firstAction &&
             (!firstMode || a.mode==firstMode));
@@ -519,7 +531,8 @@ struct XM30FrameData {
                 if(xm30OwnedProjectileLive(e,samples[attacker]))
                     liveOwned=true;
                 if(!e.attackEnded && e.attackFamily &&
-                   family==e.attackFamily)
+                   xm30SameNativeAttack(actors[attacker],
+                       e.attackFamily,e.attackAction,e.attackMode))
                     liveNative=true;
             }
             const bool pendingSuper=family==0x2Eu &&
@@ -560,10 +573,8 @@ struct XM30FrameData {
                 const bool live=xm30OwnedProjectileLive(e,samples[attacker]);
                 const bool box=xm30OwnedProjectileAttack(e,samples[attacker]);
                 const bool native=!e.attackEnded && family!=0u &&
-                    e.attackFamily==family &&
-                    (family!=0x28u ||
-                     (e.attackAction==actors[attacker].nativeAction &&
-                      e.attackMode==actors[attacker].mode));
+                    xm30SameNativeAttack(actors[attacker],
+                        e.attackFamily,e.attackAction,e.attackMode);
                 // A previous move's still-live projectile must not lend
                 // its impact to the freshly accepted portrait-only super.
                 // Native ownership alone is not damage attribution proof
@@ -645,7 +656,9 @@ struct XM30FrameData {
              a1.nativeStep>=2u) ||
             ((xm30NativeAttackFamily(a2)==0x2Cu ||
               xm30NativeAttackFamily(a2)==0x2Eu) &&
-             a2.nativeStep>=2u);
+             a2.nativeStep>=2u) ||
+            xm30NativeAttackFamily(a1)==XM30_THROW_FAMILY ||
+            xm30NativeAttackFamily(a2)==XM30_THROW_FAMILY;
         const bool offensiveObjectPresent=
             p1.melee.active || p1.projectile.active ||
             p2.melee.active || p2.projectile.active ||
@@ -676,13 +689,19 @@ struct XM30FrameData {
              actors[0].health<previousHealth[0]) ||
             (actors[1].valid && healthSeeded[1] &&
              actors[1].health<previousHealth[1]);
-        // Native 2E stage02 phase81 is global portrait blackout, even
-        // when an old projectile or native animation pointer moves.
+        // ROM portrait phase 81 is not guaranteed to remain at stage 02
+        // across fighters. Also recognize frozen stage-02 startup when
+        // phase 80 is used (even if an old projectile still exists).
+        // Never mistake a confirmed damage frame for a global hold.
         const bool superPortrait=(
-            (xm30NativeAttackFamily(a1)==0x2Eu && a1.nativeStep==2u &&
-             a1.attackPhase==0x81u) ||
-            (xm30NativeAttackFamily(a2)==0x2Eu && a2.nativeStep==2u &&
-             a2.attackPhase==0x81u));
+            (xm30NativeAttackFamily(a1)==0x2Eu &&
+             (a1.attackPhase==0x81u ||
+              (a1.nativeStep==2u && bothAnimationsStatic &&
+               !healthDroppedNow))) ||
+            (xm30NativeAttackFamily(a2)==0x2Eu &&
+             (a2.attackPhase==0x81u ||
+              (a2.nativeStep==2u && bothAnimationsStatic &&
+               !healthDroppedNow))));
         const bool cinematicStop=superPortrait ||
             (nativeSetup && bothAnimationsStatic &&
              !offensiveObjectPresent && !healthDroppedNow);
@@ -737,20 +756,47 @@ struct XM30FrameData {
             // 2E02/2E10 internal stages are NOT fresh supers; only
             // observed entry into the native 2E family arms a new card.
             // Do not use a stage-02 restart as an unproven DHC signal.
+            // Keep the super root across its 32 throw/catch controller:
+            // returning from a Zangief grab is NOT a second super.
+            bool liveSuper=false,liveSpecial=false;
+            for(int i=count-1;i>=0;--i){
+                const XM30Event& e=history[i];
+                if(e.player!=p || e.attackEnded ||
+                   (e.actorBase && actors[p].sourceBase &&
+                    e.actorBase!=actors[p].sourceBase))continue;
+                if(e.attackFamily==0x2Eu)liveSuper=true;
+                if(e.attackFamily==0x2Cu)liveSpecial=true;
+            }
             const bool acceptedSuper=actors[p].valid &&
                 family==0x2Eu && !t.superRootObserved;
-            t.superRootObserved=actors[p].valid && family==0x2Eu;
+            t.superRootObserved=actors[p].valid &&
+                (family==0x2Eu ||
+                 (family==XM30_THROW_FAMILY && liveSuper));
+            // Controller 32 stages are one catch/hold/release sequence.
+            // A real follow-up needs its own observed button AND a changed
+            // ROM action, not just a throw animation substep.
+            const bool chainedThrow=t.pending>=0 &&
+                t.lastNativeFamily==XM30_THROW_FAMILY &&
+                actors[p].nativeAction!=t.lastNativeAction;
+            const bool freshThrow=family==XM30_THROW_FAMILY &&
+                ((t.lastNativeFamily!=XM30_THROW_FAMILY &&
+                  t.lastNativeFamily!=0x2Cu &&
+                  t.lastNativeFamily!=0x2Eu &&
+                  !liveSpecial && !liveSuper) || chainedThrow);
+            const bool resumedSpecial=family==0x2Cu &&
+                t.lastNativeFamily==XM30_THROW_FAMILY && liveSpecial &&
+                t.pending<0;
             const bool nativeNewAttack=actors[p].valid &&
                 (acceptedSuper ||
-                 ((actors[p].attackPhase&0x80u)!=0u &&
-                  ((family==0x28u &&
-                    (t.lastNativeFamily!=0x28u ||
-                     actors[p].nativeAction!=t.lastNativeAction ||
-                     actors[p].mode!=t.lastNativeMode)) ||
-                   (family==0x2Cu &&
-                    (t.lastNativeFamily!=0x2Cu ||
-                     (t.lastNativeStep>=4u && actors[p].nativeStep==2u &&
-                      actors[p].nativeAction!=t.lastNativeAction))))));
+                 (family==0x28u && (actors[p].attackPhase&0x80u)!=0u &&
+                  (t.lastNativeFamily!=0x28u ||
+                   actors[p].nativeAction!=t.lastNativeAction ||
+                   actors[p].mode!=t.lastNativeMode)) ||
+                 (family==0x2Cu && !resumedSpecial &&
+                  (t.lastNativeFamily!=0x2Cu ||
+                   (t.lastNativeStep>=4u && actors[p].nativeStep==2u &&
+                    actors[p].nativeAction!=t.lastNativeAction))) ||
+                 freshThrow);
             if(t.pending<0 && nativeNewAttack){
                 // This card has no known mapped button edge. Show that
                 // limitation explicitly rather than fabricating an S value.
