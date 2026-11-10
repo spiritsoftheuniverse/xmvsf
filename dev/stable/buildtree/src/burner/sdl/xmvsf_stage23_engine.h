@@ -498,6 +498,8 @@ static inline void xm23OnRealFrame(int ready) {
             actor[p].attackPhase=xm23::r8(c,base+0x64); // original ROM: 80=attack, 40=recovery
             actor[p].nativeStep=xm23::r16(c,base+0x08); // original ROM 2E substage
             actor[p].hitStop=xm23::r8(c,base+0x85); // original ROM per-player freeze counter
+            actor[p].animPtr=xm23::r32(c,base+0x34u);
+            actor[p].animTimer=xm23::r16(c,base+0x3Eu);
             // Use the SAME active-teammate HP selected for the Training HUD.
             // The old fixed +210 word can follow the wrong bench character
             // after a swap and includes an unrelated high byte.
