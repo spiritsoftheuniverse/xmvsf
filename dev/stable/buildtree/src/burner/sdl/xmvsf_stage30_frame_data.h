@@ -458,9 +458,23 @@ struct XM30FrameData {
                 actors[p].nativeStep>=4u &&
                 (actors[p].nativeStep&1u)==0u &&
                 (actors[p].attackPhase&0x40u)==0u;
+            // A second 2C special can be cancelled directly from stage04
+            // into the NEXT stage02 root without ever passing idle. Its
+            // old projectile may persist, but its native action duration
+            // must stop at the new action acceptance, not absorb 44F again.
+            const bool newSpecialRoot=t.pending>=0 &&
+                t.pendingOriginValid && t.pendingOriginFamily==0x2Cu &&
+                t.pendingOriginStep>=4u && family==0x2Cu &&
+                actors[p].nativeStep==2u &&
+                actors[p].nativeAction!=t.pendingOriginAction;
             for(int i=0;i<count;++i){
                 XM30Event& e=history[i];
                 if(e.player!=p || !e.attackObserved || e.attackEnded)continue;
+                if(newSpecialRoot && e.attackFamily==0x2Cu){
+                    e.attackEndFrame=e.attackLastFrame;
+                    e.attackEnded=true;
+                    continue;
+                }
                 if(xm30SameNativeAttack(actors[p],e.attackFamily,e.attackAction,e.attackMode) ||
                    (e.attackFamily==0x2Eu && (actors[p].attackPhase&0x80u)!=0u)){
                     // Any match proves the action survived impact.
