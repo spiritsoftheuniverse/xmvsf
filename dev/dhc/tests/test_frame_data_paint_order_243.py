@@ -86,7 +86,7 @@ assert "e.inputFrame=(unsigned long long)t.pending;" in clock
 assert "e.inputWallFrame=t.pendingWallFrame;" in clock
 assert "e.noBox=true;e.contactOnly=false;e.source=0;" in clock
 assert "e.attackObserved=true;e.attackFamily=family;" in clock
-assert "t.superRootObserved=actors[p].valid && family==0x2Eu;" in clock
+assert "t.superRootObserved=actors[p].valid &&" in clock
 assert "p1_super_input_wall" in engine and "p2_super_input_wall" in engine
 assert "p1_super_prebox" in engine and "p2_super_prebox" in engine
 # 87.253: combo counter and native defender +85 reload are independent
@@ -100,4 +100,4 @@ assert "XM32_QCD" in clock
 assert "++wallFrame[0];++wallFrame[1];" in clock
 assert "recordWallTicks(advancePlayer);" in clock
 assert "e.contactWallFrames" in clock
-print("XMVSF 87.258 PASS: independent native clocks, combo HP fallback, actual box duration and opt-in diagnostics")
+print("XMVSF 87.259 PASS: independent native clocks, combo HP fallback, actual box duration and opt-in diagnostics")

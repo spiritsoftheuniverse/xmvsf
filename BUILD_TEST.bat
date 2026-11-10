@@ -11,9 +11,9 @@ if not exist "%LOGDIR%" mkdir "%LOGDIR%"
 if not exist "%LOGDIR%" goto :no_log
 set "BUILDLOG=%LOGDIR%\BUILD_TEST.log"
 >>"%BUILDLOG%" echo.
->>"%BUILDLOG%" echo ========== XMVSF BUILD_TEST.bat 87.258 START %DATE% %TIME% ==========
+>>"%BUILDLOG%" echo ========== XMVSF BUILD_TEST.bat 87.259 START %DATE% %TIME% ==========
 >>"%BUILDLOG%" echo Project: %PROJECT%
-echo XMVSF 87.258 incremental TEST build
+echo XMVSF 87.259 incremental TEST build
 echo Source: "%PROJECT%\dev\stable\buildtree"
 echo Permanent build transcript: "%BUILDLOG%"
 echo All build output is displayed AND appended to the transcript.
@@ -66,18 +66,18 @@ popd
 if not "%RC%"=="0" goto :fail
 REM The shell must have actually compiled/linked and published the current
 REM native TEST executable. Never fall back to Stable or a stale numbered TEST.
-if not exist "%PROJECT%\runtime\stable\XMVSF_Test_87_258.exe" (
-  echo ERROR: Native compiler returned success but TEST 87.258 executable is missing.
-  >>"%BUILDLOG%" echo ERROR: TEST 87.258 executable missing after successful make
+if not exist "%PROJECT%\runtime\stable\XMVSF_Test_87_259.exe" (
+  echo ERROR: Native compiler returned success but TEST 87.259 executable is missing.
+  >>"%BUILDLOG%" echo ERROR: TEST 87.259 executable missing after successful make
   goto :fail
 )
-for %%I in ("%PROJECT%\runtime\stable\XMVSF_Test_87_258.exe") do if %%~zI LEQ 0 (
-  echo ERROR: TEST 87.258 output is empty.
-  >>"%BUILDLOG%" echo ERROR: TEST 87.258 executable has zero bytes.
+for %%I in ("%PROJECT%\runtime\stable\XMVSF_Test_87_259.exe") do if %%~zI LEQ 0 (
+  echo ERROR: TEST 87.259 output is empty.
+  >>"%BUILDLOG%" echo ERROR: TEST 87.259 executable has zero bytes.
   goto :fail
 )
 echo.
-echo TEST 87.258 BUILD READY. Run RUN_TEST.bat option 1.
+echo TEST 87.259 BUILD READY. Run RUN_TEST.bat option 1.
 echo Full transcript: "%BUILDLOG%"
 >>"%BUILDLOG%" echo BATCH RESULT: SUCCESS %DATE% %TIME%
 pause

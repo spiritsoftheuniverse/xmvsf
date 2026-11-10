@@ -657,8 +657,10 @@ struct XM30FrameData {
             ((xm30NativeAttackFamily(a2)==0x2Cu ||
               xm30NativeAttackFamily(a2)==0x2Eu) &&
              a2.nativeStep>=2u) ||
-            xm30NativeAttackFamily(a1)==XM30_THROW_FAMILY ||
-            xm30NativeAttackFamily(a2)==XM30_THROW_FAMILY;
+            (xm30NativeAttackFamily(a1)==XM30_THROW_FAMILY &&
+             a1.nativeStep==2u && a1.attackPhase==0x81u) ||
+            (xm30NativeAttackFamily(a2)==XM30_THROW_FAMILY &&
+             a2.nativeStep==2u && a2.attackPhase==0x81u);
         const bool offensiveObjectPresent=
             p1.melee.active || p1.projectile.active ||
             p2.melee.active || p2.projectile.active ||
