@@ -118,6 +118,7 @@ struct XM30Event {
     // Start at the first observed real ROM attack action, end on the first
     // different action/controller family, independent of input or height.
     bool attackObserved=false,attackEnded=false;
+    bool inputObserved=true; // false: native ROM detected attack but mapped edge not seen
     unsigned attackFamily=0,attackAction=0,attackMode=0;
     unsigned long long attackStartFrame=0,attackLastFrame=0,attackEndFrame=0;
     unsigned attackExitPending=0; // unresolved native controller during impact
@@ -137,6 +138,7 @@ struct XM30Sample {
 };
 struct XM30Track {
     long long pending=-1;
+    bool pendingNativeOnly=false;
     int code=0, motion=XM32_NORMAL;
     // Index -1 if no active row; separate lifetimes prevent an old projectile
     // suppressing the rising edge of a new airborne/ground melee hitbox.
@@ -246,6 +248,7 @@ struct XM30FrameData {
         // Do not reject new attack inputs just because an older projectile is
         // still on screen. A new row still requires a NEW hitbox edge.
         t.pending=(long long)playerFrame[player];
+        t.pendingNativeOnly=false;
         t.pendingSpawnBase=0;
         t.pendingSpawnFrame=0;
         // A new button edge only starts the next candidate. It NEVER ends an
@@ -449,6 +452,44 @@ struct XM30FrameData {
             // Record native action tenure without consulting current direction,
             // held buttons, Y-position, jumping, or the later idle stance.
             const unsigned family=xm30NativeAttackFamily(actors[p]);
+            // Capture genuine accepted native attacks even if the mapped
+            // button edge occurred inside hit-stop or was not observable.
+            // 28: both +60 action and +A0 controller identify a new normal.
+            // 2C: only family entry or stage>=04 -> new stage02 root is a
+            //     new special; internal 2C50/4E/4C/54 cycling is NOT.
+            // 2E: only family entry starts a new super; 2E02/10 substeps
+            //     always belong to the original super.
+            const bool nativeNewAttack=actors[p].valid &&
+                (actors[p].attackPhase&0x80u)!=0u &&
+                ((family==0x28u &&
+                  (t.lastNativeFamily!=0x28u ||
+                   actors[p].nativeAction!=t.lastNativeAction ||
+                   actors[p].mode!=t.lastNativeMode)) ||
+                 (family==0x2Cu &&
+                  (t.lastNativeFamily!=0x2Cu ||
+                   (t.lastNativeStep>=4u && actors[p].nativeStep==2u &&
+                    actors[p].nativeAction!=t.lastNativeAction))) ||
+                 (family==0x2Eu && t.lastNativeFamily!=0x2Eu));
+            if(t.pending<0 && nativeNewAttack){
+                // This card has no known mapped button edge. Show that
+                // limitation explicitly rather than fabricating an S value.
+                t.pending=(long long)(frame>0u?frame-1u:0u);
+                t.pendingNativeOnly=true;
+                t.code=0;t.motion=XM32_NORMAL;
+                t.pendingSpawnBase=0;t.pendingSpawnFrame=0;
+                t.pendingFirstMotion=t.pendingLastMotion=0;
+                t.pendingMoveFrames=0;t.pendingPositionKnown=false;
+                t.pendingMotionOverflow=false;
+                for(int word=0;word<16;++word)t.pendingMotionBits[word]=0;
+                t.pendingAttackFamily=t.pendingAttackAction=t.pendingAttackMode=0;
+                t.pendingAttackStart=t.pendingAttackLast=t.pendingAttackEnd=0;
+                t.pendingOriginFamily=t.lastNativeFamily;
+                t.pendingOriginAction=t.lastNativeAction;
+                t.pendingOriginMode=t.lastNativeMode;
+                t.pendingOriginStep=t.lastNativeStep;
+                t.pendingOriginValid=t.lastNativeValid;
+                t.pendingOriginLeft=false;t.pendingComboTransition=false;
+            }
             // ROM attack flag is authoritative; 2E's post-startup script
             // stage is a fallback once the move has a proven hitbox.
             // 0x40 recovery explicitly cancels both active indicators.
@@ -715,6 +756,7 @@ struct XM30FrameData {
                     const int idx=appendEvent();
                     XM30Event& e=history[idx];e=XM30Event{};
                     e.player=p;e.startup=(int)age;e.active=1;
+                    e.inputObserved=!t.pendingNativeOnly;
                     e.nativeSuperPhase=t.pendingAttackFamily==0x2Eu &&
                         (superPhaseActive || superStageActive);
                     e.attackObserved=t.pendingAttackFamily!=0u;
@@ -775,6 +817,7 @@ struct XM30FrameData {
                 const int idx=appendEvent();
                 XM30Event& e=history[idx];e=XM30Event{};
                 e.player=p;e.code=t.code;e.motion=t.motion;e.noBox=true;
+                e.inputObserved=!t.pendingNativeOnly;
                 e.attackObserved=t.pendingAttackFamily!=0u;
                 e.attackFamily=t.pendingAttackFamily;
                 e.attackAction=t.pendingAttackAction;
