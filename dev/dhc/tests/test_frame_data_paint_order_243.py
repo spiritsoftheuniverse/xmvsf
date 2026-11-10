@@ -21,7 +21,17 @@ assert body.count("xm23OnRealFrame(bDrvOkay);") == 2
 assert "xm23Overlay(sdlRenderer" in video
 assert "XM87217::draw(image,font,xm23State.frameData);" in video
 assert "const bool nativeSetup=" in clock
-assert "const bool cinematicStop=nativeSetup && bothAnimationsStatic;" in clock
+assert "const bool superPortrait =" in clock
+assert "const bool cinematicStop=superPortrait ||" in clock
+assert "(nativeSetup && bothAnimationsStatic);" in clock
+assert "xm30ActiveFighterBase(0,p1Anchor)" in engine
+assert "xm30ActiveFighterBase(1,p2Anchor)" in engine
+assert "if(box.kind==1 && box.sourceBase!=activeFighterBase[box.owner])" in engine
+assert "actor[p].sourceBase=base;" in engine
+assert "const bool actorChanged=t.lastNativeBase" in clock
+assert "e.actorBase=actors[p].sourceBase;" in clock
+assert "e.actorBase=actors[attacker].sourceBase;" in clock
+assert "comboRise[p]=comboSeeded[p]" in clock
 assert "previousAnimPtr[p]!=a.animPtr" in clock
 assert "previousAnimTimer[p]!=a.animTimer" in clock
 assert "xm30NativeAttackFamily(a1)==0x2Cu" in clock
@@ -46,4 +56,4 @@ assert "(meleeRise || projectileRise) && nativeCandidateAccepted" in clock
 assert "t.pendingOriginLeft=false;" in clock
 assert "++eventsCreated;" in clock
 assert "XMVSF_FRAME_TRACE" in engine
-print("XMVSF 87.247 PASS: native 2C/2E animation stall, per-fighter clocks and ROM combo acceptance")
+print("XMVSF 87.250 PASS: active tag actor, ROM contacts, 2E blackout and native clocks")
