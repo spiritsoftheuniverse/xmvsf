@@ -4,6 +4,7 @@
 // Runs post-frame only; no save state loads within open 68000 CPU scope.
 #include "xmvsf_stage87_110_restart.h"
 #include "xmvsf_stage87_111_corner.h"
+#include "xmvsf_stage87_135_roster_snapshot.h"
 #include "xmvsf_stage87_105_training_reset.h"
 #include <cstdio>
 #include <cstring>
@@ -15,7 +16,7 @@ static inline void xm87111CheckCameraAfterFrame(bool ready,unsigned frame) {
  if(!cpu||!cpu->open||!cpu->close||!cpu->read)return;
  cpu->open(0);
  const unsigned stage=XM87102Lab::read8(cpu,0xFF5113u)&15u;
- const unsigned cam=XM87102Lab::read16(cpu,0xFF524Cu)+XM87111::CAMERA_BIAS;
+ const unsigned cam=XM87111::nativeCameraX(XM87102Lab::read16(cpu,0xFF524Cu));
  cpu->close();
  std::fprintf(stderr,"XM87.111 CAMERA_VERIFY frame=%u stage=%u native_camera=%u expected=%u remaining=%u\n",
     frame,stage,cam,ch.expected,ch.remaining);
@@ -61,13 +62,25 @@ static inline bool xm87110RestartAfterFrame(bool ready,unsigned frame){
  XM87111::cameraCheck().clear(); // normal/unsupported restarts must not inherit a previous camera check
  XM87102Lab::Capture& c=XM87102Lab::capture();
  if(!c.saved){std::fprintf(stderr,"XM87.111 RESTART_REFUSED frame=%u no match-start snapshot\n",frame);return false;}
- FILE* f=std::fopen(XM87102Lab::SNAPSHOT,"rb");
+ // The first-frame snapshot can contain an older character team or a
+ // different point fighter after tagging. Never overwrite the live roster.
+ XM87135::Team liveTeam;
+ if(!XM87135::fromCPU(liveTeam)){
+  std::fprintf(stderr,"XM87.135 RESTART_REFUSED frame=%u live roster unavailable\n",frame);
+  return false;
+ }
+ std::string loadPath;
+ if(!XM87135::prepare(XM87102Lab::SNAPSHOT,liveTeam,loadPath)){
+  std::fprintf(stderr,"XM87.135 RESTART_REFUSED frame=%u no matching first-frame roster\n",frame);
+  return false;
+ }
+ FILE* f=std::fopen(loadPath.c_str(),"rb");
  char sig[4]={};
  const bool valid=f && std::fread(sig,1,4,f)==4 && std::memcmp(sig,"FB1 ",4)==0;
  if(f)std::fclose(f);
  if(!valid){std::fprintf(stderr,"XM87.111 RESTART_REFUSED frame=%u invalid snapshot\n",frame);return false;}
  // Load only at the safe post-CPU real-frame boundary.
- const int rc=BurnStateLoad((TCHAR*)XM87102Lab::SNAPSHOT,1,NULL);
+ const int rc=BurnStateLoad((TCHAR*)loadPath.c_str(),1,NULL);
  if(rc){std::fprintf(stderr,"XM87.111 RESTART_REFUSED frame=%u load_rc=%d\n",frame,rc);return false;}
  bool positioned=selection==XM87110::NORMAL;
  {
@@ -88,23 +101,16 @@ static inline bool xm87110RestartAfterFrame(bool ready,unsigned frame){
        // The original snapshot is the authoritative DEFAULT fighter position.
        // Only re-center the camera: never move either fighter for NORMAL.
        const unsigned newCamera=XM87111::centerCameraX(x1,x2);
-       const unsigned oldCamera=XM87102Lab::read16(cpu,0xFF524Cu)+XM87111::CAMERA_BIAS;
+       const unsigned oldCamera=XM87111::nativeCameraX(XM87102Lab::read16(cpu,0xFF524Cu));
        xm18Write16(cpu,0xFF524Cu,newCamera-XM87111::CAMERA_BIAS);
        XM87111::cameraCheck().arm(newCamera);
        std::fprintf(stderr,
          "XM87.114 CENTER_CAMERA_SYNC frame=%u stage=%u old_camera=%u target_camera=%u p1=%u p2=%u\n",
          frame,stage,oldCamera,newCamera,x1,x2);
        positioned=true;
-     }else if(selection==XM87110::LEFT){
-       // The user's 87.113 NORMAL behavior is the 87.115 LEFT preset:
-       // BurnStateLoad above already restored the recorded fighter positions,
-       // facing, and the original (off-center) snapshot camera. Don't touch them.
-       const unsigned nativeCamera=XM87102Lab::read16(cpu,0xFF524Cu)+XM87111::CAMERA_BIAS;
-       std::fprintf(stderr,
-         "XM87.115 LEFT_SNAPSHOT_RESTORE frame=%u stage=%u camera=%u p1=%u p2=%u\n",
-         frame,stage,nativeCamera,x1,x2);
-       positioned=true;
      }else{
+     // Both LEFT and RIGHT use explicit positions. LEFT is the final
+     // 217/46, Y=472, camera=0 target, never a snapshot-only fallback.
      // Keep each actor and its fractional X. NEVER swap the fighters' data.
      const bool changeFacing=XM87111::flipFacing(selection,x1<x2);
      const unsigned oldCamera=XM87102Lab::read16(cpu,0xFF524Cu)+XM87111::CAMERA_BIAS;
@@ -113,6 +119,8 @@ static inline bool xm87110RestartAfterFrame(bool ready,unsigned frame){
      for(unsigned i=0;i<2u;++i){
       const unsigned oldFraction=xm18Read32(cpu,bases[i]+0x0Cu)&65535u;
       xm18Write32(cpu,bases[i]+0x0Cu,(XM87111::fighterX(selection,i)<<16)|oldFraction);
+      if(selection==XM87110::LEFT)
+       xm18Write16(cpu,bases[i]+0x10u,XM87111::CORNER_Y);
       const unsigned original=XM87102Lab::read8(cpu,bases[i]+0x4Bu);
       cpu->write(bases[i]+0x4Bu,XM87111::changedFacing(original,changeFacing));
      }
@@ -137,6 +145,15 @@ static inline bool xm87110RestartAfterFrame(bool ready,unsigned frame){
    }
    cpu->close();
   }
+ }
+ // Verify all four native identities, not just the on-screen pair.
+ XM87135::Team restored;
+ if(!XM87135::fromCPU(restored) || !XM87135::identical(restored,liveTeam)){
+  std::fprintf(stderr,"XM87.135 ROSTER_POSTLOAD_MISMATCH frame=%u path=%s\n",
+      frame,loadPath.c_str());
+ }else{
+  std::fprintf(stderr,"XM87.135 ROSTER_VERIFIED frame=%u p1=%02X/%02X p2=%02X/%02X state=%s\n",
+      frame,restored.id[0],restored.id[2],restored.id[1],restored.id[3],loadPath.c_str());
  }
  xm18Position.requested[0]=xm18Position.requested[1]=0;
  xm18Position.held[0]=xm18Position.held[1]=0;
