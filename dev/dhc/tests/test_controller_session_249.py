@@ -35,6 +35,12 @@ assert "SDL_CONTROLLER_BUTTON_A,SDL_CONTROLLER_BUTTON_B" in controls
 assert "SDL_CONTROLLER_BUTTON_RIGHTSHOULDER" in controls
 assert "SDL_CONTROLLER_BUTTON_BACK,SDL_CONTROLLER_BUTTON_START" in controls
 assert "if(!s || player<0 || player>1)return -1;" in controls
+# The gameplay callback must actually reach xm13ReadInput instead of
+# returning xm15SyntheticButton=0 when the saved mapping is inactive.
+assert "if(XM249Policy::needsVirtualMap(" in backend
+assert "xm249SessionPad[xm14Source].selected))" in backend
+assert backend.index("if(XM249Policy::needsVirtualMap(") < backend.index("xm13ReadInput(&xm13Config,xm14Source,xm15Sub")
+assert "XM87.249 PAD_GAME_OWNER" in backend
 assert "XM249Policy::needsVirtualMap" in policy
 assert "XM249Policy::useSemanticPad" in policy
 assert "XM249Policy::deliver" in policy
