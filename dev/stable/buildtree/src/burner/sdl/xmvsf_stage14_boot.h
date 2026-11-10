@@ -244,6 +244,10 @@ static int xmvsfBootSelector(bool returningFromGame=false) {
     Uint32 menuLastPadProbe=0;
     // Do not lock in the first enumeration. A pad can become valid while
     // the menu is already visible (USB, Bluetooth, SDL delayed startup).
+    // Each return to the persistent boot menu starts a new input owner
+    // selection; no stale Xbox/DS4Windows instance may carry from a match.
+    xm249SessionPad[0]=XM249SessionPad{};
+    xm249SessionPad[1]=XM249SessionPad{};
     XM13_Settings config;xm13Load(&config);
     xm25OpenSetup(); /* XMVSF_STAGE25_SETS */
     int selection=0,controlsRow=0,controlsPage=0,optionsTab=0,gameRow=0,graphicsRow=xm29NearestPreset(window),screen=0,capture=-1,outcome=-1,running=1;
@@ -459,6 +463,14 @@ static int xmvsfBootSelector(bool returningFromGame=false) {
                 if(ev.cbutton.button==SDL_CONTROLLER_BUTTON_B)back=1;
             }
             xm256NormalizeBootFaceButtons(ev,accept,back); /* XMVSF_STAGE25_6_MENU_INPUT_TRAINING */ /* XMVSF_STAGE25_6_1_COMPILE_REPAIR */
+            // The boot menu consumes SDL_CONTROLLERBUTTONDOWN from ANY
+            // XInput/DS4Windows controller, even if its P1 config is absent.
+            // Remember the SAME physical SDL instance for actual gameplay.
+            // Raw joystick A is used for arcade Fight Pi and non-GC devices.
+            if(accept && ev.type==SDL_CONTROLLERBUTTONDOWN)
+                xm249SelectSessionPad(0,ev.cbutton.which);
+            else if(accept && ev.type==SDL_JOYBUTTONDOWN)
+                xm249SelectSessionPad(0,ev.jbutton.which);
             if(screen==5) { // Stage selection, before loading the character select save-state.
                 if(back){screen=returnScreen;menuGate.begin();continue;}
                 if(direction){stageRow=1-stageRow;xm25MenuSound(false);}
