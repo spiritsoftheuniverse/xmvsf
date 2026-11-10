@@ -9,7 +9,7 @@ static const unsigned VIEWPORT_WIDTH=384u;
 static const unsigned CAMERA_MIN=192u; // XM86.54 WILY_PRESENT frame=2
 static const unsigned CAMERA_MAX=384u; // XM86.54 WILY_PRESENT frame=601
 static const unsigned CAMERA_BIAS=64u; // XM86.49: s16(FF524C)+64
-static const unsigned WORLD_LEFT=0u; // 87.270 side-switch capture reaches X=21
+static const unsigned WORLD_LEFT=CAMERA_MIN; // unchanged conservative initial-centering gate
 static const unsigned WORLD_RIGHT=CAMERA_MAX+VIEWPORT_WIDTH; // 768
 // 87.270 training_side_switch.log: FIRST RIGHT reference 689/747,
 // SECOND LEFT reference 79/21. Both sum to 768 for the same fighter,
@@ -20,6 +20,9 @@ static const unsigned LEFT_P1_X=79u;
 static const unsigned LEFT_P2_X=21u;
 static const unsigned RIGHT_P1_X=MIRROR_SUM-LEFT_P1_X; // 689
 static const unsigned RIGHT_P2_X=MIRROR_SUM-LEFT_P2_X; // 747
+// Compatibility aliases used by older geometry helpers: now 58px/21px.
+static const unsigned FIGHTER_SPACING=LEFT_P1_X-LEFT_P2_X;
+static const unsigned DUMMY_CORNER_INSET=WORLD_RIGHT-RIGHT_P2_X;
 static const unsigned LEFT_CAMERA_X=0u;
 static const unsigned CORNER_Y=472u;
 // Normal match-start X coordinates measured from 87.109 live capture, frame 1534.
