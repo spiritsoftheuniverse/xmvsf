@@ -68,7 +68,7 @@ static inline void xm243RefreshPads(XM243Pad pads[2]) {
     for(int i=0;i<2;++i){
         XM243Pad& p=pads[i];
         p.mapping=settings.player[i];
-        const int device=xm13FindDevice(&settings.player[i]);
+        const int device=xm248FindAssignedDevice(&settings,i);
         const bool changed=xm248ReconcileMenuPad(
             device,p.joy,p.controller,p.instance);
         if(changed){
