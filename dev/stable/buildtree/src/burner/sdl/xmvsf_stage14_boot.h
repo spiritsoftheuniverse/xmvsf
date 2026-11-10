@@ -113,7 +113,7 @@ static int xmvsfBootSelector(bool returningFromGame=false) {
     xm8733DizzyLoad();
     XM8755Mode::Load();
     xm8655ApplyMode(); // Apply saved DF only when the selected game is V4.
-    std::fprintf(stderr,"XMVSF NATIVE TEST 87.262 | Game Version 3/4 + independent Tournament selection\n");
+    std::fprintf(stderr,"XMVSF NATIVE TEST 87.264 | Game Version 3/4 + independent Tournament selection\n");
     std::fprintf(stderr,"XM27: boot selector ENTER (%s)\n",returningFromGame?"return":"startup");
     std::fflush(stderr);
     if(SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER | SDL_INIT_JOYSTICK | SDL_INIT_GAMECONTROLLER)!=0) {

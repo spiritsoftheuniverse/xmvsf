@@ -715,9 +715,13 @@ INT32 Cps2Frame()
     XM87125Stun::state().before(CpsRamFF,(unsigned)GetCurrentFrame(),
         xm262V4 &&
         XM8795Native::state().installed && XM8796Native::state().installed);
+    // 87.264: Regenerate is a Training safety rule in BOTH game versions.
+    // It clamps original lethal ROM damage to one HP so the existing
+    // 120-idle-frame refill can occur. "KO Enabled" restores native KO.
+    // Unlike the V4 combat patches, this follows Training's damage option.
     XM87100TrainingKO::state().before(CpsCode,(unsigned)nCpsCodeLen,
         BurnDrvGetTextA(DRV_NAME),
-        xm262V4 && xm14TrainingMode!=0 && xm87102DamageMode==0);
+        xm14TrainingMode!=0 && xm87102DamageMode==0);
     xm8634Mark("AFTER CPS INPUT READ");
 
 	if (CpsRunFrameStartCallbackFunction) {
