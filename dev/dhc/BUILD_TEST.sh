@@ -335,6 +335,11 @@ run_cached_unit \
 run_cached_unit \
   "$PROJECT/dev/dhc/tests/test_frame_data_super_identity_246.cpp" \
   "$CACHE_DIR/unit_tests/test_frame_data_super_identity_246.exe"
+# TEST 87.247: special 2C36 / 2C12 native 44F animation holds,
+# independent fighter movement and native-only combo acquisition.
+run_cached_unit \
+  "$PROJECT/dev/dhc/tests/test_frame_data_native_stall_247.cpp" \
+  "$CACHE_DIR/unit_tests/test_frame_data_native_stall_247.exe"
 run_cached_unit \
   "$PROJECT/dev/dhc/tests/test_stun_horizontal_240.cpp" \
   "$CACHE_DIR/unit_tests/test_stun_horizontal_240.exe"
