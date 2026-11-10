@@ -76,11 +76,15 @@ struct XM41ActorSample {
     // can continue increasing after Training has clamped HP to 1.
     unsigned combo=0;
     bool comboKnown=false;
+    unsigned sourceBase=0; // active primary or reserve ROM object
 };
 // Native action-family classification from recorded ROM traces:
 // A0=28xx: normal punches/kicks; A0=2Axx + action=2Cxx: specials;
 // A0=2Axx + action=2Exx: supers (including their internal 2E substeps).
 // Movement, jumping, landing, blocking and idle are NOT attack families.
+static inline unsigned xm30ActiveFighterBase(int player,bool reserve){
+    return 0xFF4000u+(unsigned)player*0x400u+(reserve?0x800u:0u);
+}
 static inline unsigned xm30NativeAttackFamily(const XM41ActorSample& a){
     if(!a.valid)return 0u;
     const unsigned mode=(a.mode>>8u)&255u;
@@ -141,6 +145,7 @@ struct XM30Event {
     bool attackObserved=false,attackEnded=false;
     bool inputObserved=true; // false: native ROM detected attack but mapped edge not seen
     unsigned attackFamily=0,attackAction=0,attackMode=0;
+    unsigned actorBase=0; // native owner of this card
     unsigned long long attackStartFrame=0,attackLastFrame=0,attackEndFrame=0;
     unsigned attackExitPending=0; // unresolved native controller during impact
 
@@ -224,6 +229,7 @@ struct XM30Track {
     // Combo cancels frequently inherit a continuously active box70/72.
     // The old code only watched !previousHitbox and missed those attacks.
     unsigned lastNativeFamily=0,lastNativeAction=0,lastNativeMode=0,lastNativeStep=0;
+    unsigned lastNativeBase=0;
     bool lastNativeValid=false;
     // Observe accepted super roots on the ROM HOST callback, not on
     // SDL button edges or the delayed first offensive collision box.
@@ -543,6 +549,8 @@ struct XM30FrameData {
             for(int i=count-1;i>=0;--i){
                 const XM30Event& e=history[i];
                 if(e.player!=attacker || e.firstFrame>at ||
+                   (e.actorBase && actors[attacker].sourceBase &&
+                    e.actorBase!=actors[attacker].sourceBase) ||
                    (e.noBox && !e.contactOnly && e.attackFamily!=0x2Eu))
                     continue;
                 const bool live=xm30OwnedProjectileLive(e,samples[attacker]);
@@ -664,8 +672,16 @@ struct XM30FrameData {
              actors[0].health<previousHealth[0]) ||
             (actors[1].valid && healthSeeded[1] &&
              actors[1].health<previousHealth[1]);
-        const bool cinematicStop=nativeSetup && bothAnimationsStatic &&
-            !offensiveObjectPresent && !healthDroppedNow;
+        // Native 2E stage02 phase81 is global portrait blackout, even
+        // when an old projectile or native animation pointer moves.
+        const bool superPortrait=(
+            (xm30NativeAttackFamily(a1)==0x2Eu && a1.nativeStep==2u &&
+             a1.attackPhase==0x81u) ||
+            (xm30NativeAttackFamily(a2)==0x2Eu && a2.nativeStep==2u &&
+             a2.attackPhase==0x81u));
+        const bool cinematicStop=superPortrait ||
+            (nativeSetup && bothAnimationsStatic &&
+             !offensiveObjectPresent && !healthDroppedNow);
         // Before hit-stop gating, recognize an accepted ROM action so the
         // FIRST contact can create a card even if the SDL button edge was
         // missed and the ROM already set +85 on that exact host callback.
@@ -674,6 +690,34 @@ struct XM30FrameData {
         for(int p=0;p<2;++p){
             XM30Track& t=track[p];
             const unsigned family=xm30NativeAttackFamily(actors[p]);
+            // Direct 2E->2E tag: the next fighter owns a NEW super card.
+            const bool actorChanged=t.lastNativeBase && actors[p].sourceBase &&
+                t.lastNativeBase!=actors[p].sourceBase;
+            if(actorChanged){
+                for(int i=0;i<count;++i){
+                    XM30Event& e=history[i];
+                    if(e.player!=p || !e.attackObserved || e.attackEnded ||
+                       (e.actorBase && e.actorBase==actors[p].sourceBase))continue;
+                    e.attackEndFrame=e.attackLastFrame;
+                    e.attackEnded=true;
+                    if(e.source==0 && !e.closed){
+                        e.closed=true;
+                        e.endFrame=e.hitboxLastFrame?
+                            e.hitboxLastFrame:e.attackLastFrame;
+                    }
+                }
+                t.eventIndex[0]=-1;t.previous[0]=false;
+                t.lastNativeFamily=t.lastNativeAction=t.lastNativeMode=0;
+                t.superRootObserved=false;
+                comboSeeded[p]=false;healthSeeded[p]=false;
+                impactStopSeeded[p]=false;
+                pendingContact[p]=false;contactExitGrace[p]=0;
+                if(t.pending>=0){
+                    t.pendingOriginValid=false;
+                    t.pendingOriginFamily=0;
+                    t.pendingOriginLeft=true;
+                }
+            }
             // Capture genuine accepted native attacks even if the mapped
             // button edge occurred inside hit-stop or was not observable.
             // 28: both +60 action and +A0 controller identify a new normal.
@@ -749,6 +793,7 @@ struct XM30FrameData {
                 const int idx=appendEvent();
                 XM30Event& e=history[idx];e=XM30Event{};
                 e.player=p;
+                e.actorBase=actors[p].sourceBase;
                 e.inputObserved=!t.pendingNativeOnly;
                 e.inputFrame=(unsigned long long)t.pending;
                 e.inputWallFrame=t.pendingWallFrame;
@@ -883,7 +928,9 @@ struct XM30FrameData {
                 actors[p].nativeAction!=t.pendingOriginAction;
             for(int i=0;i<count;++i){
                 XM30Event& e=history[i];
-                if(e.player!=p || !e.attackObserved || e.attackEnded)continue;
+                if(e.player!=p || !e.attackObserved || e.attackEnded ||
+                   (e.actorBase && actors[p].sourceBase &&
+                    e.actorBase!=actors[p].sourceBase))continue;
                 if(newSpecialRoot && e.attackFamily==0x2Cu){
                     e.attackEndFrame=e.attackLastFrame;
                     e.attackEnded=true;
@@ -1101,7 +1148,9 @@ struct XM30FrameData {
                 for(int i=count-1;i>=0;--i){
                     XM30Event& e=history[i];
                     if(e.player!=p || e.attackFamily!=0x2Eu ||
-                       e.attackEnded || e.source!=0 || !e.noBox)continue;
+                       e.attackEnded || e.source!=0 || !e.noBox ||
+                       (e.actorBase && actors[p].sourceBase &&
+                        e.actorBase!=actors[p].sourceBase))continue;
                     e.noBox=false;e.contactOnly=false;
                     e.firstFrame=frame;e.startup=(int)(frame-e.inputFrame);
                     e.closed=false;e.hitboxLastFrame=0;
@@ -1213,7 +1262,9 @@ struct XM30FrameData {
                     if(t.pendingAttackFamily==0x2Eu)for(int k=count-1;k>=0;--k){
                         const XM30Event& old=history[k];
                         if(old.player!=p || !old.attackObserved ||
-                           old.attackEnded || old.attackFamily!=0x2Eu)continue;
+                           old.attackEnded || old.attackFamily!=0x2Eu ||
+                           (old.actorBase && actors[p].sourceBase &&
+                            old.actorBase!=actors[p].sourceBase))continue;
                         if(old.attackAction==t.pendingAttackAction){
                             continuingSuper=true;break;
                         }
@@ -1232,7 +1283,7 @@ struct XM30FrameData {
                     }
                     const int idx=appendEvent();
                     XM30Event& e=history[idx];e=XM30Event{};
-                    e.player=p;e.startup=(int)age;
+                    e.player=p;e.actorBase=actors[p].sourceBase;e.startup=(int)age;
                     const bool boxMissing=contactWithoutBox || objectOnlySuper;
                     e.active=boxMissing?0:1;
                     e.noBox=boxMissing;
@@ -1320,7 +1371,8 @@ struct XM30FrameData {
                 // Report missing signal as missing, never fabricate an S/A value.
                 const int idx=appendEvent();
                 XM30Event& e=history[idx];e=XM30Event{};
-                e.player=p;e.code=t.code;e.motion=t.motion;e.noBox=true;
+                e.player=p;e.actorBase=actors[p].sourceBase;
+                e.code=t.code;e.motion=t.motion;e.noBox=true;
                 e.inputObserved=!t.pendingNativeOnly;
                 e.attackObserved=t.pendingAttackFamily!=0u;
                 e.attackFamily=t.pendingAttackFamily;
@@ -1340,6 +1392,7 @@ struct XM30FrameData {
             t.previous[0]=hits[0].active;
             t.previous[1]=hits[1].active;
             t.lastNativeFamily=family;
+            t.lastNativeBase=actors[p].sourceBase;
             t.lastNativeAction=actors[p].nativeAction;
             t.lastNativeMode=actors[p].mode;
             t.lastNativeStep=actors[p].nativeStep;

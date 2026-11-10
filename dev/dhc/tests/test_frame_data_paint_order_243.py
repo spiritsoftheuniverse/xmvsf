@@ -21,8 +21,9 @@ assert body.count("xm23OnRealFrame(bDrvOkay);") == 2
 assert "xm23Overlay(sdlRenderer" in video
 assert "XM87217::draw(image,font,xm23State.frameData);" in video
 assert "const bool nativeSetup=" in clock
-assert "const bool cinematicStop=nativeSetup && bothAnimationsStatic &&" in clock
-assert "!offensiveObjectPresent && !healthDroppedNow;" in clock
+assert "const bool superPortrait=(" in clock
+assert "const bool cinematicStop=superPortrait ||" in clock
+assert "!offensiveObjectPresent && !healthDroppedNow);" in clock
 assert "const bool healthDroppedNow=" in clock
 assert "const bool offensiveObjectPresent=" in clock
 assert "previousAnimPtr[p]!=a.animPtr" in clock
@@ -99,4 +100,4 @@ assert "XM32_QCD" in clock
 assert "++wallFrame[0];++wallFrame[1];" in clock
 assert "recordWallTicks(advancePlayer);" in clock
 assert "e.contactWallFrames" in clock
-print("XMVSF 87.254 PASS: independent native clocks, combo HP fallback, actual box duration and opt-in diagnostics")
+print("XMVSF 87.257 PASS: independent native clocks, combo HP fallback, actual box duration and opt-in diagnostics")
