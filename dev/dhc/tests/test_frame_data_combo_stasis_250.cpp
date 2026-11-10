@@ -81,6 +81,24 @@ static void confirmedComboImpactWithMissingBoxIsStillCaptured() {
         assert(f.playerFrame[0]==2);
     }
 }
+static void hpLossBreaksAmbiguousSpecialHoldAndCreatesContactOnly() {
+    XM30FrameData f{};f.setEnabled(true);f.beginCombat();
+    XM41ActorSample a=actor(0x2A28u,0x2C36u,4u,0x80u,0xA9700u);
+    XM41ActorSample b=actor(0x3600u,0x1C00u,0u,0u,0xD0000u);
+    XM30Sample none{};
+    f.onFrame(none,none,a,b);
+    assert(f.playerFrame[0]==1 && f.count==0);
+    // Both scripts are unchanged and collision-box sampling is blank,
+    // but the native defender HP changed. This is NOT a 44F cinematic
+    // hold: P1 has a confirmed contact to record.
+    b.health=140u;
+    f.onFrame(none,none,a,b);
+    assert(f.playerFrame[0]==2);
+    assert(f.count==1 && f.eventsCreated==1);
+    assert(f.history[0].contactOnly);
+    assert(f.history[0].contactCount==1);
+    assert(f.history[0].contactFrames[0]==2);
+}
 static void unchangedSuperStillCannotStealRepeatedHpContacts() {
     XM30FrameData f{};f.setEnabled(true);f.beginCombat();
     XM41ActorSample a=actor(0x2A28u,0x2E00u,4u,0x80u,0xA9000u);
@@ -112,6 +130,7 @@ int main() {
     laterSpecialHoldDoesNotAdd44Frames();
     liveProjectileDoesNotStopClockOnStaticFighterPose();
     confirmedComboImpactWithMissingBoxIsStillCaptured();
+    hpLossBreaksAmbiguousSpecialHoldAndCreatesContactOnly();
     unchangedSuperStillCannotStealRepeatedHpContacts();
     staleMeleeBoxStopsOnNativeActionExit();
     std::puts("XMVSF 87.250 combo contact fallback / native stasis PASS");
