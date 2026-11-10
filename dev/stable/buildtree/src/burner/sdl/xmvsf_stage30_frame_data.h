@@ -82,11 +82,14 @@ static inline unsigned xm30NativeAttackFamily(const XM41ActorSample& a){
     return 0u;
 }
 static inline bool xm30SameNativeAttack(const XM41ActorSample& a,
-                                       unsigned family,unsigned firstAction){
+                                       unsigned family,unsigned firstAction,
+                                       unsigned firstMode=0u){
     if(xm30NativeAttackFamily(a)!=family)return false;
     // Normal +60 action changes identify a new punch/kick in a sequence.
     // A super's 2E00->2E02->2E10 transitions belong to ONE super.
-    return family!=0x28u || a.nativeAction==firstAction;
+    return family!=0x28u ||
+           (a.nativeAction==firstAction &&
+            (!firstMode || a.mode==firstMode));
 }
 struct XM30Event {
     int player=0, startup=0, active=0, code=0, x=0, y=0, motion=XM32_NORMAL;
@@ -115,7 +118,7 @@ struct XM30Event {
     // Start at the first observed real ROM attack action, end on the first
     // different action/controller family, independent of input or height.
     bool attackObserved=false,attackEnded=false;
-    unsigned attackFamily=0,attackAction=0;
+    unsigned attackFamily=0,attackAction=0,attackMode=0;
     unsigned long long attackStartFrame=0,attackLastFrame=0,attackEndFrame=0;
     unsigned attackExitPending=0; // unresolved native controller during impact
 
@@ -150,14 +153,14 @@ struct XM30Track {
     bool pendingPositionKnown=false;
     // A not-yet-matched input keeps its own first observed attack action.
     // Existing events retain independent ROM-state tracking after new presses.
-    unsigned pendingAttackFamily=0,pendingAttackAction=0;
+    unsigned pendingAttackFamily=0,pendingAttackAction=0,pendingAttackMode=0;
     unsigned long long pendingAttackStart=0,pendingAttackLast=0,pendingAttackEnd=0;
     // At the INPUT EDGE the previous native action may still be active.
     // Combo cancels frequently inherit a continuously active box70/72.
     // The old code only watched !previousHitbox and missed those attacks.
-    unsigned lastNativeFamily=0,lastNativeAction=0;
+    unsigned lastNativeFamily=0,lastNativeAction=0,lastNativeMode=0,lastNativeStep=0;
     bool lastNativeValid=false;
-    unsigned pendingOriginFamily=0,pendingOriginAction=0;
+    unsigned pendingOriginFamily=0,pendingOriginAction=0,pendingOriginMode=0,pendingOriginStep=0;
     bool pendingOriginValid=false,pendingComboTransition=false;
     // A rejected input inside a live attack must not steal the next
     // repeating projectile box or create a timeout NO BOX card.
@@ -247,10 +250,12 @@ struct XM30FrameData {
         t.pendingSpawnFrame=0;
         // A new button edge only starts the next candidate. It NEVER ends an
         // earlier attack: each existing card stops on native ROM action exit.
-        t.pendingAttackFamily=t.pendingAttackAction=0u;
+        t.pendingAttackFamily=t.pendingAttackAction=t.pendingAttackMode=0u;
         t.pendingAttackStart=t.pendingAttackLast=t.pendingAttackEnd=0u;
         t.pendingOriginFamily=t.lastNativeFamily;
         t.pendingOriginAction=t.lastNativeAction;
+        t.pendingOriginMode=t.lastNativeMode;
+        t.pendingOriginStep=t.lastNativeStep;
         t.pendingOriginValid=t.lastNativeValid;
         t.pendingComboTransition=false;t.pendingOriginLeft=false;
         t.pendingFirstMotion=0;t.pendingLastMotion=0;t.pendingMoveFrames=0;
@@ -385,6 +390,12 @@ struct XM30FrameData {
                         t.pendingOriginFamily!=0u && accepted!=0u &&
                         (accepted!=t.pendingOriginFamily ||
                          (accepted==0x28u &&
+                          (actors[p].nativeAction!=t.pendingOriginAction ||
+                           actors[p].mode!=t.pendingOriginMode)) ||
+                         (accepted==0x2Cu &&
+                          t.pendingOriginFamily==0x2Cu &&
+                          t.pendingOriginStep>=4u &&
+                          actors[p].nativeStep==2u &&
                           actors[p].nativeAction!=t.pendingOriginAction));
                     if(!priorOffense || newCombo){
                         bool witnessed=samples[p].melee.active ||
@@ -450,7 +461,7 @@ struct XM30FrameData {
             for(int i=0;i<count;++i){
                 XM30Event& e=history[i];
                 if(e.player!=p || !e.attackObserved || e.attackEnded)continue;
-                if(xm30SameNativeAttack(actors[p],e.attackFamily,e.attackAction) ||
+                if(xm30SameNativeAttack(actors[p],e.attackFamily,e.attackAction,e.attackMode) ||
                    (e.attackFamily==0x2Eu && (actors[p].attackPhase&0x80u)!=0u)){
                     // Any match proves the action survived impact.
                     e.attackLastFrame=frame;
@@ -473,6 +484,15 @@ struct XM30FrameData {
                 if(t.pendingOriginValid && t.pendingOriginFamily!=0u &&
                    (family!=t.pendingOriginFamily ||
                     (family==0x28u &&
+                     (actors[p].nativeAction!=t.pendingOriginAction ||
+                      actors[p].mode!=t.pendingOriginMode)) ||
+                    // A 2C special may cancel directly into another 2C:
+                    // internal stage04 and stage08 actions are ONE special,
+                    // but a return from stage>=04 to stage02 and a new 2C
+                    // root action after an input is ROM acceptance evidence.
+                    (family==0x2Cu && t.pendingOriginFamily==0x2Cu &&
+                     t.pendingOriginStep>=4u &&
+                     actors[p].nativeStep==2u &&
                      actors[p].nativeAction!=t.pendingOriginAction)))
                     t.pendingOriginLeft=true;
                 const bool originStillActive=t.pendingOriginValid &&
@@ -480,7 +500,8 @@ struct XM30FrameData {
                     !t.pendingOriginLeft &&
                     family==t.pendingOriginFamily &&
                     (family!=0x28u ||
-                     actors[p].nativeAction==t.pendingOriginAction);
+                     (actors[p].nativeAction==t.pendingOriginAction &&
+                      actors[p].mode==t.pendingOriginMode));
                 // A second normal press during the first normal's recovery
                 // is NOT automatically a new move. Wait for a changed ROM
                 // action selector (or a different native attack family).
@@ -489,12 +510,14 @@ struct XM30FrameData {
                 if(!t.pendingAttackFamily && family && !originStillActive){
                     t.pendingAttackFamily=family;
                     t.pendingAttackAction=actors[p].nativeAction;
+                    t.pendingAttackMode=actors[p].mode;
                     t.pendingAttackStart=t.pendingAttackLast=frame;
                     t.pendingComboTransition=t.pendingOriginValid &&
                         t.pendingOriginFamily!=0u;
                 }else if(t.pendingAttackFamily && !t.pendingAttackEnd){
                     if(xm30SameNativeAttack(actors[p],t.pendingAttackFamily,
-                                            t.pendingAttackAction) ||
+                                            t.pendingAttackAction,
+                                            t.pendingAttackMode) ||
                        (t.pendingAttackFamily==0x2Eu &&
                         (actors[p].attackPhase&0x80u)!=0u) ||
                        landed[p] || contactExitGrace[p]>0)
@@ -608,7 +631,9 @@ struct XM30FrameData {
                     // The new move's first active frame is THIS frame.
                     if(nativeComboEdge &&
                        (e.attackFamily!=t.pendingAttackFamily ||
-                        e.attackAction!=t.pendingAttackAction)){
+                        e.attackAction!=t.pendingAttackAction ||
+                        (e.attackFamily==0x28u &&
+                         e.attackMode!=t.pendingAttackMode))){
                         e.closed=true;e.endFrame=frame-1;
                         meleeIndex=-1;
                     }else if(hits[0].active || nativeSuperOffense){
@@ -681,6 +706,7 @@ struct XM30FrameData {
                     e.attackObserved=t.pendingAttackFamily!=0u;
                     e.attackFamily=t.pendingAttackFamily;
                     e.attackAction=t.pendingAttackAction;
+                    e.attackMode=t.pendingAttackMode;
                     e.attackStartFrame=t.pendingAttackStart;
                     e.attackLastFrame=t.pendingAttackLast;
                     e.attackEndFrame=t.pendingAttackEnd;
@@ -738,6 +764,7 @@ struct XM30FrameData {
                 e.attackObserved=t.pendingAttackFamily!=0u;
                 e.attackFamily=t.pendingAttackFamily;
                 e.attackAction=t.pendingAttackAction;
+                e.attackMode=t.pendingAttackMode;
                 e.attackStartFrame=t.pendingAttackStart;
                 e.attackLastFrame=t.pendingAttackLast;
                 e.attackEndFrame=t.pendingAttackEnd;
@@ -751,6 +778,8 @@ struct XM30FrameData {
             t.previous[1]=hits[1].active;
             t.lastNativeFamily=family;
             t.lastNativeAction=actors[p].nativeAction;
+            t.lastNativeMode=actors[p].mode;
+            t.lastNativeStep=actors[p].nativeStep;
             t.lastNativeValid=actors[p].valid;
             t.previousActiveCount=0;
             for(int j=0;j<samples[p].projectileCount && j<12;++j)
