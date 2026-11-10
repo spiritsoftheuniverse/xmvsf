@@ -66,7 +66,11 @@ static void linkedBeamWithNoSampledAttackBoxStillMakesContactCard(){
     f.press(0,0x81); // must not replace accepted 2E
     a.nativeStep=4u;
     f.onFrame(beam(0xFF6400u,false),none,a,b); // linked spawn
-    assert(f.count==0 && f.track[0].pendingSpawnBase==0xFF6400u);
+    // A fresh linked object makes a provisional 2E row before its attack
+    // box becomes visible; confirmed HP loss later adds a red tick.
+    assert(f.count==1 && f.history[0].noBox);
+    assert(!f.history[0].contactOnly);
+    assert(f.history[0].projectileBase==0xFF6400u);
     b.health=135u;
     f.onFrame(beam(0xFF6400u,false),none,a,b); // real HP loss, no kind-5 box
     assert(f.count==1 && f.eventsCreated==1);

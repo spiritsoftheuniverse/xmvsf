@@ -325,7 +325,7 @@ static inline void xm38HitSourceProbe(cpu_core_config* c){
 // versus the Training clock.
 // Enable with XMVSF_FRAME_TRACE=1 before RUN_TEST.bat; the TSV is placed
 // next to the TEST executable. No GPU capture, memory writes or timing hooks.
-static inline void xm251FrameClockTrace(
+static inline void xm252FrameClockTrace(
         cpu_core_config* c,const XM30Sample (&samples)[2],
         const XM41ActorSample (&actors)[2],
         unsigned long long before,unsigned long long after,
@@ -338,7 +338,7 @@ static inline void xm251FrameClockTrace(
         const char* flag=std::getenv("XMVSF_FRAME_TRACE");
         armed=flag && flag[0]=='1' && !flag[1] ? 1 : 0;
         if(armed){
-            file=xm36OpenTrace("xmvsf_frame_clock_251.tsv",
+            file=xm36OpenTrace("xmvsf_frame_clock_252.tsv",
                 "host_sample\tlogical_before\tlogical_after\t"
                 "p1_clock_before\tp1_clock_after\tp2_clock_before\tp2_clock_after\t"
                 "p1_2e\tp1_hitstop\tp1_mode\tp1_action\tp1_phase\t"
@@ -347,12 +347,14 @@ static inline void xm251FrameClockTrace(
                 "p1_origin_family\tp1_origin_action\tp1_origin_mode\tp1_pending_family\t"
                 "p1_pending_action\tp1_pending_mode\tp1_pending\tp1_native_only\tp1_pending_spawn_base\t"
                 "p1_prev_box\tp1_last_contacts\tp1_contact_only\tp1_last_box_frame\t"
+                "p1_super_contacts\tp1_super_linked_live\tp1_super_deferred\t"
                 "p2_2e\tp2_hitstop\tp2_mode\tp2_action\tp2_phase\t"
                 "p2_step\tp2_control\tp2_anim_timer\tp2_anim_ptr\t"
                 "p2_hp\tp2_melee\tp2_proj\tp2_projectile_objects\tp2_projectile_attack_boxes\t"
                 "p2_origin_family\tp2_origin_action\tp2_origin_mode\tp2_pending_family\t"
                 "p2_pending_action\tp2_pending_mode\tp2_pending\tp2_native_only\tp2_pending_spawn_base\t"
                 "p2_prev_box\tp2_last_contacts\tp2_contact_only\tp2_last_box_frame\t"
+                "p2_super_contacts\tp2_super_linked_live\tp2_super_deferred\t"
                 "events\tevents_created\tfreeze_steps\n");
             if(!file)armed=0;
         }
@@ -400,12 +402,23 @@ static inline void xm251FrameClockTrace(
                 lastBoxFrame=e.hitboxLastFrame;
                 break;
             }
+        unsigned latestSuperContacts=0u,latestSuperLinkedLive=0u;
+        for(int i=xm23State.frameData.count-1;i>=0;--i){
+            const XM30Event& e=xm23State.frameData.history[i];
+            if(e.player==p && e.attackFamily==0x2Eu){
+                latestSuperContacts=(unsigned)e.contactCount;
+                latestSuperLinkedLive=xm30OwnedProjectileLive(e,samples[p])?1u:0u;
+                break;
+            }
+        }
         std::fprintf(file,
-            "\t%02X\t%04X\t%04X\t%02X\t%04X\t%04X\t%d\t%d\t%08X\t%u\t%u\t%u\t%llu",
+            "\t%02X\t%04X\t%04X\t%02X\t%04X\t%04X\t%d\t%d\t%08X\t%u\t%u\t%u\t%llu\t%u\t%u\t%u",
             t.pendingOriginFamily,t.pendingOriginAction,t.pendingOriginMode,
             t.pendingAttackFamily,t.pendingAttackAction,t.pendingAttackMode,
             t.pending>=0?1:0,t.pendingNativeOnly?1:0,t.pendingSpawnBase,
-            t.previous[0]?1u:0u,lastContacts,lastBoxMissing,lastBoxFrame);
+            t.previous[0]?1u:0u,lastContacts,lastBoxMissing,lastBoxFrame,
+            latestSuperContacts,latestSuperLinkedLive,
+            xm23State.frameData.deferredSuperContactCount[p]);
     }
     // HISTORY stops at 24; use the cumulative counter to expose every
     // unexpected card created AFTER the ring buffer fills.
@@ -526,7 +539,7 @@ static inline void xm23OnRealFrame(int ready) {
         const unsigned long long p1Before=xm23State.frameData.playerFrame[0];
         const unsigned long long p2Before=xm23State.frameData.playerFrame[1];
         xm23State.frameData.onFrame(sample[0],sample[1],actor[0],actor[1]);
-        xm251FrameClockTrace(c,sample,actor,logicalBefore,
+        xm252FrameClockTrace(c,sample,actor,logicalBefore,
                              xm23State.frameData.frame,p1Before,p2Before);
     }
     c->close();

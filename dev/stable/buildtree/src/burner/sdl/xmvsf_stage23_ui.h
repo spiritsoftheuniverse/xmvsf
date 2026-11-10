@@ -432,6 +432,11 @@ static inline void xm41DrawFrameCard(SDL_Renderer* r,const SDL_Rect& card,
     if(e.despawnFrame)finish=std::max(finish,e.despawnFrame);
     else if(e.projectileBase && e.positionKnown)
         finish=std::max(finish,e.lastProjectileFrame);
+    if(e.ownedProjectileCount)
+        finish=std::max(finish,e.lastProjectileFrame);
+    // Late projectile-hit markers must not collapse onto the fighter's END.
+    for(int i=0;i<e.contactCount;++i)
+        finish=std::max(finish,e.contactFrames[i]);
     // No idle-state timer. Once the ROM exits an attack, nothing in the
     // second lane advances while the fighter holds a direction or jumps.
     // A still-pending entry uses its own ongoing elapsed frame range.

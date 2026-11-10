@@ -34,24 +34,29 @@ assert "t.pendingNativeOnly=true;" in clock
 assert "t.pendingOriginMode=t.lastNativeMode;" in clock
 assert "advancePlayer[p]=stops[p]==0u || firstImpact;" in clock
 assert "const unsigned long long frame=++playerFrame[p];" in clock
-assert "recordContacts(actors,advancePlayer);" in clock
+assert "recordContacts(actors,samples,advancePlayer);" in clock
 assert "xm41DrawFrameCard(r,card,e,f.playerFrame[e.player]);" in (root / "dev/stable/buildtree/src/burner/sdl/xmvsf_stage23_ui.h").read_text(encoding="utf-8")
+assert "recordContacts(actors,samples,advancePlayer);" in clock
 assert "recordContacts(actors,frame,true);" not in clock  # removed global-clock API
-assert "xm251FrameClockTrace(c,sample,actor,logicalBefore," in engine
-assert "xmvsf_frame_clock_251.tsv" in engine
+assert "xm252FrameClockTrace(c,sample,actor,logicalBefore," in engine
+assert "xmvsf_frame_clock_252.tsv" in engine
 assert "t.pendingOriginAction" in engine
 assert "t.pendingOriginMode" in engine
 assert "t.pendingNativeOnly" in engine
 assert "events_created" in engine
 assert "p1_contact_only" in engine and "p2_contact_only" in engine
 assert "freeze_steps" in engine
+assert "p1_super_contacts" in engine and "p2_super_contacts" in engine
+assert "p1_super_linked_live" in engine and "p2_super_linked_live" in engine
+assert "p1_super_deferred" in engine and "p2_super_deferred" in engine
 assert "lastBoxFrame=e.hitboxLastFrame;" in engine
 assert "xm23State.frameData.eventsCreated" in engine
 assert "const bool nativeCandidateAccepted=" in clock
-assert "(meleeRise || projectileRise || contactWithoutBox) &&" in clock
-assert "const bool contactWithoutBox=hpFellNow &&" in clock
-assert "e.noBox=contactWithoutBox;" in clock
-assert "e.hitboxLastFrame=contactWithoutBox?0u:frame;" in clock
+assert "objectOnlySuper) &&" in clock
+assert "const bool objectOnlySuper=" in clock
+assert "const bool contactWithoutBox=(hpFellNow || deferredHit) &&" in clock
+assert "e.noBox=boxMissing;" in clock
+assert "e.hitboxLastFrame=boxMissing?0u:frame;" in clock
 assert "if(e.attackEnded && !landed[p] && contactExitGrace[p]==0u)" in clock
 ui = (root / "dev/stable/buildtree/src/burner/sdl/xmvsf_stage23_ui.h").read_text(encoding="utf-8")
 assert "e.hitboxLastFrame" in ui
@@ -61,4 +66,4 @@ assert "currentFrame:e.hitboxLastFrame" not in ui
 assert "t.pendingOriginLeft=false;" in clock
 assert "++eventsCreated;" in clock
 assert "XMVSF_FRAME_TRACE" in engine
-print("XMVSF 87.251 PASS: independent native clocks, combo HP fallback, actual box duration and opt-in diagnostics")
+print("XMVSF 87.252 PASS: independent native clocks, combo HP fallback, actual box duration and opt-in diagnostics")
