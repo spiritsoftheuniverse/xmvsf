@@ -283,6 +283,81 @@ static int xm13FindDevice(const XM13_Player* p) {
     }
     return -1;
 }
+// Runtime-only ownership survives SDL reindexing when two pads have an
+// identical GUID/name and the first one is unplugged. Never persist SDL
+// instance IDs: they change across reboot and Bluetooth reconnection.
+struct XM248RuntimeOwner {
+    bool configured=false;
+    char guid[33]={};
+    int occurrence=0;
+    char deviceName[96]={};
+    int nameOccurrence=-1;
+    SDL_JoystickID instance=-1;
+};
+extern XM248RuntimeOwner xm248RuntimeOwner[2];
+
+static inline int xm248FindAssignedDevice(const XM13_Settings* settings,int player) {
+    if(!settings || player<0 || player>1)return -1;
+    const XM13_Player& p=settings->player[player];
+    if(!p.active || xm13IsKeyboard(&p))return -1;
+    XM248RuntimeOwner& saved=xm248RuntimeOwner[player];
+    const bool same=saved.configured &&
+        saved.occurrence==p.occurrence &&
+        saved.nameOccurrence==p.nameOccurrence &&
+        strcmp(saved.guid,p.guid)==0 &&
+        strcmp(saved.deviceName,p.deviceName)==0;
+    if(!same){
+        saved=XM248RuntimeOwner{};
+        saved.configured=true;
+        snprintf(saved.guid,sizeof(saved.guid),"%s",p.guid);
+        saved.occurrence=p.occurrence;
+        snprintf(saved.deviceName,sizeof(saved.deviceName),"%s",p.deviceName);
+        saved.nameOccurrence=p.nameOccurrence;
+    }
+    // First prefer the existing physical device even if its SDL index or
+    // ordinal changed because a different but identical pad disconnected.
+    const int count=SDL_NumJoysticks();
+    if(saved.instance>=0)for(int i=0;i<count;++i)
+        if(SDL_JoystickGetDeviceInstanceID(i)==saved.instance)return i;
+    const int other=1-player;
+    const SDL_JoystickID otherInstance=xm248RuntimeOwner[other].instance;
+    const bool otherLive=otherInstance>=0 &&
+        [&](){
+            for(int i=0;i<count;++i)
+                if(SDL_JoystickGetDeviceInstanceID(i)==otherInstance)return true;
+            return false;
+        }();
+    auto unclaimed=[&](int index)->bool{
+        return index>=0 && index<count &&
+            !(otherLive && SDL_JoystickGetDeviceInstanceID(index)==otherInstance);
+    };
+    // Precise saved identity is still the preferred first-connection rule.
+    const int exact=xm13FindDevice(&p);
+    if(unclaimed(exact)){
+        saved.instance=SDL_JoystickGetDeviceInstanceID(exact);
+        return exact;
+    }
+    // On reconnect the ordinal of two identical devices may swap. Prefer
+    // the unclaimed matching hardware instead of stealing the other
+    // player's currently attached instance.
+    for(int i=0;i<count;++i){
+        if(!unclaimed(i))continue;
+        char guid[33];xm13GuidForDevice(i,guid);
+        if(strcmp(p.guid,guid)==0){
+            saved.instance=SDL_JoystickGetDeviceInstanceID(i);
+            return i;
+        }
+        if(xm13HasName(&p)){
+            char name[96]={};xm13DeviceDisplayName(i,name,sizeof(name));
+            if(strcmp(p.deviceName,name)==0){
+                saved.instance=SDL_JoystickGetDeviceInstanceID(i);
+                return i;
+            }
+        }
+    }
+    return -1;
+}
+
 // Read the exact name reported through SDL/OS. Display it live and persist
 // a sanitized copy as a fallback profile key; GUID remains the first choice.
 static void xm13DeviceDisplayName(int device,char* out,size_t capacity) {
