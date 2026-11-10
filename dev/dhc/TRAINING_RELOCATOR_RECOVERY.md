@@ -77,3 +77,31 @@ Code review has verified integration paths and constants, **not** Windows
 compilation or native gameplay. Corner target and camera verification are
 limited to measured native stage 05; other stages remain fail-closed rather
 than reusing guessed geometry.
+
+## TEST 87.268: input registration repair
+
+The triple-Start edge detector now samples once in `SDLinpStart()`,
+immediately after the existing SDL controller update. Previously the
+detector ran only when the driver explicitly requested the virtual
+`0x4087`/P2 Start code; nonvirtual keyboard and legacy joystick mappings
+could skip it entirely. The new path uses the same Stage13 saved or
+menu-selected controller mapping used for gameplay, with a direct FBNeo
+`GameInp` binding fallback. The fallback caches action indices, and does
+not repeatedly scan every control each frame. The normal single
+direction+Start side switch is untouched.
+
+Human triple-tap allowance: maximum 750 ms between taps and 2200 ms
+from first to third, requiring an actual release between taps.
+Only the **third press's** direction selects LEFT, RIGHT or NORMAL.
+
+`RUN_TEST.bat` starts in the `FBNeo` directory. Tap/trigger events,
+snapshot refusal reasons, and reset outcomes are appended to
+`FBNeo/xmvsf_training_relocator.log`. Diagnostic examples:
+`START_EDGE player=1 tap=1`, `START_TRIGGER player=1 preset=LEFT`,
+`RESTART_BEGIN`, `TRAINING_TRIPLE_START ... positioned=1`.
+If taps appear but a matching first-frame roster is missing, the log
+contains a specific `RESTART_REFUSED reason=...` entry. No full
+controller poll or input dump is recorded every frame.
+
+The branch was source-reviewed only; Windows native build and controller
+behavior still require running `BUILD_TEST.bat` then `RUN_TEST.bat`.
