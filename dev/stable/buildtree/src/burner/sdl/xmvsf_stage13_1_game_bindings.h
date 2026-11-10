@@ -48,8 +48,9 @@ static void xm131ApplyGameInputMappings() {
         // selection even when P1 has NO saved mapping (common with Xbox
         // and DS4Windows). Use virtual SDL P1 codes for this match rather
         // than leaving the FBNeo keyboard/legacy joystick defaults active.
-        if (!mapping.player[player].active &&
-            !xm249SessionPad[player].selected) continue;
+        if (!XM249Policy::needsVirtualMap(
+                mapping.player[player].active!=0,
+                xm249SessionPad[player].selected))continue;
         const int subcode = xm131InputSubcode(name + 3);
         if (subcode < 0) continue;
         struct GameInp* gi = &GameInp[i];
