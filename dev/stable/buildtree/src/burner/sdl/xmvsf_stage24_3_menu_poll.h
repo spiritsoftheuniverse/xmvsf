@@ -72,6 +72,7 @@ static inline void xm243RefreshPads(XM243Pad pads[2]) {
         const bool changed=xm248ReconcileMenuPad(
             device,p.joy,p.controller,p.instance);
         if(changed){
+            SDL_GameControllerUpdate(); // sample held buttons after SDL opens
             xm243ReadPad(p,p.previousUp,p.previousDown,p.previousAccept,
                         p.previousCoin,p.previousCancel);
         }
