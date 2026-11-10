@@ -340,6 +340,11 @@ run_cached_unit \
 run_cached_unit \
   "$PROJECT/dev/dhc/tests/test_frame_data_native_stall_247.cpp" \
   "$CACHE_DIR/unit_tests/test_frame_data_native_stall_247.exe"
+# TEST 87.250: missing-box confirmed combo hit, later 2C stage04
+# 44F stasis and stale melee boxes that outlive native action exit.
+run_cached_unit \
+  "$PROJECT/dev/dhc/tests/test_frame_data_combo_stasis_250.cpp" \
+  "$CACHE_DIR/unit_tests/test_frame_data_combo_stasis_250.exe"
 # TEST 87.249: Xbox/DS4Windows boot controller is an explicit P1 source.
 run_cached_unit \
   "$PROJECT/dev/dhc/tests/test_controller_session_249.cpp" \
