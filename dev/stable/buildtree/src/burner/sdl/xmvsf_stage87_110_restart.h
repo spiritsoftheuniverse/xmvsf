@@ -4,16 +4,19 @@
 // per real input frame, independent of FBNeo's game-input query order.
 #include <cstdio>
 #include <cstdarg>
+#include <cstdlib>
 namespace XM87110 {
-// Event-only diagnostics. RUN_TEST.bat launches with FBNeo as the CWD.
+// Event-only diagnostics follow RUN_TEST.bat's current-version log root.
 static inline void log(const char* format,...) {
  char line[512];
  va_list args;va_start(args,format);
  std::vsnprintf(line,sizeof(line),format,args);
  va_end(args);
- std::fprintf(stderr,"XM87.268 RELOCATOR %s\n",line);
- FILE* f=std::fopen("xmvsf_training_relocator.log","a");
- if(f){std::fprintf(f,"XM87.268 RELOCATOR %s\n",line);std::fclose(f);}
+ std::fprintf(stderr,"XM87.269 RELOCATOR %s\n",line);
+ const char* configured=std::getenv("XM87110_LOG_FILE");
+ const char* path=(configured && *configured)?configured:"xmvsf_training_relocator.log";
+ FILE* f=std::fopen(path,"a");
+ if(f){std::fprintf(f,"XM87.269 RELOCATOR %s\n",line);std::fclose(f);}
 }
 enum Preset { NONE=0, NORMAL=1, RIGHT=2, LEFT=3 };
 static const unsigned RIGHT_P1_X=568u; // session_20261102_175317_190, settled
