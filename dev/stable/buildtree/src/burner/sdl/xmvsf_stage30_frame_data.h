@@ -383,8 +383,17 @@ struct XM30FrameData {
             previousAnimStep[p]=a.nativeStep;
         }
         animationSeeded=true;
+        // Actual HP loss is native evidence that a collision happened on
+        // this callback even when the one-frame hitbox was not observable.
+        // Never discard that sample as a global cinematic freeze: doing so
+        // loses the exact contact-only combo case this pass must recover.
+        const bool healthDroppedNow=
+            (actors[0].valid && healthSeeded[0] &&
+             actors[0].health<previousHealth[0]) ||
+            (actors[1].valid && healthSeeded[1] &&
+             actors[1].health<previousHealth[1]);
         const bool cinematicStop=nativeSetup && bothAnimationsStatic &&
-            !offensiveObjectPresent;
+            !offensiveObjectPresent && !healthDroppedNow;
         // Before hit-stop gating, recognize an accepted ROM action so the
         // FIRST contact can create a card even if the SDL button edge was
         // missed and the ROM already set +85 on that exact host callback.
