@@ -35,11 +35,11 @@ assert "t.pendingOriginMode=t.lastNativeMode;" in clock
 assert "advancePlayer[p]=stops[p]==0u || firstImpact;" in clock
 assert "const unsigned long long frame=++playerFrame[p];" in clock
 assert "recordContacts(actors,samples,advancePlayer);" in clock
-assert "xm41DrawFrameCard(r,card,e,f.playerFrame[e.player]);" in (root / "dev/stable/buildtree/src/burner/sdl/xmvsf_stage23_ui.h").read_text(encoding="utf-8")
+assert "xm41DrawFrameCard(r,card,e,f);" in (root / "dev/stable/buildtree/src/burner/sdl/xmvsf_stage23_ui.h").read_text(encoding="utf-8")
 assert "recordContacts(actors,samples,advancePlayer);" in clock
 assert "recordContacts(actors,frame,true);" not in clock  # removed global-clock API
-assert "xm252FrameClockTrace(c,sample,actor,logicalBefore," in engine
-assert "xmvsf_frame_clock_252.tsv" in engine
+assert "xm253FrameClockTrace(c,sample,actor,logicalBefore," in engine
+assert "xmvsf_frame_clock_253.tsv" in engine
 assert "t.pendingOriginAction" in engine
 assert "t.pendingOriginMode" in engine
 assert "t.pendingNativeOnly" in engine
@@ -59,6 +59,10 @@ assert "e.noBox=boxMissing;" in clock
 assert "e.hitboxLastFrame=boxMissing?0u:frame;" in clock
 assert "if(e.attackEnded && !landed[p] && contactExitGrace[p]==0u)" in clock
 ui = (root / "dev/stable/buildtree/src/burner/sdl/xmvsf_stage23_ui.h").read_text(encoding="utf-8")
+assert "43,48,57" in ui
+assert "startWall+step" in ui
+assert "f.wallTick(e.player,at)" in ui
+assert "e.contactWallFrames[i]" in ui
 assert "e.hitboxLastFrame" in ui
 assert "e.lastProjectileFrame" in ui
 assert "HIT CONFIRMED - BOX UNKNOWN" in ui
@@ -66,4 +70,15 @@ assert "currentFrame:e.hitboxLastFrame" not in ui
 assert "t.pendingOriginLeft=false;" in clock
 assert "++eventsCreated;" in clock
 assert "XMVSF_FRAME_TRACE" in engine
-print("XMVSF 87.252 PASS: independent native clocks, combo HP fallback, actual box duration and opt-in diagnostics")
+# 87.253: combo counter and native defender +85 reload are independent
+# hit proofs after Training clamps the victim HP to 1.
+assert "actor[p].comboKnown=true;" in engine
+assert "p1_combo_proofs" in engine and "p2_combo_proofs" in engine
+assert "p1_stop_proofs" in engine and "p2_stop_proofs" in engine
+assert "const bool comboProof=" in clock and "const bool reloadProof=" in clock
+assert "const int qd1[]={6,3,2},qd2[]={4,1,2};" in clock
+assert "XM32_QCD" in clock
+assert "++wallFrame[0];++wallFrame[1];" in clock
+assert "recordWallTicks(advancePlayer);" in clock
+assert "e.contactWallFrames" in clock
+print("XMVSF 87.253 PASS: independent native clocks, combo HP fallback, actual box duration and opt-in diagnostics")

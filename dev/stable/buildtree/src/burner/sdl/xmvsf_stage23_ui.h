@@ -401,7 +401,7 @@ static inline int xm39TimelineStride(unsigned long long span,int availablePixels
 // attack-action duration below. The latter stops at action-controller exit,
 // including when the next ROM action is walking or jumping.
 static inline void xm41DrawFrameCard(SDL_Renderer* r,const SDL_Rect& card,
-                                      const XM30Event& e,unsigned long long currentFrame){
+                                      const XM30Event& e,const XM30FrameData& f){
     if(!r || card.w<105 || card.h<135)return;
     xm39RoundedCard(r,card);
     const int left=card.x+7,right=card.x+card.w-7;
@@ -437,17 +437,25 @@ static inline void xm41DrawFrameCard(SDL_Renderer* r,const SDL_Rect& card,
     // Late projectile-hit markers must not collapse onto the fighter's END.
     for(int i=0;i<e.contactCount;++i)
         finish=std::max(finish,e.contactFrames[i]);
-    // No idle-state timer. Once the ROM exits an attack, nothing in the
-    // second lane advances while the fighter holds a direction or jumps.
-    // A still-pending entry uses its own ongoing elapsed frame range.
-    if(finish<=e.inputFrame)finish=e.inputFrame+1;
-    const unsigned long long span=finish-e.inputFrame+1;
+    // Plot the HOST observation axis. Native move/box times remain
+    // authoritative for all S/A/duration numbers, but held host ticks now
+    // physically occupy visible width instead of being silently discarded.
+    const unsigned long long startWall=e.inputWallFrame;
+    unsigned long long finishWall=std::max(e.lastWallFrame,
+        f.wallForNative(e.player,finish,startWall));
+    for(int i=0;i<e.contactCount;++i)
+        finishWall=std::max(finishWall,e.contactWallFrames[i]);
+    if(finishWall<=startWall)finishWall=startWall+1u;
+    const unsigned long long span=finishWall-startWall+1u;
     const int x0=left+2,x1=right-2;
     const int stride=xm39TimelineStride(span,x1-x0);
-    auto px=[&](unsigned long long frame)->int{
-        if(frame<e.inputFrame)frame=e.inputFrame;
-        if(frame>finish)frame=finish;
-        return std::min(x1,x0+(int)((frame-e.inputFrame)/(unsigned)stride)*3);
+    auto px=[&](unsigned long long at)->int{
+        if(at<startWall)at=startWall;
+        if(at>finishWall)at=finishWall;
+        return std::min(x1,x0+(int)((at-startWall)/(unsigned)stride)*3);
+    };
+    auto nativeWall=[&](unsigned long long native)->unsigned long long{
+        return f.wallForNative(e.player,native,startWall);
     };
     auto tick=[&](int x,int y,int h,Uint8 rr,Uint8 gg,Uint8 bb){
         SDL_SetRenderDrawColor(r,rr,gg,bb,245);
@@ -456,15 +464,16 @@ static inline void xm41DrawFrameCard(SDL_Renderer* r,const SDL_Rect& card,
     // Markers sit ABOVE both chart rows; connecting lines keep the precise
     // tick location visible even when captions need to be displaced.
     XM39Mark marks[6];int n=0;
-    marks[n++]={e.inputObserved?"IN":"ROM",e.inputFrame};
-    if(e.source==1 && e.spawnFrame)marks[n++]={"SP",e.spawnFrame};
-    if(!e.noBox)marks[n++]={"ON",e.firstFrame};
+    marks[n++]={e.inputObserved?"IN":"ROM",startWall};
+    if(e.source==1 && e.spawnFrame)marks[n++]={"SP",nativeWall(e.spawnFrame)};
+    if(!e.noBox)marks[n++]={"ON",nativeWall(e.firstFrame)};
     // Projectile lifecycle ends at disappearance, not an artificial "OUT"
     // control phase. The rightmost tick is the object-lifetime boundary.
     // Fighter hitboxes still show OFF at last active frame.
-    if(e.source==0 && !e.noBox && e.closed)marks[n++]={"OFF",e.endFrame};
+    if(e.source==0 && !e.noBox && e.closed)
+        marks[n++]={"OFF",nativeWall(e.endFrame)};
     if(e.attackObserved && e.attackEnded)
-        marks[n++]={"END",e.attackEndFrame};
+        marks[n++]={"END",nativeWall(e.attackEndFrame)};
     for(int k=0;k<n;++k){
         marks[k].x=px(marks[k].at);
         const int width=(int)std::strlen(marks[k].label)*6;
@@ -486,32 +495,45 @@ static inline void xm41DrawFrameCard(SDL_Renderer* r,const SDL_Rect& card,
     // Primary hitbox timeline. Cyan underneath it represents actual tracked
     // projectile position changes, not assumed movement between frames.
     for(unsigned long long step=0;step<span;step+=(unsigned)stride){
-        const unsigned long long at=e.inputFrame+step;
+        const unsigned long long at=startWall+step;
+        const XM30WallTick observed=f.wallTick(e.player,at);
+        const unsigned long long nativeAt=observed.wall?observed.native:
+            e.inputFrame+step;
+        const bool held=observed.wall && observed.stopped;
         Uint8 rr=113,gg=133,bb=160;
         const unsigned long long attackEnd=(e.closed||e.noBox)?
             e.endFrame:e.hitboxLastFrame;
-        if(!e.noBox && at>=e.firstFrame && at<=attackEnd){rr=93;gg=224;bb=135;}
-        else if(e.source==1 && e.spawnFrame && at>=e.spawnFrame &&
-                (e.despawnFrame==0 || at<e.despawnFrame)) {
-            // Yellow = travel-in before hitbox, blue = post-active travel.
-            if(!e.noBox && at>attackEnd){rr=86;gg=157;bb=204;}
+        if(held){
+            // Darker than the ordinary gray idle bars, on EACH held host
+            // frame. Both chart lanes continue scrolling through hitstop.
+            rr=43;gg=48;bb=57;
+        }else if(!e.noBox && nativeAt>=e.firstFrame && nativeAt<=attackEnd){
+            rr=93;gg=224;bb=135;
+        }else if(e.source==1 && e.spawnFrame && nativeAt>=e.spawnFrame &&
+                 (e.despawnFrame==0 || nativeAt<e.despawnFrame)) {
+            if(!e.noBox && nativeAt>attackEnd){rr=86;gg=157;bb=204;}
             else {rr=253;gg=204;bb=96;}
         }
         tick(px(at),card.y+46,7,rr,gg,bb);
         bool measuredMotion=false;
-        if(e.source==1){
-            // Collapse exact frame-motion evidence into the current pixel's
-            // stride bucket. Never fill stationary gaps as if they moved.
-            for(unsigned k=0;k<(unsigned)stride && step+k<1024;++k){
-                const unsigned j=(unsigned)(step+k);
-                if(e.motionBits[j/64]&(1ull<<(j%64))){measuredMotion=true;break;}
+        if(e.source==1 && !held && nativeAt>=e.inputFrame){
+            // Exact projectile motion remains on the NATIVE clock; held
+            // callbacks do not duplicate a movement tick.
+            for(unsigned k=0;k<(unsigned)stride;++k){
+                const XM30WallTick item=f.wallTick(e.player,at+k);
+                if(!item.wall || item.stopped ||
+                   item.native<e.inputFrame)continue;
+                const unsigned long long j=item.native-e.inputFrame;
+                if(j<1024 && (e.motionBits[j/64]&(1ull<<(j%64)))){
+                    measuredMotion=true;break;
+                }
             }
         }
         if(measuredMotion)tick(px(at),card.y+60,5,86,193,243);
     }
     // A terminal border tick shows object removal, without a fake OUT phase.
     if(e.source==1 && e.despawnFrame)
-        tick(px(e.despawnFrame),card.y+44,11,195,213,234);
+        tick(px(nativeWall(e.despawnFrame)),card.y+44,11,195,213,234);
     // A native super's ROM attack phase can extend beyond visible box70/72.
     // Distinguish active ROM ownership from sampled collision pixels.
     xm32ColoredText(r,e.nativeSuperPhase?"ACT":"HIT",left,card.y+55,1,118,155,199);
@@ -527,22 +549,37 @@ static inline void xm41DrawFrameCard(SDL_Renderer* r,const SDL_Rect& card,
         const unsigned long long actionEnd=e.attackEnded?
             e.attackEndFrame:e.attackLastFrame;
         for(unsigned long long step=0;step<span;step+=(unsigned)stride){
-            const unsigned long long at=e.inputFrame+step;
-            if(at>=e.attackStartFrame && at<=actionEnd)
+            const unsigned long long at=startWall+step;
+            const XM30WallTick observed=f.wallTick(e.player,at);
+            const unsigned long long nativeAt=observed.wall?observed.native:
+                e.inputFrame+step;
+            if(observed.wall && observed.stopped)
+                tick(px(at),card.y+92,7,43,48,57); // held: dark gray
+            else if(nativeAt>=e.attackStartFrame && nativeAt<=actionEnd)
                 tick(px(at),card.y+92,7,236,150,99);
             else tick(px(at),card.y+92,7,74,88,111);
         }
-        tick(px(e.attackStartFrame),card.y+90,11,255,229,196);
+        tick(px(nativeWall(e.attackStartFrame)),card.y+90,11,255,229,196);
         if(e.attackEnded)
-            tick(px(e.attackEndFrame),card.y+90,11,255,229,196);
+            tick(px(nativeWall(e.attackEndFrame)),card.y+90,11,255,229,196);
     }else{
+        // Even if native action timing is unknown, the visual clock still
+        // progresses; gray/darker-gray observations occupy BOTH lanes.
+        for(unsigned long long step=0;step<span;step+=(unsigned)stride){
+            const unsigned long long at=startWall+step;
+            const XM30WallTick observed=f.wallTick(e.player,at);
+            if(observed.wall && observed.stopped)
+                tick(px(at),card.y+92,7,43,48,57);
+            else tick(px(at),card.y+92,7,74,88,111);
+        }
         xm32ColoredText(r,"UNKNOWN",left+2,card.y+91,1,157,169,185);
     }
     // A red vertical tick records each CONFIRMED damage frame independently
     // of the fighter's action and hitbox duration. It is drawn last, on both
     // lanes, so a hit never visually terminates the orange attack timeline.
     for(int i=0;i<e.contactCount && i<XM30Event::CONTACTS;++i){
-        const int contactX=px(e.contactFrames[i]);
+        const int contactX=px(e.contactWallFrames[i]?
+            e.contactWallFrames[i]:nativeWall(e.contactFrames[i]));
         tick(contactX,card.y+44,56,249,57,66);
         tick(contactX+1,card.y+44,3,255,126,126);
     }
@@ -609,11 +646,11 @@ static inline void xm30Overlay(SDL_Renderer* r,const SDL_Rect& dest,int sw,int s
         for(int i=first;i<f.count;++i){
             const XM30Event& e=f.history[i];
             const SDL_Rect card={panel.x+4,top+52+(i-first)*rowHeight,panelW-8,rowHeight-3};
-            // Each card uses the owning fighter's unfrozen native clock.
-            // A defender in +85 stop must not stretch the attacker's chart.
-            xm41DrawFrameCard(r,card,e,f.playerFrame[e.player]);
+            // Native S/A clocks remain exact; presentation includes the
+            // independently observed held host ticks on both chart lanes.
+            xm41DrawFrameCard(r,card,e,f);
         }
-        xm23DrawTextSized(r,"QC DP HC DQ  PR=PROJECTILE",panel.x+8,top+panel.h-26,panelW-14,1);
+        xm23DrawTextSized(r,"QC QD DP HC DQ  PR=PROJECTILE",panel.x+8,top+panel.h-26,panelW-14,1);
         xm23DrawTextSized(r,"NEWEST AT BOTTOM",panel.x+8,top+panel.h-13,panelW-14,1);
     }
 
