@@ -39,8 +39,8 @@ assert "recordContacts(actors,samples,advancePlayer);" in clock
 assert "xm41DrawFrameCard(r,card,e,f);" in (root / "dev/stable/buildtree/src/burner/sdl/xmvsf_stage23_ui.h").read_text(encoding="utf-8")
 assert "recordContacts(actors,samples,advancePlayer);" in clock
 assert "recordContacts(actors,frame,true);" not in clock  # removed global-clock API
-assert "xm260FrameClockTrace(c,sample,actor,logicalBefore," in engine
-assert "xmvsf_frame_clock_260.tsv" in engine
+assert "xm261FrameClockTrace(c,sample,actor,logicalBefore," in engine
+assert "xmvsf_frame_clock_261.tsv" in engine
 assert "t.pendingOriginAction" in engine
 assert "t.pendingOriginMode" in engine
 assert "t.pendingNativeOnly" in engine
@@ -64,16 +64,24 @@ assert "43,48,57" in ui
 assert "const unsigned long long base=startWall+" in ui
 assert "const unsigned long long last=std::min(" in ui
 assert "out.wrap.ticksPerRow=" in ui
-assert "out.height=69+(int)out.wrap.rows()*18;" in ui
+assert "out.height=XM41FrameCardLayout::HEAD+" in ui
 assert "const int h=xm41FrameCardLayout(e,f,cardWidth).height;" in ui
-assert "const int x=x0+(int)(at-base);" in ui
+assert "const int x=x0+(int)(at-base)*STEP;" in ui
 assert "for(unsigned row=0;row<rows && row<maxRows;++row)" in ui
 assert "f.wallTick(e.player,at)" in ui
 assert "e.contactWallFrames[i]" in ui
 assert "e.hitboxLastFrame" in ui
 assert "e.lastProjectileFrame" in ui
-assert "HIT / BOX ?" in ui
-assert "PRE-BOX" in ui
+assert "HIT / BOX  +  ROM ACTION" not in ui
+assert "ROM %lluF %s" not in ui
+assert "S:%dF  A:%dF" not in ui
+assert "xm41InputTitle(e,title,sizeof(title));" in ui
+assert "const bool ten=number%10u==0u,five=number%5u==0u;" in ui
+assert "static const int PIXELS_PER_FRAME=3;" in ui
+assert "e.contactWallFrames[i]" in ui
+assert "const int x=x0+(int)t.column(at)*STEP;" in ui
+assert "xm30AssignInput(e,t);" in clock
+assert "t.pendingButtons|=buttonBit;" in clock
 assert "currentFrame:e.hitboxLastFrame" not in ui
 assert "t.pendingOriginLeft=false;" in clock
 assert "++eventsCreated;" in clock
@@ -100,4 +108,4 @@ assert "XM32_QCD" in clock
 assert "++wallFrame[0];++wallFrame[1];" in clock
 assert "recordWallTicks(advancePlayer);" in clock
 assert "e.contactWallFrames" in clock
-print("XMVSF 87.260 PASS: independent native clocks, combo HP fallback, actual box duration and opt-in diagnostics")
+print("XMVSF 87.261 PASS: independent native clocks, combo HP fallback, actual box duration and opt-in diagnostics")
