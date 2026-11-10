@@ -459,6 +459,12 @@ static inline bool xm249SelectSessionPad(int player,SDL_JoystickID id) {
     for(int i=0;i<count;++i)
         if(SDL_JoystickGetDeviceInstanceID(i)==id){found=i;break;}
     if(found<0)return false;
+    // A native arcade board (e.g. Fighter Pi) already works through the
+    // legacy raw joystick path; leave that path and its button order alone.
+    // This automatic menu->game selection is for SDL GameControllers
+    // (Xbox/XInput and DS4Windows virtual gamepads), whose menu accepts
+    // semantic A but whose game route previously required a saved profile.
+    if(!SDL_IsGameController(found))return false;
     XM249SessionPad& p=xm249SessionPad[player];
     p=XM249SessionPad{};
     p.selected=true;p.instance=id;
