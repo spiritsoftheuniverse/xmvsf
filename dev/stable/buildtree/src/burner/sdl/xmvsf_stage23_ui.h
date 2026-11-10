@@ -413,7 +413,8 @@ static inline void xm41DrawFrameCard(SDL_Renderer* r,const SDL_Rect& card,
     std::snprintf(caption,sizeof(caption),"P%d %s %s %s",e.player+1,
         e.source==1?"PROJ":xm32MotionTag(e.motion),
         sourceLabel,
-        e.noBox?"NO BOX":(e.attackObserved&&!e.attackEnded?"LIVE":
+        e.contactOnly?"HIT / BOX ?":e.noBox?"NO BOX":
+        (e.attackObserved&&!e.attackEnded?"LIVE":
                               (e.closed?"DONE":"LIVE")));
     xm32ColoredText(r,caption,left,card.y+6,1,159,199,255);
     SDL_SetRenderDrawColor(r,53,78,110,255);
@@ -421,13 +422,16 @@ static inline void xm41DrawFrameCard(SDL_Renderer* r,const SDL_Rect& card,
 
     unsigned long long finish=e.inputFrame;
     if(e.closed || e.noBox)finish=std::max(finish,e.endFrame);
-    if(!e.closed && !e.noBox)finish=std::max(finish,e.source==1?
-        std::min(currentFrame,e.inputFrame+600ull):currentFrame);
+    // Do NOT paint an open card all the way to the global display clock:
+    // hitstop/unchanged ROM collision can leave an old card open long after
+    // its last actual offensive sample, producing a fake block of frames.
+    if(!e.closed && !e.noBox)
+        finish=std::max(finish,e.hitboxLastFrame);
     if(e.attackObserved)finish=std::max(finish,
         e.attackEnded?e.attackEndFrame:e.attackLastFrame);
     if(e.despawnFrame)finish=std::max(finish,e.despawnFrame);
     else if(e.projectileBase && e.positionKnown)
-        finish=std::max(finish,std::min(currentFrame,e.inputFrame+600ull));
+        finish=std::max(finish,e.lastProjectileFrame);
     // No idle-state timer. Once the ROM exits an attack, nothing in the
     // second lane advances while the fighter holds a direction or jumps.
     // A still-pending entry uses its own ongoing elapsed frame range.
@@ -479,7 +483,8 @@ static inline void xm41DrawFrameCard(SDL_Renderer* r,const SDL_Rect& card,
     for(unsigned long long step=0;step<span;step+=(unsigned)stride){
         const unsigned long long at=e.inputFrame+step;
         Uint8 rr=113,gg=133,bb=160;
-        const unsigned long long attackEnd=(e.closed||e.noBox)?e.endFrame:currentFrame;
+        const unsigned long long attackEnd=(e.closed||e.noBox)?
+            e.endFrame:e.hitboxLastFrame;
         if(!e.noBox && at>=e.firstFrame && at<=attackEnd){rr=93;gg=224;bb=135;}
         else if(e.source==1 && e.spawnFrame && at>=e.spawnFrame &&
                 (e.despawnFrame==0 || at<e.despawnFrame)) {
@@ -538,7 +543,11 @@ static inline void xm41DrawFrameCard(SDL_Renderer* r,const SDL_Rect& card,
     }
     SDL_SetRenderDrawColor(r,53,78,110,255);
     SDL_RenderDrawLine(r,left,card.y+105,right,card.y+105);
-    if(e.noBox)xm32ColoredText(r,"NO BOX",left,card.y+112,1,185,190,203);
+    if(e.contactOnly)
+        xm32ColoredText(r,"HIT CONFIRMED - BOX UNKNOWN",
+                        left,card.y+112,1,249,177,118);
+    else if(e.noBox)
+        xm32ColoredText(r,"NO BOX",left,card.y+112,1,185,190,203);
     else{
         char val[24];
         xm32ColoredText(r,"S:",left,card.y+112,1,255,218,84);
