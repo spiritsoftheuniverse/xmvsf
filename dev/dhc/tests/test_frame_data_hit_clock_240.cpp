@@ -209,7 +209,7 @@ static void firstImpactAlreadyStoppedCreatesOneCard(){
     XM41ActorSample b=actor(0,0,144);
     XM30Sample none{},hit=melee();
     f.onFrame(none,none,a,b,40); // pre-offense: seed native action and HP
-    assert(f.frame==1 && f.count==0);
+    assert(f.frame==1 && f.count==1 && f.history[0].noBox);
     a.hitStop=8;b.health=136;
     f.onFrame(hit,none,a,b,40); // first hitbox AND nonzero +85
     assert(f.frame==2 && f.count==1);

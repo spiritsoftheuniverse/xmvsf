@@ -851,7 +851,19 @@ struct XM30FrameData {
             bool firstImpact=false;
             if(stops[p]>0u && (!hitStopSeeded || previousHitStop[p]==0u)){
                 const XM30Track& t=track[p];
-                if(t.pending>=0 && !t.pendingAttackEnd){
+                // Native acceptance consumes pending input before the first
+                // box; permit the one true impact tick despite rising +85.
+                bool unboxedNative=false;
+                for(int i=count-1;i>=0;--i){
+                    const XM30Event& e=history[i];
+                    if(e.player!=p || !e.noBox || !e.attackObserved ||
+                       e.attackEnded ||
+                       e.attackFamily!=xm30NativeAttackFamily(actors[p]) ||
+                       (e.actorBase && actors[p].sourceBase &&
+                        e.actorBase!=actors[p].sourceBase))continue;
+                    unboxedNative=true;break;
+                }
+                if((t.pending>=0 && !t.pendingAttackEnd) || unboxedNative){
                     bool priorOffense=false;
                     for(int i=count-1;i>=0;--i){
                         const XM30Event& e=history[i];

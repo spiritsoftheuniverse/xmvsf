@@ -39,8 +39,8 @@ assert "recordContacts(actors,samples,advancePlayer);" in clock
 assert "xm41DrawFrameCard(r,card,e,f);" in (root / "dev/stable/buildtree/src/burner/sdl/xmvsf_stage23_ui.h").read_text(encoding="utf-8")
 assert "recordContacts(actors,samples,advancePlayer);" in clock
 assert "recordContacts(actors,frame,true);" not in clock  # removed global-clock API
-assert "xm254FrameClockTrace(c,sample,actor,logicalBefore," in engine
-assert "xmvsf_frame_clock_254.tsv" in engine
+assert "xm258FrameClockTrace(c,sample,actor,logicalBefore," in engine
+assert "xmvsf_frame_clock_258.tsv" in engine
 assert "t.pendingOriginAction" in engine
 assert "t.pendingOriginMode" in engine
 assert "t.pendingNativeOnly" in engine
@@ -81,11 +81,11 @@ assert "XMVSF_FRAME_TRACE" in engine
 assert "const bool acceptedSuper=actors[p].valid &&" in clock
 assert "const bool superRootReset=" not in clock
 assert "family==0x2Eu && !t.superRootObserved;" in clock
-assert "if(acceptedSuper){" in clock
+assert "if(nativeCard){" in clock
 assert "e.inputFrame=(unsigned long long)t.pending;" in clock
 assert "e.inputWallFrame=t.pendingWallFrame;" in clock
 assert "e.noBox=true;e.contactOnly=false;e.source=0;" in clock
-assert "e.attackObserved=true;e.attackFamily=0x2Eu;" in clock
+assert "e.attackObserved=true;e.attackFamily=family;" in clock
 assert "t.superRootObserved=actors[p].valid && family==0x2Eu;" in clock
 assert "p1_super_input_wall" in engine and "p2_super_input_wall" in engine
 assert "p1_super_prebox" in engine and "p2_super_prebox" in engine
@@ -100,4 +100,4 @@ assert "XM32_QCD" in clock
 assert "++wallFrame[0];++wallFrame[1];" in clock
 assert "recordWallTicks(advancePlayer);" in clock
 assert "e.contactWallFrames" in clock
-print("XMVSF 87.257 PASS: independent native clocks, combo HP fallback, actual box duration and opt-in diagnostics")
+print("XMVSF 87.258 PASS: independent native clocks, combo HP fallback, actual box duration and opt-in diagnostics")
