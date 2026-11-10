@@ -11,16 +11,17 @@ static const unsigned CAMERA_MAX=384u; // XM86.54 WILY_PRESENT frame=601
 static const unsigned CAMERA_BIAS=64u; // XM86.49: s16(FF524C)+64
 static const unsigned WORLD_LEFT=CAMERA_MIN; // unchanged conservative initial-centering gate
 static const unsigned WORLD_RIGHT=CAMERA_MAX+VIEWPORT_WIDTH; // 768
-// 87.270 training_side_switch.log: FIRST RIGHT reference 689/747,
-// SECOND LEFT reference 79/21. Both sum to 768 for the same fighter,
-// giving 58 native pixels of separation and an exact world-X mirror.
-// Treat LEFT as the canonical reference so RIGHT cannot drift separately.
+// 87.272 training_side_switch.log: P1 repeatedly taunted around X=118
+// on LEFT and X=647 on RIGHT. Use the LEFT marker as the canonical
+// fighter position and mirror it across world X=384 (768-X).
+// Cyclops/P2 retains his stable 21/747 corner anchor. This increases
+// center-to-center spacing from 58 to 97 native pixels without touching CENTER.
 static const unsigned MIRROR_SUM=WORLD_RIGHT;
-static const unsigned LEFT_P1_X=79u;
+static const unsigned LEFT_P1_X=118u;
 static const unsigned LEFT_P2_X=21u;
-static const unsigned RIGHT_P1_X=MIRROR_SUM-LEFT_P1_X; // 689
+static const unsigned RIGHT_P1_X=MIRROR_SUM-LEFT_P1_X; // 650
 static const unsigned RIGHT_P2_X=MIRROR_SUM-LEFT_P2_X; // 747
-// Compatibility aliases used by older geometry helpers: now 58px/21px.
+// Compatibility aliases used by older geometry helpers: now 97px/21px.
 static const unsigned FIGHTER_SPACING=LEFT_P1_X-LEFT_P2_X;
 static const unsigned DUMMY_CORNER_INSET=WORLD_RIGHT-RIGHT_P2_X;
 static const unsigned LEFT_CAMERA_X=0u;
