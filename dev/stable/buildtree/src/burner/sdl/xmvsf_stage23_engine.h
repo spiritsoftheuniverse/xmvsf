@@ -63,6 +63,18 @@ static inline void object(cpu_core_config* c,unsigned base,bool projectile,int l
     if(!(r8(c,0xFF500F)&8) && !r8(c,0xFF5031) && !r8(c,base+0x120))
         addBox(c,base,projectile,x,y,flip,0x7c,3,0,owner);
 }
+// Choose a live ROM actor first; use the HUD hint only if both point
+// and reserve actors have the same activity state (e.g. during tag).
+// Applies uniformly to every native fighter ID, not a roster whitelist.
+static inline unsigned chooseActiveFighterBase(cpu_core_config* c,
+                                                int side,bool reserveHint){
+    const unsigned point=xm30ActiveFighterBase(side,false);
+    const unsigned reserve=xm30ActiveFighterBase(side,true);
+    const bool pointLive=r8(c,point)!=0;
+    const bool reserveLive=r8(c,reserve)!=0;
+    if(pointLive!=reserveLive)return pointLive?point:reserve;
+    return reserveHint?reserve:point;
+}
 static inline void gather(cpu_core_config* c) {
     xm23State.count=0;
     // Exact USA 961023 match/profile addresses, from marvel-hitboxes.lua.
@@ -482,10 +494,14 @@ static inline void xm23OnRealFrame(int ready) {
             xm14InputTarget+1);
     }
     xm23State.frameData.beginCombat();
-    const bool p1Anchor=xm23::r8(c,0xff4220)!=0, p2Anchor=xm23::r8(c,0xff4620)!=0;
+    const bool p1Hint=xm23::r8(c,0xff4220)!=0;
+    const bool p2Hint=xm23::r8(c,0xff4620)!=0;
     const unsigned activeFighterBase[2]={
-        xm30ActiveFighterBase(0,p1Anchor),xm30ActiveFighterBase(1,p2Anchor)
+        xm23::chooseActiveFighterBase(c,0,p1Hint),
+        xm23::chooseActiveFighterBase(c,1,p2Hint)
     };
+    const bool p1Anchor=activeFighterBase[0]==xm30ActiveFighterBase(0,true);
+    const bool p2Anchor=activeFighterBase[1]==xm30ActiveFighterBase(1,true);
     xm23State.health[0]=xm23::r8(c,p1Anchor?0xff4a11:0xff4211);
     xm23State.health[1]=xm23::r8(c,p2Anchor?0xff4e11:0xff4611);
     xm23State.meter[0]=xm23::r8(c,0xff4214);xm23State.meter[1]=xm23::r8(c,0xff4614);
