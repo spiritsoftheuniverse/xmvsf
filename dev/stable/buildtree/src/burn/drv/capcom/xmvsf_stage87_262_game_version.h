@@ -13,7 +13,8 @@ inline bool version4(){
 }
 inline bool tournamentKnockdowns(){
     const char* t=std::getenv("XM8755_TOURNAMENT_MODE");
-    return version4() && t && std::strcmp(t,"1")==0;
+    // Tournament is its own rules overlay for BOTH Version 3 and 4.
+    return t && std::strcmp(t,"1")==0;
 }
 }
 #endif

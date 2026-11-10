@@ -68,7 +68,8 @@ struct Audit{
         haveLast=true;lastMask=next;++changes;
         const bool nativeReady=!selected ||
             (native95 && native96 && native99);
-        const char*name=!selected?"VERSION3_ORIGINAL":
+        const char*name=!selected?
+            (knockdowns?"VERSION3_TOURNAMENT_KNOCKDOWNS":"VERSION3_ORIGINAL"):
             (!nativeReady?"VERSION4_NATIVE_PATCH_INCOMPLETE":
              knockdowns?"VERSION4_TOURNAMENT_KNOCKDOWNS":
                        "VERSION4_PATCHED");
