@@ -325,7 +325,7 @@ static inline void xm38HitSourceProbe(cpu_core_config* c){
 // versus the Training clock.
 // Enable with XMVSF_FRAME_TRACE=1 before RUN_TEST.bat; the TSV is placed
 // next to the TEST executable. No GPU capture, memory writes or timing hooks.
-static inline void xm245FrameClockTrace(
+static inline void xm246FrameClockTrace(
         cpu_core_config* c,const XM30Sample (&samples)[2],
         const XM41ActorSample (&actors)[2],
         unsigned long long before,unsigned long long after,
@@ -338,7 +338,7 @@ static inline void xm245FrameClockTrace(
         const char* flag=std::getenv("XMVSF_FRAME_TRACE");
         armed=flag && flag[0]=='1' && !flag[1] ? 1 : 0;
         if(armed){
-            file=xm36OpenTrace("xmvsf_frame_clock_245.tsv",
+            file=xm36OpenTrace("xmvsf_frame_clock_246.tsv",
                 "host_sample\tlogical_before\tlogical_after\t"
                 "p1_clock_before\tp1_clock_after\tp2_clock_before\tp2_clock_after\t"
                 "p1_2e\tp1_hitstop\tp1_mode\tp1_action\tp1_phase\t"
@@ -351,7 +351,7 @@ static inline void xm245FrameClockTrace(
                 "p2_hp\tp2_melee\tp2_proj\t"
                 "p2_origin_family\tp2_origin_action\tp2_pending_family\t"
                 "p2_pending_action\tp2_pending\tp2_prev_box\tp2_last_contacts\t"
-                "events\n");
+                "events\tevents_created\n");
             if(!file)armed=0;
         }
     }
@@ -393,7 +393,11 @@ static inline void xm245FrameClockTrace(
             t.pendingAttackFamily,t.pendingAttackAction,
             t.pending>=0?1:0,t.previous[0]?1u:0u,lastContacts);
     }
-    std::fprintf(file,"\t%d\n",xm23State.frameData.count);
+    // HISTORY stops at 24; use the cumulative counter to expose every
+    // unexpected card created AFTER the ring buffer fills.
+    std::fprintf(file,"\t%d\t%llu\n",
+                 xm23State.frameData.count,
+                 xm23State.frameData.eventsCreated);
     if(++logged%60u==0u)std::fflush(file);
 }
 
@@ -505,7 +509,7 @@ static inline void xm23OnRealFrame(int ready) {
         const unsigned long long p1Before=xm23State.frameData.playerFrame[0];
         const unsigned long long p2Before=xm23State.frameData.playerFrame[1];
         xm23State.frameData.onFrame(sample[0],sample[1],actor[0],actor[1]);
-        xm245FrameClockTrace(c,sample,actor,logicalBefore,
+        xm246FrameClockTrace(c,sample,actor,logicalBefore,
                              xm23State.frameData.frame,p1Before,p2Before);
     }
     c->close();
