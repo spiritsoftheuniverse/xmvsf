@@ -601,6 +601,14 @@ static inline bool xm248ReconcileMenuPad(
         SDL_JoystickID& instance) {
     const SDL_JoystickID wanted=(device>=0 && device<SDL_NumJoysticks())?
         SDL_JoystickGetDeviceInstanceID(device):-1;
+    // Shared between boot, Arcade, Training and Versus: a failed Windows
+    // HID open is retried at most once per 1200ms per instance, not once
+    // per owner and once per 100-150ms menu refresh.
+    static SDL_JoystickID failedJoyID[8]={-1,-1,-1,-1,-1,-1,-1,-1};
+    static Uint32 failedJoyAt[8]={};
+    static SDL_JoystickID failedPadID[8]={-1,-1,-1,-1,-1,-1,-1,-1};
+    static Uint32 failedPadAt[8]={};
+    const Uint32 now=SDL_GetTicks();
     const bool live=stick && SDL_JoystickGetAttached(stick) &&
         instance==wanted && SDL_JoystickInstanceID(stick)==wanted;
     bool changed=false;
@@ -614,18 +622,43 @@ static inline bool xm248ReconcileMenuPad(
     }
     if(wanted<0)return changed;
     if(!stick){
+        if(device<8 && failedJoyID[device]==wanted && failedJoyAt[device] &&
+           (Uint32)(now-failedJoyAt[device])<1200u)return changed;
+        const Uint32 start=SDL_GetTicks();
         SDL_Joystick* candidate=SDL_JoystickOpen(device);
-        if(!candidate)return changed; // failed open: next poll will retry
-        if(!SDL_JoystickGetAttached(candidate)){
-            SDL_JoystickClose(candidate);return changed;
+        const Uint32 ms=(Uint32)(SDL_GetTicks()-start);
+        if(ms>=50u)std::fprintf(stderr,
+            "XM87.266 SLOW_MENU_JOY_OPEN slot=%d instance=%d ms=%u\n",
+            device,(int)wanted,(unsigned)ms);
+        if(!candidate || !SDL_JoystickGetAttached(candidate)){
+            if(candidate)SDL_JoystickClose(candidate);
+            if(device<8){
+                failedJoyID[device]=wanted;
+                failedJoyAt[device]=SDL_GetTicks()?SDL_GetTicks():1u;
+            }
+            return changed;
         }
+        if(device<8){failedJoyID[device]=-1;failedJoyAt[device]=0;}
         stick=candidate;
         instance=SDL_JoystickInstanceID(candidate);
         changed=true;
     }
     if(stick && !pad && SDL_IsGameController(device)){
+        if(device<8 && failedPadID[device]==wanted && failedPadAt[device] &&
+           (Uint32)(now-failedPadAt[device])<1200u)return changed;
+        const Uint32 start=SDL_GetTicks();
         pad=SDL_GameControllerOpen(device);
-        if(pad)changed=true;
+        const Uint32 ms=(Uint32)(SDL_GetTicks()-start);
+        if(ms>=50u)std::fprintf(stderr,
+            "XM87.266 SLOW_MENU_PAD_OPEN slot=%d instance=%d ms=%u\n",
+            device,(int)wanted,(unsigned)ms);
+        if(pad){
+            if(device<8){failedPadID[device]=-1;failedPadAt[device]=0;}
+            changed=true;
+        }else if(device<8){
+            failedPadID[device]=wanted;
+            failedPadAt[device]=SDL_GetTicks()?SDL_GetTicks():1u;
+        }
     }
     return changed;
 }

@@ -227,7 +227,7 @@ static inline void xm257PollTrainingMenu(bool training){
         if(p.wasOpen)xm257CloseTrainingPad(p);
         return;
     }
-    SDL_GameControllerUpdate();
+    // SDL game loop has already updated controller state.
     const Uint32 now=SDL_GetTicks();
     const bool first=!p.wasOpen;
     if(first)p.wasOpen=true;
@@ -241,7 +241,7 @@ static inline void xm257PollTrainingMenu(bool training){
         XM13_Settings settings{};xm13Load(&settings);
         const int id=xm248FindAssignedDevice(&settings,0);
         deviceChanged=xm248ReconcileMenuPad(id,p.joystick,p.controller,p.instance);
-        if(deviceChanged)SDL_GameControllerUpdate(); // seed the newly opened device
+        // A reconnect seeds button edges below; do not re-poll the HID driver.
     }
     if(!p.joystick || !SDL_JoystickGetAttached(p.joystick)){
         p.previousA=p.previousB=p.previousUp=p.previousDown=false;

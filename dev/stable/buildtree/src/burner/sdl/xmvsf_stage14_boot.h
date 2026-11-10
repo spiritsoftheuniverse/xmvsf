@@ -266,8 +266,11 @@ static int xmvsfBootSelector(bool returningFromGame=false) {
         if(!menuLastPadProbe || (Uint32)(now-menuLastPadProbe)>=100u){
             menuLastPadProbe=now;
             SDL_PumpEvents();
+            // Read enumeration ONCE each menu interval, rather than
+            // querying the HID backend 8 times while devices reconnect.
+            const int listed=SDL_NumJoysticks();
             for(int device=0;device<8;++device)
-                xm248ReconcileMenuPad(device,menuSticks[device],
+                xm248ReconcileMenuPad(device<listed?device:-1,menuSticks[device],
                                       menuPads[device],menuInstances[device]);
             // Seed both owners while the same SDL process still owns the
             // boot menu. An identical pad cannot silently switch P1/P2.

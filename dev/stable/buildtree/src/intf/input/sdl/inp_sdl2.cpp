@@ -407,7 +407,7 @@ static void SDLinpRecheckJoysticks(bool forceRetry=false) {
         if(!JoyList[i]) {
             // No open storm while Windows/DS4Windows is initializing.
             // A different SDL instance ID always attempts immediately.
-            if(xm266FailedJoyID[i]!=id || !xm266FailedJoyAt[i] ||
+            if(newlyListed || xm266FailedJoyID[i]!=id || !xm266FailedJoyAt[i] ||
                (Uint32)(now-xm266FailedJoyAt[i])>=1200u)
                 SDLinpJoystickInit(i);
         }else if(GCList[i] && (!SDL_GameControllerGetAttached(GCList[i]) ||

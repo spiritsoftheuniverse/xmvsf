@@ -64,7 +64,7 @@ static inline void xm243ReadPad(XM243Pad& p, bool& up, bool& down, bool& accept,
 // Newly acquired held buttons seed the previous state (no ghost actions).
 static inline void xm243RefreshPads(XM243Pad pads[2]) {
     XM13_Settings settings{};xm13Load(&settings);
-    SDL_GameControllerUpdate();
+    // The game loop pumps SDL events; no duplicate HID update.
     for(int i=0;i<2;++i){
         XM243Pad& p=pads[i];
         p.mapping=settings.player[i];
@@ -72,7 +72,6 @@ static inline void xm243RefreshPads(XM243Pad pads[2]) {
         const bool changed=xm248ReconcileMenuPad(
             device,p.joy,p.controller,p.instance);
         if(changed){
-            SDL_GameControllerUpdate(); // sample held buttons after SDL opens
             xm243ReadPad(p,p.previousUp,p.previousDown,p.previousAccept,
                         p.previousCoin,p.previousCancel);
         }
@@ -96,7 +95,6 @@ static inline void xm243PollLiveMenu() {
         xm243OpenPads();
         return;
     }
-    SDL_GameControllerUpdate();
     const Uint32 now=SDL_GetTicks();
     if(!xm243LastPadProbe || (Uint32)(now-xm243LastPadProbe)>=150u){
         xm243LastPadProbe=now ? now : 1;
@@ -212,7 +210,7 @@ static inline void xm258PollArcadeMenu(){
         xm258ArcadeMenuOpen=false;
         return;
     }
-    SDL_GameControllerUpdate();
+    // SDL_PollEvent and SDLinpStart already update pad state.
     if(!xm258ArcadePadsReady){
         for(int i=0;i<2;++i)xm258ArcadePads[i]=XM243Pad{};
         xm243RefreshPads(xm258ArcadePads);
