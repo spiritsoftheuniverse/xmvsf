@@ -17,6 +17,8 @@ extern "C" void xm8770SelectInput(unsigned slot,unsigned code,int down,unsigned 
 
 #define JOYSTICK_DEAD_ZONE 8000		// Replace DEADZONE to make it coherent with other declarations
 #define MAX_JOYSTICKS 8
+// TEST 87.248: joystick enumeration changes during the SAME running game.
+// The SDL device index is not a stable identity. The instance ID is.
 
 static int FBKtoSDL[512] = { 0 };
 static int SDLtoFBK[512] = { -1 };
@@ -24,6 +26,8 @@ static int SDLtoFBK[512] = { -1 };
 static int nInitedSubsytems = 0;
 static SDL_Joystick* JoyList[MAX_JOYSTICKS];
 static SDL_GameController *GCList[MAX_JOYSTICKS];
+static SDL_JoystickID xm248Instance[MAX_JOYSTICKS] = {-1,-1,-1,-1,-1,-1,-1,-1};
+static Uint32 xm248LastRetryAt = 0;
 static int* JoyPrevAxes = NULL;
 /* static */ int nJoystickCount = 0;						// Number of joysticks connected to this machine
 // The Windows boot selector has already initialized/enumerated SDL pads.
@@ -33,7 +37,7 @@ static int* JoyPrevAxes = NULL;
 #else
 #define JOYSTICK_DETECT_MS 600
 #endif
-int buttons [4][8]= { {-1,-1,-1,-1,-1,-1,-1,-1}, {-1,-1,-1,-1,-1,-1,-1,-1}, {-1,-1,-1,-1,-1,-1,-1,-1}, {-1,-1,-1,-1,-1,-1,-1,-1} }; // 4 joysticks buttons 0 -5 and start / select
+int buttons[MAX_JOYSTICKS][8] = {}; // each opened SDL slot, not a 4-pad buffer
 
 void setup_kemaps(void)
 {
@@ -298,49 +302,86 @@ SDL_Scancode getScancodefromFBK(int key)
 	return (SDL_Scancode)FBKtoSDL[key];
 }
 
-// Sets up one Joystick (for example the range of the joystick's axes)
-static int SDLinpJoystickInit(int i)
-{
-	SDL_GameControllerButtonBind bind;
-
-	JoyList[i] = SDL_JoystickOpen(i);
-	GCList[i]  = SDL_GameControllerOpen(i);
-
-	if (GCList[i])
-	{
-		bind = SDL_GameControllerGetBindForButton(GCList[i], SDL_CONTROLLER_BUTTON_A );
-		buttons[i][0] = bind.value.button;
-
-		bind = SDL_GameControllerGetBindForButton(GCList[i], SDL_CONTROLLER_BUTTON_B);
-		buttons[i][1] = bind.value.button;
-
-		bind = SDL_GameControllerGetBindForButton(GCList[i], SDL_CONTROLLER_BUTTON_X );
-		buttons[i][2] = bind.value.button;
-
-		bind = SDL_GameControllerGetBindForButton(GCList[i], SDL_CONTROLLER_BUTTON_Y);
-		buttons[i][3] = bind.value.button;
-
-		bind = SDL_GameControllerGetBindForButton(GCList[i], SDL_CONTROLLER_BUTTON_LEFTSHOULDER  );
-		buttons[i][4] = bind.value.button;
-
-		bind = SDL_GameControllerGetBindForButton(GCList[i], SDL_CONTROLLER_BUTTON_RIGHTSHOULDER );
-		buttons[i][5] = bind.value.button;
-
-		bind = SDL_GameControllerGetBindForButton(GCList[i], SDL_CONTROLLER_BUTTON_BACK   );
-		buttons[i][6] = bind.value.button;
-
-		bind = SDL_GameControllerGetBindForButton(GCList[i], SDL_CONTROLLER_BUTTON_START  );
-		buttons[i][7] = bind.value.button;
-   }
-
-	return 0;
+// SDL enumerated indices compact when one controller disconnects. Never
+// assume JoyList[i] remains the physical device currently numbered i.
+static void SDLinpCloseJoystickSlot(int i) {
+    if(i<0 || i>=MAX_JOYSTICKS)return;
+    if(GCList[i]){SDL_GameControllerClose(GCList[i]);GCList[i]=NULL;}
+    if(JoyList[i]){SDL_JoystickClose(JoyList[i]);JoyList[i]=NULL;}
+    xm248Instance[i]=-1;
+    for(int j=0;j<8;++j){
+        buttons[i][j]=-1;
+        if(JoyPrevAxes)JoyPrevAxes[(i<<3)+j]=0;
+    }
 }
-
+static int SDLinpJoystickInit(int i) {
+    if(i<0 || i>=MAX_JOYSTICKS || i>=SDL_NumJoysticks())return 1;
+    if(JoyList[i])SDLinpCloseJoystickSlot(i);
+    SDL_Joystick* joy=SDL_JoystickOpen(i);
+    if(!joy)return 1; // may be present but not ready; retry while running
+    if(!SDL_JoystickGetAttached(joy)){SDL_JoystickClose(joy);return 1;}
+    JoyList[i]=joy;
+    xm248Instance[i]=SDL_JoystickInstanceID(joy);
+    if(SDL_IsGameController(i)) GCList[i]=SDL_GameControllerOpen(i);
+    const SDL_GameControllerButton names[8]={
+        SDL_CONTROLLER_BUTTON_A,SDL_CONTROLLER_BUTTON_B,
+        SDL_CONTROLLER_BUTTON_X,SDL_CONTROLLER_BUTTON_Y,
+        SDL_CONTROLLER_BUTTON_LEFTSHOULDER,SDL_CONTROLLER_BUTTON_RIGHTSHOULDER,
+        SDL_CONTROLLER_BUTTON_BACK,SDL_CONTROLLER_BUTTON_START
+    };
+    if(GCList[i])for(int j=0;j<8;++j) {
+        const SDL_GameControllerButtonBind b=
+            SDL_GameControllerGetBindForButton(GCList[i],names[j]);
+        if(b.bindType==SDL_CONTROLLER_BINDTYPE_BUTTON)
+            buttons[i][j]=b.value.button;
+    }
+    std::fprintf(stderr,"XM87.248 PAD_OPEN slot=%d instance=%d gamecontroller=%d name=%s\\n",
+        i,(int)xm248Instance[i],GCList[i]?1:0,SDL_JoystickName(joy));
+    return 0;
+}
+// Called once per emulated input frame and again before the first read.
+// Enumerating instance IDs is cheap (<=8) and catches late availability,
+// USB/Bluetooth reconnect, changed indices, and previously failed opens.
+static void SDLinpRecheckJoysticks(bool forceRetry=false) {
+    const Uint32 now=SDL_GetTicks();
+    const bool retry=forceRetry || (Uint32)(now-xm248LastRetryAt)>=250u;
+    if(retry)xm248LastRetryAt=now;
+    const int discovered=SDL_NumJoysticks();
+    const int count=discovered<MAX_JOYSTICKS?discovered:MAX_JOYSTICKS;
+    for(int i=0;i<MAX_JOYSTICKS;++i){
+        const SDL_JoystickID id=i<count?SDL_JoystickGetDeviceInstanceID(i):-1;
+        const bool current=JoyList[i] && SDL_JoystickGetAttached(JoyList[i]) &&
+            xm248Instance[i]==id && SDL_JoystickInstanceID(JoyList[i])==id;
+        if(!current && (JoyList[i] || GCList[i] || xm248Instance[i]!=-1)) {
+            std::fprintf(stderr,"XM87.248 PAD_LOST slot=%d instance=%d replacement=%d\\n",
+                i,(int)xm248Instance[i],(int)id);
+            SDLinpCloseJoystickSlot(i);
+        }
+        if(i>=count || id<0)continue;
+        if(!JoyList[i]) {
+            // A newly enumerated device is attempted immediately. If open
+            // fails while the driver initializes, retry it every 250 ms.
+            if(forceRetry || retry || xm248Instance[i]!=id)
+                SDLinpJoystickInit(i);
+        }else if(GCList[i] && !SDL_GameControllerGetAttached(GCList[i])) {
+            SDL_GameControllerClose(GCList[i]);GCList[i]=NULL;
+        }
+        if(JoyList[i] && !GCList[i] && retry && SDL_IsGameController(i)) {
+            // A pad that initially opened only as a raw joystick can
+            // later obtain an SDL GameController mapping without restart.
+            GCList[i]=SDL_GameControllerOpen(i);
+            if(GCList[i])
+                std::fprintf(stderr,"XM87.248 PAD_MAPPING_READY slot=%d instance=%d\\n",
+                    i,(int)xm248Instance[i]);
+        }
+    }
+    nJoystickCount=count;
+}
 // Read one d-pad direction off a pad.  Returns 0 when the device isn't a
 // recognised game controller (a bare joystick has no d-pad mapping to read).
 static int SDLinpDPad(int i, SDL_GameControllerButton nButton)
 {
-	if (GCList[i] == NULL) {
+	if (GCList[i] == NULL || !SDL_GameControllerGetAttached(GCList[i])) {
 		return 0;
 	}
 
@@ -373,83 +414,38 @@ int SDLinpSetCooperativeLevel(bool bExclusive, bool /*bForeGround*/)
 
 int SDLinpExit()
 {
-	// Close all joysticks
-	for (int i = 0; i < MAX_JOYSTICKS; i++) {
-		if (JoyList[i]) {
-			SDL_JoystickClose(JoyList[i]);
-			JoyList[i] = NULL;
-		}
-		if (GCList[i]) {
-			SDL_GameControllerClose(GCList[i]);
-			GCList[i] = NULL;
-		}
-	}
-
-	nJoystickCount = 0;
-
-	free(JoyPrevAxes);
-	JoyPrevAxes = NULL;
-
-	nInitedSubsytems = 0;
-
-	return 0;
+    for(int i=0;i<MAX_JOYSTICKS;++i)SDLinpCloseJoystickSlot(i);
+    nJoystickCount=0;
+    free(JoyPrevAxes);
+    JoyPrevAxes=NULL;
+    nInitedSubsytems=0;
+    xm248LastRetryAt=0;
+    return 0;
 }
 
 int SDLinpInit()
 {
-	int nSize;
-	setup_kemaps();
-	SDLinpExit();
-
-	memset(&JoyList, 0, sizeof(JoyList));
-
-	nSize = MAX_JOYSTICKS * 8 * sizeof(int);
-	if ((JoyPrevAxes = (int*)malloc(nSize)) == NULL) {
-		SDLinpExit();
-		return 1;
-	}
-	memset(JoyPrevAxes, 0, nSize);
-
-	nInitedSubsytems = SDL_WasInit(SDL_INIT_JOYSTICK | SDL_INIT_GAMECONTROLLER);
-
-	if (!(nInitedSubsytems & SDL_INIT_JOYSTICK & SDL_INIT_GAMECONTROLLER)) {
-		SDL_Init(SDL_INIT_JOYSTICK | SDL_INIT_GAMECONTROLLER);
-	}
-
-	// Set up the joysticks.  Device discovery is asynchronous on sdl2-compat/SDL3
-	// (macOS enumerates pads through GameController.framework), so SDL_NumJoysticks()
-	// reads 0 for the first few hundred ms after init.  Pump the queue until a device
-	// shows up, capped so a keyboard-only setup isn't held up for long.
-	nJoystickCount = SDL_NumJoysticks();
-
-	for (int nWait = 0; nJoystickCount == 0 && nWait < JOYSTICK_DETECT_MS; nWait += 20) {
-		SDL_PumpEvents();
-		SDL_Delay(20);
-		nJoystickCount = SDL_NumJoysticks();
-	}
-
-	for (int i = 0; i < nJoystickCount; i++) {
-		SDLinpJoystickInit(i);
-	}
-
-	if (nJoystickCount > 0) {
-		printf("Found %d joystick(s):\n", nJoystickCount);
-		for (int i = 0; i < nJoystickCount; i++) {
-			printf("  Joy %d: %s%s\n", i, SDL_JoystickNameForIndex(i),
-				SDL_IsGameController(i) ? " (game controller)" : "");
-		}
-	}
-
-	SDL_GameControllerEventState(SDL_IGNORE);
-	SDL_JoystickEventState(SDL_IGNORE);
-
-	// Set up the keyboard
-	SDLinpKeyboardInit();
-
-	// Set up the mouse
-	SDLinpMouseInit();
-
-	return 0;
+    setup_kemaps();
+    SDLinpExit();
+    const int nSize=MAX_JOYSTICKS * 8 * (int)sizeof(int);
+    JoyPrevAxes=(int*)malloc(nSize);
+    if(!JoyPrevAxes)return 1;
+    memset(JoyPrevAxes,0,nSize);
+    nInitedSubsytems=SDL_WasInit(SDL_INIT_JOYSTICK | SDL_INIT_GAMECONTROLLER);
+    if((nInitedSubsytems & (SDL_INIT_JOYSTICK | SDL_INIT_GAMECONTROLLER)) !=
+       (SDL_INIT_JOYSTICK | SDL_INIT_GAMECONTROLLER))
+        SDL_InitSubSystem(SDL_INIT_JOYSTICK | SDL_INIT_GAMECONTROLLER);
+    // Preserve event generation for the persistent boot-menu controller
+    // capture when the game returns to the same SDL process.
+    SDL_JoystickEventState(SDL_ENABLE);
+    SDL_GameControllerEventState(SDL_ENABLE);
+    SDL_PumpEvents();
+    SDLinpRecheckJoysticks(true);
+    // Delayed availability is recovered by SDLinpStart, not a blocking
+    // 600-ms cold-boot scan. This also works with no connected devices.
+    SDLinpKeyboardInit();
+    SDLinpMouseInit();
+    return 0;
 }
 
 static unsigned char bKeyboardRead = 0;
@@ -487,6 +483,7 @@ int SDLinpStart()
 {
 	// Update SDL event queue
 	SDL_PumpEvents();
+    SDLinpRecheckJoysticks(); // hotplug / reconnect / previously failed open
 
 	// Keyboard not read this frame
 	bKeyboardRead = 0;
@@ -507,6 +504,8 @@ static int ReadJoystick()
 		return 0;
 	}
 
+    // Always validate the current instances before dereferencing a slot.
+    SDLinpRecheckJoysticks();
     XM8797Debug::state().beforeControllerPoll();
 	SDL_GameControllerUpdate();		// This updates Joysticks too
     XM8797Debug::state().afterControllerPoll();
@@ -528,7 +527,8 @@ int SDLinpJoyAxis(int i, int nAxis)
 		return 0;
 	}
 
-	if (nAxis >= SDL_JoystickNumAxes(JoyList[i])) {
+	if (!JoyList[i] || !SDL_JoystickGetAttached(JoyList[i]) ||
+        nAxis<0 || nAxis >= SDL_JoystickNumAxes(JoyList[i])) {
 		return 0;
 	}
 
@@ -591,6 +591,7 @@ static int JoystickState(int i, int nSubCode)
 		return 0;
 	}
 
+    if(!JoyList[i] || !SDL_JoystickGetAttached(JoyList[i]))return 0;
 	if (nSubCode < 0x10) {										// Joystick directions
 
 		// we have two checks per axis
@@ -821,7 +822,7 @@ int SDLinpFind(bool CreateBaseline)
 			}
 		}
 
-		for (j = 0x80; j < 0x80 + SDL_JoystickNumButtons(JoyList[i]); j++) {
+		for (j = 0x80; JoyList[i] && j < 0x80 + SDL_JoystickNumButtons(JoyList[i]); j++) {
 			if (JoystickState(i, j)) {
 				nRetVal = 0x4000 | (i << 8) | j;
 				goto End;
