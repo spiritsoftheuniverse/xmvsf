@@ -124,6 +124,12 @@ static inline bool xm30SameNativeAttack(const XM41ActorSample& a,
 }
 struct XM30Event {
     int player=0, startup=0, active=0, code=0, x=0, y=0, motion=XM32_NORMAL;
+    // Capture only actual mapped input: a bounded direction-edge sequence
+    // plus the complete pressed button chord. ROM-only events stay unknown.
+    static const int INPUT_DIRS=6;
+    unsigned inputButtons=0;
+    unsigned char inputDirections[INPUT_DIRS]={};
+    unsigned inputDirectionCount=0;
     unsigned long long inputFrame=0,spawnFrame=0,firstFrame=0,endFrame=0;
     // Visual host-frame axis advances during native hitstop; native-frame
     // measurements above remain unchanged by this presentation axis.
@@ -225,6 +231,9 @@ struct XM30Track {
     unsigned long long pendingWallFrame=0;
     bool pendingNativeOnly=false;
     int code=0, motion=XM32_NORMAL;
+    unsigned pendingButtons=0;
+    unsigned char pendingDirections[XM30Event::INPUT_DIRS]={};
+    unsigned pendingDirectionCount=0;
     // Index -1 if no active row; separate lifetimes prevent an old projectile
     // suppressing the rising edge of a new airborne/ground melee hitbox.
     int eventIndex[2]={-1,-1};
@@ -265,6 +274,39 @@ struct XM30Track {
 // Stable, uncompressed timeline geometry. One observed host tick is
 // exactly one horizontal pixel; overflow moves to the next pair of slim
 // HIT / ACTION lanes. Previous rows never change scale as time accumulates.
+// Render metadata is sampled at the original physical button edge.
+// This does not change motion classification or the native attack clock.
+static inline void xm30CaptureInputDirections(
+        XM30Track& t,const XM32MotionHistory& h,unsigned long long now){
+    t.pendingDirectionCount=0;
+    const unsigned long long age=t.motion==XM32_DOUBLE?45u:
+        (t.motion==XM32_NORMAL?8u:30u);
+    for(int i=h.count-1;i>=0 &&
+        t.pendingDirectionCount<XM30Event::INPUT_DIRS;--i){
+        const XM32DirStep& step=h.step[i];
+        if(now<step.frame || now-step.frame>age)break;
+        if(step.dir==5)continue; // neutral is a release, not a direction key
+        t.pendingDirections[t.pendingDirectionCount++]=(unsigned char)step.dir;
+    }
+    // A held direction is still pressed even if its last edge is older
+    // than the motion-detection window.
+    if(!t.pendingDirectionCount && h.count &&
+       h.step[h.count-1].dir!=5)
+        t.pendingDirections[t.pendingDirectionCount++]=
+            (unsigned char)h.step[h.count-1].dir;
+    for(unsigned i=0;i<t.pendingDirectionCount/2;++i){
+        const unsigned j=t.pendingDirectionCount-1u-i;
+        const unsigned char tmp=t.pendingDirections[i];
+        t.pendingDirections[i]=t.pendingDirections[j];
+        t.pendingDirections[j]=tmp;
+    }
+}
+static inline void xm30AssignInput(XM30Event& e,const XM30Track& t){
+    e.inputButtons=t.pendingButtons;
+    e.inputDirectionCount=t.pendingDirectionCount;
+    for(unsigned i=0;i<t.pendingDirectionCount;++i)
+        e.inputDirections[i]=t.pendingDirections[i];
+}
 struct XM30TimelineWrap {
     unsigned long long start=0,finish=0;
     unsigned ticksPerRow=1;
@@ -454,8 +496,13 @@ struct XM30FrameData {
             if(e.player==player && e.attackFamily==0x2Eu &&
                !e.attackEnded)return;
         }
-        // A+B pressed on the same frame is one candidate, not two moves.
-        if(t.pending>=0 && (long long)playerFrame[player]-t.pending<=2)return;
+        // Chord edges belong to one action, but ALL of their pressed
+        // buttons must appear in the input title (LP+MP, all punches etc.).
+        const unsigned buttonBit=1u<<(unsigned)(code-0x80);
+        if(t.pending>=0 && (long long)playerFrame[player]-t.pending<=2){
+            t.pendingButtons|=buttonBit;
+            return;
+        }
         // 87.251: Cyclops 2E00 begins in stage02, long before its beam's
         // linked projectile first becomes damaging. More button edges during
         // that very same accepted super must NOT erase the original
@@ -469,6 +516,7 @@ struct XM30FrameData {
         t.pending=(long long)playerFrame[player];
         t.pendingWallFrame=wallFrame[player];
         t.pendingNativeOnly=false;
+        t.pendingButtons=buttonBit;
         t.pendingSpawnBase=0;
         t.pendingSpawnFrame=0;
         // A new button edge only starts the next candidate. It NEVER ends an
@@ -486,6 +534,7 @@ struct XM30FrameData {
         for(int word=0;word<16;++word)t.pendingMotionBits[word]=0;
         t.code=code;
         t.motion=directions[player].classify(playerFrame[player]);
+        xm30CaptureInputDirections(t,directions[player],playerFrame[player]);
         if(t.motion!=XM32_NORMAL)directions[player].count=0;
     }
     int appendEvent(){
@@ -858,6 +907,7 @@ struct XM30FrameData {
                 t.pending=(long long)playerFrame[p];
                 t.pendingWallFrame=wallFrame[p];
                 t.pendingNativeOnly=true;
+                t.pendingButtons=0;t.pendingDirectionCount=0;
                 t.code=0;t.motion=XM32_NORMAL;
                 t.pendingSpawnBase=0;t.pendingSpawnFrame=0;
                 t.pendingFirstMotion=t.pendingLastMotion=0;
@@ -900,6 +950,7 @@ struct XM30FrameData {
                     t.pending=(long long)playerFrame[p];
                     t.pendingWallFrame=wallFrame[p];
                     t.pendingNativeOnly=true;
+                    t.pendingButtons=0;t.pendingDirectionCount=0;
                     t.code=0;t.motion=XM32_NORMAL;
                 }
                 const int idx=appendEvent();
@@ -911,6 +962,7 @@ struct XM30FrameData {
                 e.inputWallFrame=t.pendingWallFrame;
                 e.lastWallFrame=wallFrame[p];
                 e.code=t.code;e.motion=t.motion;
+                xm30AssignInput(e,t);
                 e.noBox=true;e.contactOnly=false;e.source=0;
                 e.startup=0;e.active=0;
                 e.firstFrame=playerFrame[p]; // no collision assertion
@@ -1425,6 +1477,7 @@ struct XM30FrameData {
                     e.contactOnly=contactWithoutBox;
                     e.hitboxLastFrame=boxMissing?0u:frame;
                     e.inputObserved=!t.pendingNativeOnly;
+                    xm30AssignInput(e,t);
                     e.nativeSuperPhase=t.pendingAttackFamily==0x2Eu &&
                         (superPhaseActive || superStageActive);
                     e.attackObserved=t.pendingAttackFamily!=0u;
@@ -1509,6 +1562,7 @@ struct XM30FrameData {
                 e.player=p;e.actorBase=actors[p].sourceBase;
                 e.code=t.code;e.motion=t.motion;e.noBox=true;
                 e.inputObserved=!t.pendingNativeOnly;
+                xm30AssignInput(e,t);
                 e.attackObserved=t.pendingAttackFamily!=0u;
                 e.attackFamily=t.pendingAttackFamily;
                 e.attackAction=t.pendingAttackAction;
