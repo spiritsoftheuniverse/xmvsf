@@ -726,7 +726,8 @@ static int xm13ReadInput(const XM13_Settings* s,int player,int sub,
         const int semantic=useSessionDefaults &&
             xm249DefaultGameAction(pad,joy,rawAction);
         const int pressed=XM249Policy::deliver(saved!=0,semantic!=0,
-                                               useSessionDefaults);
+                                               useSessionDefaults) ||
+                          (xm13IsKeyboard(p) && saved!=0);
         if(rawAction<3)
             return pressed ||
                 (allowSaved && xm13BindingPressed(p->binding[XM13_3P],joy));
