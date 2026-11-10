@@ -33,6 +33,26 @@ The completed `logo_II.png` alpha bounds are unioned with `logo.png`'s visible b
 - The bottom live-button highlighting strip remains removed. Windows gameplay input init skips its former up-to-600ms joystick wait because the menu already initialized SDL devices. UI page navigation additionally uses a 20ms post-release settle instead of 80ms; the separate gameplay handoff gate is untouched to prevent leaked confirms.
 - Cold-boot announcer WAV now starts at t=0 (next to crash) **before the first logo frame at t=1.0**; this provides one second of audio preroll for the spoken phrase. The WAV itself is not trimmed, retimed, or sped up; audible syllable alignment requires a Windows listening check.
 
+## TEST 87.247: 2C-special stasis and native-only combo acquisition
+
+User feedback after TEST 87.246: combo hit reports are intermittent and a large amount of time spent frozen still appears in the duration after animation resumes.
+
+Re-examined the actual uploaded `xmvsf_frame_clock_245.tsv` (2,400 rows, not 87.246/247 gameplay) for **native animation pointers/countdowns**, rather than the prior assumptions about super phase alone. Seven long special-cinematic stasis runs were found **with +85=0**:
+
+- `2C36`, stage `02`, phase `81`: host samples **106–151**, **395–441**, **588–634**, **839–884**, and **1118–1163**. In each, both native animation scripts hold still for **43–44 consecutive samples** even though the old Training clock counts these callbacks.
+- `2C12`, stage `02`, phase `80`: host **1773–1816** and **1964–2007**, **44 static samples each**, again counted by the old clock.
+- Previous 87.245 excluded the analogous `2E` super portrait freeze only. Its test proved nothing about these 2C scripts. This was a concrete source of the user's 40+-frame inflation during follow-up combos/specials.
+
+Corrections made in the existing branch for TEST 87.247:
+
+1. Read native `+0x34` animation pointer and `+0x3E` animation countdown into each read-only fighter sample. During 2C or 2E stage-02 pre-offense, exclude a callback from *both* player clocks only if **both** native animation pointers, countdowns and action selectors are unchanged from the previous callback. This includes phase `80` special holds; actual advancing startup/active steps and ordinary fighter-only hitstop are still counted correctly. A moving opponent prevents the global freeze gate.
+2. Normal attack identity now includes BOTH native `+0x60` action and `+0xA0` mode. Distinct normal controllers sharing `+0x60` no longer inherit the old card's timer. For 2C-to-2C cancellations, the ROM's return from stage>=04 to stage02 with a different root action is accepted as a separate move; 2C stage04 internal 2C4C/4E/50/etc. substeps remain one attack.
+3. When the mapped button edge is not observable (especially during +85), a newly accepted native normal, special, or super action can open its own pending frame-data record. Crucially, this detection now occurs **BEFORE** the hitstop early-return; a first attack sample with +85 already nonzero and an active box cannot disappear without ever being recorded. Native-only cards are marked **ROM**, with **unknown startup** rather than a fictional input-edge time.
+4. Added `test_frame_data_native_stall_247.cpp` to the local build suite covering both 44-frame 2C freezes, opponent animating during special setup, 28xx modes changing with the same +60 action, a 2C special-to-special direct cancel, and ROM-accepted first impact during hitstop without an SDL input edge. Updated existing 87.245 cinematic fixture to supply real animation pointers; its old mock lacked any pointer data.
+5. New opt-in `xmvsf_frame_clock_247.tsv` includes both native mode origin/accepted identities and whether the pending capture was ROM-native-only, in addition to both fighter clocks, hitstop and cumulative card creations.
+
+Source checks are **not Windows compilation or gameplay confirmation**. Do not overwrite Stable. Native builds and regression tests run only locally via BUILD_TEST.bat / RUN_TEST.bat; no GitHub Actions.
+
 ## TEST 87.246: 87.245 trace proves recurrent super-card creation during live 2E
 
 Inspected the uploaded `xmvsf_frame_clock_245.tsv` (2,400 read-only host samples) and accompanying `87.235(1).zip` (native DHC, menu and battle observer captures, no newer frame-data regression log). The new independent P1/P2 clocks **behave correctly on the captured super**: at host samples **1329–1373**, 45 native `2E00` stage `02`, phase `81` cinematic samples advance neither fighter; later the P1 super progresses while P2's +85 remains loaded. 37 first-hit normal samples advance the owning fighter once at +85 onset, while all subsequent nonzero +85 countdown samples freeze that fighter's own logical clock.
