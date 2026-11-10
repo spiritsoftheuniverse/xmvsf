@@ -12,14 +12,14 @@ The direction held on the third edge selects the preset:
 | Gesture | Preset | Point P1 X | Dummy P2 X | Camera visible X |
 | --- | --- | ---: | ---: | ---: |
 | Start x3, neutral | NORMAL | 462* | 514* | 296* |
-| Right+Start x3 | RIGHT | 568 | 725 | 384 |
-| Left+Start x3 | LEFT | 217 | 46 | 0 |
+| Right+Start x3 | RIGHT | 689 | 747 | 384 |
+| Left+Start x3 | LEFT | 79 | 21 | 0 |
 
 *NORMAL restores the actual recorded match-start actor X/Y and recenters the
 camera. Values are the observed normal match-start stage-05 coordinates, not
-new forced actor assignments. RIGHT retains the original stage-05 placement.
-LEFT restores the final user-provided 2026-11-03 fixed native coordinates,
-including Y=472 for both point fighters.
+new forced actor assignments. Both side presets use native ground Y=472.
+RIGHT is mirrored from the new LEFT reference, rather than independently
+tuned; thus the reference coordinates always sum to 768 per fighter.
 
 The existing single direction+Start side-switch may also act during the
 three presses. That is accepted and is not a reason to reject the reset:
@@ -146,3 +146,34 @@ fighter IDs, supporting the existing cache parser format.
 No new build gates, GitHub Actions, cache invalidation, or Stable changes.
 The patch is source-reviewed only; a native Windows build and live gameplay
 test remain necessary.
+
+## TEST 87.271: mirrored taunt reference positions
+
+The new `87.270.zip` contains `observer/training_side_switch.log` with
+the two final marker events:
+
+- First RIGHT marker: P1=689, P2=747, 58 px apart
+- Second LEFT marker: P1=79, P2=21, 58 px apart
+
+Both are already perfectly mirrored: 689+79=768; 747+21=768.
+The LEFT pair is the canonical preset; RIGHT uses `768-leftX` per
+fighter, giving 689/747 and keeping future adjustments symmetrical.
+Both side presets use ground Y=472; LEFT visible camera X=0 and RIGHT=384.
+NORMAL/center preserves the original first-frame actor positions and
+existing camera-centering logic unchanged.
+
+Important: 87.270 `training_relocator.log` confirms snapshot creation
+(`MATCH_START_CAPTURE saved=1`) and all six observed Start triples.
+The `TRAINING_TRIPLE_START` results, however, reported
+`positioned=0`. The old stage-05-only camera/actor validation did not
+write the corner coordinates. The zip does not include an exact
+stage/phase/camera measurement explaining which validation was false.
+87.271 now writes `POSITION_APPLIED` or `POSITION_REFUSED` (stage,
+phase, pointer, both actors, and original X) directly into the *versioned*
+relocator log. It deliberately keeps the stage-05-only mutation gate,
+rather than applying unverified stage-05 camera writes to every stage.
+Placement success therefore remains to be established by native play,
+not assumed from correct triple-Start registration.
+
+Only the current TEST source/launcher version is advanced. Stable, cached
+build objects and the existing local build procedure are unchanged.
