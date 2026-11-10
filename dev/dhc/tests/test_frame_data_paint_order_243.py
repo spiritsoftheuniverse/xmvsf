@@ -27,7 +27,7 @@ assert "advancePlayer[p]=stops[p]==0u || firstImpact;" in clock
 assert "const unsigned long long frame=++playerFrame[p];" in clock
 assert "recordContacts(actors,advancePlayer);" in clock
 assert "xm41DrawFrameCard(r,card,e,f.playerFrame[e.player]);" in (root / "dev/stable/buildtree/src/burner/sdl/xmvsf_stage23_ui.h").read_text(encoding="utf-8")
-assert "recordContacts(actors,frame,true);" in clock
+assert "recordContacts(actors,frame,true);" not in clock  # removed global-clock API
 assert "xm245FrameClockTrace(c,sample,actor,logicalBefore," in engine
 assert "xmvsf_frame_clock_245.tsv" in engine
 assert "t.pendingOriginAction" in engine
