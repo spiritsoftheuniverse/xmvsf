@@ -578,8 +578,8 @@ static int Frame(bool bRedraw)                                          // bRedr
 }
 
 // Native 384x224 alpha overlay AFTER Wily/background/native rendering.
-// Frame source: nFramesEmulated (declared by public burn.h via burner.h).
-// GetCurrentFrame() is internal burnint.h-only; do not use it in SDL video.
+// Bar hue animation uses nFramesEmulated; the fighter-opacity mask uses
+// GetCurrentFrame() from public burn.h, matching Cps2ObjDraw's source frame.
 // This isolates stun HUD from art layers; gameplay RAM is never written.
 extern "C" bool xm8746DizzyHudAllowed(){
     if(!XM87262Game::version4())return false;
