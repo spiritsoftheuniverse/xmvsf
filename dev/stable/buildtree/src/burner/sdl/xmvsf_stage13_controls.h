@@ -432,13 +432,13 @@ static inline XM266Route xm266ControllerRoute(
     if(!c.valid || (Uint32)(now-c.at)>=100u || c.count!=openCount ||
        c.selected!=selected || c.session!=session ||
        c.otherSession!=otherSession || c.otherOwner!=otherOwner ||
-       std::memcmp(&c.profile,&settings->player[player],
+       memcmp(&c.profile,&settings->player[player],
                    sizeof(XM13_Player))!=0){
         const Uint32 begin=SDL_GetTicks();
         c.result.device=xm248FindAssignedDevice(settings,player);
         c.result.exact=selected?xm13FindDevice(&settings->player[player]):-1;
         const Uint32 duration=(Uint32)(SDL_GetTicks()-begin);
-        if(duration>=50u)std::fprintf(stderr,
+        if(duration>=50u)fprintf(stderr,
             "XM87.266 SLOW_PAD_ROUTE player=%d ms=%u\n",
             player+1,(unsigned)duration);
         c.valid=true;c.at=SDL_GetTicks()?SDL_GetTicks():1u;
@@ -671,7 +671,7 @@ static inline bool xm248ReconcileMenuPad(
         const Uint32 start=SDL_GetTicks();
         SDL_Joystick* candidate=SDL_JoystickOpen(device);
         const Uint32 ms=(Uint32)(SDL_GetTicks()-start);
-        if(ms>=50u)std::fprintf(stderr,
+        if(ms>=50u)fprintf(stderr,
             "XM87.266 SLOW_MENU_JOY_OPEN slot=%d instance=%d ms=%u\n",
             device,(int)wanted,(unsigned)ms);
         if(!candidate || !SDL_JoystickGetAttached(candidate)){
@@ -693,7 +693,7 @@ static inline bool xm248ReconcileMenuPad(
         const Uint32 start=SDL_GetTicks();
         pad=SDL_GameControllerOpen(device);
         const Uint32 ms=(Uint32)(SDL_GetTicks()-start);
-        if(ms>=50u)std::fprintf(stderr,
+        if(ms>=50u)fprintf(stderr,
             "XM87.266 SLOW_MENU_PAD_OPEN slot=%d instance=%d ms=%u\n",
             device,(int)wanted,(unsigned)ms);
         if(pad){
