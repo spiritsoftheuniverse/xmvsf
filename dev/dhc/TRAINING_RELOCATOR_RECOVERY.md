@@ -12,8 +12,8 @@ The direction held on the third edge selects the preset:
 | Gesture | Preset | Point P1 X | Dummy P2 X | Camera visible X |
 | --- | --- | ---: | ---: | ---: |
 | Start x3, neutral | NORMAL | 462* | 514* | 296* |
-| Right+Start x3 | RIGHT | 689 | 747 | 384 |
-| Left+Start x3 | LEFT | 79 | 21 | 0 |
+| Right+Start x3 | RIGHT | 650 | 747 | 384 |
+| Left+Start x3 | LEFT | 118 | 21 | 0 |
 
 *NORMAL restores the actual recorded match-start actor X/Y and recenters the
 camera. Values are the observed normal match-start stage-05 coordinates, not
@@ -212,3 +212,30 @@ eight verification frames.
 The code has been source-reviewed on the branch; native Windows
 compilation and actual fighter/camera placement are not yet validated.
 Stable, previous TESTs and the build cache remain untouched.
+
+## TEST 87.273: larger opponent spacing from repeated taunt positions
+
+The `87.272.zip` proves all LEFT/RIGHT relocations, native X writes,
+and camera states persist across the eight-frame observer window.
+The `training_side_switch.log` then shows the player's repeated taunts
+after each corner reset: LEFT P1 approximately 85/118, RIGHT P1
+approximately 674/647. Those events were made while P2/Cyclops remained
+at left X=21 or right X=747.
+
+The desired larger *gap* is created by positioning the player at the
+taunt marker while leaving Cyclops anchored near the outside wall.
+Use the LEFT marker X=118 as the canonical player location; mirror P1
+to RIGHT X=768-118=650, within 3px of the right-hand X=647 marker.
+Keep Cyclops P2 unchanged: LEFT=21 and RIGHT=747.
+
+The resulting symmetric fighter separation is **97 native pixels**
+on each side (previously 58). The camera targets remain 0/384;
+CENTER/NORMAL retains its original snapshot behavior; native Y,
+stage-05/06 guards, Start input detector, and savestate pipeline
+are unchanged. The pre-existing eight-frame camera and position
+records are sufficient to inspect post-reset settling. There are
+no added build gates or full-time frame logs.
+
+TEST is advanced to 87.273, preserving all previous local TEST
+executables, incremental build cache, Stable and main. This is a
+source-verified edit only; actual native play remains to confirm.
