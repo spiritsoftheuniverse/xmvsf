@@ -1,12 +1,12 @@
 # Training relocator — recovered 87.110–87.135 work
 
 Branch: `training-relocator` (created from `main` 724d9d40, 2026-11-10).
-No changes to the Stable executable, build scripts, CI, or `main`.
+No changes to the Stable executable, GitHub Actions, or `main`. TEST build/launch scripts are versioned.
 
 ## Gesture and retained side-switch
 
-During live Training combat, three independent Start press edges within 1000 ms
-(with no more than 450 ms between presses) queue one safe post-frame reload.
+During live Training combat, three independent Start press edges within 2200 ms
+(with no more than 750 ms between presses) queue one safe post-frame reload.
 The direction held on the third edge selects the preset:
 
 | Gesture | Preset | Point P1 X | Dummy P2 X | Camera visible X |
@@ -78,7 +78,7 @@ compilation or native gameplay. Corner target and camera verification are
 limited to measured native stage 05; other stages remain fail-closed rather
 than reusing guessed geometry.
 
-## TEST 87.268: input registration repair
+## TEST 87.269: native P1/P2 joystick Start fix and synchronized diagnostics
 
 The triple-Start edge detector now samples once in `SDLinpStart()`,
 immediately after the existing SDL controller update. Previously the
@@ -94,14 +94,25 @@ Human triple-tap allowance: maximum 750 ms between taps and 2200 ms
 from first to third, requiring an actual release between taps.
 Only the **third press's** direction selects LEFT, RIGHT or NORMAL.
 
-`RUN_TEST.bat` starts in the `FBNeo` directory. Tap/trigger events,
-snapshot refusal reasons, and reset outcomes are appended to
-`FBNeo/xmvsf_training_relocator.log`. Diagnostic examples:
-`START_EDGE player=1 tap=1`, `START_TRIGGER player=1 preset=LEFT`,
-`RESTART_BEGIN`, `TRAINING_TRIPLE_START ... positioned=1`.
-If taps appear but a matching first-frame roster is missing, the log
-contains a specific `RESTART_REFUSED reason=...` entry. No full
-controller poll or input dump is recorded every frame.
+The previous fallback erroneously accepted only joystick codes at or above
+`0x4200`, excluding the `0x4000–0x41FF` native P1/P2 bindings altogether.
+TEST 87.269 reads those actual FBNeo-bound joystick codes too. The detector
+writes `INPUT_MONITOR_ON` at startup, `INPUT_GATE` on combat-gate changes,
+`INPUT_RISE` on observed physical Start edges (even if combat is not ready),
+and `START_EDGE` / `START_TRIGGER` when a valid triple-press is counted.
+This distinguishes detection failures from missing snapshots / reset refusals.
+
+`RUN_TEST.bat` no longer writes to hardcoded `test/87.235`. All gameplay
+trace/replay roots use `test/87.269`, and the relocator's own log is inside
+`test/87.269/observer/training_relocator.log`, with a current TEST version
+session marker. The actual game input mapping log and stage18 side-switch
+log are copied into that observer folder after the game exits. Older
+`87.181`/ `87.186` strings in legacy *schema* names still identify their
+instrumentation stages, not the current TEST executable.
+
+`RESTART_REFUSED reason=...` reports snapshot/roster/reload failures after
+a recognized triple-press. No full controller poll or per-frame dump is
+recorded. The warm object cache remains intact; no build preflights added.
 
 The branch was source-reviewed only; Windows native build and controller
 behavior still require running `BUILD_TEST.bat` then `RUN_TEST.bat`.
