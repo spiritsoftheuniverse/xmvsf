@@ -472,7 +472,7 @@ static inline bool xm249SelectSessionPad(int player,SDL_JoystickID id) {
     xm13GuidForDevice(found,p.guid);
     xm13DeviceDisplayName(found,p.name,sizeof(p.name));
     fprintf(stderr,
-        "XM87.249 MENU_CONTROLLER_SELECTED p=%d instance=%d device=%d name=%s\\n",
+        "XM87.249 MENU_CONTROLLER_SELECTED p=%d instance=%d device=%d name=%s\n",
         player+1,(int)id,found,p.name);
     return true;
 }
