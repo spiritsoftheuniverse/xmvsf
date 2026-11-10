@@ -56,6 +56,7 @@ static void xm8733Overlay(SDL_Renderer*,const SDL_Rect&,bool nativeStage=false);
 static int  nRotateGame = 0;
 static bool bFlipped = false;
 static SDL_Rect dstrect;
+#include "../../../burner/sdl/xmvsf_stage77_selection.h" // custom-stage selection IDs for both painters
 #include "xmvsf_stage86_49_painter.h" // XM86.49 native-window opt-in stage, forest failback
 #include "xmvsf_stage87_274_final_destination.h" // custom stage: sky / platform / native fighter layers
 static char Windowtitle[512];
