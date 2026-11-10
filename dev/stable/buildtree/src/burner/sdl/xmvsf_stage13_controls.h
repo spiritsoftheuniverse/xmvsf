@@ -283,6 +283,46 @@ static int xm13FindDevice(const XM13_Player* p) {
     }
     return -1;
 }
+// TEST 87.249: the boot menu receives controller events whether or not
+// that hardware has a saved mapping. Native gameplay must honor the actual
+// pad that launched the match. This is an EPHEMERAL session override: never
+// rewrite the user's persisted controller profile simply for pressing A.
+struct XM249SessionPad {
+    bool selected=false;
+    SDL_JoystickID instance=-1;
+    char guid[33]={};
+    char name[96]={};
+};
+extern XM249SessionPad xm249SessionPad[2];
+static inline int xm249FindSessionDevice(int player) {
+    if(player<0 || player>1 || !xm249SessionPad[player].selected)return -1;
+    XM249SessionPad& owner=xm249SessionPad[player];
+    const int count=SDL_NumJoysticks();
+    // A live instance always beats saved GUID/ordinal: DS4Windows can
+    // expose a physical DS4 AND a virtual XInput pad simultaneously.
+    for(int i=0;i<count;++i)
+        if(SDL_JoystickGetDeviceInstanceID(i)==owner.instance)return i;
+    const SDL_JoystickID other=xm249SessionPad[1-player].instance;
+    for(int i=0;i<count;++i) {
+        if(SDL_JoystickGetDeviceInstanceID(i)==other)continue;
+        char guid[33]={};
+        xm13GuidForDevice(i,guid);
+        if(owner.guid[0] && !strcmp(owner.guid,guid)) {
+            owner.instance=SDL_JoystickGetDeviceInstanceID(i);
+            return i;
+        }
+        if(owner.name[0]){
+            char name[96]={};
+            xm13DeviceDisplayName(i,name,sizeof(name));
+            if(!strcmp(owner.name,name)) {
+                owner.instance=SDL_JoystickGetDeviceInstanceID(i);
+                return i;
+            }
+        }
+    }
+    return -1;
+}
+
 // Runtime-only ownership survives SDL reindexing when two pads have an
 // identical GUID/name and the first one is unplugged. Never persist SDL
 // instance IDs: they change across reboot and Bluetooth reconnection.
@@ -299,6 +339,10 @@ extern XM248RuntimeOwner xm248RuntimeOwner[2];
 static inline int xm248FindAssignedDevice(const XM13_Settings* settings,int player) {
     if(!settings || player<0 || player>1)return -1;
     const XM13_Player& p=settings->player[player];
+    // The face button that started the match explicitly chose this pad.
+    // It must work even when options.ini is unassigned or names a Fighter Pi.
+    const int fromMenu=xm249FindSessionDevice(player);
+    if(fromMenu>=0)return fromMenu;
     XM248RuntimeOwner& saved=xm248RuntimeOwner[player];
     if(!p.active || xm13IsKeyboard(&p)){
         // Switching this slot to keyboard/unassigned immediately releases
@@ -405,6 +449,25 @@ static XM13_Player xm13IdentityForDevice(int device){
     xm13DeviceDisplayName(device,result.deviceName,sizeof(result.deviceName));
     result.nameOccurrence=xm13NameOrdinal(device);
     return result;
+}
+// Capture exactly the SDL instance which generated a menu confirm.
+// Controller-event and raw-joystick-event IDs are both SDL instance IDs.
+static inline bool xm249SelectSessionPad(int player,SDL_JoystickID id) {
+    if(player<0 || player>1 || id<0)return false;
+    const int count=SDL_NumJoysticks();
+    int found=-1;
+    for(int i=0;i<count;++i)
+        if(SDL_JoystickGetDeviceInstanceID(i)==id){found=i;break;}
+    if(found<0)return false;
+    XM249SessionPad& p=xm249SessionPad[player];
+    p=XM249SessionPad{};
+    p.selected=true;p.instance=id;
+    xm13GuidForDevice(found,p.guid);
+    xm13DeviceDisplayName(found,p.name,sizeof(p.name));
+    fprintf(stderr,
+        "XM87.249 MENU_CONTROLLER_SELECTED p=%d instance=%d device=%d name=%s\\n",
+        player+1,(int)id,found,p.name);
+    return true;
 }
 static void xm13SetDefaultButtons(XM13_Player* p,int device){
     // Only actual CPS2 buttons get default assignments. Three-punch and
