@@ -264,6 +264,10 @@ static int xmvsfBootSelector(bool returningFromGame=false) {
             for(int device=0;device<8;++device)
                 xm248ReconcileMenuPad(device,menuSticks[device],
                                       menuPads[device],menuInstances[device]);
+            // Seed both owners while the same SDL process still owns the
+            // boot menu. An identical pad cannot silently switch P1/P2.
+            for(int player=0;player<2;++player)
+                xm248FindAssignedDevice(&config,player);
         }
         const Uint32 introElapsed=introEnabled?
             (Uint32)(now-introStart):XM87235Intro::TotalMs;
@@ -410,7 +414,7 @@ static int xmvsfBootSelector(bool returningFromGame=false) {
                         const int p=(capture-2)/XM13_ACTIONS;
                         const int a=(capture-2)%XM13_ACTIONS;
                         // Do not accidentally bind an unrelated controller.
-                        if(device!=xm13FindDevice(&config.player[p]))continue;
+                        if(device!=xm248FindAssignedDevice(&config,p))continue;
                         XM13_Settings updated=config;
                         updated.player[p].binding[a].type=
                             ev.type==SDL_JOYBUTTONDOWN?'B':'A';
@@ -676,7 +680,7 @@ static int xmvsfBootSelector(bool returningFromGame=false) {
                 const int inputY=deviceY+16+12; // exactly 12px below glyph bottom
                 char deviceLabel[128]={};
                 const XM13_Player& player=config.player[controlsPage];
-                const int device=xm13FindDevice(&player);
+                const int device=xm248FindAssignedDevice(&config,controlsPage);
                 if(!player.active)
                     std::snprintf(deviceLabel,sizeof(deviceLabel),"P%d DEVICE : NOT ASSIGNED",controlsPage+1);
                 else if(xm13IsKeyboard(&player))
