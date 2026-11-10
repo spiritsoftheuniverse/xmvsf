@@ -21,7 +21,9 @@ assert body.count("xm23OnRealFrame(bDrvOkay);") == 2
 assert "xm23Overlay(sdlRenderer" in video
 assert "XM87217::draw(image,font,xm23State.frameData);" in video
 assert "const bool nativeSetup=" in clock
-assert "const bool cinematicStop=nativeSetup && bothAnimationsStatic;" in clock
+assert "const bool cinematicStop=nativeSetup && bothAnimationsStatic &&" in clock
+assert "!offensiveObjectPresent;" in clock
+assert "const bool offensiveObjectPresent=" in clock
 assert "previousAnimPtr[p]!=a.animPtr" in clock
 assert "previousAnimTimer[p]!=a.animTimer" in clock
 assert "xm30NativeAttackFamily(a1)==0x2Cu" in clock
@@ -42,7 +44,16 @@ assert "t.pendingNativeOnly" in engine
 assert "events_created" in engine
 assert "xm23State.frameData.eventsCreated" in engine
 assert "const bool nativeCandidateAccepted=" in clock
-assert "(meleeRise || projectileRise) && nativeCandidateAccepted" in clock
+assert "(meleeRise || projectileRise || contactWithoutBox) &&" in clock
+assert "const bool contactWithoutBox=hpFellNow &&" in clock
+assert "e.noBox=contactWithoutBox;" in clock
+assert "e.hitboxLastFrame=contactWithoutBox?0u:frame;" in clock
+assert "if(e.attackEnded && !landed[p] && contactExitGrace[p]==0u)" in clock
+ui = (root / "dev/stable/buildtree/src/burner/sdl/xmvsf_stage23_ui.h").read_text(encoding="utf-8")
+assert "e.hitboxLastFrame" in ui
+assert "e.lastProjectileFrame" in ui
+assert "HIT CONFIRMED - BOX UNKNOWN" in ui
+assert "currentFrame:e.hitboxLastFrame" not in ui
 assert "t.pendingOriginLeft=false;" in clock
 assert "++eventsCreated;" in clock
 assert "XMVSF_FRAME_TRACE" in engine
