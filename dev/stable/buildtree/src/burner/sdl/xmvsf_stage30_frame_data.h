@@ -103,6 +103,7 @@ struct XM30Event {
     unsigned projectileBase=0;
     unsigned long long firstMotionFrame=0,lastMotionFrame=0,despawnFrame=0;
     int moveFrames=0, lastProjectileX=0, lastProjectileY=0;
+    unsigned long long lastProjectileFrame=0; // last actual object observation
     // A native 2E super may keep its attacking phase after the first
     // offensive collision box vanishes. The ROM phase, not a guessed move
     // name or timeout, continues its active span through such substeps.
@@ -628,6 +629,7 @@ struct XM30FrameData {
                     }
                 }else{
                     const int x=samples[p].projectileX[slot],y=samples[p].projectileY[slot];
+                    e.lastProjectileFrame=frame;
                     const XM30Hit& own=samples[p].projectileHits[slot];
                     const bool ownAttack=own.active && own.sourceBase==e.projectileBase;
                     if(!e.closed && frame>e.firstFrame){
@@ -771,7 +773,8 @@ struct XM30FrameData {
                     actors[1-p].health<previousHealth[1-p];
                 const bool contactWithoutBox=hpFellNow &&
                     t.pendingAttackFamily!=0u &&
-                    !meleeRise && !projectileRise;
+                    !meleeRise && !projectileRise &&
+                    samples[p].projectileCount==0;
                 if((meleeRise || projectileRise || contactWithoutBox) &&
                    nativeCandidateAccepted){
                     // Multi-hit super collision boxes may disappear during
@@ -822,6 +825,7 @@ struct XM30FrameData {
                         (source==1?XM32_PROJECTILE:XM32_NORMAL);
                     if(source==1){
                         e.projectileBase=chosen.sourceBase;
+                        e.lastProjectileFrame=frame;
                         if(e.spawnFrame){
                             e.firstMotionFrame=t.pendingFirstMotion;
                             e.lastMotionFrame=t.pendingLastMotion;
@@ -844,7 +848,10 @@ struct XM30FrameData {
                     }
                     if(source==0 && !contactWithoutBox)t.eventIndex[0]=idx;
                     XM30Float& popup=floats[floatNext++%FLOATS];popup=XM30Float{};
-                    popup.visible=true;popup.player=p;popup.startup=e.startup;
+                    // A native-only or contact-only row has no observed
+                    // button-to-box startup; never flash a fictional 0F.
+                    popup.visible=e.inputObserved && !e.noBox;
+                    popup.player=p;popup.startup=e.startup;
                     popup.x=e.x;popup.y=e.y;
                     t.pending=-1;
                     }
