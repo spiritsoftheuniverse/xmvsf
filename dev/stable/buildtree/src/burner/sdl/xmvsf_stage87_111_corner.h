@@ -13,8 +13,12 @@ static const unsigned WORLD_LEFT=CAMERA_MIN; // left visible world edge = 192
 static const unsigned WORLD_RIGHT=CAMERA_MAX+VIEWPORT_WIDTH; // 768
 static const unsigned DUMMY_CORNER_INSET=WORLD_RIGHT-725u; // 43, observed dummy
 static const unsigned FIGHTER_SPACING=725u-568u; // 157, observed separation
-static const unsigned LEFT_INNER_X=462u-32u; // 430, previous inner fighter position
-static const unsigned LEFT_EDGE_X=WORLD_LEFT+DUMMY_CORNER_INSET; // 235, left corner
+// Final fixed LEFT coordinates from the 2026-11-03 native capture.
+// Do not mirror the right preset or fall back to the old 87.115 snapshot.
+static const unsigned LEFT_P1_X=217u;
+static const unsigned LEFT_P2_X=46u;
+static const unsigned LEFT_CAMERA_X=0u;
+static const unsigned CORNER_Y=472u;
 // Normal match-start X coordinates measured from 87.109 live capture, frame 1534.
 static const unsigned DEFAULT_P1_X=462u;
 static const unsigned DEFAULT_P2_X=514u;
@@ -31,9 +35,14 @@ static inline unsigned fighterX(unsigned selection,unsigned fighter) {
  const bool right=selection==2u;
  const unsigned dummy=right? WORLD_RIGHT-DUMMY_CORNER_INSET : WORLD_LEFT+DUMMY_CORNER_INSET;
  return right?(fighter==1u?dummy:dummy-FIGHTER_SPACING):
-              (fighter==0u?LEFT_EDGE_X:LEFT_INNER_X);
+              (fighter==0u?LEFT_P1_X:LEFT_P2_X);
 }
-static inline unsigned cameraX(unsigned selection) {return selection==2u?CAMERA_MAX:CAMERA_MIN;}
+// The LEFT target is outside the earlier camera measurement [192,384].
+// The native camera word is signed: target 0 is stored as -64 (0xFFC0).
+static inline unsigned cameraX(unsigned selection) {return selection==2u?CAMERA_MAX:LEFT_CAMERA_X;}
+static inline unsigned nativeCameraX(unsigned word) {
+ return (unsigned)((int)(short)(word&0xffffu)+(int)CAMERA_BIAS);
+}
 static inline bool flipFacing(unsigned selection,bool snapshotP1IsLeft){
  const bool targetP1IsLeft=fighterX(selection,0u)<fighterX(selection,1u);
  return targetP1IsLeft!=snapshotP1IsLeft;
