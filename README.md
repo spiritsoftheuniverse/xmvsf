@@ -71,7 +71,3 @@ application-exit finalization and lossless unsealed-prefix replay.
 **Passing isolated tests is not a claim that native Windows gameplay
 has already passed.** When a build or playback fails, preserve its
 diagnostic files and repair the current source in place.
-
-## Local TEST release discipline
-
-See **[LOCAL_RELEASE_CONVENTION.md](LOCAL_RELEASE_CONVENTION.md)** for the source-only GitHub policy, atomic TEST releases, preserving Stable, and why the standard Windows build does not gate on optional C++/Python regression suites.

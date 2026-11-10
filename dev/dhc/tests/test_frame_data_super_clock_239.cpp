@@ -32,7 +32,8 @@ static void superPortraitAndShinryuuken() {
     XM41ActorSample a=superActor();
     f.onFrame(none,none,a,{},30);
     f.onFrame(none,none,a,{},29); // clock advances
-    assert(f.frame==2 && f.count==0);
+    assert(f.frame==2 && f.count==1 && f.history[0].noBox);
+    assert(f.history[0].attackObserved);
     f.onFrame(none,none,a,{},29); // clock STALL is not a freeze signal
     assert(f.frame==3 && f.superFreezeFrames==0);
     a.hitStop=2;

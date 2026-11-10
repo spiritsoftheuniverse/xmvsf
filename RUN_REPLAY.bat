@@ -87,9 +87,9 @@ set "XM87180_EXPERIMENTAL_DELAYED_PRIME=0"
 REM Dedicated replay channel. Existing BUILD_TEST/RUN_TEST names are unchanged.
 REM Replay the original 87.161 F9 full-state + exact CPS2 inputs without
 REM creating replacement ROM scripts, patching native input, or touching Stable.
-set "EXE=%PROJECT%\runtime\stable\XMVSF_Test_87_250.exe"
+set "EXE=%PROJECT%\runtime\stable\XMVSF_Test_87_257.exe"
 if not exist "%EXE%" (
-  echo ERROR: Need XMVSF_Test_87_250.exe. Run BUILD_TEST.bat (no old TEST fallback).
+  echo ERROR: Need XMVSF_Test_87_257.exe. Run BUILD_TEST.bat (no old TEST fallback).
   goto :fail
 )
 if not exist "%PROJECT%\FBNeo" (
@@ -204,7 +204,7 @@ REM Raw ROM analysis copies remain private and Git-ignored.
 set "XM87160_PRIVATE_ROM_DIR=%PROJECT%\local_rom_dump"
 if not exist "%XM87160_PRIVATE_ROM_DIR%" mkdir "%XM87160_PRIVATE_ROM_DIR%"
 echo.
-echo XMVSF native F9 REPLAY - TEST 87.250; Stable untouched.
+echo XMVSF native F9 REPLAY - TEST 87.257; Stable untouched.
 echo Movie input: "%MOVIE%"
 echo Full-state anchor: "%STATE%"
 echo Native replay results: "%TRACE%"
@@ -383,7 +383,7 @@ set "XM87160_DISCOVER=1"
 set "XM87160_CATALOG_LOG=%TRACE%\rom_super_catalog.tsv"
 set "XM87160_OBSERVED_LOG=%TRACE%\rom_super_observed.tsv"
 echo.
-echo XMVSF HOST-AWARE F9 REPLAY V2 - CURRENT TEST 87.250
+echo XMVSF HOST-AWARE F9 REPLAY V2 - CURRENT TEST 87.257
 echo Manifest: "%V2_SESSION%\manifest.tsv"
 echo Application menu, game resets, native savestate reloads and inputs
 echo will follow the recorded session/checkpoint timeline.

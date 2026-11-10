@@ -325,7 +325,7 @@ static inline void xm38HitSourceProbe(cpu_core_config* c){
 // versus the Training clock.
 // Enable with XMVSF_FRAME_TRACE=1 before RUN_TEST.bat; the TSV is placed
 // next to the TEST executable. No GPU capture, memory writes or timing hooks.
-static inline void xm250FrameClockTrace(
+static inline void xm254FrameClockTrace(
         cpu_core_config* c,const XM30Sample (&samples)[2],
         const XM41ActorSample (&actors)[2],
         unsigned long long before,unsigned long long after,
@@ -338,23 +338,30 @@ static inline void xm250FrameClockTrace(
         const char* flag=std::getenv("XMVSF_FRAME_TRACE");
         armed=flag && flag[0]=='1' && !flag[1] ? 1 : 0;
         if(armed){
-            file=xm36OpenTrace("xmvsf_frame_clock_250.tsv",
+            file=xm36OpenTrace("xmvsf_frame_clock_254.tsv",
                 "host_sample\tlogical_before\tlogical_after\t"
                 "p1_clock_before\tp1_clock_after\tp2_clock_before\tp2_clock_after\t"
                 "p1_2e\tp1_hitstop\tp1_mode\tp1_action\tp1_phase\t"
                 "p1_step\tp1_control\tp1_anim_timer\tp1_anim_ptr\t"
-                "p1_hp\tp1_melee\tp1_proj\t"
+                "p1_hp\tp1_melee\tp1_proj\tp1_projectile_objects\tp1_projectile_attack_boxes\t"
                 "p1_origin_family\tp1_origin_action\tp1_origin_mode\tp1_pending_family\t"
-                "p1_pending_action\tp1_pending_mode\tp1_pending\tp1_native_only\t"
-                "p1_prev_box\tp1_last_contacts\t"
+                "p1_pending_action\tp1_pending_mode\tp1_pending\tp1_native_only\tp1_pending_spawn_base\t"
+                "p1_prev_box\tp1_last_contacts\tp1_contact_only\tp1_last_box_frame\t"
+                "p1_super_contacts\tp1_super_linked_live\tp1_super_deferred\t"
+                "p1_visual_tick\tp1_combo_value\tp1_hp_proofs\tp1_combo_proofs\t"
+                "p1_stop_proofs\tp1_unassigned_proofs\t"
+                "p1_super_input_wall\tp1_super_prebox\t"
                 "p2_2e\tp2_hitstop\tp2_mode\tp2_action\tp2_phase\t"
                 "p2_step\tp2_control\tp2_anim_timer\tp2_anim_ptr\t"
-                "p2_hp\tp2_melee\tp2_proj\t"
+                "p2_hp\tp2_melee\tp2_proj\tp2_projectile_objects\tp2_projectile_attack_boxes\t"
                 "p2_origin_family\tp2_origin_action\tp2_origin_mode\tp2_pending_family\t"
-                "p2_pending_action\tp2_pending_mode\tp2_pending\tp2_native_only\t"
-                "p2_prev_box\tp2_last_contacts\t"
-                "events\tevents_created\t"
-                "p1_actor_base\tp1_combo\tp2_actor_base\tp2_combo\n");
+                "p2_pending_action\tp2_pending_mode\tp2_pending\tp2_native_only\tp2_pending_spawn_base\t"
+                "p2_prev_box\tp2_last_contacts\tp2_contact_only\tp2_last_box_frame\t"
+                "p2_super_contacts\tp2_super_linked_live\tp2_super_deferred\t"
+                "p2_visual_tick\tp2_combo_value\tp2_hp_proofs\tp2_combo_proofs\t"
+                "p2_stop_proofs\tp2_unassigned_proofs\t"
+                "p2_super_input_wall\tp2_super_prebox\t"
+                "events\tevents_created\tfreeze_steps\n");
             if(!file)armed=0;
         }
     }
@@ -374,38 +381,73 @@ static inline void xm250FrameClockTrace(
                  sample,before,after,p1Before,xm23State.frameData.playerFrame[0],
                  p2Before,xm23State.frameData.playerFrame[1]);
     for(int p=0;p<2;++p){
-        const unsigned base=actors[p].sourceBase ?
-            actors[p].sourceBase : xm30ActiveFighterBase(p,false);
+        const unsigned base=0xFF4000u+(unsigned)p*0x400u;
+        unsigned observedProjectileAttackBoxes=0u;
+        for(int j=0;j<samples[p].projectileCount && j<12;++j)
+            if(samples[p].projectileHits[j].active)
+                ++observedProjectileAttackBoxes;
         std::fprintf(file,"\t%u\t%u\t%04X\t%04X\t%02X\t"
-                "%04X\t%04X\t%04X\t%08X\t%u\t%u\t%u",
+                "%04X\t%04X\t%04X\t%08X\t%u\t%u\t%u\t%u\t%u",
             xm30NativeAttackFamily(actors[p])==0x2Eu?1u:0u,
             actors[p].hitStop,actors[p].mode,actors[p].nativeAction,
             actors[p].attackPhase,actors[p].nativeStep,
             xm23::r16(c,base+0x06u),xm23::r16(c,base+0x3Eu),
             xm23::r32(c,base+0x34u),actors[p].health,
             samples[p].melee.active?1u:0u,
-            samples[p].projectile.active?1u:0u);
+            samples[p].projectile.active?1u:0u,
+            (unsigned)samples[p].projectileCount,
+            observedProjectileAttackBoxes);
         const XM30Track& t=xm23State.frameData.track[p];
-        unsigned lastContacts=0u;
+        unsigned lastContacts=0u,lastBoxMissing=0u;
+        unsigned long long lastBoxFrame=0u;
         for(int i=xm23State.frameData.count-1;i>=0;--i)
             if(xm23State.frameData.history[i].player==p){
-                lastContacts=(unsigned)xm23State.frameData.history[i].contactCount;
+                const XM30Event& e=xm23State.frameData.history[i];
+                lastContacts=(unsigned)e.contactCount;
+                lastBoxMissing=e.contactOnly?1u:0u;
+                lastBoxFrame=e.hitboxLastFrame;
                 break;
             }
+        unsigned latestSuperContacts=0u,latestSuperLinkedLive=0u;
+        for(int i=xm23State.frameData.count-1;i>=0;--i){
+            const XM30Event& e=xm23State.frameData.history[i];
+            if(e.player==p && e.attackFamily==0x2Eu){
+                latestSuperContacts=(unsigned)e.contactCount;
+                latestSuperLinkedLive=xm30OwnedProjectileLive(e,samples[p])?1u:0u;
+                break;
+            }
+        }
         std::fprintf(file,
-            "\t%02X\t%04X\t%04X\t%02X\t%04X\t%04X\t%d\t%d\t%u\t%u",
+            "\t%02X\t%04X\t%04X\t%02X\t%04X\t%04X\t%d\t%d\t%08X\t%u\t%u\t%u\t%llu\t%u\t%u\t%u",
             t.pendingOriginFamily,t.pendingOriginAction,t.pendingOriginMode,
             t.pendingAttackFamily,t.pendingAttackAction,t.pendingAttackMode,
-            t.pending>=0?1:0,t.pendingNativeOnly?1:0,
-            t.previous[0]?1u:0u,lastContacts);
+            t.pending>=0?1:0,t.pendingNativeOnly?1:0,t.pendingSpawnBase,
+            t.previous[0]?1u:0u,lastContacts,lastBoxMissing,lastBoxFrame,
+            latestSuperContacts,latestSuperLinkedLive,
+            xm23State.frameData.deferredSuperContactCount[p]);
+        std::fprintf(file,"\t%llu\t%u\t%llu\t%llu\t%llu\t%llu",
+            xm23State.frameData.wallFrame[p],actors[p].combo,
+            xm23State.frameData.hpContactProofs[p],
+            xm23State.frameData.comboContactProofs[p],
+            xm23State.frameData.reloadContactProofs[p],
+            xm23State.frameData.unassignedContactProofs[p]);
+        unsigned long long superInputWall=0u;
+        unsigned superPrebox=0u;
+        for(int i=xm23State.frameData.count-1;i>=0;--i){
+            const XM30Event& e=xm23State.frameData.history[i];
+            if(e.player!=p || e.attackFamily!=0x2Eu)continue;
+            superInputWall=e.inputWallFrame;
+            superPrebox=e.noBox?1u:0u;
+            break;
+        }
+        std::fprintf(file,"\t%llu\t%u",superInputWall,superPrebox);
     }
     // HISTORY stops at 24; use the cumulative counter to expose every
     // unexpected card created AFTER the ring buffer fills.
-    std::fprintf(file,"\t%d\t%llu\t%06X\t%u\t%06X\t%u\n",
+    std::fprintf(file,"\t%d\t%llu\t%llu\n",
                  xm23State.frameData.count,
                  xm23State.frameData.eventsCreated,
-                 actors[0].sourceBase,actors[0].combo,
-                 actors[1].sourceBase,actors[1].combo);
+                 xm23State.frameData.superFreezeFrames);
     if(++logged%60u==0u)std::fflush(file);
 }
 
@@ -433,10 +475,6 @@ static inline void xm23OnRealFrame(int ready) {
     }
     xm23State.frameData.beginCombat();
     const bool p1Anchor=xm23::r8(c,0xff4220)!=0, p2Anchor=xm23::r8(c,0xff4620)!=0;
-    const unsigned activeFighterBase[2]={
-        xm30ActiveFighterBase(0,p1Anchor),
-        xm30ActiveFighterBase(1,p2Anchor)
-    };
     xm23State.health[0]=xm23::r8(c,p1Anchor?0xff4a11:0xff4211);
     xm23State.health[1]=xm23::r8(c,p2Anchor?0xff4e11:0xff4611);
     xm23State.meter[0]=xm23::r8(c,0xff4214);xm23State.meter[1]=xm23::r8(c,0xff4614);
@@ -475,11 +513,6 @@ static inline void xm23OnRealFrame(int ready) {
         for(int i=0;i<xm23State.count;++i){
             const XM23Box& box=xm23State.box[i];
             if((box.kind!=1 && box.kind!=5) || box.owner<0 || box.owner>1)continue;
-            // The gatherer exposes BOTH tag partners under the same side.
-            // A reserve Ken cannot be measured using Ryu's stale melee box.
-            // Keep linked projectiles separately: these remain ROM-owned.
-            if(box.kind==1 && box.sourceBase!=activeFighterBase[box.owner])
-                continue;
             XM30Hit& hit=box.kind==5?sample[box.owner].projectile:sample[box.owner].melee;
             if(!hit.active){
                 hit.active=true;hit.x=box.x+box.w/2;hit.y=box.y+box.h/2;hit.sourceBase=box.sourceBase;
@@ -507,8 +540,7 @@ static inline void xm23OnRealFrame(int ready) {
         // estimate. This is NOT a decoded actionability / cancel permission bit.
         XM41ActorSample actor[2];
         for(int p=0;p<2;++p){
-            const unsigned base=activeFighterBase[p];
-            actor[p].sourceBase=base;
+            const unsigned base=0xFF4000u+(unsigned)p*0x400u;
             actor[p].valid=xm23::r8(c,base)!=0;
             actor[p].action=xm23::r8(c,base+0xA0);
             actor[p].nativeAction=xm23::r16(c,base+0x60);
@@ -523,6 +555,7 @@ static inline void xm23OnRealFrame(int ready) {
             // after a swap and includes an unrelated high byte.
             actor[p].health=(unsigned)xm23State.health[p];
             actor[p].combo=(unsigned)xm23State.combo[p];
+            actor[p].comboKnown=true;
         }
         // Do not use the FF5009 round subcounter for cinematic stop:
         // Training can hold it fixed while native fighter actions progress.
@@ -530,7 +563,7 @@ static inline void xm23OnRealFrame(int ready) {
         const unsigned long long p1Before=xm23State.frameData.playerFrame[0];
         const unsigned long long p2Before=xm23State.frameData.playerFrame[1];
         xm23State.frameData.onFrame(sample[0],sample[1],actor[0],actor[1]);
-        xm250FrameClockTrace(c,sample,actor,logicalBefore,
+        xm254FrameClockTrace(c,sample,actor,logicalBefore,
                              xm23State.frameData.frame,p1Before,p2Before);
     }
     c->close();

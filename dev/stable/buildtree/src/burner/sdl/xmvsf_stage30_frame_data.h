@@ -6,11 +6,12 @@
 // Motion detection is an INPUT HEURISTIC, NOT A game move-ID lookup.
 // A tag indicates an observed direction sequence followed by a live attack box.
 enum XM32Motion { XM32_NORMAL=0, XM32_QCF, XM32_QCB, XM32_DP,
-                  XM32_HALF, XM32_DOUBLE, XM32_PROJECTILE };
+                  XM32_HALF, XM32_DOUBLE, XM32_PROJECTILE, XM32_QCD };
 static inline const char* xm32MotionTag(int motion) {
     switch(motion){
     case XM32_QCF:return "QC";
     case XM32_QCB:return "QB";
+    case XM32_QCD:return "QD";
     case XM32_DP:return "DP";
     case XM32_HALF:return "HC";
     case XM32_DOUBLE:return "DQ";
@@ -43,11 +44,16 @@ struct XM32MotionHistory {
         const int qf1[]={2,3,6},qf2[]={2,1,4};
         
         const int dp1[]={6,2,3},dp2[]={4,2,1};
+        // 632/412: quarter-circle DOWN, including the aimed Cyclops
+        // hyper command. Motion detection is generic, never tied to a
+        // particular character, move name or action ID.
+        const int qd1[]={6,3,2},qd2[]={4,1,2};
         const int hc1[]={4,1,2,3,6},hc2[]={6,3,2,1,4};
         const int dq1[]={2,3,6,2,3,6},dq2[]={2,1,4,2,1,4};
         if(matches(dq1,6,now,45)||matches(dq2,6,now,45))return XM32_DOUBLE;
         if(matches(hc1,5,now)||matches(hc2,5,now))return XM32_HALF;
         if(matches(dp1,3,now)||matches(dp2,3,now))return XM32_DP;
+        if(matches(qd1,3,now)||matches(qd2,3,now))return XM32_QCD;
         if(matches(qf1,3,now)||matches(qf2,3,now))return XM32_QCF;
 
         return XM32_NORMAL;
@@ -65,18 +71,16 @@ struct XM41ActorSample {
     unsigned hitStop=0;         // ROM +85: explicit per-fighter stop steps
     unsigned animPtr=0;         // ROM +34 native animation script pointer
     unsigned animTimer=0;       // ROM +3E native animation frame countdown
-    unsigned health=0;          // HUD-resolved active fighter HP; real hit confirmation
-    unsigned combo=0;           // ROM combo counter: confirms hits when HP is restored before sampling
-    unsigned sourceBase=0;      // FF4000/4400 or FF4800/4C00, active tag fighter
+    unsigned health=0;          // HUD-resolved active fighter HP
+    // Optional native HUD combo signal (per-player, read-only). This
+    // can continue increasing after Training has clamped HP to 1.
+    unsigned combo=0;
+    bool comboKnown=false;
 };
 // Native action-family classification from recorded ROM traces:
 // A0=28xx: normal punches/kicks; A0=2Axx + action=2Cxx: specials;
 // A0=2Axx + action=2Exx: supers (including their internal 2E substeps).
 // Movement, jumping, landing, blocking and idle are NOT attack families.
-static inline unsigned xm30ActiveFighterBase(int player,bool reserve){
-    // Match the exact active-teammate pointer used by the Training HUD.
-    return 0xFF4000u+(unsigned)player*0x400u+(reserve?0x800u:0u);
-}
 static inline unsigned xm30NativeAttackFamily(const XM41ActorSample& a){
     if(!a.valid)return 0u;
     const unsigned mode=(a.mode>>8u)&255u;
@@ -100,13 +104,23 @@ static inline bool xm30SameNativeAttack(const XM41ActorSample& a,
 struct XM30Event {
     int player=0, startup=0, active=0, code=0, x=0, y=0, motion=XM32_NORMAL;
     unsigned long long inputFrame=0,spawnFrame=0,firstFrame=0,endFrame=0;
+    // Visual host-frame axis advances during native hitstop; native-frame
+    // measurements above remain unchanged by this presentation axis.
+    unsigned long long inputWallFrame=0,lastWallFrame=0;
     int source=0; // 0=fighter hitbox; 1=projectile hitbox
     bool closed=false;
-    bool noBox=false;  // Real input edge, but no supported hitbox detected before timeout.
+    bool noBox=false; // No supported offensive collision box observed
+    bool contactOnly=false; // Native action plus HP loss, box unavailable
+    unsigned long long hitboxLastFrame=0; // real last active-box/native-super sample
     // Synchronized projectile-travel and separate fighter-recovery tracks.
     unsigned projectileBase=0;
+    // One native 2E super can own multiple successive linked objects.
+    static const int OWNED_PROJECTILES=32;
+    unsigned ownedProjectileBases[OWNED_PROJECTILES]={};
+    int ownedProjectileCount=0;
     unsigned long long firstMotionFrame=0,lastMotionFrame=0,despawnFrame=0;
     int moveFrames=0, lastProjectileX=0, lastProjectileY=0;
+    unsigned long long lastProjectileFrame=0; // last actual object observation
     // A native 2E super may keep its attacking phase after the first
     // offensive collision box vanishes. The ROM phase, not a guessed move
     // name or timeout, continues its active span through such substeps.
@@ -116,6 +130,7 @@ struct XM30Event {
     // attacks may record multiple distinct health-loss frames.
     static const int CONTACTS=32;
     unsigned long long contactFrames[CONTACTS]={};
+    unsigned long long contactWallFrames[CONTACTS]={};
     int contactCount=0;
     unsigned long long motionBits[16]={}; // exact movement-edge frames, up to 1024f
     bool motionOverflow=false;
@@ -126,7 +141,6 @@ struct XM30Event {
     bool attackObserved=false,attackEnded=false;
     bool inputObserved=true; // false: native ROM detected attack but mapped edge not seen
     unsigned attackFamily=0,attackAction=0,attackMode=0;
-    unsigned actorBase=0;         // the fighter that owns this attack, not a side's old partner
     unsigned long long attackStartFrame=0,attackLastFrame=0,attackEndFrame=0;
     unsigned attackExitPending=0; // unresolved native controller during impact
 
@@ -143,8 +157,50 @@ struct XM30Sample {
     int projectileX[12]={},projectileY[12]={};
     XM30Hit projectileHits[12]; // attack-box signal keyed to linked projectile identity
 };
+static inline bool xm30OwnsProjectile(const XM30Event& e,unsigned base){
+    if(!base)return false;
+    if(e.projectileBase==base)return true;
+    for(int i=0;i<e.ownedProjectileCount;++i)
+        if(e.ownedProjectileBases[i]==base)return true;
+    return false;
+}
+static inline void xm30ClaimProjectile(XM30Event& e,unsigned base){
+    if(!base || xm30OwnsProjectile(e,base))return;
+    if(e.ownedProjectileCount<XM30Event::OWNED_PROJECTILES)
+        e.ownedProjectileBases[e.ownedProjectileCount++]=base;
+}
+static inline bool xm30OwnedProjectileLive(const XM30Event& e,
+                                            const XM30Sample& s){
+    for(int j=0;j<s.projectileCount && j<12;++j)
+        if(xm30OwnsProjectile(e,s.projectileBases[j]))return true;
+    return false;
+}
+static inline bool xm30OwnedProjectileAttack(const XM30Event& e,
+                                              const XM30Sample& s){
+    for(int j=0;j<s.projectileCount && j<12;++j)
+        if(s.projectileHits[j].active &&
+           xm30OwnsProjectile(e,s.projectileBases[j]))return true;
+    return false;
+}
+static inline void xm30AddContact(XM30Event& e,unsigned long long at,
+                                     unsigned long long wall=0){
+    // Distinct impacts during hitstop can share the SAME native frame.
+    // The host observation tick deduplicates signals from one impact.
+    if(e.contactCount && e.contactFrames[e.contactCount-1]==at &&
+       (!wall || e.contactWallFrames[e.contactCount-1]==wall))return;
+    if(e.contactCount==XM30Event::CONTACTS){
+        for(int j=1;j<XM30Event::CONTACTS;++j){
+            e.contactFrames[j-1]=e.contactFrames[j];
+            e.contactWallFrames[j-1]=e.contactWallFrames[j];
+        }
+        --e.contactCount;
+    }
+    e.contactFrames[e.contactCount]=at;
+    e.contactWallFrames[e.contactCount++]=wall;
+}
 struct XM30Track {
     long long pending=-1;
+    unsigned long long pendingWallFrame=0;
     bool pendingNativeOnly=false;
     int code=0, motion=XM32_NORMAL;
     // Index -1 if no active row; separate lifetimes prevent an old projectile
@@ -168,8 +224,11 @@ struct XM30Track {
     // Combo cancels frequently inherit a continuously active box70/72.
     // The old code only watched !previousHitbox and missed those attacks.
     unsigned lastNativeFamily=0,lastNativeAction=0,lastNativeMode=0,lastNativeStep=0;
-    unsigned lastNativeBase=0;
     bool lastNativeValid=false;
+    // Observe accepted super roots on the ROM HOST callback, not on
+    // SDL button edges or the delayed first offensive collision box.
+    // Separate latch prevents duplicate portraits during native hitstop.
+    bool superRootObserved=false;
     unsigned pendingOriginFamily=0,pendingOriginAction=0,pendingOriginMode=0,pendingOriginStep=0;
     bool pendingOriginValid=false,pendingComboTransition=false;
     // A rejected input inside a live attack must not steal the next
@@ -179,6 +238,29 @@ struct XM30Track {
     unsigned previousProjectileBases[12]={};
     int previousActiveCount=0;
     unsigned previousActiveBases[12]={};
+};
+// Stable, uncompressed timeline geometry. One observed host tick is
+// exactly one horizontal pixel; overflow moves to the next pair of slim
+// HIT / ACTION lanes. Previous rows never change scale as time accumulates.
+struct XM30TimelineWrap {
+    unsigned long long start=0,finish=0;
+    unsigned ticksPerRow=1;
+    unsigned long long span() const {
+        return finish>=start ? finish-start+1u : 1u;
+    }
+    unsigned rows() const {
+        return (unsigned)((span()+ticksPerRow-1u)/ticksPerRow);
+    }
+    unsigned row(unsigned long long at) const {
+        return (unsigned)((at<=start?0u:at-start)/ticksPerRow);
+    }
+    unsigned column(unsigned long long at) const {
+        return (unsigned)((at<=start?0u:at-start)%ticksPerRow);
+    }
+};
+struct XM30WallTick {
+    unsigned long long wall=0,native=0;
+    bool stopped=false;
 };
 struct XM30FrameData {
     // Preserve the 120-native-frame ascent to the 40px apex, then
@@ -195,6 +277,45 @@ struct XM30FrameData {
     // timestamps are on the owning fighter's unfrozen native step axis.
     unsigned long long frame=0; // display/observation tick when either player advances
     unsigned long long playerFrame[2]={0,0};
+    // One screen-frame tick is retained per owner, even when its native
+    // emulation clock is stopped. This is a READ-ONLY display axis.
+    static const int WALL_HISTORY=4096;
+    unsigned long long wallFrame[2]={0,0};
+    XM30WallTick wallTicks[2][WALL_HISTORY];
+    XM30WallTick wallTick(int p,unsigned long long at) const {
+        if(p<0 || p>1 || at==0)return XM30WallTick{};
+        const XM30WallTick& t=wallTicks[p][at%WALL_HISTORY];
+        return t.wall==at?t:XM30WallTick{};
+    }
+    unsigned long long wallForNative(int p,unsigned long long native,
+                                     unsigned long long earliest) const {
+        if(p<0 || p>1)return earliest;
+        unsigned long long start=earliest;
+        if(wallFrame[p]>WALL_HISTORY && start<wallFrame[p]-WALL_HISTORY+1u)
+            start=wallFrame[p]-WALL_HISTORY+1u;
+        for(unsigned long long w=start;w<=wallFrame[p];++w){
+            const XM30WallTick t=wallTick(p,w);
+            if(t.wall && t.native>=native)return w;
+        }
+        // If this old event's timestamps fell out of the bounded map,
+        // never extend a closed card to the current host frame.
+        return earliest;
+    }
+    void recordWallTicks(const bool advanced[2]){
+        for(int p=0;p<2;++p){
+            XM30WallTick& t=wallTicks[p][wallFrame[p]%WALL_HISTORY];
+            t.wall=wallFrame[p];t.native=playerFrame[p];
+            t.stopped=!advanced[p];
+        }
+        for(int i=0;i<count;++i){
+            XM30Event& e=history[i];
+            const int p=e.player;
+            if((e.attackObserved && !e.attackEnded) ||
+               (e.source==1 && e.projectileBase && !e.closed &&
+                !e.despawnFrame))
+                e.lastWallFrame=wallFrame[p];
+        }
+    }
     // Native cinematic holds may keep +85=0 and phase=80, notably 2C12.
     // Preserve the previous sampled animation, not the wall-clock time.
     bool animationSeeded=false;
@@ -204,6 +325,11 @@ struct XM30FrameData {
     unsigned previousAnimAction[2]={0,0};
     unsigned previousAnimStep[2]={0,0};
     unsigned long long eventsCreated=0; // monotonic, unlike bounded history.count
+    // Preserve pre-box super damage sampled during native hitstop.
+    unsigned long long deferredSuperContacts[2][XM30Event::CONTACTS]={};
+    unsigned long long deferredSuperContactWalls[2][XM30Event::CONTACTS]={};
+    unsigned deferredSuperContactCount[2]={0,0};
+    unsigned deferredSuperAction[2]={0,0};
     unsigned long long superFreezeFrames=0; // callbacks with neither player advancing
     // Unlike the FF5009 round clock, ROM hit-stop counters count down to
     // zero. They cannot permanently stall the meter when the round timer is
@@ -212,8 +338,16 @@ struct XM30FrameData {
     unsigned previousHitStop[2]={0,0};
     bool healthSeeded[2]={false,false};
     unsigned previousHealth[2]={0,0};
+    // Independent of the +85 clock gate: capture *reload edges* even
+    // when the owner is frozen, and deduplicate across evidence types.
+    bool impactStopSeeded[2]={false,false};
+    unsigned previousImpactStop[2]={0,0};
     bool comboSeeded[2]={false,false};
     unsigned previousCombo[2]={0,0};
+    unsigned long long hpContactProofs[2]={0,0};
+    unsigned long long comboContactProofs[2]={0,0};
+    unsigned long long reloadContactProofs[2]={0,0};
+    unsigned long long unassignedContactProofs[2]={0,0};
     // Damage can be first observed on a frozen host tick. Carry it into
     // the NEXT real combat sample rather than consuming it at the return.
     bool pendingContact[2]={false,false};
@@ -226,17 +360,28 @@ struct XM30FrameData {
     void clear(bool preserveToggle=true) {
         const bool setting=enabled;
         frame=0; playerFrame[0]=playerFrame[1]=0; eventsCreated=0;
+        wallFrame[0]=wallFrame[1]=0;
+        for(int p=0;p<2;++p)for(int i=0;i<WALL_HISTORY;++i)
+            wallTicks[p][i]=XM30WallTick{};
         animationSeeded=false;
         for(int p=0;p<2;++p){
             previousAnimPtr[p]=previousAnimTimer[p]=0;
             previousAnimMode[p]=previousAnimAction[p]=previousAnimStep[p]=0;
         }
         superFreezeFrames=0; count=0; floatNext=0; inCombat=false;
+        deferredSuperContactCount[0]=deferredSuperContactCount[1]=0;
+        deferredSuperAction[0]=deferredSuperAction[1]=0;
         hitStopSeeded=false;previousHitStop[0]=previousHitStop[1]=0;
         healthSeeded[0]=healthSeeded[1]=false;
         previousHealth[0]=previousHealth[1]=0;
+        impactStopSeeded[0]=impactStopSeeded[1]=false;
+        previousImpactStop[0]=previousImpactStop[1]=0;
         comboSeeded[0]=comboSeeded[1]=false;
         previousCombo[0]=previousCombo[1]=0;
+        hpContactProofs[0]=hpContactProofs[1]=0;
+        comboContactProofs[0]=comboContactProofs[1]=0;
+        reloadContactProofs[0]=reloadContactProofs[1]=0;
+        unassignedContactProofs[0]=unassignedContactProofs[1]=0;
         pendingContact[0]=pendingContact[1]=false;
         contactExitGrace[0]=contactExitGrace[1]=0;
         for(int i=0;i<HISTORY;++i)history[i]=XM30Event{};
@@ -255,11 +400,28 @@ struct XM30FrameData {
     void press(int player,int code){
         if(!enabled||!inCombat||player<0||player>1 || code<0x80||code>0x85)return;
         XM30Track& t=track[player];
+        // Further button edges while the same confirmed 2E super is
+        // running do not restart its visual input clock. The next super
+        // must be accepted independently by the native ROM controller.
+        for(int i=count-1;i>=0;--i){
+            const XM30Event& e=history[i];
+            if(e.player==player && e.attackFamily==0x2Eu &&
+               !e.attackEnded)return;
+        }
         // A+B pressed on the same frame is one candidate, not two moves.
         if(t.pending>=0 && (long long)playerFrame[player]-t.pending<=2)return;
+        // 87.251: Cyclops 2E00 begins in stage02, long before its beam's
+        // linked projectile first becomes damaging. More button edges during
+        // that very same accepted super must NOT erase the original
+        // input, ROM action root and projectile-spawn candidate. This guard
+        // applies only to a STILL-PENDING 2E; once a card is emitted or the
+        // native family exits, the next genuine attack remains possible.
+        if(t.pending>=0 && t.pendingAttackFamily==0x2Eu &&
+           !t.pendingAttackEnd && t.lastNativeFamily==0x2Eu)return;
         // Do not reject new attack inputs just because an older projectile is
         // still on screen. A new row still requires a NEW hitbox edge.
         t.pending=(long long)playerFrame[player];
+        t.pendingWallFrame=wallFrame[player];
         t.pendingNativeOnly=false;
         t.pendingSpawnBase=0;
         t.pendingSpawnFrame=0;
@@ -293,122 +455,149 @@ struct XM30FrameData {
          }
         return count++;
     }
-    // Train on native ROM samples, not displayed frames. HP can be restored
-    // by Training before this post-emulation observer runs; a rising ROM
-    // combo counter is independent confirmation of a hit in that case.
-    // Neither signal is allowed to reset an attack or increment its clock.
+    // Train on native ROM samples, not on displayed video frames.
+    // FF5009 is deliberately ignored: a constant clock is not evidence of
+    // super freeze, and it previously locked BOTH meters indefinitely.
+    // One hit-confirm marker per defender HP drop. Record it on the
+    // attacker's newest live frame-data row, not against any unrelated old
+    // projectile. A contact does NOT close or shorten the move's action.
     void recordContacts(const XM41ActorSample actors[2],
+                        const XM30Sample samples[2],
                         const bool advanced[2]){
-        bool comboRise[2]={false,false};
+        bool comboRise[2]={false,false},stopReload[2]={false,false};
+        // Update both signals on EVERY emulation callback, including
+        // host samples where neither fighter's native clock advances.
         for(int p=0;p<2;++p){
-            if(!actors[p].valid){
-                comboSeeded[p]=false;previousCombo[p]=0;
-                continue;
+            if(actors[p].valid){
+                comboRise[p]=actors[p].comboKnown && comboSeeded[p] &&
+                    actors[p].combo>previousCombo[p];
+                comboSeeded[p]=actors[p].comboKnown;
+                previousCombo[p]=actors[p].combo;
+                stopReload[p]=impactStopSeeded[p] &&
+                    actors[p].hitStop>previousImpactStop[p] &&
+                    actors[p].hitStop>=2u;
+                previousImpactStop[p]=actors[p].hitStop;
+                impactStopSeeded[p]=true;
+            }else{
+                comboSeeded[p]=false;impactStopSeeded[p]=false;
             }
-            comboRise[p]=comboSeeded[p] &&
-                         actors[p].combo>previousCombo[p];
-            previousCombo[p]=actors[p].combo;
-            comboSeeded[p]=true;
         }
         for(int victim=0;victim<2;++victim){
             if(!actors[victim].valid){
-                healthSeeded[victim]=false;
-                pendingContact[1-victim]=false;
+                healthSeeded[victim]=false;pendingContact[1-victim]=false;
                 continue;
             }
             const unsigned health=actors[victim].health;
-            const bool hpDrop=healthSeeded[victim] &&
-                              health<previousHealth[victim];
-            previousHealth[victim]=health;
-            healthSeeded[victim]=true;
+            const bool damaged=healthSeeded[victim] &&
+                               health<previousHealth[victim];
+            previousHealth[victim]=health;healthSeeded[victim]=true;
             const int attacker=1-victim;
-            if(!hpDrop && !comboRise[attacker])continue;
-            if(!actors[attacker].valid)continue;
-            // De-duplicate HP and combo evidence from the same native tick.
-            // Never move the marker to the end of a +85 stop interval.
-            if(!advanced[attacker])pendingContact[attacker]=true;
-            const unsigned long long at=playerFrame[attacker];
+            const unsigned family=xm30NativeAttackFamily(actors[attacker]);
             const XM30Track& t=track[attacker];
-            int selected=-1;
+            const unsigned long long at=playerFrame[attacker];
+            // The local HUD combo may be encoded on the attacker or
+            // defender's counter depending on the game/UI mode. Accept a
+            // rising counter only if this side owns a live offensive
+            // source; simultaneous opposing offense is ambiguous.
+            bool observedBox=samples[attacker].melee.active ||
+                             samples[attacker].projectile.active;
+            for(int j=0;j<samples[attacker].projectileCount && j<12;++j)
+                if(samples[attacker].projectileHits[j].active)
+                    observedBox=true;
+            bool liveOwned=false,liveNative=false;
             for(int i=count-1;i>=0;--i){
                 const XM30Event& e=history[i];
-                if(e.player!=attacker || e.firstFrame>at)continue;
-                if(e.actorBase && actors[attacker].sourceBase &&
-                   e.actorBase!=actors[attacker].sourceBase)continue;
-                if(e.noBox && !e.attackObserved)continue;
-                if(e.attackEnded && at>e.attackEndFrame+1u)continue;
-                if(e.closed && !e.noBox && at>e.endFrame+1u &&
-                   (e.attackEnded || at>e.attackLastFrame+1u))continue;
-                // The new accepted native move owns this damage, not a
-                // previous fighter box or a lingering old projectile.
-                if(t.pendingAttackFamily!=0u && e.attackObserved &&
-                   (e.attackFamily!=t.pendingAttackFamily ||
-                    (e.attackFamily==0x28u &&
-                     (e.attackAction!=t.pendingAttackAction ||
-                      e.attackMode!=t.pendingAttackMode)) ||
-                    (e.attackFamily==0x2Cu &&
-                     t.pendingOriginFamily==0x2Cu &&
-                     t.pendingOriginStep>=4u &&
-                     e.attackAction!=t.pendingAttackAction)))continue;
-                const unsigned liveFamily=xm30NativeAttackFamily(actors[attacker]);
-                if(liveFamily!=0u && e.attackObserved &&
-                   e.attackFamily!=liveFamily)continue;
-                selected=i;
-                break;
+                if(e.player!=attacker)continue;
+                if(xm30OwnedProjectileLive(e,samples[attacker]))
+                    liveOwned=true;
+                if(!e.attackEnded && e.attackFamily &&
+                   family==e.attackFamily)
+                    liveNative=true;
             }
-            if(selected<0){
-                // A Ken / combo / super strike can be ROM-accepted without
-                // an observed RAM collision box or SDL edge. Confirmation
-                // permits a card, but NEVER an invented S or A measurement.
-                const unsigned nativeFamily=xm30NativeAttackFamily(actors[attacker]);
-                const unsigned accepted=t.pendingAttackFamily?
-                    t.pendingAttackFamily:nativeFamily;
-                if(!accepted ||
-                   (!t.pendingAttackFamily &&
-                    (actors[attacker].attackPhase&0x40u)!=0u))continue;
-                const int idx=appendEvent();
-                XM30Event& e=history[idx];e=XM30Event{};
-                e.player=attacker;e.noBox=true;e.closed=true;
-                e.firstFrame=at;e.endFrame=at;e.inputFrame=
-                    t.pending>=0?(unsigned long long)t.pending:at;
-                e.inputObserved=t.pending>=0 && !t.pendingNativeOnly;
-                e.code=t.pending>=0?t.code:0;
-                e.motion=t.pending>=0?t.motion:XM32_NORMAL;
-                e.nativeSuperPhase=accepted==0x2Eu &&
-                    actors[attacker].nativeStep>=4u &&
-                    (actors[attacker].attackPhase&0x40u)==0u;
-                e.attackObserved=true;
-                e.attackFamily=accepted;
-                e.actorBase=actors[attacker].sourceBase;
-                e.attackAction=t.pendingAttackFamily?
-                    t.pendingAttackAction:actors[attacker].nativeAction;
-                e.attackMode=t.pendingAttackFamily?
-                    t.pendingAttackMode:actors[attacker].mode;
-                e.attackStartFrame=t.pendingAttackStart?
-                    t.pendingAttackStart:(at?at:1u);
-                e.attackLastFrame=t.pendingAttackLast?
-                    t.pendingAttackLast:at;
-                // Mark this as the accepted ROM action, preventing a
-                // late appearing box from reopening the same move.
-                XM30Track& writable=track[attacker];
-                writable.pending=-1;
-                writable.lastNativeFamily=accepted;
-                writable.lastNativeBase=actors[attacker].sourceBase;
-                writable.lastNativeAction=e.attackAction;
-                writable.lastNativeMode=e.attackMode;
-                writable.lastNativeStep=actors[attacker].nativeStep;
-                writable.lastNativeValid=true;
-                selected=idx;
+            const bool pendingSuper=family==0x2Eu &&
+                                   t.pendingAttackFamily==0x2Eu;
+            const bool offense=(observedBox || liveOwned ||
+                               (liveNative && family==0x2Eu) ||
+                               pendingSuper);
+            const bool victimOffense=
+                xm30NativeAttackFamily(actors[victim])!=0u &&
+                (samples[victim].melee.active ||
+                 samples[victim].projectile.active);
+            const bool comboProof=offense &&
+                (comboRise[attacker] ||
+                 (comboRise[victim] && !victimOffense));
+            // Native +85 can reload repeatedly during one damaging attack.
+            // Reload alone is only a hit proof at the HP floor, where
+            // further real hits cannot appear as additional HP drops.
+            const bool reloadProof=offense && stopReload[victim] &&
+                health<=1u && (observedBox || liveOwned);
+            // HP changes still have priority. A combo increment or a
+            // defender's actual +85 reload proves an impact at HP=1.
+            // Rising +85 during a boxless cinematic is NOT a hit.
+            if(!damaged && !comboProof && !reloadProof)continue;
+            if(damaged)++hpContactProofs[attacker];
+            else if(comboProof)++comboContactProofs[attacker];
+            else ++reloadContactProofs[attacker];
+            if(!advanced[attacker])pendingContact[attacker]=true;
+            int selected=-1,rank=-1;
+            for(int i=count-1;i>=0;--i){
+                const XM30Event& e=history[i];
+                if(e.player!=attacker || e.firstFrame>at ||
+                   (e.noBox && !e.contactOnly && e.attackFamily!=0x2Eu))
+                    continue;
+                const bool live=xm30OwnedProjectileLive(e,samples[attacker]);
+                const bool box=xm30OwnedProjectileAttack(e,samples[attacker]);
+                const bool native=!e.attackEnded && family!=0u &&
+                    e.attackFamily==family &&
+                    (family!=0x28u ||
+                     (e.attackAction==actors[attacker].nativeAction &&
+                      e.attackMode==actors[attacker].mode));
+                // A previous move's still-live projectile must not lend
+                // its impact to the freshly accepted portrait-only super.
+                // Native ownership alone is not damage attribution proof
+                // while ONLY unmatched projectile objects exist.
+                if(native && e.attackFamily==0x2Eu && e.noBox &&
+                   samples[attacker].projectileCount>0 && !live &&
+                   !samples[attacker].melee.active)
+                    continue;
+                if(e.closed && at>e.endFrame+1u &&
+                   (e.attackEnded || at>e.attackLastFrame+1u) &&
+                   !live && !native)continue;
+                if(family==0x2Eu && t.pendingAttackFamily==0x2Eu &&
+                   !native && !live)continue;
+                int score=1;
+                if(family==0x2Eu && native)score=6;
+                else if(box)score=5;
+                else if(live && !samples[attacker].melee.active)score=4;
+                else if(native)score=3;
+                else if(live)score=2;
+                if(score>rank){rank=score;selected=i;}
             }
-            XM30Event& e=history[selected];
-            if(e.contactCount>0 &&
-               e.contactFrames[e.contactCount-1]==at)continue;
-            if(e.contactCount==XM30Event::CONTACTS){
-                for(int k=1;k<XM30Event::CONTACTS;++k)
-                    e.contactFrames[k-1]=e.contactFrames[k];
-                --e.contactCount;
+            if(selected>=0){
+                XM30Event& e=history[selected];
+                if(e.noBox && e.attackFamily==0x2Eu)e.contactOnly=true;
+                xm30AddContact(e,at,wallFrame[attacker]);
+            }else if(family==0x2Eu && t.pendingAttackFamily==0x2Eu){
+                unsigned& n=deferredSuperContactCount[attacker];
+                bool freshLinked=false;
+                for(int j=0;j<samples[attacker].projectileCount && j<12;++j)
+                    if(t.pendingSpawnBase &&
+                       samples[attacker].projectileBases[j]==t.pendingSpawnBase)
+                        freshLinked=true;
+                if(samples[attacker].projectileCount>0 && !freshLinked)
+                    continue;
+                const unsigned root=t.pendingAttackAction;
+                if(n && deferredSuperAction[attacker]!=root)n=0;
+                deferredSuperAction[attacker]=root;
+                if((!n || deferredSuperContactWalls[attacker][n-1]!=
+                        wallFrame[attacker]) && n<XM30Event::CONTACTS){
+                    deferredSuperContacts[attacker][n]=at;
+                    deferredSuperContactWalls[attacker][n]=wallFrame[attacker];
+                    ++n;
+                }
+            }else{
+                ++unassignedContactProofs[attacker];
             }
-            e.contactFrames[e.contactCount++]=at;
         }
     }
     void onFrame(const XM30Sample& p1,const XM30Sample& p2,
@@ -417,6 +606,7 @@ struct XM30FrameData {
                  unsigned clockValue=~0u){
         if(!enabled)return;
         beginCombat();
+        ++wallFrame[0];++wallFrame[1]; // even when both native clocks stall
         (void)clockValue; // retained for older callers/tests, never a freeze gate
         const XM30Sample samples[2]={p1,p2};
         const XM41ActorSample actors[2]={a1,a2};
@@ -431,15 +621,23 @@ struct XM30FrameData {
         // Detect stasis from actual ROM animation state instead of assuming
         // that all 2C/2E phase81 samples are frozen; the first 2-3 samples
         // in those scripts DO animate and must remain counted.
+        // Stage02 is not the only native 2C/2E animation hold. In later
+        // special phases the same all-fighter stall can occur immediately
+        // after a combo, with +85=0. Do not count it if both native
+        // animation scripts are static AND no attacking object/box exists.
+        // A live projectile forbids this gate: fighter poses can remain
+        // static while the game/projectile advances normally.
         const bool nativeSetup=
             ((xm30NativeAttackFamily(a1)==0x2Cu ||
               xm30NativeAttackFamily(a1)==0x2Eu) &&
-             a1.nativeStep==2u &&
-             !p1.melee.active && !p1.projectile.active) ||
+             a1.nativeStep>=2u) ||
             ((xm30NativeAttackFamily(a2)==0x2Cu ||
               xm30NativeAttackFamily(a2)==0x2Eu) &&
-             a2.nativeStep==2u &&
-             !p2.melee.active && !p2.projectile.active);
+             a2.nativeStep>=2u);
+        const bool offensiveObjectPresent=
+            p1.melee.active || p1.projectile.active ||
+            p2.melee.active || p2.projectile.active ||
+            p1.projectileCount>0 || p2.projectileCount>0;
         bool bothAnimationsStatic=animationSeeded;
         for(int p=0;p<2;++p){
             const XM41ActorSample& a=actors[p];
@@ -457,20 +655,17 @@ struct XM30FrameData {
             previousAnimStep[p]=a.nativeStep;
         }
         animationSeeded=true;
-        // 2E/step02/phase81 is a ROM-verified *global super portrait
-        // blackout*, including the opening samples where the native
-        // animation pointer changes. Requiring stasis alone had allowed
-        // those dark-screen frames into both clocks. The conservative
-        // animation-stasis rule remains for phase80 2C specials.
-        const bool superPortrait =
-            (xm30NativeAttackFamily(a1)==0x2Eu &&
-             a1.nativeStep==2u && a1.attackPhase==0x81u) ||
-            (xm30NativeAttackFamily(a2)==0x2Eu &&
-             a2.nativeStep==2u && a2.attackPhase==0x81u);
-        // The ROM stage/phase is a GLOBAL freeze. Lingering projectile
-        // boxes from earlier attacks must not make blackout time count.
-        const bool cinematicStop=superPortrait ||
-                                 (nativeSetup && bothAnimationsStatic);
+        // Actual HP loss is native evidence that a collision happened on
+        // this callback even when the one-frame hitbox was not observable.
+        // Never discard that sample as a global cinematic freeze: doing so
+        // loses the exact contact-only combo case this pass must recover.
+        const bool healthDroppedNow=
+            (actors[0].valid && healthSeeded[0] &&
+             actors[0].health<previousHealth[0]) ||
+            (actors[1].valid && healthSeeded[1] &&
+             actors[1].health<previousHealth[1]);
+        const bool cinematicStop=nativeSetup && bothAnimationsStatic &&
+            !offensiveObjectPresent && !healthDroppedNow;
         // Before hit-stop gating, recognize an accepted ROM action so the
         // FIRST contact can create a card even if the SDL button edge was
         // missed and the ROM already set +85 on that exact host callback.
@@ -479,38 +674,6 @@ struct XM30FrameData {
         for(int p=0;p<2;++p){
             XM30Track& t=track[p];
             const unsigned family=xm30NativeAttackFamily(actors[p]);
-            // DHC/tag changes the owner object without requiring an idle
-            // intermediary: Ryu 2E -> Ken 2E is two different attacks.
-            // Keep the previous card's final true frame, then allow the
-            // new native actor to claim its own attack and melee box.
-            const bool actorChanged=t.lastNativeBase &&
-                actors[p].sourceBase &&
-                t.lastNativeBase!=actors[p].sourceBase;
-            if(actorChanged){
-                for(int i=0;i<count;++i){
-                    XM30Event& e=history[i];
-                    if(e.player!=p || e.attackEnded || !e.attackObserved ||
-                       (e.actorBase && e.actorBase==actors[p].sourceBase))continue;
-                    e.attackEndFrame=e.attackLastFrame;
-                    e.attackEnded=true;
-                    if(e.source==0 && !e.closed){
-                        e.endFrame=e.attackLastFrame;
-                        e.closed=true;
-                    }
-                }
-                t.eventIndex[0]=-1;
-                t.previous[0]=false;
-                t.lastNativeFamily=0;
-                t.lastNativeAction=0;
-                t.lastNativeMode=0;
-                if(t.pending>=0){
-                    // A held mapped edge may span the tag. It belongs to
-                    // the new actor, not the outgoing 2E origin.
-                    t.pendingOriginValid=false;
-                    t.pendingOriginFamily=0;
-                    t.pendingOriginLeft=true;
-                }
-            }
             // Capture genuine accepted native attacks even if the mapped
             // button edge occurred inside hit-stop or was not observable.
             // 28: both +60 action and +A0 controller identify a new normal.
@@ -518,21 +681,28 @@ struct XM30FrameData {
             //     new special; internal 2C50/4E/4C/54 cycling is NOT.
             // 2E: only family entry starts a new super; 2E02/10 substeps
             //     always belong to the original super.
+            // 2E02/2E10 internal stages are NOT fresh supers; only
+            // observed entry into the native 2E family arms a new card.
+            // Do not use a stage-02 restart as an unproven DHC signal.
+            const bool acceptedSuper=actors[p].valid &&
+                family==0x2Eu && !t.superRootObserved;
+            t.superRootObserved=actors[p].valid && family==0x2Eu;
             const bool nativeNewAttack=actors[p].valid &&
-                (actors[p].attackPhase&0x80u)!=0u &&
-                ((family==0x28u &&
-                  (t.lastNativeFamily!=0x28u ||
-                   actors[p].nativeAction!=t.lastNativeAction ||
-                   actors[p].mode!=t.lastNativeMode)) ||
-                 (family==0x2Cu &&
-                  (t.lastNativeFamily!=0x2Cu ||
-                   (t.lastNativeStep>=4u && actors[p].nativeStep==2u &&
-                    actors[p].nativeAction!=t.lastNativeAction))) ||
-                 (family==0x2Eu && t.lastNativeFamily!=0x2Eu));
+                (acceptedSuper ||
+                 ((actors[p].attackPhase&0x80u)!=0u &&
+                  ((family==0x28u &&
+                    (t.lastNativeFamily!=0x28u ||
+                     actors[p].nativeAction!=t.lastNativeAction ||
+                     actors[p].mode!=t.lastNativeMode)) ||
+                   (family==0x2Cu &&
+                    (t.lastNativeFamily!=0x2Cu ||
+                     (t.lastNativeStep>=4u && actors[p].nativeStep==2u &&
+                      actors[p].nativeAction!=t.lastNativeAction))))));
             if(t.pending<0 && nativeNewAttack){
                 // This card has no known mapped button edge. Show that
                 // limitation explicitly rather than fabricating an S value.
                 t.pending=(long long)playerFrame[p];
+                t.pendingWallFrame=wallFrame[p];
                 t.pendingNativeOnly=true;
                 t.code=0;t.motion=XM32_NORMAL;
                 t.pendingSpawnBase=0;t.pendingSpawnFrame=0;
@@ -548,6 +718,67 @@ struct XM30FrameData {
                 t.pendingOriginStep=t.lastNativeStep;
                 t.pendingOriginValid=t.lastNativeValid;
                 t.pendingOriginLeft=false;t.pendingComboTransition=false;
+            }
+            if(acceptedSuper){
+                // A new native 2E root is authoritative. Create its ONE
+                // frame-data card immediately, before portrait/cinematic
+                // freeze can return from onFrame(). No box, projectile,
+                // input-pattern or damage observation is required.
+                for(int i=count-1;i>=0;--i){
+                    XM30Event& prior=history[i];
+                    if(prior.player!=p || !prior.attackObserved ||
+                       prior.attackEnded)continue;
+                    // Super entry is a confirmed native CANCEL of any
+                    // previous fighter action, not merely a box rise.
+                    prior.attackEnded=true;
+                    prior.attackEndFrame=prior.attackLastFrame;
+                    // A prior projectile may keep flying after its owner
+                    // exits. Only fighter-attached boxes are shut down.
+                    if(prior.source==0 && !prior.closed){
+                        prior.closed=true;
+                        prior.endFrame=prior.hitboxLastFrame?
+                            prior.hitboxLastFrame:prior.attackLastFrame;
+                    }
+                }
+                if(t.pending<0){
+                    t.pending=(long long)playerFrame[p];
+                    t.pendingWallFrame=wallFrame[p];
+                    t.pendingNativeOnly=true;
+                    t.code=0;t.motion=XM32_NORMAL;
+                }
+                const int idx=appendEvent();
+                XM30Event& e=history[idx];e=XM30Event{};
+                e.player=p;
+                e.inputObserved=!t.pendingNativeOnly;
+                e.inputFrame=(unsigned long long)t.pending;
+                e.inputWallFrame=t.pendingWallFrame;
+                e.lastWallFrame=wallFrame[p];
+                e.code=t.code;e.motion=t.motion;
+                e.noBox=true;e.contactOnly=false;e.source=0;
+                e.startup=0;e.active=0;
+                e.firstFrame=playerFrame[p]; // no collision assertion
+                e.attackObserved=true;e.attackFamily=0x2Eu;
+                e.nativeSuperPhase=true;
+                e.attackAction=actors[p].nativeAction;
+                e.attackMode=actors[p].mode;
+                // The next counted native tick belongs to this new ROM
+                // action. Frozen host observations have their own clock.
+                e.attackStartFrame=playerFrame[p]+1u;
+                e.attackLastFrame=e.attackStartFrame;
+                if(deferredSuperContactCount[p] &&
+                   deferredSuperAction[p]==actors[p].nativeAction){
+                    for(unsigned j=0;j<deferredSuperContactCount[p];++j)
+                        xm30AddContact(e,deferredSuperContacts[p][j],
+                                         deferredSuperContactWalls[p][j]);
+                    if(e.contactCount)e.contactOnly=true;
+                }
+                deferredSuperContactCount[p]=0;
+                // A measured box can promote this early provisional
+                // card. No timeout or first hitbox may create another.
+                t.pending=-1;
+                t.pendingAttackFamily=0;
+                t.eventIndex[0]=-1;
+                t.eventIndex[1]=-1;
             }
         }
         bool advancePlayer[2]={false,false};
@@ -586,10 +817,6 @@ struct XM30FrameData {
                         if(actors[1-p].valid && healthSeeded[1-p] &&
                            actors[1-p].health<previousHealth[1-p])
                             witnessed=true;
-                        // Training may have restored HP during this tick.
-                        // A new ROM combo hit can also prove first impact.
-                        if(comboSeeded[p] && actors[p].combo>previousCombo[p])
-                            witnessed=true;
                         firstImpact=witnessed;
                     }
                 }
@@ -600,9 +827,10 @@ struct XM30FrameData {
         hitStopSeeded=true;
         if(!advancePlayer[0] && !advancePlayer[1]){
             ++superFreezeFrames;
-            // Even while both fighters are frozen, record HP changes at
-            // the LAST real attacker tick, never at an invented one.
-            recordContacts(actors,advancePlayer);
+            recordWallTicks(advancePlayer);
+            // Native clocks stay frozen; the chart's visible host ticks
+            // advance in dark gray on BOTH hitbox and move-duration lanes.
+            recordContacts(actors,samples,advancePlayer);
             return;
         }
         // A strike can change the attack controller on the exact impact
@@ -634,6 +862,7 @@ struct XM30FrameData {
             // Record native action tenure without consulting current direction,
             // held buttons, Y-position, jumping, or the later idle stance.
             const unsigned family=xm30NativeAttackFamily(actors[p]);
+            if(family!=0x2Eu)deferredSuperContactCount[p]=0;
             // ROM attack flag is authoritative; 2E's post-startup script
             // stage is a fallback once the move has a proven hitbox.
             // 0x40 recovery explicitly cancels both active indicators.
@@ -725,6 +954,36 @@ struct XM30FrameData {
                         t.pendingAttackEnd=t.pendingAttackLast;
                 }
             }
+            // Follow all newly linked objects of the same 2E script,
+            // excluding older objects present before its acceptance.
+            if(family==0x2Eu)for(int i=count-1;i>=0;--i){
+                XM30Event& e=history[i];
+                if(e.player!=p || e.attackFamily!=0x2Eu ||
+                   e.attackEnded)continue;
+                for(int j=0;j<samples[p].projectileCount && j<12;++j){
+                    const unsigned base=samples[p].projectileBases[j];
+                    bool old=false;
+                    for(int k=0;k<t.previousProjectileCount;++k)
+                        if(t.previousProjectileBases[k]==base)old=true;
+                    if(!old){
+                        xm30ClaimProjectile(e,base);
+                        if(e.noBox && e.projectileBase==0u){
+                            // Promotion is based on an actual newly linked
+                            // ROM object, not a guessed QCD/QCF button.
+                            e.source=1;e.projectileBase=base;
+                            e.spawnFrame=frame;
+                            e.lastProjectileFrame=frame;
+                            e.positionKnown=true;
+                            e.lastProjectileX=samples[p].projectileX[j];
+                            e.lastProjectileY=samples[p].projectileY[j];
+                            e.x=e.lastProjectileX;e.y=e.lastProjectileY;
+                            if(e.motion==XM32_NORMAL)
+                                e.motion=XM32_PROJECTILE;
+                        }
+                    }
+                }
+                break;
+            }
             // Every projectile record is advanced by ITS OWN linked object.
             // An unrelated live projectile, or a held direction/button, cannot
             // extend its active count. Disappearance of this exact object ends
@@ -736,33 +995,52 @@ struct XM30FrameData {
                 int slot=-1;
                 for(int j=0;j<samples[p].projectileCount && j<12;++j)
                     if(samples[p].projectileBases[j]==e.projectileBase){slot=j;break;}
+                const bool ownedLive=xm30OwnedProjectileLive(e,samples[p]);
+                const bool ownedAttack=xm30OwnedProjectileAttack(e,samples[p]);
+                if(ownedLive)e.lastProjectileFrame=frame;
                 if(slot<0){
-                    if(!e.despawnFrame)e.despawnFrame=frame; // actual object removal
+                    if(!ownedLive && !e.despawnFrame)e.despawnFrame=frame;
                     if(!e.closed){
-                        if(e.attackFamily==0x2Eu &&
-                           (superPhaseActive || (e.nativeSuperPhase && superStageActive))){
+                        if(ownedAttack){
+                            if(e.noBox){
+                                e.noBox=false;e.contactOnly=false;
+                                e.firstFrame=frame;
+                                e.startup=(int)(frame-e.inputFrame);e.active=1;
+                            }else ++e.active;
+                            e.hitboxLastFrame=frame;
+                        }else if(e.attackFamily==0x2Eu && !e.noBox &&
+                                 (superPhaseActive ||
+                                  (e.nativeSuperPhase && superStageActive))){
                             e.nativeSuperPhase=true;++e.active;
-                        }else if(e.attackFamily==0x2Eu &&
-                                 (landed[p] || contactExitGrace[p]>0)){
+                            e.hitboxLastFrame=frame;
+                        }else if(ownedLive || (e.attackFamily==0x2Eu &&
+                                 (landed[p] || contactExitGrace[p]>0))){
                             // Do not close a super projectile on the hitstop
                             // handoff; the ROM will resume or actually exit.
                         }else{e.closed=true;e.endFrame=frame-1;}
                     }
                 }else{
                     const int x=samples[p].projectileX[slot],y=samples[p].projectileY[slot];
+                    e.lastProjectileFrame=frame;
                     const XM30Hit& own=samples[p].projectileHits[slot];
                     const bool ownAttack=own.active && own.sourceBase==e.projectileBase;
-                    if(!e.closed && frame>e.firstFrame){
-                        // Native super attack phase can cover successive beam /
-                        // cinematic substeps with temporarily absent collision
-                        // boxes. Its explicit ROM recovery phase stops the run.
-                        if(ownAttack ||
-                           (e.attackFamily==0x2Eu &&
-                            (superPhaseActive || (e.nativeSuperPhase && superStageActive)))){
-                            if(superPhaseActive || superStageActive)e.nativeSuperPhase=true;
-                            ++e.active;
-                        }else if(e.attackFamily==0x2Eu &&
-                                 (landed[p] || contactExitGrace[p]>0)){
+                    if(!e.closed && (frame>e.firstFrame || e.noBox)){
+                        if(ownAttack || ownedAttack){
+                            if(e.noBox){
+                                e.noBox=false;e.contactOnly=false;
+                                e.firstFrame=frame;
+                                e.startup=(int)(frame-e.inputFrame);e.active=1;
+                            }else ++e.active;
+                            e.hitboxLastFrame=frame;
+                            if(superPhaseActive || superStageActive)
+                                e.nativeSuperPhase=true;
+                        }else if(e.attackFamily==0x2Eu && !e.noBox &&
+                                 (superPhaseActive ||
+                                  (e.nativeSuperPhase && superStageActive))){
+                            e.nativeSuperPhase=true;++e.active;
+                            e.hitboxLastFrame=frame;
+                        }else if(ownedLive || (e.attackFamily==0x2Eu &&
+                                 (landed[p] || contactExitGrace[p]>0))){
                             // Missing damage box during impact is not the end
                             // of the move. Preserve this card across stop.
                         }else{e.closed=true;e.endFrame=frame-1;}
@@ -819,6 +1097,16 @@ struct XM30FrameData {
                 (actors[p].attackPhase&0x80u)!=0u;
             // Projectile active frames are handled above PER LINKED OBJECT.
             int& meleeIndex=t.eventIndex[0];
+            if(meleeIndex<0 && hits[0].active && family==0x2Eu)
+                for(int i=count-1;i>=0;--i){
+                    XM30Event& e=history[i];
+                    if(e.player!=p || e.attackFamily!=0x2Eu ||
+                       e.attackEnded || e.source!=0 || !e.noBox)continue;
+                    e.noBox=false;e.contactOnly=false;
+                    e.firstFrame=frame;e.startup=(int)(frame-e.inputFrame);
+                    e.closed=false;e.hitboxLastFrame=0;
+                    meleeIndex=i;break;
+                }
             if(meleeIndex>=0){
                 if(meleeIndex>=count){meleeIndex=-1;}
                 else {
@@ -828,7 +1116,13 @@ struct XM30FrameData {
                     // A native combo handoff closes the OLD hitbox lane
                     // at its last frame even when RAM box70/72 did not fall.
                     // The new move's first active frame is THIS frame.
-                    if(nativeComboEdge &&
+                    if(e.attackEnded && !landed[p] && contactExitGrace[p]==0u){
+                        // A stale RAM melee box can remain asserted after
+                        // the native action ended. It cannot extend that
+                        // move's ACTIVE count or paint green after exit.
+                        e.closed=true;e.endFrame=e.attackLastFrame;
+                        meleeIndex=-1;
+                    }else if(nativeComboEdge &&
                        (e.attackFamily!=t.pendingAttackFamily ||
                         e.attackAction!=t.pendingAttackAction ||
                         (e.attackFamily==0x28u &&
@@ -838,6 +1132,7 @@ struct XM30FrameData {
                     }else if(hits[0].active || nativeSuperOffense){
                         if(nativeSuperOffense)e.nativeSuperPhase=true;
                         ++e.active;
+                        e.hitboxLastFrame=frame;
                     }else if(e.attackFamily==0x2Eu &&
                              (landed[p] || contactExitGrace[p]>0)){
                         // No attack frames are invented for a blank box, but
@@ -877,7 +1172,40 @@ struct XM30FrameData {
                 const bool nativeCandidateAccepted=
                     t.pendingAttackFamily!=0u ||
                     !(t.pendingOriginValid && t.pendingOriginFamily!=0u);
-                if((meleeRise || projectileRise) && nativeCandidateAccepted){
+                // An accepted new native attack + opponent HP loss is
+                // a real hit even when the one-frame box is not sampled.
+                // Make a contact-only card, with UNKNOWN hitbox timings,
+                // rather than silently dropping this combo hit.
+                const bool hpFellNow=actors[1-p].valid && healthSeeded[1-p] &&
+                    actors[1-p].health<previousHealth[1-p];
+                // A linked beam object can damage without an observable
+                // kind-5 box at the exact HP-loss sample. Its genuinely new
+                // linked identity is acceptable evidence, whereas an old
+                // projectile from a prior move is NOT allowed to claim this
+                // newly accepted native super.
+                bool linkedProjectileContact=false;
+                if(t.pendingSpawnBase)for(int j=0;
+                    j<samples[p].projectileCount && j<12;++j)
+                    if(samples[p].projectileBases[j]==t.pendingSpawnBase)
+                        linkedProjectileContact=true;
+                const bool deferredHit=t.pendingAttackFamily==0x2Eu &&
+                    deferredSuperContactCount[p]>0u &&
+                    deferredSuperAction[p]==t.pendingAttackAction;
+                const bool contactWithoutBox=(hpFellNow || deferredHit) &&
+                    t.pendingAttackFamily!=0u &&
+                    !meleeRise && !projectileRise &&
+                    (samples[p].projectileCount==0 || linkedProjectileContact);
+                // Any accepted native super with a NEW linked object earns
+                // a provisional card even before kind-5 boxes are visible.
+                const bool objectOnlySuper=t.pendingAttackFamily==0x2Eu &&
+                    t.pendingSpawnBase!=0u &&
+                    t.pendingSpawnFrame>=t.pendingAttackStart &&
+                    linkedProjectileContact && !meleeRise && !projectileRise;
+                const bool projectileContactOnly=contactWithoutBox &&
+                    t.pendingSpawnBase!=0u && linkedProjectileContact;
+                if((meleeRise || projectileRise || contactWithoutBox ||
+                    objectOnlySuper) &&
+                   nativeCandidateAccepted){
                     // Multi-hit super collision boxes may disappear during
                     // hit-stop and rise again. The original 2E action owns
                     // ONE duration card; a second hit is not a new move.
@@ -895,12 +1223,21 @@ struct XM30FrameData {
                         t.previous[0]=hits[0].active;
                         t.previous[1]=hits[1].active;
                     }else{
-                    const int source=(projectileRise && (!meleeRise || t.motion!=XM32_NORMAL))?1:0;
-                    const XM30Hit& chosen=source==1?newProjectile:hits[0];
+                    const int source=(projectileRise && (!meleeRise || t.motion!=XM32_NORMAL)) ||
+                                     projectileContactOnly || objectOnlySuper ? 1:0;
+                    XM30Hit chosen=source==1?newProjectile:hits[0];
+                    if(projectileContactOnly || objectOnlySuper){
+                        chosen.sourceBase=t.pendingSpawnBase;
+                        chosen.x=t.pendingX;chosen.y=t.pendingY;
+                    }
                     const int idx=appendEvent();
                     XM30Event& e=history[idx];e=XM30Event{};
-                    e.player=p;e.startup=(int)age;e.active=1;
-                    e.actorBase=actors[p].sourceBase;
+                    e.player=p;e.startup=(int)age;
+                    const bool boxMissing=contactWithoutBox || objectOnlySuper;
+                    e.active=boxMissing?0:1;
+                    e.noBox=boxMissing;
+                    e.contactOnly=contactWithoutBox;
+                    e.hitboxLastFrame=boxMissing?0u:frame;
                     e.inputObserved=!t.pendingNativeOnly;
                     e.nativeSuperPhase=t.pendingAttackFamily==0x2Eu &&
                         (superPhaseActive || superStageActive);
@@ -913,15 +1250,25 @@ struct XM30FrameData {
                     e.attackEndFrame=t.pendingAttackEnd;
                     e.attackEnded=t.pendingAttackEnd!=0u;
                     e.inputFrame=(unsigned long long)t.pending;
+                    e.inputWallFrame=t.pendingWallFrame;
+                    e.lastWallFrame=wallFrame[p];
                     e.source=source;
                     if(source==1 && t.pendingSpawnBase &&
                        chosen.sourceBase==t.pendingSpawnBase)
                         e.spawnFrame=t.pendingSpawnFrame;
                     e.code=t.code;e.x=chosen.x;e.y=chosen.y;e.firstFrame=frame;
+                    if(contactWithoutBox && t.pendingAttackFamily!=0x2Eu){
+                        e.closed=true;e.endFrame=frame;
+                    }
                     e.motion=t.motion!=XM32_NORMAL?t.motion:
                         (source==1?XM32_PROJECTILE:XM32_NORMAL);
                     if(source==1){
                         e.projectileBase=chosen.sourceBase;
+                        xm30ClaimProjectile(e,e.projectileBase);
+                        // Unknown collision timing must never be upgraded to
+                        // a fictional active-box observation.
+                        e.lastProjectileFrame=
+                            (!projectileContactOnly || linkedProjectileContact)?frame:0u;
                         if(e.spawnFrame){
                             e.firstMotionFrame=t.pendingFirstMotion;
                             e.lastMotionFrame=t.pendingLastMotion;
@@ -942,9 +1289,21 @@ struct XM30FrameData {
                                 }
                         }
                     }
-                    if(source==0)t.eventIndex[0]=idx;
+                    if(source==0 && !boxMissing)t.eventIndex[0]=idx;
+                    if(e.attackFamily==0x2Eu &&
+                       deferredSuperContactCount[p] &&
+                       deferredSuperAction[p]==e.attackAction){
+                        for(unsigned j=0;j<deferredSuperContactCount[p];++j)
+                            xm30AddContact(e,deferredSuperContacts[p][j],
+                                               deferredSuperContactWalls[p][j]);
+                        deferredSuperContactCount[p]=0;
+                        if(e.noBox && e.contactCount)e.contactOnly=true;
+                    }
                     XM30Float& popup=floats[floatNext++%FLOATS];popup=XM30Float{};
-                    popup.visible=true;popup.player=p;popup.startup=e.startup;
+                    // A native-only or contact-only row has no observed
+                    // button-to-box startup; never flash a fictional 0F.
+                    popup.visible=e.inputObserved && !e.noBox;
+                    popup.player=p;popup.startup=e.startup;
                     popup.x=e.x;popup.y=e.y;
                     t.pending=-1;
                     }
@@ -962,7 +1321,6 @@ struct XM30FrameData {
                 const int idx=appendEvent();
                 XM30Event& e=history[idx];e=XM30Event{};
                 e.player=p;e.code=t.code;e.motion=t.motion;e.noBox=true;
-                e.actorBase=actors[p].sourceBase;
                 e.inputObserved=!t.pendingNativeOnly;
                 e.attackObserved=t.pendingAttackFamily!=0u;
                 e.attackFamily=t.pendingAttackFamily;
@@ -973,6 +1331,8 @@ struct XM30FrameData {
                 e.attackEndFrame=t.pendingAttackEnd;
                 e.attackEnded=t.pendingAttackEnd!=0u;
                 e.inputFrame=(unsigned long long)t.pending;
+                e.inputWallFrame=t.pendingWallFrame;
+                e.lastWallFrame=wallFrame[p];
                 e.endFrame=frame;e.closed=true;
                 t.pending=-1;
                 }
@@ -980,7 +1340,6 @@ struct XM30FrameData {
             t.previous[0]=hits[0].active;
             t.previous[1]=hits[1].active;
             t.lastNativeFamily=family;
-            t.lastNativeBase=actors[p].sourceBase;
             t.lastNativeAction=actors[p].nativeAction;
             t.lastNativeMode=actors[p].mode;
             t.lastNativeStep=actors[p].nativeStep;
@@ -995,9 +1354,11 @@ struct XM30FrameData {
                 t.previousProjectileBases[k]=samples[p].projectileBases[k];
             if(contactExitGrace[p]>0)--contactExitGrace[p];
         }
+        // Store both advancing and frozen host ticks before red contacts.
+        recordWallTicks(advancePlayer);
         // After rising-edge creation: first active frame and first actual
         // damage sample may be identical. Assign the marker to the new row.
-        recordContacts(actors,advancePlayer);
+        recordContacts(actors,samples,advancePlayer);
     }
 };
 // Stage 87.217: native pixel-space geometry, deterministic frame-data
