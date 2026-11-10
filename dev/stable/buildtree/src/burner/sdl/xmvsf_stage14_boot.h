@@ -240,10 +240,10 @@ static int xmvsfBootSelector(bool returningFromGame=false) {
     if(!introEnabled)xmvsfHost::menuStart(); /* XMVSF_STAGE20_WASAPI */
     SDL_Joystick* menuSticks[8]={NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL};
     SDL_GameController* menuPads[8]={NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL};
-    for(int i=0;i<SDL_NumJoysticks() && i<8;i++) {
-        menuSticks[i]=SDL_JoystickOpen(i);
-        if(SDL_IsGameController(i)) menuPads[i]=SDL_GameControllerOpen(i);
-    }
+    SDL_JoystickID menuInstances[8]={-1,-1,-1,-1,-1,-1,-1,-1};
+    Uint32 menuLastPadProbe=0;
+    // Do not lock in the first enumeration. A pad can become valid while
+    // the menu is already visible (USB, Bluetooth, SDL delayed startup).
     XM13_Settings config;xm13Load(&config);
     xm25OpenSetup(); /* XMVSF_STAGE25_SETS */
     int selection=0,controlsRow=0,controlsPage=0,optionsTab=0,gameRow=0,graphicsRow=xm29NearestPreset(window),screen=0,capture=-1,outcome=-1,running=1;
@@ -258,6 +258,13 @@ static int xmvsfBootSelector(bool returningFromGame=false) {
     };
     while(running) {
         const Uint32 now=SDL_GetTicks();
+        if(!menuLastPadProbe || (Uint32)(now-menuLastPadProbe)>=100u){
+            menuLastPadProbe=now;
+            SDL_PumpEvents();
+            for(int device=0;device<8;++device)
+                xm248ReconcileMenuPad(device,menuSticks[device],
+                                      menuPads[device],menuInstances[device]);
+        }
         const Uint32 introElapsed=introEnabled?
             (Uint32)(now-introStart):XM87235Intro::TotalMs;
         if(introEnabled && !musicFired &&
@@ -767,10 +774,8 @@ static int xmvsfBootSelector(bool returningFromGame=false) {
     XMGlyph::release(); // clean asset textures before game reuses the renderer
     std::fprintf(stderr,"XM27: boot selector EXIT mode=%d\n",outcome);
     std::fflush(stderr);
-    for(int i=0;i<8;i++) {
-        if(menuPads[i]) SDL_GameControllerClose(menuPads[i]);
-        if(menuSticks[i]) SDL_JoystickClose(menuSticks[i]);
-    }
+    for(int i=0;i<8;i++)
+        xm248ReconcileMenuPad(-1,menuSticks[i],menuPads[i],menuInstances[i]);
     // Stage12: retain BOTH the SDL_Window and its SDL_Renderer on Arcade entry.
     if(outcome==0 || outcome==1 || outcome==2) { /* XMVSF_STAGE24_VERSUS */
         xmvsfHost::enterGame(); /* XMVSF_STAGE20_WASAPI */
