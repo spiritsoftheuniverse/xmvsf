@@ -494,8 +494,22 @@ int SDL_KEY_IS_DOWN(int key)
 // can claim P1 once. This is explicitly NOT the saved control assignment.
 // Preserve a working mapped P1 and never steal an assigned P2 device.
 static void xm249TryLateGameControllerClaim() {
-    if(!bDrvOkay)return; // GameInp must exist and the native game must be live
-    XM13_Settings settings{};xm13Load(&settings);
+    if(!bDrvOkay || getenv("XM8764_REPLAY_SESSION") ||
+       getenv("XM8761_REPLAY_MODE"))return;
+    // No additional I/O for an already working P1 pad.
+    if(xm249SessionPad[0].selected){
+        const int assigned=xm249FindSessionDevice(0);
+        if(assigned>=0 && assigned<nJoystickCount && JoyList[assigned] &&
+           SDL_JoystickGetAttached(JoyList[assigned]))return;
+    }
+    static XM13_Settings settings{};
+    static Uint32 checkedAt=0;
+    static bool loaded=false;
+    const Uint32 now=SDL_GetTicks();
+    if(!loaded || (Uint32)(now-checkedAt)>=250u){
+        xm13Load(&settings);
+        checkedAt=now;loaded=true;
+    }
     const int p1=xm248FindAssignedDevice(&settings,0);
     if(p1>=0 && p1<nJoystickCount && JoyList[p1] &&
        SDL_JoystickGetAttached(JoyList[p1]))return;
@@ -522,7 +536,7 @@ static void xm249TryLateGameControllerClaim() {
         if(!edge || i==p2)continue;
         if(xm249SelectSessionPad(0,id)){
             fprintf(stderr,
-                "XM87.249 PAD_LATE_CLAIM p=1 device=%d instance=%d\\n",
+                "XM87.249 PAD_LATE_CLAIM p=1 device=%d instance=%d\n",
                 i,(int)id);
             // GameInpDefault already completed. Install the 14 native
             // P1 virtual switch codes now; no ROM input buffering/write.
