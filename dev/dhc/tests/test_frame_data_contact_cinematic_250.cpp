@@ -84,6 +84,36 @@ static void kenAcceptedRomSuperWithMissedBoxHasContactCard(){
     assert(e.contactCount==2 && e.contactFrames[1]==3u);
     assert(e.attackLastFrame==3u && !e.attackEnded);
 }
+static void activeKenReserveFighterOwnsANewSuperAndContact(){
+    assert(xm30ActiveFighterBase(0,false)==0xFF4000u);
+    assert(xm30ActiveFighterBase(1,false)==0xFF4400u);
+    assert(xm30ActiveFighterBase(0,true)==0xFF4800u);
+    assert(xm30ActiveFighterBase(1,true)==0xFF4C00u);
+    XM30FrameData f{};f.setEnabled(true);f.beginCombat();
+    XM41ActorSample ryu=fighter(0x2A00u,0x2E00u,0x80u,4u);
+    ryu.sourceBase=xm30ActiveFighterBase(0,false);
+    XM41ActorSample ken=ryu;
+    ken.sourceBase=xm30ActiveFighterBase(0,true);
+    XM41ActorSample target=fighter(0x3600u,0x1C00u,0u,0u);
+    target.sourceBase=xm30ActiveFighterBase(1,false);
+    f.onFrame(melee(),{},ryu,target);
+    assert(f.count==1 && f.history[0].actorBase==0xFF4000u);
+    XM30Sample kenBox=melee();
+    kenBox.melee.sourceBase=0xFF4800u;
+    // Same native 2E family and action ID, but a different real fighter.
+    // It must not continue Ryu's row or redirect Ken's hit to it.
+    f.onFrame(kenBox,{},ken,target);
+    assert(f.count==2 && f.eventsCreated==2u);
+    assert(f.history[0].attackEnded);
+    assert(f.history[0].attackEndFrame==1u);
+    assert(f.history[1].actorBase==0xFF4800u);
+    assert(f.history[1].attackFamily==0x2Eu);
+    ken.combo=1u;
+    f.onFrame(kenBox,{},ken,target);
+    assert(f.history[0].contactCount==0);
+    assert(f.history[1].contactCount==1);
+    assert(f.history[1].contactFrames[0]==3u);
+}
 static void firstComboOnlyImpactWithHitstopCountsOneLiveFrame(){
     XM30FrameData f{};f.setEnabled(true);f.beginCombat();f.press(0,0x80);
     XM41ActorSample ken=fighter(0x2800u,0x2800u,0x80u,0u);
@@ -122,6 +152,7 @@ static void frozenHpAndComboConfirmationMakesOnlyOneRedTick(){
 }
 int main(){
     entireAnimated2ePortraitIsNotAttackTime();
+    activeKenReserveFighterOwnsANewSuperAndContact();
     confirmedComboKeepsBothRedTicksWithoutNetHpLoss();
     kenAcceptedRomSuperWithMissedBoxHasContactCard();
     frozenHpAndComboConfirmationMakesOnlyOneRedTick();
