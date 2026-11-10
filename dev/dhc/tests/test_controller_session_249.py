@@ -54,9 +54,16 @@ assert "SDL_GameControllerUpdate();" in backend
 assert "(Uint32)(now-checkedAt)>=250u" in backend
 assert "getenv(\"XM8764_REPLAY_SESSION\")" in backend
 assert "XM87.249 PAD_LATE_CLAIM" in backend
-assert "XM249Policy::needsVirtualMap" in policy
-assert "XM249Policy::useSemanticPad" in policy
-assert "XM249Policy::deliver" in policy
+# Policy.h declares free functions INSIDE namespace XM249Policy.
+# The qualified XM249Policy:: names exist at the call sites, not as
+# literal text in the namespace's own function definitions.
+assert "namespace XM249Policy {" in policy
+assert "static inline bool needsVirtualMap(" in policy
+assert "static inline bool useSemanticPad(" in policy
+assert "static inline bool deliver(" in policy
+assert "return savedAssigned || menuSelected;" in policy
+assert "return menuSelected && (!savedAssigned || savedKeyboard || !sameHardware);" in policy
+assert "return semanticPad?semanticPress:savedPress;" in policy
 assert "test_controller_session_249.cpp" in build
 assert "test_controller_session_249.py" in build
 # This is a read-only ROM-facing input path; no saved mappings are written.
