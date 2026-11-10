@@ -325,7 +325,7 @@ static inline void xm38HitSourceProbe(cpu_core_config* c){
 // versus the Training clock.
 // Enable with XMVSF_FRAME_TRACE=1 before RUN_TEST.bat; the TSV is placed
 // next to the TEST executable. No GPU capture, memory writes or timing hooks.
-static inline void xm247FrameClockTrace(
+static inline void xm250FrameClockTrace(
         cpu_core_config* c,const XM30Sample (&samples)[2],
         const XM41ActorSample (&actors)[2],
         unsigned long long before,unsigned long long after,
@@ -338,7 +338,7 @@ static inline void xm247FrameClockTrace(
         const char* flag=std::getenv("XMVSF_FRAME_TRACE");
         armed=flag && flag[0]=='1' && !flag[1] ? 1 : 0;
         if(armed){
-            file=xm36OpenTrace("xmvsf_frame_clock_247.tsv",
+            file=xm36OpenTrace("xmvsf_frame_clock_250.tsv",
                 "host_sample\tlogical_before\tlogical_after\t"
                 "p1_clock_before\tp1_clock_after\tp2_clock_before\tp2_clock_after\t"
                 "p1_2e\tp1_hitstop\tp1_mode\tp1_action\tp1_phase\t"
@@ -353,7 +353,8 @@ static inline void xm247FrameClockTrace(
                 "p2_origin_family\tp2_origin_action\tp2_origin_mode\tp2_pending_family\t"
                 "p2_pending_action\tp2_pending_mode\tp2_pending\tp2_native_only\t"
                 "p2_prev_box\tp2_last_contacts\t"
-                "events\tevents_created\n");
+                "events\tevents_created\t"
+                "p1_actor_base\tp1_combo\tp2_actor_base\tp2_combo\n");
             if(!file)armed=0;
         }
     }
@@ -400,9 +401,11 @@ static inline void xm247FrameClockTrace(
     }
     // HISTORY stops at 24; use the cumulative counter to expose every
     // unexpected card created AFTER the ring buffer fills.
-    std::fprintf(file,"\t%d\t%llu\n",
+    std::fprintf(file,"\t%d\t%llu\t%06X\t%u\t%06X\t%u\n",
                  xm23State.frameData.count,
-                 xm23State.frameData.eventsCreated);
+                 xm23State.frameData.eventsCreated,
+                 actors[0].sourceBase,actors[0].combo,
+                 actors[1].sourceBase,actors[1].combo);
     if(++logged%60u==0u)std::fflush(file);
 }
 
@@ -527,7 +530,7 @@ static inline void xm23OnRealFrame(int ready) {
         const unsigned long long p1Before=xm23State.frameData.playerFrame[0];
         const unsigned long long p2Before=xm23State.frameData.playerFrame[1];
         xm23State.frameData.onFrame(sample[0],sample[1],actor[0],actor[1]);
-        xm247FrameClockTrace(c,sample,actor,logicalBefore,
+        xm250FrameClockTrace(c,sample,actor,logicalBefore,
                              xm23State.frameData.frame,p1Before,p2Before);
     }
     c->close();
