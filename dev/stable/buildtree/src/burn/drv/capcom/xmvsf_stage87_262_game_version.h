@@ -7,7 +7,9 @@
 namespace XM87262Game {
 inline bool version4(){
     const char* v=std::getenv("XM8755_GAME_VERSION");
-    return v && std::strcmp(v,"4")==0;
+    // Preserve the existing patched experience when no frontend is active.
+    // Explicit Version 3 always restores original behavior.
+    return !v || std::strcmp(v,"4")==0;
 }
 inline bool tournamentKnockdowns(){
     const char* t=std::getenv("XM8755_TOURNAMENT_MODE");
