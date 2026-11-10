@@ -396,9 +396,13 @@ static inline void xm41DrawFrameCard(SDL_Renderer* r,const SDL_Rect& card,
     xm39RoundedCard(r,card);
     const int left=card.x+7,right=card.x+card.w-7;
     char caption[44];
-    std::snprintf(caption,sizeof(caption),"P%d %s B%d %s",e.player+1,
+    char sourceLabel[12];
+    if(e.inputObserved && e.code>=0x80 && e.code<=0x85)
+        std::snprintf(sourceLabel,sizeof(sourceLabel),"B%d",e.code-0x80+1);
+    else std::snprintf(sourceLabel,sizeof(sourceLabel),"ROM");
+    std::snprintf(caption,sizeof(caption),"P%d %s %s %s",e.player+1,
         e.source==1?"PROJ":xm32MotionTag(e.motion),
-        e.code>=0x80 && e.code<=0x85?e.code-0x80+1:0,
+        sourceLabel,
         e.noBox?"NO BOX":(e.attackObserved&&!e.attackEnded?"LIVE":
                               (e.closed?"DONE":"LIVE")));
     xm32ColoredText(r,caption,left,card.y+6,1,159,199,255);
@@ -433,7 +437,7 @@ static inline void xm41DrawFrameCard(SDL_Renderer* r,const SDL_Rect& card,
     // Markers sit ABOVE both chart rows; connecting lines keep the precise
     // tick location visible even when captions need to be displaced.
     XM39Mark marks[6];int n=0;
-    marks[n++]={"IN",e.inputFrame};
+    marks[n++]={e.inputObserved?"IN":"ROM",e.inputFrame};
     if(e.source==1 && e.spawnFrame)marks[n++]={"SP",e.spawnFrame};
     if(!e.noBox)marks[n++]={"ON",e.firstFrame};
     // Projectile lifecycle ends at disappearance, not an artificial "OUT"
@@ -528,7 +532,8 @@ static inline void xm41DrawFrameCard(SDL_Renderer* r,const SDL_Rect& card,
     else{
         char val[24];
         xm32ColoredText(r,"S:",left,card.y+112,1,255,218,84);
-        std::snprintf(val,sizeof(val),"%dF",e.startup);
+        if(e.inputObserved)std::snprintf(val,sizeof(val),"%dF",e.startup);
+        else std::snprintf(val,sizeof(val),"?");
         xm32ColoredText(r,val,left+14,card.y+112,1,255,207,182);
         xm32ColoredText(r,"A:",left+80,card.y+112,1,102,236,142);
         std::snprintf(val,sizeof(val),"%dF",e.active);
