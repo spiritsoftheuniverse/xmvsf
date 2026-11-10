@@ -111,8 +111,8 @@ static inline bool xm87110RestartAfterFrame(bool ready,unsigned frame){
          frame,stage,oldCamera,newCamera,x1,x2);
        positioned=true;
      }else{
-     // Both LEFT and RIGHT use explicit positions. LEFT is the final
-     // 217/46, Y=472, camera=0 target, never a snapshot-only fallback.
+     // LEFT = 79/21 and RIGHT = 689/747, mirrored across world X=384.
+     // Both use the recorded ground Y=472, with native camera 0/384.
      // Keep each actor and its fractional X. NEVER swap the fighters' data.
      const bool changeFacing=XM87111::flipFacing(selection,x1<x2);
      const unsigned oldCamera=XM87111::nativeCameraX(XM87102Lab::read16(cpu,0xFF524Cu));
@@ -121,8 +121,7 @@ static inline bool xm87110RestartAfterFrame(bool ready,unsigned frame){
      for(unsigned i=0;i<2u;++i){
       const unsigned oldFraction=xm18Read32(cpu,bases[i]+0x0Cu)&65535u;
       xm18Write32(cpu,bases[i]+0x0Cu,(XM87111::fighterX(selection,i)<<16)|oldFraction);
-      if(selection==XM87110::LEFT)
-       xm18Write16(cpu,bases[i]+0x10u,XM87111::CORNER_Y);
+      xm18Write16(cpu,bases[i]+0x10u,XM87111::CORNER_Y);
       const unsigned original=XM87102Lab::read8(cpu,bases[i]+0x4Bu);
       cpu->write(bases[i]+0x4Bu,XM87111::changedFacing(original,changeFacing));
      }
@@ -132,6 +131,10 @@ static inline bool xm87110RestartAfterFrame(bool ready,unsigned frame){
      // centered or off-corner even when the fighter coordinates were right.
      xm18Write16(cpu,0xFF524Cu,XM87111::cameraX(selection)-XM87111::CAMERA_BIAS);
      XM87111::cameraCheck().arm(XM87111::cameraX(selection));
+     XM87110::log("POSITION_APPLIED frame=%u preset=%s stage=%u p1x=%u p2x=%u y=%u camera=%u",
+       frame,selection==XM87110::RIGHT?"RIGHT":"LEFT",stage,
+       XM87111::fighterX(selection,0),XM87111::fighterX(selection,1),
+       XM87111::CORNER_Y,XM87111::cameraX(selection));
      std::fprintf(stderr,
        "XM87.111 CAMERA_CORNER_SYNC frame=%u stage=%u old_camera=%u target_camera=%u "
        "old_x=%u,%u target_x=%u,%u native_face=%02X,%02X face_flipped=%u\n",
@@ -142,6 +145,9 @@ static inline bool xm87110RestartAfterFrame(bool ready,unsigned frame){
      } // corner-only placement
    }else{
     // Do not write stage-05 camera bounds into an unknown native stage.
+    XM87110::log("POSITION_REFUSED frame=%u stage=%u expected_stage=%u phase=%u ptr=%08X x=%u,%u actors=%u,%u",
+       frame,stage,XM87111::STAGE,phase,ptr,x1,x2,
+       XM87102Lab::read8(cpu,bases[0]),XM87102Lab::read8(cpu,bases[1]));
     std::fprintf(stderr,"XM87.111 CORNER_REFUSED frame=%u stage=%u phase=%u ptr=%08X p1=%u p2=%u\n",
        frame,stage,phase,ptr,x1,x2);
    }
