@@ -27,6 +27,7 @@ static int nInitedSubsytems = 0;
 static SDL_Joystick* JoyList[MAX_JOYSTICKS];
 static SDL_GameController *GCList[MAX_JOYSTICKS];
 static SDL_JoystickID xm248Instance[MAX_JOYSTICKS] = {-1,-1,-1,-1,-1,-1,-1,-1};
+static SDL_JoystickID xm248ListedInstance[MAX_JOYSTICKS] = {-1,-1,-1,-1,-1,-1,-1,-1};
 static Uint32 xm248LastRetryAt = 0;
 static int* JoyPrevAxes = NULL;
 /* static */ int nJoystickCount = 0;						// Number of joysticks connected to this machine
@@ -335,7 +336,7 @@ static int SDLinpJoystickInit(int i) {
         if(b.bindType==SDL_CONTROLLER_BINDTYPE_BUTTON)
             buttons[i][j]=b.value.button;
     }
-    std::fprintf(stderr,"XM87.248 PAD_OPEN slot=%d instance=%d gamecontroller=%d name=%s\\n",
+    std::fprintf(stderr,"XM87.248 PAD_OPEN slot=%d instance=%d gamecontroller=%d name=%s\n",
         i,(int)xm248Instance[i],GCList[i]?1:0,SDL_JoystickName(joy));
     return 0;
 }
@@ -350,10 +351,12 @@ static void SDLinpRecheckJoysticks(bool forceRetry=false) {
     const int count=discovered<MAX_JOYSTICKS?discovered:MAX_JOYSTICKS;
     for(int i=0;i<MAX_JOYSTICKS;++i){
         const SDL_JoystickID id=i<count?SDL_JoystickGetDeviceInstanceID(i):-1;
+        const bool newlyListed=xm248ListedInstance[i]!=id;
+        xm248ListedInstance[i]=id;
         const bool current=JoyList[i] && SDL_JoystickGetAttached(JoyList[i]) &&
             xm248Instance[i]==id && SDL_JoystickInstanceID(JoyList[i])==id;
         if(!current && (JoyList[i] || GCList[i] || xm248Instance[i]!=-1)) {
-            std::fprintf(stderr,"XM87.248 PAD_LOST slot=%d instance=%d replacement=%d\\n",
+            std::fprintf(stderr,"XM87.248 PAD_LOST slot=%d instance=%d replacement=%d\n",
                 i,(int)xm248Instance[i],(int)id);
             SDLinpCloseJoystickSlot(i);
         }
@@ -361,7 +364,7 @@ static void SDLinpRecheckJoysticks(bool forceRetry=false) {
         if(!JoyList[i]) {
             // A newly enumerated device is attempted immediately. If open
             // fails while the driver initializes, retry it every 250 ms.
-            if(forceRetry || retry || xm248Instance[i]!=id)
+            if(forceRetry || retry || newlyListed)
                 SDLinpJoystickInit(i);
         }else if(GCList[i] && !SDL_GameControllerGetAttached(GCList[i])) {
             SDL_GameControllerClose(GCList[i]);GCList[i]=NULL;
@@ -371,7 +374,7 @@ static void SDLinpRecheckJoysticks(bool forceRetry=false) {
             // later obtain an SDL GameController mapping without restart.
             GCList[i]=SDL_GameControllerOpen(i);
             if(GCList[i])
-                std::fprintf(stderr,"XM87.248 PAD_MAPPING_READY slot=%d instance=%d\\n",
+                std::fprintf(stderr,"XM87.248 PAD_MAPPING_READY slot=%d instance=%d\n",
                     i,(int)xm248Instance[i]);
         }
     }
@@ -414,7 +417,10 @@ int SDLinpSetCooperativeLevel(bool bExclusive, bool /*bForeGround*/)
 
 int SDLinpExit()
 {
-    for(int i=0;i<MAX_JOYSTICKS;++i)SDLinpCloseJoystickSlot(i);
+    for(int i=0;i<MAX_JOYSTICKS;++i){
+        SDLinpCloseJoystickSlot(i);
+        xm248ListedInstance[i]=-1;
+    }
     nJoystickCount=0;
     free(JoyPrevAxes);
     JoyPrevAxes=NULL;
