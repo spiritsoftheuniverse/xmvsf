@@ -19,11 +19,12 @@ static inline void log(const char* format,...) {
  if(f){std::fprintf(f,"XM87.272 RELOCATOR %s\n",line);std::fclose(f);}
 }
 enum Preset { NONE=0, NORMAL=1, RIGHT=2, LEFT=3 };
-// TEST 87.272: the two taunt markers in 87.270's side-switch record.
-// Source of truth for placement is XM87111::fighterX() in the corner header.
-static const unsigned RIGHT_P1_X=689u;
+// TEST 87.273: adjust player to 87.272's repeated taunt marker, keeping
+// Cyclops on the original outer edge. Keep mirrored at world width 768.
+// Source of truth for runtime placement is XM87111::fighterX().
+static const unsigned RIGHT_P1_X=650u;
 static const unsigned RIGHT_P2_X=747u;
-static const unsigned LEFT_P1_X=79u;
+static const unsigned LEFT_P1_X=118u;
 static const unsigned LEFT_P2_X=21u;
 static inline unsigned targetX(unsigned preset,unsigned fighter){
  return preset==LEFT ? (fighter==0?LEFT_P1_X:LEFT_P2_X)
