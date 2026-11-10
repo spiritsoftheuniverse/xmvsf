@@ -735,7 +735,7 @@ int SDLinpState(int nCode)
             if(!xm13IsKeyboard(&xm13Config.player[xm14Source])){
                 static int lastRoute[2]={-2,-2},lastLive[2]={-1,-1};
                 static SDL_JoystickID lastInstance[2]={-2,-2};
-                const int route=xm13FindDevice(&xm13Config.player[xm14Source]);
+                const int route=xm248FindAssignedDevice(&xm13Config,xm14Source);
                 const bool live=route>=0 && route<nJoystickCount &&
                     JoyList[route] && SDL_JoystickGetAttached(JoyList[route]);
                 const SDL_JoystickID id=live?SDL_JoystickInstanceID(JoyList[route]):-1;
