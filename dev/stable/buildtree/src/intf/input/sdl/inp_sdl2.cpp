@@ -552,9 +552,10 @@ static void xm249TryLateGameControllerClaim() {
        getenv("XM8761_REPLAY_MODE"))return;
     // No additional I/O for an already working P1 pad.
     if(xm249SessionPad[0].selected){
-        const int assigned=xm249FindSessionDevice(0);
-        if(assigned>=0 && assigned<nJoystickCount && JoyList[assigned] &&
-           SDL_JoystickGetAttached(JoyList[assigned]))return;
+        // No enumeration if the selected SDL instance is already attached.
+        for(int i=0;i<nJoystickCount;++i)
+            if(JoyList[i] && SDL_JoystickGetAttached(JoyList[i]) &&
+               xm248Instance[i]==xm249SessionPad[0].instance)return;
     }
     static XM13_Settings settings{};
     static Uint32 checkedAt=0;
@@ -564,10 +565,10 @@ static void xm249TryLateGameControllerClaim() {
         xm13Load(&settings);
         checkedAt=now;loaded=true;
     }
-    const int p1=xm248FindAssignedDevice(&settings,0);
+    const int p1=xm266ControllerRoute(&settings,0,nJoystickCount).device;
     if(p1>=0 && p1<nJoystickCount && JoyList[p1] &&
        SDL_JoystickGetAttached(JoyList[p1]))return;
-    const int p2=xm248FindAssignedDevice(&settings,1);
+    const int p2=xm266ControllerRoute(&settings,1,nJoystickCount).device;
     static SDL_JoystickID known[MAX_JOYSTICKS]={-1,-1,-1,-1,-1,-1,-1,-1};
     static bool previousA[MAX_JOYSTICKS]={};
     for(int i=0;i<MAX_JOYSTICKS;++i){
@@ -859,7 +860,8 @@ int SDLinpState(int nCode)
             if(!xm13IsKeyboard(&xm13Config.player[xm14Source])){
                 static int lastRoute[2]={-2,-2},lastLive[2]={-1,-1};
                 static SDL_JoystickID lastInstance[2]={-2,-2};
-                const int route=xm248FindAssignedDevice(&xm13Config,xm14Source);
+                const int route=xm266ControllerRoute(
+                    &xm13Config,xm14Source,nJoystickCount).device;
                 const bool live=route>=0 && route<nJoystickCount &&
                     JoyList[route] && SDL_JoystickGetAttached(JoyList[route]);
                 const SDL_JoystickID id=live?SDL_JoystickInstanceID(JoyList[route]):-1;
@@ -876,7 +878,8 @@ int SDLinpState(int nCode)
             }
             if(xm249SessionPad[xm14Source].selected) {
                 static SDL_JoystickID reported[2]={-1,-1};
-                const int d=xm249FindSessionDevice(xm14Source);
+                const int d=xm266ControllerRoute(
+                    &xm13Config,xm14Source,nJoystickCount).device;
                 const SDL_JoystickID id=d>=0?SDL_JoystickGetDeviceInstanceID(d):-1;
                 if(reported[xm14Source]!=id) {
                     reported[xm14Source]=id;
