@@ -299,8 +299,13 @@ extern XM248RuntimeOwner xm248RuntimeOwner[2];
 static inline int xm248FindAssignedDevice(const XM13_Settings* settings,int player) {
     if(!settings || player<0 || player>1)return -1;
     const XM13_Player& p=settings->player[player];
-    if(!p.active || xm13IsKeyboard(&p))return -1;
     XM248RuntimeOwner& saved=xm248RuntimeOwner[player];
+    if(!p.active || xm13IsKeyboard(&p)){
+        // Switching this slot to keyboard/unassigned immediately releases
+        // its old physical instance for the other player.
+        saved=XM248RuntimeOwner{};
+        return -1;
+    }
     const bool same=saved.configured &&
         saved.occurrence==p.occurrence &&
         saved.nameOccurrence==p.nameOccurrence &&
