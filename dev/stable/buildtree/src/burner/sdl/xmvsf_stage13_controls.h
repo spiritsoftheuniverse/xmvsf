@@ -5,6 +5,7 @@
 #ifndef XMVSF_STAGE13_CONTROLS_H
 #define XMVSF_STAGE13_CONTROLS_H
 #include <SDL.h>
+#include "xmvsf_stage249_controller_policy.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -678,7 +679,7 @@ static int xm13ReadInput(const XM13_Settings* s,int player,int sub,
     const XM13_Player* p=&s->player[player];
     const bool savedActive=p->active!=0;
     const bool fromMenu=xm249SessionPad[player].selected;
-    if(!savedActive && !fromMenu)return -1;
+    if(!XM249Policy::needsVirtualMap(savedActive,fromMenu))return -1;
     const int device=xm248FindAssignedDevice(s,player);
     SDL_Joystick* joy=device>=0 && device<count && raw[device] &&
         SDL_JoystickGetAttached(raw[device])?raw[device]:nullptr;
@@ -687,9 +688,8 @@ static int xm13ReadInput(const XM13_Settings* s,int player,int sub,
     // which actually selected Arcade. Use standardized GC buttons if the
     // current device differs from the saved profile. Same-device profiles
     // retain every user's custom binding.
-    const bool useSessionDefaults=fromMenu && joy &&
-        (!savedActive || xm13IsKeyboard(p) ||
-         xm13FindDevice(p)!=device);
+    const bool useSessionDefaults=joy && XM249Policy::useSemanticPad(
+        fromMenu,savedActive,xm13IsKeyboard(p),xm13FindDevice(p)==device);
     const bool allowSaved=!useSessionDefaults || xm13IsKeyboard(p);
     if(sub>=0 && sub<=3){
         const int idx=XM13_LEFT+sub;
@@ -721,17 +721,19 @@ static int xm13ReadInput(const XM13_Settings* s,int player,int sub,
         const int rawAction=sub-0x80;
         const int action=rawAction<6?rawAction:
                          rawAction==6?XM13_COIN:XM13_START;
-        const int pressed=allowSaved &&
+        const int saved=allowSaved &&
             xm13BindingPressed(p->binding[action],joy);
-        const int session=useSessionDefaults &&
+        const int semantic=useSessionDefaults &&
             xm249DefaultGameAction(pad,joy,rawAction);
+        const int pressed=XM249Policy::deliver(saved!=0,semantic!=0,
+                                               useSessionDefaults);
         if(rawAction<3)
-            return pressed || session ||
+            return pressed ||
                 (allowSaved && xm13BindingPressed(p->binding[XM13_3P],joy));
         if(rawAction<6)
-            return pressed || session ||
+            return pressed ||
                 (allowSaved && xm13BindingPressed(p->binding[XM13_3K],joy));
-        return pressed || session;
+        return pressed;
     }
     return 0;
 }
