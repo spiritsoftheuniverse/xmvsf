@@ -41,6 +41,19 @@ assert "if(XM249Policy::needsVirtualMap(" in backend
 assert "xm249SessionPad[xm14Source].selected))" in backend
 assert backend.index("if(XM249Policy::needsVirtualMap(") < backend.index("xm13ReadInput(&xm13Config,xm14Source,xm15Sub")
 assert "XM87.249 PAD_GAME_OWNER" in backend
+# A controller whose SDL GameController mapping becomes ready DURING
+# Arcade must be able to claim an unassigned/unavailable P1 on fresh A.
+assert "static void xm249TryLateGameControllerClaim()" in backend
+assert "const bool edge=down && !previousA[i];" in backend
+assert "if(known[i]!=id)" in backend
+assert "if(!edge || i==p2)continue;" in backend
+assert "xm249SelectSessionPad(0,id)" in backend
+assert "xm131ApplyGameInputMappings();" in backend
+assert "xm249TryLateGameControllerClaim();" in backend
+assert "SDL_GameControllerUpdate();" in backend
+assert "(Uint32)(now-checkedAt)>=250u" in backend
+assert "getenv(\"XM8764_REPLAY_SESSION\")" in backend
+assert "XM87.249 PAD_LATE_CLAIM" in backend
 assert "XM249Policy::needsVirtualMap" in policy
 assert "XM249Policy::useSemanticPad" in policy
 assert "XM249Policy::deliver" in policy
