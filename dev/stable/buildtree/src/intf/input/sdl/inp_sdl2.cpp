@@ -369,7 +369,8 @@ static void SDLinpRecheckJoysticks(bool forceRetry=false) {
             // fails while the driver initializes, retry it every 250 ms.
             if(forceRetry || retry || newlyListed)
                 SDLinpJoystickInit(i);
-        }else if(GCList[i] && !SDL_GameControllerGetAttached(GCList[i])) {
+        }else if(GCList[i] && (!SDL_GameControllerGetAttached(GCList[i]) ||
+                               !SDL_IsGameController(i))) {
             SDL_GameControllerClose(GCList[i]);GCList[i]=NULL;
         }
         if(JoyList[i] && !GCList[i] && retry && SDL_IsGameController(i)) {
