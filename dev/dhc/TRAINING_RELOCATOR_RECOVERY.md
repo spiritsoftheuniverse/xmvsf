@@ -116,3 +116,33 @@ recorded. The warm object cache remains intact; no build preflights added.
 
 The branch was source-reviewed only; Windows native build and controller
 behavior still require running `BUILD_TEST.bat` then `RUN_TEST.bat`.
+
+## TEST 87.270: first-live-frame snapshot capture restored
+
+The user-provided `87.269.zip` proves controller registration is working.
+`training_relocator.log` contains repeated successful `START_TRIGGER` for
+NORMAL/LEFT/RIGHT, followed each time by
+`RESTART_REFUSED reason=no_match_start_snapshot`.
+`observer_health_test.log` proves combat starts at frame 1446.
+
+Source investigation found the actual blocker: `XM87102Lab::Capture::frame`
+had NO call site in the completed-frame `run.cpp` path. Consequently
+`Capture.saved` was always false and both triple-Start resets and Training
+KO-landing restores lacked the expected first-frame state. TEST 87.270
+calls the existing capture function **once per completed real emulation
+frame**, immediately after stage18/Training HUD state is sampled and
+before either reset handler, preserving the first-live-frame one-shot
+save logic inside `Capture::frame`.
+
+The same versioned observer log now records
+`MATCH_START_CAPTURE frame=... saved=1 path=...` (or saved=0 for a
+genuine filesystem/savestate failure). Expect this event when Training
+first enters live combat; then `START_TRIGGER`, `RESTART_BEGIN`, and
+`TRAINING_TRIPLE_START positioned=1` on a successful third press.
+The supplied F9 `.fs` snapshot was inspected offline: it has valid
+`FB1 FS1` layout, the expected `CpsRamFF` block, and four valid
+fighter IDs, supporting the existing cache parser format.
+
+No new build gates, GitHub Actions, cache invalidation, or Stable changes.
+The patch is source-reviewed only; a native Windows build and live gameplay
+test remain necessary.
