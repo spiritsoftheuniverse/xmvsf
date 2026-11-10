@@ -442,6 +442,43 @@ static int xm13Assign(XM13_Settings* settings,int player,int device){
     *settings=updated;
     return 1;
 }
+// TEST 87.248: shared identity-based SDL handle reconciliation for the
+// boot, Training, Arcade and Versus menus. An SDL enumeration index is
+// NOT stable across disconnection; its instance ID is. Keep saved user
+// mappings separate from these ephemeral runtime handles.
+static inline bool xm248ReconcileMenuPad(
+        int device, SDL_Joystick*& stick, SDL_GameController*& pad,
+        SDL_JoystickID& instance) {
+    const SDL_JoystickID wanted=(device>=0 && device<SDL_NumJoysticks())?
+        SDL_JoystickGetDeviceInstanceID(device):-1;
+    const bool live=stick && SDL_JoystickGetAttached(stick) &&
+        instance==wanted && SDL_JoystickInstanceID(stick)==wanted;
+    bool changed=false;
+    if(!live){
+        if(pad){SDL_GameControllerClose(pad);pad=nullptr;changed=true;}
+        if(stick){SDL_JoystickClose(stick);stick=nullptr;changed=true;}
+        instance=-1;
+    }else if(pad && !SDL_GameControllerGetAttached(pad)){
+        SDL_GameControllerClose(pad);pad=nullptr;changed=true;
+    }
+    if(wanted<0)return changed;
+    if(!stick){
+        SDL_Joystick* candidate=SDL_JoystickOpen(device);
+        if(!candidate)return changed; // failed open: next poll will retry
+        if(!SDL_JoystickGetAttached(candidate)){
+            SDL_JoystickClose(candidate);return changed;
+        }
+        stick=candidate;
+        instance=SDL_JoystickInstanceID(candidate);
+        changed=true;
+    }
+    if(stick && !pad && SDL_IsGameController(device)){
+        pad=SDL_GameControllerOpen(device);
+        if(pad)changed=true;
+    }
+    return changed;
+}
+
 extern int xm24ResultInputCapture; /* XMVSF_STAGE24_3_LIVE_RESULTS */
 static int xm13BindingPressed(const XM13_Binding& binding,SDL_Joystick* joy){
     if(binding.type=='K'){
