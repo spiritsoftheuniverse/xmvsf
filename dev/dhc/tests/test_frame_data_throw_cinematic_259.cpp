@@ -65,6 +65,17 @@ static void grabSuperKeepsOneCardAcrossThrowController(){
     f.onFrame(none,none,p,b);
     assert(f.count==2 && f.eventsCreated==2u);
 }
+static void passiveGrabbedFighterNeverGetsAnAttackCard(){
+    XM30FrameData f{};f.setEnabled(true);f.beginCombat();
+    XM30Sample none{};
+    auto p=actor(0x3200u,0x0200u,2u,0u,0xAA350u);
+    auto b=dummy(); // P1 was just grabbed by P2, no P1 input
+    f.onFrame(none,none,p,b);
+    assert(f.count==0 && f.eventsCreated==0u);
+    p.nativeAction=0x0202u;
+    f.onFrame(none,none,p,b);
+    assert(f.count==0 && f.eventsCreated==0u);
+}
 static void standaloneThrowAndRealChainedThrow(){
     XM30FrameData f{};f.setEnabled(true);f.beginCombat();
     auto p=actor(0x3200u,0x0200u,2u,0u,0xAA400u);
@@ -100,6 +111,7 @@ int main(){
     portraitPhase81AcrossNativeSubstages();
     stageTwoPhase80StasisMakesRealGrayTime();
     grabSuperKeepsOneCardAcrossThrowController();
+    passiveGrabbedFighterNeverGetsAnAttackCard();
     standaloneThrowAndRealChainedThrow();
     counterFlipAndFollowupWithoutBoxes();
     std::puts("XMVSF 87.259 native portrait/grab/counter/flip coverage PASS");

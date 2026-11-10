@@ -780,11 +780,17 @@ struct XM30FrameData {
             const bool chainedThrow=t.pending>=0 &&
                 t.lastNativeFamily==XM30_THROW_FAMILY &&
                 actors[p].nativeAction!=t.lastNativeAction;
+            // The victim of a throw can also enter controller 32.
+            // Never mistake that passive state for the victim attacking.
+            // An independent command grab requires a recent real button
+            // candidate; continuity from a live 2C/2E needs no new row.
             const bool freshThrow=family==XM30_THROW_FAMILY &&
-                ((t.lastNativeFamily!=XM30_THROW_FAMILY &&
-                  t.lastNativeFamily!=0x2Cu &&
-                  t.lastNativeFamily!=0x2Eu &&
-                  !liveSpecial && !liveSuper) || chainedThrow);
+                (((t.lastNativeFamily!=XM30_THROW_FAMILY &&
+                   !liveSpecial && !liveSuper &&
+                   t.pending>=0 &&
+                   playerFrame[p]>=(unsigned long long)t.pending &&
+                   playerFrame[p]-(unsigned long long)t.pending<=MAX_WAIT))
+                 || chainedThrow);
             const bool resumedSpecial=family==0x2Cu &&
                 t.lastNativeFamily==XM30_THROW_FAMILY && liveSpecial &&
                 t.pending<0;
