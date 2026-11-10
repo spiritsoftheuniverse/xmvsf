@@ -54,8 +54,13 @@ static inline bool flipFacing(unsigned selection,bool snapshotP1IsLeft){
 static inline unsigned changedFacing(unsigned nativeByte,bool flip){return flip?(nativeByte^1u):nativeByte;}
 struct CameraCheck {
  unsigned expected=0, remaining=0;
- void arm(unsigned x){expected=x;remaining=8u;}
- void clear(){expected=remaining=0;}
+ bool actors=false;
+ unsigned p1x=0,p2x=0;
+ void arm(unsigned x){expected=x;remaining=8u;actors=false;}
+ void armActors(unsigned x,unsigned a,unsigned b){
+  arm(x);actors=true;p1x=a;p2x=b;
+ }
+ void clear(){expected=remaining=0;actors=false;p1x=p2x=0;}
 };
 static inline CameraCheck& cameraCheck(){static CameraCheck c;return c;}
 }
