@@ -30,6 +30,11 @@ static SDL_GameController *GCList[MAX_JOYSTICKS];
 static SDL_JoystickID xm248Instance[MAX_JOYSTICKS] = {-1,-1,-1,-1,-1,-1,-1,-1};
 static SDL_JoystickID xm248ListedInstance[MAX_JOYSTICKS] = {-1,-1,-1,-1,-1,-1,-1,-1};
 static Uint32 xm248LastRetryAt = 0;
+// 87.266: throttle FAILED HID opens only; a new instance bypasses cooldown.
+static SDL_JoystickID xm266FailedJoyID[MAX_JOYSTICKS]={-1,-1,-1,-1,-1,-1,-1,-1};
+static Uint32 xm266FailedJoyAt[MAX_JOYSTICKS]={};
+static SDL_JoystickID xm266FailedGCID[MAX_JOYSTICKS]={-1,-1,-1,-1,-1,-1,-1,-1};
+static Uint32 xm266FailedGCAt[MAX_JOYSTICKS]={};
 static int* JoyPrevAxes = NULL;
 /* static */ int nJoystickCount = 0;						// Number of joysticks connected to this machine
 // The Windows boot selector has already initialized/enumerated SDL pads.
@@ -319,12 +324,35 @@ static void SDLinpCloseJoystickSlot(int i) {
 static int SDLinpJoystickInit(int i) {
     if(i<0 || i>=MAX_JOYSTICKS || i>=SDL_NumJoysticks())return 1;
     if(JoyList[i])SDLinpCloseJoystickSlot(i);
+    const SDL_JoystickID requested=SDL_JoystickGetDeviceInstanceID(i);
+    const Uint32 started=SDL_GetTicks();
     SDL_Joystick* joy=SDL_JoystickOpen(i);
-    if(!joy)return 1; // may be present but not ready; retry while running
-    if(!SDL_JoystickGetAttached(joy)){SDL_JoystickClose(joy);return 1;}
+    const Uint32 ms=(Uint32)(SDL_GetTicks()-started);
+    if(ms>=50u)fprintf(stderr,
+        "XM87.266 SLOW_JOY_OPEN slot=%d id=%d ms=%u\n",
+        i,(int)requested,(unsigned)ms);
+    if(!joy || !SDL_JoystickGetAttached(joy)){
+        if(joy)SDL_JoystickClose(joy);
+        xm266FailedJoyID[i]=requested;
+        xm266FailedJoyAt[i]=SDL_GetTicks()?SDL_GetTicks():1u;
+        return 1;
+    }
+    xm266FailedJoyID[i]=-1;xm266FailedJoyAt[i]=0;
     JoyList[i]=joy;
     xm248Instance[i]=SDL_JoystickInstanceID(joy);
-    if(SDL_IsGameController(i)) GCList[i]=SDL_GameControllerOpen(i);
+    if(SDL_IsGameController(i)){
+        const Uint32 gcStarted=SDL_GetTicks();
+        GCList[i]=SDL_GameControllerOpen(i);
+        const Uint32 gcMs=(Uint32)(SDL_GetTicks()-gcStarted);
+        if(gcMs>=50u)fprintf(stderr,
+            "XM87.266 SLOW_GC_OPEN slot=%d ms=%u\n",i,(unsigned)gcMs);
+        if(!GCList[i]){
+            xm266FailedGCID[i]=xm248Instance[i];
+            xm266FailedGCAt[i]=SDL_GetTicks()?SDL_GetTicks():1u;
+        }else{
+            xm266FailedGCID[i]=-1;xm266FailedGCAt[i]=0;
+        }
+    }
     const SDL_GameControllerButton names[8]={
         SDL_CONTROLLER_BUTTON_A,SDL_CONTROLLER_BUTTON_B,
         SDL_CONTROLLER_BUTTON_X,SDL_CONTROLLER_BUTTON_Y,
@@ -343,14 +371,25 @@ static int SDLinpJoystickInit(int i) {
         deviceName?deviceName:"UNKNOWN");
     return 0;
 }
-// Called once per emulated input frame and again before the first read.
-// Enumerating instance IDs is cheap (<=8) and catches late availability,
-// USB/Bluetooth reconnect, changed indices, and previously failed opens.
+// Native Windows HID enumeration can block during DS4/XInput reconnect.
+// Enumerate no more than every 250ms, except an attached handle dropping
+// out immediately. Normal reads use already opened SDL device handles.
 static void SDLinpRecheckJoysticks(bool forceRetry=false) {
     const Uint32 now=SDL_GetTicks();
-    const bool retry=forceRetry || (Uint32)(now-xm248LastRetryAt)>=250u;
-    if(retry)xm248LastRetryAt=now;
+    bool retry=forceRetry || !xm248LastRetryAt ||
+        (Uint32)(now-xm248LastRetryAt)>=250u;
+    if(!retry)for(int i=0;i<MAX_JOYSTICKS;++i)
+        if(JoyList[i] && !SDL_JoystickGetAttached(JoyList[i])){
+            retry=true;break;
+        }
+    if(!retry)return;
+    xm248LastRetryAt=now?now:1u;
+    const Uint32 scanStart=SDL_GetTicks();
     const int discovered=SDL_NumJoysticks();
+    const Uint32 scanMs=(Uint32)(SDL_GetTicks()-scanStart);
+    if(scanMs>=50u)fprintf(stderr,
+        "XM87.266 SLOW_PAD_SCAN ms=%u discovered=%d\n",
+        (unsigned)scanMs,discovered);
     const int count=discovered<=0?0:
         (discovered<MAX_JOYSTICKS?discovered:MAX_JOYSTICKS);
     for(int i=0;i<MAX_JOYSTICKS;++i){
@@ -366,21 +405,32 @@ static void SDLinpRecheckJoysticks(bool forceRetry=false) {
         }
         if(i>=count || id<0)continue;
         if(!JoyList[i]) {
-            // A newly enumerated device is attempted immediately. If open
-            // fails while the driver initializes, retry it every 250 ms.
-            if(forceRetry || retry || newlyListed)
+            // No open storm while Windows/DS4Windows is initializing.
+            // A different SDL instance ID always attempts immediately.
+            if(xm266FailedJoyID[i]!=id || !xm266FailedJoyAt[i] ||
+               (Uint32)(now-xm266FailedJoyAt[i])>=1200u)
                 SDLinpJoystickInit(i);
         }else if(GCList[i] && (!SDL_GameControllerGetAttached(GCList[i]) ||
                                !SDL_IsGameController(i))) {
             SDL_GameControllerClose(GCList[i]);GCList[i]=NULL;
         }
-        if(JoyList[i] && !GCList[i] && retry && SDL_IsGameController(i)) {
-            // A pad that initially opened only as a raw joystick can
-            // later obtain an SDL GameController mapping without restart.
+        if(JoyList[i] && !GCList[i] && SDL_IsGameController(i) &&
+           (xm266FailedGCID[i]!=id || !xm266FailedGCAt[i] ||
+            (Uint32)(now-xm266FailedGCAt[i])>=1200u)){
+            // Retry the GameController mapping without reopening raw input.
+            const Uint32 gcStarted=SDL_GetTicks();
             GCList[i]=SDL_GameControllerOpen(i);
-            if(GCList[i])
-                fprintf(stderr,"XM87.248 PAD_MAPPING_READY slot=%d instance=%d\n",
+            const Uint32 ms=(Uint32)(SDL_GetTicks()-gcStarted);
+            if(ms>=50u)fprintf(stderr,
+                "XM87.266 SLOW_MAPPING_OPEN slot=%d ms=%u\n",i,(unsigned)ms);
+            if(GCList[i]){
+                xm266FailedGCID[i]=-1;xm266FailedGCAt[i]=0;
+                fprintf(stderr,"XM87.266 PAD_MAPPING_READY slot=%d instance=%d\n",
                     i,(int)xm248Instance[i]);
+            }else{
+                xm266FailedGCID[i]=id;
+                xm266FailedGCAt[i]=SDL_GetTicks()?SDL_GetTicks():1u;
+            }
         }
     }
     nJoystickCount=count;
@@ -431,6 +481,10 @@ int SDLinpExit()
     JoyPrevAxes=NULL;
     nInitedSubsytems=0;
     xm248LastRetryAt=0;
+    for(int i=0;i<MAX_JOYSTICKS;++i){
+        xm266FailedJoyID[i]=xm266FailedGCID[i]=-1;
+        xm266FailedJoyAt[i]=xm266FailedGCAt[i]=0;
+    }
     return 0;
 }
 
@@ -551,8 +605,14 @@ int SDLinpStart()
 {
 	// Update SDL event queue
 	SDL_PumpEvents();
-    SDLinpRecheckJoysticks(); // hotplug / reconnect / previously failed open
-    SDL_GameControllerUpdate();
+    SDLinpRecheckJoysticks(); // bounded hotplug detection and HID retries
+    XM8797Debug::state().beforeControllerPoll();
+    const Uint32 pollStart=SDL_GetTicks();
+    SDL_GameControllerUpdate(); // one SDL input refresh per emulated frame
+    const Uint32 pollMs=(Uint32)(SDL_GetTicks()-pollStart);
+    XM8797Debug::state().afterControllerPoll();
+    if(pollMs>=50u)fprintf(stderr,
+        "XM87.266 SLOW_PAD_UPDATE ms=%u\n",(unsigned)pollMs);
     xm249TryLateGameControllerClaim();
 
 	// Keyboard not read this frame
@@ -574,11 +634,8 @@ static int ReadJoystick()
 		return 0;
 	}
 
-    // Always validate the current instances before dereferencing a slot.
-    SDLinpRecheckJoysticks();
-    XM8797Debug::state().beforeControllerPoll();
-	SDL_GameControllerUpdate();		// This updates Joysticks too
-    XM8797Debug::state().afterControllerPoll();
+    // SDLinpStart has already refreshed devices and their cached input.
+    // Do not re-enter the HID poll for another mapped button on this frame.
 
 	// All joysticks have been Read this frame
 	bJoystickRead = 1;
