@@ -6,10 +6,11 @@ namespace XM87110 {
 enum Preset { NONE=0, NORMAL=1, RIGHT=2, LEFT=3 };
 static const unsigned RIGHT_P1_X=568u; // session_20261102_175317_190, settled
 static const unsigned RIGHT_P2_X=725u;
-static const unsigned MIRROR_SUM=1024u; // world center X=512
+static const unsigned LEFT_P1_X=217u; // final 2026-11-03 native capture
+static const unsigned LEFT_P2_X=46u;
 static inline unsigned targetX(unsigned preset,unsigned fighter){
- const unsigned r=fighter==0?RIGHT_P1_X:RIGHT_P2_X;
- return preset==LEFT ? MIRROR_SUM-r : r;
+ return preset==LEFT ? (fighter==0?LEFT_P1_X:LEFT_P2_X)
+                     : (fighter==0?RIGHT_P1_X:RIGHT_P2_X);
 }
 struct Tap {
  bool down=false;
