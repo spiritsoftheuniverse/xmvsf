@@ -65,6 +65,24 @@ static void grabSuperKeepsOneCardAcrossThrowController(){
     f.onFrame(none,none,p,b);
     assert(f.count==2 && f.eventsCreated==2u);
 }
+static void lateSuperOpcodePromotesTheExistingGrabBar(){
+    XM30FrameData f{};f.setEnabled(true);f.beginCombat();
+    XM30Sample none{};auto b=dummy();
+    auto p=actor(0x3200u,0x0200u,2u,0x81u,0xAA330u);
+    f.press(0,0x80);
+    f.onFrame(none,none,p,b);
+    assert(f.count==1 && f.history[0].attackFamily==XM30_THROW_FAMILY);
+    const auto originalWall=f.history[0].inputWallFrame;
+    for(int i=0;i<6;++i)f.onFrame(none,none,p,b);
+    p=actor(0x2A28u,0x2E00u,4u,0x80u,0xAA340u);
+    f.onFrame(none,none,p,b);
+    assert(f.count==1 && f.eventsCreated==1u);
+    assert(f.history[0].attackFamily==0x2Eu);
+    assert(f.history[0].inputWallFrame==originalWall);
+    p=actor(0x3200u,0x0202u,4u,0u,0xAA341u);
+    f.onFrame(none,none,p,b);
+    assert(f.count==1 && !f.history[0].attackEnded);
+}
 static void passiveGrabbedFighterNeverGetsAnAttackCard(){
     XM30FrameData f{};f.setEnabled(true);f.beginCombat();
     XM30Sample none{};
@@ -111,6 +129,7 @@ int main(){
     portraitPhase81AcrossNativeSubstages();
     stageTwoPhase80StasisMakesRealGrayTime();
     grabSuperKeepsOneCardAcrossThrowController();
+    lateSuperOpcodePromotesTheExistingGrabBar();
     passiveGrabbedFighterNeverGetsAnAttackCard();
     standaloneThrowAndRealChainedThrow();
     counterFlipAndFollowupWithoutBoxes();

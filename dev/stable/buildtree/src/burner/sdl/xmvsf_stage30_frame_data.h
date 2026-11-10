@@ -758,6 +758,25 @@ struct XM30FrameData {
             // 2E02/2E10 internal stages are NOT fresh supers; only
             // observed entry into the native 2E family arms a new card.
             // Do not use a stage-02 restart as an unproven DHC signal.
+            // Some grab/counter supers show controller 32 BEFORE
+            // the original 2C/2E opcode. That later ROM opcode upgrades
+            // the SAME input-owned throw row; no second gray bar.
+            // A fresh button candidate is instead a genuine new move.
+            if((family==0x2Cu || family==0x2Eu) &&
+               t.lastNativeFamily==XM30_THROW_FAMILY && t.pending<0)
+                for(int i=count-1;i>=0;--i){
+                    XM30Event& e=history[i];
+                    if(e.player!=p || e.attackEnded ||
+                       e.attackFamily!=XM30_THROW_FAMILY ||
+                       (e.actorBase && actors[p].sourceBase &&
+                        e.actorBase!=actors[p].sourceBase))continue;
+                    e.attackFamily=family;
+                    e.attackAction=actors[p].nativeAction;
+                    e.attackMode=actors[p].mode;
+                    e.nativeSuperPhase=family==0x2Eu;
+                    if(family==0x2Eu)t.superRootObserved=true;
+                    break;
+                }
             // Keep the super root across its 32 throw/catch controller:
             // returning from a Zangief grab is NOT a second super.
             bool liveSuper=false,liveSpecial=false;
