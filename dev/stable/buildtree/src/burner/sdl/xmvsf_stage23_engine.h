@@ -373,7 +373,8 @@ static inline void xm247FrameClockTrace(
                  sample,before,after,p1Before,xm23State.frameData.playerFrame[0],
                  p2Before,xm23State.frameData.playerFrame[1]);
     for(int p=0;p<2;++p){
-        const unsigned base=0xFF4000u+(unsigned)p*0x400u;
+        const unsigned base=actors[p].sourceBase ?
+            actors[p].sourceBase : xm30ActiveFighterBase(p,false);
         std::fprintf(file,"\t%u\t%u\t%04X\t%04X\t%02X\t"
                 "%04X\t%04X\t%04X\t%08X\t%u\t%u\t%u",
             xm30NativeAttackFamily(actors[p])==0x2Eu?1u:0u,
@@ -429,6 +430,10 @@ static inline void xm23OnRealFrame(int ready) {
     }
     xm23State.frameData.beginCombat();
     const bool p1Anchor=xm23::r8(c,0xff4220)!=0, p2Anchor=xm23::r8(c,0xff4620)!=0;
+    const unsigned activeFighterBase[2]={
+        xm30ActiveFighterBase(0,p1Anchor),
+        xm30ActiveFighterBase(1,p2Anchor)
+    };
     xm23State.health[0]=xm23::r8(c,p1Anchor?0xff4a11:0xff4211);
     xm23State.health[1]=xm23::r8(c,p2Anchor?0xff4e11:0xff4611);
     xm23State.meter[0]=xm23::r8(c,0xff4214);xm23State.meter[1]=xm23::r8(c,0xff4614);
@@ -467,6 +472,11 @@ static inline void xm23OnRealFrame(int ready) {
         for(int i=0;i<xm23State.count;++i){
             const XM23Box& box=xm23State.box[i];
             if((box.kind!=1 && box.kind!=5) || box.owner<0 || box.owner>1)continue;
+            // The gatherer exposes BOTH tag partners under the same side.
+            // A reserve Ken cannot be measured using Ryu's stale melee box.
+            // Keep linked projectiles separately: these remain ROM-owned.
+            if(box.kind==1 && box.sourceBase!=activeFighterBase[box.owner])
+                continue;
             XM30Hit& hit=box.kind==5?sample[box.owner].projectile:sample[box.owner].melee;
             if(!hit.active){
                 hit.active=true;hit.x=box.x+box.w/2;hit.y=box.y+box.h/2;hit.sourceBase=box.sourceBase;
@@ -494,7 +504,8 @@ static inline void xm23OnRealFrame(int ready) {
         // estimate. This is NOT a decoded actionability / cancel permission bit.
         XM41ActorSample actor[2];
         for(int p=0;p<2;++p){
-            const unsigned base=0xFF4000u+(unsigned)p*0x400u;
+            const unsigned base=activeFighterBase[p];
+            actor[p].sourceBase=base;
             actor[p].valid=xm23::r8(c,base)!=0;
             actor[p].action=xm23::r8(c,base+0xA0);
             actor[p].nativeAction=xm23::r16(c,base+0x60);
