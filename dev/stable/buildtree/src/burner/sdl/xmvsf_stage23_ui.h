@@ -241,6 +241,7 @@ static inline void xm257PollTrainingMenu(bool training){
         XM13_Settings settings{};xm13Load(&settings);
         const int id=xm248FindAssignedDevice(&settings,0);
         deviceChanged=xm248ReconcileMenuPad(id,p.joystick,p.controller,p.instance);
+        if(deviceChanged)SDL_GameControllerUpdate(); // seed the newly opened device
     }
     if(!p.joystick || !SDL_JoystickGetAttached(p.joystick)){
         p.previousA=p.previousB=p.previousUp=p.previousDown=false;
