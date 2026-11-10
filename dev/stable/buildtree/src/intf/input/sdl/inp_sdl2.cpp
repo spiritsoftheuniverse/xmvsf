@@ -623,7 +623,7 @@ static int xm87110ReadBoundAction(unsigned p,const char* action){
         if(BurnDrvGetInputInfo(&info,i)!=0 || !info.szInfo ||
            info.szInfo[0]!='p' || info.szInfo[1]!=(char)('1'+p) ||
            info.szInfo[2]!=' ' || strcmp(info.szInfo+3,action)!=0)continue;
-        const GameInp& binding=GameInp[i];
+        const struct GameInp& binding=GameInp[i];
         if(binding.nInput!=GIT_SWITCH)return 0;
         const unsigned code=(unsigned)binding.Input.Switch.nCode;
         if(code<0x100u){
