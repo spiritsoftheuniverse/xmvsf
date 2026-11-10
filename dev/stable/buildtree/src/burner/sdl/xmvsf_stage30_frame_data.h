@@ -63,6 +63,8 @@ struct XM41ActorSample {
     unsigned attackPhase=0;     // ROM +64: 0x80 attacking, 0x40 recovery
     unsigned nativeStep=0;      // ROM +08: super 2E script stage, not a frame timer
     unsigned hitStop=0;         // ROM +85: explicit per-fighter stop steps
+    unsigned animPtr=0;         // ROM +34 native animation script pointer
+    unsigned animTimer=0;       // ROM +3E native animation frame countdown
     unsigned health=0;          // HUD-resolved active fighter HP; real hit confirmation
 };
 // Native action-family classification from recorded ROM traces:
@@ -180,6 +182,14 @@ struct XM30FrameData {
     // timestamps are on the owning fighter's unfrozen native step axis.
     unsigned long long frame=0; // display/observation tick when either player advances
     unsigned long long playerFrame[2]={0,0};
+    // Native cinematic holds may keep +85=0 and phase=80, notably 2C12.
+    // Preserve the previous sampled animation, not the wall-clock time.
+    bool animationSeeded=false;
+    unsigned previousAnimPtr[2]={0,0};
+    unsigned previousAnimTimer[2]={0,0};
+    unsigned previousAnimMode[2]={0,0};
+    unsigned previousAnimAction[2]={0,0};
+    unsigned previousAnimStep[2]={0,0};
     unsigned long long eventsCreated=0; // monotonic, unlike bounded history.count
     unsigned long long superFreezeFrames=0; // callbacks with neither player advancing
     // Unlike the FF5009 round clock, ROM hit-stop counters count down to
@@ -201,6 +211,11 @@ struct XM30FrameData {
     void clear(bool preserveToggle=true) {
         const bool setting=enabled;
         frame=0; playerFrame[0]=playerFrame[1]=0; eventsCreated=0;
+        animationSeeded=false;
+        for(int p=0;p<2;++p){
+            previousAnimPtr[p]=previousAnimTimer[p]=0;
+            previousAnimMode[p]=previousAnimAction[p]=previousAnimStep[p]=0;
+        }
         superFreezeFrames=0; count=0; floatNext=0; inCombat=false;
         hitStopSeeded=false;previousHitStop[0]=previousHitStop[1]=0;
         healthSeeded[0]=healthSeeded[1]=false;
@@ -312,15 +327,43 @@ struct XM30FrameData {
         const XM30Sample samples[2]={p1,p2};
         const XM41ActorSample actors[2]={a1,a2};
         const unsigned stops[2]={a1.hitStop,a2.hitStop};
-        // Four captured 2E super sequences hold native step 02, phase 81
-        // for ~45 callbacks with BOTH animation timers/pointers unchanged
-        // and BOTH +85 counters zero. This is the actual pre-offense
-        // portrait/streak cinematic missed by the original +85-only gate.
-        const bool cinematicStop=
-            (xm30NativeAttackFamily(a1)==0x2Eu && a1.nativeStep==2u &&
-             a1.attackPhase==0x81u && !p1.melee.active && !p1.projectile.active) ||
-            (xm30NativeAttackFamily(a2)==0x2Eu && a2.nativeStep==2u &&
-             a2.attackPhase==0x81u && !p2.melee.active && !p2.projectile.active);
+        // The uploaded 87.245 ROM trace proves two different native
+        // cinematics with +85=0:
+        // - 2E/step02/phase81: 45 held callbacks (already handled)
+        // - 2C36/step02/phase81 and 2C12/step02/phase80: 43-44
+        //   consecutive callbacks with BOTH native animation pointers and
+        //   countdowns unchanged. The prior gate counted them as played
+        //   move frames, adding ~44F to the final frame-data card.
+        // Detect stasis from actual ROM animation state instead of assuming
+        // that all 2C/2E phase81 samples are frozen; the first 2-3 samples
+        // in those scripts DO animate and must remain counted.
+        const bool nativeSetup=
+            ((xm30NativeAttackFamily(a1)==0x2Cu ||
+              xm30NativeAttackFamily(a1)==0x2Eu) &&
+             a1.nativeStep==2u &&
+             !p1.melee.active && !p1.projectile.active) ||
+            ((xm30NativeAttackFamily(a2)==0x2Cu ||
+              xm30NativeAttackFamily(a2)==0x2Eu) &&
+             a2.nativeStep==2u &&
+             !p2.melee.active && !p2.projectile.active);
+        bool bothAnimationsStatic=animationSeeded;
+        for(int p=0;p<2;++p){
+            const XM41ActorSample& a=actors[p];
+            if(!a.valid || a.animPtr==0u ||
+               previousAnimPtr[p]!=a.animPtr ||
+               previousAnimTimer[p]!=a.animTimer ||
+               previousAnimMode[p]!=a.mode ||
+               previousAnimAction[p]!=a.nativeAction ||
+               previousAnimStep[p]!=a.nativeStep)
+                bothAnimationsStatic=false;
+            previousAnimPtr[p]=a.animPtr;
+            previousAnimTimer[p]=a.animTimer;
+            previousAnimMode[p]=a.mode;
+            previousAnimAction[p]=a.nativeAction;
+            previousAnimStep[p]=a.nativeStep;
+        }
+        animationSeeded=true;
+        const bool cinematicStop=nativeSetup && bothAnimationsStatic;
         bool advancePlayer[2]={false,false};
         for(int p=0;p<2;++p){
             if(!actors[p].valid || cinematicStop)continue;
