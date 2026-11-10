@@ -683,7 +683,7 @@ static void xm8733Overlay(SDL_Renderer* render,const SDL_Rect& view,bool nativeS
     // use the SAME current-frame fighter opacity to put the stun bar
     // beneath them, without changing CPS2 sprite priorities or moving
     // the stun overlay in front of the custom-stage fighters.
-    if(nativeStage && dizzyBarEnabled && xm8658GameStatus==8){
+    if(nativeStage && dizzyBarEnabled){
         const XM8728::Mask& foreground=XM8728::State();
         if(foreground.started && foreground.ready &&
            foreground.frame==(unsigned)GetCurrentFrame() &&
