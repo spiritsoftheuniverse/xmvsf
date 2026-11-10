@@ -718,6 +718,11 @@ struct XM30FrameData {
                     t.pendingOriginLeft=true;
                 }
             }
+            // Remember actor ownership on EVERY native callback, including
+            // portrait holds that never advance the per-fighter frame clock.
+            // Otherwise the next frozen callback would falsely detect the
+            // same tag again and allocate another 2E card.
+            if(actors[p].sourceBase)t.lastNativeBase=actors[p].sourceBase;
             // Capture genuine accepted native attacks even if the mapped
             // button edge occurred inside hit-stop or was not observable.
             // 28: both +60 action and +A0 controller identify a new normal.
