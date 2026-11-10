@@ -44,6 +44,7 @@ XM23State xm23State;
 #include "xmvsf_stage24_versus.h" /* XMVSF_STAGE24_VERSUS */
 XM24Session xm24Session;
 XM25State xm25State; /* XMVSF_STAGE25_SETS */
+XM248RuntimeOwner xm248RuntimeOwner[2]; // TEST 87.248: persistent P1/P2 live SDL identities
 XM25InputHandoff xm25InputHandoff; /* XMVSF_STAGE25_4_INPUT_HANDOFF */ // XMVSF_STAGE13_CONTROLLERS // XMVSF_STAGE12_PERSISTENT_RENDERER // XMVSF_STAGE11_SINGLE_WINDOW // XMVSF_STAGE10_BOOT_PATCHED
 
 INT32 display_set_controls();
