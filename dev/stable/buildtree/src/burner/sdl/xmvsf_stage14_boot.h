@@ -498,11 +498,12 @@ static int xmvsfBootSelector(bool returningFromGame=false) {
                     capture=-1;xm25MenuSound(false);menuGate.begin();continue;
                 }
                 if(optionsTab==0){
-                    if(direction){gameRow=(gameRow+3+direction)%3;xm25MenuSound(false);}
+                    if(direction){gameRow=(gameRow+4+direction)%4;xm25MenuSound(false);}
                     if(accept){
                         xm25MenuSound(true);
-                        if(gameRow==0)XM8755Mode::Toggle();
-                        else if(gameRow==1)xm8655Toggle();
+                        if(gameRow==0)XM8755Mode::ToggleVersion();
+                        else if(gameRow==1)XM8755Mode::ToggleTournament();
+                        else if(gameRow==2)xm8655Toggle();
                         else xm8733DizzyToggle();
                         menuGate.begin();
                     }
@@ -669,13 +670,14 @@ static int xmvsfBootSelector(bool returningFromGame=false) {
             }
             xmvsfPixelText(render,"RB/E",862,76,2,149,111,69); // dark tan
             if(optionsTab==0){
-                for(int i=0;i<3;i++){
+                for(int i=0;i<4;i++){
                     char label[80]={};
-                    if(i==0)std::snprintf(label,sizeof(label),"GAME MODE : %s",XM8755Mode::Label());
-                    else if(i==1)std::snprintf(label,sizeof(label),"DOUBLE FEATURE : %s",xm8655DoubleFeature()?"ON":"OFF");
+                    if(i==0)std::snprintf(label,sizeof(label),"GAME VERSION : %d",XM8755Mode::version());
+                    else if(i==1)std::snprintf(label,sizeof(label),"TOURNAMENT : %s",XM8755Mode::Label());
+                    else if(i==2)std::snprintf(label,sizeof(label),"DOUBLE FEATURE : %s",xm8655DoubleFeature()?"ON":"OFF");
                     else std::snprintf(label,sizeof(label),"DIZZY BAR : %s",xm8733DizzyEnabled()?"ON":"OFF");
                     const Uint8 bright=i==gameRow?255:78;
-                    xmvsfPixelText(render,label,480,190+i*65,3,bright,bright,bright);
+                    xmvsfPixelText(render,label,480,170+i*65,3,bright,bright,bright);
                 }
             } else if(optionsTab==1){
                 for(int i=0;i<XM29_PRESET_COUNT+2;i++){
