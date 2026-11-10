@@ -45,6 +45,7 @@ XM23State xm23State;
 XM24Session xm24Session;
 XM25State xm25State; /* XMVSF_STAGE25_SETS */
 XM248RuntimeOwner xm248RuntimeOwner[2]; // TEST 87.248: persistent P1/P2 live SDL identities
+XM249SessionPad xm249SessionPad[2]; // TEST 87.249: menu-confirmed physical pad for this game session
 XM25InputHandoff xm25InputHandoff; /* XMVSF_STAGE25_4_INPUT_HANDOFF */ // XMVSF_STAGE13_CONTROLLERS // XMVSF_STAGE12_PERSISTENT_RENDERER // XMVSF_STAGE11_SINGLE_WINDOW // XMVSF_STAGE10_BOOT_PATCHED
 
 INT32 display_set_controls();
