@@ -538,7 +538,8 @@ static inline bool xm248ReconcileMenuPad(
         if(pad){SDL_GameControllerClose(pad);pad=nullptr;changed=true;}
         if(stick){SDL_JoystickClose(stick);stick=nullptr;changed=true;}
         instance=-1;
-    }else if(pad && !SDL_GameControllerGetAttached(pad)){
+    }else if(pad && (!SDL_GameControllerGetAttached(pad) ||
+                     !SDL_IsGameController(device))){
         SDL_GameControllerClose(pad);pad=nullptr;changed=true;
     }
     if(wanted<0)return changed;
