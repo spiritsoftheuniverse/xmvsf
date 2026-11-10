@@ -1,5 +1,6 @@
 #ifndef XMVSF_STAGE30_FRAME_DATA_H
 #define XMVSF_STAGE30_FRAME_DATA_H
+#include <cstdio> // report rare stalled frame cards only when detected
 // Frame-accurate to the emulated real-frame clock, independent of GPU presents.
 // Start is measured from a NEW mapped attack-input edge to the first observed
 // live attacking hitbox. It is not a disassembled character animation startup.
@@ -353,6 +354,11 @@ struct XM30FrameData {
     // height IN THE 384x224 SOURCE IMAGE (never SDL window coordinates).
     // This modifies presentation timing, never attack measurements.
     static const int HISTORY=24, FLOATS=8, MAX_WAIT=120;
+    // This is NOT an attack-duration ceiling. Only an exact unchanged
+    // native animation/controller with no offense for 360 host ticks
+    // is considered abandoned; real supers may continue indefinitely.
+    static const unsigned STALE_NO_PROGRESS_WALL=360u;
+    unsigned staleNoProgress[2]={0u,0u};
     static const int FLOAT_APEX=120, FLOAT_EXIT=6;
     static const int FLOAT_LIFE=FLOAT_APEX+FLOAT_EXIT;
     bool enabled=false;
@@ -452,6 +458,7 @@ struct XM30FrameData {
         for(int p=0;p<2;++p)for(int i=0;i<WALL_HISTORY;++i)
             wallTicks[p][i]=XM30WallTick{};
         animationSeeded=false;
+        staleNoProgress[0]=staleNoProgress[1]=0u;
         for(int p=0;p<2;++p){
             previousAnimPtr[p]=previousAnimTimer[p]=0;
             previousAnimMode[p]=previousAnimAction[p]=previousAnimStep[p]=0;
@@ -742,6 +749,20 @@ struct XM30FrameData {
             p1.melee.active || p1.projectile.active ||
             p2.melee.active || p2.projectile.active ||
             p1.projectileCount>0 || p2.projectileCount>0;
+        // Snapshot before the existing animation references are updated.
+        // Hitstop counter changes count as native progress.
+        bool unchangedOwner[2]={false,false};
+        for(int p=0;p<2;++p){
+            const XM41ActorSample& a=actors[p];
+            unchangedOwner[p]=animationSeeded && hitStopSeeded &&
+                a.valid && a.animPtr!=0u &&
+                previousAnimPtr[p]==a.animPtr &&
+                previousAnimTimer[p]==a.animTimer &&
+                previousAnimMode[p]==a.mode &&
+                previousAnimAction[p]==a.nativeAction &&
+                previousAnimStep[p]==a.nativeStep &&
+                previousHitStop[p]==stops[p];
+        }
         bool bothAnimationsStatic=animationSeeded;
         for(int p=0;p<2;++p){
             const XM41ActorSample& a=actors[p];
@@ -784,6 +805,51 @@ struct XM30FrameData {
         const bool cinematicStop=superPortrait ||
             (nativeSetup && bothAnimationsStatic &&
              !offensiveObjectPresent && !healthDroppedNow);
+        // An orphaned native controller or frozen animation can otherwise
+        // leave a frame-data card open forever. Do NOT time out real supers:
+        // a changing script, timer, native hitstop counter, live hitbox,
+        // projectile or opponent damage resets the watchdog completely.
+        for(int p=0;p<2;++p){
+            const bool noOffense=!samples[p].melee.active &&
+                !samples[p].projectile.active &&
+                samples[p].projectileCount==0 &&
+                !(actors[1-p].valid && healthSeeded[1-p] &&
+                  actors[1-p].health<previousHealth[1-p]);
+            if(unchangedOwner[p] && noOffense){
+                if(staleNoProgress[p]<=STALE_NO_PROGRESS_WALL)
+                    ++staleNoProgress[p];
+            }else staleNoProgress[p]=0u;
+            // The equality fires once. Do not consume an extra native
+            // frame or invent active/contact frames at the timeout.
+            if(staleNoProgress[p]!=STALE_NO_PROGRESS_WALL)continue;
+            bool retired=false;
+            for(int i=0;i<count;++i){
+                XM30Event& e=history[i];
+                if(e.player!=p || !e.attackObserved || e.attackEnded ||
+                   (e.actorBase && actors[p].sourceBase &&
+                    e.actorBase!=actors[p].sourceBase))continue;
+                e.attackEnded=true;
+                e.attackEndFrame=e.attackLastFrame;
+                if(!e.closed){
+                    e.closed=true;
+                    e.endFrame=e.source==1 && e.lastProjectileFrame?
+                        e.lastProjectileFrame:
+                        (e.hitboxLastFrame?e.hitboxLastFrame:e.attackLastFrame);
+                    if(e.source==1 && !e.despawnFrame)
+                        e.despawnFrame=e.endFrame;
+                }
+                retired=true;
+            }
+            if(retired){
+                track[p].eventIndex[0]=-1;
+                track[p].pending=-1;
+                std::fprintf(stderr,
+                    "XM87.265 FRAME_CARD_STALLED_CLOSED player=P%d wall=%llu native=%llu no_progress=%u\n",
+                    p+1,(unsigned long long)wallFrame[p],
+                    (unsigned long long)playerFrame[p],
+                    staleNoProgress[p]);
+            }
+        }
         // Before hit-stop gating, recognize an accepted ROM action so the
         // FIRST contact can create a card even if the SDL button edge was
         // missed and the ROM already set +85 on that exact host callback.
@@ -1118,7 +1184,8 @@ struct XM30FrameData {
                     continue;
                 }
                 if(xm30SameNativeAttack(actors[p],e.attackFamily,e.attackAction,e.attackMode) ||
-                   (e.attackFamily==0x2Eu && (actors[p].attackPhase&0x80u)!=0u)){
+                   (e.attackFamily==0x2Eu && family==0x2Eu &&
+                     (actors[p].attackPhase&0x80u)!=0u)){
                     // Any match proves the action survived impact.
                     e.attackLastFrame=frame;
                     e.attackExitPending=0;
@@ -1174,7 +1241,7 @@ struct XM30FrameData {
                     if(xm30SameNativeAttack(actors[p],t.pendingAttackFamily,
                                             t.pendingAttackAction,
                                             t.pendingAttackMode) ||
-                       (t.pendingAttackFamily==0x2Eu &&
+                       (t.pendingAttackFamily==0x2Eu && family==0x2Eu &&
                         (actors[p].attackPhase&0x80u)!=0u) ||
                        landed[p] || contactExitGrace[p]>0)
                         t.pendingAttackLast=frame;
