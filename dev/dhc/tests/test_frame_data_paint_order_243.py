@@ -22,7 +22,8 @@ assert "xm23Overlay(sdlRenderer" in video
 assert "XM87217::draw(image,font,xm23State.frameData);" in video
 assert "const bool nativeSetup=" in clock
 assert "const bool cinematicStop=nativeSetup && bothAnimationsStatic &&" in clock
-assert "!offensiveObjectPresent;" in clock
+assert "!offensiveObjectPresent && !healthDroppedNow;" in clock
+assert "const bool healthDroppedNow=" in clock
 assert "const bool offensiveObjectPresent=" in clock
 assert "previousAnimPtr[p]!=a.animPtr" in clock
 assert "previousAnimTimer[p]!=a.animTimer" in clock
