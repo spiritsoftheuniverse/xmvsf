@@ -477,7 +477,7 @@ static int xmvsfBootSelector(bool returningFromGame=false) {
                 xm249SelectSessionPad(0,ev.jbutton.which);
             if(screen==5) { // Stage selection, before loading the character select save-state.
                 if(back){screen=returnScreen;menuGate.begin();continue;}
-                if(direction){stageRow=1-stageRow;xm25MenuSound(false);}
+                if(direction){stageRow=(stageRow+3+(direction>0?1:2))%3;xm25MenuSound(false);}
                 if(accept){
                     if(pendingMode==1)xm20MenuFight(); // Training: cue at stage confirmation
                     else xm25MenuSound(true);
@@ -650,13 +650,13 @@ static int xmvsfBootSelector(bool returningFromGame=false) {
             }
         } else if(screen==5) {
             xmvsfPixelText(render,"SELECT STAGE",480,90,5,108,193,255);
-            const char* stages[2]={"RANDOM","WILY FACTORY"};
-            for(int i=0;i<2;++i){
-                const int y=205+i*80;
+            const char* stages[3]={"RANDOM","WILY FACTORY","FINAL DESTINATION"};
+            for(int i=0;i<3;++i){
+                const int y=175+i*76;
                 const Uint8 bright=(i==stageRow)?255:80;
                 xmvsfPixelText(render,stages[i],480,y,4,bright,bright,bright);
             }
-            xmvsfPixelText(render,"RANDOM INCLUDES WILY FACTORY",480,405,2,137,177,215);
+            xmvsfPixelText(render,"RANDOM INCLUDES BOTH CUSTOM STAGES",480,425,2,137,177,215);
             xmvsfPixelText(render,"A SELECT  B/ESC BACK",480,465,2,152,192,235);
         } else if(screen==2) { /* XMVSF_STAGE25_5_SCOREBOARD_RESET */
             xm255BootVersus(render);
