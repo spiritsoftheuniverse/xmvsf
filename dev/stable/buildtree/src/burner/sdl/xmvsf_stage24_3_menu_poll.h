@@ -12,19 +12,22 @@ extern bool xm258ArcadeReturnRequested; /* XMVSF_STAGE25_8_ARCADE_MENU */
 struct XM243Pad {
     SDL_Joystick* joy=nullptr;
     SDL_GameController* controller=nullptr;
+    SDL_JoystickID instance=-1;
     XM13_Player mapping{};
     bool previousUp=false, previousDown=false, previousAccept=false, previousCoin=false, previousCancel=false; /* XMVSF_STAGE25_6_MENU_INPUT_TRAINING */ /* XMVSF_STAGE25_1_POLISH */
 };
 static XM243Pad xm243Pads[2];
 static bool xm243MenuWasOpen=false;
+static Uint32 xm243LastPadProbe=0;
 static bool xm243PreviousKeyboardCoin=false; // retain the traditional '5' shortcut
 
 static inline void xm243ClosePads() {
     for (int i=0; i<2; ++i) {
-        if (xm243Pads[i].controller) SDL_GameControllerClose(xm243Pads[i].controller);
-        if (xm243Pads[i].joy) SDL_JoystickClose(xm243Pads[i].joy);
+        xm248ReconcileMenuPad(-1,xm243Pads[i].joy,
+                              xm243Pads[i].controller,xm243Pads[i].instance);
         xm243Pads[i]=XM243Pad{};
     }
+    xm243LastPadProbe=0;
     xm243MenuWasOpen=false;
 }
 static inline bool xm243Button(SDL_Joystick* joy, XM13_Binding binding) {
@@ -55,24 +58,29 @@ static inline void xm243ReadPad(XM243Pad& p, bool& up, bool& down, bool& accept,
     accept=SDL_JoystickGetButton(j,0)!=0; /* XMVSF_STAGE25_6_MENU_INPUT_TRAINING: XInput A only */
     cancel=SDL_JoystickGetButton(j,1)!=0; /* XInput B */
 }
-static inline void xm243OpenPads() {
-    XM13_Settings settings{};
-    xm13Load(&settings);
-    for (int p=0;p<2;++p) {
-        xm243Pads[p]=XM243Pad{};
-        if(!settings.player[p].active)continue;
-        xm243Pads[p].mapping=settings.player[p];
-        int device=xm13FindDevice(&settings.player[p]);
-        if(device<0)continue; // K:scancode Coin can still be read without a joystick
-        xm243Pads[p].joy=SDL_JoystickOpen(device);
-        if(SDL_IsGameController(device))xm243Pads[p].controller=SDL_GameControllerOpen(device);
+// Shared recovery for BOTH Versus results and Arcade Coin navigation.
+// Reacquire saved device identities after a late/failed open, USB reconnect,
+// Bluetooth wake or SDL index shift, without overwriting controller maps.
+// Newly acquired held buttons seed the previous state (no ghost actions).
+static inline void xm243RefreshPads(XM243Pad pads[2]) {
+    XM13_Settings settings{};xm13Load(&settings);
+    SDL_GameControllerUpdate();
+    for(int i=0;i<2;++i){
+        XM243Pad& p=pads[i];
+        p.mapping=settings.player[i];
+        const int device=xm13FindDevice(&settings.player[i]);
+        const bool changed=xm248ReconcileMenuPad(
+            device,p.joy,p.controller,p.instance);
+        if(changed){
+            xm243ReadPad(p,p.previousUp,p.previousDown,p.previousAccept,
+                        p.previousCoin,p.previousCancel);
+        }
     }
-    SDL_JoystickUpdate();
-    // Treat all buttons held when the result appears as already pressed,
-    // preventing automatic Rematch on a held Start/LP button.
-    for (int p=0;p<2;++p)
-        xm243ReadPad(xm243Pads[p],xm243Pads[p].previousUp,
-                     xm243Pads[p].previousDown,xm243Pads[p].previousAccept,xm243Pads[p].previousCoin,xm243Pads[p].previousCancel);
+}
+static inline void xm243OpenPads() {
+    for(int p=0;p<2;++p)xm243Pads[p]=XM243Pad{};
+    xm243RefreshPads(xm243Pads);
+    xm243LastPadProbe=SDL_GetTicks();
     const Uint8* keys=SDL_GetKeyboardState(nullptr);
     xm243PreviousKeyboardCoin=keys && keys[SDL_SCANCODE_5]!=0;
     xm243MenuWasOpen=true;
@@ -87,7 +95,12 @@ static inline void xm243PollLiveMenu() {
         xm243OpenPads();
         return;
     }
-    SDL_JoystickUpdate();
+    SDL_GameControllerUpdate();
+    const Uint32 now=SDL_GetTicks();
+    if(!xm243LastPadProbe || (Uint32)(now-xm243LastPadProbe)>=150u){
+        xm243LastPadProbe=now ? now : 1;
+        xm243RefreshPads(xm243Pads);
+    }
     int navigate=0;
     bool confirmed=false;
     bool coinPressed=false, cancelPressed=false;
@@ -178,13 +191,15 @@ static inline void xm243PollLiveMenu() {
 // duplication and does not depend on FBNeo's remappable attack buttons.
 static XM243Pad xm258ArcadePads[2];
 static bool xm258ArcadePadsReady=false;
+static Uint32 xm258LastPadProbe=0;
 static bool xm258PreviousKeyboardCoin=false;
 static inline void xm258CloseArcadePads(){
     for(int i=0;i<2;++i){
-        if(xm258ArcadePads[i].controller)SDL_GameControllerClose(xm258ArcadePads[i].controller);
-        if(xm258ArcadePads[i].joy)SDL_JoystickClose(xm258ArcadePads[i].joy);
+        xm248ReconcileMenuPad(-1,xm258ArcadePads[i].joy,
+                              xm258ArcadePads[i].controller,xm258ArcadePads[i].instance);
         xm258ArcadePads[i]=XM243Pad{};
     }
+    xm258LastPadProbe=0;
     xm258ArcadePadsReady=false;
     xm258PreviousKeyboardCoin=false;
 }
@@ -196,28 +211,20 @@ static inline void xm258PollArcadeMenu(){
         xm258ArcadeMenuOpen=false;
         return;
     }
-    SDL_JoystickUpdate();
+    SDL_GameControllerUpdate();
     if(!xm258ArcadePadsReady){
-        XM13_Settings settings{};xm13Load(&settings);
-        for(int i=0;i<2;++i){
-            XM243Pad& pad=xm258ArcadePads[i];
-            if(!settings.player[i].active)continue;
-            pad.mapping=settings.player[i];
-            int device=xm13FindDevice(&settings.player[i]);
-            if(device<0){
-                xm243ReadPad(pad,pad.previousUp,pad.previousDown,pad.previousAccept,
-                             pad.previousCoin,pad.previousCancel);
-                continue; // keyboard Coin or keyboard-bound pad buttons
-            }
-            pad.joy=SDL_JoystickOpen(device);
-            if(SDL_IsGameController(device))pad.controller=SDL_GameControllerOpen(device);
-            xm243ReadPad(pad,pad.previousUp,pad.previousDown,pad.previousAccept,
-                         pad.previousCoin,pad.previousCancel); // seed held keys
-        }
+        for(int i=0;i<2;++i)xm258ArcadePads[i]=XM243Pad{};
+        xm243RefreshPads(xm258ArcadePads);
+        xm258LastPadProbe=SDL_GetTicks();
         const Uint8* keys=SDL_GetKeyboardState(nullptr);
         xm258PreviousKeyboardCoin=keys && keys[SDL_SCANCODE_5]!=0;
         xm258ArcadePadsReady=true;
         return;
+    }
+    const Uint32 now=SDL_GetTicks();
+    if(!xm258LastPadProbe || (Uint32)(now-xm258LastPadProbe)>=150u){
+        xm258LastPadProbe=now ? now : 1;
+        xm243RefreshPads(xm258ArcadePads);
     }
     bool coinEdge=false, acceptEdge=false, backEdge=false;
     for(int i=0;i<2;++i){
