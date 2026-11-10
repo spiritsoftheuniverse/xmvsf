@@ -146,9 +146,10 @@ static inline void swapSide(unsigned char* ram,unsigned a,unsigned b){
 // changed who's on point, makes a separate, bounded scratch copy before load.
 static inline bool prepare(const char* primary,const Team& now,std::string& loadPath){
  std::vector<unsigned char> src;unsigned char* ram=nullptr;Team was;
- // Try exact archived point+reserve order first, then the most recent state.
+ // The current match has priority. An old cached copy of this roster
+ // might belong to an earlier match, stage, or build.
  const std::string exact=cacheName(now);
- const char* candidate[2]={exact.c_str(),primary};
+ const char* candidate[2]={primary,exact.c_str()};
  for(unsigned attempt=0;attempt<2;++attempt){
   src.clear();ram=nullptr;
   if(!fileRead(candidate[attempt],src)||!findRam(src,ram)||!readIds(ram,was))continue;
@@ -160,7 +161,7 @@ static inline bool prepare(const char* primary,const Team& now,std::string& load
   if(mask&1u)std::swap(key.id[0],key.id[2]);
   if(mask&2u)std::swap(key.id[1],key.id[3]);
   const std::string from=cacheName(key);
-  const char* sources[2]={from.c_str(),primary};
+  const char* sources[2]={primary,from.c_str()};
   for(unsigned j=0;j<2u;++j){
    src.clear();ram=nullptr;
    if(!fileRead(sources[j],src)||!findRam(src,ram)||!readIds(ram,was))continue;
