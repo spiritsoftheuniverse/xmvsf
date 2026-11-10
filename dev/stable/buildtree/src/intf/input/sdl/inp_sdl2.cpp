@@ -729,6 +729,27 @@ int SDLinpState(int nCode)
         if (xm14Source<0) return xm15SyntheticButton(p,nCode&0xff);
         if(xm13Config.player[xm14Source].active) {
             if(ReadJoystick()!=0) return 0;
+            // Read-only route evidence: distinguish a saved assignment
+            // not found from an enumerated-but-not-ready device. Emit only
+            // on changes; no per-frame log flood.
+            if(!xm13IsKeyboard(&xm13Config.player[xm14Source])){
+                static int lastRoute[2]={-2,-2},lastLive[2]={-1,-1};
+                static SDL_JoystickID lastInstance[2]={-2,-2};
+                const int route=xm13FindDevice(&xm13Config.player[xm14Source]);
+                const bool live=route>=0 && route<nJoystickCount &&
+                    JoyList[route] && SDL_JoystickGetAttached(JoyList[route]);
+                const SDL_JoystickID id=live?SDL_JoystickInstanceID(JoyList[route]):-1;
+                if(lastRoute[xm14Source]!=route ||
+                   lastLive[xm14Source]!=(int)live ||
+                   lastInstance[xm14Source]!=id){
+                    fprintf(stderr,
+                        "XM87.248 PAD_ROUTE saved_p=%d device=%d instance=%d ready=%d\n",
+                        xm14Source+1,route,(int)id,live?1:0);
+                    lastRoute[xm14Source]=route;
+                    lastLive[xm14Source]=(int)live;
+                    lastInstance[xm14Source]=id;
+                }
+            }
             const int xm15Sub=nCode&0xff;
             const int xm15Value=xm13ReadInput(&xm13Config,xm14Source,xm15Sub,JoyList,GCList,nJoystickCount);
             XM8797Debug::state().mappedInput((unsigned)p,(unsigned)xm15Sub,xm15Value);
