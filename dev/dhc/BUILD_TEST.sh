@@ -329,6 +329,12 @@ run_cached_unit \
 run_cached_unit \
   "$PROJECT/dev/dhc/tests/test_frame_data_asymmetric_stop_245.cpp" \
   "$CACHE_DIR/unit_tests/test_frame_data_asymmetric_stop_245.exe"
+# TEST 87.246: the exact 87.245 trace defect - an accepted ongoing
+# 2E super must never produce a second card because a button was pressed
+# and the beam's linked projectile changed at host 1397 / 1428.
+run_cached_unit \
+  "$PROJECT/dev/dhc/tests/test_frame_data_super_identity_246.cpp" \
+  "$CACHE_DIR/unit_tests/test_frame_data_super_identity_246.exe"
 run_cached_unit \
   "$PROJECT/dev/dhc/tests/test_stun_horizontal_240.cpp" \
   "$CACHE_DIR/unit_tests/test_stun_horizontal_240.exe"
