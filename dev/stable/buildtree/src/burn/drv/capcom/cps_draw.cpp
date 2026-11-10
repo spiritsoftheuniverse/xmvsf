@@ -898,7 +898,7 @@ static void xm77CaptureSprites(){
     xm77SpriteValid=0;
     // XM87.56: the Wily stage needs its native fighter/FX layer in BOTH modes.
     // Double Feature remains an independent palette/lighting switch.
-    if(xm77StageResolved!=1 || !xm8649Visual.sceneActive || Cps!=2 || !pBurnDraw ||
+    if((xm77StageResolved!=1 && xm77StageResolved!=2) || !xm8649Visual.sceneActive || Cps!=2 || !pBurnDraw ||
        nBurnBpp!=4 || nCpsScreenWidth!=384 || nCpsScreenHeight!=224 || nBurnPitch<384*4)
         return;
     const int w=384,h=224;
