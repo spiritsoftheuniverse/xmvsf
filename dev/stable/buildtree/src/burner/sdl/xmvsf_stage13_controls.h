@@ -578,7 +578,7 @@ static int xm13ReadInput(const XM13_Settings* s,int player,int sub,
     if(xm24VersusMode && sub==0x86)return 0;
     if(player<0 || player>1 || !s->player[player].active)return -1;
     const XM13_Player* p=&s->player[player];
-    const int device=xm13IsKeyboard(p)?-1:xm13FindDevice(p);
+    const int device=xm248FindAssignedDevice(s,player);
     SDL_Joystick* joy=device>=0 && device<count && raw[device] &&
         SDL_JoystickGetAttached(raw[device])?raw[device]:nullptr;
     SDL_GameController* pad=joy?gc[device]:nullptr;
