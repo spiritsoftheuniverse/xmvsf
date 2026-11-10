@@ -320,6 +320,7 @@ static const XM23Glyph xm23Font[] = {
     {'7', {0x1f, 0x01, 0x02, 0x04, 0x04, 0x04, 0x04}},
     {'8', {0x0e, 0x11, 0x11, 0x0e, 0x11, 0x11, 0x0e}},
     {'9', {0x0e, 0x11, 0x11, 0x0f, 0x01, 0x01, 0x1e}},
+    {'+', {0x00,0x04,0x04,0x1f,0x04,0x04,0x00}},
     {'-', {0x00, 0x00, 0x00, 0x1f, 0x00, 0x00, 0x00}},
     {':', {0x00, 0x04, 0x04, 0x00, 0x04, 0x04, 0x00}},
     {'.', {0x00, 0x00, 0x00, 0x00, 0x00, 0x0c, 0x0c}},
@@ -392,14 +393,45 @@ static inline void xm39RoundedCard(SDL_Renderer* r,const SDL_Rect& a){
     SDL_RenderDrawPoint(r,a.x+1,a.y+a.h-2);
     SDL_RenderDrawPoint(r,a.x+a.w-2,a.y+a.h-2);
 }
-struct XM39Mark {const char* label;unsigned long long at;int x=0;int labelX=0;};
-static inline int xm39TimelineStride(unsigned long long span,int availablePixels){
-    const int slots=std::max(1,availablePixels/3);
-    return (int)std::max(1ull,(span+(unsigned long long)slots-1)/(unsigned long long)slots);
+// Stable input display: only actual pressed directions and buttons.
+static inline void xm41AppendInput(char* out,unsigned cap,const char* part){
+    if(!cap)return;
+    const unsigned used=(unsigned)std::strlen(out);
+    if(used<cap)std::snprintf(out+used,cap-used,"%s",part);
 }
-// 87.254: each input/ROM observation has a stable one-pixel host slot.
-// This geometry is independent of how much additional time accumulates.
+static inline void xm41InputTitle(const XM30Event& e,char* out,unsigned cap){
+    if(!cap)return;
+    out[0]=0;
+    if(!e.inputObserved){
+        std::snprintf(out,cap,"INPUT ?");
+        return;
+    }
+    for(unsigned i=0;i<e.inputDirectionCount && i<XM30Event::INPUT_DIRS;++i){
+        const unsigned dir=e.inputDirections[i];
+        if(dir<1u || dir>9u)continue;
+        char part[4];std::snprintf(part,sizeof(part),"%u",dir);
+        if(out[0])xm41AppendInput(out,cap,">");
+        xm41AppendInput(out,cap,part);
+    }
+    unsigned buttons=e.inputButtons;
+    if(!buttons && e.code>=0x80 && e.code<=0x85)
+        buttons=1u<<(unsigned)(e.code-0x80);
+    static const char* buttonNames[6]={"LP","MP","HP","LK","MK","HK"};
+    bool first=true;
+    for(unsigned i=0;i<6;++i){
+        if(!(buttons&(1u<<i)))continue;
+        if(first && out[0])xm41AppendInput(out,cap," + ");
+        else if(!first)xm41AppendInput(out,cap,"+");
+        xm41AppendInput(out,cap,buttonNames[i]);
+        first=false;
+    }
+    if(!buttons)std::snprintf(out,cap,"INPUT ?");
+}
+// Fixed physical-width timeline. Three display pixels per host observation:
+// two colored pixels, one gutter, numbered each ten frames.
 struct XM41FrameCardLayout {
+    static const int PIXELS_PER_FRAME=3;
+    static const int HEAD=20,ROW=26,TAIL=4;
     XM30TimelineWrap wrap;
     int height=0;
 };
@@ -407,8 +439,7 @@ static inline XM41FrameCardLayout xm41FrameCardLayout(
         const XM30Event& e,const XM30FrameData& f,int cardWidth){
     XM41FrameCardLayout out{};
     unsigned long long nativeFinish=e.inputFrame;
-    if(e.closed || e.noBox)
-        nativeFinish=std::max(nativeFinish,e.endFrame);
+    if(e.closed || e.noBox)nativeFinish=std::max(nativeFinish,e.endFrame);
     if(!e.closed && !e.noBox)
         nativeFinish=std::max(nativeFinish,e.hitboxLastFrame);
     if(e.attackObserved)
@@ -425,43 +456,30 @@ static inline XM41FrameCardLayout xm41FrameCardLayout(
     for(int i=0;i<e.contactCount;++i)
         out.wrap.finish=std::max(out.wrap.finish,e.contactWallFrames[i]);
     if(out.wrap.finish<out.wrap.start)out.wrap.finish=out.wrap.start;
-    // Exactly one horizontal pixel per host sample, with zero rescaling.
-    const int x0=9,x1=std::max(x0,cardWidth-9);
-    out.wrap.ticksPerRow=(unsigned)(x1-x0+1);
-    // Header=38, row=18 (two 3px bars), footer=31.
-    out.height=69+(int)out.wrap.rows()*18;
+    out.wrap.ticksPerRow=(unsigned)std::max(1,
+        std::max(1,cardWidth-17)/XM41FrameCardLayout::PIXELS_PER_FRAME);
+    out.height=XM41FrameCardLayout::HEAD+
+        (int)out.wrap.rows()*XM41FrameCardLayout::ROW+
+        XM41FrameCardLayout::TAIL;
     return out;
 }
 static inline void xm41DrawFrameCard(SDL_Renderer* r,const SDL_Rect& card,
-                                      const XM30Event& e,const XM30FrameData& f){
-    if(!r || card.w<105 || card.h<70)return;
+                                       const XM30Event& e,const XM30FrameData& f){
+    if(!r || card.w<105 || card.h<49)return;
     xm39RoundedCard(r,card);
     const int left=card.x+7,right=card.x+card.w-7;
     const int x0=left+2;
     const XM41FrameCardLayout layout=xm41FrameCardLayout(e,f,card.w);
     const XM30TimelineWrap& t=layout.wrap;
-    const unsigned long long startWall=t.start;
-    const unsigned long long finishWall=t.finish;
-    static const int HEAD=38,ROW=18,HIT_Y=8,MOVE_Y=13,BAR_H=3;
-    char caption[48],button[12];
-    if(e.inputObserved && e.code>=0x80 && e.code<=0x85)
-        std::snprintf(button,sizeof(button),"B%d",e.code-0x80+1);
-    else std::snprintf(button,sizeof(button),"ROM");
-    const char* motion=e.motion!=XM32_NORMAL &&
-                       e.motion!=XM32_PROJECTILE?
-                       xm32MotionTag(e.motion):(e.source==1?"PROJ":
-                                               xm32MotionTag(e.motion));
-    const char* status=e.contactOnly?"HIT / BOX ?":
-         (e.noBox && e.attackFamily==0x2Eu && !e.attackEnded)?
-         "PRE-BOX":e.noBox?"NO BOX":
-         (e.attackObserved && !e.attackEnded)?"LIVE":"DONE";
-    std::snprintf(caption,sizeof(caption),"P%d %s %s %s",
-        e.player+1,motion,button,status);
-    xm32ColoredText(r,caption,left,card.y+6,1,159,199,255);
+    const unsigned long long startWall=t.start,finishWall=t.finish;
+    const int HEAD=XM41FrameCardLayout::HEAD;
+    const int ROW=XM41FrameCardLayout::ROW;
+    const int STEP=XM41FrameCardLayout::PIXELS_PER_FRAME;
+    static const int HIT_Y=13,MOVE_Y=19,BAR_H=3;
+    char title[128];xm41InputTitle(e,title,sizeof(title));
+    xm32ColoredText(r,title,left,card.y+5,1,183,218,253);
     SDL_SetRenderDrawColor(r,53,78,110,255);
-    SDL_RenderDrawLine(r,left,card.y+19,right,card.y+19);
-    xm32ColoredText(r,"HIT / BOX  +  ROM ACTION",left,card.y+25,
-                    1,165,187,213);
+    SDL_RenderDrawLine(r,left,card.y+17,right,card.y+17);
     auto nativeWall=[&](unsigned long long native)->unsigned long long{
         return f.wallForNative(e.player,native,startWall);
     };
@@ -475,8 +493,8 @@ static inline void xm41DrawFrameCard(SDL_Renderer* r,const SDL_Rect& card,
     const unsigned long long actionEnd=e.attackEnded?
         e.attackEndFrame:e.attackLastFrame;
     const unsigned rows=t.rows();
-    const unsigned maxRows=card.h>HEAD+20?
-        (unsigned)std::max(1,(card.h-HEAD-29)/ROW):1u;
+    const unsigned maxRows=card.h>=HEAD+ROW?
+        (unsigned)((card.h-HEAD)/ROW):0u;
     for(unsigned row=0;row<rows && row<maxRows;++row){
         const int y=card.y+HEAD+(int)row*ROW;
         const unsigned long long base=startWall+
@@ -486,17 +504,25 @@ static inline void xm41DrawFrameCard(SDL_Renderer* r,const SDL_Rect& card,
         for(unsigned long long at=base;at<=last;++at){
             const XM30WallTick sample=f.wallTick(e.player,at);
             const unsigned long long native=sample.wall?sample.native:
-                 e.inputFrame+(at-startWall);
+                e.inputFrame+(at-startWall);
             const bool held=xm30VisualHeld(sample,e,at,native);
-            const int x=x0+(int)(at-base);
+            const int x=x0+(int)(at-base)*STEP;
+            const unsigned long long number=at-startWall+1u;
+            const bool ten=number%10u==0u,five=number%5u==0u;
+            // Every frame has an individual notch, with 5/10 emphasis.
+            tick(x+1,y+(ten?8:(five?9:10)),ten?4:(five?3:1),
+                 ten?225:(five?151:81),
+                 ten?235:(five?169:106),
+                 ten?246:(five?198:135));
+            if(number==1u || ten){
+                char label[16];std::snprintf(label,sizeof(label),"%llu",number);
+                const int w=(int)std::strlen(label)*6;
+                const int labelX=std::max(left,std::min(x+1-w/2,right-w));
+                xm32ColoredText(r,label,labelX,y,1,159,181,204);
+            }
             Uint8 red=113,green=133,blue=160;
-            if(held){
-                // Show both the owner's true held native samples and
-                // opponent hit-stop during its accepted super. The latter
-                // never freezes or rewrites the attacker's native frame clock.
-                red=43;green=48;blue=57;
-            }else if(!e.noBox && native>=e.firstFrame &&
-                     native<=activeEnd){
+            if(held){red=43;green=48;blue=57;}
+            else if(!e.noBox && native>=e.firstFrame && native<=activeEnd){
                 red=93;green=224;blue=135;
             }else if(e.source==1 && e.spawnFrame &&
                      native>=e.spawnFrame &&
@@ -505,80 +531,36 @@ static inline void xm41DrawFrameCard(SDL_Renderer* r,const SDL_Rect& card,
                     red=86;green=157;blue=204;
                 }else{red=253;green=204;blue=96;}
             }
-            tick(x,y+HIT_Y,BAR_H,red,green,blue);
+            for(int w=0;w<STEP-1;++w)
+                tick(x+w,y+HIT_Y,BAR_H,red,green,blue);
             if(e.source==1 && !held && native>=e.inputFrame){
                 const unsigned long long j=native-e.inputFrame;
                 if(j<1024 && (e.motionBits[j/64]&(1ull<<(j%64))))
-                    tick(x,y+HIT_Y+BAR_H,1,86,193,243);
+                    tick(x+1,y+HIT_Y+BAR_H,1,86,193,243);
             }
-            if(held)
-                tick(x,y+MOVE_Y,BAR_H,43,48,57);
-            else if(e.attackObserved && native>=e.attackStartFrame &&
-                    native<=actionEnd)
-                tick(x,y+MOVE_Y,BAR_H,236,150,99);
-            else tick(x,y+MOVE_Y,BAR_H,74,88,111);
+            for(int w=0;w<STEP-1;++w){
+                if(held)tick(x+w,y+MOVE_Y,BAR_H,43,48,57);
+                else if(e.attackObserved && native>=e.attackStartFrame &&
+                        native<=actionEnd)
+                    tick(x+w,y+MOVE_Y,BAR_H,236,150,99);
+                else tick(x+w,y+MOVE_Y,BAR_H,74,88,111);
+            }
         }
     }
-    // True events keep their native timestamps; only their location on
-    // the visual timeline is transformed. Markers on wrapped rows remain
-    // on those rows, and the earlier rows are NEVER overwritten.
-    XM39Mark marks[6];int n=0;
-    marks[n++]={e.inputObserved?"IN":"ROM",startWall};
-    if(e.source==1 && e.spawnFrame)
-        marks[n++]={"SP",nativeWall(e.spawnFrame)};
-    if(!e.noBox)marks[n++]={"ON",nativeWall(e.firstFrame)};
-    if(e.source==0 && !e.noBox && e.closed)
-        marks[n++]={"OFF",nativeWall(e.endFrame)};
-    if(e.attackObserved && e.attackEnded)
-        marks[n++]={"END",nativeWall(e.attackEndFrame)};
-    int prevRow=-1,prevRight=left;
-    for(int i=0;i<n;++i){
-        const unsigned row=t.row(marks[i].at);
-        if(row>=maxRows)continue;
-        const int x=x0+(int)t.column(marks[i].at);
-        const int y=card.y+HEAD+(int)row*ROW;
-        const int width=(int)std::strlen(marks[i].label)*6;
-        int labelX=std::max(left,std::min(x-width/2,right-width));
-        if((int)row==prevRow)labelX=std::max(labelX,prevRight+2);
-        labelX=std::min(labelX,right-width);
-        marks[i].x=x;marks[i].labelX=labelX;
-        xm32ColoredText(r,marks[i].label,labelX,y,1,195,213,234);
-        tick(x,y+HIT_Y,2,236,241,251);
-        tick(x,y+MOVE_Y,2,236,241,251);
-        prevRow=(int)row;prevRight=labelX+width;
-    }
+    // Isolated red confirmations on the hit lane, never a red strip
+    // cutting through both hit and action bars.
     for(int i=0;i<e.contactCount && i<XM30Event::CONTACTS;++i){
         const unsigned long long at=e.contactWallFrames[i]?
             e.contactWallFrames[i]:nativeWall(e.contactFrames[i]);
+        if(at<startWall || at>finishWall)continue;
         const unsigned row=t.row(at);
         if(row>=maxRows)continue;
-        const int x=x0+(int)t.column(at);
+        const int x=x0+(int)t.column(at)*STEP;
         const int y=card.y+HEAD+(int)row*ROW;
-        tick(x,y+HIT_Y,MOVE_Y+BAR_H-HIT_Y,249,57,66);
-        if(x+1<=right-2)tick(x+1,y+HIT_Y,2,255,126,126);
+        tick(x+1,y+HIT_Y-3,3,249,57,66);
+        tick(x,y+HIT_Y,2,255,126,126);
+        tick(x+1,y+HIT_Y,2,249,57,66);
     }
-    const int bottom=card.y+HEAD+
-        (int)std::min(rows,maxRows)*ROW+2;
-    char info[66];
-    if(e.noBox){
-        xm32ColoredText(r,"S:?  A:?   BOX UNKNOWN",left,bottom,
-                        1,185,190,203);
-    }else{
-        if(e.inputObserved)
-            std::snprintf(info,sizeof(info),"S:%dF  A:%dF",
-                          e.startup,e.active);
-        else
-            std::snprintf(info,sizeof(info),"S:?  A:%dF",e.active);
-        xm32ColoredText(r,info,left,bottom,1,255,207,182);
-    }
-    if(e.attackObserved){
-        const unsigned long long duration=actionEnd>=e.attackStartFrame?
-            actionEnd-e.attackStartFrame+1u:0u;
-        std::snprintf(info,sizeof(info),"ROM %lluF %s",
-            duration,e.attackEnded?"COMPLETE":"RUNNING");
-    }else std::snprintf(info,sizeof(info),"ROM DURATION UNKNOWN");
-    xm32ColoredText(r,info,left,bottom+11,1,255,207,182);
-    xm32ColoredText(r,"1T=1 HOST",right-67,bottom+11,1,128,157,192);
 }
 static inline void xm23DrawText(SDL_Renderer* r,const char* text,int x,int y){
     xm23DrawTextSized(r,text,x,y,10000,2);
@@ -623,7 +605,7 @@ static inline void xm30Overlay(SDL_Renderer* r,const SDL_Rect& dest,int sw,int s
             const int h=xm41FrameCardLayout(e,f,cardWidth).height;
             SDL_Rect card={panel.x+4,cardY,cardWidth,
                            std::min(h,std::max(0,available-(cardY-top-52)))};
-            if(card.h>70)xm41DrawFrameCard(r,card,e,f);
+            if(card.h>=50)xm41DrawFrameCard(r,card,e,f);
             cardY+=h+3;
         }
         xm23DrawTextSized(r,"QC QD DP HC DQ  PR=PROJECTILE",panel.x+8,top+panel.h-26,panelW-14,1);
