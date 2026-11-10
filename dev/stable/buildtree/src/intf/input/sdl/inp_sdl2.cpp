@@ -764,7 +764,7 @@ int SDLinpState(int nCode)
                 if(reported[xm14Source]!=id) {
                     reported[xm14Source]=id;
                     fprintf(stderr,
-                        "XM87.249 PAD_GAME_OWNER p=%d device=%d instance=%d attached=%d profile=%d\\n",
+                        "XM87.249 PAD_GAME_OWNER p=%d device=%d instance=%d attached=%d profile=%d\n",
                         xm14Source+1,d,(int)id,
                         d>=0 && d<nJoystickCount && JoyList[d] &&
                         SDL_JoystickGetAttached(JoyList[d])?1:0,
