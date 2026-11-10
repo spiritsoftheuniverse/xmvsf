@@ -112,6 +112,7 @@ static int xmvsfBootSelector(bool returningFromGame=false) {
     xm8655Load();
     xm8733DizzyLoad();
     XM8755Mode::Load();
+    xm8655ApplyMode(); // Apply saved DF only when the selected game is V4.
     std::fprintf(stderr,"XMVSF NATIVE TEST 87.250 | PNG title + SF2 proportional glyphs | original game mode\n");
     std::fprintf(stderr,"XM27: boot selector ENTER (%s)\n",returningFromGame?"return":"startup");
     std::fflush(stderr);
@@ -501,7 +502,7 @@ static int xmvsfBootSelector(bool returningFromGame=false) {
                     if(direction){gameRow=(gameRow+4+direction)%4;xm25MenuSound(false);}
                     if(accept){
                         xm25MenuSound(true);
-                        if(gameRow==0)XM8755Mode::ToggleVersion();
+                        if(gameRow==0){XM8755Mode::ToggleVersion();xm8655ApplyMode();}
                         else if(gameRow==1)XM8755Mode::ToggleTournament();
                         else if(gameRow==2)xm8655Toggle();
                         else xm8733DizzyToggle();

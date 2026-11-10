@@ -7,6 +7,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include "../../burn/drv/capcom/xmvsf_stage87_262_game_version.h"
 inline bool& xm8655DoubleFeature(){static bool enabled=false;return enabled;}
 inline bool& xm8655Loaded(){static bool loaded=false;return loaded;}
 static inline const char* xm8655SettingsPath(){return "config/games/xmvsfu_double_feature.ini";}
@@ -14,9 +15,11 @@ static inline void xm8655ApplyMode(){
 #ifdef _WIN32
     // The renderer reads getenv() from the same Windows CRT environment.
     // An empty value removes the variable, so the locked Wily painter stays untouched.
-    const int result=_putenv_s("XM8649_WILY_RENDER",xm8655DoubleFeature()?"1":"");
+    const int result=_putenv_s("XM8649_WILY_RENDER",
+        (XM87262Game::version4() && xm8655DoubleFeature())?"1":"");
 #else
-    const int result=SDL_setenv("XM8649_WILY_RENDER",xm8655DoubleFeature()?"1":"",1);
+    const int result=SDL_setenv("XM8649_WILY_RENDER",
+        (XM87262Game::version4() && xm8655DoubleFeature())?"1":"",1);
 #endif
     if(result!=0)std::fprintf(stderr,"XM86.55 ERROR: could not apply render mode\n");
     std::fprintf(stderr,"XM86.55 DOUBLE_FEATURE mode=%d (Wily overlay gate)\n",int(xm8655DoubleFeature()));
@@ -42,7 +45,7 @@ static inline void xm8655Toggle(){
     else std::fprintf(stderr,"XM86.55 WARNING: could not save Double Feature setting\n");
 }
 static inline void xm8655RenderColor(SDL_Renderer* r,Uint8 red,Uint8 green,Uint8 blue,Uint8 alpha=255){
-    if(xm8655DoubleFeature()){
+    if(XM87262Game::version4() && xm8655DoubleFeature()){
         // Integer Rec.601 luma, deliberately applied to every frontend draw primitive.
         const Uint8 lum=Uint8((77u*red+150u*green+29u*blue+128u)>>8);
         red=green=blue=lum;

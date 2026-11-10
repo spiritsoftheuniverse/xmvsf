@@ -716,7 +716,8 @@ INT32 Cps2Frame()
         xm262V4 &&
         XM8795Native::state().installed && XM8796Native::state().installed);
     XM87100TrainingKO::state().before(CpsCode,(unsigned)nCpsCodeLen,
-        BurnDrvGetTextA(DRV_NAME),xm14TrainingMode!=0 && xm87102DamageMode==0);
+        BurnDrvGetTextA(DRV_NAME),
+        xm262V4 && xm14TrainingMode!=0 && xm87102DamageMode==0);
     xm8634Mark("AFTER CPS INPUT READ");
 
 	if (CpsRunFrameStartCallbackFunction) {
