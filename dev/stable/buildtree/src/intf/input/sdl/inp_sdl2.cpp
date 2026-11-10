@@ -336,8 +336,10 @@ static int SDLinpJoystickInit(int i) {
         if(b.bindType==SDL_CONTROLLER_BINDTYPE_BUTTON)
             buttons[i][j]=b.value.button;
     }
-    std::fprintf(stderr,"XM87.248 PAD_OPEN slot=%d instance=%d gamecontroller=%d name=%s\n",
-        i,(int)xm248Instance[i],GCList[i]?1:0,SDL_JoystickName(joy));
+    const char* deviceName=SDL_JoystickName(joy);
+    fprintf(stderr,"XM87.248 PAD_OPEN slot=%d instance=%d gamecontroller=%d name=%s\n",
+        i,(int)xm248Instance[i],GCList[i]?1:0,
+        deviceName?deviceName:"UNKNOWN");
     return 0;
 }
 // Called once per emulated input frame and again before the first read.
@@ -348,7 +350,8 @@ static void SDLinpRecheckJoysticks(bool forceRetry=false) {
     const bool retry=forceRetry || (Uint32)(now-xm248LastRetryAt)>=250u;
     if(retry)xm248LastRetryAt=now;
     const int discovered=SDL_NumJoysticks();
-    const int count=discovered<MAX_JOYSTICKS?discovered:MAX_JOYSTICKS;
+    const int count=discovered<=0?0:
+        (discovered<MAX_JOYSTICKS?discovered:MAX_JOYSTICKS);
     for(int i=0;i<MAX_JOYSTICKS;++i){
         const SDL_JoystickID id=i<count?SDL_JoystickGetDeviceInstanceID(i):-1;
         const bool newlyListed=xm248ListedInstance[i]!=id;
@@ -356,7 +359,7 @@ static void SDLinpRecheckJoysticks(bool forceRetry=false) {
         const bool current=JoyList[i] && SDL_JoystickGetAttached(JoyList[i]) &&
             xm248Instance[i]==id && SDL_JoystickInstanceID(JoyList[i])==id;
         if(!current && (JoyList[i] || GCList[i] || xm248Instance[i]!=-1)) {
-            std::fprintf(stderr,"XM87.248 PAD_LOST slot=%d instance=%d replacement=%d\n",
+            fprintf(stderr,"XM87.248 PAD_LOST slot=%d instance=%d replacement=%d\n",
                 i,(int)xm248Instance[i],(int)id);
             SDLinpCloseJoystickSlot(i);
         }
@@ -374,7 +377,7 @@ static void SDLinpRecheckJoysticks(bool forceRetry=false) {
             // later obtain an SDL GameController mapping without restart.
             GCList[i]=SDL_GameControllerOpen(i);
             if(GCList[i])
-                std::fprintf(stderr,"XM87.248 PAD_MAPPING_READY slot=%d instance=%d\n",
+                fprintf(stderr,"XM87.248 PAD_MAPPING_READY slot=%d instance=%d\n",
                     i,(int)xm248Instance[i]);
         }
     }
