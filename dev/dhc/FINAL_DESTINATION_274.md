@@ -459,3 +459,61 @@ reference but no longer included by the stage. No new build gates,
 GitHub Actions, or Stable changes. The native Windows build and actual
 performance must be checked locally with the existing
 `BUILD_TEST.bat` / `RUN_TEST.bat`.
+
+## TEST 87.284 — locally generated BGRA binary video and clock recovery
+
+The active painter now includes xmvsf_stage87_284_fd_binary.h. Binary video
+is prepared locally, not during gameplay or the incremental build.
+
+**Prepare once from the repository root on Windows:**
+
+    powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools\pack_fd_video.ps1
+
+Use -Force to regenerate packs after editing source PNG frames. The script
+uses Windows PowerShell and the built-in .NET System.Drawing/GDI+ library.
+It reads 193 + 200 + 396 pre-coalesced PNG frames, validates 700x400 native
+dimensions, and emits _art/video/fd01.fdb, fd02.fdb, fd03.fdb.
+The files have an XMFDBIN1 32-byte header (magic, little-endian
+width/height/count, format=1 BGRA8, rowBytes and reserved), followed by
+fixed-size 700x400x4 raw frame records. Total generated storage:
+883,680,096 bytes (842.7 MiB). The original PNGs remain untouched;
+the .fdb and .fdb.partial files are Git-ignored. Temporary output is
+written before being published. Ensure sufficient free space.
+
+At runtime the single SDL worker selects the packed file first, validates
+its size/format and indexed frame count, and reads only the needed frames.
+No PNG decompression, color-space conversion or per-frame file opening
+occurs when a pack is valid. The worker still owns a bounded three-frame
+CPU queue, and the game/render thread still owns two reusable SDL2
+STREAMING textures. The full packs are not held in RAM/VRAM.
+A missing or invalid pack produces a diagnostic and uses the existing
+PNG decoder as a compatibility fallback; the game never automatically
+runs the converter.
+
+**Native clock catch-up is scoped to Final Destination:** the QPC-based
+xm20FrameDueCatchup returns up to three owed simulation frames per
+RunIdle call. Up to two overdue frames advance natively without SDL
+painting, with real ordered input and WASAPI audio callbacks (including
+the existing DSP), and the last frame is drawn. This avoids the old
+frameDue behavior of immediately resetting the deadline after more than
+two frames of rendering lag. Other stages retain their prior schedule.
+An extreme overload can still exceed the three-frame catch-up cap.
+
+**Dependency tally:** zero new game-runtime dependencies. SDL2 and
+SDL2_image are already bundled and linked by makefile.sdl2. The offline
+converter needs only Windows PowerShell 5.1 and Windows .NET GDI+
+System.Drawing. The existing MSYS2 compiler and BUILD_TEST.bat /
+RUN_TEST.bat remain the only build/launch entrypoints. No new pip
+packages, codecs, build gates, GitHub Actions, or generated assets
+committed to source control.
+
+**Limit:** texture uploads and SDL_RenderPresent are still called from
+the original game thread. Catch-up plus worker binary streaming is not
+a full emulation/render-thread separation. Native Windows compile,
+runtime video selection, and actual frame pacing must be validated
+locally; never infer confirmed 60 fps from source review alone.
+
+Look for XM87.284 FD_BINARY_READY for every clip. The normal timings
+(4 native frames per PNG, 600 first-delay, 60 fades and 300 gaps), ROM
+physics, native two-axis camera, additive stars, pink lighting, native
+fighter depth, HUD and stun-bar order are unchanged.
