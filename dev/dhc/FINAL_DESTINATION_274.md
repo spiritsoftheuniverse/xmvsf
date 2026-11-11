@@ -1,4 +1,4 @@
-# Final Destination — TEST 87.274–87.280
+# Final Destination — TEST 87.274–87.281
 
 Branch: `final-destination` created from main commit
 `14889e013ca0b2dadaefc31eecfc110d1e2407e6`, which already contains
@@ -310,3 +310,52 @@ Local build and runner versions move to 87.280; all modifications
 remain on `final-destination`, not Stable/main. The GitHub source
 and GIF paths have been verified, but native Windows compilation
 and real playback still require running the existing local scripts.
+
+## TEST 87.281 — async GIF decoding + hardware SDL presentation, quarter-speed
+
+TEST 87.280's GIF decoder still called `GetFrame`, `CopyPixels`,
+full-resolution compositing, and 384x224 CPU resizing during
+`XMFD::paint` on the game's *SDL render thread*. Although the GPU
+was presenting an SDL texture, those expensive CPU tasks blocked
+the fight. Native GIF decompression is not itself GPU-accelerated.
+
+The new active module
+`src/intf/video/sdl/xmvsf_stage87_281_fd_gif_async.h` isolates
+**all GIF file access, WIC COM initialization, frame indexing,
+disposal compositing, and 384x224 downsampling on one SDL worker thread**.
+That thread contains the only WIC decoder and its COM apartment.
+The game thread submits only target GIF time and clip ID. The worker
+publishes at most one finished 384x224 RGBA frame (roughly 344 KiB)
+and duration metadata under a short SDL mutex. The render thread
+copies only new, ready frames to a single reusable
+`SDL_TEXTUREACCESS_STREAMING` GPU texture; it never decodes an image,
+waits for a GIF frame, or calls WIC. It displays the newest completed
+frame while the decoder catches up. There is no unbounded frame queue
+and no ever-growing GPU texture cache. The worker is persistent
+across clips/rematches; only full stage renderer cleanup joins it.
+
+**Quarter speed applies only to the GIFs:** source per-frame delay
+in GIF centiseconds is multiplied by **4** in emulated match-frame
+time. Each clip's total playback duration is 4x its original
+GIF duration. The original **10-second first-match delay,
+one-second fades at the beginning and end of each clip, five-second
+intermissions, and 01 → 02 → 03 looping** remain in normal
+game time. The pink platform light streak speed is unchanged.
+
+Layering remains GIF → blue/red parallax stars → original platform
+→ 30%-max pink streaks → native fighters/FX → HUD. Source GIFs and
+stage PNG are never modified. WIC and SDL are already available on
+Windows, requiring no new DLL linkage, GitHub Actions, or build
+checks. Earlier 87.280 synchronous GIF header is retained in
+source but no longer included or compiled in the active painter.
+
+Diagnostic messages use `XM87.281 FD_GIF_WORKER_STARTED`,
+`FD_GIF_WORKER_OPEN`, `FD_GIF_WORKER_INDEXED`, `FD_GIF_MATCH_START`,
+`FD_GIF_END`, and `FD_GIF_GPU_UPLOAD_FAIL`. There may be dropped
+ambient GIF frames on an overloaded machine, but **video decoding
+must never hold up the native game render thread**.
+
+Source-level checks pass. As usual, Windows native compilation and
+actual playback cannot be claimed until running the local
+`BUILD_TEST.bat` / `RUN_TEST.bat`. Stable and existing TESTs
+remain untouched.
