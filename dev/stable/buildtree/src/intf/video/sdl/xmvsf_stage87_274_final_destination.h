@@ -14,6 +14,7 @@
 #include <vector>
 #include "xmvsf_stage87_278_pink_light.h" // original-color, 30%-max slow neon sweeps
 #include "xmvsf_stage87_284_fd_binary.h" // bounded PNG decoder queue and two reusable SDL streaming textures
+#include "xmvsf_stage87_287_fd_fx.h" // four chroma-keyed FX, aspect-preserving cover, additive layer
 
 namespace XMFD {
 static const int W=384,H=224,WORLD_W=768,SPACE_W=1152;
@@ -35,6 +36,7 @@ struct Star {
 struct Scene {
  XMFDLight::Mask pink; // separate masked additive light, same world transform
  XMFDVideo::Sequence video; // real 01/02/03 PNG sequences, based on native match time
+ XMFDVideoFX::Sequence fx; // four FDFX effects over main video, under the starfield
  SDL_Texture* sky=nullptr; // opaque only when video is absent, cached once
  SDL_Texture* stars=nullptr; // transparent additive particles, no dark tint
  SDL_Texture* platform=nullptr;
@@ -47,6 +49,7 @@ struct Scene {
  std::vector<unsigned char> rgba;
  std::vector<Star> particles;
  void close(){
+  fx.close();
   video.close();
   pink.close();
   if(sky)SDL_DestroyTexture(sky);
@@ -218,6 +221,7 @@ inline bool paint(SDL_Renderer* render,const SDL_Rect& view){
  if(xm77StageResolved!=2 || !xm8649Visual.sceneActive ||
     xm8649Visual.stage!=5){
   if(scene().video.phase!=XMFDVideo::Sequence::PRE_MATCH)scene().video.resetMatch();
+  scene().fx.reset();
   return false;
  }
  // Temporary sprite-capture loss must not restart a running clip timer.
@@ -230,6 +234,7 @@ inline bool paint(SDL_Renderer* render,const SDL_Rect& view){
  // PNG decoder fills a bounded three-frame queue off-thread; the renderer
  // reuses two SDL streaming textures and never waits for decoding.
  s.video.tick(render,frame,xm8649Visual.status);
+ s.fx.tick(render,frame,s.video);
  if(!s.renderStars(render,frame,xm8649Visual.nativeCameraX,
                    xm8649Visual.nativeCameraY))
   return false;
@@ -276,12 +281,13 @@ inline bool paint(SDL_Renderer* render,const SDL_Rect& view){
    platformWorld.y+platformWorld.h);
   loggedCameraX=camera;loggedCameraY=cameraY;
  }
- // Correct depth: PNG video -> separately faded dark sky -> transparent
- // additive stars -> original platform -> masked pink light -> fighters/HUD.
- // The sky fades completely out at full video opacity, avoiding black tint.
+ // Correct depth: main FDB -> sky -> FDFX ADD color -> transparent stars
+ // -> platform -> masked pink lighting -> fighters/HUD. FX cannot tint
+ // the starfield black: its black pixels carry zero alpha and ADD blend.
  s.video.draw(render,view);
  SDL_SetTextureAlphaMod(s.sky,(Uint8)(255u-(unsigned)s.video.alpha));
  const bool good=SDL_RenderCopy(render,s.sky,nullptr,&view)==0 &&
+                 s.fx.draw(render,view) &&
                  SDL_RenderCopy(render,s.stars,nullptr,&view)==0 &&
                  SDL_RenderCopy(render,s.platform,nullptr,&platformWorld)==0 &&
                  SDL_RenderCopy(render,s.pink.light,nullptr,&platformWorld)==0;
