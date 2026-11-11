@@ -12,7 +12,8 @@
 #include <cstdio>
 #include <string>
 #include <vector>
-#include "xmvsf_stage87_278_pink_light.h" // artist-color mask and angled world-locked streaks
+#include "xmvsf_stage87_278_pink_light.h" // original-color, 30%-max slow neon sweeps
+#include "xmvsf_stage87_279_fd_video.h" // 3 silent MP4s behind transparent parallax stars
 
 namespace XMFD {
 static const int W=384,H=224,WORLD_W=768,SPACE_W=1152;
@@ -32,7 +33,8 @@ struct Star {
  unsigned char layer,color,phase;
 };
 struct Scene {
- XMFDLight::Mask pink; // separate masked emission layer, same source world transform
+ XMFDLight::Mask pink; // separate masked additive light, same world transform
+ XMFDVideo::Sequence video; // real 01/02/03 MP4s, based on match time
  SDL_Texture* stars=nullptr;
  SDL_Texture* platform=nullptr;
  SDL_Texture* fighters=nullptr;
@@ -40,10 +42,11 @@ struct Scene {
  int platformW=0,platformH=0;
  bool failed=false;
  unsigned long long lastFrame=~0ull;
- int lastCameraX=-9999,lastCameraY=-9999;
+ int lastCameraX=-9999,lastCameraY=-9999,lastBackdropAlpha=-1;
  std::vector<unsigned char> rgba;
  std::vector<Star> particles;
  void close(){
+  video.close();
   pink.close();
   if(stars)SDL_DestroyTexture(stars);
   if(platform)SDL_DestroyTexture(platform);
@@ -53,7 +56,7 @@ struct Scene {
   platformW=platformH=0;
   rgba.clear();particles.clear();
   failed=false;lastFrame=~0ull;
-  lastCameraX=lastCameraY=-9999;
+  lastCameraX=lastCameraY=-9999;lastBackdropAlpha=-1;
  }
  static unsigned next(unsigned& seed){
   seed^=seed<<13;seed^=seed>>17;seed^=seed<<5;return seed;
@@ -78,17 +81,17 @@ struct Scene {
    if(image){found=filename;break;}
   }
   if(!image){
-   std::fprintf(stderr,"XM87.278 FINAL_DESTINATION_ASSET_MISSING original=_art/finaldestination.png; native fallback\n");
+   std::fprintf(stderr,"XM87.279 FINAL_DESTINATION_ASSET_MISSING original=_art/finaldestination.png; native fallback\n");
    failed=true;return false;
   }
   platformW=image->w;platformH=image->h;
-  // Read original bright pink into an exact source-pixel emission mask.
-  // Cut only those keyed pixels from a temporary copy of the platform;
-  // the original PNG stays untouched in _art and in the repository.
+  // Read original bright pink into a separate source-pixel emission mask.
+  // The temporary copy retains all original colors and original alpha;
+  // only +0..30% additive light is layered along its exact pink pixels.
   SDL_Surface* masked=pink.prepare(renderer,image);
   SDL_FreeSurface(image);
   if(!masked){
-   std::fprintf(stderr,"XM87.278 FD_PINK_MASK_PREPARE_FAILED %s\n",SDL_GetError());
+   std::fprintf(stderr,"XM87.279 FD_PINK_MASK_PREPARE_FAILED %s\n",SDL_GetError());
    close();failed=true;return false;
   }
   platform=SDL_CreateTextureFromSurface(renderer,masked);
@@ -100,12 +103,12 @@ struct Scene {
   flash=SDL_CreateTexture(renderer,SDL_PIXELFORMAT_RGBA32,
        SDL_TEXTUREACCESS_STREAMING,W,H);
   if(!platform || !stars || !fighters || !flash || platformW<1 || platformH<1){
-   std::fprintf(stderr,"XM87.278 FINAL_DESTINATION_TEXTURE_FAILED %s\n",SDL_GetError());
+   std::fprintf(stderr,"XM87.279 FINAL_DESTINATION_TEXTURE_FAILED %s\n",SDL_GetError());
    close();failed=true;return false;
   }
   SDL_SetTextureBlendMode(platform,SDL_BLENDMODE_BLEND);
   SDL_SetTextureScaleMode(platform,SDL_ScaleModeNearest);
-  SDL_SetTextureBlendMode(stars,SDL_BLENDMODE_NONE);
+  SDL_SetTextureBlendMode(stars,SDL_BLENDMODE_BLEND); // let MP4 show behind stars
   SDL_SetTextureScaleMode(stars,SDL_ScaleModeNearest);
   SDL_SetTextureBlendMode(fighters,SDL_BLENDMODE_BLEND);
   SDL_SetTextureScaleMode(fighters,SDL_ScaleModeNearest);
@@ -129,7 +132,7 @@ struct Scene {
   }
   const int worldH=(platformH*WORLD_W+platformW/2)/platformW;
   std::fprintf(stderr,
-   "XM87.278 FINAL_DESTINATION_READY asset=%s source=%dx%d world=%dx%d anchor=bottom filter=nearest RGBA32 stars=%zu layers=3\n",
+   "XM87.279 FINAL_DESTINATION_READY asset=%s source=%dx%d world=%dx%d anchor=bottom filter=nearest RGBA32 stars=%zu layers=3\n",
    found.c_str(),platformW,platformH,WORLD_W,worldH,particles.size());
   return true;
  }
@@ -141,9 +144,11 @@ struct Scene {
   p[2]=(unsigned char)std::min(255u,(unsigned)p[2]+b*strength/255u);
   p[3]=255u;
  }
- bool renderStars(SDL_Renderer* renderer,unsigned long long frame,int cameraX,int cameraY){
-  if(lastFrame==frame && cameraX==lastCameraX && cameraY==lastCameraY)return true;
+ bool renderStars(SDL_Renderer* renderer,unsigned long long frame,int cameraX,int cameraY,Uint8 videoAlpha){
+  if(lastFrame==frame && cameraX==lastCameraX && cameraY==lastCameraY &&
+     lastBackdropAlpha==(int)videoAlpha)return true;
   lastFrame=frame;lastCameraX=cameraX;lastCameraY=cameraY;
+  lastBackdropAlpha=(int)videoAlpha;
   for(int y=0;y<H;++y){
    for(int x=0;x<W;++x){
     unsigned char* p=rgba.data()+((size_t)y*W+(size_t)x)*4u;
@@ -153,7 +158,9 @@ struct Scene {
     p[0]=(unsigned char)(3+nearRed/15+y/110);
     p[1]=(unsigned char)(4+nearBlue/25);
     p[2]=(unsigned char)(13+nearBlue/9+(H-y)/90);
-    p[3]=255u;
+    // Fade the static sky backing away as MP4 rises underneath, but
+    // keep all independently blinking parallax stars over the video.
+    p[3]=(Uint8)(255u-(unsigned)videoAlpha*225u/255u);
    }
   }
   for(const Star& s:particles){
@@ -185,7 +192,7 @@ struct Scene {
    pixel(x,y,red,green,blue,core);
   }
   if(SDL_UpdateTexture(stars,nullptr,rgba.data(),W*4)!=0){
-   std::fprintf(stderr,"XM87.278 FINAL_DESTINATION_STAR_UPLOAD_FAILED %s\n",SDL_GetError());
+   std::fprintf(stderr,"XM87.279 FINAL_DESTINATION_STAR_UPLOAD_FAILED %s\n",SDL_GetError());
    return false;
   }
   return true;
@@ -202,12 +209,17 @@ inline bool paint(SDL_Renderer* render,const SDL_Rect& view){
  Scene& s=scene();
  if(!s.load(render))return false; // keep original native stage on asset failure
  const unsigned long long frame=xm8649Visual.frames;
- if(!s.renderStars(render,frame,xm8649Visual.nativeCameraX,xm8649Visual.nativeCameraY))
+ // Match-start clock is first native battle status 8, not pre-fight loading.
+ // Decoding is silent and isolated; if media is unavailable the usual
+ // opaque starfield works without affecting stage or native fighters.
+ s.video.tick(render,frame,xm8649Visual.status);
+ if(!s.renderStars(render,frame,xm8649Visual.nativeCameraX,
+                   xm8649Visual.nativeCameraY,s.video.alpha))
   return false;
  // Progress the streak clock in emulation time, not wall-clock paint calls.
  if(!s.pink.update(frame))return false;
  if(SDL_UpdateTexture(s.fighters,nullptr,xm77SpritePixels(),W*4)!=0){
-  std::fprintf(stderr,"XM87.278 FINAL_DESTINATION_FIGHTER_UPLOAD_FAILED %s\n",SDL_GetError());
+  std::fprintf(stderr,"XM87.279 FINAL_DESTINATION_FIGHTER_UPLOAD_FAILED %s\n",SDL_GetError());
   return false;
  }
  const unsigned char* nativeFlash=xm8757FlashPixels();
@@ -241,12 +253,16 @@ inline bool paint(SDL_Renderer* render,const SDL_Rect& view){
  static int loggedCameraX=-9999,loggedCameraY=-9999;
  if(camera!=loggedCameraX || cameraY!=loggedCameraY){
   std::fprintf(stderr,
-   "XM87.278 FINAL_DESTINATION_CAMERA cameraX=%d cameraY=%d groundCameraY=%d world=%dx%d viewport=%dx%d dst=%d,%d,%d,%d bottom=%d filter=nearest\n",
+   "XM87.279 FINAL_DESTINATION_CAMERA cameraX=%d cameraY=%d groundCameraY=%d world=%dx%d viewport=%dx%d dst=%d,%d,%d,%d bottom=%d filter=nearest\n",
    camera,cameraY,GROUND_CAMERA_Y,WORLD_W,worldH,W,H,
    platformWorld.x,platformWorld.y,platformWorld.w,platformWorld.h,
    platformWorld.y+platformWorld.h);
   loggedCameraX=camera;loggedCameraY=cameraY;
  }
+ // Correct depth: ambient video -> moving stars -> source-color platform
+ // -> additive masked neon -> native stun/fighters/FX and HUD.
+ // Video is never composited over stars or native game entities.
+ s.video.draw(render,view);
  const bool good=SDL_RenderCopy(render,s.stars,nullptr,&view)==0 &&
                  SDL_RenderCopy(render,s.platform,nullptr,&platformWorld)==0 &&
                  SDL_RenderCopy(render,s.pink.light,nullptr,&platformWorld)==0;
@@ -257,7 +273,7 @@ inline bool paint(SDL_Renderer* render,const SDL_Rect& view){
  }
  SDL_RenderSetClipRect(render,hadClip?&oldClip:nullptr);
  if(!good){
-  std::fprintf(stderr,"XM87.278 FINAL_DESTINATION_DRAW_FAILED %s\n",SDL_GetError());
+  std::fprintf(stderr,"XM87.279 FINAL_DESTINATION_DRAW_FAILED %s\n",SDL_GetError());
   return false;
  }
  return true;
