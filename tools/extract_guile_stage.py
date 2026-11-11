@@ -104,24 +104,44 @@ def normalize(name: str) -> str:
     return re.sub(r"[^a-z0-9]+", " ", name.lower()).strip()
 
 def role_for(parts: list[str]) -> str:
-    bits = [normalize(x) for x in parts]
-    if any("character" in x or "people" in x or "actor" in x for x in bits):
+    # Characters is one exact Photoshop GROUP, not a fuzzy layer heuristic.
+    parents = [normalize(p) for p in parts[:-1]]
+    name = normalize(parts[-1])
+    if "characters" in parents:
         return "actor"
-    if any("high sky" in x or "upper sky" in x or "cloud" in x or x == "sky" for x in bits):
-        return "sky"
-    if any(x == "bg" or "background" in x or "backdrop" in x for x in bits):
-        return "bg"
-    if any("ground" in x or "floor" in x or "foreground" in x for x in bits):
+    if name == "ground":
         return "ground"
+    if name in ("high sky", "highsky", "sky") or "cloud" in name:
+        return "sky"
+    if name in ("bg", "background") or "background" in parents:
+        return "bg"
     return "other"
 
 def actor_name(parts: list[str]) -> str:
-    for i, part in enumerate(parts[:-1]):
-        if "character" in normalize(part) or "people" in normalize(part) or "actor" in normalize(part):
-            if i+2 < len(parts): return normalize(parts[i+1]) or "actor"
-            break
-    name = re.sub(r"[\s_\-]*(?:frame|cel)?[\s_\-]*\d+$", "", parts[-1], flags=re.I)
-    return normalize(name) or "characters"
+    # ladyL1/ladyL2 => ladyL; Joe1/Joe2/Joe3 => Joe.
+    # Never normalize away the original casing or merge separate artists' names.
+    name = re.sub(r"(?i)(?:[\\s_\\-]*(?:frame|cel))?[\\s_\\-]*\\d+$", "", parts[-1]).strip()
+    return name or parts[-1]
+
+def sanitize_field(text: str) -> str:
+    return text.replace("\\t", " ").replace("\\r", " ").replace("\\n", " ")
+
+def padded_rgba(pixels: bytes, w: int, h: int, x: int, y: int,
+                canvas: tuple[int, int, int, int]) -> bytes:
+    left, top, right, bottom = canvas
+    tw, th = right - left, bottom - top
+    if tw <= 0 or th <= 0 or tw * th > 8192 * 8192:
+        raise ValueError(f"Invalid padded actor frame {canvas}")
+    out = bytearray(tw * th * 4)
+    # Preserve all original pixels; no clipping to a tight bounding box.
+    if w and h:
+        dx, dy = x - left, y - top
+        if dx < 0 or dy < 0 or dx + w > tw or dy + h > th:
+            raise ValueError(f"Actor frame {x},{y} + {w}x{h} exceeds {canvas}")
+        for row in range(h):
+            start = (dy + row) * tw * 4 + dx * 4
+            out[start:start+w*4] = pixels[row*w*4:(row+1)*w*4]
+    return bytes(out)
 
 def extract(data: bytes, out: Path) -> list[str]:
     p = PSD(data)
