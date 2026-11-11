@@ -289,8 +289,8 @@ def extract(data: bytes, out: Path) -> list[str]:
     # A PSD raster layer can have *trimmed stored bounds*: Photoshop keeps
     # its nontransparent pixels only, even though the authored stage occupies
     # the full 1016x471 coordinate plane. Keep BOTH geometries separately.
-    # The fixed stage frame is user-authored; the canvas is checked for
-    # compatibility, never used as a replacement for the ground artwork.
+    # The 1016x471 frame is user-authored, independent of the PSD canvas;
+    # the ground layer pixels remain the artwork and retain their coordinates.
     raw_gl,raw_gt,raw_gr,raw_gb = (
         ground["left"],ground["top"],ground["right"],ground["bottom"])
     gl,gt,gr,gb = raw_gl,raw_gt,raw_gr,raw_gb
