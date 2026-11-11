@@ -1,4 +1,4 @@
-# Final Destination — TEST 87.274–87.276
+# Final Destination — TEST 87.274–87.277
 
 Branch: `final-destination` created from main commit
 `14889e013ca0b2dadaefc31eecfc110d1e2407e6`, which already contains
@@ -109,3 +109,42 @@ reported the identical original `_art/finaldestination.png` blob SHA
 PNG was not yet visible on GitHub in this check. The renderer uses
 the PNG from the working tree at runtime, so the bottom-anchor applies
 to any later asset dimensions without a code change.
+
+## TEST 87.277 — native vertical camera, stationary world floor
+
+**Required first read for all levels:** root `README.md` (native camera
+contract), then `dev/stable/buildtree/src/burner/sdl/xmvsf_stage86_49_camera.h`.
+That existing observer reads the *ROM-owned camera* on native stage 05:
+X = signed `0xFF524C` + 64, Y = signed `0xFF5250`. In the verified
+super-jump range, camera Y travels from grounded ~256 toward 0.
+This is the same camera state used by Wily's stage painter; no new
+motion detector, guessed character midpoint, or separate stage camera
+is introduced.
+
+For the fixed Final Destination world floor, the vertical draw offset
+is now:
+
+```
+platformWorldTop = 224 - scaledImageHeight + (256 - nativeCameraY)
+```
+
+At grounded Y=256, the **bottom source pixel is anchored at native Y=224**.
+As the native camera rises through Y=128 to Y=0, the bottom of the world
+platform correctly moves from 224 to 352 to 480 in screen coordinates
+(out of the viewport), while the game sprites follow their original
+native projection. When the camera descends on landing, the fixed
+world floor returns to Y=224. This is the standard game-camera
+behavior—not a floor glued to the jumping fighter.
+
+The platform continues to use verified native horizontal camera X and
+nearest-neighbor scaling. The procedural starfield already uses
+native camera Y for slower parallax; it remains separate behind the
+platform and gameplay sprites. `FINAL_DESTINATION_CAMERA` now reports
+both native camera X and Y, viewport, draw coordinates and bottom
+location when either camera axis changes. There are no changes to
+combat code, collisions, DHC, menus, controller input or native
+camera registers. Stage-specific camera geometry must be verified
+before adapting this transform for other native stages.
+
+TEST 87.277 is source-verified, not Windows gameplay-verified. Stable
+and the warm local build cache remain untouched.
