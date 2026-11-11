@@ -241,14 +241,70 @@ def extract(data: bytes, out: Path) -> list[str]:
                            channels=channels_info,opacity=opacity,visible=not (flags&2),
                            name=name,section=section,mask=mask,blend=blend))
     if p.pos > info_end: raise ValueError("PSD layer info overflow")
+    # Resolve the PSD group tree BEFORE decoding any pixels. Photoshop layer
+    # records are ordered from front to back. lsct=1/2 opens a folder;
+    # lsct=3 closes it. No canvas trimming or flattening is permitted.
     stack: list[str] = []
-    records: list[str] = [f"CANVAS\t{width}\t{height}"]
+    ground = None
+    actors: dict[str, list[dict]] = {}
+    for layer in layers:
+        section = layer["section"]
+        if section in (1,2):
+            stack.append(layer["name"])
+            layer["role"] = "folder"
+            continue
+        if section == 3:
+            layer["role"] = "folder_end"
+            if stack:
+                stack.pop()
+            continue
+        parts = stack + [layer["name"]]
+        layer["path"] = parts
+        layer["role"] = role_for(parts)
+        if layer["role"] == "other":
+            layer["role"] = "bg"
+        if layer["role"] == "ground" and layer["right"] > layer["left"] and layer["bottom"] > layer["top"]:
+            if ground is None:
+                ground = layer
+        if layer["role"] == "actor":
+            layer["actor"] = actor_name(parts)
+            actors.setdefault(layer["actor"], []).append(layer)
+    if ground is None:
+        raise ValueError("Guile PSD has no pixel layer named ground; stage needs its exact bounds")
+    gl,gt,gr,gb = ground["left"],ground["top"],ground["right"],ground["bottom"]
+    gw,gh = gr-gl,gb-gt
+    if (gw,gh) != (1016,471):
+        raise ValueError(
+            f"Guile ground layer must be authored 1016x471, found {gw}x{gh} at ({gl},{gt}). "
+            "The PSD canvas must not be substituted for ground.")
+    if not actors:
+        raise ValueError("Guile PSD has no raster layers inside the Characters group")
+    # Every animation group owns one identical transparent, ground-anchored
+    # frame rectangle. Expand it if an original child extends beyond ground,
+    # rather than silently dropping even one pixel.
+    actor_bounds: dict[str, tuple[int,int,int,int]] = {}
+    for key, frames in actors.items():
+        bounds = (
+            min([gl]+[f["left"] for f in frames if f["right"]>f["left"]]),
+            min([gt]+[f["top"] for f in frames if f["bottom"]>f["top"]]),
+            max([gr]+[f["right"] for f in frames if f["right"]>f["left"]]),
+            max([gb]+[f["bottom"] for f in frames if f["bottom"]>f["top"]]),
+        )
+        actor_bounds[key] = bounds
+    records: list[str] = [
+        f"CANVAS\t{width}\t{height}",
+        "FORMAT\t3",
+        f"GROUND\t{gl}\t{gt}\t{gw}\t{gh}",
+        f"VIEW\t768\t471\t{(gw-768)//2}",
+    ]
     out.mkdir(parents=True,exist_ok=True)
     count = 0
     actor_count = 0
     for layer in layers:
         planes = {}
         w,h = layer["right"]-layer["left"],layer["bottom"]-layer["top"]
+        # Always consume this layer's entire channel block, even if the
+        # group marker has no pixels or the artwork is hidden.
         for ident,length in layer["channels"]:
             payload = p.take(length)
             if w>0 and h>0 and ident in (0,1,2,-1,-2) and length>=2:
@@ -260,22 +316,15 @@ def extract(data: bytes, out: Path) -> list[str]:
                         except ValueError: pass
                 else:
                     planes[ident] = decode_plane(payload,w,h)
-        section = layer["section"]
-        if section in (1,2):
-            stack.append(layer["name"])
+        role = layer["role"]
+        if role in ("folder","folder_end"):
             continue
-        if section == 3:
-            if stack: stack.pop()
+        if role != "actor" and (not layer["visible"] or w<=0 or h<=0 or not planes):
             continue
-        if w<=0 or h<=0 or not planes: continue
-        parts = stack+[layer["name"]]
-        role = role_for(parts)
-        if role == "other":
-            # Don't discard unnamed scenery; it is part of the stage background.
-            role = "bg"
-        if role != "actor" and not layer["visible"]:
-            continue
-        if role == "actor": actor_count += 1
+        if role == "actor":
+            # Export even hidden and empty child layers; the animation's
+            # membership is the literal PSD Characters folder, not visibility.
+            actor_count += 1
         size = w*h
         gray = planes.get(0,b"\0"*size)
         red = gray
