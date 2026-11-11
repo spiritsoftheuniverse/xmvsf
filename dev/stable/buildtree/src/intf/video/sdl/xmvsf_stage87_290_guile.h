@@ -249,36 +249,44 @@ struct Scene {
    }
   }
  }
+ // Native camera delta pans inside the 248 authored pixels outside the
+ // centered 768px crop. Always START centered, regardless of the ROM camera
+ // coordinate at the first rendered stage frame.
+ int groundCrop(int nativeCameraX){
+  if(!cameraBaseSet){cameraBaseX=nativeCameraX;cameraBaseSet=true;}
+  return clamp((groundW-AUTHORED_W)/2+(nativeCameraX-cameraBaseX),
+               0,groundW-AUTHORED_W);
+ }
  bool drawTexture(SDL_Renderer* render,SDL_Texture* tex,
-                  const Layer& l,double cameraX,int cameraY,
-                  const SDL_Rect& view,int horizontal=0)const{
+                  const Layer& l,double sourceCropX,int cameraY,
+                  const SDL_Rect& view)const{
   if(!tex)return true;
-  const double scale=double(WORLD_W)/double(canvasW);
-  const double worldHeight=double(canvasH)*scale;
-  const double yTop=double(VIEW_H)-worldHeight+double(GROUND_CAMERA_Y-cameraY);
-  const double left=(double(l.x)*scale-cameraX+double(horizontal));
-  const double top=(yTop+double(l.y)*scale);
+  // x/y describe ORIGINAL PSD coordinates. Characters' transparent padding
+  // lives in their PNGs. No layer-specific auto-centering or scale-to-fit.
+  const double sourceX=double(l.x-groundX)-sourceCropX;
+  const double sourceY=double(l.y-groundY)+
+                       double(GROUND_CAMERA_Y-cameraY)*double(AUTHORED_H)/VIEW_H;
   SDL_Rect dst{
-   view.x+(int)std::lround(left*view.w/VIEW_W),
-   view.y+(int)std::lround(top*view.h/VIEW_H),
-   std::max(1,(int)std::lround(double(l.w)*scale*view.w/VIEW_W)),
-   std::max(1,(int)std::lround(double(l.h)*scale*view.h/VIEW_H))
+   view.x+(int)std::lround(sourceX*view.w/AUTHORED_W),
+   view.y+(int)std::lround(sourceY*view.h/AUTHORED_H),
+   std::max(1,(int)std::lround(double(l.w)*view.w/AUTHORED_W)),
+   std::max(1,(int)std::lround(double(l.h)*view.h/AUTHORED_H))
   };
   return SDL_RenderCopy(render,tex,nullptr,&dst)==0;
  }
  bool drawSky(SDL_Renderer* render,const Layer& l,
               unsigned long long frame,int cameraY,const SDL_Rect& view)const{
-  const double scale=double(WORLD_W)/double(canvasW);
-  const int tile=std::max(1,(int)std::lround(double(l.w)*scale));
-  // Scroll right forever, approximately 3 source-world pixels per second.
-  // Draw overlapping copies so no blank appears when the sky wraps.
+  const int tile=std::max(1,l.w);
+  // Rightward drift is 3 source pixels per second at 60 Hz, endless wrap.
+  // Respect the sky layer's ORIGINAL PSD X offset relative to ground.
   const int shift=int((frame/20u)%unsigned(tile));
-  const int relative=(int)std::lround((double(l.x)*scale)+shift);
-  int origin=((relative%tile)+tile)%tile-tile;
-  const double worldTop=VIEW_H-double(canvasH)*scale+
-                        double(GROUND_CAMERA_Y-cameraY)*0.20;
-  const int height=std::max(1,(int)std::lround(double(l.h)*scale*view.h/VIEW_H));
-  const int top=view.y+(int)std::lround((worldTop+double(l.y)*scale)*view.h/VIEW_H);
+  const int centerCrop=(groundW-AUTHORED_W)/2;
+  const int relative=l.x-groundX-centerCrop+shift;
+  const int origin=((relative%tile)+tile)%tile-tile;
+  const double skyY=double(l.y-groundY)+
+                   double(GROUND_CAMERA_Y-cameraY)*0.20*AUTHORED_H/VIEW_H;
+  const int height=std::max(1,(int)std::lround(double(l.h)*view.h/AUTHORED_H));
+  const int top=view.y+(int)std::lround(skyY*view.h/AUTHORED_H);
   // The 8px bands move independently by <=1 source pixel. This gives clouds
   // a restrained, deterministic wiggle with a dithered bright-edge overlay.
   for(int x=origin;x<VIEW_W+tile;x+=tile){
@@ -291,15 +299,15 @@ struct Scene {
     const int wobble=(int)std::lround(std::sin(cycle));
     const SDL_Rect src{0,row,l.w,lines};
     const SDL_Rect dst{
-     view.x+(int)std::lround(double(x+wobble)*view.w/VIEW_W),
+     view.x+(int)std::lround(double(x+wobble)*view.w/AUTHORED_W),
      top+(int)std::lround(double(row)/l.h*height),
-     std::max(1,(int)std::lround(double(tile)*view.w/VIEW_W)),
+     std::max(1,(int)std::lround(double(tile)*view.w/AUTHORED_W)),
      std::max(1,(int)std::lround(double(lines)/l.h*height)+1)
     };
     if(SDL_RenderCopy(render,l.tex,&src,&dst)!=0)return false;
     if(l.edge){
      SDL_Rect edgeDst=dst;
-     edgeDst.x+=(int)std::lround(double((int((frame/17u+unsigned(row))%3u)-1))*view.w/VIEW_W);
+     edgeDst.x+=(int)std::lround(double((int((frame/17u+unsigned(row))%3u)-1))*view.w/AUTHORED_W);
      SDL_SetTextureAlphaMod(l.edge,(Uint8)(80u+unsigned(frame/11u+row)%5u*28u));
      if(SDL_RenderCopy(render,l.edge,&src,&edgeDst)!=0)return false;
     }
@@ -332,20 +340,21 @@ static inline bool paint(SDL_Renderer* render,const SDL_Rect& view){
  SDL_Rect oldClip={0,0,0,0};
  if(hadClip)SDL_RenderGetClipRect(render,&oldClip);
  SDL_RenderSetClipRect(render,&view);
- const double groundCam=double(clamp(xm8649Visual.nativeCameraX,0,384));
- const double bgCam=192.0+(groundCam-192.0)*0.45;
+ const double crop=double(s.groundCrop(xm8649Visual.nativeCameraX));
+ const double centerCrop=double((s.groundW-AUTHORED_W)/2);
+ const double bgCrop=centerCrop+(crop-centerCrop)*0.45;
  const int cameraY=clamp(xm8649Visual.nativeCameraY,-14,256);
  bool good=true;
  for(auto it=s.layers.rbegin();it!=s.layers.rend()&&good;++it)
   if(it->role=="sky")good=s.drawSky(render,*it,frame,cameraY,view);
  for(auto it=s.layers.rbegin();it!=s.layers.rend()&&good;++it)
-  if(it->role=="bg")good=s.drawTexture(render,it->tex,*it,bgCam,cameraY,view);
+  if(it->role=="bg")good=s.drawTexture(render,it->tex,*it,bgCrop,cameraY,view);
  for(auto it=s.layers.rbegin();it!=s.layers.rend()&&good;++it)
-  if(it->role=="ground")good=s.drawTexture(render,it->tex,*it,groundCam,cameraY,view);
+  if(it->role=="ground")good=s.drawTexture(render,it->tex,*it,crop,cameraY,view);
  for(const Actor& a:s.actors){
   if(!good||a.frames.empty())continue;
   const Layer& l=s.layers[a.frames[a.current]];
-  good=s.drawTexture(render,l.tex,l,groundCam,cameraY,view);
+  good=s.drawTexture(render,l.tex,l,crop,cameraY,view);
  }
  if(good){
   xm8733Overlay(render,view);
