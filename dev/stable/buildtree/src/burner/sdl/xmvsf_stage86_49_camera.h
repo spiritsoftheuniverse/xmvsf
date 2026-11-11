@@ -19,11 +19,11 @@ static inline void xm8649ObserveCamera(bool gameReady){
  if(bRunPause)return; // pausing must never reveal the original stage
  // Share the verified stage-05 camera with both custom renderers.
  // Wily remains Training-only; Final Destination works in Training/Versus.
- const bool wily=(xm77StageChoice==1 && xm77StageResolved==1 &&
+ const bool wily=((xm77StageChoice==0||xm77StageChoice==1) && xm77StageResolved==1 &&
                   xm14TrainingMode==1 && xm24VersusMode==0);
- const bool finalDestination=(xm77StageChoice==2 && xm77StageResolved==2 &&
+ const bool finalDestination=((xm77StageChoice==0||xm77StageChoice==2) && xm77StageResolved==2 &&
                              (xm14TrainingMode==1 || xm24VersusMode==1));
- const bool guileStage=(xm77StageChoice==3 && xm77StageResolved==3 &&
+ const bool guileStage=((xm77StageChoice==0||xm77StageChoice==3) && xm77StageResolved==3 &&
                         (xm14TrainingMode==1 || xm24VersusMode==1));
  if(!gameReady || bBurnRunAheadFrame || (!wily&&!finalDestination&&!guileStage)){
   xm8649Visual.sceneActive=false;return;
