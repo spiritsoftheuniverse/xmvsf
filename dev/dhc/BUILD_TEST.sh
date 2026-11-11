@@ -5,7 +5,7 @@
 set -euo pipefail
 BUILD_WALL_START=$SECONDS
 # Batch sets the version once at launch, before native compilation begins.
-XMVSF_BUILD_VERSION="${XMVSF_TEST_VERSION:-87.294}"
+XMVSF_BUILD_VERSION="${XMVSF_TEST_VERSION:-87.295}"
 XMVSF_BUILD_TAG="${XMVSF_BUILD_VERSION//./_}"
 PROJECT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
@@ -29,14 +29,14 @@ printf '\n========== XMVSF TEST %s BUILD BEGIN %s ==========' "$XMVSF_BUILD_VERS
 printf '\nProject: %s\nLog: %s\n' "$PROJECT" "$LOG_FILE"
 trap 'rc=$?; trap - EXIT; printf "XMVSF BUILD END rc=%s elapsed_seconds=%s time=%s log=%s\n" "$rc" "$((SECONDS-BUILD_WALL_START))" "$(date "+%Y-%m-%d %H:%M:%S")" "$LOG_FILE"; exit "$rc"' EXIT
 
-# One-time, local-only Guile PSD extraction. The PNG cache is only
-# regenerated when the PSD changes; warm native objects remain untouched.
+# Guile PSD source and all exported layers are validated by the
+# extractor's own SHA256 manifest. Checking on EVERY invocation avoids a
+# stale output when users replace/collapse layers or delete just PNGs
+# while leaving manifest.tsv behind. Unchanged PSDs are an immediate cache
+# hit: Python hashes the source and exits without decoding any pixels.
 GUILE_PSD="$PROJECT/_art/guilestage/guilestage.psd"
-GUILE_MANIFEST="$PROJECT/_art/guilestage/extracted/manifest.tsv"
-if [[ -s "$GUILE_PSD" &&
-      ( ! -s "$GUILE_MANIFEST" || "$GUILE_PSD" -nt "$GUILE_MANIFEST" ||
-        "$PROJECT/tools/extract_guile_stage.py" -nt "$GUILE_MANIFEST" ) ]]; then
-  echo "GUILE PSD: extracting source layers once into _art/guilestage/extracted/"
+if [[ -s "$GUILE_PSD" ]]; then
+  echo "GUILE PSD: verifying cached layer extraction (source SHA + PNG inventory)."
   if command -v python3 >/dev/null 2>&1; then
     python3 "$PROJECT/tools/extract_guile_stage.py"
   elif command -v python >/dev/null 2>&1; then
@@ -44,7 +44,7 @@ if [[ -s "$GUILE_PSD" &&
   elif command -v py >/dev/null 2>&1; then
     py -3 "$PROJECT/tools/extract_guile_stage.py"
   else
-    echo "ERROR: Python 3 required to extract the supplied Guile PSD; no native build started." >&2
+    echo "ERROR: Python 3 required for Guile PSD layer extraction." >&2
     exit 2
   fi
 fi
