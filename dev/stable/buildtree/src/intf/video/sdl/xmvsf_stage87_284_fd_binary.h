@@ -74,11 +74,13 @@ static SDL_RWops* openPack(unsigned clip,int& w,int& h){
  unsigned char hdr[32]={};
  const bool valid=SDL_RWread(rw,hdr,1u,32u)==32u &&
     std::memcmp(hdr,"XMFDBIN1",8u)==0 &&
-    u32le(hdr+8)==700u && u32le(hdr+12)==400u &&
+    u32le(hdr+8)>=1u && u32le(hdr+8)<=8192u &&
+    u32le(hdr+12)>=1u && u32le(hdr+12)<=8192u &&
     u32le(hdr+16)==COUNT[clip] && u32le(hdr+20)==1u &&
-    u32le(hdr+24)==2800u && u32le(hdr+28)==0u &&
+    u32le(hdr+24)==u32le(hdr+8)*4u && u32le(hdr+28)==0u &&
     SDL_RWseek(rw,0,RW_SEEK_END)==
-       (Sint64)(32u+(std::uint64_t)COUNT[clip]*1120000u);
+       (Sint64)(32u+(std::uint64_t)COUNT[clip]*
+                      (std::uint64_t)u32le(hdr+24)*(std::uint64_t)u32le(hdr+12));
  if(!valid){
   std::fprintf(stderr,"XM87.284 FD_BINARY_INVALID clip=%u path=%s; PNG fallback\n",
        clip+1u,filename.c_str());
@@ -148,7 +150,7 @@ struct Decoder {
     }
     const Sint64 offset=32+(Sint64)next*(Sint64)w*(Sint64)h*4;
     bool good=SDL_RWseek(pack[clip],offset,RW_SEEK_SET)==offset;
-    // Native 700x400x4 surfaces normally have tightly packed rows:
+    // Native 32-bit surfaces normally have tightly packed rows:
     // one sequential read, not 400 small IO calls per video frame.
     const size_t bytes=(size_t)w*(size_t)h*4u;
     if(good && rgba->pitch==w*4){
