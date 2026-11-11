@@ -297,13 +297,12 @@ def extract(data: bytes, out: Path) -> list[str]:
     gw,gh = gr-gl,gb-gt
     pad_ground = False
     if (gw,gh) != (1016,471):
-        if ((width,height) != (1016,471) or
-                not (0 <= raw_gl < raw_gr <= 1016 and
-                     0 <= raw_gt < raw_gb <= 471)):
+        if not (0 <= raw_gl < raw_gr <= 1016 and
+                0 <= raw_gt < raw_gb <= 471):
             raise ValueError(
-                f"Guile ground layer pixels at ({raw_gl},{raw_gt}) "
-                f"{gw}x{gh}; cannot place them safely within the authored "
-                f"1016x471 stage frame (PSD canvas {width}x{height}).")
+                f"Guile ground pixels at ({raw_gl},{raw_gt}) {gw}x{gh} "
+                "fall outside the authored 1016x471 ground frame; "
+                "not safe to crop or move them.")
         gl,gt,gr,gb = 0,0,1016,471
         gw,gh = 1016,471
         pad_ground = True
