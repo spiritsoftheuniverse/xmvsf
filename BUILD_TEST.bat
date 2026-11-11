@@ -6,7 +6,7 @@ set "PATH=C:\msys64\ucrt64\bin;C:\msys64\usr\bin;%PATH%"
 set "XMVSF_PROJECT=%PROJECT%"
 REM Freeze the target for this invocation: updates during a long build must not
 REM make the wrapper look for a different version than the shell published.
-set "XMVSF_TEST_VERSION=87.292"
+set "XMVSF_TEST_VERSION=87.293"
 set "XMVSF_TEST_TAG=%XMVSF_TEST_VERSION:.=_%"
 REM Build logs are written BEFORE checking prerequisites. This path is
 REM stable across point versions and never touches or deletes build objects.
