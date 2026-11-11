@@ -421,3 +421,41 @@ As with prior stage revisions, code can be checked for integration
 in GitHub, but native Windows compilation and on-screen rendering
 cannot be claimed until the existing local
 `BUILD_TEST.bat` / `RUN_TEST.bat` are run.
+
+## TEST 87.283 — SDL streaming texture pool, bounded decode queue
+
+87.282's frame-by-frame `SDL_CreateTextureFromSurface` path was
+identified as an architectural problem: it created and retained 789
+individual GPU textures on the render thread. The active painter now
+includes `xmvsf_stage87_283_fd_stream.h`, which follows SDL2's
+documented streaming-texture model and ffplay-style bounded decoded
+frame queues.
+
+- **Two reusable GPU textures** are allocated once on the render thread,
+  with `SDL_TEXTUREACCESS_STREAMING`. No per-frame texture allocation,
+  and no per-frame GPU texture cache.
+- A single SDL worker performs `IMG_Load` and RGBA conversion. The
+  bounded decoded-frame queue contains at most **three** frames.
+- On a new selected frame, the render thread uses
+  `SDL_LockTexture` → pitch-correct row copies →
+  `SDL_UnlockTexture` on the inactive texture, then flips the active
+  texture. It does not call `IMG_Load` or wait for the decoder.
+- When the requested frame is late, the last frame remains on screen;
+  the game never waits. The worker drops obsolete frames and resets its
+  decode position on clip changes or substantial seeks.
+- At 700×400 RGBA, the GPU video pool is approximately 2.14 MiB.
+  The three-frame CPU queue is approximately 3.2 MiB, excluding the
+  worker's temporary decode surface.
+- Quarter-speed frame hold (4 emulated frames), first-match 10s delay,
+  1s fades, 5s intermissions, clip order, original source frames,
+  camera, parallax stars, additive star color matching, pink lighting,
+  native fighters/FX and HUD are unchanged.
+- Logs use `XM87.283 FD_STREAM_START`,
+  `FD_STREAM_TEXTURES_READY`, `FD_STREAM_MATCH_START`,
+  `FD_STREAM_END`, and explicit missing/decode/lock failures.
+
+The old 87.282 per-frame texture module is retained for historical
+reference but no longer included by the stage. No new build gates,
+GitHub Actions, or Stable changes. The native Windows build and actual
+performance must be checked locally with the existing
+`BUILD_TEST.bat` / `RUN_TEST.bat`.
