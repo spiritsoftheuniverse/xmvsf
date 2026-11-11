@@ -526,7 +526,7 @@ void xm20CustomStagePhase(int selectedStage,int nativeStatus){
         xm20::m.fdStarted=xm20::m.fdKo=false;
         xm20::m.fdGain=1.f;
         xm20::m.fdFadeSeconds=xm20::m.fdFadeElapsed=0.f;
-    }else if(selected && nativeStatus>=0 && nativeStatus<8 && xm20::m.fdKo){
+    }else if(selectedStage!=0 && nativeStatus>=0 && nativeStatus<8 && xm20::m.fdKo){
         // New round/new set without returning to the outer boot menu.
         xm20::m.fdPending=false;xm20::m.fdPhase=0u;
         xm20::m.fdStarted=xm20::m.fdKo=false;
@@ -538,7 +538,7 @@ void xm20CustomStagePhase(int selectedStage,int nativeStatus){
         xm20::m.fdPending=true;
         xm20::m.fdPhase=0u;
         xm20::m.fdFadeSeconds=xm20::m.fdFadeElapsed=0.f;
-        std::fprintf(stderr,"XM87.288 FD_OGG_ARM combat=08 waitingForFightCueAndPreload=1\n");
+        std::fprintf(stderr,"XM87.290 CUSTOM_OGG_ARM stage=%d combat=08 waitingForFightCueAndPreload=1\n",selectedStage);
     }else if((nativeStatus==0x0a||nativeStatus==0x0c) &&
              xm20::m.fdStarted&&!xm20::m.fdKo){
         xm20::m.fdKo=true;
@@ -546,8 +546,8 @@ void xm20CustomStagePhase(int selectedStage,int nativeStatus){
         if(xm20::m.fdPhase){
             xm20::m.fdFadeSeconds=1.f;
             xm20::m.fdFadeElapsed=0.f;
-            std::fprintf(stderr,"XM87.288 FD_OGG_TEAM_KO_FADE status=%02X duration=1s\n",
-                         unsigned(nativeStatus));
+            std::fprintf(stderr,"XM87.290 CUSTOM_OGG_TEAM_KO_FADE stage=%d status=%02X duration=1s\n",
+                         selectedStage,unsigned(nativeStatus));
         }
     }
     LeaveCriticalSection(&xm20::m.lock);
