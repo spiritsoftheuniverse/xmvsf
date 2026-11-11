@@ -227,6 +227,7 @@ static int xmvsfBootSelector(bool returningFromGame=false) {
                 XM8764::context().segments[XM8764::context().playIndex].host;
             xm77StageChoice=h.stage;
             xm77StageResolved=h.stageResolved;
+            xmFDPreloadSetActive(xm77StageResolved==2);
             ++xm77StageRollGeneration(); // same new-session stage latch
         }
         std::fprintf(stderr,
@@ -253,6 +254,7 @@ static int xmvsfBootSelector(bool returningFromGame=false) {
     xm25OpenSetup(); /* XMVSF_STAGE25_SETS */
     int selection=0,controlsRow=0,controlsPage=0,optionsTab=0,gameRow=0,graphicsRow=xm29NearestPreset(window),screen=0,capture=-1,outcome=-1,running=1;
     int stageRow=xm77StageChoice,pendingMode=1,returnScreen=0;
+    int preloadRequested=-1;
     std::fprintf(stderr,"XM86.32 BOOT SELECTOR: stage submenu available\n");std::fflush(stderr);
     char message[96]="";Uint32 messageUntil=0,inputCooldown=0;
     XM258MenuGate menuGate{}; // Each menu screen must wait for a fresh confirm.
@@ -483,6 +485,8 @@ static int xmvsfBootSelector(bool returningFromGame=false) {
                     else xm25MenuSound(true);
                     xm77StageChoice=stageRow;
                     xm77RollStage(); // Resolve once per match; game-side request follows during emulation.
+                    xmFDPreloadSetActive(xm77StageResolved==2); // Random may resolve to FD.
+                    preloadRequested=xm77StageResolved==2?1:0;
                     std::fprintf(stderr,"XM86.32 STAGE MENU CONFIRM mode=%d selected=%d resolved=%d\n",pendingMode,xm77StageChoice,xm77StageResolved);std::fflush(stderr);
                     xm25BeginInputHandoff();
                     outcome=pendingMode;running=0;
@@ -594,6 +598,13 @@ static int xmvsfBootSelector(bool returningFromGame=false) {
                     }
                 }
             }
+        }
+        // Begin low-priority preload when FD is highlighted; pause when leaving.
+        // Do not override the final resolved choice while exiting selection.
+        const int wantFD=(screen==5 && stageRow==2)?1:0;
+        if(running && wantFD!=preloadRequested){
+            xmFDPreloadSetActive(wantFD!=0);
+            preloadRequested=wantFD;
         }
         const float backgroundStrength=introEnabled?
             XM87235Intro::backgroundStrength(introElapsed):0.0f;
@@ -791,6 +802,7 @@ static int xmvsfBootSelector(bool returningFromGame=false) {
         SDL_Delay(8);
     }
     xm8652TrackWindowGeometry(window,true,"boot-exit");
+    if(outcome<0)xmFDPreloadRelease(); // stop worker before SDL_Quit
     menuBackground.release(); // lifetime ends before shared SDL renderer changes owner
     iiPainter.release();
     XMGlyph::release(); // clean asset textures before game reuses the renderer
