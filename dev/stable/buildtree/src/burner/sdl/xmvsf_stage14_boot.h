@@ -228,6 +228,7 @@ static int xmvsfBootSelector(bool returningFromGame=false) {
             xm77StageChoice=h.stage;
             xm77StageResolved=h.stageResolved;
             xmFDPreloadSetActive(xm77StageResolved==2);
+            if(xm77StageResolved==2)xm20FDPrepare();
             ++xm77StageRollGeneration(); // same new-session stage latch
         }
         std::fprintf(stderr,
@@ -486,6 +487,7 @@ static int xmvsfBootSelector(bool returningFromGame=false) {
                     xm77StageChoice=stageRow;
                     xm77RollStage(); // Resolve once per match; game-side request follows during emulation.
                     xmFDPreloadSetActive(xm77StageResolved==2); // Random may resolve to FD.
+                    if(xm77StageResolved==2)xm20FDPrepare();
                     preloadRequested=xm77StageResolved==2?1:0;
                     std::fprintf(stderr,"XM86.32 STAGE MENU CONFIRM mode=%d selected=%d resolved=%d\n",pendingMode,xm77StageChoice,xm77StageResolved);std::fflush(stderr);
                     xm25BeginInputHandoff();
@@ -604,6 +606,7 @@ static int xmvsfBootSelector(bool returningFromGame=false) {
         const int wantFD=(screen==5 && stageRow==2)?1:0;
         if(running && wantFD!=preloadRequested){
             xmFDPreloadSetActive(wantFD!=0);
+            if(wantFD)xm20FDPrepare();
             preloadRequested=wantFD;
         }
         const float backgroundStrength=introEnabled?
