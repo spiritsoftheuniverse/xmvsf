@@ -4,6 +4,9 @@
 # Never touch Stable executable, Stable manifests, user source, or old TEST binaries.
 set -euo pipefail
 BUILD_WALL_START=$SECONDS
+# Batch sets the version once at launch, before native compilation begins.
+XMVSF_BUILD_VERSION="${XMVSF_TEST_VERSION:-87.292}"
+XMVSF_BUILD_TAG="${XMVSF_BUILD_VERSION//./_}"
 PROJECT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
 # Permanent TEST build transcript. This starts BEFORE checking toolchains,
@@ -22,7 +25,7 @@ if ! command -v tee >/dev/null; then
   exit 2
 fi
 exec > >(tee -a "$LOG_FILE") 2>&1
-printf '\n========== XMVSF TEST 87.292 BUILD BEGIN %s ==========' "$(date '+%Y-%m-%d %H:%M:%S')"
+printf '\n========== XMVSF TEST %s BUILD BEGIN %s ==========' "$XMVSF_BUILD_VERSION" "$(date '+%Y-%m-%d %H:%M:%S')"
 printf '\nProject: %s\nLog: %s\n' "$PROJECT" "$LOG_FILE"
 trap 'rc=$?; trap - EXIT; printf "XMVSF BUILD END rc=%s elapsed_seconds=%s time=%s log=%s\n" "$rc" "$((SECONDS-BUILD_WALL_START))" "$(date "+%Y-%m-%d %H:%M:%S")" "$LOG_FILE"; exit "$rc"' EXIT
 
@@ -46,8 +49,8 @@ if [[ -s "$GUILE_PSD" &&
 fi
 
 TREE="$PROJECT/dev/stable/buildtree"
-DEST="$PROJECT/runtime/stable/XMVSF_Test_87_292.exe"
-PENDING="$PROJECT/runtime/stable/.XMVSF_Test_87_292_pending.exe"
+DEST="$PROJECT/runtime/stable/XMVSF_Test_${XMVSF_BUILD_TAG}.exe"
+PENDING="$PROJECT/runtime/stable/.XMVSF_Test_${XMVSF_BUILD_TAG}_pending.exe"
 # Machine-local cache: never stored in Git and never mutates Stable.
 CACHE_DIR="$PROJECT/test/build_cache"
 SIGNATURE="$CACHE_DIR/compiler.signature"
@@ -221,7 +224,7 @@ if [[ "${XMVSF_FORCE_NATIVE:-0}" != 1 &&
   if [[ -n "$cached_rev" && "$cached_rev" == "$current_rev" &&
         "$cached_sig" == "$compiler_identity" &&
         "${#cached_sha}" == 64 ]] &&
-     git -C "$PROJECT" diff --quiet HEAD -- . ':(exclude)test/build_logs/BUILD_TEST.log' &&
+     git -c core.safecrlf=false -C "$PROJECT" diff --quiet HEAD -- . ':(exclude)test/build_logs/BUILD_TEST.log' &&
      [[ -z "$(git -C "$PROJECT" ls-files --others --exclude-standard                   '*.cpp' '*.c' '*.h' '*.hpp' '*.cc' '*.mk' '*.asm' | head -n 1)" ]]; then
     native_sha="$(sha256sum "$TREE/fbneo.exe" | cut -d ' ' -f 1)"
     test_sha="$(sha256sum "$DEST" | cut -d ' ' -f 1)"
@@ -462,7 +465,7 @@ else
 fi
 # Preserve warm cache and anything already built on failures. Never run make clean.
 cd "$TREE"
-echo "XMVSF Stage 87.292 TEST: incremental build; preserving cached objects"
+echo "XMVSF Stage $XMVSF_BUILD_VERSION TEST: incremental build; preserving cached objects"
 if command -v git >/dev/null 2>&1; then
   echo "Source branch: $(git -C "$PROJECT" branch --show-current 2>/dev/null || true)"
   echo "Source revision: $(git -C "$PROJECT" rev-parse --short HEAD 2>/dev/null || true)"
@@ -516,7 +519,7 @@ if [[ "${XMVSF_WARM_MENU_SINGLE_PASS:-1}" == 1 &&
      git -C "$PROJECT" cat-file -e "${last_native_rev}^{commit}" 2>/dev/null; then
     # Include both committed changes since the last native build and local
     # tracked edits. Exclude the tracked append-only build transcript.
-    changed_paths="$( { git -C "$PROJECT" diff --name-only "$last_native_rev" HEAD --; git -C "$PROJECT" diff --name-only HEAD --; } | sed '/^test\/build_logs\/BUILD_TEST[.]log$/d' | sort -u )"
+    changed_paths="$( { git -c core.safecrlf=false -C "$PROJECT" diff --name-only "$last_native_rev" HEAD --; git -c core.safecrlf=false -C "$PROJECT" diff --name-only HEAD --; } | sed '/^test\/build_logs\/BUILD_TEST[.]log$/d' | sort -u )"
     if [[ -n "$changed_paths" ]]; then
       WARM_MENU_PASS=1
       while IFS= read -r changed; do
@@ -677,9 +680,9 @@ if (( ${#REPAIR_NATIVE[@]} )); then
   printf 'repaired_source_revision=%s\n' "$(git -C "$PROJECT" rev-parse HEAD 2>/dev/null || true)" > "$REPAIR_MARK"
   echo "BUILD CACHE REPAIR: completed five-source recovery."
 fi
-echo "87.292 compiled TEST sha256: $built_sha"
+echo "$XMVSF_BUILD_VERSION compiled TEST sha256: $built_sha"
 echo "87.235 menu source asset checksums:"
 sha256sum "$PROJECT/_art/logo.png" "$PROJECT/_art/sf2font.png" \
   "$PROJECT/_art/sf2fontsmall.png" "$PROJECT/_art/menuanimation.gif" \
   "$PROJECT/_art/stunbar_base.png"
-echo "Stage 87.292: native sources dependency-cached; Stable and previous TESTs untouched."
+echo "Stage $XMVSF_BUILD_VERSION: native sources dependency-cached; Stable and previous TESTs untouched."
