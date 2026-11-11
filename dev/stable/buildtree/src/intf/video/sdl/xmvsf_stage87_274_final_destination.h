@@ -66,7 +66,7 @@ struct Scene {
    if(image){found=filename;break;}
   }
   if(!image){
-   std::fprintf(stderr,"XM87.274 FINAL_DESTINATION_ASSET_MISSING original=_art/finaldestination.png; native fallback\n");
+   std::fprintf(stderr,"XM87.275 FINAL_DESTINATION_ASSET_MISSING original=_art/finaldestination.png; native fallback\n");
    failed=true;return false;
   }
   platformW=image->w;platformH=image->h;
@@ -96,7 +96,7 @@ struct Scene {
   flash=SDL_CreateTexture(renderer,SDL_PIXELFORMAT_RGBA32,
        SDL_TEXTUREACCESS_STREAMING,W,H);
   if(!platform || !stars || !fighters || !flash || platformW<1 || platformH<1){
-   std::fprintf(stderr,"XM87.274 FINAL_DESTINATION_TEXTURE_FAILED %s\n",SDL_GetError());
+   std::fprintf(stderr,"XM87.275 FINAL_DESTINATION_TEXTURE_FAILED %s\n",SDL_GetError());
    close();failed=true;return false;
   }
   SDL_SetTextureBlendMode(platform,SDL_BLENDMODE_BLEND);
@@ -182,7 +182,7 @@ struct Scene {
    pixel(x,y,red,green,blue,core);
   }
   if(SDL_UpdateTexture(stars,nullptr,rgba.data(),W*4)!=0){
-   std::fprintf(stderr,"XM87.274 FINAL_DESTINATION_STAR_UPLOAD_FAILED %s\n",SDL_GetError());
+   std::fprintf(stderr,"XM87.275 FINAL_DESTINATION_STAR_UPLOAD_FAILED %s\n",SDL_GetError());
    return false;
   }
   return true;
@@ -202,7 +202,7 @@ inline bool paint(SDL_Renderer* render,const SDL_Rect& view){
  if(!s.renderStars(render,frame,xm8649Visual.nativeCameraX,xm8649Visual.nativeCameraY))
   return false;
  if(SDL_UpdateTexture(s.fighters,nullptr,xm77SpritePixels(),W*4)!=0){
-  std::fprintf(stderr,"XM87.274 FINAL_DESTINATION_FIGHTER_UPLOAD_FAILED %s\n",SDL_GetError());
+  std::fprintf(stderr,"XM87.275 FINAL_DESTINATION_FIGHTER_UPLOAD_FAILED %s\n",SDL_GetError());
   return false;
  }
  const unsigned char* nativeFlash=xm8757FlashPixels();
@@ -241,7 +241,7 @@ inline bool paint(SDL_Renderer* render,const SDL_Rect& view){
  }
  SDL_RenderSetClipRect(render,hadClip?&oldClip:nullptr);
  if(!good){
-  std::fprintf(stderr,"XM87.274 FINAL_DESTINATION_DRAW_FAILED %s\n",SDL_GetError());
+  std::fprintf(stderr,"XM87.275 FINAL_DESTINATION_DRAW_FAILED %s\n",SDL_GetError());
   return false;
  }
  return true;
