@@ -18,7 +18,6 @@
 #endif
 #include "xmvsf_stage15_machine.h"
 #include "xmvsf_stage17_auto.h"
-#include "xmvsf_stage87_289_select_gap.h" // native P1/P2 first-to-second pick transition
 #include "xmvsf_stage18_position.h" /* XMVSF_STAGE18_POSITION */
 #include "xmvsf_stage20_api.h" /* XMVSF_STAGE20_WASAPI */
 #include "xmvsf_native_host.h" /* XMVSF_STAGE21_BOUNDARY */
@@ -400,7 +399,6 @@ static int RunFrame(int bDraw, int bPause)
         if(!bPause){
             xm77ApplyNativeStage5(bDrvOkay,false);
             xm8658ObserveGamePhase(bDrvOkay);
-            XM87289Select::onNativeFrame(bDrvOkay); // selection-only; skip 3->4 per side
             xm8649ObserveCamera(bDrvOkay);
             xm14ApplyTrainingCheats(xm14TrainingMode && !xm23State.dizzyAllowed); // XM87.44: before first presentation
         }
@@ -417,7 +415,6 @@ static int RunFrame(int bDraw, int bPause)
 		BurnDrvFrame();
 		if (!bPause) {
             xm8658ObserveGamePhase(bDrvOkay); // phase 08/0A even during FD paint skips
-            XM87289Select::onNativeFrame(bDrvOkay); // same native selection on skipped paints
             xm14ApplyTrainingCheats(xm14TrainingMode && !xm23State.dizzyAllowed); // XM87.100 non-rendered frame
             // Even skipped pictures must contribute one native sample;
             // the final drawn frame samples immediately before VidPaint.
