@@ -23,6 +23,10 @@
 #undef max
 #endif
 #include "../../../burner/sdl/xmvsf_stage20_api.h"
+// Decode OGG Vorbis on one low-priority worker, using the bundled decoder.
+// No SDL_mixer, second WASAPI endpoint or additional linker dependency.
+#define STB_VORBIS_NO_PUSHDATA_API
+#include "../../../dep/libs/stb_vorbis/stb_vorbis.c"
 
 namespace xm20 {
 static constexpr unsigned kGameCapacity = 1u << 17; // stereo sample frames
@@ -42,6 +46,7 @@ struct Machine {
     volatile LONG threadStatus = 0;
     Clip music, move, confirm, meter;
     Clip crash, welcome, fightVoice; // authored 87.235; same WASAPI device
+    Clip fdStart, fdLoop; // Final Destination OGG intro and seamless loop
     double meterPos[2] = {0.0,0.0};
     bool meterOn[2] = {false,false};
     float musicGain = 1.f, musicTarget = 1.f, gameGain = 1.f;
@@ -51,6 +56,11 @@ struct Machine {
     bool moveOn = false, confirmOn = false, fight = false, gameStarted = false;
     bool crashOn=false,welcomeOn=false,fightVoiceOn=false;
     bool musicEnabled=false; // no music before explicit menu start/reveal
+    HANDLE fdLoadThread=nullptr;
+    int fdLoadState=0; // 0=never attempted,1=loading,2=ready,3=unavailable
+    bool fdPending=false,fdStarted=false,fdKo=false;
+    unsigned fdPhase=0u; // 0=off,1=intro,2=loop
+    float fdGain=1.f,fdFadeSeconds=0.f,fdFadeElapsed=0.f;
     uint32_t gameHz = 48000;
     int16_t* game = nullptr;
     uint64_t produced = 0;
@@ -116,6 +126,81 @@ static bool clipLoadRepoAudio(Clip& dst,const char* filename){
     return false;
 }
 
+// Decode on a separate low-priority worker, never in fillFrames().
+static bool clipLoadOggRepo(Clip& dst,const char* filename){
+    char base[4096]={};
+    const DWORD n=GetModuleFileNameA(nullptr,base,static_cast<DWORD>(sizeof(base)));
+    if(!n||n>=sizeof(base))return false;
+    char* slash=std::strrchr(base,'\\');
+    if(!slash)slash=std::strrchr(base,'/');
+    if(!slash)return false;
+    *(slash+1)=0;
+    const char* roots[]={"../../audio/","../audio/","audio/"};
+    for(const char* root:roots){
+        char path[4096]={};
+        const int written=std::snprintf(path,sizeof(path),"%s%s%s",base,root,filename);
+        if(written<=0||size_t(written)>=sizeof(path))continue;
+        int channels=0,hz=0;
+        short* decoded=nullptr;
+        const int sourceFrames=stb_vorbis_decode_filename(path,&channels,&hz,&decoded);
+        if(sourceFrames<=0||!decoded||channels<1||channels>2||hz<8000||hz>192000){
+            if(decoded)std::free(decoded);
+            continue;
+        }
+        // Limit decoded memory to 15 minutes per track, at 48k S16 stereo.
+        const uint64_t target=(uint64_t(sourceFrames)*48000u+unsigned(hz)-1u)/unsigned(hz);
+        if(!target||target>48000u*900u){
+            std::free(decoded);
+            std::fprintf(stderr,"XM87.288 FD_OGG_DURATION_INVALID file=%s frames=%d rate=%d\n",
+                         filename,sourceFrames,hz);
+            continue;
+        }
+        unsigned char* pcm=nullptr;
+        if(hz==48000&&channels==2)pcm=(unsigned char*)decoded;
+        else{
+            int16_t* out=(int16_t*)std::malloc((size_t)target*4u);
+            if(!out){std::free(decoded);return false;}
+            for(uint64_t i=0u;i<target;++i){
+                const double at=double(i)*double(hz)/48000.0;
+                const uint32_t lo=std::min(uint32_t(at),uint32_t(sourceFrames-1));
+                const uint32_t hi=std::min(lo+1u,uint32_t(sourceFrames-1));
+                const double t=at-double(lo);
+                for(unsigned ch=0u;ch<2u;++ch){
+                    const unsigned src=channels==1?0u:ch;
+                    const float a=float(decoded[(size_t)lo*channels+src]);
+                    const float b=float(decoded[(size_t)hi*channels+src]);
+                    out[i*2u+ch]=(int16_t)(a+(b-a)*t);
+                }
+            }
+            std::free(decoded);
+            pcm=(unsigned char*)out;
+        }
+        dst.pcm=pcm;dst.frames=uint32_t(target);dst.pos=0.0;
+        std::fprintf(stderr,"XM87.288 FD_OGG_LOADED path=%s channels=%d hz=%d frames48k=%u\n",
+                     path,channels,hz,unsigned(target));
+        return true;
+    }
+    std::fprintf(stderr,"XM87.288 FD_OGG_MISSING_OR_UNSUPPORTED %s (expected audio/ Vorbis)\n",filename);
+    return false;
+}
+static DWORD WINAPI fdLoadWorker(LPVOID){
+    SetThreadPriority(GetCurrentThread(),THREAD_PRIORITY_BELOW_NORMAL);
+    Clip intro,loop;
+    const bool a=clipLoadOggRepo(intro,"fd1_start.ogg");
+    const bool b=clipLoadOggRepo(loop,"fd1_loop.ogg");
+    EnterCriticalSection(&m.lock);
+    if(a&&b){
+        m.fdStart=intro;m.fdLoop=loop;
+        intro.pcm=loop.pcm=nullptr;
+        m.fdLoadState=2;
+    }else{
+        m.fdLoadState=3;
+    }
+    LeaveCriticalSection(&m.lock);
+    intro.release();loop.release();
+    std::fprintf(stderr,"XM87.288 FD_OGG_PRELOAD %s\n",a&&b?"READY":"FAILED");
+    return 0;
+}
 static float clipSample(const Clip& c, uint32_t f, int ch) {
     if (!c.pcm || f>=c.frames) return 0.f;
     return (reinterpret_cast<const int16_t*>(c.pcm)[f*2+ch])/32768.f;
@@ -210,13 +295,40 @@ static void fillFrames(BYTE* output, UINT32 count, const WAVEFORMATEX* fmt) {
             // Crash and welcome complete before or near the first menu notes.
             // Keep full normal music level from its first audible frame.
             const float musicDuck=m.fightVoiceOn?0.64f:1.0f;
+            // Start only after confirmed native combat and the FIGHT cue.
+            if(m.fdPending&&m.fdLoadState==2&&!m.fightVoiceOn){
+                m.fdPending=false;m.fdPhase=1u;
+                m.fdStart.pos=0.0;m.fdLoop.pos=0.0;
+                m.fdGain=1.f;
+                std::fprintf(stderr,"XM87.288 FD_OGG_PLAY_START intro_frames=%u loop_frames=%u\n",
+                             unsigned(m.fdStart.frames),unsigned(m.fdLoop.frames));
+            }
+            float fd=0.f;
+            if(m.fdPhase==1u)fd=linearClip(m.fdStart,m.fdStart.pos,ch);
+            else if(m.fdPhase==2u)fd=linearClip(m.fdLoop,m.fdLoop.pos,ch);
+            if(m.fdFadeSeconds>0.f){
+                const float t=std::min(1.f,m.fdFadeElapsed/m.fdFadeSeconds);
+                m.fdGain=(1.f-t)*(1.f-t)*(1.f+2.f*t);
+            }
+            fd*=m.fdGain*0.70f;
             // Before confirmed combat, original QSound is muted. This also mutes game SFX;
             // selective QSound music routing is NOT implemented in this stage.
-            channelsOut[ch]=clamp(game+m.musicGain*0.70f*0.70f*music*musicDuck /* 49% base, duck for authored voices */+movement+confirmation+meterSound+crashSfx+welcomeVoice+fightVoice); /* XMVSF_STAGE22_SELECTION_SFX: native game SFX always audible; sound CPU suppresses BGM */
+            channelsOut[ch]=clamp(game+m.musicGain*0.70f*0.70f*music*musicDuck /* 49% base, duck for authored voices */+fd+movement+confirmation+meterSound+crashSfx+welcomeVoice+fightVoice); /* XMVSF_STAGE22_SELECTION_SFX: native game SFX always audible; sound CPU suppresses BGM */
         }
         BYTE* dest=output+static_cast<size_t>(i)*fmt->nBlockAlign;
         for(unsigned ch=0;ch<channels;ch++)putSample(dest,ch,bits,floats,ch<2?channelsOut[ch]:0.f);
         if(m.musicEnabled)advanceClip(m.music,musicStep,true);
+        if(m.fdPhase==1u){
+            advanceClip(m.fdStart,musicStep,false);
+            if(m.fdStart.pos>=m.fdStart.frames)m.fdPhase=2u; // one-shot intro -> loop
+        }else if(m.fdPhase==2u)advanceClip(m.fdLoop,musicStep,true);
+        if(m.fdFadeSeconds>0.f){
+            m.fdFadeElapsed+=1.f/float(hz);
+            if(m.fdFadeElapsed>=m.fdFadeSeconds){
+                m.fdPhase=0u;m.fdPending=false;m.fdGain=0.f;
+                m.fdFadeSeconds=0.f;m.fdFadeElapsed=0.f;
+            }
+        }
         if (m.moveOn) {advanceClip(m.move,musicStep,false);if(m.move.pos>=m.move.frames)m.moveOn=false;}
         if (m.confirmOn){advanceClip(m.confirm,musicStep,false);if(m.confirm.pos>=m.confirm.frames)m.confirmOn=false;}
         if (m.crashOn){advanceClip(m.crash,musicStep,false);if(m.crash.pos>=m.crash.frames)m.crashOn=false;}
@@ -285,12 +397,19 @@ static DWORD WINAPI audioThread(LPVOID) {
 }
 static void shutdown() {
     if(!m.begun)return;
+    if(m.fdLoadThread){
+        // No audio-thread mutex held: the decoder publishes under the lock.
+        WaitForSingleObject(m.fdLoadThread,INFINITE);
+        CloseHandle(m.fdLoadThread);m.fdLoadThread=nullptr;
+    }
     if(m.stop)SetEvent(m.stop);
     if(m.thread){WaitForSingleObject(m.thread,2000);CloseHandle(m.thread);m.thread=nullptr;}
     if(m.stop){CloseHandle(m.stop);m.stop=nullptr;}
     if(m.event){CloseHandle(m.event);m.event=nullptr;}
     m.music.release();m.move.release();m.confirm.release();m.meter.release();
     m.crash.release();m.welcome.release();m.fightVoice.release();
+    m.fdStart.release();m.fdLoop.release();
+    m.fdLoadState=0;m.fdPhase=0u;m.fdPending=m.fdStarted=m.fdKo=false;
     if(m.game){free(m.game);m.game=nullptr;}
     if(m.csReady){DeleteCriticalSection(&m.lock);m.csReady=false;}
     m.begun=false;
@@ -328,11 +447,59 @@ static void queue(const int16_t* samples,unsigned frames,unsigned hz) {
     LeaveCriticalSection(&m.lock);
 }
 } // namespace xm20
+// The stage picker may call this repeatedly; only one Vorbis decode worker.
+void xm20FDPrepare(){
+    if(!xm20::start()||!xm20::m.csReady)return;
+    EnterCriticalSection(&xm20::m.lock);
+    if(xm20::m.fdLoadState==0){
+        xm20::m.fdLoadState=1;
+        xm20::m.fdLoadThread=CreateThread(nullptr,0,xm20::fdLoadWorker,nullptr,0,nullptr);
+        if(!xm20::m.fdLoadThread){
+            xm20::m.fdLoadState=3;
+            std::fprintf(stderr,"XM87.288 FD_OGG_THREAD_FAILED\n");
+        }
+    }
+    LeaveCriticalSection(&xm20::m.lock);
+}
+// Read-only native status 08 is live combat, 0A is round-ending team KO,
+// 0C is results. A fallen first teammate stays in status 08 and does NOT fade.
+void xm20FDStagePhase(bool selected,int nativeStatus){
+    if(!xm20::m.csReady)return;
+    EnterCriticalSection(&xm20::m.lock);
+    if(!selected){
+        xm20::m.fdPending=false;
+        xm20::m.fdPhase=0u;
+        xm20::m.fdStarted=xm20::m.fdKo=false;
+        xm20::m.fdGain=1.f;
+        xm20::m.fdFadeSeconds=xm20::m.fdFadeElapsed=0.f;
+    }else if(nativeStatus==8 && !xm20::m.fdStarted){
+        xm20::m.fdStarted=true;
+        xm20::m.fdKo=false;
+        xm20::m.fdPending=true;
+        xm20::m.fdPhase=0u;
+        xm20::m.fdFadeSeconds=xm20::m.fdFadeElapsed=0.f;
+        std::fprintf(stderr,"XM87.288 FD_OGG_ARM combat=08 waitingForFightCueAndPreload=1\n");
+    }else if((nativeStatus==0x0a||nativeStatus==0x0c) &&
+             xm20::m.fdStarted&&!xm20::m.fdKo){
+        xm20::m.fdKo=true;
+        xm20::m.fdPending=false;
+        if(xm20::m.fdPhase){
+            xm20::m.fdFadeSeconds=1.f;
+            xm20::m.fdFadeElapsed=0.f;
+            std::fprintf(stderr,"XM87.288 FD_OGG_TEAM_KO_FADE status=%02X duration=1s\n",
+                         unsigned(nativeStatus));
+        }
+    }
+    LeaveCriticalSection(&xm20::m.lock);
+}
 void xm20MenuStart(){
     xm20::start();
     if(!xm20::m.csReady)return;
     EnterCriticalSection(&xm20::m.lock);
     xm20::m.musicEnabled=true; // regular return/replay starts normally
+    xm20::m.fdPending=xm20::m.fdStarted=xm20::m.fdKo=false;
+    xm20::m.fdPhase=0u;xm20::m.fdGain=1.f;
+    xm20::m.fdFadeSeconds=xm20::m.fdFadeElapsed=0.f;
     // XM86.55: return to menu means a NEW audio phase, not a continuation
     // of a combat queue or the previous character-select state. This is only
     // performed when game PCM was actually queued or combat had started.
