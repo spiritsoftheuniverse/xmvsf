@@ -137,33 +137,28 @@ psikyo_tile_func.h = $(srcdir)dep/generated/psikyo_tile_func.h
 pgm_sprite.h = $(srcdir)dep/generated/pgm_sprite.h
 build_details.h = $(srcdir)dep/generated/build_details.h
 
-allobj	= $(objdir)cpu/m68k/m68kcpu.o $(objdir)cpu/m68k/m68kops.o \
-	  $(foreach file,$(autobj:.o=.c), \
-		$(foreach dir,$(alldir),$(subst $(srcdir),$(objdir), \
-		$(firstword $(subst .c,.o,$(wildcard $(srcdir)$(dir)/$(file))))))) \
-	  $(foreach file,$(autobj:.o=.cpp), \
-		$(foreach dir,$(alldir),$(subst $(srcdir),$(objdir), \
-		$(firstword $(subst .cpp,.o,$(wildcard $(srcdir)$(dir)/$(file))))))) \
-	  $(foreach file,$(autobj:.o=.asm), \
-		$(foreach dir,$(alldir),$(subst $(srcdir),$(objdir), \
-		$(firstword $(subst .asm,.o,$(wildcard $(srcdir)$(dir)/$(file))))))) \
-	  $(foreach file,$(autobj:.o=.rc), \
-		$(foreach dir,$(alldir),$(subst $(srcdir),$(objdir), \
-		$(firstword $(subst .rc,.o,$(wildcard $(srcdir)$(dir)/$(file)))))))
+# XMVSF_SOURCE_INDEX_V1: enumerate each source directory once per extension.
+# Stock FBNeo probes each candidate filename in each directory on every Make
+# pass, taking minutes on MSYS2 even when no object needs compiling. Preserve
+# every matching path and its original directory ordering; change no flags.
+xmvsf_src_c   := $(foreach dir,$(alldir),$(wildcard $(srcdir)$(dir)/*.c))
+xmvsf_src_cpp := $(foreach dir,$(alldir),$(wildcard $(srcdir)$(dir)/*.cpp))
+xmvsf_src_asm := $(foreach dir,$(alldir),$(wildcard $(srcdir)$(dir)/*.asm))
+xmvsf_src_rc  := $(foreach dir,$(alldir),$(wildcard $(srcdir)$(dir)/*.rc))
+
+allobj := $(objdir)cpu/m68k/m68kcpu.o $(objdir)cpu/m68k/m68kops.o \
+  $(foreach file,$(autobj:.o=.c),$(patsubst $(srcdir)%.c,$(objdir)%.o,$(filter %/$(file),$(xmvsf_src_c)))) \
+  $(foreach file,$(autobj:.o=.cpp),$(patsubst $(srcdir)%.cpp,$(objdir)%.o,$(filter %/$(file),$(xmvsf_src_cpp)))) \
+  $(foreach file,$(autobj:.o=.asm),$(patsubst $(srcdir)%.asm,$(objdir)%.o,$(filter %/$(file),$(xmvsf_src_asm)))) \
+  $(foreach file,$(autobj:.o=.rc),$(patsubst $(srcdir)%.rc,$(objdir)%.o,$(filter %/$(file),$(xmvsf_src_rc))))
 
 ifdef BUILD_A68K
 allobj += $(a68k.o)
 endif
 
-alldep	= $(foreach file,$(autobj:.o=.c), \
-		$(foreach dir,$(alldir),$(subst $(srcdir),$(objdir), \
-		$(firstword $(subst .c,.d,$(wildcard $(srcdir)$(dir)/$(file))))))) \
-	  $(foreach file,$(autobj:.o=.cpp), \
-		$(foreach dir,$(alldir),$(subst $(srcdir),$(objdir), \
-		$(firstword $(subst .cpp,.d,$(wildcard $(srcdir)$(dir)/$(file))))))) \
-	  $(foreach file,$(autobj:.o=.rc), \
-		$(foreach dir,$(alldir),$(subst $(srcdir),$(objdir), \
-		$(firstword $(subst .rc,.d,$(wildcard $(srcdir)$(dir)/$(file)))))))
+alldep := $(foreach file,$(autobj:.o=.c),$(patsubst $(srcdir)%.c,$(objdir)%.d,$(filter %/$(file),$(xmvsf_src_c)))) \
+  $(foreach file,$(autobj:.o=.cpp),$(patsubst $(srcdir)%.cpp,$(objdir)%.d,$(filter %/$(file),$(xmvsf_src_cpp)))) \
+  $(foreach file,$(autobj:.o=.rc),$(patsubst $(srcdir)%.rc,$(objdir)%.d,$(filter %/$(file),$(xmvsf_src_rc))))
 
 autdrv := $(drvsrc:.cpp=.o)
 
