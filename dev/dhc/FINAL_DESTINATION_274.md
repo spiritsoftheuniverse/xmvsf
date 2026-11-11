@@ -359,3 +359,65 @@ Source-level checks pass. As usual, Windows native compilation and
 actual playback cannot be claimed until running the local
 `BUILD_TEST.bat` / `RUN_TEST.bat`. Stable and existing TESTs
 remain untouched.
+
+## TEST 87.282 — verified PNG source sequences, one-time GPU cache and clean additive stars
+
+The `final-destination` branch contains precisely these pre-coalesced
+PNG sequences, inspected from the current recursive Git tree:
+
+- `_art/video/fd01/frame_00000.png` through `frame_00192.png` (193)
+- `_art/video/fd02/frame_00000.png` through `frame_00199.png` (200)
+- `_art/video/fd03/frame_00000.png` through `frame_00395.png` (396)
+
+**The active stage no longer includes either WIC GIF decoder.**
+`xmvsf_stage87_274_final_destination.h` now includes
+`xmvsf_stage87_282_fd_frames.h` and uses the original full-resolution PNGs.
+There is no GIF file access, GIF subframe disposal, CPU GIF compositor,
+or downsampling in the playback path.
+
+The PNG source assets are independently coalesced beforehand. A single
+SDL image worker reads and decodes each one **once**, in clip order.
+It uses a strictly bounded **four-image CPU queue**; the main render
+thread consumes and converts **at most one surface per paint** to a
+persistent `SDL_Texture`. Once all 789 textures have been populated,
+playback uses `SDL_RenderCopy` of the currently selected texture and
+alpha fading exclusively—**no repeat decode or upload on loops or
+rematches**. Native 700×400 frames are not artificially downscaled.
+At that dimension, 789 RGBA textures occupy approximately 843 MiB of
+graphics memory, appropriate for the user's 24 GB RTX 3090.
+Source path lookup retains the repo-relative and executable-relative
+search. The textures are destroyed only on stage renderer cleanup;
+rematches reuse the cache, while missing/failed frames fall back to
+the starfield. No new build scripts, extra build checks, video codecs,
+GitHub Actions, or external runtime services.
+
+**Timing:** each individual PNG frame lasts **four native match
+frames** at 60 fps (quarter speed). The first clip starts ten
+seconds after native battle status 8, each clip has a one-second
+fade-in and a one-second fade-out, five seconds separate clips,
+and 01 → 02 → 03 loops. The PNG files themselves contain no original
+GIF centisecond timing metadata, so timing is the explicitly chosen
+constant four-frame hold instead of reconstructed variable GIF delays.
+
+**Star tint fix:** the original star texture mixed opaque dark RGB sky
+pixels with star pixels, leaving dark/black fringes when composited
+over bright animation content. The dark red/blue fallback sky has
+its own cached, static texture now; its alpha is **255 minus the
+background animation alpha**, so it disappears at full video opacity.
+The moving/blinking star particles render on a separate transparent
+RGBA texture with **`SDL_BLENDMODE_ADD`**, making their colors
+add light to the actual underlying frame rather than darkening it.
+This also avoids rebuilding 384×224 sky RGB gradients every game
+frame. The scene order is PNG → faded sky → additive stars →
+original-color platform → 30%-max pink streaks → native
+fighters/FX/HUD. Camera X/Y and all combat remain unchanged.
+
+Diagnostic log lines start with `XM87.282 FD_FRAMES_` and
+`XM87.282 FINAL_DESTINATION_`. In particular,
+`FD_FRAMES_START`, `FD_FRAMES_DECODE_START`,
+`FD_FRAMES_GPU_READY`, and `FD_FRAMES_MATCH_START`
+show startup, completed GPU cache, and playback timing.
+As with prior stage revisions, code can be checked for integration
+in GitHub, but native Windows compilation and on-screen rendering
+cannot be claimed until the existing local
+`BUILD_TEST.bat` / `RUN_TEST.bat` are run.
