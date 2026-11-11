@@ -166,22 +166,53 @@ def extract(data: bytes, out: Path) -> list[str]:
         name_len = p.u8()
         name = p.take(name_len).decode("latin-1",errors="replace")
         p.skip((-(name_len+1)) % 4)
+        # Extra data is a *bounded* container, not necessarily a stream of
+        # additional-layer-info records all the way to its last byte. Adobe
+        # and third-party PSD writers may leave word/long padding in the tail.
+        # A trailing 1..11 bytes isn't a new 12-byte 8BIM record.
+        if p.pos > extra_end:
+            raise ValueError(
+                f"PSD layer {index} ({name!r}) name/mask exceeds its extra data: "
+                f"pos={p.pos} end={extra_end}")
         section = 0
-        while p.pos < extra_end:
-            signature = p.take(4)
+        while p.pos + 12 <= extra_end:
+            signature = p.raw[p.pos:p.pos+4].tobytes()
+            if signature not in (b"8BIM", b"8B64"):
+                # Trailing alignment bytes or an unrecognized extension.
+                # Never interpret them as a new record's length.
+                break
+            p.skip(4)
             key = p.take(4)
             length = p.u32()
             if signature == b"8B64":
+                if p.pos + 4 > extra_end:
+                    break
                 length = (length << 32) | p.u32()
-            blob = p.take(length)
-            if length & 1: p.skip(1)
-            if key == b"luni" and len(blob) >= 4:
-                count = struct.unpack(">I",blob[:4])[0]
-                if count*2 <= len(blob)-4:
-                    name = blob[4:4+count*2].decode("utf-16-be",errors="replace")
-            elif key == b"lsct" and len(blob) >= 4:
-                section = struct.unpack(">I",blob[:4])[0]
-        if p.pos != extra_end: raise ValueError("PSD layer extra record overflow")
+            if length > extra_end-p.pos:
+                # The declared block would cross its enclosing extra-data
+                # boundary. This can be an optional extension with different
+                # padding; stop only metadata parsing, not the entire PSD.
+                print(
+                    f"GUILE PSD metadata tail layer={index} name={name!r} "
+                    f"key={key!r} length={length} remaining={extra_end-p.pos}",
+                    file=sys.stderr)
+                break
+            if key in (b"luni", b"lsct"):
+                blob = p.take(length)
+                if key == b"luni" and len(blob) >= 4:
+                    count = struct.unpack(">I",blob[:4])[0]
+                    if count*2 <= len(blob)-4:
+                        name = blob[4:4+count*2].decode("utf-16-be",errors="replace")
+                elif key == b"lsct" and len(blob) >= 4:
+                    section = struct.unpack(">I",blob[:4])[0]
+            else:
+                p.skip(length)
+            if (length & 1) and p.pos < extra_end:
+                p.skip(1)
+        # Precisely restore the enclosing layer-record boundary, including
+        # any tail padding, before parsing the next layer. Do not read extra
+        # data from the following layer or its channel payloads.
+        p.pos = extra_end
         layers.append(dict(index=index,top=top,left=left,bottom=bottom,right=right,
                            channels=channels_info,opacity=opacity,visible=not (flags&2),
                            name=name,section=section,mask=mask,blend=blend))
