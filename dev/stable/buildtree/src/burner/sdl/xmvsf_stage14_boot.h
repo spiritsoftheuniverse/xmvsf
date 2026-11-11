@@ -229,6 +229,7 @@ static int xmvsfBootSelector(bool returningFromGame=false) {
             xm77StageResolved=h.stageResolved;
             xmFDPreloadSetActive(xm77StageResolved==2);
             if(xm77StageResolved==2)xm20FDPrepare();
+            if(xm77StageResolved==3)xm20GuilePrepare();
             ++xm77StageRollGeneration(); // same new-session stage latch
         }
         std::fprintf(stderr,
@@ -480,7 +481,7 @@ static int xmvsfBootSelector(bool returningFromGame=false) {
                 xm249SelectSessionPad(0,ev.jbutton.which);
             if(screen==5) { // Stage selection, before loading the character select save-state.
                 if(back){screen=returnScreen;menuGate.begin();continue;}
-                if(direction){stageRow=(stageRow+3+(direction>0?1:2))%3;xm25MenuSound(false);}
+                if(direction){stageRow=(stageRow+4+(direction>0?1:3))%4;xm25MenuSound(false);}
                 if(accept){
                     if(pendingMode==1)xm20MenuFight(); // Training: cue at stage confirmation
                     else xm25MenuSound(true);
@@ -488,7 +489,8 @@ static int xmvsfBootSelector(bool returningFromGame=false) {
                     xm77RollStage(); // Resolve once per match; game-side request follows during emulation.
                     xmFDPreloadSetActive(xm77StageResolved==2); // Random may resolve to FD.
                     if(xm77StageResolved==2)xm20FDPrepare();
-                    preloadRequested=xm77StageResolved==2?1:0;
+                    if(xm77StageResolved==3)xm20GuilePrepare();
+                    preloadRequested=xm77StageResolved==2?2:(xm77StageResolved==3?3:0);
                     std::fprintf(stderr,"XM86.32 STAGE MENU CONFIRM mode=%d selected=%d resolved=%d\n",pendingMode,xm77StageChoice,xm77StageResolved);std::fflush(stderr);
                     xm25BeginInputHandoff();
                     outcome=pendingMode;running=0;
@@ -603,11 +605,12 @@ static int xmvsfBootSelector(bool returningFromGame=false) {
         }
         // Begin low-priority preload when FD is highlighted; pause when leaving.
         // Do not override the final resolved choice while exiting selection.
-        const int wantFD=(screen==5 && stageRow==2)?1:0;
-        if(running && wantFD!=preloadRequested){
-            xmFDPreloadSetActive(wantFD!=0);
-            if(wantFD)xm20FDPrepare();
-            preloadRequested=wantFD;
+        const int wantStage=(screen==5 && (stageRow==2 || stageRow==3))?stageRow:0;
+        if(running && wantStage!=preloadRequested){
+            xmFDPreloadSetActive(wantStage==2);
+            if(wantStage==2)xm20FDPrepare();
+            if(wantStage==3)xm20GuilePrepare();
+            preloadRequested=wantStage;
         }
         const float backgroundStrength=introEnabled?
             XM87235Intro::backgroundStrength(introElapsed):0.0f;
@@ -664,13 +667,13 @@ static int xmvsfBootSelector(bool returningFromGame=false) {
             }
         } else if(screen==5) {
             xmvsfPixelText(render,"SELECT STAGE",480,90,5,108,193,255);
-            const char* stages[3]={"RANDOM","WILY FACTORY","FINAL DESTINATION"};
-            for(int i=0;i<3;++i){
-                const int y=175+i*76;
+            const char* stages[4]={"RANDOM","WILY FACTORY","FINAL DESTINATION","GUILE STAGE"};
+            for(int i=0;i<4;++i){
+                const int y=151+i*66;
                 const Uint8 bright=(i==stageRow)?255:80;
                 xmvsfPixelText(render,stages[i],480,y,4,bright,bright,bright);
             }
-            xmvsfPixelText(render,"RANDOM INCLUDES BOTH CUSTOM STAGES",480,425,2,137,177,215);
+            xmvsfPixelText(render,"RANDOM INCLUDES ALL CUSTOM STAGES",480,425,2,137,177,215);
             xmvsfPixelText(render,"A SELECT  B/ESC BACK",480,465,2,152,192,235);
         } else if(screen==2) { /* XMVSF_STAGE25_5_SCOREBOARD_RESET */
             xm255BootVersus(render);
