@@ -19,3 +19,7 @@
 # diagnostics private; users can attach BUILD_TEST.log when a build fails.
 /test/build_logs/
 *.ini
+
+# Generated locally by tools/pack_fd_video.ps1; source PNGs stay in Git.
+_art/video/*.fdb
+_art/video/*.fdb.partial
