@@ -220,13 +220,13 @@ def extract(data: bytes, out: Path) -> list[str]:
                     f"key={key!r} length={length} remaining={extra_end-p.pos}",
                     file=sys.stderr)
                 break
-            if key in (b"luni", b"lsct"):
+            if key in (b"luni", b"lsct", b"lsdk"):
                 blob = p.take(length)
                 if key == b"luni" and len(blob) >= 4:
                     count = struct.unpack(">I",blob[:4])[0]
                     if count*2 <= len(blob)-4:
                         name = blob[4:4+count*2].decode("utf-16-be",errors="replace")
-                elif key == b"lsct" and len(blob) >= 4:
+                elif key in (b"lsct", b"lsdk") and len(blob) >= 4:
                     section = struct.unpack(">I",blob[:4])[0]
             else:
                 p.skip(length)
@@ -414,8 +414,16 @@ def main() -> int:
     if manifest.is_file():
         cached = manifest.read_text(encoding="utf-8")
         if f"SOURCE_SHA256\t{digest}" in cached and "FORMAT\t3" in cached:
-            print(f"GUILE PSD unchanged: {manifest}")
-            return 0
+            # A manifest can survive the deletion of exported PNGs.
+            # Regenerate instead of serving a partly missing animation.
+            exports = []
+            for line in cached.splitlines():
+                parts = line.split("\t")
+                if len(parts) >= 9 and parts[0] == "LAYER":
+                    exports.append(args.output / parts[8])
+            if exports and all(path.is_file() for path in exports):
+                print(f"GUILE PSD unchanged: {manifest} ({len(exports)} layers)")
+                return 0
     try:
         rows=extract(raw,args.output)
     except (ValueError,struct.error,zlib.error) as ex:
