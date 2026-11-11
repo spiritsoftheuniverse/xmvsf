@@ -1,8 +1,8 @@
 #ifndef XMVSF_STAGE87_274_FINAL_DESTINATION_H
 #define XMVSF_STAGE87_274_FINAL_DESTINATION_H
-// Final Destination: original _art PNG on the scenery/platform layer,
-// behind native CPS2 fighters/FX. The background is a deterministic,
-// full-color RGBA32, three-depth, blinking blue/red procedural starfield.
+// Final Destination: original _art PNG in a 768px native stage world,
+// camera tracked inside the normal 384px viewport, with nearest-neighbor
+// artwork and deterministic 32-bit RGBA blue/red parallax space behind it.
 // This is an SDL presentation-only stage; no ROM physics or hitboxes change.
 #include <SDL.h>
 #include <SDL_image.h>
@@ -14,7 +14,9 @@
 #include <vector>
 
 namespace XMFD {
-static const int W=384,H=224,SPACE_W=1152;
+static const int W=384,H=224,WORLD_W=768,SPACE_W=1152;
+static const int DECK_SCREEN_Y=194; // align the platform surface with fighter feet
+static inline int nativeCamera(int x){return std::max(0,std::min(WORLD_W-W,x));}
 struct Star {
  int x,y;
  unsigned char layer,color,phase;
@@ -24,7 +26,7 @@ struct Scene {
  SDL_Texture* platform=nullptr;
  SDL_Texture* fighters=nullptr;
  SDL_Texture* flash=nullptr;
- int platformW=0,platformH=0;
+ int platformW=0,platformH=0,deckSourceY=0;
  bool failed=false;
  unsigned long long lastFrame=~0ull;
  int lastCameraX=-9999,lastCameraY=-9999;
@@ -36,7 +38,7 @@ struct Scene {
   if(fighters)SDL_DestroyTexture(fighters);
   if(flash)SDL_DestroyTexture(flash);
   stars=platform=fighters=flash=nullptr;
-  platformW=platformH=0;
+  platformW=platformH=deckSourceY=0;
   rgba.clear();particles.clear();
   failed=false;lastFrame=~0ull;
   lastCameraX=lastCameraY=-9999;
@@ -68,7 +70,23 @@ struct Scene {
    failed=true;return false;
   }
   platformW=image->w;platformH=image->h;
-  // Upload the PNG exactly as supplied; preserve the original alpha pixels.
+  // Find the first substantial opaque part of the platform's central deck.
+  // This inspects alpha once but does not change any of the source pixels.
+  SDL_Surface* rgbaImage=SDL_ConvertSurfaceFormat(image,SDL_PIXELFORMAT_RGBA32,0);
+  if(rgbaImage){
+   deckSourceY=platformH-1;
+   for(int y=0;y<platformH;++y){
+    const Uint8* row=(const Uint8*)rgbaImage->pixels+(size_t)y*rgbaImage->pitch;
+    int count=0;
+    for(int x=platformW/4;x<3*platformW/4;++x)
+     if(row[(size_t)x*4u+3u]>=64u)++count;
+    if(count>=std::max(1,platformW/40)){deckSourceY=y;break;}
+   }
+   SDL_FreeSurface(rgbaImage);
+  }else{
+   deckSourceY=platformH*77/100; // fallback for the 600x368 source
+  }
+  // Upload the original PNG directly, preserving its pixels and alpha.
   platform=SDL_CreateTextureFromSurface(renderer,image);
   SDL_FreeSurface(image);
   stars=SDL_CreateTexture(renderer,SDL_PIXELFORMAT_RGBA32,
@@ -82,10 +100,13 @@ struct Scene {
    close();failed=true;return false;
   }
   SDL_SetTextureBlendMode(platform,SDL_BLENDMODE_BLEND);
-  SDL_SetTextureScaleMode(platform,SDL_ScaleModeLinear);
+  SDL_SetTextureScaleMode(platform,SDL_ScaleModeNearest);
   SDL_SetTextureBlendMode(stars,SDL_BLENDMODE_NONE);
+  SDL_SetTextureScaleMode(stars,SDL_ScaleModeNearest);
   SDL_SetTextureBlendMode(fighters,SDL_BLENDMODE_BLEND);
+  SDL_SetTextureScaleMode(fighters,SDL_ScaleModeNearest);
   SDL_SetTextureBlendMode(flash,SDL_BLENDMODE_BLEND);
+  SDL_SetTextureScaleMode(flash,SDL_ScaleModeNearest);
   rgba.resize((size_t)W*H*4);
   // Constant seed: the same scene is repeatable during replays/rematches.
   unsigned seed=0xF1A1D357u;
@@ -102,8 +123,11 @@ struct Scene {
     particles.push_back(s);
    }
   }
-  std::fprintf(stderr,"XM87.274 FINAL_DESTINATION_READY asset=%s source=%dx%d RGBA32 stars=%zu layers=3\n",
-       found.c_str(),platformW,platformH,particles.size());
+  const int worldH=(platformH*WORLD_W+platformW/2)/platformW;
+  std::fprintf(stderr,
+   "XM87.275 FINAL_DESTINATION_READY asset=%s source=%dx%d world=%dx%d deckSourceY=%d deckNativeY=%d filter=nearest RGBA32 stars=%zu layers=3\n",
+   found.c_str(),platformW,platformH,WORLD_W,worldH,deckSourceY,
+   DECK_SCREEN_Y,particles.size());
   return true;
  }
  void pixel(int x,int y,unsigned r,unsigned g,unsigned b,unsigned strength){
@@ -187,12 +211,29 @@ inline bool paint(SDL_Renderer* render,const SDL_Rect& view){
  SDL_Rect oldClip={0,0,0,0};
  if(hadClip)SDL_RenderGetClipRect(render,&oldClip);
  SDL_RenderSetClipRect(render,&view);
- // Scenery depth: space -> supplied platform -> native HUD underlay -> fighters.
- const int drawnW=(s.platformW*H+s.platformH/2)/s.platformH;
- const SDL_Rect platformView={view.x+(view.w*(W-drawnW))/(2*W),
-    view.y,view.w*drawnW/W,view.h};
+ // World layer: preserve the PNG's original aspect ratio at a 768px
+ // native world width, pan it by the same camera as the native fighters.
+ // The existing viewport clip hides the out-of-view world art; it is
+ // never squeezed down to a single 384px-wide full-stage picture.
+ const int camera=nativeCamera(xm8649Visual.nativeCameraX);
+ const int worldH=(s.platformH*WORLD_W+s.platformW/2)/s.platformW;
+ const int deckY=(s.deckSourceY*WORLD_W+s.platformW/2)/s.platformW;
+ const int worldTop=DECK_SCREEN_Y-deckY;
+ const SDL_Rect platformWorld={
+    view.x-camera*view.w/W, view.y+worldTop*view.h/H,
+    WORLD_W*view.w/W, worldH*view.h/H
+ };
+ // Event-style evidence for every changed camera position.
+ static int loggedCamera=-1;
+ if(camera!=loggedCamera){
+  std::fprintf(stderr,
+   "XM87.275 FINAL_DESTINATION_CAMERA cam=%d world=%dx%d viewport=%dx%d dst=%d,%d,%d,%d filter=nearest\n",
+   camera,WORLD_W,worldH,W,H,
+   platformWorld.x,platformWorld.y,platformWorld.w,platformWorld.h);
+  loggedCamera=camera;
+ }
  const bool good=SDL_RenderCopy(render,s.stars,nullptr,&view)==0 &&
-                 SDL_RenderCopy(render,s.platform,nullptr,&platformView)==0;
+                 SDL_RenderCopy(render,s.platform,nullptr,&platformWorld)==0;
  if(good){
   xm8733Overlay(render,view); // match the established Wily stun-bar Z order
   SDL_RenderCopy(render,s.fighters,nullptr,&view);
