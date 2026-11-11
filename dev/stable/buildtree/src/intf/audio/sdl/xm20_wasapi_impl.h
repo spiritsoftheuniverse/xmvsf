@@ -49,6 +49,7 @@ struct Machine {
     Clip music, move, confirm, meter;
     Clip crash, welcome, fightVoice; // authored 87.235; same WASAPI device
     Clip fdStart, fdLoop; // Final Destination OGG intro and seamless loop
+    Clip guileLoop; // Guile Stage has one seamless OGG loop
     double meterPos[2] = {0.0,0.0};
     bool meterOn[2] = {false,false};
     float musicGain = 1.f, musicTarget = 1.f, gameGain = 1.f;
@@ -58,7 +59,9 @@ struct Machine {
     bool moveOn = false, confirmOn = false, fight = false, gameStarted = false;
     bool crashOn=false,welcomeOn=false,fightVoiceOn=false;
     bool musicEnabled=false; // no music before explicit menu start/reveal
-    HANDLE fdLoadThread=nullptr;
+    HANDLE fdLoadThread=nullptr,guileLoadThread=nullptr;
+    int guileLoadState=0; // same 0/1/2/3 convention as FD
+    int activeStageMusic=0; // 0=native,2=Final Destination,3=Guile Stage
     int fdLoadState=0; // 0=never attempted,1=loading,2=ready,3=unavailable
     bool fdPending=false,fdStarted=false,fdKo=false;
     unsigned fdPhase=0u; // 0=off,1=intro,2=loop
@@ -203,6 +206,21 @@ static DWORD WINAPI fdLoadWorker(LPVOID){
     std::fprintf(stderr,"XM87.288 FD_OGG_PRELOAD %s\n",a&&b?"READY":"FAILED");
     return 0;
 }
+static DWORD WINAPI guileLoadWorker(LPVOID){
+    SetThreadPriority(GetCurrentThread(),THREAD_PRIORITY_BELOW_NORMAL);
+    Clip music;
+    const bool ok=clipLoadOggRepo(music,"guilestage.ogg");
+    EnterCriticalSection(&m.lock);
+    if(ok){
+        m.guileLoop=music;
+        music.pcm=nullptr;
+        m.guileLoadState=2;
+    }else m.guileLoadState=3;
+    LeaveCriticalSection(&m.lock);
+    music.release();
+    std::fprintf(stderr,"XM87.290 GUILE_OGG_PRELOAD %s\n",ok?"READY":"FAILED");
+    return 0;
+}
 static float clipSample(const Clip& c, uint32_t f, int ch) {
     if (!c.pcm || f>=c.frames) return 0.f;
     return (reinterpret_cast<const int16_t*>(c.pcm)[f*2+ch])/32768.f;
@@ -298,16 +316,24 @@ static void fillFrames(BYTE* output, UINT32 count, const WAVEFORMATEX* fmt) {
             // Keep full normal music level from its first audible frame.
             const float musicDuck=m.fightVoiceOn?0.64f:1.0f;
             // Start only after confirmed native combat and the FIGHT cue.
-            if(m.fdPending&&m.fdLoadState==2&&!m.fightVoiceOn){
-                m.fdPending=false;m.fdPhase=1u;
-                m.fdStart.pos=0.0;m.fdLoop.pos=0.0;
-                m.fdGain=1.f;
-                std::fprintf(stderr,"XM87.288 FD_OGG_PLAY_START intro_frames=%u loop_frames=%u\n",
-                             unsigned(m.fdStart.frames),unsigned(m.fdLoop.frames));
+            if(m.fdPending&&!m.fightVoiceOn){
+                if(m.activeStageMusic==2 && m.fdLoadState==2){
+                    m.fdPending=false;m.fdPhase=1u;
+                    m.fdStart.pos=0.0;m.fdLoop.pos=0.0;
+                    m.fdGain=1.f;
+                    std::fprintf(stderr,"XM87.288 FD_OGG_PLAY_START intro_frames=%u loop_frames=%u\n",
+                                 unsigned(m.fdStart.frames),unsigned(m.fdLoop.frames));
+                }else if(m.activeStageMusic==3 && m.guileLoadState==2){
+                    m.fdPending=false;m.fdPhase=3u;
+                    m.guileLoop.pos=0.0;m.fdGain=1.f;
+                    std::fprintf(stderr,"XM87.290 GUILE_OGG_PLAY_LOOP frames=%u\n",
+                                 unsigned(m.guileLoop.frames));
+                }
             }
             float fd=0.f;
             if(m.fdPhase==1u)fd=linearClip(m.fdStart,m.fdStart.pos,ch);
             else if(m.fdPhase==2u)fd=linearClip(m.fdLoop,m.fdLoop.pos,ch);
+            else if(m.fdPhase==3u)fd=linearClip(m.guileLoop,m.guileLoop.pos,ch);
             if(m.fdFadeSeconds>0.f){
                 const float t=std::min(1.f,m.fdFadeElapsed/m.fdFadeSeconds);
                 m.fdGain=(1.f-t)*(1.f-t)*(1.f+2.f*t);
@@ -324,6 +350,7 @@ static void fillFrames(BYTE* output, UINT32 count, const WAVEFORMATEX* fmt) {
             advanceClip(m.fdStart,musicStep,false);
             if(m.fdStart.pos>=m.fdStart.frames)m.fdPhase=2u; // one-shot intro -> loop
         }else if(m.fdPhase==2u)advanceClip(m.fdLoop,musicStep,true);
+        else if(m.fdPhase==3u)advanceClip(m.guileLoop,musicStep,true);
         if(m.fdFadeSeconds>0.f){
             m.fdFadeElapsed+=1.f/float(hz);
             if(m.fdFadeElapsed>=m.fdFadeSeconds){
@@ -399,6 +426,10 @@ static DWORD WINAPI audioThread(LPVOID) {
 }
 static void shutdown() {
     if(!m.begun)return;
+    if(m.guileLoadThread){
+        WaitForSingleObject(m.guileLoadThread,INFINITE);
+        CloseHandle(m.guileLoadThread);m.guileLoadThread=nullptr;
+    }
     if(m.fdLoadThread){
         // No audio-thread mutex held: the decoder publishes under the lock.
         WaitForSingleObject(m.fdLoadThread,INFINITE);
@@ -410,8 +441,9 @@ static void shutdown() {
     if(m.event){CloseHandle(m.event);m.event=nullptr;}
     m.music.release();m.move.release();m.confirm.release();m.meter.release();
     m.crash.release();m.welcome.release();m.fightVoice.release();
-    m.fdStart.release();m.fdLoop.release();
-    m.fdLoadState=0;m.fdPhase=0u;m.fdPending=m.fdStarted=m.fdKo=false;
+    m.fdStart.release();m.fdLoop.release();m.guileLoop.release();
+    m.fdLoadState=0;m.guileLoadState=0;m.activeStageMusic=0;
+    m.fdPhase=0u;m.fdPending=m.fdStarted=m.fdKo=false;
     if(m.game){free(m.game);m.game=nullptr;}
     if(m.csReady){DeleteCriticalSection(&m.lock);m.csReady=false;}
     m.begun=false;
@@ -463,12 +495,32 @@ void xm20FDPrepare(){
     }
     LeaveCriticalSection(&xm20::m.lock);
 }
+void xm20GuilePrepare(){
+    if(!xm20::start()||!xm20::m.csReady)return;
+    EnterCriticalSection(&xm20::m.lock);
+    if(xm20::m.guileLoadState==0){
+        xm20::m.guileLoadState=1;
+        xm20::m.guileLoadThread=CreateThread(nullptr,0,xm20::guileLoadWorker,nullptr,0,nullptr);
+        if(!xm20::m.guileLoadThread){
+            xm20::m.guileLoadState=3;
+            std::fprintf(stderr,"XM87.290 GUILE_OGG_THREAD_FAILED\n");
+        }
+    }
+    LeaveCriticalSection(&xm20::m.lock);
+}
 // Read-only native status 08 is live combat, 0A is round-ending team KO,
 // 0C is results. A fallen first teammate stays in status 08 and does NOT fade.
-void xm20FDStagePhase(bool selected,int nativeStatus){
+void xm20CustomStagePhase(int selectedStage,int nativeStatus){
     if(!xm20::m.csReady)return;
     EnterCriticalSection(&xm20::m.lock);
-    if(!selected){
+    if(selectedStage!=xm20::m.activeStageMusic){
+        // No incoming stage inherits another stage's loop or KO envelope.
+        xm20::m.activeStageMusic=selectedStage;
+        xm20::m.fdPending=xm20::m.fdStarted=xm20::m.fdKo=false;
+        xm20::m.fdPhase=0u;xm20::m.fdGain=1.f;
+        xm20::m.fdFadeSeconds=xm20::m.fdFadeElapsed=0.f;
+    }
+    if(selectedStage==0){
         xm20::m.fdPending=false;
         xm20::m.fdPhase=0u;
         xm20::m.fdStarted=xm20::m.fdKo=false;
@@ -506,7 +558,7 @@ void xm20MenuStart(){
     EnterCriticalSection(&xm20::m.lock);
     xm20::m.musicEnabled=true; // regular return/replay starts normally
     xm20::m.fdPending=xm20::m.fdStarted=xm20::m.fdKo=false;
-    xm20::m.fdPhase=0u;xm20::m.fdGain=1.f;
+    xm20::m.fdPhase=0u;xm20::m.fdGain=1.f;xm20::m.activeStageMusic=0;
     xm20::m.fdFadeSeconds=xm20::m.fdFadeElapsed=0.f;
     // XM86.55: return to menu means a NEW audio phase, not a continuation
     // of a combat queue or the previous character-select state. This is only
