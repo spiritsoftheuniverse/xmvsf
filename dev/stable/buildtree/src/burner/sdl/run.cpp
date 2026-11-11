@@ -559,8 +559,24 @@ int RunIdle()
         }
         return 0;
     }
-    if(!xmvsfHost::frameDue(nAppVirtualFps)) return 0;
-    if(bAudPlaying) AudSoundCheck();
+    // 87.284 FD-only: a late SDL video paint cannot permanently reduce the
+    // native fight clock. Emulate up to two missed game frames without SDL
+    // paints, maintaining their real input and audio events in order, then
+    // render the final frame. Normal stages retain the old scheduler.
+    const bool fdClockRecover=xm77StageResolved==2 &&
+        xm8649Visual.sceneActive && xm8649Visual.stage==5 &&
+        !bRunPause && !bAppDoFast && !bAppDoStep;
+    const int owed=fdClockRecover?
+        xm20FrameDueCatchup(nAppVirtualFps,3):
+        xmvsfHost::frameDue(nAppVirtualFps);
+    if(owed<=0)return 0;
+    if(fdClockRecover && owed>1){
+        for(int i=1;i<owed;++i){
+            if(bAudPlaying)xm20AdvanceSoundNoPaint();
+            else RunFrame(0,0);
+        }
+    }
+    if(bAudPlaying)AudSoundCheck();
     else RunFrame(1,0);
     return 0; /* XMVSF_STAGE20_WASAPI */
 
