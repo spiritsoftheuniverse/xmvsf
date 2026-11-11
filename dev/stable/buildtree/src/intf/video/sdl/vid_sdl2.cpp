@@ -60,8 +60,14 @@ static SDL_Rect dstrect;
 #include "xmvsf_stage86_49_painter.h" // XM86.49 native-window opt-in stage, forest failback
 #include "xmvsf_stage87_274_final_destination.h" // custom stage: sky / platform / native fighter layers
 // Shared menu-to-video preload bridge: no SDL texture calls from the worker.
-void xmFDPreloadSetActive(bool enabled){XMFDVideo::preload().setEnabled(enabled);}
-void xmFDPreloadRelease(){XMFDVideo::preload().shutdown();}
+void xmFDPreloadSetActive(bool enabled){
+ XMFDVideo::preload().setEnabled(enabled);
+ XMFDVideoFX::cache().setEnabled(enabled);
+}
+void xmFDPreloadRelease(){
+ XMFDVideoFX::cache().shutdown();
+ XMFDVideo::preload().shutdown();
+}
 static char Windowtitle[512];
 static int display_w = 400, display_h = 300;
 Uint32 screenFlags;
