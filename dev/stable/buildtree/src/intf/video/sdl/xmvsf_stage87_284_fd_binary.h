@@ -148,9 +148,16 @@ struct Decoder {
     }
     const Sint64 offset=32+(Sint64)next*(Sint64)w*(Sint64)h*4;
     bool good=SDL_RWseek(pack[clip],offset,RW_SEEK_SET)==offset;
-    for(int y=0;good && y<h;++y){
-     unsigned char* row=(unsigned char*)rgba->pixels+(size_t)y*rgba->pitch;
-     good=SDL_RWread(pack[clip],row,1u,(size_t)w*4u)==(size_t)w*4u;
+    // Native 700x400x4 surfaces normally have tightly packed rows:
+    // one sequential read, not 400 small IO calls per video frame.
+    const size_t bytes=(size_t)w*(size_t)h*4u;
+    if(good && rgba->pitch==w*4){
+     good=SDL_RWread(pack[clip],rgba->pixels,1u,bytes)==bytes;
+    }else if(good){
+     for(int y=0;good && y<h;++y){
+      unsigned char* row=(unsigned char*)rgba->pixels+(size_t)y*rgba->pitch;
+      good=SDL_RWread(pack[clip],row,1u,(size_t)w*4u)==(size_t)w*4u;
+     }
     }
     if(!good){
      std::fprintf(stderr,
@@ -190,10 +197,10 @@ struct Decoder {
   if(thread)return true;
   mutex=SDL_CreateMutex();
   if(!mutex)return false;
-  thread=SDL_CreateThread(run,"XMFD PNG decoder",this);
+  thread=SDL_CreateThread(run,"XMFD binary video",this);
   if(!thread){SDL_DestroyMutex(mutex);mutex=nullptr;return false;}
   std::fprintf(stderr,
-   "XM87.284 FD_BINARY_STREAM_START worker=1 queue=3 reusableTextures=2 png=1\n");
+   "XM87.284 FD_BINARY_STREAM_START worker=1 queue=3 reusableTextures=2 binary=preferred png=fallback\n");
   return true;
  }
  void request(unsigned c,unsigned i){
