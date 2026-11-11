@@ -15,7 +15,6 @@
 
 namespace XMFD {
 static const int W=384,H=224,WORLD_W=768,SPACE_W=1152;
-static const int DECK_SCREEN_Y=194; // align the platform surface with fighter feet
 static inline int nativeCamera(int x){return std::max(0,std::min(WORLD_W-W,x));}
 struct Star {
  int x,y;
@@ -26,7 +25,7 @@ struct Scene {
  SDL_Texture* platform=nullptr;
  SDL_Texture* fighters=nullptr;
  SDL_Texture* flash=nullptr;
- int platformW=0,platformH=0,deckSourceY=0;
+ int platformW=0,platformH=0;
  bool failed=false;
  unsigned long long lastFrame=~0ull;
  int lastCameraX=-9999,lastCameraY=-9999;
@@ -38,7 +37,7 @@ struct Scene {
   if(fighters)SDL_DestroyTexture(fighters);
   if(flash)SDL_DestroyTexture(flash);
   stars=platform=fighters=flash=nullptr;
-  platformW=platformH=deckSourceY=0;
+  platformW=platformH=0;
   rgba.clear();particles.clear();
   failed=false;lastFrame=~0ull;
   lastCameraX=lastCameraY=-9999;
@@ -66,26 +65,10 @@ struct Scene {
    if(image){found=filename;break;}
   }
   if(!image){
-   std::fprintf(stderr,"XM87.275 FINAL_DESTINATION_ASSET_MISSING original=_art/finaldestination.png; native fallback\n");
+   std::fprintf(stderr,"XM87.276 FINAL_DESTINATION_ASSET_MISSING original=_art/finaldestination.png; native fallback\n");
    failed=true;return false;
   }
   platformW=image->w;platformH=image->h;
-  // Find the first substantial opaque part of the platform's central deck.
-  // This inspects alpha once but does not change any of the source pixels.
-  SDL_Surface* rgbaImage=SDL_ConvertSurfaceFormat(image,SDL_PIXELFORMAT_RGBA32,0);
-  if(rgbaImage){
-   deckSourceY=platformH-1;
-   for(int y=0;y<platformH;++y){
-    const Uint8* row=(const Uint8*)rgbaImage->pixels+(size_t)y*rgbaImage->pitch;
-    int count=0;
-    for(int x=platformW/4;x<3*platformW/4;++x)
-     if(row[(size_t)x*4u+3u]>=64u)++count;
-    if(count>=std::max(1,platformW/40)){deckSourceY=y;break;}
-   }
-   SDL_FreeSurface(rgbaImage);
-  }else{
-   deckSourceY=platformH*77/100; // fallback for the 600x368 source
-  }
   // Upload the original PNG directly, preserving its pixels and alpha.
   platform=SDL_CreateTextureFromSurface(renderer,image);
   SDL_FreeSurface(image);
@@ -96,7 +79,7 @@ struct Scene {
   flash=SDL_CreateTexture(renderer,SDL_PIXELFORMAT_RGBA32,
        SDL_TEXTUREACCESS_STREAMING,W,H);
   if(!platform || !stars || !fighters || !flash || platformW<1 || platformH<1){
-   std::fprintf(stderr,"XM87.275 FINAL_DESTINATION_TEXTURE_FAILED %s\n",SDL_GetError());
+   std::fprintf(stderr,"XM87.276 FINAL_DESTINATION_TEXTURE_FAILED %s\n",SDL_GetError());
    close();failed=true;return false;
   }
   SDL_SetTextureBlendMode(platform,SDL_BLENDMODE_BLEND);
@@ -125,9 +108,8 @@ struct Scene {
   }
   const int worldH=(platformH*WORLD_W+platformW/2)/platformW;
   std::fprintf(stderr,
-   "XM87.275 FINAL_DESTINATION_READY asset=%s source=%dx%d world=%dx%d deckSourceY=%d deckNativeY=%d filter=nearest RGBA32 stars=%zu layers=3\n",
-   found.c_str(),platformW,platformH,WORLD_W,worldH,deckSourceY,
-   DECK_SCREEN_Y,particles.size());
+   "XM87.276 FINAL_DESTINATION_READY asset=%s source=%dx%d world=%dx%d anchor=bottom filter=nearest RGBA32 stars=%zu layers=3\n",
+   found.c_str(),platformW,platformH,WORLD_W,worldH,particles.size());
   return true;
  }
  void pixel(int x,int y,unsigned r,unsigned g,unsigned b,unsigned strength){
@@ -182,7 +164,7 @@ struct Scene {
    pixel(x,y,red,green,blue,core);
   }
   if(SDL_UpdateTexture(stars,nullptr,rgba.data(),W*4)!=0){
-   std::fprintf(stderr,"XM87.275 FINAL_DESTINATION_STAR_UPLOAD_FAILED %s\n",SDL_GetError());
+   std::fprintf(stderr,"XM87.276 FINAL_DESTINATION_STAR_UPLOAD_FAILED %s\n",SDL_GetError());
    return false;
   }
   return true;
@@ -202,7 +184,7 @@ inline bool paint(SDL_Renderer* render,const SDL_Rect& view){
  if(!s.renderStars(render,frame,xm8649Visual.nativeCameraX,xm8649Visual.nativeCameraY))
   return false;
  if(SDL_UpdateTexture(s.fighters,nullptr,xm77SpritePixels(),W*4)!=0){
-  std::fprintf(stderr,"XM87.275 FINAL_DESTINATION_FIGHTER_UPLOAD_FAILED %s\n",SDL_GetError());
+  std::fprintf(stderr,"XM87.276 FINAL_DESTINATION_FIGHTER_UPLOAD_FAILED %s\n",SDL_GetError());
   return false;
  }
  const unsigned char* nativeFlash=xm8757FlashPixels();
@@ -217,8 +199,10 @@ inline bool paint(SDL_Renderer* render,const SDL_Rect& view){
  // never squeezed down to a single 384px-wide full-stage picture.
  const int camera=nativeCamera(xm8649Visual.nativeCameraX);
  const int worldH=(s.platformH*WORLD_W+s.platformW/2)/s.platformW;
- const int deckY=(s.deckSourceY*WORLD_W+s.platformW/2)/s.platformW;
- const int worldTop=DECK_SCREEN_Y-deckY;
+ // Bottom-up registration: the final source image row always lands at
+ // native viewport Y=224. No alpha threshold or deck-top guesswork.
+ // Extra image height extends UPWARD and clips at the viewport top.
+ const int worldTop=H-worldH;
  const SDL_Rect platformWorld={
     view.x-camera*view.w/W, view.y+worldTop*view.h/H,
     WORLD_W*view.w/W, worldH*view.h/H
@@ -227,9 +211,10 @@ inline bool paint(SDL_Renderer* render,const SDL_Rect& view){
  static int loggedCamera=-1;
  if(camera!=loggedCamera){
   std::fprintf(stderr,
-   "XM87.275 FINAL_DESTINATION_CAMERA cam=%d world=%dx%d viewport=%dx%d dst=%d,%d,%d,%d filter=nearest\n",
+   "XM87.276 FINAL_DESTINATION_CAMERA cam=%d world=%dx%d viewport=%dx%d dst=%d,%d,%d,%d bottom=%d filter=nearest\n",
    camera,WORLD_W,worldH,W,H,
-   platformWorld.x,platformWorld.y,platformWorld.w,platformWorld.h);
+   platformWorld.x,platformWorld.y,platformWorld.w,platformWorld.h,
+   platformWorld.y+platformWorld.h);
   loggedCamera=camera;
  }
  const bool good=SDL_RenderCopy(render,s.stars,nullptr,&view)==0 &&
@@ -241,7 +226,7 @@ inline bool paint(SDL_Renderer* render,const SDL_Rect& view){
  }
  SDL_RenderSetClipRect(render,hadClip?&oldClip:nullptr);
  if(!good){
-  std::fprintf(stderr,"XM87.275 FINAL_DESTINATION_DRAW_FAILED %s\n",SDL_GetError());
+  std::fprintf(stderr,"XM87.276 FINAL_DESTINATION_DRAW_FAILED %s\n",SDL_GetError());
   return false;
  }
  return true;
