@@ -286,8 +286,17 @@ inline bool paint(SDL_Renderer* render,const SDL_Rect& view){
  // the starfield black: its black pixels carry zero alpha and ADD blend.
  s.video.draw(render,view);
  SDL_SetTextureAlphaMod(s.sky,(Uint8)(255u-(unsigned)s.video.alpha));
- const bool good=SDL_RenderCopy(render,s.sky,nullptr,&view)==0 &&
-                 s.fx.draw(render,view) &&
+ const bool skyGood=SDL_RenderCopy(render,s.sky,nullptr,&view)==0;
+ // FX are cosmetic only: a failed optional overlay must not remove native art.
+ const bool fxGood=skyGood && s.fx.draw(render,view);
+ if(!fxGood && skyGood){
+  static bool loggedFXError=false;
+  if(!loggedFXError){
+   std::fprintf(stderr,"XM87.287 FD_FX_DRAW_FAIL %s\n",SDL_GetError());
+   loggedFXError=true;
+  }
+ }
+ const bool good=skyGood &&
                  SDL_RenderCopy(render,s.stars,nullptr,&view)==0 &&
                  SDL_RenderCopy(render,s.platform,nullptr,&platformWorld)==0 &&
                  SDL_RenderCopy(render,s.pink.light,nullptr,&platformWorld)==0;
