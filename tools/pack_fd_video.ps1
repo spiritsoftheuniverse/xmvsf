@@ -21,16 +21,32 @@ $clips = @(
     @{ Name = 'fd02'; Count = 200 },
     @{ Name = 'fd03'; Count = 396 }
 )
-$width = 700
-$height = 400
-$rowBytes = $width * 4
-$frameBytes = $rowBytes * $height
 foreach ($clip in $clips) {
     $name = [string]$clip.Name
     $count = [int]$clip.Count
     $dir = Join-Path $video $name
     $out = Join-Path $video ($name + '.fdb')
     $temp = $out + '.partial'
+    if (-not (Test-Path -LiteralPath $dir -PathType Container)) {
+        throw "Missing source folder $dir"
+    }
+    $firstFrame = Join-Path $dir 'frame_00000.png'
+    if (-not (Test-Path -LiteralPath $firstFrame -PathType Leaf)) {
+        throw "Missing frame $firstFrame"
+    }
+    $probe = $null
+    try {
+        $probe = [System.Drawing.Bitmap]::new($firstFrame)
+        $width = [int]$probe.Width
+        $height = [int]$probe.Height
+    } finally {
+        if ($probe -ne $null) { $probe.Dispose() }
+    }
+    if ($width -lt 1 -or $height -lt 1 -or $width -gt 8192 -or $height -gt 8192) {
+        throw "Unsupported PNG dimensions in $firstFrame ($($width)x$($height))"
+    }
+    $rowBytes = [int]($width * 4)
+    $frameBytes = [int]($rowBytes * $height)
     $expected = [long]32 + [long]$count * [long]$frameBytes
     if ((Test-Path -LiteralPath $out) -and -not $Force) {
         $existing = Get-Item -LiteralPath $out
