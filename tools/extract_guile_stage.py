@@ -407,6 +407,7 @@ def extract(data: bytes, out: Path) -> list[str]:
             f"Characters extraction incomplete: exported {actor_count} of "
             f"{sum(len(frames) for frames in actors.values())} Photoshop children")
     records.insert(1,f"SOURCE_SHA256\t{hashlib.sha256(data).hexdigest()}")
+    records.insert(2,f"EXTRACTOR_SHA256\t{hashlib.sha256(Path(__file__).read_bytes()).hexdigest()}")
     records.insert(2,f"SUMMARY\t{count}\t{actor_count}")
     for key,frames in actors.items():
         records.append(f"ACTOR\t{sanitize_field(key)}\t{len(frames)}")
@@ -427,9 +428,12 @@ def main() -> int:
     raw=args.source.read_bytes()
     manifest=args.output/"manifest.tsv"
     digest=hashlib.sha256(raw).hexdigest()
+    extractor_digest=hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
     if manifest.is_file():
         cached = manifest.read_text(encoding="utf-8")
-        if f"SOURCE_SHA256\t{digest}" in cached and "FORMAT\t3" in cached:
+        if (f"SOURCE_SHA256\t{digest}" in cached and
+                f"EXTRACTOR_SHA256\t{extractor_digest}" in cached and
+                "FORMAT\t3" in cached):
             # A manifest can survive the deletion of exported PNGs.
             # Regenerate instead of serving a partly missing animation.
             exports = []
