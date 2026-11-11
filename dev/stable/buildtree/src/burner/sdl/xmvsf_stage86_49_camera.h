@@ -23,7 +23,9 @@ static inline void xm8649ObserveCamera(bool gameReady){
                   xm14TrainingMode==1 && xm24VersusMode==0);
  const bool finalDestination=(xm77StageChoice==2 && xm77StageResolved==2 &&
                              (xm14TrainingMode==1 || xm24VersusMode==1));
- if(!gameReady || bBurnRunAheadFrame || (!wily&&!finalDestination)){
+ const bool guileStage=(xm77StageChoice==3 && xm77StageResolved==3 &&
+                        (xm14TrainingMode==1 || xm24VersusMode==1));
+ if(!gameReady || bBurnRunAheadFrame || (!wily&&!finalDestination&&!guileStage)){
   xm8649Visual.sceneActive=false;return;
  }
  const char* name=BurnDrvGetTextA(DRV_NAME);
