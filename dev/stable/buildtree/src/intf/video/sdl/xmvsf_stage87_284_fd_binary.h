@@ -1,6 +1,11 @@
 #ifndef XMVSF_STAGE87_284_FD_BINARY_H
 #define XMVSF_STAGE87_284_FD_BINARY_H
-// Final Destination: ffplay-style bounded frame queue and SDL2 streaming textures.
+// Final Destination 87.284: offline seekable BGRA32 binary frame packs.
+// Native pack format is XMFDBIN1: magic[8], six LE32 fields (width,
+// height, count, format=1 for BGRA8, rowBytes, reserved), then 32-bit
+// pixels in full coalesced top-to-bottom frames. The worker reads the
+// binary pack directly into a 3-frame queue. Source PNGs are a fallback.
+// The game's main/render thread never decodes images or opens video files.
 // Only the worker calls IMG_Load; only the render thread touches SDL textures.
 // Two reusable streaming GPU textures; never allocate a texture per PNG.
 // No GPU work except a changed frame, and no render-thread waiting for decoding.
@@ -42,6 +47,49 @@ struct Frame {
  unsigned clip=0u,index=0u,generation=0u;
  SDL_Surface* pixels=nullptr;
 };
+static std::string findPack(unsigned clip){
+ std::vector<std::string> roots={"_art/video/","../_art/video/","../../_art/video/"};
+ char* base=SDL_GetBasePath();
+ if(base){
+  const std::string p(base);SDL_free(base);
+  roots.push_back(p+"_art/video/");
+  roots.push_back(p+"../_art/video/");
+  roots.push_back(p+"../../_art/video/");
+ }
+ for(const std::string& root:roots){
+  const std::string filename=root+NAMES[clip]+".fdb";
+  SDL_RWops* rw=SDL_RWFromFile(filename.c_str(),"rb");
+  if(rw){SDL_RWclose(rw);return filename;}
+ }
+ return {};
+}
+static unsigned u32le(const unsigned char* p){
+ return (unsigned)p[0]|((unsigned)p[1]<<8)|((unsigned)p[2]<<16)|((unsigned)p[3]<<24);
+}
+static SDL_RWops* openPack(unsigned clip,int& w,int& h){
+ const std::string filename=findPack(clip);
+ if(filename.empty())return nullptr;
+ SDL_RWops* rw=SDL_RWFromFile(filename.c_str(),"rb");
+ if(!rw)return nullptr;
+ unsigned char hdr[32]={};
+ const bool valid=SDL_RWread(rw,hdr,1u,32u)==32u &&
+    std::memcmp(hdr,"XMFDBIN1",8u)==0 &&
+    u32le(hdr+8)==700u && u32le(hdr+12)==400u &&
+    u32le(hdr+16)==COUNT[clip] && u32le(hdr+20)==1u &&
+    u32le(hdr+24)==2800u && u32le(hdr+28)==0u &&
+    SDL_RWseek(rw,0,RW_SEEK_END)==
+       (Sint64)(32u+(std::uint64_t)COUNT[clip]*1120000u);
+ if(!valid){
+  std::fprintf(stderr,"XM87.284 FD_BINARY_INVALID clip=%u path=%s; PNG fallback\n",
+       clip+1u,filename.c_str());
+  SDL_RWclose(rw);return nullptr;
+ }
+ w=(int)u32le(hdr+8);h=(int)u32le(hdr+12);
+ std::fprintf(stderr,
+  "XM87.284 FD_BINARY_READY clip=%u frames=%u size=%dx%d path=%s\n",
+  clip+1u,COUNT[clip],w,h,filename.c_str());
+ return rw;
+}
 struct Decoder {
  SDL_mutex* mutex=nullptr;
  SDL_Thread* thread=nullptr;
@@ -53,6 +101,9 @@ struct Decoder {
   Decoder& d=*(Decoder*)ctx;
   std::string roots[CLIPS];
   bool missing[CLIPS]={false,false,false};
+  bool checked[CLIPS]={false,false,false};
+  SDL_RWops* pack[CLIPS]={nullptr,nullptr,nullptr};
+  int width[CLIPS]={0,0,0},height[CLIPS]={0,0,0};
   unsigned loadedGeneration=0u,next=0u;
   for(;;){
    SDL_LockMutex(d.mutex);
@@ -68,33 +119,58 @@ struct Decoder {
     next=index;
    }
    if(next>=COUNT[clip]){SDL_Delay(2);continue;}
-   if(roots[clip].empty()&&!missing[clip]){
-    roots[clip]=findRoot(clip);
-    if(roots[clip].empty()){
-     missing[clip]=true;
-     std::fprintf(stderr,
-      "XM87.283 FD_STREAM_MISSING clip=%u expected=_art/video/%s/frame_00000.png\n",
-      clip+1u,NAMES[clip]);
+   if(!checked[clip]){
+    checked[clip]=true;
+    pack[clip]=openPack(clip,width[clip],height[clip]);
+    if(!pack[clip]){
+     roots[clip]=findRoot(clip);
+     missing[clip]=roots[clip].empty();
+     if(missing[clip])
+      std::fprintf(stderr,
+       "XM87.284 FD_BINARY_AND_PNG_MISSING clip=%u expected=_art/video/%s.fdb\n",
+       clip+1u,NAMES[clip]);
+     else
+      std::fprintf(stderr,
+       "XM87.284 FD_BINARY_ABSENT clip=%u PNG fallback; run tools/pack_fd_video.ps1\n",
+       clip+1u);
     }
    }
    if(missing[clip]){SDL_Delay(10);continue;}
-   const std::string filename=roots[clip]+path(clip,next);
-   SDL_Surface* decoded=IMG_Load(filename.c_str());
-   if(!decoded){
-    std::fprintf(stderr,"XM87.283 FD_STREAM_DECODE_FAIL clip=%u frame=%u %s\n",
-      clip+1u,next,IMG_GetError());
-    // A corrupt/missing individual PNG must never create an infinite
-    // decode/retry loop or fill the launch log every 20 ms.
-    ++next;continue;
+   SDL_Surface* rgba=nullptr;
+   if(pack[clip]){
+    const int w=width[clip],h=height[clip];
+    rgba=SDL_CreateRGBSurfaceWithFormat(0,w,h,32,SDL_PIXELFORMAT_BGRA32);
+    if(!rgba){
+     std::fprintf(stderr,
+      "XM87.284 FD_BINARY_ALLOC_FAIL clip=%u frame=%u %s\n",
+       clip+1u,next,SDL_GetError());
+     ++next;continue;
+    }
+    const Sint64 offset=32+(Sint64)next*(Sint64)w*(Sint64)h*4;
+    bool good=SDL_RWseek(pack[clip],offset,RW_SEEK_SET)==offset;
+    for(int y=0;good && y<h;++y){
+     unsigned char* row=(unsigned char*)rgba->pixels+(size_t)y*rgba->pitch;
+     good=SDL_RWread(pack[clip],row,1u,(size_t)w*4u)==(size_t)w*4u;
+    }
+    if(!good){
+     std::fprintf(stderr,
+       "XM87.284 FD_BINARY_READ_FAIL clip=%u frame=%u\n",
+       clip+1u,next);
+     SDL_FreeSurface(rgba);rgba=nullptr;
+    }
+   }else{
+    const std::string filename=roots[clip]+path(clip,next);
+    SDL_Surface* png=IMG_Load(filename.c_str());
+    if(!png){
+     std::fprintf(stderr,
+      "XM87.284 FD_PNG_DECODE_FAIL clip=%u frame=%u %s\n",
+       clip+1u,next,IMG_GetError());
+     ++next;continue;
+    }
+    rgba=SDL_ConvertSurfaceFormat(png,SDL_PIXELFORMAT_BGRA32,0);
+    SDL_FreeSurface(png);
    }
-   // SDL pixel conversion is also on the worker, never on the game thread.
-   SDL_Surface* rgba=SDL_ConvertSurfaceFormat(decoded,SDL_PIXELFORMAT_RGBA32,0);
-   SDL_FreeSurface(decoded);
-   if(!rgba){
-    std::fprintf(stderr,"XM87.283 FD_STREAM_CONVERT_FAIL clip=%u frame=%u %s\n",
-      clip+1u,next,SDL_GetError());
-    ++next;continue;
-   }
+   if(!rgba){++next;continue;}
    SDL_LockMutex(d.mutex);
    if(d.stop||d.generation!=generation){
     SDL_UnlockMutex(d.mutex);
@@ -106,6 +182,8 @@ struct Decoder {
    SDL_UnlockMutex(d.mutex);
    ++next;
   }
+  for(unsigned i=0u;i<CLIPS;++i)
+   if(pack[i])SDL_RWclose(pack[i]);
   return 0;
  }
  bool start(){
@@ -115,7 +193,7 @@ struct Decoder {
   thread=SDL_CreateThread(run,"XMFD PNG decoder",this);
   if(!thread){SDL_DestroyMutex(mutex);mutex=nullptr;return false;}
   std::fprintf(stderr,
-   "XM87.283 FD_STREAM_START worker=1 queue=3 reusableTextures=2 png=1\n");
+   "XM87.284 FD_BINARY_STREAM_START worker=1 queue=3 reusableTextures=2 png=1\n");
   return true;
  }
  void request(unsigned c,unsigned i){
@@ -189,10 +267,10 @@ struct Sequence {
    for(SDL_Texture*& tex:texture){if(tex)SDL_DestroyTexture(tex);tex=nullptr;}
    texW=w;texH=h;active=0;
    for(SDL_Texture*& tex:texture){
-    tex=SDL_CreateTexture(renderer,SDL_PIXELFORMAT_RGBA32,
+    tex=SDL_CreateTexture(renderer,SDL_PIXELFORMAT_BGRA32,
                            SDL_TEXTUREACCESS_STREAMING,w,h);
     if(!tex){
-     std::fprintf(stderr,"XM87.283 FD_STREAM_ALLOC_FAIL %s\n",SDL_GetError());
+     std::fprintf(stderr,"XM87.284 FD_BINARY_STREAM_ALLOC_FAIL %s\n",SDL_GetError());
      for(SDL_Texture*& allocated:texture){
       if(allocated)SDL_DestroyTexture(allocated);
       allocated=nullptr;
@@ -204,12 +282,12 @@ struct Sequence {
     SDL_SetTextureScaleMode(tex,SDL_ScaleModeLinear);
    }
    std::fprintf(stderr,
-     "XM87.283 FD_STREAM_TEXTURES_READY count=2 dimensions=%dx%d\n",w,h);
+     "XM87.284 FD_BINARY_STREAM_TEXTURES_READY count=2 dimensions=%dx%d\n",w,h);
   }
   const int target=1-active;
   void* pixels=nullptr;int pitch=0;
   if(SDL_LockTexture(texture[target],nullptr,&pixels,&pitch)!=0){
-   std::fprintf(stderr,"XM87.283 FD_STREAM_LOCK_FAIL %s\n",SDL_GetError());
+   std::fprintf(stderr,"XM87.284 FD_BINARY_STREAM_LOCK_FAIL %s\n",SDL_GetError());
    return false;
   }
   const int rowBytes=w*4;
@@ -239,7 +317,7 @@ struct Sequence {
   if(phase==PRE_MATCH){
    if(status!=8u)return;
    phase=INITIAL;matchStart=segmentStart=lastFrame=frame;clip=0u;
-   std::fprintf(stderr,"XM87.283 FD_STREAM_MATCH_START frame=%llu wait=600f hold=4\n",
+   std::fprintf(stderr,"XM87.284 FD_BINARY_STREAM_MATCH_START frame=%llu wait=600f hold=4\n",
      (unsigned long long)frame);
   }
   if(frame<lastFrame){resetMatch();return;}
@@ -258,7 +336,7 @@ struct Sequence {
   const std::uint64_t elapsed=frame-segmentStart;
   const std::uint64_t duration=(std::uint64_t)COUNT[clip]*HOLD;
   if(elapsed>=duration){
-   std::fprintf(stderr,"XM87.283 FD_STREAM_END clip=%u frames=%u\n",
+   std::fprintf(stderr,"XM87.284 FD_BINARY_STREAM_END clip=%u frames=%u\n",
       clip+1u,COUNT[clip]);
    phase=GAP_PHASE;segmentStart=frame;clip=(clip+1u)%CLIPS;
    visible=false;alpha=0u;
