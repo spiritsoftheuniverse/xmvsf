@@ -47,6 +47,14 @@ static std::string locate(int index){
 }
 
 #if XMFD_GIF_WIC
+// SDK-defined WIC GUID values, supplied locally so the current warm
+// -lole32 -luuid link command does NOT need new -lwindowscodecs flags.
+static const GUID kWICFactory={0xcacaf262,0x9370,0x4615,
+  {0xa1,0x3b,0x9f,0x55,0x39,0xda,0x4c,0x0a}};
+static const GUID kWICFactoryIID={0xec5ec8a9,0xc395,0x4314,
+  {0x9c,0x77,0x54,0xd7,0xa9,0x35,0xff,0x70}};
+static const GUID kWIC32BGRA={0x6fddc324,0x4e03,0x4bfe,
+  {0xb1,0x85,0x3d,0x77,0x76,0x8d,0xc9,0x0f}};
 template<typename T>static void release(T*& p){if(p){p->Release();p=nullptr;}}
 static int number(IWICMetadataQueryReader* reader,const wchar_t* key,int fallback){
  if(!reader)return fallback;
@@ -115,8 +123,8 @@ struct Decoder {
    hr=S_OK;ownedCOM=false;
   }else if(SUCCEEDED(hr))ownedCOM=true;
   if(FAILED(hr)){std::fprintf(stderr,"XM87.280 FD_GIF_COM_FAIL hr=%08lX\n",(unsigned long)hr);return false;}
-  hr=CoCreateInstance(CLSID_WICImagingFactory,nullptr,CLSCTX_INPROC_SERVER,
-                      IID_IWICImagingFactory,(void**)&factory);
+  hr=CoCreateInstance(kWICFactory,nullptr,CLSCTX_INPROC_SERVER,
+                      kWICFactoryIID,(void**)&factory);
   if(FAILED(hr)||!factory){
    std::fprintf(stderr,"XM87.280 FD_GIF_WIC_FACTORY_FAIL hr=%08lX\n",(unsigned long)hr);
    return false;
@@ -217,7 +225,7 @@ struct Decoder {
   if(FAILED(hr)||!frame){release(frame);return false;}
   IWICFormatConverter* convert=nullptr;
   hr=factory->CreateFormatConverter(&convert);
-  if(SUCCEEDED(hr))hr=convert->Initialize(frame,GUID_WICPixelFormat32bppBGRA,
+  if(SUCCEEDED(hr))hr=convert->Initialize(frame,kWIC32BGRA,
                    WICBitmapDitherTypeNone,nullptr,0.,WICBitmapPaletteTypeCustom);
   const size_t bytes=(size_t)info.width*info.height*4u;
   if(SUCCEEDED(hr) && bytes<=((size_t)4096*4096*4u)){
