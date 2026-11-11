@@ -261,21 +261,31 @@ def extract(data: bytes, out: Path) -> list[str]:
         opacity = layer["opacity"]
         mask = layer["mask"]
         mask_plane = planes.get(-2)
+        # Slice assignments run in C instead of making four Python writes
+        # for every pixel. The first build may extract many large PSD layers.
         rgba = bytearray(size*4)
-        for y in range(h):
-            for x in range(w):
-                i=y*w+x
-                a=alpha[i]*opacity//255
-                if mask and mask_plane is not None:
-                    mt,ml,mb,mr,default,mflags = mask
+        rgba[0::4] = red
+        rgba[1::4] = green
+        rgba[2::4] = blue
+        if mask is None or mask_plane is None:
+            rgba[3::4] = (alpha if opacity == 255
+                         else alpha.translate(bytes((i*opacity//255)
+                                                     for i in range(256))))
+        else:
+            mt,ml,mb,mr,default,mflags = mask
+            mw,mh = mr-ml,mb-mt
+            # Build mask alpha in its own plane, then interleave once.
+            composite = bytearray(size)
+            for y in range(h):
+                ty=layer["top"]+y-mt
+                for x in range(w):
+                    i=y*w+x
                     tx=layer["left"]+x-ml
-                    ty=layer["top"]+y-mt
-                    mw=mr-ml
                     mask_value=(mask_plane[ty*mw+tx]
-                                if 0<=tx<mw and 0<=ty<mb-mt else default)
+                                if 0<=tx<mw and 0<=ty<mh else default)
                     if mflags&4: mask_value=255-mask_value
-                    a=a*mask_value//255
-                rgba[i*4:i*4+4]=bytes((red[i],green[i],blue[i],a))
+                    composite[i]=alpha[i]*opacity*mask_value//(255*255)
+            rgba[3::4] = composite
         filename = f"{layer['index']:04d}.png"
         (out/filename).write_bytes(png_rgba(w,h,bytes(rgba)))
         actor = actor_name(parts) if role=="actor" else "-"
