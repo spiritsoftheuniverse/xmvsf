@@ -9,6 +9,7 @@
 // step 4 resumes choosing. Advance only 3 -> 4 with exactly one pick.
 // No other step or timer changes. Never run during combat/runahead.
 #include "burnint.h"
+#include "xmvsf_stage87_55_rule_mode.h" // V3 stays native; new selection behavior is V4 only.
 #include <cstdio>
 #include <cstring>
 
@@ -18,7 +19,7 @@ struct Session {
 };
 static inline Session& state(){static Session s;return s;}
 static inline void onNativeFrame(bool gameReady){
- if(!gameReady||bBurnRunAheadFrame)return;
+ if(!gameReady||bBurnRunAheadFrame||XM8755Mode::version()!=4)return;
  const char* driver=BurnDrvGetTextA(DRV_NAME);
  if(!driver||std::strncmp(driver,"xmvsf",5)!=0)return;
  cpu_core_config* cpu=GetCpuCoreConfig(0);
