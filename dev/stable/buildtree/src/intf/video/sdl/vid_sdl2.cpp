@@ -59,6 +59,7 @@ static SDL_Rect dstrect;
 #include "../../../burner/sdl/xmvsf_stage77_selection.h" // custom-stage selection IDs for both painters
 #include "xmvsf_stage86_49_painter.h" // XM86.49 native-window opt-in stage, forest failback
 #include "xmvsf_stage87_274_final_destination.h" // custom stage: sky / platform / native fighter layers
+#include "xmvsf_stage87_290_guile.h" // custom Guile PSD layers / native camera
 // Shared menu-to-video preload bridge: no SDL texture calls from the worker.
 void xmFDPreloadSetActive(bool enabled){
  XMFDVideo::preload().setEnabled(enabled);
@@ -190,6 +191,7 @@ static int Exit()
     xm8652TrackWindowGeometry(sdlWindow,true,"game-exit");
     XM8773Present::State().Close(); // XM87.73 release exact-pen overlay texture
     XMFD::cleanup(); // Release procedural Final Destination and original platform textures.
+    XMGuile::cleanup(); // Release all Guile PSD textures on renderer shutdown.
     xm8649VideoCleanup(); // XM86.49 release textures before renderer destruction
     if(xm8733Texture){SDL_DestroyTexture(xm8733Texture);xm8733Texture=NULL;}
     if(xm87217FloatTexture){
@@ -785,7 +787,8 @@ static int Paint(int bValidate)
     // 64 blank framebuffer rows. Read-only diagnostics identify any DF offset.
     SDL_Rect xm87127View=dstrect;
     XM87206Crash::mark(420,nFramesEmulated);
-	const bool xm8649Painted=XMFD::paint(sdlRenderer,xm87127View) ||
+	const bool xm8649Painted=XMGuile::paint(sdlRenderer,xm87127View) ||
+                             XMFD::paint(sdlRenderer,xm87127View) ||
 	                         xm8649Paint(sdlRenderer,xm87127View);
     XM87206Crash::mark(421,nFramesEmulated);
 	if(!xm8649Painted){
