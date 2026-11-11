@@ -286,29 +286,28 @@ def extract(data: bytes, out: Path) -> list[str]:
             actors.setdefault(layer["actor"],[]).append(layer)
     if ground is None:
         raise ValueError("Guile PSD has no pixel layer named ground; stage needs its exact bounds")
-    # A PSD raster layer can have *trimmed stored bounds*: Photoshop keeps
-    # its nontransparent pixels only, even though the authored stage occupies
-    # the full 1016x471 coordinate plane. Keep BOTH geometries separately.
-    # The 1016x471 frame is user-authored, independent of the PSD canvas;
-    # the ground layer pixels remain the artwork and retain their coordinates.
+    # Photoshop stores the occupied rectangle of a raster layer, not a
+    # guaranteed full-stage rectangle. Combining artwork into Ground can
+    # expand that occupied rectangle beyond the earlier 1016-pixel reference.
+    # Keep original coordinates, expand the transparent frame if needed,
+    # and never crop, rescale, or throw away merged ground artwork.
     raw_gl,raw_gt,raw_gr,raw_gb = (
         ground["left"],ground["top"],ground["right"],ground["bottom"])
-    gl,gt,gr,gb = raw_gl,raw_gt,raw_gr,raw_gb
+    if raw_gl >= raw_gr or raw_gt >= raw_gb:
+        raise ValueError(f"Guile ground has invalid source bounds "
+                         f"({raw_gl},{raw_gt},{raw_gr},{raw_gb})")
+    # The originally agreed 1016x471 frame is a MINIMUM/reference, not
+    # a clipping boundary. The exported frame is the union of that frame
+    # and the actual Ground raster layer. Never substitute the PSD canvas.
+    gl,gt = min(0,raw_gl),min(0,raw_gt)
+    gr,gb = max(1016,raw_gr),max(471,raw_gb)
     gw,gh = gr-gl,gb-gt
-    pad_ground = False
-    if (gw,gh) != (1016,471):
-        if not (0 <= raw_gl < raw_gr <= 1016 and
-                0 <= raw_gt < raw_gb <= 471):
-            raise ValueError(
-                f"Guile ground pixels at ({raw_gl},{raw_gt}) {gw}x{gh} "
-                "fall outside the authored 1016x471 ground frame; "
-                "not safe to crop or move them.")
-        gl,gt,gr,gb = 0,0,1016,471
-        gw,gh = 1016,471
-        pad_ground = True
-        print(f"GUILE PSD GROUND PAD: stored pixels ({raw_gl},{raw_gt}) "
-              f"{raw_gr-raw_gl}x{raw_gb-raw_gt} preserved verbatim at "
-              "original PSD coordinates within 1016x471 RGBA ground frame")
+    if gw*gh > 8192*8192 or gw < 768 or gh < 471:
+        raise ValueError(f"Unsafe Guile ground frame ({gl},{gt},{gr},{gb})")
+    pad_ground = (gl,gt,gr,gb) != (raw_gl,raw_gt,raw_gr,raw_gb)
+    print(f"GUILE PSD GROUND SOURCE ({raw_gl},{raw_gt},{raw_gr},{raw_gb}) "
+          f"frame=({gl},{gt},{gr},{gb}) centered_crop={(gw-768)//2} "
+          "pixels=verbatim")
     if not actors:
         raise ValueError("Guile PSD has no raster layers inside the Characters group")
     # Every animation group owns one identical transparent, ground-anchored
@@ -437,7 +436,7 @@ def extract(data: bytes, out: Path) -> list[str]:
     for key,frames in actors.items():
         records.append(f"ACTOR\t{sanitize_field(key)}\t{len(frames)}")
     (out/"manifest.tsv").write_text("\n".join(records)+"\n",encoding="utf-8")
-    print(f"GUILE PSD INDEX ground=({gl},{gt},{gr},{gb}) visible=768x471 centered_crop=124 actor_groups={len(actors)}")
+    print(f"GUILE PSD INDEX ground=({gl},{gt},{gr},{gb}) visible=768x471 centered_crop={(gw-768)//2} actor_groups={len(actors)}")
     for key,frames in actors.items():
         print(f"GUILE PSD ACTOR {key}: {len(frames)} / {len(frames)} frames, bounds={actor_bounds[key]}")
     return records
