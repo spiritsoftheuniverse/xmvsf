@@ -1,4 +1,4 @@
-# Final Destination — TEST 87.274–87.279
+# Final Destination — TEST 87.274–87.280
 
 Branch: `final-destination` created from main commit
 `14889e013ca0b2dadaefc31eecfc110d1e2407e6`, which already contains
@@ -252,3 +252,61 @@ Local TEST launchers/build artifacts and menu version have been
 advanced to `87.279`. No additional build checks or GitHub Actions,
 no changes to Stable/DHC/combat, and no native Windows verification
 has been performed in the connector environment.
+
+## TEST 87.280 — actual GIF files, optimized incremental Windows playback
+
+The user replaced the three MP4s with GIFs on the `final-destination`
+branch. Confirmed source filenames and compressed sizes:
+
+- `_art/video/fd01.gif`: 40,015,081 bytes
+- `_art/video/fd02.gif`: 49,520,398 bytes
+- `_art/video/fd03.gif`: 73,540,654 bytes
+
+The `xmvsf_stage87_274_final_destination.h` painter now includes
+`xmvsf_stage87_280_fd_gif.h` instead of the 87.279 Media Foundation
+MP4 decoder header. The original MP4 source module is no longer
+compiled into the renderer.
+
+**Optimization:** On Windows, the new decoder uses the already
+available built-in Windows Imaging Component (WIC), which supports
+GIF89a natively, and the game's existing SDL renderer. It *streams*
+and composites up to two GIF frames per paint call, avoiding
+`IMG_LoadAnimation`'s full-resolution all-at-once expansion of
+40–74 MB GIFs. Only the current GIF is held at once; its logical
+canvas/decoded patch and **one 384×224 SDL streaming texture**
+are reused. GIF frame metadata (delay, disposal, rectangle) is
+indexed in bounded batches **during the 10-second initial wait
+and five-second between-clip gaps**. Source transparency, incremental
+patches, restore-background and restore-previous disposal are
+handled by the small software compositor. Display frames are
+downsampled before GPU upload. There is no new DLL dependency or
+linker flag: WIC is part of Windows and the existing Makefile
+already links `-lole32 -luuid`.
+
+If built without the Windows WIC SDK, the header includes a
+single-active-GIF SDL_image `IMG_LoadAnimation` fallback;
+the Windows runtime intentionally chooses the streaming path
+because full predecode is an unacceptable memory/performance
+risk with these source files.
+
+**Timing preserved:** 10 seconds after the native match starts,
+play GIF 01 with a one-second fade-in and a one-second fade-out
+over its last second, then five seconds of no video; repeat
+for 02 and 03 and loop back to 01 with the same five-second gap.
+Each GIF's duration and frame updates come from its **source
+per-frame centisecond delays**, not an arbitrary playback rate.
+The existing semi-transparent dark sky and independent blinking
+parallax stars render in front of the animated GIF; the stage,
+pink streaks, native fighters/FX and HUD remain on top and do
+not receive GIF effects.
+
+Missing GIFs / decode failures leave the native match playable and
+advance the playlist, without a blocking media player, audio or
+new build tasks. On the versioned TEST, look for:
+`XM87.280 FD_GIF_OPEN`, `FD_GIF_INDEXED`,
+`FD_GIF_MATCH_START`, and `FD_GIF_END` in the launch log.
+
+Local build and runner versions move to 87.280; all modifications
+remain on `final-destination`, not Stable/main. The GitHub source
+and GIF paths have been verified, but native Windows compilation
+and real playback still require running the existing local scripts.
