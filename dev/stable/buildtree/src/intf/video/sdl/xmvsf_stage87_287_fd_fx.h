@@ -258,7 +258,14 @@ struct Sequence {
    for(SDL_Texture*& t:texture){
     t=SDL_CreateTexture(render,SDL_PIXELFORMAT_BGRA32,
                         SDL_TEXTUREACCESS_STREAMING,texW,texH);
-    if(!t)return false;
+    if(!t){
+     for(SDL_Texture*& allocated:texture){
+      if(allocated)SDL_DestroyTexture(allocated);
+      allocated=nullptr;
+     }
+     texW=texH=0;active=0;
+     return false;
+    }
     SDL_SetTextureBlendMode(t,SDL_BLENDMODE_ADD);
     SDL_SetTextureScaleMode(t,SDL_ScaleModeLinear);
    }
