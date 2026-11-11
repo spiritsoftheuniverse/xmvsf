@@ -66,21 +66,49 @@ static std::string findPack(unsigned clip){
 static unsigned u32le(const unsigned char* p){
  return (unsigned)p[0]|((unsigned)p[1]<<8)|((unsigned)p[2]<<16)|((unsigned)p[3]<<24);
 }
-static SDL_RWops* openPack(unsigned clip,int& w,int& h){
+struct PackIndex { std::uint64_t offset=0; unsigned size=0; };
+static std::uint64_t u64le(const unsigned char* p){
+ return (std::uint64_t)u32le(p)|((std::uint64_t)u32le(p+4)<<32);
+}
+static SDL_RWops* openPack(unsigned clip,int& w,int& h,bool& compressed,std::vector<PackIndex>& index){
  const std::string filename=findPack(clip);
  if(filename.empty())return nullptr;
  SDL_RWops* rw=SDL_RWFromFile(filename.c_str(),"rb");
  if(!rw)return nullptr;
  unsigned char hdr[32]={};
- const bool valid=SDL_RWread(rw,hdr,1u,32u)==32u &&
-    std::memcmp(hdr,"XMFDBIN1",8u)==0 &&
+ const bool header=SDL_RWread(rw,hdr,1u,32u)==32u;
+ const bool v1=header && std::memcmp(hdr,"XMFDBIN1",8u)==0 && u32le(hdr+20)==1u;
+ const bool v2=header && std::memcmp(hdr,"XMFDBIN2",8u)==0 && u32le(hdr+20)==2u;
+ const Sint64 fileSize=SDL_RWseek(rw,0,RW_SEEK_END);
+ bool valid=(v1||v2) &&
     u32le(hdr+8)>=1u && u32le(hdr+8)<=8192u &&
     u32le(hdr+12)>=1u && u32le(hdr+12)<=8192u &&
-    u32le(hdr+16)==COUNT[clip] && u32le(hdr+20)==1u &&
-    u32le(hdr+24)==u32le(hdr+8)*4u && u32le(hdr+28)==0u &&
-    SDL_RWseek(rw,0,RW_SEEK_END)==
-       (Sint64)(32u+(std::uint64_t)COUNT[clip]*
-                      (std::uint64_t)u32le(hdr+24)*(std::uint64_t)u32le(hdr+12));
+    u32le(hdr+16)==COUNT[clip] &&
+    u32le(hdr+24)==u32le(hdr+8)*4u && u32le(hdr+28)==0u;
+ if(valid && v1)
+  valid=fileSize==(Sint64)(32u+(std::uint64_t)COUNT[clip]*
+           (std::uint64_t)u32le(hdr+24)*(std::uint64_t)u32le(hdr+12));
+ if(valid && v2){
+  const std::uint64_t start=32u+(std::uint64_t)COUNT[clip]*16u;
+  valid=fileSize>=(Sint64)start && SDL_RWseek(rw,32,RW_SEEK_SET)==32;
+  if(valid){
+   index.resize(COUNT[clip]);
+   std::uint64_t previous=start;
+   for(unsigned i=0;i<COUNT[clip];++i){
+    unsigned char entry[16];
+    if(SDL_RWread(rw,entry,1u,16u)!=16u){valid=false;break;}
+    const std::uint64_t offset=u64le(entry);
+    const unsigned size=u32le(entry+8);
+    if(offset<previous||size<8u||size>67108864u||
+       offset>(std::uint64_t)fileSize||
+       (std::uint64_t)size>(std::uint64_t)fileSize-offset||
+       u32le(entry+12)!=0u){valid=false;break;}
+    index[i].offset=offset;index[i].size=size;
+    previous=offset+(std::uint64_t)size;
+   }
+  }
+ }
+ compressed=v2;
  if(!valid){
   std::fprintf(stderr,"XM87.284 FD_BINARY_INVALID clip=%u path=%s; PNG fallback\n",
        clip+1u,filename.c_str());
@@ -88,8 +116,8 @@ static SDL_RWops* openPack(unsigned clip,int& w,int& h){
  }
  w=(int)u32le(hdr+8);h=(int)u32le(hdr+12);
  std::fprintf(stderr,
-  "XM87.284 FD_BINARY_READY clip=%u frames=%u size=%dx%d path=%s\n",
-  clip+1u,COUNT[clip],w,h,filename.c_str());
+  "XM87.284 FD_BINARY_READY clip=%u frames=%u size=%dx%d path=%s compressed=%u\n",
+  clip+1u,COUNT[clip],w,h,filename.c_str(),compressed?1u:0u);
  return rw;
 }
 struct Decoder {
@@ -106,6 +134,8 @@ struct Decoder {
   bool checked[CLIPS]={false,false,false};
   SDL_RWops* pack[CLIPS]={nullptr,nullptr,nullptr};
   int width[CLIPS]={0,0,0},height[CLIPS]={0,0,0};
+  bool compressed[CLIPS]={false,false,false};
+  std::vector<PackIndex> indexes[CLIPS];
   unsigned loadedGeneration=0u,next=0u;
   for(;;){
    SDL_LockMutex(d.mutex);
@@ -123,7 +153,7 @@ struct Decoder {
    if(next>=COUNT[clip]){SDL_Delay(2);continue;}
    if(!checked[clip]){
     checked[clip]=true;
-    pack[clip]=openPack(clip,width[clip],height[clip]);
+    pack[clip]=openPack(clip,width[clip],height[clip],compressed[clip],indexes[clip]);
     if(!pack[clip]){
      roots[clip]=findRoot(clip);
      missing[clip]=roots[clip].empty();
@@ -139,7 +169,25 @@ struct Decoder {
    }
    if(missing[clip]){SDL_Delay(10);continue;}
    SDL_Surface* rgba=nullptr;
-   if(pack[clip]){
+   if(pack[clip] && compressed[clip]){
+    const PackIndex& item=indexes[clip][next];
+    std::vector<unsigned char> png(item.size);
+    const bool good=SDL_RWseek(pack[clip],(Sint64)item.offset,RW_SEEK_SET)==(Sint64)item.offset &&
+       SDL_RWread(pack[clip],png.data(),1u,item.size)==item.size;
+    if(good){
+     SDL_RWops* memory=SDL_RWFromConstMem(png.data(),(int)item.size);
+     if(memory){
+      SDL_Surface* decoded=IMG_Load_RW(memory,1);
+      if(decoded){rgba=SDL_ConvertSurfaceFormat(decoded,SDL_PIXELFORMAT_BGRA32,0);
+       SDL_FreeSurface(decoded);
+       if(rgba && (rgba->w!=width[clip]||rgba->h!=height[clip])){
+        SDL_FreeSurface(rgba);rgba=nullptr;
+       }
+      }
+     }
+    }
+    if(!rgba)std::fprintf(stderr,"XM87.284 FD_BINARY_PNG_FAIL clip=%u frame=%u\\n",clip+1u,next);
+   }else if(pack[clip]){
     const int w=width[clip],h=height[clip];
     rgba=SDL_CreateRGBSurfaceWithFormat(0,w,h,32,SDL_PIXELFORMAT_BGRA32);
     if(!rgba){
