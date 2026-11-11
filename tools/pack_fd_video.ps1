@@ -45,7 +45,7 @@ foreach ($clip in $clips) {
     Write-Host "Packing $name ($count native RGBA frames, $width x $height)..."
     $writer = $null
     try {
-        $writer = New-Object System.IO.BinaryWriter(
+        $writer = [System.IO.BinaryWriter]::new(
             [System.IO.File]::Open($temp, [System.IO.FileMode]::Create, [System.IO.FileAccess]::Write))
         $writer.Write([byte[]]$magic)
         $writer.Write([uint32]$width)
