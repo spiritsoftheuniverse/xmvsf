@@ -14,6 +14,9 @@
 #include <vector>
 #if defined(_WIN32) && __has_include(<wincodec.h>)
 #define XMFD_GIF_WIC 1
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
 #include <windows.h>
 #include <wincodec.h>
 #include <propidl.h>
@@ -224,6 +227,9 @@ struct Decoder {
   release(convert);release(frame);
   if(FAILED(hr)){std::fprintf(stderr,"XM87.280 FD_GIF_FRAME_FAIL clip=%d i=%u hr=%08lX\n",
                               clip+1,i,(unsigned long)hr);return false;}
+  if(info.left>=w || info.top>=h){ // malformed/off-canvas frame metadata
+   lastRect=info;lastDisposal=info.disposal;drawn=(int)i;return true;
+  }
   for(unsigned py=0;py<info.height && info.top+py<h;++py){
    const Uint8* src=patch.data()+(size_t)py*info.width*4u;
    Uint8* dst=canvas.data()+((size_t)(info.top+py)*w+info.left)*4u;
