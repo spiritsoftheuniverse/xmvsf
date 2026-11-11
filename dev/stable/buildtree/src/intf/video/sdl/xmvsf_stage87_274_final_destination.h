@@ -205,11 +205,13 @@ inline bool paint(SDL_Renderer* render,const SDL_Rect& view){
  // Explicitly disarm match-video timing when we leave this stage or the
  // native stage-load sequence so a rematch starts its own 10s interval.
  if(xm77StageResolved!=2 || !xm8649Visual.sceneActive ||
-    xm8649Visual.stage!=5 || !xm77SpriteValid ||
-    xm77SpriteWidth!=W || xm77SpriteHeight!=H || !xm77SpritePixels()){
+    xm8649Visual.stage!=5){
   if(scene().video.phase!=XMFDVideo::Sequence::PRE_MATCH)scene().video.resetMatch();
   return false;
  }
+ // Temporary sprite-capture loss must not restart a running clip timer.
+ if(!xm77SpriteValid || xm77SpriteWidth!=W || xm77SpriteHeight!=H ||
+    !xm77SpritePixels())return false;
  Scene& s=scene();
  if(!s.load(render))return false; // keep original native stage on asset failure
  const unsigned long long frame=xm8649Visual.frames;
