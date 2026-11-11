@@ -46,6 +46,7 @@ static std::string findRoot(unsigned clip){
 struct Frame {
  unsigned clip=0u,index=0u,generation=0u;
  SDL_Surface* pixels=nullptr;
+ bool shared=false; // Cached memory; caller must not free the surface.
 };
 static std::string findPack(unsigned clip){
  std::vector<std::string> roots={"_art/video/","../_art/video/","../../_art/video/"};
@@ -120,6 +121,155 @@ static SDL_RWops* openPack(unsigned clip,int& w,int& h,bool& compressed,std::vec
   clip+1u,COUNT[clip],w,h,filename.c_str(),compressed?1u:0u);
  return rw;
 }
+// Dedicated low-priority selection-screen preloader. Only this worker writes
+// the persistent surfaces, and they remain owned until video.close().
+struct Preloader {
+ SDL_mutex* mutex=nullptr;
+ SDL_Thread* thread=nullptr;
+ bool stop=false,enabled=false;
+ unsigned loaded=0u;
+ std::vector<SDL_Surface*> frames[CLIPS];
+ static int SDLCALL run(void* context){
+  Preloader& p=*(Preloader*)context;
+  SDL_SetThreadPriority(SDL_THREAD_PRIORITY_LOW);
+  std::string roots[CLIPS];
+  SDL_RWops* packs[CLIPS]={nullptr,nullptr,nullptr};
+  bool compressed[CLIPS]={false,false,false};
+  std::vector<PackIndex> indexes[CLIPS];
+  int widths[CLIPS]={0,0,0},heights[CLIPS]={0,0,0};
+  bool checked[CLIPS]={false,false,false};
+  unsigned clip=0u,frame=0u;
+  while(clip<CLIPS){
+   SDL_LockMutex(p.mutex);
+   const bool quit=p.stop,active=p.enabled;
+   SDL_UnlockMutex(p.mutex);
+   if(quit)break;
+   if(!active){SDL_Delay(8);continue;}
+   if(frame>=COUNT[clip]){++clip;frame=0u;continue;}
+   if(!checked[clip]){
+    checked[clip]=true;
+    packs[clip]=openPack(clip,widths[clip],heights[clip],compressed[clip],indexes[clip]);
+    if(!packs[clip])roots[clip]=findRoot(clip);
+    if(!packs[clip] && roots[clip].empty()){
+     std::fprintf(stderr,"XM87.286 FD_PRELOAD_MISSING clip=%u\n",clip+1u);
+     ++clip;frame=0u;continue;
+    }
+   }
+   SDL_Surface* surface=nullptr;
+   if(packs[clip] && compressed[clip]){
+    const PackIndex& entry=indexes[clip][frame];
+    std::vector<unsigned char> png(entry.size);
+    if(SDL_RWseek(packs[clip],(Sint64)entry.offset,RW_SEEK_SET)==(Sint64)entry.offset &&
+       SDL_RWread(packs[clip],png.data(),1u,entry.size)==entry.size){
+     SDL_RWops* memory=SDL_RWFromConstMem(png.data(),(int)entry.size);
+     if(memory){
+      SDL_Surface* source=IMG_Load_RW(memory,1);
+      if(source){
+       surface=SDL_ConvertSurfaceFormat(source,SDL_PIXELFORMAT_BGRA32,0);
+       SDL_FreeSurface(source);
+       if(surface && (surface->w!=widths[clip]||surface->h!=heights[clip])){
+        SDL_FreeSurface(surface);surface=nullptr;
+       }
+      }
+     }
+    }
+   }else if(packs[clip]){
+    const int w=widths[clip],h=heights[clip];
+    surface=SDL_CreateRGBSurfaceWithFormat(0,w,h,32,SDL_PIXELFORMAT_BGRA32);
+    if(surface){
+     const Sint64 offset=32+(Sint64)frame*(Sint64)w*(Sint64)h*4;
+     bool good=SDL_RWseek(packs[clip],offset,RW_SEEK_SET)==offset;
+     if(good && surface->pitch==w*4){
+      const size_t bytes=(size_t)w*(size_t)h*4u;
+      good=SDL_RWread(packs[clip],surface->pixels,1u,bytes)==bytes;
+     }else if(good){
+      for(int y=0;good && y<h;++y){
+       unsigned char* row=(unsigned char*)surface->pixels+(size_t)y*surface->pitch;
+       good=SDL_RWread(packs[clip],row,1u,(size_t)w*4u)==(size_t)w*4u;
+      }
+     }
+     if(!good){SDL_FreeSurface(surface);surface=nullptr;}
+    }
+   }else{
+    const std::string filename=roots[clip]+path(clip,frame);
+    SDL_Surface* source=IMG_Load(filename.c_str());
+    if(source){
+     surface=SDL_ConvertSurfaceFormat(source,SDL_PIXELFORMAT_BGRA32,0);
+     SDL_FreeSurface(source);
+    }
+   }
+   if(surface){
+    SDL_LockMutex(p.mutex);
+    p.frames[clip][frame]=surface;
+    ++p.loaded;
+    const unsigned total=COUNT[0]+COUNT[1]+COUNT[2];
+    if(p.loaded%100u==0u || p.loaded==total)
+     std::fprintf(stderr,"XM87.286 FD_PRELOAD_PROGRESS %u/%u\n",p.loaded,total);
+    SDL_UnlockMutex(p.mutex);
+   }else{
+    std::fprintf(stderr,"XM87.286 FD_PRELOAD_DECODE_FAIL clip=%u frame=%u\n",clip+1u,frame);
+   }
+   ++frame;
+   SDL_Delay(1); // bounded menu/selection CPU competition
+  }
+  for(unsigned c=0u;c<CLIPS;++c)if(packs[c])SDL_RWclose(packs[c]);
+  if(clip==CLIPS)
+   std::fprintf(stderr,"XM87.286 FD_PRELOAD_FINISHED frames=%u/%u\n",
+                p.loaded,COUNT[0]+COUNT[1]+COUNT[2]);
+  return 0;
+ }
+ void setEnabled(bool on){
+  if(on && !mutex){
+   mutex=SDL_CreateMutex();
+   if(!mutex)return;
+   for(unsigned c=0u;c<CLIPS;++c)frames[c].resize(COUNT[c],nullptr);
+   thread=SDL_CreateThread(run,"XMFD predecode",this);
+   if(!thread){
+    SDL_DestroyMutex(mutex);mutex=nullptr;
+    return;
+   }
+   std::fprintf(stderr,"XM87.286 FD_PRELOAD_START lowPriority=1 total=%u\n",
+                COUNT[0]+COUNT[1]+COUNT[2]);
+  }
+  if(mutex){
+   SDL_LockMutex(mutex);
+   enabled=on;
+   SDL_UnlockMutex(mutex);
+  }
+ }
+ bool peek(unsigned clip,unsigned index,Frame& result){
+  if(!mutex||clip>=CLIPS||index>=COUNT[clip])return false;
+  SDL_LockMutex(mutex);
+  SDL_Surface* pixels=frames[clip][index];
+  SDL_UnlockMutex(mutex);
+  if(!pixels)return false;
+  result.clip=clip;result.index=index;result.pixels=pixels;result.shared=true;
+  return true;
+ }
+ bool contains(unsigned clip,unsigned index){
+  Frame unused;
+  return peek(clip,index,unused);
+ }
+ bool complete(){
+  if(!mutex)return false;
+  SDL_LockMutex(mutex);
+  const bool ready=loaded==COUNT[0]+COUNT[1]+COUNT[2];
+  SDL_UnlockMutex(mutex);
+  return ready;
+ }
+ void shutdown(){
+  if(!mutex)return;
+  SDL_LockMutex(mutex);stop=true;SDL_UnlockMutex(mutex);
+  if(thread){SDL_WaitThread(thread,nullptr);thread=nullptr;}
+  for(unsigned c=0u;c<CLIPS;++c){
+   for(SDL_Surface* f:frames[c])if(f)SDL_FreeSurface(f);
+   frames[c].clear();
+  }
+  SDL_DestroyMutex(mutex);mutex=nullptr;
+  stop=enabled=false;loaded=0u;
+ }
+};
+inline Preloader& preload(){static Preloader instance;return instance;}
 struct Decoder {
  SDL_mutex* mutex=nullptr;
  SDL_Thread* thread=nullptr;
@@ -151,6 +301,7 @@ struct Decoder {
     next=index;
    }
    if(next>=COUNT[clip]){SDL_Delay(2);continue;}
+   if(preload().contains(clip,next)){++next;continue;}
    if(!checked[clip]){
     checked[clip]=true;
     pack[clip]=openPack(clip,width[clip],height[clip],compressed[clip],indexes[clip]);
@@ -269,6 +420,7 @@ struct Decoder {
   SDL_UnlockMutex(mutex);
  }
  bool take(unsigned c,unsigned i,Frame& out){
+  if(preload().peek(c,i,out))return true;
   if(!mutex)return false;
   SDL_LockMutex(mutex);
   // Drop late decoded frames without ever blocking game presentation.
@@ -308,6 +460,7 @@ struct Sequence {
  bool visible=false;
  void close(){
   decoder.shutdown();
+  preload().shutdown();
   for(SDL_Texture*& tex:texture){if(tex)SDL_DestroyTexture(tex);tex=nullptr;}
   active=texW=texH=0;resetMatch();
  }
@@ -364,7 +517,7 @@ struct Sequence {
   Frame prepared;
   if(decoder.take(upcomingClip,0u,prepared)){
    const bool ok=upload(renderer,prepared.pixels);
-   SDL_FreeSurface(prepared.pixels);
+   if(!prepared.shared)SDL_FreeSurface(prepared.pixels);
    if(ok){shownClip=(int)upcomingClip;shownIndex=0;}
   }
  }
@@ -406,7 +559,7 @@ struct Sequence {
    Frame decoded;
    if(decoder.take(clip,selected,decoded)){
     const bool ok=upload(renderer,decoded.pixels);
-    SDL_FreeSurface(decoded.pixels);
+    if(!decoded.shared)SDL_FreeSurface(decoded.pixels);
     if(ok){shownClip=(int)clip;shownIndex=(int)selected;}
    }
   }
