@@ -4,6 +4,9 @@ for %%I in ("%~dp0.") do set "PROJECT=%%~fI"
 set "MSYSTEM=UCRT64"
 set "PATH=C:\msys64\ucrt64\bin;C:\msys64\usr\bin;%PATH%"
 set "XMVSF_PROJECT=%PROJECT%"
+REM Freeze the target for this invocation: updates during a long build must not
+REM make the wrapper look for a different version than the shell published.
+set "XMVSF_TEST_VERSION=87.292"
 REM Build logs are written BEFORE checking prerequisites. This path is
 REM stable across point versions and never touches or deletes build objects.
 set "LOGDIR=%PROJECT%\test\build_logs"
@@ -11,9 +14,9 @@ if not exist "%LOGDIR%" mkdir "%LOGDIR%"
 if not exist "%LOGDIR%" goto :no_log
 set "BUILDLOG=%LOGDIR%\BUILD_TEST.log"
 >>"%BUILDLOG%" echo.
->>"%BUILDLOG%" echo ========== XMVSF BUILD_TEST.bat 87.292 START %DATE% %TIME% ==========
+>>"%BUILDLOG%" echo ========== XMVSF BUILD_TEST.bat %XMVSF_TEST_VERSION% START %DATE% %TIME% ==========
 >>"%BUILDLOG%" echo Project: %PROJECT%
-echo XMVSF 87.292 incremental TEST build
+echo XMVSF %XMVSF_TEST_VERSION% incremental TEST build
 echo Source: "%PROJECT%\dev\stable\buildtree"
 echo Permanent build transcript: "%BUILDLOG%"
 echo All build output is displayed AND appended to the transcript.
@@ -67,17 +70,17 @@ if not "%RC%"=="0" goto :fail
 REM The shell must have actually compiled/linked and published the current
 REM native TEST executable. Never fall back to Stable or a stale numbered TEST.
 if not exist "%PROJECT%\runtime\stable\XMVSF_Test_87_292.exe" (
-  echo ERROR: Native compiler returned success but TEST 87.292 executable is missing.
-  >>"%BUILDLOG%" echo ERROR: TEST 87.292 executable missing after successful make
+  echo ERROR: Native compiler returned success but TEST %XMVSF_TEST_VERSION% executable is missing.
+  >>"%BUILDLOG%" echo ERROR: TEST %XMVSF_TEST_VERSION% executable missing after successful make
   goto :fail
 )
 for %%I in ("%PROJECT%\runtime\stable\XMVSF_Test_87_292.exe") do if %%~zI LEQ 0 (
-  echo ERROR: TEST 87.292 output is empty.
-  >>"%BUILDLOG%" echo ERROR: TEST 87.292 executable has zero bytes.
+  echo ERROR: TEST %XMVSF_TEST_VERSION% output is empty.
+  >>"%BUILDLOG%" echo ERROR: TEST %XMVSF_TEST_VERSION% executable has zero bytes.
   goto :fail
 )
 echo.
-echo TEST 87.292 BUILD READY. Run RUN_TEST.bat option 1.
+echo TEST %XMVSF_TEST_VERSION% BUILD READY. Run RUN_TEST.bat option 1.
 echo Full transcript: "%BUILDLOG%"
 >>"%BUILDLOG%" echo BATCH RESULT: SUCCESS %DATE% %TIME%
 pause
