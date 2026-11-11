@@ -15,4 +15,6 @@ void xm20MenuEnterGame();
 void xm20OnCombat();
 void xm20ClockReset();
 int xm20FrameDue(int fpsHundredths);
+int xm20FrameDueCatchup(int fpsHundredths,int maxFrames);
+void xm20AdvanceSoundNoPaint();
 #endif
