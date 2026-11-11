@@ -13,7 +13,7 @@
 #include <string>
 #include <vector>
 #include "xmvsf_stage87_278_pink_light.h" // original-color, 30%-max slow neon sweeps
-#include "xmvsf_stage87_280_fd_gif.h" // bounded streaming GIF playback behind parallax stars
+#include "xmvsf_stage87_281_fd_gif_async.h" // off-thread WIC GIF, GPU texture, quarter-speed
 
 namespace XMFD {
 static const int W=384,H=224,WORLD_W=768,SPACE_W=1152;
@@ -81,7 +81,7 @@ struct Scene {
    if(image){found=filename;break;}
   }
   if(!image){
-   std::fprintf(stderr,"XM87.280 FINAL_DESTINATION_ASSET_MISSING original=_art/finaldestination.png; native fallback\n");
+   std::fprintf(stderr,"XM87.281 FINAL_DESTINATION_ASSET_MISSING original=_art/finaldestination.png; native fallback\n");
    failed=true;return false;
   }
   platformW=image->w;platformH=image->h;
@@ -91,7 +91,7 @@ struct Scene {
   SDL_Surface* masked=pink.prepare(renderer,image);
   SDL_FreeSurface(image);
   if(!masked){
-   std::fprintf(stderr,"XM87.280 FD_PINK_MASK_PREPARE_FAILED %s\n",SDL_GetError());
+   std::fprintf(stderr,"XM87.281 FD_PINK_MASK_PREPARE_FAILED %s\n",SDL_GetError());
    close();failed=true;return false;
   }
   platform=SDL_CreateTextureFromSurface(renderer,masked);
@@ -103,7 +103,7 @@ struct Scene {
   flash=SDL_CreateTexture(renderer,SDL_PIXELFORMAT_RGBA32,
        SDL_TEXTUREACCESS_STREAMING,W,H);
   if(!platform || !stars || !fighters || !flash || platformW<1 || platformH<1){
-   std::fprintf(stderr,"XM87.280 FINAL_DESTINATION_TEXTURE_FAILED %s\n",SDL_GetError());
+   std::fprintf(stderr,"XM87.281 FINAL_DESTINATION_TEXTURE_FAILED %s\n",SDL_GetError());
    close();failed=true;return false;
   }
   SDL_SetTextureBlendMode(platform,SDL_BLENDMODE_BLEND);
@@ -132,7 +132,7 @@ struct Scene {
   }
   const int worldH=(platformH*WORLD_W+platformW/2)/platformW;
   std::fprintf(stderr,
-   "XM87.280 FINAL_DESTINATION_READY asset=%s source=%dx%d world=%dx%d anchor=bottom filter=nearest RGBA32 stars=%zu layers=3\n",
+   "XM87.281 FINAL_DESTINATION_READY asset=%s source=%dx%d world=%dx%d anchor=bottom filter=nearest RGBA32 stars=%zu layers=3\n",
    found.c_str(),platformW,platformH,WORLD_W,worldH,particles.size());
   return true;
  }
@@ -192,7 +192,7 @@ struct Scene {
    pixel(x,y,red,green,blue,core);
   }
   if(SDL_UpdateTexture(stars,nullptr,rgba.data(),W*4)!=0){
-   std::fprintf(stderr,"XM87.280 FINAL_DESTINATION_STAR_UPLOAD_FAILED %s\n",SDL_GetError());
+   std::fprintf(stderr,"XM87.281 FINAL_DESTINATION_STAR_UPLOAD_FAILED %s\n",SDL_GetError());
    return false;
   }
   return true;
@@ -216,8 +216,8 @@ inline bool paint(SDL_Renderer* render,const SDL_Rect& view){
  if(!s.load(render))return false; // keep original native stage on asset failure
  const unsigned long long frame=xm8649Visual.frames;
  // Match-start clock is first native battle status 8, not pre-fight loading.
- // Streaming GIF decoding is silent and isolated; if unavailable the
- // opaque starfield works without affecting stage or native fighters.
+ // The background worker decodes GIFs; only a small GPU upload occurs here.
+ // If unavailable, the usual starfield and native fighters stay playable.
  s.video.tick(render,frame,xm8649Visual.status);
  if(!s.renderStars(render,frame,xm8649Visual.nativeCameraX,
                    xm8649Visual.nativeCameraY,s.video.alpha))
@@ -225,7 +225,7 @@ inline bool paint(SDL_Renderer* render,const SDL_Rect& view){
  // Progress the streak clock in emulation time, not wall-clock paint calls.
  if(!s.pink.update(frame))return false;
  if(SDL_UpdateTexture(s.fighters,nullptr,xm77SpritePixels(),W*4)!=0){
-  std::fprintf(stderr,"XM87.280 FINAL_DESTINATION_FIGHTER_UPLOAD_FAILED %s\n",SDL_GetError());
+  std::fprintf(stderr,"XM87.281 FINAL_DESTINATION_FIGHTER_UPLOAD_FAILED %s\n",SDL_GetError());
   return false;
  }
  const unsigned char* nativeFlash=xm8757FlashPixels();
@@ -259,7 +259,7 @@ inline bool paint(SDL_Renderer* render,const SDL_Rect& view){
  static int loggedCameraX=-9999,loggedCameraY=-9999;
  if(camera!=loggedCameraX || cameraY!=loggedCameraY){
   std::fprintf(stderr,
-   "XM87.280 FINAL_DESTINATION_CAMERA cameraX=%d cameraY=%d groundCameraY=%d world=%dx%d viewport=%dx%d dst=%d,%d,%d,%d bottom=%d filter=nearest\n",
+   "XM87.281 FINAL_DESTINATION_CAMERA cameraX=%d cameraY=%d groundCameraY=%d world=%dx%d viewport=%dx%d dst=%d,%d,%d,%d bottom=%d filter=nearest\n",
    camera,cameraY,GROUND_CAMERA_Y,WORLD_W,worldH,W,H,
    platformWorld.x,platformWorld.y,platformWorld.w,platformWorld.h,
    platformWorld.y+platformWorld.h);
@@ -279,7 +279,7 @@ inline bool paint(SDL_Renderer* render,const SDL_Rect& view){
  }
  SDL_RenderSetClipRect(render,hadClip?&oldClip:nullptr);
  if(!good){
-  std::fprintf(stderr,"XM87.280 FINAL_DESTINATION_DRAW_FAILED %s\n",SDL_GetError());
+  std::fprintf(stderr,"XM87.281 FINAL_DESTINATION_DRAW_FAILED %s\n",SDL_GetError());
   return false;
  }
  return true;
