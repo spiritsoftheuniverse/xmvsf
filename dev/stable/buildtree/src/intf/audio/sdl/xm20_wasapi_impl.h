@@ -25,7 +25,9 @@
 #include "../../../burner/sdl/xmvsf_stage20_api.h"
 // Decode OGG Vorbis on one low-priority worker, using the bundled decoder.
 // No SDL_mixer, second WASAPI endpoint or additional linker dependency.
-#define STB_VORBIS_NO_PUSHDATA_API
+// msu1_decoders.c in drivers.o already owns the one stb_vorbis implementation.
+// Import only C-ABI function declarations here; never emit a second body.
+#define STB_VORBIS_HEADER_ONLY
 #include "../../../dep/libs/stb_vorbis/stb_vorbis.c"
 
 namespace xm20 {
