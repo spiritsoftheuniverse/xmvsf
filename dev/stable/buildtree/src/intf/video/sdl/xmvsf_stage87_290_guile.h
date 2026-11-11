@@ -17,9 +17,11 @@
 #include <vector>
 
 namespace XMGuile {
-// Photoshop ground is 1016x471. Render a centered 768x471 crop; never
-// derive stage scale from the PSD canvas or trimmed PNG layer dimensions.
-static const int VIEW_W=384,VIEW_H=224,GROUND_W=1016,GROUND_H=471;
+// Display the centered 768x471 window at the authored 1:1 pixel scale.
+// The 1016x471 stage frame is a historical MINIMUM; Ground's source pixels
+// may now extend farther after artwork is merged. The PSD manifest supplies
+// the expanded bounds. Original pixel coordinates are never recentered.
+static const int VIEW_W=384,VIEW_H=224;
 static const int AUTHORED_W=768,AUTHORED_H=471,GROUND_CAMERA_Y=256;
 static inline int clamp(int n,int lo,int hi){return std::max(lo,std::min(hi,n));}
 static inline unsigned rand32(unsigned& s) {
@@ -155,9 +157,10 @@ struct Scene {
     groundW=std::atoi(f[3].c_str());groundH=std::atoi(f[4].c_str());
    }
   }
-  if(formatVersion!=3||groundW!=GROUND_W||groundH!=GROUND_H){
+  if(formatVersion!=3||groundW<AUTHORED_W||groundH<AUTHORED_H||
+     groundW>8192||groundH>8192){
    std::fprintf(stderr,
-    "XM87.293 GUILE_STALE_MANIFEST format=%d ground=(%d,%d %dx%d); regenerate with extractor\n",
+    "XM87.295 GUILE_STALE_MANIFEST format=%d ground=(%d,%d %dx%d); regenerate with extractor\n",
     formatVersion,groundX,groundY,groundW,groundH);
    failed=true;return false;
   }
@@ -227,7 +230,7 @@ struct Scene {
    a.hold=6+(int)(rand32(a.rng)%7u);
   }
   std::fprintf(stderr,
-    "XM87.293 GUILE_READY root=%s canvas=%dx%d ground=(%d,%d %dx%d) crop=768x471 sky=%u bg=%u ground=%u actors=%zu textures=%zu\n",
+    "XM87.295 GUILE_READY root=%s canvas=%dx%d ground=(%d,%d %dx%d) crop=768x471 sky=%u bg=%u ground=%u actors=%zu textures=%zu\n",
     root.c_str(),canvasW,canvasH,groundX,groundY,groundW,groundH,
     count[0],count[1],count[2],actors.size(),layers.size());
   return true;
