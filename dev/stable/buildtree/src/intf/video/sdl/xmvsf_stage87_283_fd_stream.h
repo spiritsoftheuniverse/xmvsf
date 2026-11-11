@@ -83,12 +83,18 @@ struct Decoder {
    if(!decoded){
     std::fprintf(stderr,"XM87.283 FD_STREAM_DECODE_FAIL clip=%u frame=%u %s\n",
       clip+1u,next,IMG_GetError());
-    SDL_Delay(20);continue;
+    // A corrupt/missing individual PNG must never create an infinite
+    // decode/retry loop or fill the launch log every 20 ms.
+    ++next;continue;
    }
    // SDL pixel conversion is also on the worker, never on the game thread.
    SDL_Surface* rgba=SDL_ConvertSurfaceFormat(decoded,SDL_PIXELFORMAT_RGBA32,0);
    SDL_FreeSurface(decoded);
-   if(!rgba){SDL_Delay(10);continue;}
+   if(!rgba){
+    std::fprintf(stderr,"XM87.283 FD_STREAM_CONVERT_FAIL clip=%u frame=%u %s\n",
+      clip+1u,next,SDL_GetError());
+    ++next;continue;
+   }
    SDL_LockMutex(d.mutex);
    if(d.stop||d.generation!=generation){
     SDL_UnlockMutex(d.mutex);
@@ -187,6 +193,11 @@ struct Sequence {
                            SDL_TEXTUREACCESS_STREAMING,w,h);
     if(!tex){
      std::fprintf(stderr,"XM87.283 FD_STREAM_ALLOC_FAIL %s\n",SDL_GetError());
+     for(SDL_Texture*& allocated:texture){
+      if(allocated)SDL_DestroyTexture(allocated);
+      allocated=nullptr;
+     }
+     texW=texH=0;
      return false;
     }
     SDL_SetTextureBlendMode(tex,SDL_BLENDMODE_BLEND);
@@ -210,6 +221,18 @@ struct Sequence {
   active=target;
   return true;
  }
+ // Upload the first ready frame during the existing idle/fade gap rather
+ // than creating GPU textures on the first visible animation frame.
+ void prewarm(SDL_Renderer* renderer,unsigned upcomingClip){
+  decoder.request(upcomingClip,0u);
+  if(shownClip==(int)upcomingClip && shownIndex==0)return;
+  Frame prepared;
+  if(decoder.take(upcomingClip,0u,prepared)){
+   const bool ok=upload(renderer,prepared.pixels);
+   SDL_FreeSurface(prepared.pixels);
+   if(ok){shownClip=(int)upcomingClip;shownIndex=0;}
+  }
+ }
  void tick(SDL_Renderer* renderer,std::uint64_t frame,unsigned status){
   if(!decoder.thread)decoder.start();
   if(status<8u){if(phase!=PRE_MATCH)resetMatch();return;}
@@ -222,12 +245,12 @@ struct Sequence {
   if(frame<lastFrame){resetMatch();return;}
   lastFrame=frame;
   if(phase==INITIAL){
-   decoder.request(0u,0u); // decode ahead during the initial ten seconds
+   prewarm(renderer,0u); // decode and upload during the initial ten seconds
    if(frame-matchStart<WAIT_INITIAL)return;
    segmentStart=matchStart+WAIT_INITIAL;phase=PLAY;
   }
   if(phase==GAP_PHASE){
-   decoder.request(clip,0u); // prefetch next clip during five-second gap
+   prewarm(renderer,clip); // prefetch/upload next clip during five-second gap
    if(frame-segmentStart<GAP)return;
    segmentStart+=GAP;phase=PLAY;
   }
