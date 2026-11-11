@@ -1,4 +1,4 @@
-# Final Destination — TEST 87.274–87.277
+# Final Destination — TEST 87.274–87.278
 
 Branch: `final-destination` created from main commit
 `14889e013ca0b2dadaefc31eecfc110d1e2407e6`, which already contains
@@ -148,3 +148,46 @@ before adapting this transform for other native stages.
 
 TEST 87.277 is source-verified, not Windows gameplay-verified. Stable
 and the warm local build cache remain untouched.
+
+## TEST 87.278 — original pink rails masked and trapezoidal light sweeps
+
+The stage now loads the supplied unmodified
+`_art/finaldestination.png` and converts a *temporary copy* to
+`SDL_PIXELFORMAT_RGBA32`. Pixel classification identifies bright pink
+as source pixels where R and B are each at least 95 and at least
+40 values above G, with antialias-weighted extraction. The exact
+source-alpha portion classified as pink is cut out of that temporary
+platform copy and retained in a separate light-mask list. The
+repository PNG itself is never rewritten.
+
+Seven path-direction references follow the visible narrow neon rails:
+rising left upper bevel, falling right upper bevel, upper front
+horizontal, left/right lower perspective edges, distant inner strip,
+and lower front horizontal. Each pink pixel is attached to the nearest
+rail in source-image-normalized coordinates and receives a
+time-varying trapezoidal sweep along that rail's tangent. Leading
+and trailing boundaries skew as a function of lateral distance
+across the path to form a trapezoid rather than a straight rectangular
+band. Lane clocks vary in period, phase and speed; low continuous
+channel emission remains visible between bright moving streaks.
+
+**Z-order:** 32-bit RGB starfield, platform with pink holes, masked
+animated pink light, the existing native HUD underlay, native
+fighter/FX sprites, native white/colored flashes, then game UI.
+All platform and light textures use nearest-neighbor sampling.
+The light and platform use the *same* 768px native world
+rectangle calculated from the native horizontal and vertical
+camera; effects cannot drift off the sloped rails when the camera
+scrolls or the fighters super-jump. The effect advances by emulated
+frame count, not window repaints. No camera RAM, fight physics, DHC,
+roster, inputs or other stages were changed.
+
+The opening logger `XM87.278 FD_PINK_MASK image=... pixels=...
+lanes=7 effect=world_trapezoids filter=nearest` confirms a
+nonzero number of masked source pixels, and a missing-asset error
+preserves native stage fallback. This is **source-reviewed** but
+not yet exercised in a real Windows game frame.
+
+Local TEST scripts and in-game version label advance to
+`87.278` without additional tests, build gates, GitHub Actions
+or Stable modification.
