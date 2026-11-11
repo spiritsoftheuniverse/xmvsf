@@ -22,7 +22,7 @@
 #endif
 
 namespace XMFDVideo {
-static const std::uint64_t FPS=60, INITIAL=10*FPS, GAP=5*FPS, FADE=FPS;
+static const std::uint64_t FPS=60,WAIT_INITIAL=10*FPS,GAP=5*FPS,FADE=FPS;
 static const int VIEW_W=384,VIEW_H=224;
 static std::string locate(int index){
  const char* names[]={"fd01.gif","fd02.gif","fd03.gif"};
@@ -298,6 +298,7 @@ struct Decoder {
  IMG_Animation* gif=nullptr;
 #endif
  SDL_Texture* texture=nullptr;
+ SDL_Renderer* targetRenderer=nullptr;
  int clip=-1,drawn=-1;
  std::uint64_t durationFrames=0;
  std::vector<std::uint64_t> starts;
@@ -307,7 +308,7 @@ struct Decoder {
   if(gif){IMG_FreeAnimation(gif);gif=nullptr;}
 #endif
   if(texture)SDL_DestroyTexture(texture);
-  texture=nullptr;clip=-1;drawn=-1;durationFrames=0;
+  texture=nullptr;targetRenderer=nullptr;clip=-1;drawn=-1;durationFrames=0;
   starts.clear();ready=false;failed=false;
  }
  void close(){releaseClip();}
@@ -327,7 +328,7 @@ struct Decoder {
    int delay=gif->delays?gif->delays[i]:100;
    durationFrames+=(std::uint64_t)std::max(1,(std::max(20,delay)*60+500)/1000);
   }
-  clip=index;ready=true;
+  targetRenderer=r;clip=index;ready=true;
   std::fprintf(stderr,"XM87.280 FD_GIF_SDL_IMAGE clip=%d frames=%d duration=%llu (fallback)\n",
      index+1,gif->count,(unsigned long long)durationFrames);
   return true;
@@ -343,16 +344,13 @@ struct Decoder {
   int index=i==starts.begin()?0:(int)(i-starts.begin()-1);
   if(index==drawn)return true;
   SDL_Surface* frame=gif->frames[index];
-  if(!frame)return false;
-  SDL_Texture* fresh=SDL_CreateTextureFromSurface(SDL_GetRenderer(SDL_GetWindowFromID(0)),frame);
-  // The SDL fallback uses only one active GPU texture; avoid shared copies.
-  if(!fresh)return false;
-  if(texture)SDL_DestroyTexture(texture);
-  texture=fresh;
-  SDL_SetTextureBlendMode(texture,SDL_BLENDMODE_BLEND);
-  SDL_SetTextureScaleMode(texture,SDL_ScaleModeLinear);
-  drawn=index;
-  return true;
+  if(!frame||!texture)return false;
+  SDL_Surface* rgba=SDL_ConvertSurfaceFormat(frame,SDL_PIXELFORMAT_RGBA32,0);
+  if(!rgba)return false;
+  const bool ok=SDL_UpdateTexture(texture,nullptr,rgba->pixels,rgba->pitch)==0;
+  SDL_FreeSurface(rgba);
+  if(ok)drawn=index;
+  return ok;
 #else
   (void)elapsed;return false;
 #endif
@@ -398,7 +396,7 @@ struct Sequence {
   lastFrame=frame;
   if(phase==INITIAL){
    preindex(renderer); // amortize metadata during the ten-second wait
-   if(frame-matchStart<INITIAL)return;
+   if(frame-matchStart<WAIT_INITIAL)return;
    phase=PLAY;segmentStart=frame;
   }
   if(phase==GAP_PHASE){
