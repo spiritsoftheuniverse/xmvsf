@@ -240,24 +240,40 @@ def extract(data: bytes, out: Path) -> list[str]:
                            channels=channels_info,opacity=opacity,visible=not (flags&2),
                            name=name,section=section,mask=mask,blend=blend))
     if p.pos > info_end: raise ValueError("PSD layer info overflow")
-    # Resolve the PSD group tree BEFORE decoding any pixels. Photoshop layer
-    # records are ordered from front to back. lsct=1/2 opens a folder;
-    # lsct=3 closes it. No canvas trimming or flattening is permitted.
-    stack: list[str] = []
+    # Resolve Photoshop's section dividers before exporting any pixels.
+    # Some PSD writers record the folder delimiters in the opposite order.
+    # Select whichever traversal actually contains the most raster members
+    # under the literal "Characters" group; never silently skip its frames.
+    def group_paths(reverse: bool) -> dict[int,list[str]]:
+        stack: list[str] = []
+        paths: dict[int,list[str]] = {}
+        order = range(len(layers)-1,-1,-1) if reverse else range(len(layers))
+        for i in order:
+            layer = layers[i]
+            section = layer["section"]
+            if section in (1,2):
+                stack.append(layer["name"])
+            elif section == 3:
+                if stack:
+                    stack.pop()
+            else:
+                paths[i] = stack + [layer["name"]]
+        return paths
+    forward = group_paths(False)
+    backward = group_paths(True)
+    def char_count(paths: dict[int,list[str]]) -> int:
+        return sum(role_for(parts) == "actor" for parts in paths.values())
+    reverse_groups = char_count(backward) > char_count(forward)
+    paths = backward if reverse_groups else forward
+    print(f"GUILE PSD GROUP_ORDER={'reverse' if reverse_groups else 'forward'} "
+          f"Characters_members={char_count(paths)}")
     ground = None
-    actors: dict[str, list[dict]] = {}
-    for layer in layers:
-        section = layer["section"]
-        if section in (1,2):
-            stack.append(layer["name"])
+    actors: dict[str,list[dict]] = {}
+    for i,layer in enumerate(layers):
+        if layer["section"] in (1,2,3):
             layer["role"] = "folder"
             continue
-        if section == 3:
-            layer["role"] = "folder_end"
-            if stack:
-                stack.pop()
-            continue
-        parts = stack + [layer["name"]]
+        parts = paths.get(i,[layer["name"]])
         layer["path"] = parts
         layer["role"] = role_for(parts)
         if layer["role"] == "other":
@@ -267,7 +283,7 @@ def extract(data: bytes, out: Path) -> list[str]:
                 ground = layer
         if layer["role"] == "actor":
             layer["actor"] = actor_name(parts)
-            actors.setdefault(layer["actor"], []).append(layer)
+            actors.setdefault(layer["actor"],[]).append(layer)
     if ground is None:
         raise ValueError("Guile PSD has no pixel layer named ground; stage needs its exact bounds")
     gl,gt,gr,gb = ground["left"],ground["top"],ground["right"],ground["bottom"]
