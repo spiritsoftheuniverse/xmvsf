@@ -311,8 +311,7 @@ static void fillFrames(BYTE* output, UINT32 count, const WAVEFORMATEX* fmt) {
                 m.fdGain=(1.f-t)*(1.f-t)*(1.f+2.f*t);
             }
             fd*=m.fdGain*0.70f;
-            // Before confirmed combat, original QSound is muted. This also mutes game SFX;
-            // selective QSound music routing is NOT implemented in this stage.
+            // Stage22 controls QSound BGM only; native QSound effects stay mixed.
             channelsOut[ch]=clamp(game+m.musicGain*0.70f*0.70f*music*musicDuck /* 49% base, duck for authored voices */+fd+movement+confirmation+meterSound+crashSfx+welcomeVoice+fightVoice); /* XMVSF_STAGE22_SELECTION_SFX: native game SFX always audible; sound CPU suppresses BGM */
         }
         BYTE* dest=output+static_cast<size_t>(i)*fmt->nBlockAlign;
@@ -469,6 +468,12 @@ void xm20FDStagePhase(bool selected,int nativeStatus){
     if(!selected){
         xm20::m.fdPending=false;
         xm20::m.fdPhase=0u;
+        xm20::m.fdStarted=xm20::m.fdKo=false;
+        xm20::m.fdGain=1.f;
+        xm20::m.fdFadeSeconds=xm20::m.fdFadeElapsed=0.f;
+    }else if(selected && nativeStatus>=0 && nativeStatus<8 && xm20::m.fdKo){
+        // New round/new set without returning to the outer boot menu.
+        xm20::m.fdPending=false;xm20::m.fdPhase=0u;
         xm20::m.fdStarted=xm20::m.fdKo=false;
         xm20::m.fdGain=1.f;
         xm20::m.fdFadeSeconds=xm20::m.fdFadeElapsed=0.f;
