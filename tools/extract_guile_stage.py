@@ -151,7 +151,11 @@ def extract(data: bytes, out: Path) -> list[str]:
         blend = p.take(4)
         opacity,clipping,flags,filler = p.u8(),p.u8(),p.u8(),p.u8()
         if sig != b"8BIM": raise ValueError("Malformed PSD layer")
-        extra_end = p.pos + p.u32()
+        # Read the length before computing the absolute end. Python evaluates
+        # the left operand of "p.pos + p.u32()" first, which points FOUR bytes
+        # before the extra payload and truncates the final 8BIM record.
+        extra_length = p.u32()
+        extra_end = p.pos + extra_length
         mask = None
         mask_len = p.u32()
         if mask_len >= 20:
