@@ -1,4 +1,4 @@
-# Final Destination — TEST 87.274–87.278
+# Final Destination — TEST 87.274–87.279
 
 Branch: `final-destination` created from main commit
 `14889e013ca0b2dadaefc31eecfc110d1e2407e6`, which already contains
@@ -191,3 +191,64 @@ not yet exercised in a real Windows game frame.
 Local TEST scripts and in-game version label advance to
 `87.278` without additional tests, build gates, GitHub Actions
 or Stable modification.
+
+## TEST 87.279 — source-color pink light and silent MP4 backdrop
+
+Pink rails: the same seven source-color mask/path directions are retained.
+Unlike 87.278, the *base platform keeps its original RGBA unchanged*,
+including pink pixels; the separate light mask now uses
+`SDL_BLENDMODE_ADD` with **0..30% of each source RGB channel**
+at peak streak intensity. Outside a streak the additive contribution is
+exactly zero. No replacement neon tint is synthesized. Travel changed
+from **2–3 source pixels per emulated frame** to **one pixel every 5–6
+emulated frames** without moving the rail mask or changing the
+camera transform.
+
+Background source files on the `final-destination` branch:
+
+- `_art/video/fd01.mp4`
+- `_art/video/fd02.mp4`
+- `_art/video/fd03.mp4`
+
+The game uses native Windows **Media Foundation** Source Reader to
+decode original MP4s at their actual frame presentation timestamps
+and media-reported durations. The library is resolved at runtime from
+Windows `mfplat.dll` and `mfreadwrite.dll`, without adding a project
+link dependency, external FFmpeg player, or altering the Makefile and
+its warm-cache signature. MP4 audio is explicitly deselected; it cannot
+interfere with the existing WASAPI battle audio. If a file, codec,
+video format, or Windows MF runtime is unavailable, the log states the
+precise failure and the existing starfield/platform stays playable.
+
+Timeline uses the **first native status 08 match frame**, not the early
+stage-05 loading frame, and only advances on real emulated frames
+(pauses and replay clock naturally pause it):
+
+- Match T+0..10s: no video, original opaque blue/red starfield
+- At T+10s: play `fd01.mp4`, one-second fade-in, actual full clip
+  duration, final one-second fade-out
+- Then precisely **five seconds** without video
+- Play `fd02.mp4` with identical fade and own recorded duration
+- Five-second gap, then `fd03.mp4` and identical fades
+- Five-second gap, then repeat `fd01` → `fd02` → `fd03`, with no
+  second ten-second startup pause
+
+Z-order: existing dark SDL clear → native-decoded MP4 frame (alpha
+fade) → independent native-resolution parallax stars (slightly
+transparent sky pixels only when video is present) → original-color
+stage platform → 30%-max pink light mask → native HUD/fighters/FX →
+existing game overlays. MP4 source is center-cover cropped without
+aspect-ratio deformation. Star and platform pixel art stay
+nearest-neighbor while video content uses smooth filtering.
+
+Playback is sequential, uses one streaming decoder/texture at a
+time rather than preloading the 60MB+ files, and limits media decoding
+per game paint. Match/stage transitions reset the timeline; temporary
+fighter sprite capture gaps do not. Video startup/metadata, missing
+files, codec, decode and clip transitions are logged under
+`XM87.279 FD_VIDEO_...`.
+
+Local TEST launchers/build artifacts and menu version have been
+advanced to `87.279`. No additional build checks or GitHub Actions,
+no changes to Stable/DHC/combat, and no native Windows verification
+has been performed in the connector environment.
