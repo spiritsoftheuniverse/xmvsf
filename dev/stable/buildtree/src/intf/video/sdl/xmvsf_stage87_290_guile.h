@@ -259,8 +259,10 @@ struct Scene {
   // a restrained, deterministic wiggle with a dithered bright-edge overlay.
   for(int x=origin;x<VIEW_W+tile;x+=tile){
    if(x+tile<0)continue;
-   for(int row=0;row<l.h;row+=8){
-    const int lines=std::min(8,l.h-row);
+   // Bound draw calls even for a high-resolution PSD: <=28 sky bands.
+   const int band=std::max(8,(l.h+27)/28);
+   for(int row=0;row<l.h;row+=band){
+    const int lines=std::min(band,l.h-row);
     const double cycle=double(frame)/137.0+double(row)/29.0+double(l.order);
     const int wobble=(int)std::lround(std::sin(cycle));
     const SDL_Rect src{0,row,l.w,lines};
