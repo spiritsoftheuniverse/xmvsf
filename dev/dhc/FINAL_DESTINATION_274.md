@@ -1,4 +1,4 @@
-# Final Destination — TEST 87.274–87.275
+# Final Destination — TEST 87.274–87.276
 
 Branch: `final-destination` created from main commit
 `14889e013ca0b2dadaefc31eecfc110d1e2407e6`, which already contains
@@ -85,3 +85,27 @@ Local build and run versions now use `XMVSF_Test_87_275.exe`; no
 additional build checks, GitHub Actions, DHC changes, or Stable edits.
 The branch/source change is committed and statically verified;
 native gameplay/build verification is not claimed.
+
+## TEST 87.276 — bottom-up platform anchoring
+
+The full unmodified PNG now anchors its **bottom source row** to the
+bottom of the 384x224 native gameplay viewport, at Y=224, regardless of
+image height. With the world image at width 768 and scaled proportional
+height `worldH`, the placement is `worldTop=224-worldH`.
+Only the *top* of over-tall artwork is clipped. This replaces the prior
+deck-top alpha scanner and `DECK_SCREEN_Y=194`, which clipped the
+platform underside on the bottom. It does not affect horizontal world
+camera scrolling (0..384), nearest-neighbor filtering, native fighters,
+starfield, other stages or combat.
+
+The `FINAL_DESTINATION_CAMERA` diagnostic now prints the rendered
+destination bottom coordinate as `bottom=`, allowing direct
+confirmation against the viewport bottom. TEST local build/launcher is
+87.276. No new build checks or GitHub Actions. Native play is untested.
+
+**Asset state when changed:** main and final-destination currently
+reported the identical original `_art/finaldestination.png` blob SHA
+`1404ecedb43ba828ebd29b18da0bf9a7e842f04a`. The newly edited
+PNG was not yet visible on GitHub in this check. The renderer uses
+the PNG from the working tree at runtime, so the bottom-anchor applies
+to any later asset dimensions without a code change.
