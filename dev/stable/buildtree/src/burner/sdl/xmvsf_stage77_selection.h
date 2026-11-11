@@ -2,6 +2,9 @@
 #define XMVSF_STAGE77_SELECTION_H
 #include <SDL.h>
 #include <cstdlib>
+// Implemented in the SDL video TU; no new link target or render-thread decoder.
+void xmFDPreloadSetActive(bool enabled);
+void xmFDPreloadRelease();
 extern int xm77StageChoice;    // 0 = Random, 1 = Wily Factory, 2 = Final Destination
 extern int xm77StageResolved;  // 0 = native CPS2 stage, 1 = Wily Factory, 2 = Final Destination
 // Shared across the host menu and emulation translation units.
