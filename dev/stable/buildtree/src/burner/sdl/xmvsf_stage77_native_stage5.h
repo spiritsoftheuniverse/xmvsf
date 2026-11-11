@@ -98,11 +98,11 @@ static inline void xm77ApplyNativeStage5(bool gameReady,bool beforeFrame) {
     if(frame==1 && !xm8648Lock.attempted) {
         xm8648Lock.attempted=true;
         const unsigned selector=c->read(0xFF5082u)&255u;
-        const bool customWily=(xm77StageChoice==1 && xm77StageResolved==1 &&
+        const bool customWily=((xm77StageChoice==0||xm77StageChoice==1) && xm77StageResolved==1 &&
                                xm14TrainingMode==1 && xm24VersusMode==0);
-        const bool customFinal=(xm77StageChoice==2 && xm77StageResolved==2 &&
+        const bool customFinal=((xm77StageChoice==0||xm77StageChoice==2) && xm77StageResolved==2 &&
                                 (xm14TrainingMode==1 || xm24VersusMode==1));
-        const bool customGuile=(xm77StageChoice==3 && xm77StageResolved==3 &&
+        const bool customGuile=((xm77StageChoice==0||xm77StageChoice==3) && xm77StageResolved==3 &&
                                 (xm14TrainingMode==1 || xm24VersusMode==1));
         const bool optIn=(customWily||customFinal||customGuile) &&
                           std::getenv("XM8648_NATIVE05_OFF")==nullptr;
