@@ -17,7 +17,10 @@
 #include <vector>
 
 namespace XMGuile {
-static const int VIEW_W=384,VIEW_H=224,WORLD_W=768,GROUND_CAMERA_Y=256;
+// Photoshop ground is 1016x471. Render a centered 768x471 crop; never
+// derive stage scale from the PSD canvas or trimmed PNG layer dimensions.
+static const int VIEW_W=384,VIEW_H=224,GROUND_W=1016,GROUND_H=471;
+static const int AUTHORED_W=768,AUTHORED_H=471,GROUND_CAMERA_Y=256;
 static inline int clamp(int n,int lo,int hi){return std::max(lo,std::min(hi,n));}
 static inline unsigned rand32(unsigned& s) {
  s^=s<<13;s^=s>>17;s^=s<<5;return s;
@@ -25,8 +28,8 @@ static inline unsigned rand32(unsigned& s) {
 struct Layer {
  SDL_Texture* tex=nullptr;
  SDL_Texture* edge=nullptr; // cloud-edge checkerboard shimmer, sky only
- std::string role,actor;
- int order=0,x=0,y=0,w=0,h=0;
+ std::string role,actor,name;
+ int order=0,x=0,y=0,w=0,h=0,frameNumber=0;
  void close(){
   if(tex)SDL_DestroyTexture(tex);
   if(edge)SDL_DestroyTexture(edge);
@@ -46,6 +49,9 @@ struct Scene {
  SDL_Texture* fighters=nullptr;
  SDL_Texture* flash=nullptr;
  int canvasW=0,canvasH=0;
+ int groundX=0,groundY=0,groundW=0,groundH=0;
+ int cameraBaseX=0;
+ bool cameraBaseSet=false;
  bool failed=false;
  bool active=false;
  unsigned long long lastFrame=~0ull;
@@ -57,11 +63,13 @@ struct Scene {
   if(fighters)SDL_DestroyTexture(fighters);
   if(flash)SDL_DestroyTexture(flash);
   fighters=flash=nullptr;
-  canvasW=canvasH=0;failed=false;active=false;lastFrame=~0ull;
+  canvasW=canvasH=0;groundX=groundY=groundW=groundH=0;
+  cameraBaseX=0;cameraBaseSet=false;
+  failed=false;active=false;lastFrame=~0ull;
   root.clear();
  }
  void resetMotion(){
-  active=false;lastFrame=~0ull;
+  active=false;lastFrame=~0ull;cameraBaseSet=false;
   for(Actor& a:actors){a.current=0;a.hold=6+(int)(rand32(a.rng)%7u);}
  }
  static std::vector<std::string> split(const std::string& line){
@@ -134,24 +142,39 @@ struct Scene {
   std::string line;
   std::map<std::string,size_t> actorIndex;
   unsigned count[4]={};
+  int formatVersion=0;
   while(std::getline(manifest,line)){
    if(line.empty()||line[0]=='#')continue;
    const std::vector<std::string> f=split(line);
    if(f.size()==3&&f[0]=="CANVAS"){
     canvasW=std::atoi(f[1].c_str());canvasH=std::atoi(f[2].c_str());
-    continue;
+   }else if(f.size()==2&&f[0]=="FORMAT"){
+    formatVersion=std::atoi(f[1].c_str());
+   }else if(f.size()==5&&f[0]=="GROUND"){
+    groundX=std::atoi(f[1].c_str());groundY=std::atoi(f[2].c_str());
+    groundW=std::atoi(f[3].c_str());groundH=std::atoi(f[4].c_str());
    }
-
   }
-  // Parse the exact nine-column extractor contract. Avoid partially
-  // loaded textures if a required layer cannot be read.
+  if(formatVersion!=3||groundW!=GROUND_W||groundH!=GROUND_H){
+   std::fprintf(stderr,
+    "XM87.293 GUILE_STALE_MANIFEST format=%d ground=(%d,%d %dx%d); regenerate with extractor\n",
+    formatVersion,groundX,groundY,groundW,groundH);
+   failed=true;return false;
+  }
+  // The first 9 columns define image bounds; the remaining entries retain
+  // original PSD pixel bounds, layer name, full group path and visibility.
   manifest.clear();manifest.seekg(0);
   while(std::getline(manifest,line)){
    if(line.empty()||line[0]=='#')continue;
    const std::vector<std::string> f=split(line);
-   if(f.size()!=9||f[0]!="LAYER")continue;
+   if(f.size()<16||f[0]!="LAYER")continue;
    Layer l;
    l.role=f[1];l.actor=f[2];l.order=std::atoi(f[3].c_str());
+   l.name=f[9];
+   // Numerical frame order is independent of Photoshop stacking order.
+   size_t digit=l.name.size();
+   while(digit>0&&l.name[digit-1]>='0'&&l.name[digit-1]<='9')--digit;
+   l.frameNumber=digit<l.name.size()?std::atoi(l.name.c_str()+digit):0;
    l.x=std::atoi(f[4].c_str());l.y=std::atoi(f[5].c_str());
    l.w=std::atoi(f[6].c_str());l.h=std::atoi(f[7].c_str());
    if(l.w<1||l.h<1||l.w>8192||l.h>8192)continue;
@@ -184,7 +207,7 @@ struct Scene {
    else if(l.role=="ground")++count[2];
    layers.push_back(l);
   }
-  if(!canvasW||!canvasH||layers.empty()||!count[2]){
+  if(!canvasW||!canvasH||layers.empty()||!count[2]||actors.empty()){
    std::fprintf(stderr,"XM87.290 GUILE_MANIFEST_INVALID source=%dx%d layers=%zu ground=%u\n",
                 canvasW,canvasH,layers.size(),count[2]);
    close();failed=true;return false;
@@ -199,7 +222,8 @@ struct Scene {
   SDL_SetTextureScaleMode(fighters,SDL_ScaleModeNearest);
   SDL_SetTextureScaleMode(flash,SDL_ScaleModeNearest);
   for(Actor& a:actors){
-   std::reverse(a.frames.begin(),a.frames.end());
+   std::stable_sort(a.frames.begin(),a.frames.end(),
+       [&](size_t i,size_t j){return layers[i].frameNumber<layers[j].frameNumber;});
    a.hold=6+(int)(rand32(a.rng)%7u);
   }
   std::fprintf(stderr,
