@@ -425,6 +425,35 @@ void xm20OnCombat(){
     LeaveCriticalSection(&xm20::m.lock);
 }
 void xm20ClockReset(){xm20::clockStarted=false;}
+// Stage 87.284: bounded elapsed-time catch-up. The legacy frameDue()
+// resets to "now" after a late renderer, silently throwing away native
+// game time. Only Final Destination selects this variant; it returns up to
+// maxFrames owed emulation steps, with one SDL paint on the final step.
+// QPC is still read on the original main thread; never share this scheduler
+// with the background asset loader.
+int xm20FrameDueCatchup(int fpsHundredths,int maxFrames){
+    if(fpsHundredths<1000 || fpsHundredths>10000)fpsHundredths=5964;
+    if(maxFrames<1)maxFrames=1;
+    if(maxFrames>3)maxFrames=3;
+    if(!xm20::qpf.QuadPart)QueryPerformanceFrequency(&xm20::qpf);
+    LARGE_INTEGER now={};QueryPerformanceCounter(&now);
+    const double interval=static_cast<double>(xm20::qpf.QuadPart)*100.0/fpsHundredths;
+    const double t=static_cast<double>(now.QuadPart);
+    if(!xm20::clockStarted){xm20::deadline=t;xm20::clockStarted=true;}
+    if(t<xm20::deadline){
+        const double seconds=(xm20::deadline-t)/xm20::qpf.QuadPart;
+        if(seconds>0.002)Sleep(static_cast<DWORD>(seconds*1000)-1);
+        return 0;
+    }
+    int due=1;
+    while(due<maxFrames && t>=xm20::deadline+interval*due)++due;
+    xm20::deadline+=interval*due;
+    // An arbitrarily long focus loss must not trigger thousands of frames.
+    // Recover a few late steps, then discard only the unbounded tail.
+    if(t>xm20::deadline+interval*maxFrames)
+        xm20::deadline=t+interval;
+    return due;
+}
 int xm20FrameDue(int fpsHundredths) {
     if(fpsHundredths<1000 || fpsHundredths>10000)fpsHundredths=5964;
     if(!xm20::qpf.QuadPart)QueryPerformanceFrequency(&xm20::qpf);
