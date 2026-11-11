@@ -118,13 +118,12 @@ def role_for(parts: list[str]) -> str:
     return "other"
 
 def actor_name(parts: list[str]) -> str:
-    # ladyL1/ladyL2 => ladyL; Joe1/Joe2/Joe3 => Joe.
-    # Never normalize away the original casing or merge separate artists' names.
-    name = re.sub(r"(?i)(?:[\\s_\\-]*(?:frame|cel))?[\\s_\\-]*\\d+$", "", parts[-1]).strip()
+    # Literal Photoshop names: ladyL1/ladyL2 => ladyL; Joe1/Joe2 => Joe.
+    name = re.sub(r"(?i)(?:[\s_-]*(?:frame|cel))?[\s_-]*\d+$", "", parts[-1]).strip()
     return name or parts[-1]
 
 def sanitize_field(text: str) -> str:
-    return text.replace("\\t", " ").replace("\\r", " ").replace("\\n", " ")
+    return text.replace("\t", " ").replace("\r", " ").replace("\n", " ")
 
 def padded_rgba(pixels: bytes, w: int, h: int, x: int, y: int,
                 canvas: tuple[int, int, int, int]) -> bytes:
@@ -360,17 +359,45 @@ def extract(data: bytes, out: Path) -> list[str]:
                     composite[i]=alpha[i]*opacity*mask_value//(255*255)
             rgba[3::4] = composite
         filename = f"{layer['index']:04d}.png"
-        (out/filename).write_bytes(png_rgba(w,h,bytes(rgba)))
-        actor = actor_name(parts) if role=="actor" else "-"
-        # Original PSD stores layers from top to bottom; renderer reverses
-        # order inside each static role to preserve Photoshop painter order.
-        records.append(f"LAYER\t{role}\t{actor.replace(chr(9),' ')}\t{layer['index']}\t"
-                       f"{layer['left']}\t{layer['top']}\t{w}\t{h}\t{filename}")
+        if role == "actor":
+            actor = layer["actor"]
+            bounds = actor_bounds[actor]
+            texture = padded_rgba(bytes(rgba),w,h,layer["left"],layer["top"],bounds)
+            image_x,image_y = bounds[0],bounds[1]
+            image_w,image_h = bounds[2]-bounds[0],bounds[3]-bounds[1]
+        else:
+            actor = "-"
+            texture = bytes(rgba)
+            image_x,image_y = layer["left"],layer["top"]
+            image_w,image_h = w,h
+        (out/filename).write_bytes(png_rgba(image_w,image_h,texture))
+        # The first nine columns are the renderer contract. Additional columns
+        # index the exact PSD layer name, hierarchy, ORIGINAL pixel bounds and
+        # visibility. The PNG coordinates may describe a padded actor canvas.
+        original = (layer["left"],layer["top"],layer["right"],layer["bottom"])
+        path = "/".join(sanitize_field(x) for x in layer["path"])
+        records.append(
+            f"LAYER\t{role}\t{sanitize_field(actor)}\t{layer['index']}\t"
+            f"{image_x}\t{image_y}\t{image_w}\t{image_h}\t{filename}\t"
+            f"{sanitize_field(layer['name'])}\t{path}\t"
+            f"{original[0]}\t{original[1]}\t{original[2]}\t{original[3]}\t"
+            f"{int(layer['visible'])}"
+        )
         count += 1
-    if not count: raise ValueError("PSD contains no rasterizable stage layers")
+    if not count:
+        raise ValueError("PSD contains no rasterizable stage layers")
+    if actor_count != sum(len(frames) for frames in actors.values()):
+        raise ValueError(
+            f"Characters extraction incomplete: exported {actor_count} of "
+            f"{sum(len(frames) for frames in actors.values())} Photoshop children")
     records.insert(1,f"SOURCE_SHA256\t{hashlib.sha256(data).hexdigest()}")
     records.insert(2,f"SUMMARY\t{count}\t{actor_count}")
+    for key,frames in actors.items():
+        records.append(f"ACTOR\t{sanitize_field(key)}\t{len(frames)}")
     (out/"manifest.tsv").write_text("\n".join(records)+"\n",encoding="utf-8")
+    print(f"GUILE PSD INDEX ground=({gl},{gt},{gr},{gb}) visible=768x471 centered_crop=124 actor_groups={len(actors)}")
+    for key,frames in actors.items():
+        print(f"GUILE PSD ACTOR {key}: {len(frames)} / {len(frames)} frames, bounds={actor_bounds[key]}")
     return records
 
 def main() -> int:
@@ -384,9 +411,11 @@ def main() -> int:
     raw=args.source.read_bytes()
     manifest=args.output/"manifest.tsv"
     digest=hashlib.sha256(raw).hexdigest()
-    if manifest.is_file() and f"SOURCE_SHA256\t{digest}" in manifest.read_text(encoding="utf-8"):
-        print(f"GUILE PSD unchanged: {manifest}")
-        return 0
+    if manifest.is_file():
+        cached = manifest.read_text(encoding="utf-8")
+        if f"SOURCE_SHA256\t{digest}" in cached and "FORMAT\t3" in cached:
+            print(f"GUILE PSD unchanged: {manifest}")
+            return 0
     try:
         rows=extract(raw,args.output)
     except (ValueError,struct.error,zlib.error) as ex:
