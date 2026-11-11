@@ -15,7 +15,17 @@
 
 namespace XMFD {
 static const int W=384,H=224,WORLD_W=768,SPACE_W=1152;
+// Verified stage-05 ROM camera contract (xmvsf_stage86_49_camera.h):
+// s16($FF5250) is the native vertical camera, approximately 256 on
+// the grounded view and 0 during the upper super-jump camera travel.
+// A *world-anchored* floor must move DOWN on screen as camera Y decreases.
+// Never derive scrolling from fighter coordinates or write camera RAM.
+static const int GROUND_CAMERA_Y=256;
 static inline int nativeCamera(int x){return std::max(0,std::min(WORLD_W-W,x));}
+static inline int nativeCameraY(int y){return std::max(-14,std::min(GROUND_CAMERA_Y,y));}
+static inline int platformWorldTop(int scaledImageHeight,int cameraY){
+ return H-scaledImageHeight+(GROUND_CAMERA_Y-nativeCameraY(cameraY));
+}
 struct Star {
  int x,y;
  unsigned char layer,color,phase;
@@ -65,7 +75,7 @@ struct Scene {
    if(image){found=filename;break;}
   }
   if(!image){
-   std::fprintf(stderr,"XM87.276 FINAL_DESTINATION_ASSET_MISSING original=_art/finaldestination.png; native fallback\n");
+   std::fprintf(stderr,"XM87.277 FINAL_DESTINATION_ASSET_MISSING original=_art/finaldestination.png; native fallback\n");
    failed=true;return false;
   }
   platformW=image->w;platformH=image->h;
@@ -79,7 +89,7 @@ struct Scene {
   flash=SDL_CreateTexture(renderer,SDL_PIXELFORMAT_RGBA32,
        SDL_TEXTUREACCESS_STREAMING,W,H);
   if(!platform || !stars || !fighters || !flash || platformW<1 || platformH<1){
-   std::fprintf(stderr,"XM87.276 FINAL_DESTINATION_TEXTURE_FAILED %s\n",SDL_GetError());
+   std::fprintf(stderr,"XM87.277 FINAL_DESTINATION_TEXTURE_FAILED %s\n",SDL_GetError());
    close();failed=true;return false;
   }
   SDL_SetTextureBlendMode(platform,SDL_BLENDMODE_BLEND);
@@ -108,7 +118,7 @@ struct Scene {
   }
   const int worldH=(platformH*WORLD_W+platformW/2)/platformW;
   std::fprintf(stderr,
-   "XM87.276 FINAL_DESTINATION_READY asset=%s source=%dx%d world=%dx%d anchor=bottom filter=nearest RGBA32 stars=%zu layers=3\n",
+   "XM87.277 FINAL_DESTINATION_READY asset=%s source=%dx%d world=%dx%d anchor=bottom filter=nearest RGBA32 stars=%zu layers=3\n",
    found.c_str(),platformW,platformH,WORLD_W,worldH,particles.size());
   return true;
  }
@@ -164,7 +174,7 @@ struct Scene {
    pixel(x,y,red,green,blue,core);
   }
   if(SDL_UpdateTexture(stars,nullptr,rgba.data(),W*4)!=0){
-   std::fprintf(stderr,"XM87.276 FINAL_DESTINATION_STAR_UPLOAD_FAILED %s\n",SDL_GetError());
+   std::fprintf(stderr,"XM87.277 FINAL_DESTINATION_STAR_UPLOAD_FAILED %s\n",SDL_GetError());
    return false;
   }
   return true;
@@ -184,7 +194,7 @@ inline bool paint(SDL_Renderer* render,const SDL_Rect& view){
  if(!s.renderStars(render,frame,xm8649Visual.nativeCameraX,xm8649Visual.nativeCameraY))
   return false;
  if(SDL_UpdateTexture(s.fighters,nullptr,xm77SpritePixels(),W*4)!=0){
-  std::fprintf(stderr,"XM87.276 FINAL_DESTINATION_FIGHTER_UPLOAD_FAILED %s\n",SDL_GetError());
+  std::fprintf(stderr,"XM87.277 FINAL_DESTINATION_FIGHTER_UPLOAD_FAILED %s\n",SDL_GetError());
   return false;
  }
  const unsigned char* nativeFlash=xm8757FlashPixels();
@@ -199,23 +209,28 @@ inline bool paint(SDL_Renderer* render,const SDL_Rect& view){
  // never squeezed down to a single 384px-wide full-stage picture.
  const int camera=nativeCamera(xm8649Visual.nativeCameraX);
  const int worldH=(s.platformH*WORLD_W+s.platformW/2)/s.platformW;
- // Bottom-up registration: the final source image row always lands at
- // native viewport Y=224. No alpha threshold or deck-top guesswork.
- // Extra image height extends UPWARD and clips at the viewport top.
- const int worldTop=H-worldH;
+ // Bottom-up world registration: at the grounded camera reference (Y=256),
+ // the last PNG source row lands at screen Y=224. When the native ROM
+ // camera travels upward (Y drops toward 0), move the whole world layer
+ // DOWN by the same native delta. The floor is stationary in WORLD space;
+ // it does not stick to or travel upward with a jumping fighter.
+ // No artificial camera or fighter movement is introduced.
+ const int cameraY=nativeCameraY(xm8649Visual.nativeCameraY);
+ const int worldTop=platformWorldTop(worldH,cameraY);
  const SDL_Rect platformWorld={
     view.x-camera*view.w/W, view.y+worldTop*view.h/H,
     WORLD_W*view.w/W, worldH*view.h/H
  };
- // Event-style evidence for every changed camera position.
- static int loggedCamera=-1;
- if(camera!=loggedCamera){
+ // Observer of the native camera's actual two-axis scrolling.
+ // Log transitions, not separate inferred jumps or virtual-camera states.
+ static int loggedCameraX=-9999,loggedCameraY=-9999;
+ if(camera!=loggedCameraX || cameraY!=loggedCameraY){
   std::fprintf(stderr,
-   "XM87.276 FINAL_DESTINATION_CAMERA cam=%d world=%dx%d viewport=%dx%d dst=%d,%d,%d,%d bottom=%d filter=nearest\n",
-   camera,WORLD_W,worldH,W,H,
+   "XM87.277 FINAL_DESTINATION_CAMERA cameraX=%d cameraY=%d groundCameraY=%d world=%dx%d viewport=%dx%d dst=%d,%d,%d,%d bottom=%d filter=nearest\n",
+   camera,cameraY,GROUND_CAMERA_Y,WORLD_W,worldH,W,H,
    platformWorld.x,platformWorld.y,platformWorld.w,platformWorld.h,
    platformWorld.y+platformWorld.h);
-  loggedCamera=camera;
+  loggedCameraX=camera;loggedCameraY=cameraY;
  }
  const bool good=SDL_RenderCopy(render,s.stars,nullptr,&view)==0 &&
                  SDL_RenderCopy(render,s.platform,nullptr,&platformWorld)==0;
@@ -226,7 +241,7 @@ inline bool paint(SDL_Renderer* render,const SDL_Rect& view){
  }
  SDL_RenderSetClipRect(render,hadClip?&oldClip:nullptr);
  if(!good){
-  std::fprintf(stderr,"XM87.276 FINAL_DESTINATION_DRAW_FAILED %s\n",SDL_GetError());
+  std::fprintf(stderr,"XM87.277 FINAL_DESTINATION_DRAW_FAILED %s\n",SDL_GetError());
   return false;
  }
  return true;
