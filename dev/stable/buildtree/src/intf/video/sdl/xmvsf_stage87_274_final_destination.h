@@ -13,7 +13,7 @@
 #include <string>
 #include <vector>
 #include "xmvsf_stage87_278_pink_light.h" // original-color, 30%-max slow neon sweeps
-#include "xmvsf_stage87_281_fd_gif_async.h" // off-thread WIC GIF, GPU texture, quarter-speed
+#include "xmvsf_stage87_282_fd_frames.h" // PNG frames preloaded asynchronously as GPU textures
 
 namespace XMFD {
 static const int W=384,H=224,WORLD_W=768,SPACE_W=1152;
@@ -34,36 +34,38 @@ struct Star {
 };
 struct Scene {
  XMFDLight::Mask pink; // separate masked additive light, same world transform
- XMFDVideo::Sequence video; // real 01/02/03 GIFs, based on match time
- SDL_Texture* stars=nullptr;
+ XMFDVideo::Sequence video; // real 01/02/03 PNG sequences, based on native match time
+ SDL_Texture* sky=nullptr; // opaque only when video is absent, cached once
+ SDL_Texture* stars=nullptr; // transparent additive particles, no dark tint
  SDL_Texture* platform=nullptr;
  SDL_Texture* fighters=nullptr;
  SDL_Texture* flash=nullptr;
  int platformW=0,platformH=0;
  bool failed=false;
  unsigned long long lastFrame=~0ull;
- int lastCameraX=-9999,lastCameraY=-9999,lastBackdropAlpha=-1;
+ int lastCameraX=-9999,lastCameraY=-9999;
  std::vector<unsigned char> rgba;
  std::vector<Star> particles;
  void close(){
   video.close();
   pink.close();
+  if(sky)SDL_DestroyTexture(sky);
   if(stars)SDL_DestroyTexture(stars);
   if(platform)SDL_DestroyTexture(platform);
   if(fighters)SDL_DestroyTexture(fighters);
   if(flash)SDL_DestroyTexture(flash);
-  stars=platform=fighters=flash=nullptr;
+  sky=stars=platform=fighters=flash=nullptr;
   platformW=platformH=0;
   rgba.clear();particles.clear();
   failed=false;lastFrame=~0ull;
-  lastCameraX=lastCameraY=-9999;lastBackdropAlpha=-1;
+  lastCameraX=lastCameraY=-9999;
  }
  static unsigned next(unsigned& seed){
   seed^=seed<<13;seed^=seed>>17;seed^=seed<<5;return seed;
  }
  bool load(SDL_Renderer* renderer){
   if(failed)return false;
-  if(stars && platform && fighters && flash)return true;
+  if(sky && stars && platform && fighters && flash)return true;
   if(!renderer)return false;
   std::vector<std::string> folders={"_art/","../_art/","../../_art/"};
   char* base=SDL_GetBasePath();
@@ -81,7 +83,7 @@ struct Scene {
    if(image){found=filename;break;}
   }
   if(!image){
-   std::fprintf(stderr,"XM87.281 FINAL_DESTINATION_ASSET_MISSING original=_art/finaldestination.png; native fallback\n");
+   std::fprintf(stderr,"XM87.282 FINAL_DESTINATION_ASSET_MISSING original=_art/finaldestination.png; native fallback\n");
    failed=true;return false;
   }
   platformW=image->w;platformH=image->h;
@@ -91,30 +93,51 @@ struct Scene {
   SDL_Surface* masked=pink.prepare(renderer,image);
   SDL_FreeSurface(image);
   if(!masked){
-   std::fprintf(stderr,"XM87.281 FD_PINK_MASK_PREPARE_FAILED %s\n",SDL_GetError());
+   std::fprintf(stderr,"XM87.282 FD_PINK_MASK_PREPARE_FAILED %s\n",SDL_GetError());
    close();failed=true;return false;
   }
   platform=SDL_CreateTextureFromSurface(renderer,masked);
   SDL_FreeSurface(masked);
+  sky=SDL_CreateTexture(renderer,SDL_PIXELFORMAT_RGBA32,
+       SDL_TEXTUREACCESS_STREAMING,W,H);
   stars=SDL_CreateTexture(renderer,SDL_PIXELFORMAT_RGBA32,
        SDL_TEXTUREACCESS_STREAMING,W,H);
   fighters=SDL_CreateTexture(renderer,SDL_PIXELFORMAT_RGBA32,
        SDL_TEXTUREACCESS_STREAMING,W,H);
   flash=SDL_CreateTexture(renderer,SDL_PIXELFORMAT_RGBA32,
        SDL_TEXTUREACCESS_STREAMING,W,H);
-  if(!platform || !stars || !fighters || !flash || platformW<1 || platformH<1){
-   std::fprintf(stderr,"XM87.281 FINAL_DESTINATION_TEXTURE_FAILED %s\n",SDL_GetError());
+  if(!platform || !sky || !stars || !fighters || !flash || platformW<1 || platformH<1){
+   std::fprintf(stderr,"XM87.282 FINAL_DESTINATION_TEXTURE_FAILED %s\n",SDL_GetError());
    close();failed=true;return false;
   }
   SDL_SetTextureBlendMode(platform,SDL_BLENDMODE_BLEND);
   SDL_SetTextureScaleMode(platform,SDL_ScaleModeNearest);
-  SDL_SetTextureBlendMode(stars,SDL_BLENDMODE_BLEND); // let MP4 show behind stars
+  SDL_SetTextureBlendMode(sky,SDL_BLENDMODE_BLEND);
+  SDL_SetTextureScaleMode(sky,SDL_ScaleModeNearest);
+  SDL_SetTextureBlendMode(stars,SDL_BLENDMODE_ADD); // color-additive stars: no black halo over animations
   SDL_SetTextureScaleMode(stars,SDL_ScaleModeNearest);
   SDL_SetTextureBlendMode(fighters,SDL_BLENDMODE_BLEND);
   SDL_SetTextureScaleMode(fighters,SDL_ScaleModeNearest);
   SDL_SetTextureBlendMode(flash,SDL_BLENDMODE_BLEND);
   SDL_SetTextureScaleMode(flash,SDL_ScaleModeNearest);
   rgba.resize((size_t)W*H*4);
+  // Keep the dark fallback sky separate from the translucent stars.
+  // Baking dark sky RGB into the stars previously left black fringes
+  // when composited over bright animations.
+  for(int y=0;y<H;++y)
+   for(int x=0;x<W;++x){
+    Uint8* p=rgba.data()+((size_t)y*W+x)*4u;
+    const int nearBlue=std::max(0,100-std::abs(x-238)*100/270);
+    const int nearRed=std::max(0,100-std::abs(x-82)*100/190);
+    p[0]=(Uint8)(3+nearRed/15+y/110);
+    p[1]=(Uint8)(4+nearBlue/25);
+    p[2]=(Uint8)(13+nearBlue/9+(H-y)/90);
+    p[3]=255u;
+   }
+  if(SDL_UpdateTexture(sky,nullptr,rgba.data(),W*4)!=0){
+   std::fprintf(stderr,"XM87.282 FINAL_DESTINATION_SKY_UPLOAD_FAILED %s\n",SDL_GetError());
+   close();failed=true;return false;
+  }
   // Constant seed: the same scene is repeatable during replays/rematches.
   unsigned seed=0xF1A1D357u;
   for(int depth=0;depth<3;++depth){
@@ -132,7 +155,7 @@ struct Scene {
   }
   const int worldH=(platformH*WORLD_W+platformW/2)/platformW;
   std::fprintf(stderr,
-   "XM87.281 FINAL_DESTINATION_READY asset=%s source=%dx%d world=%dx%d anchor=bottom filter=nearest RGBA32 stars=%zu layers=3\n",
+   "XM87.282 FINAL_DESTINATION_READY asset=%s source=%dx%d world=%dx%d anchor=bottom filter=nearest RGBA32 stars=%zu layers=3\n",
    found.c_str(),platformW,platformH,WORLD_W,worldH,particles.size());
   return true;
  }
@@ -144,25 +167,13 @@ struct Scene {
   p[2]=(unsigned char)std::min(255u,(unsigned)p[2]+b*strength/255u);
   p[3]=255u;
  }
- bool renderStars(SDL_Renderer* renderer,unsigned long long frame,int cameraX,int cameraY,Uint8 videoAlpha){
-  if(lastFrame==frame && cameraX==lastCameraX && cameraY==lastCameraY &&
-     lastBackdropAlpha==(int)videoAlpha)return true;
+ bool renderStars(SDL_Renderer* renderer,unsigned long long frame,int cameraX,int cameraY){
+  if(lastFrame==frame && cameraX==lastCameraX && cameraY==lastCameraY)return true;
   lastFrame=frame;lastCameraX=cameraX;lastCameraY=cameraY;
-  lastBackdropAlpha=(int)videoAlpha;
-  for(int y=0;y<H;++y){
-   for(int x=0;x<W;++x){
-    unsigned char* p=rgba.data()+((size_t)y*W+(size_t)x)*4u;
-    // Dark, full 32-bit RGB sky, with barely visible blue/red depth.
-    const int nearBlue=std::max(0,100-std::abs(x-238)*100/270);
-    const int nearRed=std::max(0,100-std::abs(x-82)*100/190);
-    p[0]=(unsigned char)(3+nearRed/15+y/110);
-    p[1]=(unsigned char)(4+nearBlue/25);
-    p[2]=(unsigned char)(13+nearBlue/9+(H-y)/90);
-    // Fade the static sky backing away as MP4 rises underneath, but
-    // keep all independently blinking parallax stars over the video.
-    p[3]=(Uint8)(255u-(unsigned)videoAlpha*225u/255u);
-   }
-  }
+  // Star pixels are now isolated on a fully transparent RGBA texture.
+  // Additive blending makes the bright dots blend with the active
+  // PNG background without any dark rectangular edge.
+  std::fill(rgba.begin(),rgba.end(),(Uint8)0u);
   for(const Star& s:particles){
    const int drift=(int)(frame/(s.layer==0?480u:(s.layer==1?290u:175u)));
    const int parallax=s.layer==0?1:(s.layer==1?2:4); // 1/8, 1/4, 1/2
@@ -192,7 +203,7 @@ struct Scene {
    pixel(x,y,red,green,blue,core);
   }
   if(SDL_UpdateTexture(stars,nullptr,rgba.data(),W*4)!=0){
-   std::fprintf(stderr,"XM87.281 FINAL_DESTINATION_STAR_UPLOAD_FAILED %s\n",SDL_GetError());
+   std::fprintf(stderr,"XM87.282 FINAL_DESTINATION_STAR_UPLOAD_FAILED %s\n",SDL_GetError());
    return false;
   }
   return true;
@@ -216,16 +227,16 @@ inline bool paint(SDL_Renderer* render,const SDL_Rect& view){
  if(!s.load(render))return false; // keep original native stage on asset failure
  const unsigned long long frame=xm8649Visual.frames;
  // Match-start clock is first native battle status 8, not pre-fight loading.
- // The background worker decodes GIFs; only a small GPU upload occurs here.
- // If unavailable, the usual starfield and native fighters stay playable.
+ // PNG decoder asynchronously preloads all frames once; GPU uploads are
+ // budgeted to one new texture per paint. Normal playback just draws.
  s.video.tick(render,frame,xm8649Visual.status);
  if(!s.renderStars(render,frame,xm8649Visual.nativeCameraX,
-                   xm8649Visual.nativeCameraY,s.video.alpha))
+                   xm8649Visual.nativeCameraY))
   return false;
  // Progress the streak clock in emulation time, not wall-clock paint calls.
  if(!s.pink.update(frame))return false;
  if(SDL_UpdateTexture(s.fighters,nullptr,xm77SpritePixels(),W*4)!=0){
-  std::fprintf(stderr,"XM87.281 FINAL_DESTINATION_FIGHTER_UPLOAD_FAILED %s\n",SDL_GetError());
+  std::fprintf(stderr,"XM87.282 FINAL_DESTINATION_FIGHTER_UPLOAD_FAILED %s\n",SDL_GetError());
   return false;
  }
  const unsigned char* nativeFlash=xm8757FlashPixels();
@@ -259,17 +270,19 @@ inline bool paint(SDL_Renderer* render,const SDL_Rect& view){
  static int loggedCameraX=-9999,loggedCameraY=-9999;
  if(camera!=loggedCameraX || cameraY!=loggedCameraY){
   std::fprintf(stderr,
-   "XM87.281 FINAL_DESTINATION_CAMERA cameraX=%d cameraY=%d groundCameraY=%d world=%dx%d viewport=%dx%d dst=%d,%d,%d,%d bottom=%d filter=nearest\n",
+   "XM87.282 FINAL_DESTINATION_CAMERA cameraX=%d cameraY=%d groundCameraY=%d world=%dx%d viewport=%dx%d dst=%d,%d,%d,%d bottom=%d filter=nearest\n",
    camera,cameraY,GROUND_CAMERA_Y,WORLD_W,worldH,W,H,
    platformWorld.x,platformWorld.y,platformWorld.w,platformWorld.h,
    platformWorld.y+platformWorld.h);
   loggedCameraX=camera;loggedCameraY=cameraY;
  }
- // Correct depth: ambient video -> moving stars -> source-color platform
- // -> additive masked neon -> native stun/fighters/FX and HUD.
- // Video is never composited over stars or native game entities.
+ // Correct depth: PNG video -> separately faded dark sky -> transparent
+ // additive stars -> original platform -> masked pink light -> fighters/HUD.
+ // The sky fades completely out at full video opacity, avoiding black tint.
  s.video.draw(render,view);
- const bool good=SDL_RenderCopy(render,s.stars,nullptr,&view)==0 &&
+ SDL_SetTextureAlphaMod(s.sky,(Uint8)(255u-(unsigned)s.video.alpha));
+ const bool good=SDL_RenderCopy(render,s.sky,nullptr,&view)==0 &&
+                 SDL_RenderCopy(render,s.stars,nullptr,&view)==0 &&
                  SDL_RenderCopy(render,s.platform,nullptr,&platformWorld)==0 &&
                  SDL_RenderCopy(render,s.pink.light,nullptr,&platformWorld)==0;
  if(good){
@@ -279,7 +292,7 @@ inline bool paint(SDL_Renderer* render,const SDL_Rect& view){
  }
  SDL_RenderSetClipRect(render,hadClip?&oldClip:nullptr);
  if(!good){
-  std::fprintf(stderr,"XM87.281 FINAL_DESTINATION_DRAW_FAILED %s\n",SDL_GetError());
+  std::fprintf(stderr,"XM87.282 FINAL_DESTINATION_DRAW_FAILED %s\n",SDL_GetError());
   return false;
  }
  return true;
