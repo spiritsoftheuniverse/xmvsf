@@ -312,7 +312,8 @@ static void fillFrames(BYTE* output, UINT32 count, const WAVEFORMATEX* fmt) {
                 const float t=std::min(1.f,m.fdFadeElapsed/m.fdFadeSeconds);
                 m.fdGain=(1.f-t)*(1.f-t)*(1.f+2.f*t);
             }
-            fd*=m.fdGain*0.70f;
+            // Use the revised OGG's authored level; no hidden 70% attenuation.
+            fd*=m.fdGain;
             // Stage22 controls QSound BGM only; native QSound effects stay mixed.
             channelsOut[ch]=clamp(game+m.musicGain*0.70f*0.70f*music*musicDuck /* 49% base, duck for authored voices */+fd+movement+confirmation+meterSound+crashSfx+welcomeVoice+fightVoice); /* XMVSF_STAGE22_SELECTION_SFX: native game SFX always audible; sound CPU suppresses BGM */
         }
