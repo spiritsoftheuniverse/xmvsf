@@ -3,7 +3,12 @@
 # Run once on Windows: powershell -NoProfile -ExecutionPolicy Bypass -File tools\pack_fd_video.ps1
 # No pip, ImageMagick, codecs, binary asset commits, or GitHub Actions.
 # The native game never invokes this script during a build or during gameplay.
-param([string]$RepositoryRoot = "", [switch]$Force)
+param(
+    [string]$RepositoryRoot = "",
+    [string]$InputDir = "",
+    [string]$OutputFile = "",
+    [switch]$Force
+)
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName System.Drawing
 if (-not $RepositoryRoot) {
@@ -21,16 +26,51 @@ $clips = @(
     @{ Name = 'fd02'; Count = 200 },
     @{ Name = 'fd03'; Count = 396 }
 )
+$custom = [bool]$InputDir -or [bool]$OutputFile
+if ($custom) {
+    if (-not $InputDir -or -not $OutputFile) {
+        throw 'Specify both -InputDir and -OutputFile for custom packing.'
+    }
+    if (-not [System.IO.Path]::IsPathRooted($InputDir)) {
+        $InputDir = Join-Path $RepositoryRoot $InputDir
+    }
+    if (-not [System.IO.Path]::IsPathRooted($OutputFile)) {
+        $OutputFile = Join-Path $RepositoryRoot $OutputFile
+    }
+    $InputDir = [System.IO.Path]::GetFullPath($InputDir)
+    $OutputFile = [System.IO.Path]::GetFullPath($OutputFile)
+    if (-not (Test-Path -LiteralPath $InputDir -PathType Container)) {
+        throw "Missing source folder $InputDir"
+    }
+    $frames = @(Get-ChildItem -LiteralPath $InputDir -File -Filter 'frame_*.png')
+    $customCount = $frames.Count
+    if ($customCount -lt 1) { throw "No frame_*.png files in $InputDir" }
+    $clips = @(@{ Name = [System.IO.Path]::GetFileName($InputDir); Count = $customCount })
+}
 foreach ($clip in $clips) {
     $name = [string]$clip.Name
     $count = [int]$clip.Count
-    $dir = Join-Path $video $name
-    $out = Join-Path $video ($name + '.fdb')
+    $dir = if ($custom) { $InputDir } else { Join-Path $video $name }
+    $out = if ($custom) { $OutputFile } else { Join-Path $video ($name + '.fdb') }
     $temp = $out + '.partial'
+    if ($custom -and (Test-Path -LiteralPath $out) -and -not $Force) {
+        throw "Output already exists: $out (use -Force to replace it)"
+    }
+    if ($custom -and (Test-Path -LiteralPath $temp)) {
+        throw "Partial output already exists: $temp (remove it manually after checking)"
+    }
     if (-not (Test-Path -LiteralPath $dir -PathType Container)) {
         throw "Missing source folder $dir"
     }
     $firstFrame = Join-Path $dir 'frame_00000.png'
+    if ($custom) {
+        for ($i = 0; $i -lt $count; ++$i) {
+            $expectedFrame = Join-Path $dir ('frame_{0:D5}.png' -f $i)
+            if (-not (Test-Path -LiteralPath $expectedFrame -PathType Leaf)) {
+                throw "Non-contiguous frame sequence: missing $expectedFrame"
+            }
+        }
+    }
     if (-not (Test-Path -LiteralPath $firstFrame -PathType Leaf)) {
         throw "Missing frame $firstFrame"
     }
