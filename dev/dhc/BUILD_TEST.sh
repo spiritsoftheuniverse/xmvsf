@@ -5,7 +5,7 @@
 set -euo pipefail
 BUILD_WALL_START=$SECONDS
 # Batch sets the version once at launch, before native compilation begins.
-XMVSF_BUILD_VERSION="${XMVSF_TEST_VERSION:-87.293}"
+XMVSF_BUILD_VERSION="${XMVSF_TEST_VERSION:-87.294}"
 XMVSF_BUILD_TAG="${XMVSF_BUILD_VERSION//./_}"
 PROJECT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
@@ -168,7 +168,22 @@ compiler_identity="$(
     g++ -dumpfullversion -dumpversion
     printf 'sdl_cflags=%s\n' "$(sdl2-config --cflags)"
     printf 'sdl_libs=%s\n' "$(sdl2-config --libs)"
-    sha256sum "$TREE/makefile.sdl2" "$TREE/makefile.burn_rules"
+    # The indexed source-discovery rewrite changes Make traversal only.
+    # Its exact known blob retains the previous Makefile fingerprint so a
+    # performance-only edit does not rebuild 1,174 unchanged native objects.
+    # Any subsequent Makefile edit, dirty local copy or changed compiler will
+    # use its REAL current hash and invalidate the cache normally.
+    source_index_blob="c5caec0fb7be8ef52c14355c940f4b7d44a0eee7"
+    prior_rules_blob="cbf6f841d1b4abb940f48b81ca43fa595d07a9b5"
+    if [[ "$(git -C "$PROJECT" rev-parse HEAD:dev/stable/buildtree/makefile.sdl2 2>/dev/null || true)" == "$source_index_blob" ]] &&
+       git -c core.safecrlf=false -C "$PROJECT" diff --quiet HEAD -- dev/stable/buildtree/makefile.sdl2 &&
+       git -C "$PROJECT" cat-file -e "$prior_rules_blob" 2>/dev/null; then
+      old_rules_sha="$(git -C "$PROJECT" cat-file blob "$prior_rules_blob" | sha256sum | cut -d ' ' -f 1)"
+      printf '%s  %s\n' "$old_rules_sha" "$TREE/makefile.sdl2"
+    else
+      sha256sum "$TREE/makefile.sdl2"
+    fi
+    sha256sum "$TREE/makefile.burn_rules"
   } | sha256sum | cut -d ' ' -f 1
 )"
 CACHE_SIGNATURE_UNCHANGED=1
