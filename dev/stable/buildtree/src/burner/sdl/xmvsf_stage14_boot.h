@@ -644,8 +644,8 @@ static int xmvsfBootSelector(bool returningFromGame=false) {
             if(!XMGlyph::menuExit(render,"ESC TO QUIT"))
                 xmvsfPixelText(render,"ESC TO QUIT",58,
                     XMGlyph::MainLayout::ExitY,1,185,185,185);
-            if(!XMGlyph::menuVersion(render,"TEST 87.277"))
-                xmvsfPixelText(render,"TEST 87.277",896,
+            if(!XMGlyph::menuVersion(render,"TEST 87.278"))
+                xmvsfPixelText(render,"TEST 87.278",896,
                     XMGlyph::MainLayout::ExitY,1,185,185,185);
             }
         } else if(screen==5) {
