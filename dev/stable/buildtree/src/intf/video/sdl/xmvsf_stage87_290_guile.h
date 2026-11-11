@@ -141,16 +141,10 @@ struct Scene {
     canvasW=std::atoi(f[1].c_str());canvasH=std::atoi(f[2].c_str());
     continue;
    }
-   if(f.size()!=10||f[0]!="LAYER")continue;
-   Layer l;
-   l.role=f[1];l.actor=f[2];l.order=std::atoi(f[3].c_str());
-   l.x=std::atoi(f[4].c_str());l.y=std::atoi(f[5].c_str());
-   l.w=std::atoi(f[6].c_str());l.h=std::atoi(f[7].c_str());
-   // f[8] is filename; ignore optional trailing column when present.
-   // Format LAYER role actor index x y w h filename -> 9 columns.
+
   }
-  // Reopen and parse the exact nine-column extractor contract. Avoid
-  // half-loaded textures if a source layer cannot be read.
+  // Parse the exact nine-column extractor contract. Avoid partially
+  // loaded textures if a required layer cannot be read.
   manifest.clear();manifest.seekg(0);
   while(std::getline(manifest,line)){
    if(line.empty()||line[0]=='#')continue;
@@ -287,35 +281,7 @@ struct Scene {
   }
   return true;
  }
- bool draw(SDL_Renderer* render,const SDL_Rect& view,
-           unsigned long long frame,int cameraX,int cameraY){
-  step(frame);
-  // Native 05 camera is 384px range; world is centered at native midpoint.
-  const double groundCam=double(clamp(cameraX,0,384));
-  const double bgCam=192.0+(groundCam-192.0)*0.45;
-  const bool hadClip=SDL_RenderIsClipEnabled(render)==SDL_TRUE;
-  SDL_Rect prevClip={0,0,0,0};
-  if(hadClip)SDL_RenderGetClipRect(render,&prevClip);
-  SDL_RenderSetClipRect(render,&view);
-  bool good=true;
-  for(auto it=layers.rbegin();it!=layers.rend()&&good;++it)
-   if(it->role=="sky")good=drawSky(render,*it,frame,cameraY,view);
-  for(auto it=layers.rbegin();it!=layers.rend()&&good;++it)
-   if(it->role=="bg")good=drawTexture(render,it->tex,*it,bgCam,cameraY,view);
-  for(auto it=layers.rbegin();it!=layers.rend()&&good;++it)
-   if(it->role=="ground")good=drawTexture(render,it->tex,*it,groundCam,cameraY,view);
-  for(const Actor& a:actors){
-   if(!good||a.frames.empty())continue;
-   const Layer& l=layers[a.frames[a.current]];
-   good=drawTexture(render,l.tex,l,groundCam,cameraY,view);
-  }
-  if(good)good=SDL_RenderCopy(render,fighters,nullptr,&view)==0;
-  const UINT8* flashPixels=xm8757FlashPixels();
-  if(good&&flashPixels && SDL_UpdateTexture(flash,nullptr,flashPixels,VIEW_W*4)==0)
-   good=SDL_RenderCopy(render,flash,nullptr,&view)==0;
-  SDL_RenderSetClipRect(render,hadClip?&prevClip:nullptr);
-  return good;
- }
+
 };
 static inline Scene& scene(){static Scene s;return s;}
 static inline void cleanup(){scene().close();}
