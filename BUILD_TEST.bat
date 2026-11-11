@@ -7,6 +7,7 @@ set "XMVSF_PROJECT=%PROJECT%"
 REM Freeze the target for this invocation: updates during a long build must not
 REM make the wrapper look for a different version than the shell published.
 set "XMVSF_TEST_VERSION=87.292"
+set "XMVSF_TEST_TAG=%XMVSF_TEST_VERSION:.=_%"
 REM Build logs are written BEFORE checking prerequisites. This path is
 REM stable across point versions and never touches or deletes build objects.
 set "LOGDIR=%PROJECT%\test\build_logs"
@@ -69,12 +70,12 @@ popd
 if not "%RC%"=="0" goto :fail
 REM The shell must have actually compiled/linked and published the current
 REM native TEST executable. Never fall back to Stable or a stale numbered TEST.
-if not exist "%PROJECT%\runtime\stable\XMVSF_Test_87_292.exe" (
+if not exist "%PROJECT%\runtime\stable\XMVSF_Test_%XMVSF_TEST_TAG%.exe" (
   echo ERROR: Native compiler returned success but TEST %XMVSF_TEST_VERSION% executable is missing.
   >>"%BUILDLOG%" echo ERROR: TEST %XMVSF_TEST_VERSION% executable missing after successful make
   goto :fail
 )
-for %%I in ("%PROJECT%\runtime\stable\XMVSF_Test_87_292.exe") do if %%~zI LEQ 0 (
+for %%I in ("%PROJECT%\runtime\stable\XMVSF_Test_%XMVSF_TEST_TAG%.exe") do if %%~zI LEQ 0 (
   echo ERROR: TEST %XMVSF_TEST_VERSION% output is empty.
   >>"%BUILDLOG%" echo ERROR: TEST %XMVSF_TEST_VERSION% executable has zero bytes.
   goto :fail
