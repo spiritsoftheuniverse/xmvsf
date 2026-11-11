@@ -286,12 +286,30 @@ def extract(data: bytes, out: Path) -> list[str]:
             actors.setdefault(layer["actor"],[]).append(layer)
     if ground is None:
         raise ValueError("Guile PSD has no pixel layer named ground; stage needs its exact bounds")
-    gl,gt,gr,gb = ground["left"],ground["top"],ground["right"],ground["bottom"]
+    # A PSD raster layer can have *trimmed stored bounds*: Photoshop keeps
+    # its nontransparent pixels only, even though the authored stage occupies
+    # the full 1016x471 coordinate plane. Keep BOTH geometries separately.
+    # The fixed stage frame is user-authored; the canvas is checked for
+    # compatibility, never used as a replacement for the ground artwork.
+    raw_gl,raw_gt,raw_gr,raw_gb = (
+        ground["left"],ground["top"],ground["right"],ground["bottom"])
+    gl,gt,gr,gb = raw_gl,raw_gt,raw_gr,raw_gb
     gw,gh = gr-gl,gb-gt
+    pad_ground = False
     if (gw,gh) != (1016,471):
-        raise ValueError(
-            f"Guile ground layer must be authored 1016x471, found {gw}x{gh} at ({gl},{gt}). "
-            "The PSD canvas must not be substituted for ground.")
+        if ((width,height) != (1016,471) or
+                not (0 <= raw_gl < raw_gr <= 1016 and
+                     0 <= raw_gt < raw_gb <= 471)):
+            raise ValueError(
+                f"Guile ground layer pixels at ({raw_gl},{raw_gt}) "
+                f"{gw}x{gh}; cannot place them safely within the authored "
+                f"1016x471 stage frame (PSD canvas {width}x{height}).")
+        gl,gt,gr,gb = 0,0,1016,471
+        gw,gh = 1016,471
+        pad_ground = True
+        print(f"GUILE PSD GROUND PAD: stored pixels ({raw_gl},{raw_gt}) "
+              f"{raw_gr-raw_gl}x{raw_gb-raw_gt} preserved verbatim at "
+              "original PSD coordinates within 1016x471 RGBA ground frame")
     if not actors:
         raise ValueError("Guile PSD has no raster layers inside the Characters group")
     # Every animation group owns one identical transparent, ground-anchored
@@ -381,6 +399,14 @@ def extract(data: bytes, out: Path) -> list[str]:
             texture = padded_rgba(bytes(rgba),w,h,layer["left"],layer["top"],bounds)
             image_x,image_y = bounds[0],bounds[1]
             image_w,image_h = bounds[2]-bounds[0],bounds[3]-bounds[1]
+        elif role == "ground" and pad_ground:
+            # Restore transparent padding; never scale trimmed pixels to fit.
+            # Original layer bounds remain recorded in the manifest columns.
+            actor = "-"
+            texture = padded_rgba(bytes(rgba),w,h,layer["left"],layer["top"],
+                                  (gl,gt,gr,gb))
+            image_x,image_y = gl,gt
+            image_w,image_h = gw,gh
         else:
             actor = "-"
             texture = bytes(rgba)
