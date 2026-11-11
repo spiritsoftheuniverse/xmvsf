@@ -12,14 +12,14 @@ static inline void log(const char* format,...) {
  va_list args;va_start(args,format);
  std::vsnprintf(line,sizeof(line),format,args);
  va_end(args);
- std::fprintf(stderr,"XM87.282 RELOCATOR %s\n",line);
+ std::fprintf(stderr,"XM87.283 RELOCATOR %s\n",line);
  const char* configured=std::getenv("XM87110_LOG_FILE");
  const char* path=(configured && *configured)?configured:"xmvsf_training_relocator.log";
  FILE* f=std::fopen(path,"a");
- if(f){std::fprintf(f,"XM87.282 RELOCATOR %s\n",line);std::fclose(f);}
+ if(f){std::fprintf(f,"XM87.283 RELOCATOR %s\n",line);std::fclose(f);}
 }
 enum Preset { NONE=0, NORMAL=1, RIGHT=2, LEFT=3 };
-// TEST 87.282: adjust player to 87.272's repeated taunt marker, keeping
+// TEST 87.283: adjust player to 87.272's repeated taunt marker, keeping
 // Cyclops on the original outer edge. Keep mirrored at world width 768.
 // Source of truth for runtime placement is XM87111::fighterX().
 static const unsigned RIGHT_P1_X=650u;
