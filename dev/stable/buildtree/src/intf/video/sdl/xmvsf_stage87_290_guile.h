@@ -227,9 +227,9 @@ struct Scene {
    a.hold=6+(int)(rand32(a.rng)%7u);
   }
   std::fprintf(stderr,
-    "XM87.290 GUILE_READY root=%s canvas=%dx%d sky=%u bg=%u ground=%u actors=%zu textures=%zu\n",
-    root.c_str(),canvasW,canvasH,count[0],count[1],count[2],
-    actors.size(),layers.size());
+    "XM87.293 GUILE_READY root=%s canvas=%dx%d ground=(%d,%d %dx%d) crop=768x471 sky=%u bg=%u ground=%u actors=%zu textures=%zu\n",
+    root.c_str(),canvasW,canvasH,groundX,groundY,groundW,groundH,
+    count[0],count[1],count[2],actors.size(),layers.size());
   return true;
  }
  void step(unsigned long long frame){
@@ -289,7 +289,7 @@ struct Scene {
   const int top=view.y+(int)std::lround(skyY*view.h/AUTHORED_H);
   // The 8px bands move independently by <=1 source pixel. This gives clouds
   // a restrained, deterministic wiggle with a dithered bright-edge overlay.
-  for(int x=origin;x<VIEW_W+tile;x+=tile){
+  for(int x=origin;x<AUTHORED_W+tile;x+=tile){
    if(x+tile<0)continue;
    // Bound draw calls even for a high-resolution PSD: <=28 sky bands.
    const int band=std::max(8,(l.h+27)/28);
