@@ -12,6 +12,7 @@
 #include <cstdio>
 #include <string>
 #include <vector>
+#include "xmvsf_stage87_278_pink_light.h" // artist-color mask and angled world-locked streaks
 
 namespace XMFD {
 static const int W=384,H=224,WORLD_W=768,SPACE_W=1152;
@@ -31,6 +32,7 @@ struct Star {
  unsigned char layer,color,phase;
 };
 struct Scene {
+ XMFDLight::Mask pink; // separate masked emission layer, same source world transform
  SDL_Texture* stars=nullptr;
  SDL_Texture* platform=nullptr;
  SDL_Texture* fighters=nullptr;
@@ -42,6 +44,7 @@ struct Scene {
  std::vector<unsigned char> rgba;
  std::vector<Star> particles;
  void close(){
+  pink.close();
   if(stars)SDL_DestroyTexture(stars);
   if(platform)SDL_DestroyTexture(platform);
   if(fighters)SDL_DestroyTexture(fighters);
@@ -79,9 +82,17 @@ struct Scene {
    failed=true;return false;
   }
   platformW=image->w;platformH=image->h;
-  // Upload the original PNG directly, preserving its pixels and alpha.
-  platform=SDL_CreateTextureFromSurface(renderer,image);
+  // Read original bright pink into an exact source-pixel emission mask.
+  // Cut only those keyed pixels from a temporary copy of the platform;
+  // the original PNG stays untouched in _art and in the repository.
+  SDL_Surface* masked=pink.prepare(renderer,image);
   SDL_FreeSurface(image);
+  if(!masked){
+   std::fprintf(stderr,"XM87.278 FD_PINK_MASK_PREPARE_FAILED %s\n",SDL_GetError());
+   close();failed=true;return false;
+  }
+  platform=SDL_CreateTextureFromSurface(renderer,masked);
+  SDL_FreeSurface(masked);
   stars=SDL_CreateTexture(renderer,SDL_PIXELFORMAT_RGBA32,
        SDL_TEXTUREACCESS_STREAMING,W,H);
   fighters=SDL_CreateTexture(renderer,SDL_PIXELFORMAT_RGBA32,
@@ -193,6 +204,8 @@ inline bool paint(SDL_Renderer* render,const SDL_Rect& view){
  const unsigned long long frame=xm8649Visual.frames;
  if(!s.renderStars(render,frame,xm8649Visual.nativeCameraX,xm8649Visual.nativeCameraY))
   return false;
+ // Progress the streak clock in emulation time, not wall-clock paint calls.
+ if(!s.pink.update(frame))return false;
  if(SDL_UpdateTexture(s.fighters,nullptr,xm77SpritePixels(),W*4)!=0){
   std::fprintf(stderr,"XM87.277 FINAL_DESTINATION_FIGHTER_UPLOAD_FAILED %s\n",SDL_GetError());
   return false;
@@ -203,8 +216,10 @@ inline bool paint(SDL_Renderer* render,const SDL_Rect& view){
  SDL_Rect oldClip={0,0,0,0};
  if(hadClip)SDL_RenderGetClipRect(render,&oldClip);
  SDL_RenderSetClipRect(render,&view);
- // World layer: preserve the PNG's original aspect ratio at a 768px
- // native world width, pan it by the same camera as the native fighters.
+ // Both the masked art and the streaks share this EXACT world transform.
+ // Their perspective-angled channels never detach during camera X/Y motion.
+ // World layer: preserve PNG aspect ratio at a 768px native world width,
+ // pan by the actual camera while keeping native fighters unobscured.
  // The existing viewport clip hides the out-of-view world art; it is
  // never squeezed down to a single 384px-wide full-stage picture.
  const int camera=nativeCamera(xm8649Visual.nativeCameraX);
@@ -233,7 +248,8 @@ inline bool paint(SDL_Renderer* render,const SDL_Rect& view){
   loggedCameraX=camera;loggedCameraY=cameraY;
  }
  const bool good=SDL_RenderCopy(render,s.stars,nullptr,&view)==0 &&
-                 SDL_RenderCopy(render,s.platform,nullptr,&platformWorld)==0;
+                 SDL_RenderCopy(render,s.platform,nullptr,&platformWorld)==0 &&
+                 SDL_RenderCopy(render,s.pink.light,nullptr,&platformWorld)==0;
  if(good){
   xm8733Overlay(render,view); // match the established Wily stun-bar Z order
   SDL_RenderCopy(render,s.fighters,nullptr,&view);
