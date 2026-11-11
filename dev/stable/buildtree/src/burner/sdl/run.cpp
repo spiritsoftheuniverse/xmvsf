@@ -414,6 +414,7 @@ static int RunFrame(int bDraw, int bPause)
 		pBurnDraw = NULL;                    // Make sure no image is drawn
 		BurnDrvFrame();
 		if (!bPause) {
+            xm8658ObserveGamePhase(bDrvOkay); // phase 08/0A even during FD paint skips
             xm14ApplyTrainingCheats(xm14TrainingMode && !xm23State.dizzyAllowed); // XM87.100 non-rendered frame
             // Even skipped pictures must contribute one native sample;
             // the final drawn frame samples immediately before VidPaint.
@@ -425,7 +426,12 @@ static int RunFrame(int bDraw, int bPause)
     XM87206Crash::mark(340,(int)nCurrentFrame);
     xm20VsCheck(bDrvOkay,bRunPause); /* XMVSF_STAGE20_1_VERSUS */
     XM87206Crash::mark(341,(int)nCurrentFrame);
-    xm22::muteSelectionBgm(bDrvOkay, bRunPause, xm20Vs.triggered); /* XMVSF_STAGE22_SELECTION_SFX */
+    xm22::muteSelectionBgm(bDrvOkay, bRunPause, xm20Vs.triggered,
+                           xm77StageResolved==2); /* QSound BGM only, retain SFX */
+    // Native 08 is combat; 0A is the round-ending team KO, not a tag-out.
+    // Mixer state only; no audio decode or file reads in RunFrame.
+    if(bDrvOkay && !bBurnRunAheadFrame)
+        xm20FDStagePhase(xm77StageResolved==2,xm8658GameStatus);
     // XMVSF_STAGE23_TRAINING_MENU already sampled on both draw paths
     // BEFORE native presentation, exactly once per completed CPU frame.
     xm87118OnRealFrame(bDrvOkay); /* XM87.118 completed super-stock observer */
