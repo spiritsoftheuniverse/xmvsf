@@ -5,7 +5,7 @@
 set -euo pipefail
 BUILD_WALL_START=$SECONDS
 # Batch sets the version once at launch, before native compilation begins.
-XMVSF_BUILD_VERSION="${XMVSF_TEST_VERSION:-87.295}"
+XMVSF_BUILD_VERSION="${XMVSF_TEST_VERSION:-87.296}"
 XMVSF_BUILD_TAG="${XMVSF_BUILD_VERSION//./_}"
 PROJECT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
@@ -168,27 +168,10 @@ compiler_identity="$(
     g++ -dumpfullversion -dumpversion
     printf 'sdl_cflags=%s\n' "$(sdl2-config --cflags)"
     printf 'sdl_libs=%s\n' "$(sdl2-config --libs)"
-    # The indexed source-discovery rewrite changes Make traversal only.
-    # Its exact known blob retains the previous Makefile fingerprint so a
-    # performance-only edit does not rebuild 1,174 unchanged native objects.
-    # Any subsequent Makefile edit, dirty local copy or changed compiler will
-    # use its REAL current hash and invalidate the cache normally.
-    source_index_blob="c5caec0fb7be8ef52c14355c940f4b7d44a0eee7"
-    prior_rules_blob="cbf6f841d1b4abb940f48b81ca43fa595d07a9b5"
-    if [[ "$(git -C "$PROJECT" rev-parse HEAD:dev/stable/buildtree/makefile.sdl2 2>/dev/null || true)" == "$source_index_blob" ]] &&
-       git -c core.safecrlf=false -C "$PROJECT" diff --quiet HEAD -- dev/stable/buildtree/makefile.sdl2 &&
-       git -C "$PROJECT" cat-file -e "$prior_rules_blob" 2>/dev/null; then
-      # Match prior working-tree line endings. Git blobs are LF while
-      # Windows core.autocrlf checkouts can have CRLF source bytes.
-      if LC_ALL=C grep -q $'\r' "$TREE/makefile.sdl2"; then
-        old_rules_sha="$(git -C "$PROJECT" cat-file blob "$prior_rules_blob" | sed 's/$/\r/' | sha256sum | cut -d ' ' -f 1)"
-      else
-        old_rules_sha="$(git -C "$PROJECT" cat-file blob "$prior_rules_blob" | sha256sum | cut -d ' ' -f 1)"
-      fi
-      printf '%s  %s\n' "$old_rules_sha" "$TREE/makefile.sdl2"
-    else
-      sha256sum "$TREE/makefile.sdl2"
-    fi
+    # Only compiler settings and the actual build rules affect the hash.
+    # Do not spoof a Makefile fingerprint: its incorrect indexed replacement
+    # previously caused a 1,070-dependency, 688-driver partial rebuild.
+    sha256sum "$TREE/makefile.sdl2"
     sha256sum "$TREE/makefile.burn_rules"
   } | sha256sum | cut -d ' ' -f 1
 )"
@@ -203,9 +186,26 @@ if [[ ! -s "$SIGNATURE" ]]; then
   echo "BUILD CACHE: initialized fingerprint; adopting warm Make objects."
 elif [[ "$(cat "$SIGNATURE")" != "$compiler_identity" ]]; then
   CACHE_SIGNATURE_UNCHANGED=0
+  # Recover ONLY the known failed 87.295 source-index fingerprint when
+  # reverting to the exact FBNeo rules from the last SUCCESSFUL build.
+  # Those makefile edits changed discovery, not compilation flags. Objects
+  # from 87.292 (plus completed failed-run objects) may safely be reused.
+  # Any other signature change retains normal conservative invalidation.
+  restore_failed_index=0
+  if [[ -s "$SUCCESS_STATE" && -s "$TREE/fbneo.exe" &&
+        "$(cat "$SIGNATURE")" == "2b40e5c1311345c24d7ea66ef6cb71ffc44a72688ab76f2fe8304244b2741b40" &&
+        "$(sed -n 's/^compiler_signature[[:space:]]*//p' "$SUCCESS_STATE" | tail -n 1)" == "$compiler_identity" &&
+        "$(git -C "$PROJECT" rev-parse HEAD:dev/stable/buildtree/makefile.sdl2 2>/dev/null || true)" == "cbf6f841d1b4abb940f48b81ca43fa595d07a9b5" ]] &&
+     git -c core.safecrlf=false -C "$PROJECT" diff --quiet HEAD -- dev/stable/buildtree/makefile.sdl2; then
+    restore_failed_index=1
+  fi
   printf '%s\n' "$compiler_identity" > "$SIGNATURE.pending"
   mv -f "$SIGNATURE.pending" "$SIGNATURE"
-  if (( ${#REPAIR_NATIVE[@]} )); then
+  if (( restore_failed_index )); then
+    touch -t 200001010000 "$SIGNATURE"
+    CACHE_SIGNATURE_UNCHANGED=1
+    echo "BUILD CACHE RECOVERY: restored last-successful compiler signature; preserving warm objects."
+  elif (( ${#REPAIR_NATIVE[@]} )); then
     # This signature change repairs the erroneous Make dependency rule.
     # All other objects retain their known-good existing timestamps.
     touch -t 200001010000 "$SIGNATURE"
@@ -546,7 +546,7 @@ if [[ "${XMVSF_WARM_MENU_SINGLE_PASS:-1}" == 1 &&
       WARM_MENU_PASS=1
       while IFS= read -r changed; do
         case "$changed" in
-          _art/*|audio/*|dev/dhc/tests/*|dev/dhc/MENU_INTRO_AUDIO_REVEAL_87_235.md|dev/stable/buildtree/src/burner/sdl/xmvsf_menu_*|dev/stable/buildtree/src/burner/sdl/xmvsf_stage14_boot.h|dev/stable/buildtree/src/burner/sdl/xmvsf_stage87_195_menu_gif.h|dev/stable/buildtree/src/burner/sdl/xmvsf_stage87_235_*|dev/stable/buildtree/src/burner/sdl/xmvsf_stage20_api.h|dev/stable/buildtree/src/intf/audio/sdl/xm20_wasapi_impl.h|dev/dhc/BUILD_TEST.sh|dev/dhc/FAST_MENU_LINK_INPUTS_235.sh|dev/dhc/*.md|BUILD_TEST.bat|RUN_TEST.bat|RUN_REPLAY.bat)
+          _art/*|audio/*|tools/extract_guile_stage.py|FBNeo/config/games/*|FBNeo/*.log|runtime/stable/XMVSF_Test_*.exe|runtime/stable/xmvsfu_hit_*|dev/stable/buildtree/fbneo.exe|dev/dhc/tests/*|dev/dhc/MENU_INTRO_AUDIO_REVEAL_87_235.md|dev/stable/buildtree/src/burner/sdl/xmvsf_menu_*|dev/stable/buildtree/src/burner/sdl/xmvsf_stage14_boot.h|dev/stable/buildtree/src/burner/sdl/xmvsf_stage87_195_menu_gif.h|dev/stable/buildtree/src/burner/sdl/xmvsf_stage87_235_*|dev/stable/buildtree/src/burner/sdl/xmvsf_stage20_api.h|dev/stable/buildtree/src/intf/video/sdl/xmvsf_stage87_290_guile.h|dev/stable/buildtree/src/intf/audio/sdl/xm20_wasapi_impl.h|dev/dhc/BUILD_TEST.sh|dev/dhc/FAST_MENU_LINK_INPUTS_235.sh|dev/dhc/*.md|BUILD_TEST.bat|RUN_TEST.bat|RUN_REPLAY.bat)
             ;;
           *) WARM_MENU_PASS=0; break ;;
         esac
