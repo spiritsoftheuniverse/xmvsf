@@ -165,7 +165,7 @@ struct Scene {
      viewH!=AUTHORED_H||cropStartX<0||
      cropStartX>groundW-AUTHORED_W){
    std::fprintf(stderr,
-    "XM87.297 GUILE_STALE_MANIFEST format=%d ground=(%d,%d %dx%d); regenerate with extractor\n",
+    "XM87.298 GUILE_STALE_MANIFEST format=%d ground=(%d,%d %dx%d); regenerate with extractor\n",
     formatVersion,groundX,groundY,groundW,groundH);
    failed=true;return false;
   }
@@ -235,7 +235,7 @@ struct Scene {
    a.hold=6+(int)(rand32(a.rng)%7u);
   }
   std::fprintf(stderr,
-    "XM87.297 GUILE_READY root=%s canvas=%dx%d ground=(%d,%d %dx%d) crop=768x471 at x=%d sky=%u bg=%u ground=%u actors=%zu textures=%zu\n",
+    "XM87.298 GUILE_READY root=%s canvas=%dx%d ground=(%d,%d %dx%d) crop=768x471 at x=%d sky=%u bg=%u ground=%u actors=%zu textures=%zu\n",
     root.c_str(),canvasW,canvasH,groundX,groundY,groundW,groundH,cropStartX,
     count[0],count[1],count[2],actors.size(),layers.size());
   return true;
@@ -271,15 +271,17 @@ struct Scene {
  }
  bool drawTexture(SDL_Renderer* render,SDL_Texture* tex,
                   const Layer& l,double sourceCropX,int cameraY,
-                  const SDL_Rect& view,double verticalParallax=1.0)const{
+                  const SDL_Rect& view)const{
   if(!tex)return true;
   // World units are ORIGINAL PSD pixels, identical to native sprite pixels.
   // Pin Ground's last authored row to the native viewport bottom at Y=256.
   // Rising cameras move scenery DOWN, as on the established FD stage.
-  // 471 is WORLD height, never scaled-to-fit into the 224px viewport.
+  // Ground and BG MUST share this exact vertical transform: BG only
+  // parallax-scrolls in X, never in Y. 471 is WORLD height, never
+  // scaled-to-fit into the 224px viewport.
   const double sourceX=double(l.x-groundX)-sourceCropX;
   const double sourceY=double(l.y-groundY)+double(VIEW_H-groundH)+
-                       double(GROUND_CAMERA_Y-cameraY)*verticalParallax;
+                       double(GROUND_CAMERA_Y-cameraY);
   SDL_Rect dst{
    view.x+(int)std::lround(sourceX*view.w/VIEW_W),
    view.y+(int)std::lround(sourceY*view.h/VIEW_H),
@@ -292,8 +294,9 @@ struct Scene {
               unsigned long long frame,int sourceCropX,
               const SDL_Rect& view)const{
   if(!l.tex||l.w<1||l.h<1)return false;
-  // High Sky is distant: no vertical fighter-camera displacement.
-  // Repeat native-size source tiles to keep the full screen covered during
+  // High Sky is SCREEN-LOCKED in Y: do not use cameraY, ground camera,
+  // or vertical parallax here. Repeat native-size source tiles to cover
+  // the full screen even during super-jumps.
   // super-jumps. The horizontal drift still loops forever at 3px/sec.
   // Do not stretch, shrink, or resample the sky or its dithered edges.
   const int tileW=l.w,tileH=l.h;
@@ -367,7 +370,7 @@ static inline bool paint(SDL_Renderer* render,const SDL_Rect& view){
  for(auto it=s.layers.rbegin();it!=s.layers.rend()&&good;++it)
   if(it->role=="sky")good=s.drawSky(render,*it,frame,(int)crop,view);
  for(auto it=s.layers.rbegin();it!=s.layers.rend()&&good;++it)
-  if(it->role=="bg")good=s.drawTexture(render,it->tex,*it,bgCrop,cameraY,view,0.45);
+  if(it->role=="bg")good=s.drawTexture(render,it->tex,*it,bgCrop,cameraY,view);
  for(auto it=s.layers.rbegin();it!=s.layers.rend()&&good;++it)
   if(it->role=="ground")good=s.drawTexture(render,it->tex,*it,crop,cameraY,view);
  for(const Actor& a:s.actors){
