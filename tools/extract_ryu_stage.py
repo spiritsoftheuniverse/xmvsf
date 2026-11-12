@@ -95,7 +95,8 @@ def layer_index(raw: bytes):
                 p.skip(1)
         p.pos = extra_end
         layers.append({"index":i,"name":name,"section":section,"opacity":opacity,
-                       "bounds":(left,top,right,bottom),"channels":chans,"mask":mask})
+                       "bounds":(left,top,right,bottom),"channels":chans,"mask":mask,
+                       "visible":not bool(flags & 2)})
     if p.pos > end:
         raise ValueError("PSD layer index exceeds layer data")
     return p, width, height, mode, layers
@@ -124,6 +125,11 @@ def extract(raw: bytes) -> list[str]:
                 if mr>ml and mb>mt:
                     planes[-2] = decode_plane(data,mr-ml,mb-mt)
         if section in (1,2,3) or w<=0 or h<=0 or not planes:
+            continue
+        # Unselected hidden construction layers are not part of the stage.
+        # Explicitly named stage roles remain authoritative even when the
+        # Photoshop author temporarily hides them for inspection.
+        if role(name) == "other" and not layer["visible"]:
             continue
         if w>4096 or h>4096 or w*h>8000000:
             raise ValueError(f"Unreasonably large Ryu raster layer {name}: {w}x{h}")
