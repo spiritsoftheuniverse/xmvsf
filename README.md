@@ -213,6 +213,55 @@ Only the existing local `BUILD_TEST.bat` and `RUN_TEST.bat` are
 used for native validation. Source math and original checkpoint were
 inspected; actual Windows TEST 87.326 playback is not claimed.
 
+## Tournament air-combo medium velocity protection — TEST 87.327
+
+**Evidence:** the user's original `87.326.zip` contained tournament mode
+enabled (`tournament_rules.tsv`), plus 2,640 records from the
+`storm_like_flight_events.tsv` native post-CPU hit/velocity observer.
+It recorded **29** Tournament host writes to victim velocity:
+**17** from Ryu's aerial MK (`1A02`, confirmed physical button 16),
+**6** from a light air attack (`1800`, button 1), and only **6**
+from a confirmed HK (`1A04`, button 32). At native frame 6092,
+Ryu's connected MK entered `FS_STORM_HIT_CONFIRMED_PENDING`;
+at frame 6101, the same pending hit wrote vertical velocity from
+`FFF97D00` (upward) to `0000B000` (downward). This is an observed
+host modification, not just normal ROM gravity.
+
+**Root cause:** `xmvsf_stage87_86_storm_button_guard.h` registered
+EVERY normal air/ground hit during an ongoing flying-screen phase as
+eligible for delayed Storm knockdown. Its earlier heavy-only/medium
+exclusions were bypassed entirely by the `fsConditionalPending`
+path. Shared animation codes additionally made action-only heavy
+classification unsafe.
+
+**87.327 fix:** queue a new Tournament knockdown ONLY for a confirmed
+native normal HP/HK: an actual single-button input edge captured at
+the native hit onset **and** an airborne or grounded heavy action.
+A retained button/action identity is checked again at the deferred
+native substate-2 velocity writer. The separate legacy severe-finisher
+writer now requires identical confirmed heavy identity both at latch
+and write time. Ambiguous input fails closed. Light and medium attacks
+continue to update the existing connected-hit combo ledger (including
+breaking HP->HK chains), but NEVER receive host velocity, knockback,
+animation-pair, or flying-screen overrides.
+
+An offline dry-run of the 87.326 recorded hit classifications shows
+**59** previously eligible FS hit confirmations: **26** light air hits,
+**26** MK hits, **1** grounded MP hit, **6** verified HK hits. With the
+new strong-only predicate, **53** undesired candidates are suppressed
+and the **6** HK candidates remain eligible. This is a source/recording
+analysis, **not** a claim of a native Windows replay pass. No Stable
+changes, new GitHub Actions, or added build gates.
+
+For native verification, launch TEST 87.327 with Tournament ON and
+inspect the existing `storm_like_flight_events.tsv`: any event with
+`velocity_written=1` must originate from a previously confirmed
+HP/HK normal with matching native action; MK/MP/LP/LK must remain
+native, including during active FS. The deferred event now reports
+the originating HP/HK tag, not the unrelated buttons held on the
+later native substate-2 frame. Compare against Tournament OFF
+and preserve original F9 recordings.
+
 ## Verified versus-screen M68K checkpoint — TEST 87.324
 
 The original uploaded **87.320** F9 recording starts with a
