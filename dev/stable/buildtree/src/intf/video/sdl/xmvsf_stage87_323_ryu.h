@@ -174,10 +174,10 @@ struct Scene {
   // Background -> foreground, independent of the PSD's layer indexing.
   if(role=="skytop")return 0;
   if(role=="skybottom")return 1;
-  if(role=="other")return 2;
-  if(role=="roof3")return 3;
-  if(role=="roof2")return 4;
-  if(role=="ground")return 5;
+  if(role=="ground")return 2;
+  if(role=="other")return 3;
+  if(role=="roof3")return 4;
+  if(role=="roof2")return 5;
   if(role=="roof")return 6;
   return 2;
  }
