@@ -288,8 +288,14 @@ struct Scene {
   return cropStartX+(AUTHORED_W-VIEW_W)/2;
  }
  int groundCrop(int nativeCameraX)const{
+  // The 768px VIEW record is an authoring placement, NOT a hard pan
+  // boundary. The PSD Ground retains wider original pixels/padding.
+  // Clamping to cropStartX..cropStartX+384 stopped background motion
+  // for the first ~104 native camera pixels, while fighters continued,
+  // making the stage visibly slip relative to the native camera.
+  // Bound by the REAL exported Ground image, preserving source pixels.
   return clamp(centerCrop()+(nativeCameraX-OPENING_NATIVE_CAMERA_X),
-               cropStartX,cropStartX+AUTHORED_W-VIEW_W);
+               0,groundW-VIEW_W);
  }
  bool drawTexture(SDL_Renderer* render,SDL_Texture* tex,
                   const Layer& l,double sourceCropX,int cameraY,
