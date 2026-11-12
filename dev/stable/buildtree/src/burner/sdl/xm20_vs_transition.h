@@ -66,11 +66,11 @@ static inline void xm20VsCheck(int ready,int paused) {
     // ROM variants that do not expose intermediate step 06 may jump
     // directly 04->08. Honor that only while still in status 00/01,
     // never at the stage-load/actual combat boundary.
-    const bool screenEntry=
-        entrance==XM20VsEarly::VS_SCREEN_EDGE ||
-        (entrance==XM20VsEarly::MATCH_SETUP_EDGE && status<0x02u) ||
-        (status==0x01u && xm20Vs.previousStatus==0x00u &&
-         xm20Vs.gate.sawChoosing);
+    const bool screenEntry=status<0x02u &&
+        (entrance==XM20VsEarly::VS_SCREEN_EDGE ||
+         entrance==XM20VsEarly::MATCH_SETUP_EDGE ||
+         (status==0x01u && xm20Vs.previousStatus==0x00u &&
+          xm20Vs.gate.sawChoosing));
     if(!xm20Vs.triggered && screenEntry){
         xm20VsLog(entrance==XM20VsEarly::VS_SCREEN_EDGE?
             "VS_SCREEN_FIRST_NATIVE_FRAME":
