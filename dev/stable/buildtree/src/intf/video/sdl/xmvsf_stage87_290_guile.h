@@ -167,7 +167,7 @@ struct Scene {
      viewH!=AUTHORED_H||cropStartX<0||
      cropStartX>groundW-AUTHORED_W){
    std::fprintf(stderr,
-    "XM87.299 GUILE_STALE_MANIFEST format=%d ground=(%d,%d %dx%d); regenerate with extractor\n",
+    "XM87.300 GUILE_STALE_MANIFEST format=%d ground=(%d,%d %dx%d); regenerate with extractor\n",
     formatVersion,groundX,groundY,groundW,groundH);
    failed=true;return false;
   }
@@ -238,7 +238,7 @@ struct Scene {
    }
   }
   std::fprintf(stderr,
-   "XM87.299 GUILE_SKY_SEAM bg_top_source_y=%d ground_y=%d named_bg=%d camera_y_lock=ground\n",
+   "XM87.300 GUILE_SKY_SEAM bg_top_source_y=%d ground_y=%d named_bg=%d camera_y_lock=ground\n",
    bgTopY,groundY,(int)foundNamedBg);
   fighters=SDL_CreateTexture(renderer,SDL_PIXELFORMAT_RGBA32,
        SDL_TEXTUREACCESS_STREAMING,VIEW_W,VIEW_H);
@@ -255,7 +255,7 @@ struct Scene {
    a.hold=6+(int)(rand32(a.rng)%7u);
   }
   std::fprintf(stderr,
-    "XM87.299 GUILE_READY root=%s canvas=%dx%d ground=(%d,%d %dx%d) crop=768x471 at x=%d sky=%u bg=%u ground=%u actors=%zu textures=%zu\n",
+    "XM87.300 GUILE_READY root=%s canvas=%dx%d ground=(%d,%d %dx%d) crop=768x471 at x=%d sky=%u bg=%u ground=%u actors=%zu textures=%zu\n",
     root.c_str(),canvasW,canvasH,groundX,groundY,groundW,groundH,cropStartX,
     count[0],count[1],count[2],actors.size(),layers.size());
   return true;
@@ -314,9 +314,10 @@ struct Scene {
               unsigned long long frame,int sourceCropX,int cameraY,
               const SDL_Rect& view)const{
   if(!l.tex||l.w<1||l.h<1)return false;
-  // Fixed in STAGE Y, not SCREEN Y. The bottom of sky meets the
-  // Photoshop BG top and both follow identical native camera motion.
-  // Keep the sky's independent horizontal drift and light parallax.
+  // The source sky now tiles at its left/right edges. Draw each tile as
+  // ONE continuous image: the old independent 8px bands moved sideways
+  // by different amounts and their +1px overlaps flickered as seams.
+  // Keep exactly the 87.299 world-Y seam and horizontal camera/parallax.
   const int tileW=l.w,tileH=l.h;
   const int shift=int((frame/20u)%unsigned(tileW));
   const int skyCameraX=centerCrop()+(sourceCropX-centerCrop())/5;
@@ -326,40 +327,38 @@ struct Scene {
                        (GROUND_CAMERA_Y-cameraY);
   const int visibleBottom=clamp(skyBottomY,0,VIEW_H);
   if(visibleBottom<=0)return true;
-  const int band=std::max(8,(tileH+27)/28);
+  // A shared 1px drift preserves gentle sky motion while leaving adjacent
+  // tiles and all their rows aligned on exactly the same pixel boundary.
+  const int wobble=(int)std::lround(
+      std::sin(double(frame)/137.0+double(l.order)));
+  if(l.edge)SDL_SetTextureAlphaMod(l.edge,100);
   for(int x=originX;x<VIEW_W;x+=tileW){
    if(x+tileW<=0)continue;
-   // Tile sky UP from the moving seam; never tile down into BG.
+   const int destLeft=view.x+(int)std::lround(
+       double(x+wobble)*view.w/VIEW_W);
+   const int destRight=view.x+(int)std::lround(
+       double(x+wobble+tileW)*view.w/VIEW_W);
+   if(destRight<=destLeft)continue;
+   // Preserve original vertical world registration. Do not move sky,
+   // BG, ground, actors, or the BG seam relative to one another.
    for(int y=skyBottomY-tileH;y+tileH>0;y-=tileH){
     if(y>=VIEW_H)continue;
-    for(int row=0;row<tileH;row+=band){
-     const int lines=std::min(band,tileH-row);
-     const int top=std::max(0,y+row);
-     const int bottom=std::min(visibleBottom,y+row+lines);
-     if(bottom<=top)continue;
-     const double cycle=double(frame)/137.0+double(row)/29.0+
-                        double(l.order);
-     const int wobble=(int)std::lround(std::sin(cycle));
-     const SDL_Rect src{0,top-y,tileW,bottom-top};
-     const int dstTop=view.y+(int)std::lround(double(top)*view.h/VIEW_H);
-     const int dstBottom=view.y+(int)std::lround(double(bottom)*view.h/VIEW_H);
-     if(dstBottom<=dstTop)continue;
-     const SDL_Rect dst{
-      view.x+(int)std::lround(double(x+wobble)*view.w/VIEW_W),
-      dstTop,
-      std::max(1,(int)std::lround(double(tileW)*view.w/VIEW_W)),
-      dstBottom-dstTop
-     };
-     if(SDL_RenderCopy(render,l.tex,&src,&dst)!=0)return false;
-     if(l.edge){
-      SDL_Rect edgeDst=dst;
-      edgeDst.x+=(int)std::lround(
-        double(int((frame/17u+unsigned(row))%3u)-1)*view.w/VIEW_W);
-      SDL_SetTextureAlphaMod(l.edge,
-        (Uint8)(80u+unsigned(frame/11u+row)%5u*28u));
-      if(SDL_RenderCopy(render,l.edge,&src,&edgeDst)!=0)return false;
-     }
-    }
+    const int top=std::max(0,y);
+    const int bottom=std::min(visibleBottom,y+tileH);
+    if(bottom<=top)continue;
+    const SDL_Rect src{0,top-y,tileW,bottom-top};
+    const int destTop=view.y+(int)std::lround(
+        double(top)*view.h/VIEW_H);
+    const int destBottom=view.y+(int)std::lround(
+        double(bottom)*view.h/VIEW_H);
+    if(destBottom<=destTop)continue;
+    const SDL_Rect dst{destLeft,destTop,destRight-destLeft,
+                       destBottom-destTop};
+    if(SDL_RenderCopy(render,l.tex,&src,&dst)!=0)return false;
+    // Static checkerboard cloud edge: same footprint as the sky tile.
+    // No independently wobbling strip or alpha blink at tile joins.
+    if(l.edge&&SDL_RenderCopy(render,l.edge,&src,&dst)!=0)
+     return false;
    }
   }
   return true;
