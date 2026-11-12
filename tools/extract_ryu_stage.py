@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
-"""Ryu stage: lossless per-layer Photoshop PSD extraction with original coordinates.
+"""Ryu stage 87.325: lossless PSD parallax, independent PNG ground.
 
-Source remains _art/ryustage/ryustage.psd, unchanged. PNG pixel rectangles
-are NOT clipped to the nominal 768x471 PSD canvas; negative X/Y and overflow
-remain in manifest coordinates. This is cached by PSD + extractor SHA.
-Uses the established stdlib-only Guile PSD reader; no Photoshop or pip.
+The user-authored _art/ryustage/ryustage.png is the ONLY ground and
+native world camera holder; this extractor never alters or regenerates it.
+Extract only named Roof/Roof2/Roof3/Sky Top/Sky Bottom Photoshop layers
+at full original bounds, preserving negative X/Y and overflow.
+Unnamed construction layers and the deprecated PSD Ground are ignored.
+The existing PSD/SHA warm cache is preserved (no Photoshop/pip required).
 """
 from __future__ import annotations
 import hashlib
@@ -18,7 +20,7 @@ from extract_guile_stage import PSD, decode_plane, png_rgba
 ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / "_art/ryustage/ryustage.psd"
 OUT = ROOT / "_art/ryustage/extracted"
-ROLES = {"ground", "roof", "roof2", "roof3", "skytop", "skybottom"}
+ROLES = {"roof", "roof2", "roof3", "skytop", "skybottom"}
 
 
 def role(name: str) -> str:
@@ -126,18 +128,18 @@ def extract(raw: bytes) -> list[str]:
                     planes[-2] = decode_plane(data,mr-ml,mb-mt)
         if section in (1,2,3) or w<=0 or h<=0 or not planes:
             continue
-        # Unselected hidden construction layers are not part of the stage.
-        # Explicitly named stage roles remain authoritative even when the
-        # Photoshop author temporarily hides them for inspection.
-        if role(name) == "other" and not layer["visible"]:
+        # The new PNG is sole Ground. PSD 'Layer 2' is an opaque
+        # construction raster that would hide the sky and the parallax.
+        # Preserve the PSD, but export only the five explicitly named
+        # sky/roof roles. Hidden named roles remain supported.
+        if role(name) not in ROLES:
             continue
         if w>4096 or h>4096 or w*h>8000000:
             raise ValueError(f"Unreasonably large Ryu raster layer {name}: {w}x{h}")
         label = role(name)
-        if label in ROLES:
-            if label in found:
-                raise ValueError(f"Duplicate Ryu stage layer role: {name}")
-            found[label] = layer["index"]
+        if label in found:
+            raise ValueError(f"Duplicate Ryu stage layer role: {name}")
+        found[label] = layer["index"]
         n = w*h
         gray = planes.get(0,bytes(n))
         red = gray
