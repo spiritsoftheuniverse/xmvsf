@@ -628,21 +628,21 @@ inline void captureVersusPreroll(const Host& host){
     cpu_core_config* cpu=GetCpuCoreConfig(0);
     if(!cpu||!cpu->open||!cpu->read||!cpu->close)return;
     cpu->open(0);
-    const int status=cpu->read(0xFF5000u)&255u;
-    cpu->close(0);
+    const int nativeStatus=cpu->read(0xFF5000u)&255u;
+    cpu->close();
     // Selection is 00; an advancing pre-combat status (02,04,06)
     // starts the native VS screen. 08 is live combat.
-    if(status==0 && c.preLastStatus!=0){
+    if(nativeStatus==0 && c.preLastStatus!=0){
         c.preAttempted=false;c.preExpired=false;c.preActive=false;
         c.preFrames.clear();c.preSlotLayout.clear();
     }
     const int previous=c.preLastStatus;
-    c.preLastStatus=status;
-    if(status>=8 || (status==0 && c.preActive)){
+    c.preLastStatus=nativeStatus;
+    if(nativeStatus>=8 || (status==0 && c.preActive)){
         c.preActive=false;c.preFrames.clear();
         return;
     }
-    if(!c.preActive&&!c.preAttempted&&status>0&&status<8&&
+    if(!c.preActive&&!c.preAttempted&&nativeStatus>0&&nativeStatus<8&&
        previous==0&&host.selectPhase>=3){
         c.preAttempted=true;
         if(!collect())return;
@@ -657,7 +657,7 @@ inline void captureVersusPreroll(const Host& host){
             status("VERSUS_PREROLL_STATE_FAILED");return;
         }
         c.preActive=true;c.preExpired=false;c.preFrames.clear();
-        status("VERSUS_PREROLL_ARMED status="+std::to_string(status));
+        status("VERSUS_PREROLL_ARMED status="+std::to_string(nativeStatus));
     }
     if(!c.preActive)return;
     if(c.preFrames.size()>=120u){
@@ -669,7 +669,7 @@ inline void captureVersusPreroll(const Host& host){
     bytes.reserve(c.preInputWidth);
     for(const Slot& slot:c.slots)
         for(unsigned i=0;i<slot.width;++i)bytes.push_back(slot.address[i]);
-    c.preFrames.push_back(std::move(bytes));
+    c.preFrames.push_back(bytes);
 }
 enum FrameResult { NO_REPLAY=0, FRAME_READY=1, END_GAME=2, DIVERGED=3 };
 inline FrameResult beforeFrame(const Host& host){
