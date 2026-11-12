@@ -9,6 +9,7 @@
 // The initial universal path intentionally DOES NOT force an incoming kickless
 // landing: other fighters' native tag-entry scripts need captured ROM evidence.
 #include "xmvsf_stage87_192_reserve_super_ownership.h"
+#include "xmvsf_stage87_329_morphus_dhc_catalog.h"
 #include "xmvsf_stage87_193_deterministic_exit_protocol.h"
 #include "xmvsf_stage87_262_game_version.h"
 #include <cstdint>
@@ -184,6 +185,18 @@ struct State {
                 if(!tag.valid){
                     event(now,side,"REJECT_NO_ORIGINAL_32_00_TAG_SCRIPT");
                     XM87192Owner::state().clear(side);continue;
+                }
+                // Morphus 87.329 EURO roster catalog: experimental
+                // pre-tag refusal only. Do not infer an incoming super or
+                // write an unverified +D6/action into the US ROM from it.
+                if(XM87329Morphus::enabled()){
+                    const auto decision=XM87329Morphus::review(
+                        reserve,unsigned(XM87192Owner::state().pending[side].motion));
+                    event(now,side,XM87329Morphus::reason(decision));
+                    if(XM87329Morphus::rejectBeforeTag(decision)){
+                        XM87192Owner::state().clear(side);
+                        continue; // original outgoing Hyper continues; no swap
+                    }
                 }
                 s.request=XM87192Owner::state().pending[side];
                 s.point=point;s.reserve=reserve;s.started=now;
