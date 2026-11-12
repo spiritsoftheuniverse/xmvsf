@@ -208,12 +208,15 @@ static inline bool swapSide(unsigned char* ram,unsigned a,unsigned b,
                                 (originalA[0x04au]&1u));
  ram[b+0x04au]=(unsigned char)((ram[b+0x04au]&~1u)|
                                 (originalB[0x04au]&1u));
- // Health/meter and slot-specific partner indices from the original
- // first-frame reset. +0x224 pointer points to the opposite slot.
- copySpan(ram+a,originalA,0x200,0x018);
- copySpan(ram+b,originalB,0x200,0x018);
- copySpan(ram+a,originalA,0x220,0x008);
- copySpan(ram+b,originalB,0x220,0x008);
+ // Restore only first-round health/current+max values to the correct
+ // point/reserve slots. The real native pair ALREADY has coherent +0x200
+ // controller bindings, +0x214 tag readiness, +0x220 bench index, and
+ // +0x224 partner pointers. Do not overwrite them from the OLD point:
+ // 87.305 checkpoints show 0x0300 at +214 on the old Cyclops point
+ // while real Wolverine tags carry 0x0308, and the dormant bench owns
+ // its own +220 character index. This is the back-tag/throw controller.
+ copySpan(ram+a,originalA,0x210,0x004);
+ copySpan(ram+b,originalB,0x210,0x004);
  return word(ram,a+0x52u)==expectedPoint&&
         word(ram,b+0x52u)==expectedReserve;
 }
