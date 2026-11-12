@@ -38,8 +38,6 @@
 #include "xm20_vs_transition.h" /* XMVSF_STAGE20_1_VERSUS */ // XMVSF_STAGE17_AUTO
 #include "xmvsf_stage16_snapshot.h" // XMVSF_STAGE16_SNAPSHOT
 #include "xmvsf_stage87_105_training_reset.h" // XM87.105 KO landing snapshot reset
-#include "xmvsf_stage87_110_restart.h" // XM87.110 training triple-tap restart
-#include "xmvsf_stage87_110_reload.h" // XM87.110 snapshot load + placement
 // XM87.105 removed supplemental flying-screen WAV; native ROM sound retained // XMVSF_STAGE15_MACHINE // XMVSF_STAGE14_TRAINING_CHEATS
 #ifdef BUILD_SDL2
 #include "sdl2_gui_common.h"
@@ -438,21 +436,10 @@ static int RunFrame(int bDraw, int bPause)
     // BEFORE native presentation, exactly once per completed CPU frame.
     xm87118OnRealFrame(bDrvOkay); /* XM87.118 completed super-stock observer */
     xm24OnRealFrame(bDrvOkay); /* XMVSF_STAGE24_VERSUS */
-    // XM87.270: The first-live-frame saver was defined but never CALLED.
-    // Capture at the completed real-frame boundary after all CPU scopes close,
-    // before either triple-Start or KO landing can request a snapshot reload.
-    // This is shared by both Training damage modes and is a one-shot per round.
-    XM87102Lab::Capture& trainingMatch=XM87102Lab::capture();
-    trainingMatch.frame(bDrvOkay,(unsigned)nCurrentFrame);
-    if(trainingMatch.tried && trainingMatch.frames==1u)
-        XM87110::log("MATCH_START_CAPTURE frame=%u saved=%u path=%s",
-            (unsigned)nCurrentFrame,(unsigned)trainingMatch.saved,
-            XM87102Lab::SNAPSHOT);
-    // Triple-Start restart takes priority over the KO-landing autoload.
-    if(xm87110RestartAfterFrame(bDrvOkay,(unsigned)nCurrentFrame))
-        XM8764::checkpoint("TRAINING_TRIPLE_START_RELOAD");
-    else
-        xm87105TrainingResetOnLanding(bDrvOkay,(unsigned)nCurrentFrame); // KO -> landed -> match snapshot
+    // First-live-frame Training snapshot is retained for the existing
+    // KO-landing reset. Triple-Start roster replay/placement was removed.
+    XM87102Lab::capture().frame(bDrvOkay,(unsigned)nCurrentFrame);
+    xm87105TrainingResetOnLanding(bDrvOkay,(unsigned)nCurrentFrame);
     if(traceFrame){std::fprintf(stderr,"XM86.34 FIRST RunFrame reached stage5 hook\n");std::fflush(stderr);}
     // Stage86.57: stage resolution and camera were sampled before VidPaint.
     // Do not run the stage hook a second time after presenting the frame.
