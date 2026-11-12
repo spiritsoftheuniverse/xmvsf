@@ -1,7 +1,9 @@
 #ifndef XMVSF_STAGE87_139_PROBE_H
 #define XMVSF_STAGE87_139_PROBE_H
-// 87.139 F10 diagnostic recorder. Read-only. NEVER edits RAM, video/OAM,
-// controller values, tag state, frame order, sound, pause, or game logic.
+// 87.328: F10 additionally captures native selection->VS instruction-level
+// FF5104/FF5000/chooser changes, including the exact executed 68000 PPC.
+// Existing 87.139 combat rows and OAM semantics are preserved. Read-only.
+// NEVER edits RAM, video/OAM, controller values, game state, CPU cycles or sound.
 // One global state shared by CPS2, SDL input and presenter translation units.
 // Output: inputs+all four native actors and buffered native sprite palette/tile
 // samples around a confirmed tag. F10 creates a new numbered pair on every start.
@@ -10,6 +12,8 @@
 #include <cstring>
 #include <cstdint>
 #include <string>
+#include "../../cpu/m68000_intf.h"
+#include "../../cpu/m68k/m68k.h"
 namespace XM87139Probe {
 static inline unsigned b(const std::uint8_t* r,unsigned a){return r[(a&65535u)^1u];}
 static inline unsigned w(const std::uint8_t* r,unsigned a){return (b(r,a)<<8)|b(r,a+1u);}
@@ -45,51 +49,159 @@ static inline Actor actor(const std::uint8_t* r,unsigned a){
 extern "C" int xm87137ReadMappedInput(unsigned side,unsigned ago,
                                      unsigned* frame,unsigned* direction,
                                      unsigned* held,unsigned* pressed);
+struct NativeSnapshot {
+    unsigned phase=0,step=0,p1=0,p2=0,stage=0,timer=0;
+};
+static inline NativeSnapshot snapshot(const std::uint8_t* r){
+    NativeSnapshot s;
+    s.phase=b(r,0x5000u);s.step=w(r,0x5104u);
+    s.p1=b(r,0x5180u);s.p2=b(r,0x51a0u);
+    s.stage=b(r,0x5113u);s.timer=b(r,0x5008u);
+    return s;
+}
+static inline unsigned delta(const NativeSnapshot& a,const NativeSnapshot& z){
+    return (a.phase!=z.phase?1u:0u)|(a.step!=z.step?2u:0u)|
+           (a.p1!=z.p1?4u:0u)|(a.p2!=z.p2?8u:0u);
+}
+struct State;
+inline State& state(); // The 68000 post-instruction bridge needs this forward declaration.
 struct State {
     bool active=false,error=false;
-    unsigned session=0,frames=0,tagEvents=0,lastFrame=~0u;
+    unsigned session=0,frames=0,precombatFrames=0,tagEvents=0,lastFrame=~0u;
     unsigned lastOamFrame=~0u,oamCount=0,tagUntil=0;
-    std::FILE *trace=nullptr,*oam=nullptr;
-    std::string tracePath,oamPath;
+    std::FILE *trace=nullptr,*oam=nullptr,*nativeTrace=nullptr;
+    std::string tracePath,oamPath,nativePath;
+    bool nativeHook=false;
+    int (*nativePrior)(int)=nullptr;
+    const std::uint8_t* nativeRam=nullptr;
+    unsigned nativeFrameId=0,nativeOrdinal=0,nativeLastPpc=0,nativeLastNext=0;
+    unsigned nativeA6=0,nativeD0=0,nativeD1=0,nativeChanges=0,nativeRows=0;
+    NativeSnapshot nativePrevious,nativeAtFrameStart;
     bool priorValid[4]={false,false,false,false};
     Actor prior[4];
     ~State(){stop();}
+    // A single frame summary AND any executed-instruction mutations use the
+    // same fixed-width TSV schema. A row marked INSTRUCTION_CHANGE identifies
+    // the native PPC that changed the 68000's actual chooser/phase bytes.
+    // FRAME rows provide continuity even when no watched state changed.
+    void nativeRow(const char* event,const NativeSnapshot& before,
+                   const NativeSnapshot& after,unsigned changes){
+        if(!nativeTrace || nativeRows>=20000u)return;
+        std::fprintf(nativeTrace,
+            "%u\t%s\t%u\t%06X\t%06X\t%02X\t%02X\t%04X\t%08X"
+            "\t%02X\t%02X\t%04X\t%04X\t%02X\t%02X\t%02X\t%02X"
+            "\t%02X\t%02X\t%02X\t%02X\t%08X\n",
+            nativeFrameId,event,nativeOrdinal,
+            nativeLastPpc,nativeLastNext,changes,
+            nativeA6,nativeD0,nativeD1,
+            before.phase,after.phase,before.step,after.step,
+            before.p1,after.p1,before.p2,after.p2,
+            after.stage,after.timer,
+            // FF[A014] is a native pointer, not an inferred screen label.
+            nativeRam?d(nativeRam,0xa014u):0u,
+            nativeChanges,nativeRows);
+        ++nativeRows;
+    }
+    void nativeInstruction(){
+        if(!nativeHook || !nativeRam)return;
+        ++nativeOrdinal;
+        nativeLastPpc=SekGetPPC(-1)&0xffffffu;
+        nativeLastNext=SekGetPC(-1)&0xffffffu;
+        const NativeSnapshot now=snapshot(nativeRam);
+        const unsigned changed=delta(nativePrevious,now);
+        if(!changed)return;
+        nativeA6=(unsigned)m68k_get_reg(nullptr,M68K_REG_A6)&0xffffffu;
+        nativeD0=(unsigned)m68k_get_reg(nullptr,M68K_REG_D0);
+        nativeD1=(unsigned)m68k_get_reg(nullptr,M68K_REG_D1);
+        ++nativeChanges;
+        nativeRow("INSTRUCTION_CHANGE",nativePrevious,now,changed);
+        nativePrevious=now;
+    }
+    static int nativeBridge(int cycles){
+        State& s=state();
+        // Wrap existing Musashi observers; never swallow their callback.
+        if(s.nativePrior && s.nativePrior!=&State::nativeBridge)
+            s.nativePrior(cycles);
+        if(s.nativeHook)s.nativeInstruction();
+        return 0;
+    }
+    // Called while SekOpen(0) and only after existing DHC/Charlie hooks.
+    // No hot path overhead when F10 is off or native combat has begun.
+    void nativeBegin(const std::uint8_t* ram,unsigned frameId,
+                     bool xmvsf,bool runahead){
+        if(nativeHook || !active || !nativeTrace || !xmvsf || runahead ||
+           !ram || b(ram,0x5000u)==8u)return;
+        nativeRam=ram;nativeFrameId=frameId;nativeOrdinal=0;
+        nativeLastPpc=nativeLastNext=0u;nativeA6=nativeD0=nativeD1=0u;
+        nativeAtFrameStart=nativePrevious=snapshot(ram);
+        nativePrior=m68k_get_insn_cb();
+        m68k_set_insn_cb(&State::nativeBridge);
+        nativeHook=true;
+    }
+    // LIFO: stop this callback BEFORE the existing Charlie/DHC callbacks.
+    void nativeEnd(){
+        if(!nativeHook)return;
+        nativeHook=false;
+        m68k_set_insn_cb(nativePrior);
+        nativePrior=nullptr;
+        if(nativeRam){
+            const NativeSnapshot after=snapshot(nativeRam);
+            nativeRow("FRAME",nativeAtFrameStart,after,
+                      delta(nativeAtFrameStart,after));
+        }
+        if(nativeTrace)std::fflush(nativeTrace);
+        nativeRam=nullptr;
+    }
     void stop(){
+        nativeEnd();
         if(trace){
-            std::fprintf(trace,"# F10_STOP native_frames=%u tag_events=%u%s\n",
-                frames,tagEvents,frames==0u?" NO_COMBAT_FRAMES_SEEN":"");
+            std::fprintf(trace,
+                "# F10_STOP combat_frames=%u precombat_frames=%u tag_events=%u%s\n",
+                frames,precombatFrames,tagEvents,
+                frames==0u && precombatFrames==0u?" NO_NATIVE_FRAMES_SEEN":
+                frames==0u?" PRECOMBAT_CAPTURE_ONLY":"");
             std::fflush(trace);std::fclose(trace);trace=nullptr;
         }
         if(oam){std::fflush(oam);std::fclose(oam);oam=nullptr;}
+        if(nativeTrace){std::fflush(nativeTrace);std::fclose(nativeTrace);nativeTrace=nullptr;}
         active=false;
     }
     bool toggle(bool inGame){
-        if(active){stop();std::fprintf(stderr,"XM87.139 PROBE_STOP frames=%u tags=%u file=%s oam=%s\n",
-                 frames,tagEvents,tracePath.c_str(),oamPath.c_str());return true;}
+        if(active){stop();std::fprintf(stderr,
+                 "XM87.328 F10_STOP combat=%u precombat=%u changes=%u probe=%s m68k=%s\n",
+                 frames,precombatFrames,nativeChanges,tracePath.c_str(),
+                 nativePath.c_str());return true;}
         if(!inGame)return false;
         error=false;const char* dir=std::getenv("XM87139_PROBE_DIR");
         if(!dir||!*dir){error=true;std::fprintf(stderr,"XM87.139 PROBE_ERROR directory not configured\n");return false;}
-        char path[2048], oamName[2048];
+        char path[2048], oamName[2048], nativeName[2048];
         bool found=false;
         for(unsigned tries=0;tries<9999u;++tries){
             const unsigned serial=session+1u+tries;
             std::snprintf(path,sizeof(path),"%s/xm87139_probe_%04u.tsv",dir,serial);
             std::snprintf(oamName,sizeof(oamName),"%s/xm87139_oam_%04u.tsv",dir,serial);
+            std::snprintf(nativeName,sizeof(nativeName),
+                          "%s/xm87139_m68k_%04u.tsv",dir,serial);
             std::FILE* old=std::fopen(path,"rb");
             std::FILE* oldOam=std::fopen(oamName,"rb");
-            found=!old&&!oldOam;
+            std::FILE* oldNative=std::fopen(nativeName,"rb");
+            found=!old&&!oldOam&&!oldNative;
             if(old)std::fclose(old);
             if(oldOam)std::fclose(oldOam);
+            if(oldNative)std::fclose(oldNative);
             if(found){session=serial;break;}
         }
         if(!found){error=true;return false;}
-        trace=std::fopen(path,"wb");oam=std::fopen(oamName,"wb");
-        if(!trace||!oam){
+        trace=std::fopen(path,"wb");
+        oam=std::fopen(oamName,"wb");
+        nativeTrace=std::fopen(nativeName,"wb");
+        if(!trace||!oam||!nativeTrace){
             stop();error=true;
             std::fprintf(stderr,"XM87.139 PROBE_ERROR cannot create files at %s\n",dir);
             return false;
         }
-        tracePath=path;oamPath=oamName;frames=tagEvents=oamCount=0;
+        tracePath=path;oamPath=oamName;nativePath=nativeName;
+        frames=precombatFrames=tagEvents=oamCount=nativeChanges=nativeRows=0;
         lastFrame=lastOamFrame=~0u;tagUntil=0;
         for(unsigned i=0;i<4;++i)priorValid[i]=false;
         std::fputs("frame\trole\tevent\tphase\tstage\tp1buttons\tp2buttons"
@@ -103,13 +215,25 @@ struct State {
           "\tattr\tsourceWord0\tsourceWord1\tpassFrom\tpassTo\n",oam);
         // Even if a menu handler formerly stole F10 or no combat frames
         // arrive, starting/stopping is immediately observable on disk.
-        std::fputs("# F10_START armed; awaiting native combat frames\n",trace);
+        std::fputs("# F10_START armed; capturing native precombat and combat frames\n",trace);
         std::fflush(trace);
         std::fputs("# F10_START armed; raw OAM follows a native tag\n",oam);
         std::fflush(oam);
+        std::fputs("frame\tevent\tordinal\tPPC\tPC_next\tchange_bits"
+                   "\tA6\tD0\tD1\tstatus_before\tstatus_after"
+                   "\tstep_before\tstep_after\tchooserP1_before"
+                   "\tchooserP1_after\tchooserP2_before\tchooserP2_after"
+                   "\tstage\ttimer\tactor_pointer\ttotal_changes\trows_before\n",
+                   nativeTrace);
+        std::fputs("# change_bits: 01=status FF5000; 02=step FF5104 WORD;"
+                   " 04=P1 FF5180; 08=P2 FF51A0;"
+                   " INSTRUCTION_CHANGE uses executed PPC, FRAME is post-CPU\n",
+                   nativeTrace);
+        std::fflush(nativeTrace);
         active=true;
-        std::fprintf(stderr,"XM87.139 PROBE_START inputs=%s nativeOAM=%s\n",
-                     tracePath.c_str(),oamPath.c_str());
+        std::fprintf(stderr,
+            "XM87.328 F10_START probe=%s nativeOAM=%s nativeM68K=%s\n",
+            tracePath.c_str(),oamPath.c_str(),nativePath.c_str());
         return true;
     }
     void frame(const std::uint8_t* r,const char* driver,unsigned frameId,
@@ -122,7 +246,12 @@ struct State {
         lastFrame=frameId;
         const unsigned phase=b(r,0x5000u),stage=b(r,0x5113u)&15u;
         if(phase!=8u){
+            // Character chooser and versus transition are *valid* native
+            // frames. Their precise instruction deltas are in nativePath;
+            // preserve combat TSV/OAM formatting and tag-detection resets.
+            ++precombatFrames;
             for(unsigned i=0;i<4;++i)priorValid[i]=false;
+            if((precombatFrames%60u)==0u)std::fflush(trace);
             return;
         }
         const unsigned bases[4]={0x4000u,0x4400u,0x4800u,0x4C00u};
