@@ -47,6 +47,53 @@ custom level. If another archived camera project is used for comparison,
 the in-repository native observer and ROM camera capture are still the
 required source of truth for the active TEST branch.
 
+## Custom stage visibility and asset-delivery requirement (Sigma / Guile)
+
+**Do not declare a new custom stage ready just because its menu option,
+renderer and music code have been committed.** Before reporting success:
+
+1. Verify the actual PNG and OGG exist **in the same remote branch as the
+   stage code** using GitHub's tree, not just the local working directory.
+   Files left untracked, hidden by GitHub Desktop filters, ignored by a local
+   exclude rule or pushed to another branch will not appear in a fresh TEST
+   checkout. A missing PNG necessarily results in the original native stage
+   appearing; it is **not a successful art integration**.
+2. Sigma's preferred source is `_art/sigmastage.png`, with its music at
+   `audio/music/sigmastage.ogg`. The Sigma renderer also accepts common
+   sigma filename variants and discovers Sigma-named PNGs or a PNG within a
+   Sigma-named subdirectory of `_art/`. Do not rename or rescale source art
+   just to make the loader work. Guile's distinct PSD-extraction contract
+   remains `_art/guilestage/extracted/manifest.tsv` with the original
+   source in `_art/guilestage/guilestage.psd`.
+3. If a custom stage shows native scenery, inspect the **actual runtime**
+   diagnostic log before changing camera math. Sigma logs
+   `SIGMA_GATE`, `SIGMA_ART_MISSING`, `SIGMA_READY` and
+   `SIGMA_DRAW_FAILED`. The gate exposes selected/resolved IDs, native
+   stage 05 activation and sprite capture. An asset-missing error means
+   the source file was not found; native scene fallback is intentional.
+   For Guile, inspect `GUILE_ASSETS_MISSING` and
+   `GUILE_FIGHTER_UPLOAD_FAILED` before altering its camera.
+4. In PowerShell on the Windows checkout, verify the files and their
+   committed tracking status (both should return an entry):
+
+   ```powershell
+   Get-ChildItem F:\xmvsf\_art -Recurse -File | Where-Object Name -Match 'sigma'
+   Get-ChildItem F:\xmvsf\audio\music -File | Where-Object Name -Match 'sigma'
+   git -C F:\xmvsf ls-files _art audio/music | Select-String 'sigma'
+   ```
+
+5. Render smoke-test **the actual local Windows TEST build** in Training
+   and Versus: stage art (not native fallback), correct native camera X/Y,
+   stage audio, source-color pulse, HUD/fighter ordering, and returning to
+   the menu. Do not infer display success from static source checks or
+   from a GitHub commit. Use only the existing local build/test scripts.
+
+**Historical failure:** Guile Stage and then Sigma Stage were selectable
+while their authored scenery did not display. The policy is to first
+verify the committed asset, runtime lookup path, and native sprite/camera
+gate. No stage-specific workaround may replace the game's ROM camera or
+reset verified combat behavior to hide a missing-asset problem.
+
 ## Our data-model manifesto
 
 **[READ THE REPLAY DATA MODEL MANIFESTO](REPLAY_DATA_MODEL_MANIFESTO.md)**
