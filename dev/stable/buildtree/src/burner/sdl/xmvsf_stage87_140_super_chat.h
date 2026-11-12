@@ -294,8 +294,11 @@ struct State {
                 log(frame,MATCH,"DHC_184_RYU_SHINKUU_RECOVERY_PHASE_2E0A_STEP06");
             else if(lifeEvent==XM87184Life::ACTION_EXIT)
                 log(frame,SYSTEM,"DHC_184_RYU_SHINKUU_ACTION_EXIT_NATIVE");
-            if(side==0u && fighter==0x12u && candidate[side] &&
-               !shinkuu[side].live && !nativeFamily.live){
+            const char* unifiedSetting=std::getenv("XM87274_UNIFIED_DHC");
+            const bool unifiedLifecycle=unifiedSetting &&
+                std::strcmp(unifiedSetting,"1")==0;
+            if((unifiedLifecycle || (side==0u && fighter==0x12u)) &&
+               candidate[side] && !shinkuu[side].live && !nativeFamily.live){
                 candidate[side]=false;
                 XM87143Queue::state().discard(side);
                 log(frame,SYSTEM,
@@ -388,6 +391,9 @@ struct State {
                     // only before its terminal 0D3194 script.
                     const bool playableRyuKen=side==0u &&
                         fighter==0x12u && bench==0x14u;
+                    const char* unifiedSetting=std::getenv("XM87274_UNIFIED_DHC");
+                    const bool unifiedDhc=unifiedSetting &&
+                        std::strcmp(unifiedSetting,"1")==0;
                     // 87.184 conflated *recognizing the user's command*
                     // with *whether the native controller 8 can safely
                     // tag right now*. This silently rejected 3P/2P
@@ -395,18 +401,20 @@ struct State {
                     // Recognize intent for the whole native action,
                     // excluding terminal recovery, then apply the
                     // independent safety gate in XM87144.
-                    const bool nativeWindow=playableRyuKen &&
+                    const bool nativeWindow=(playableRyuKen &&
                         ((shinkuu[side].live &&
                           XM87185Gate::canRecognize(shinkuuNow)) ||
-                         nativeFamily.recognizes());
+                         nativeFamily.recognizes())) ||
+                         (unifiedDhc && nativeFamily.recognizes());
                     // 87.192 reserve-owned gesture, no Ken move list.
                     // Only the incoming actor's ORIGINAL ROM input
                     // interpreter may ultimately classify it as super.
                     const char* ownedSetting=std::getenv(
                         "XM87192_TEST_RESERVE_OWNERSHIP");
-                    const bool ownedMode=ownedSetting &&
-                        std::strcmp(ownedSetting,"1")==0;
-                    const bool ownedReady=ownedMode && playableRyuKen &&
+                    const bool ownedMode=(ownedSetting &&
+                        std::strcmp(ownedSetting,"1")==0) || unifiedDhc;
+                    const bool ownedReady=ownedMode &&
+                        (playableRyuKen || unifiedDhc) &&
                         nativeWindow && pressed &&
                         XM87192Owner::state().propose(
                             side,bench,frame,
