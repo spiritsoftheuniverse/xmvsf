@@ -30,7 +30,8 @@
 #include "xmvsf_stage87_181_observer_health.h" // 87.181 startup and combat observer diagnostics
 #include "xmvsf_stage87_182_native_pc_trace.h" // 87.182 exact native PPC audit, opt-in
 #include "xmvsf_stage87_186_opening_observer.h" // 87.186 original entry, first attack, and input boundary audit
-#include "xmvsf_stage87_144_native_handoff.h" // opt-in DHC-only native action transaction TEST
+#include "xmvsf_stage87_144_native_handoff.h" // legacy Ryu/Ken native test
+#include "xmvsf_stage87_274_unified_dhc.h" // ROM-owned two-sided DHC test
 #include "xmvsf_stage87_160_super_discovery.h" // read-only roster-wide native 2E ROM/script and input discovery
 #include "../../../burner/sdl/xmvsf_stage87_162_replay_sync.h" // exact F9 movie-frame index for native action logs
 #include "xmvsf_stage87_119_cyclops_recovery_probe.h" // XM87.119 read-only recovery state trace
@@ -511,9 +512,17 @@ INT32 Cps2Frame()
     const bool dhcGameMatches=dhcGame &&
          std::strncmp(dhcGame,"xmvsf",5)==0;
     const bool xm262V4=dhcGameMatches && XM87262Game::version4();
+    const bool xm274Unified=xm262V4 && XM87274Unified::state().enabled();
+    static bool xm274WasUnified=false;
+    if(xm274WasUnified!=xm274Unified){
+        XM87144::state().reset();
+        XM87274Unified::state().reset();
+    }
+    xm274WasUnified=xm274Unified;
     static bool xm262WasV4=false;
     if(xm262WasV4 && !xm262V4){
         XM87144::state().reset();
+        XM87274Unified::state().reset();
         XM87121::state().reset();
         XM87220Dash::state().reset();
     }
@@ -560,7 +569,7 @@ INT32 Cps2Frame()
              XM87186Opening::state().wantsPcTrace(
                 (unsigned)GetCurrentFrame()));
     XM87144::State::InputMask dhcInput=
-        (!bBurnRunAheadFrame && xm262V4)?
+        (!bBurnRunAheadFrame && xm262V4 && !xm274Unified)?
         XM87144::state().inputForFrame(CpsRamFF,(unsigned)GetCurrentFrame()):
         XM87144::State::InputMask();
     // 87.178: the 87.177 complete 3P shield removed the punch edge that
@@ -573,7 +582,7 @@ INT32 Cps2Frame()
     // allowing the host to recognize QCF+3P normally.
     bool xm87177PrequeueThreePunch=false;
     bool xm87193PrequeueKickToTagPunch=false;
-    if(!dhcInput.active && !bBurnRunAheadFrame && xm262V4 && CpsRamFF){
+    if(!dhcInput.active && !xm274Unified && !bBurnRunAheadFrame && xm262V4 && CpsRamFF){
         const unsigned physicalPunches=
             (CpsInp001[4]&1u)|((CpsInp001[5]&1u)<<1u)|
             ((CpsInp001[6]&1u)<<2u);
@@ -674,13 +683,13 @@ INT32 Cps2Frame()
     // projectile objects before native 68000 collision evaluation.
     // Normal P1 projectiles, P2 objects and Ken's new projectiles are
     // never touched. The image/animation objects remain alive.
-    if(!bBurnRunAheadFrame && xm262V4 && CpsRamFF)
+    if(!bBurnRunAheadFrame && xm262V4 && !xm274Unified && CpsRamFF)
         XM87144::state().oldRyuProjectiles.beforeCPU(
             CpsRamFF,(unsigned)GetCurrentFrame());
     // 87.197: freeze only the non-incoming fighter while Ken's native
     // ROM 0212 fall and stored 2E input keep running at full CPS speed.
     // No global CPU pause, guessed CPS-wide freeze flag or audio reset.
-    if(!bBurnRunAheadFrame && xm262V4 && CpsRamFF &&
+    if(!bBurnRunAheadFrame && xm262V4 && !xm274Unified && CpsRamFF &&
        XM87144::state().cinematicFreezeTest)
         XM87144::state().cinematicFreeze.beforeCPU(
             CpsRamFF,unsigned(XM87144::state().phase[0]));
@@ -1021,8 +1030,12 @@ INT32 Cps2Frame()
             CpsRamFF,(unsigned)GetCurrentFrame(),
             XM87162ReplaySync::movieFrame(),XM87144::phaseName(phaseBefore),
             dhcInput.active,dhcInput.directions,dhcInput.attacks);
-        if(xm262V4)XM87144::state().frame(CpsRamFF,CpsRom,(unsigned)nCpsRomLen,
-            (unsigned)GetCurrentFrame(),dhcWindow);
+        if(xm262V4 && !xm274Unified)
+            XM87144::state().frame(CpsRamFF,CpsRom,(unsigned)nCpsRomLen,
+                (unsigned)GetCurrentFrame(),dhcWindow);
+        if(xm274Unified)
+            XM87274Unified::state().frame(CpsRamFF,CpsRom,(unsigned)nCpsRomLen,
+                (unsigned)GetCurrentFrame());
         XM87186Opening::state().sample(CpsRamFF,
             (unsigned)GetCurrentFrame(),"POST_DHC_HOST",
             (unsigned)XM87144::state().phase[0],
@@ -1042,7 +1055,7 @@ INT32 Cps2Frame()
             XM87144::rw(CpsRamFF,0x4852u)==0x14u &&
             (dhcPhase==XM87144::WAIT_TAG_CONTROLLER ||
              dhcPhase==XM87144::WAIT_NATIVE_SWAP);
-        if(xm262V4)XM87144::state().oldRyuProjectiles.afterCPU(
+        if(xm262V4 && !xm274Unified)XM87144::state().oldRyuProjectiles.afterCPU(
             CpsRamFF,(unsigned)GetCurrentFrame(),outgoingRyu);
         const XM87144::Phase phaseAfter=XM87144::state().phase[0];
         if(phaseAfter!=phaseBefore && XM87144::state().enabled){
