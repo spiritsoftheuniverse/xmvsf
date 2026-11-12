@@ -6,6 +6,7 @@
 #include "xmvsf_stage87_111_corner.h"
 #include "xmvsf_stage87_135_roster_snapshot.h"
 #include "xmvsf_stage87_105_training_reset.h"
+#include "xmvsf_stage77_selection.h" // custom-stage camera must remain 100% ROM-owned
 // Include only the CPS2 palette symbols. Including cps.h here imports the
 // eeprom.h interface parameter after Windows' #define interface struct,
 // breaking compilation of this SDL run.cpp TU (87.302).
@@ -45,6 +46,17 @@ static inline void xm87114CenterInitialTrainingView(bool ready,unsigned frame){
  if(!driver || std::strcmp(driver,"xmvsfu")!=0)return;
  XM87102Lab::Capture& c=XM87102Lab::capture();
  if(!c.saved || !c.live){centered=false;return;}
+ // 87.304: the host's first-combat-frame camera recenter wrote FF524C
+ // AFTER the scene had already been painted for that frame. All three
+ // custom levels use the native stage-05 camera for their artwork and
+ // fighter compositing; a late host override caused a visible match-start
+ // snap. Do not synthesize camera motion in custom stages.
+ if(xm77StageResolved>=1 && xm77StageResolved<=3){
+  centered=true;
+  XM87110::log("MATCH_START_NATIVE_CAMERA_UNTOUCHED frame=%u stage_choice=%d",
+     frame,xm77StageResolved);
+  return;
+ }
  cpu_core_config* cpu=GetCpuCoreConfig(0);
  if(!cpu||!cpu->open||!cpu->close||!cpu->read||!cpu->write)return;
  cpu->open(0);
