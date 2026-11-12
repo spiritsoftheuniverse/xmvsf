@@ -46,6 +46,10 @@ case "${XMVSF_GUILE_ACTOR_ONLY:-}" in
     exit 2
     ;;
 esac
+if (( ${#GUILE_EXTRACT_ARGS[@]} )) && [[ ! -s "$GUILE_PSD" ]]; then
+  echo "ERROR: Joe-only extraction requested but Guile PSD is missing or empty: $GUILE_PSD" >&2
+  exit 2
+fi
 if [[ -s "$GUILE_PSD" ]]; then
   if (( ${#GUILE_EXTRACT_ARGS[@]} )); then
     echo "GUILE PSD: Joe-only extraction; preserving all other exported PNGs."
