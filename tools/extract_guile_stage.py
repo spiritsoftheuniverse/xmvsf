@@ -34,7 +34,11 @@ class PSD:
         return b
 
     def skip(self, n: int) -> None:
-        self.take(n)
+        # Move over untouched PSD channel data without allocating a copy.
+        # Joe-only refresh skips all unrelated layers this way.
+        if n < 0 or self.pos + n > len(self.raw):
+            raise ValueError(f"PSD truncated at {self.pos}, length={n}")
+        self.pos += n
 
     def u8(self) -> int: return self.take(1)[0]
     def i16(self) -> int: return struct.unpack(">h", self.take(2))[0]
