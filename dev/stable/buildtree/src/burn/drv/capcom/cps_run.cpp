@@ -656,6 +656,58 @@ INT32 Cps2Frame()
                 ((CpsInp001[2]&1u)<<2u)|((CpsInp001[3]&1u)<<3u);
         }
     }
+    // 87.274: replay through either ORIGINAL CPS2 input port. All host
+    // arrays are restored immediately after CpsRwGetInp.
+    XM87274Unified::Input unifiedInput[2];
+    if(xm274Unified && !bBurnRunAheadFrame && CpsRamFF){
+        const unsigned dirs[2]={
+            (CpsInp001[0]&1u)|((CpsInp001[1]&1u)<<1u)|
+            ((CpsInp001[2]&1u)<<2u)|((CpsInp001[3]&1u)<<3u),
+            (CpsInp000[0]&1u)|((CpsInp000[1]&1u)<<1u)|
+            ((CpsInp000[2]&1u)<<2u)|((CpsInp000[3]&1u)<<3u)
+        };
+        const unsigned buttons[2]={
+            (CpsInp001[4]&1u)|((CpsInp001[5]&1u)<<1u)|
+            ((CpsInp001[6]&1u)<<2u)|((CpsInp011[0]&1u)<<3u)|
+            ((CpsInp011[1]&1u)<<4u)|((CpsInp011[2]&1u)<<5u),
+            (CpsInp000[4]&1u)|((CpsInp000[5]&1u)<<1u)|
+            ((CpsInp000[6]&1u)<<2u)|((CpsInp011[4]&1u)<<3u)|
+            ((CpsInp011[5]&1u)<<4u)|((CpsInp020[6]&1u)<<5u)
+        };
+        for(unsigned side=0u;side<2u;++side)
+            unifiedInput[side]=XM87274Unified::state().inputForFrame(
+                CpsRamFF,side,(unsigned)GetCurrentFrame(),
+                dirs[side],buttons[side],
+                XM87140Chat::state().candidate[side]);
+    }
+    UINT8 uSavedP1Dir[4]={},uSavedP1P[3]={},uSavedP1K[3]={};
+    UINT8 uSavedP2Dir[4]={},uSavedP2P[3]={},uSavedP2K[3]={};
+    if(unifiedInput[0].active){
+        for(unsigned k=0;k<4u;++k){
+            uSavedP1Dir[k]=CpsInp001[k];
+            CpsInp001[k]=(unifiedInput[0].directions>>k)&1u;
+        }
+        for(unsigned k=0;k<3u;++k){
+            uSavedP1P[k]=CpsInp001[4u+k];uSavedP1K[k]=CpsInp011[k];
+            CpsInp001[4u+k]=(unifiedInput[0].attacks>>k)&1u;
+            CpsInp011[k]=(unifiedInput[0].attacks>>(3u+k))&1u;
+        }
+    }
+    if(unifiedInput[1].active){
+        for(unsigned k=0;k<4u;++k){
+            uSavedP2Dir[k]=CpsInp000[k];
+            CpsInp000[k]=(unifiedInput[1].directions>>k)&1u;
+        }
+        for(unsigned k=0;k<3u;++k){
+            uSavedP2P[k]=CpsInp000[4u+k];
+            CpsInp000[4u+k]=(unifiedInput[1].attacks>>k)&1u;
+        }
+        uSavedP2K[0]=CpsInp011[4];uSavedP2K[1]=CpsInp011[5];
+        uSavedP2K[2]=CpsInp020[6];
+        CpsInp011[4]=(unifiedInput[1].attacks>>3u)&1u;
+        CpsInp011[5]=(unifiedInput[1].attacks>>4u)&1u;
+        CpsInp020[6]=(unifiedInput[1].attacks>>5u)&1u;
+    }
     UINT8 dhcSavedDir[4]={},dhcSavedPunch[3]={},dhcSavedKick[3]={};
     if(dhcInput.active){
         for(unsigned k=0;k<4u;++k){
@@ -670,6 +722,18 @@ INT32 Cps2Frame()
         }
     }
 	CpsRwGetInp();											// Update the input port values
+    if(unifiedInput[0].active){
+        for(unsigned k=0;k<4u;++k)CpsInp001[k]=uSavedP1Dir[k];
+        for(unsigned k=0;k<3u;++k){
+            CpsInp001[4u+k]=uSavedP1P[k];CpsInp011[k]=uSavedP1K[k];
+        }
+    }
+    if(unifiedInput[1].active){
+        for(unsigned k=0;k<4u;++k)CpsInp000[k]=uSavedP2Dir[k];
+        for(unsigned k=0;k<3u;++k)CpsInp000[4u+k]=uSavedP2P[k];
+        CpsInp011[4]=uSavedP2K[0];CpsInp011[5]=uSavedP2K[1];
+        CpsInp020[6]=uSavedP2K[2];
+    }
     if(dhcInput.active){
         // Native input bytes have already been sampled. Restore physical
         // controller state before the remaining emulator frame runs.
