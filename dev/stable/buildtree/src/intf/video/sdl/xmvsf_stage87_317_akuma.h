@@ -23,17 +23,13 @@
 #include <cmath>
 #include <string>
 #include <vector>
+#include <fstream>
 
 namespace XMAkuma {
 static const int VIEW_W=384,VIEW_H=224,STAGE_W=768,STAGE_H=471;
 static const int COMBAT_WAIT_FRAMES=600,TRANSITION_FRAMES=2700;
 static inline int clampi(int x,int lo,int hi){return std::max(lo,std::min(hi,x));}
-static const unsigned char BAYER_8[64]={
- 0,48,12,60,3,51,15,63,32,16,44,28,35,19,47,31,
- 8,56,4,52,11,59,7,55,40,24,36,20,43,27,39,23,
- 2,50,14,62,1,49,13,61,34,18,46,30,33,17,45,29,
- 10,58,6,54,9,57,5,53,42,26,38,22,41,25,37,21
-};
+
 struct Layer {
  SDL_Texture *a=nullptr,*b=nullptr,*foliageA=nullptr,*foliageB=nullptr;
  std::vector<Uint8> source,pixels; // A original and dithered alpha
@@ -56,7 +52,7 @@ struct Layer {
   SDL_Surface* rawA=IMG_Load((root+nameA).c_str());
   SDL_Surface* rawB=IMG_Load((root+nameB).c_str());
   if(!rawA||!rawB){
-   std::fprintf(stderr,"XM87.319 AKUMA_ART_MISSING A=%s B=%s root=%s error=%s\n",
+   std::fprintf(stderr,"XM87.320 AKUMA_ART_MISSING A=%s B=%s root=%s error=%s\n",
                 nameA,nameB,root.c_str(),IMG_GetError());
    if(rawA)SDL_FreeSurface(rawA);
    if(rawB)SDL_FreeSurface(rawB);
@@ -161,51 +157,30 @@ struct Layer {
    SDL_SetTextureScaleMode(foliageA,SDL_ScaleModeNearest);
    SDL_SetTextureScaleMode(foliageB,SDL_ScaleModeNearest);
   }
-  lastCut=-1; // also initialize cut 0 and foliage masks
-  if(!updateCut(0))return false;
-  std::fprintf(stderr,"XM87.319 AKUMA_LAYER A=%s %dx%d B=%s %dx%d initialGreenB=1 foliage=%d\n",
+  if(SDL_UpdateTexture(a,nullptr,source.data(),w*4)!=0)return false;
+  lastCut=-1;
+  if(!updateTint(0))return false;
+  std::fprintf(stderr,"XM87.320 AKUMA_LAYER A=%s %dx%d B=%s %dx%d initialGreenB=1 staticFoliage=%d\n",
                nameA,w,h,nameB,bw,bh,(int)vegetation);
   return true;
  }
- bool updateCut(int cut){
-  cut=clampi(cut,0,64);
-  if(lastCut==cut)return true;
-  if(cut==0)pixels=source;
+ bool updateTint(int step){
+  step=clampi(step,0,64);
+  if(step==lastCut)return true;
+  // B only: preserve authored alpha, interpolate green to native red.
+  if(step==64)pixelsB=originalB;
   else{
-   for(int y=0;y<h;++y)for(int x=0;x<w;++x){
-    const size_t k=((size_t)y*w+x)*4u;
-    pixels[k+3]=BAYER_8[(y&7)*8+(x&7)]<cut?0u:source[k+3];
-   }
-  }
-  if(SDL_UpdateTexture(a,nullptr,pixels.data(),w*4)!=0)return false;
-  // The precomputed strongly GREEN B appears at cut=1. Revert it toward
-  // original authored RED/ORANGE as A vanishes; preserve original B alpha.
-  // Recolor only at 64-step dither changes, never every rendered frame.
-  if(cut==0 || cut==64)pixelsB=originalB;
-  else{
-   const int remaining=64-cut; // 63 at first B reveal, 0 at full B
+   const int remaining=64-step;
    for(size_t k=0;k<originalB.size();k+=4u){
     for(int channel=0;channel<3;++channel){
      const int original=(int)originalB[k+channel];
      const int diff=(int)greenMatchedB[k+channel]-original;
-     pixelsB[k+channel]=(Uint8)(original+diff*remaining/63);
+     pixelsB[k+channel]=(Uint8)(original+diff*remaining/64);
     }
    }
   }
   if(SDL_UpdateTexture(b,nullptr,pixelsB.data(),bw*4)!=0)return false;
-  if(vegetation){
-   foliagePixelsA=pixels;foliagePixelsB=pixelsB;
-   for(size_t i=0;i<foliageMaskA.size();++i)
-    foliagePixelsA[i*4u+3u]=foliageMaskA[i]?
-      (Uint8)((unsigned)foliagePixelsA[i*4u+3u]*105u/255u):0u;
-   for(size_t i=0;i<foliageMaskB.size();++i)
-    foliagePixelsB[i*4u+3u]=foliageMaskB[i]?
-      (Uint8)((unsigned)foliagePixelsB[i*4u+3u]*105u/255u):0u;
-   if(SDL_UpdateTexture(foliageA,nullptr,foliagePixelsA.data(),w*4)!=0||
-      SDL_UpdateTexture(foliageB,nullptr,foliagePixelsB.data(),bw*4)!=0)
-    return false;
-  }
-  lastCut=cut;return true;
+  lastCut=step;return true;
  }
 };
 struct Scene {
@@ -217,7 +192,48 @@ struct Scene {
  unsigned previousStatus=0;
  bool loaded=false,failed=false;
  int lastProgress=-1;
+ // Saved and retained across rematches/renderer restarts.
+ int moonOffset=240;
+ bool moonSettingsLoaded=false,moonDirty=false,arrowWasHeld=false;
+ unsigned long long lastArrowFrame=~0ull;
+ std::string moonSettingsPath;
+ void saveMoon(){
+  if(!moonDirty||moonSettingsPath.empty())return;
+  std::ofstream out(moonSettingsPath.c_str(),std::ios::trunc);
+  if(!out){std::fprintf(stderr,"XM87.320 AKUMA_MOON_SAVE_FAILED path=%s\n",moonSettingsPath.c_str());return;}
+  out<<moonOffset<<"\n";
+  if(out.good()){moonDirty=false;
+   std::fprintf(stderr,"XM87.320 AKUMA_MOON_SAVED offset=%d\n",moonOffset);
+  }
+ }
+ void loadMoon(){
+  if(moonSettingsLoaded)return;
+  moonSettingsLoaded=true;
+  char* pref=SDL_GetPrefPath("XMVSF","Stages");
+  if(pref){
+   moonSettingsPath=std::string(pref)+"akuma_moon_offset.txt";
+   SDL_free(pref);
+   std::ifstream in(moonSettingsPath.c_str());
+   int v=0;if(in>>v)moonOffset=clampi(v,-768,768);
+  }
+  std::fprintf(stderr,"XM87.320 AKUMA_MOON_POSITION offset=%d\n",moonOffset);
+ }
+ void adjustMoon(unsigned long long frame){
+  const Uint8* keys=SDL_GetKeyboardState(nullptr);
+  if(!keys)return;
+  const bool left=keys[SDL_SCANCODE_LEFT]!=0;
+  const bool right=keys[SDL_SCANCODE_RIGHT]!=0;
+  if(frame!=lastArrowFrame&&left!=right){
+   const int next=clampi(moonOffset+(right?1:-1),-768,768);
+   if(next!=moonOffset){moonOffset=next;moonDirty=true;}
+  }
+  lastArrowFrame=frame;
+  if(arrowWasHeld&&!left&&!right)saveMoon();
+  arrowWasHeld=left||right;
+ }
+
  void close(){
+  saveMoon();
   for(Layer& layer:layers)layer.close();
   if(fighters)SDL_DestroyTexture(fighters);
   if(flash)SDL_DestroyTexture(flash);
@@ -246,7 +262,7 @@ struct Scene {
   if(failed)return false;
   const std::string root=locate();
   if(root.empty()){
-   std::fprintf(stderr,"XM87.319 AKUMA_ASSETS_MISSING _art/sf3akuma/sf3akuma1_a1.png\n");
+   std::fprintf(stderr,"XM87.320 AKUMA_ASSETS_MISSING _art/sf3akuma/sf3akuma1_a1.png\n");
    failed=true;return false;
   }
   const char* a[]={"sf3akuma1_a1.png","sf3akuma1_a2.png","sf3akuma1_a3.png"};
@@ -258,7 +274,7 @@ struct Scene {
   // Both A and B independently anchor their last row to the same floor.
   if(good && (layers[0].w!=STAGE_W||layers[0].bw!=STAGE_W||
               layers[0].h<VIEW_H||layers[0].bh<VIEW_H)){
-   std::fprintf(stderr,"XM87.319 AKUMA_GROUND_SIZE_INVALID expectedWidth=%d A=%dx%d B=%dx%d\n",
+   std::fprintf(stderr,"XM87.320 AKUMA_GROUND_SIZE_INVALID expectedWidth=%d A=%dx%d B=%dx%d\n",
                 STAGE_W,layers[0].w,layers[0].h,layers[0].bw,layers[0].bh);
    good=false;
   }
@@ -276,11 +292,12 @@ struct Scene {
    }
   }
   if(!good){
-   std::fprintf(stderr,"XM87.319 AKUMA_TEXTURE_FAILED %s\n",SDL_GetError());
+   std::fprintf(stderr,"XM87.320 AKUMA_TEXTURE_FAILED %s\n",SDL_GetError());
    close();failed=true;return false;
   }
   loaded=true;
-  std::fprintf(stderr,"XM87.319 AKUMA_READY root=%s groundA=%dx%d groundB=%dx%d moonA=%dx%d moonB=%dx%d delay=%d transition=%d bottom=1 cloudScale=50pct breathe=1 greenB=1\n",
+  loadMoon();
+  std::fprintf(stderr,"XM87.320 AKUMA_READY root=%s groundA=%dx%d groundB=%dx%d moonA=%dx%d moonB=%dx%d delay=%d transition=%d bottom=1 cloudScale=50pct greenB=1 alphaFade=1\n",
                root.c_str(),layers[0].w,layers[0].h,layers[0].bw,layers[0].bh,
                layers[1].w,layers[1].h,layers[1].bw,layers[1].bh,
                COMBAT_WAIT_FRAMES,TRANSITION_FRAMES);
@@ -290,40 +307,36 @@ struct Scene {
   generation=gen;combatStart=~0ull;previousStatus=0;lastProgress=-1;
   // When restarting a match, restore all A alpha without reloading
   // sprites/assets. No scene or framebuffer destruction.
-  for(Layer& layer:layers)if(layer.a)layer.updateCut(0);
+  for(Layer& layer:layers)if(layer.a)SDL_SetTextureAlphaMod(layer.a,255);
  }
  int progress(unsigned long long frame,unsigned status,unsigned gen){
   if(generation!=gen)newSession(gen);
   if(status>=2u && status<8u && combatStart!=~0ull &&
-     previousStatus>=8u)newSession(gen); // rematch/pre-combat
+     previousStatus>=8u)newSession(gen);
   if(status==8u && combatStart==~0ull){
    combatStart=frame;
-   std::fprintf(stderr,"XM87.319 AKUMA_COMBAT_START frame=%llu ditherStart=+%d complete=+%d\n",
+   std::fprintf(stderr,"XM87.320 AKUMA_COMBAT_START frame=%llu fadeStart=+%d complete=+%d\n",
                 frame,COMBAT_WAIT_FRAMES,COMBAT_WAIT_FRAMES+TRANSITION_FRAMES);
   }
   previousStatus=status;
   if(combatStart==~0ull||frame<=combatStart+COMBAT_WAIT_FRAMES)return 0;
   const unsigned long long age=frame-combatStart-COMBAT_WAIT_FRAMES;
-  const int cut=(int)std::min(64ull,
-                  (age*64ull+TRANSITION_FRAMES-1u)/TRANSITION_FRAMES);
-  if(lastProgress!=cut){
-   if(cut==1||cut==64||cut==16||cut==32||cut==48)
-    std::fprintf(stderr,"XM87.319 AKUMA_DITHER cut=%d/64 combatFrames=%llu\n",
-                 cut,frame-combatStart);
-   lastProgress=cut;
+  const int elapsed=(int)std::min((unsigned long long)TRANSITION_FRAMES,age);
+  const int tick=elapsed*64/TRANSITION_FRAMES;
+  if(tick!=lastProgress){
+   if(tick==1||tick==16||tick==32||tick==48||tick==64)
+    std::fprintf(stderr,"XM87.320 AKUMA_OPACITY_FADE step=%d/64 combatFrames=%llu\n",
+                 tick,frame-combatStart);
+   lastProgress=tick;
   }
-  return cut;
+  return elapsed;
  }
  // No per-layer rescaling or artificial top padding. The exact native
  // bottom boundary is the same for both 768-pixel stage images, even if
  // one image now has extra rows painted ABOVE the floor.
  static SDL_Rect bottomAnchored(const SDL_Rect& view,int w,int h,
-                                int cameraX,int cameraY,int parallaxPercent){
-  // A/B moon disc is near image x=384. With camera centered at x=192
-  // and 55% parallax it would appear ~279px to the right; move it
-  // 280px LEFT within the world, not the native camera or game stage.
-  const int moonShift=(parallaxPercent==55)?-280:0;
-  const int x=(STAGE_W-w)/2-cameraX*parallaxPercent/100+moonShift;
+                                int cameraX,int cameraY,int parallaxPercent,int moonOffset){
+  const int x=(STAGE_W-w)/2-cameraX*parallaxPercent/100+moonOffset;
   const int y=VIEW_H-h+256-cameraY;
   const int left=view.x+(int)std::lround(double(x)*view.w/VIEW_W);
   const int right=view.x+(int)std::lround(double(x+w)*view.w/VIEW_W);
@@ -335,13 +348,10 @@ struct Scene {
                             int w,int h,int cameraX,int cameraY,
                             unsigned long long frame,const SDL_Rect& view){
   if(!tex||w<1||h<1)return false;
-  // Scale SOURCE cloud artwork to 50% at presentation only. Slow 2%
-  // periodic size change is the breathing: no source pixels are edited.
-  // Both A and B share phase; each retains its own tiled image period.
-  const double breathe=1.0+0.02*std::sin(double(frame)/81.0);
-  const int tileW=std::max(1,(int)std::lround(double(w)*0.5*breathe));
-  const int tileH=std::max(1,(int)std::lround(double(h)*0.5*breathe));
-  const int drift=(int)((frame*2ull/3ull)%(unsigned)tileW); // 40px/sec
+  // Fixed 50% scale, no breathing. One third of old cloud speed.
+  const int tileW=std::max(1,(w+1)/2);
+  const int tileH=std::max(1,(h+1)/2);
+  const int drift=(int)((frame*2ull/9ull)%(unsigned)tileW); // ~13px/sec
   const int origin=(STAGE_W-tileW)/2-cameraX*30/100+drift;
   const int first=((origin%tileW)+tileW)%tileW-tileW;
   // Center resized clouds in the original 768x471 world, then move
@@ -362,40 +372,16 @@ struct Scene {
   }
   return true;
  }
- static bool drawFoliageWiggle(SDL_Renderer* renderer,SDL_Texture* tex,
-                               int w,int h,int cameraX,int cameraY,
-                               unsigned long long frame,
-                               const SDL_Rect& view){
-  if(!tex)return true;
-  const SDL_Rect whole=bottomAnchored(view,w,h,cameraX,cameraY,100);
-  // 24px bands, at most +/- 1 world pixel, with staggered sine phases.
-  // Only green foliage/grass pixels survive the precomputed mask:
-  // trunks, rocks and floor geometry remain stationary underneath.
-  for(int row=0;row<h;row+=24){
-   const int strip=std::min(24,h-row);
-   const int offset=(int)std::lround(
-       std::sin(double(frame)/25.0+double(row)/61.0)*1.0);
-   if(offset==0)continue;
-   const int top=view.y+(int)std::lround(
-       double(VIEW_H-h+256-cameraY+row)*view.h/VIEW_H);
-   const int bottom=view.y+(int)std::lround(
-       double(VIEW_H-h+256-cameraY+row+strip)*view.h/VIEW_H);
-   if(bottom<=top)continue;
-   const SDL_Rect src{0,row,w,strip};
-   const SDL_Rect dst{whole.x+(int)std::lround(
-                       double(offset)*view.w/VIEW_W),
-                      top,whole.w,bottom-top};
-   if(SDL_RenderCopy(renderer,tex,&src,&dst)!=0)return false;
-  }
-  return true;
- }
  bool paint(SDL_Renderer* renderer,const SDL_Rect& view){
   if(!loaded || !renderer)return false;
   const int camera=clampi(xm8649Visual.nativeCameraX,0,STAGE_W-VIEW_W);
   const int camY=clampi(xm8649Visual.nativeCameraY,-14,256);
   const unsigned long long frame=xm8649Visual.frames;
-  const int cut=progress(frame,xm8649Visual.status,
-                         xm77StageRollGeneration());
+  adjustMoon(frame);
+  const int elapsed=progress(frame,xm8649Visual.status,
+                             xm77StageRollGeneration());
+  const Uint8 aAlpha=(Uint8)(255-elapsed*255/TRANSITION_FRAMES);
+  const int tintStep=elapsed*64/TRANSITION_FRAMES;
   const bool clipBefore=SDL_RenderIsClipEnabled(renderer)==SDL_TRUE;
   SDL_Rect oldClip={0,0,0,0};
   if(clipBefore)SDL_RenderGetClipRect(renderer,&oldClip);
@@ -406,25 +392,22 @@ struct Scene {
    // Clouds render farthest back; moon above clouds; ground in front.
    // Each B is drawn immediately beneath its matching A at equal depth.
    const int rate=i==2?30:(i==1?55:100);
-   if(cut>0){
-    // Show the GREEN version of B through A's dither holes at first,
-    // then restore the authored B RGB at cut 64 without changing alpha.
-    if(!l.updateCut(cut)){good=false;break;}
+   if(elapsed>0){
+    if(!l.updateTint(tintStep)){good=false;break;}
     if(i==2)good=drawCloudTiles(renderer,l.b,l.bw,l.bh,camera,camY,frame,view);
     else{
-     const SDL_Rect b=bottomAnchored(view,l.bw,l.bh,camera,camY,rate);
+     const SDL_Rect b=bottomAnchored(view,l.bw,l.bh,camera,camY,rate,
+                                     i==1?moonOffset:0);
      good=SDL_RenderCopy(renderer,l.b,nullptr,&b)==0;
-     if(good&&i==0)good=drawFoliageWiggle(
-         renderer,l.foliageB,l.bw,l.bh,camera,camY,frame,view);
     }
    }
-   if(cut<64 && good){
+   if(elapsed<TRANSITION_FRAMES&&good){
+    SDL_SetTextureAlphaMod(l.a,aAlpha);
     if(i==2)good=drawCloudTiles(renderer,l.a,l.w,l.h,camera,camY,frame,view);
     else{
-     const SDL_Rect a=bottomAnchored(view,l.w,l.h,camera,camY,rate);
+     const SDL_Rect a=bottomAnchored(view,l.w,l.h,camera,camY,rate,
+                                     i==1?moonOffset:0);
      good=SDL_RenderCopy(renderer,l.a,nullptr,&a)==0;
-     if(good&&i==0)good=drawFoliageWiggle(
-         renderer,l.foliageA,l.w,l.h,camera,camY,frame,view);
     }
    }
   }
@@ -437,15 +420,16 @@ struct Scene {
     good=SDL_RenderCopy(renderer,flash,nullptr,&view)==0&&good;
   }
   SDL_RenderSetClipRect(renderer,clipBefore?&oldClip:nullptr);
-  if(!good)std::fprintf(stderr,"XM87.319 AKUMA_DRAW_FAILED %s\n",SDL_GetError());
+  if(!good)std::fprintf(stderr,"XM87.320 AKUMA_DRAW_FAILED %s\n",SDL_GetError());
   return good;
  }
 };
 static inline Scene& scene(){static Scene s;return s;}
 static inline void cleanup(){scene().close();}
 static inline bool paint(SDL_Renderer* renderer,const SDL_Rect& view){
- if(xm77StageResolved!=5||!xm8649Visual.sceneActive||xm8649Visual.stage!=5)
-  return false;
+ if(xm77StageResolved!=5||!xm8649Visual.sceneActive||xm8649Visual.stage!=5){
+  scene().saveMoon();return false;
+ }
  if(!xm77SpriteValid||xm77SpriteWidth!=VIEW_W||xm77SpriteHeight!=VIEW_H||
     !xm77SpritePixels())return false;
  Scene& s=scene();
