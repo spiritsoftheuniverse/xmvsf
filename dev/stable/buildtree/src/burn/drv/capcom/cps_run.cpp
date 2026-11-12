@@ -32,6 +32,7 @@
 #include "xmvsf_stage87_186_opening_observer.h" // 87.186 original entry, first attack, and input boundary audit
 #include "xmvsf_stage87_144_native_handoff.h" // legacy Ryu/Ken native test
 #include "xmvsf_stage87_274_unified_dhc.h" // ROM-owned two-sided DHC test
+#include "xmvsf_stage87_329_morphus_hook_probe.h" // read-only EURO opcode signature audit
 #include "xmvsf_stage87_160_super_discovery.h" // read-only roster-wide native 2E ROM/script and input discovery
 #include "../../../burner/sdl/xmvsf_stage87_162_replay_sync.h" // exact F9 movie-frame index for native action logs
 #include "xmvsf_stage87_119_cyclops_recovery_probe.h" // XM87.119 read-only recovery state trace
@@ -511,6 +512,11 @@ INT32 Cps2Frame()
     const char* dhcGame=BurnDrvGetTextA(DRV_NAME);
     const bool dhcGameMatches=dhcGame &&
          std::strncmp(dhcGame,"xmvsf",5)==0;
+    // Once per process, compare the ACTUAL decrypted 68000 opcode view
+    // against Morphus' guarded EURO hook bytes. No ROM/RAM writes.
+    if(dhcGameMatches && !bBurnRunAheadFrame)
+        XM87329HookProbe::state().frame(
+            CpsCode,(unsigned)nCpsCodeLen,dhcGame);
     const bool xm262V4=dhcGameMatches && XM87262Game::version4();
     const bool xm274Unified=xm262V4 && XM87274Unified::state().enabled();
     static bool xm274WasUnified=false;
