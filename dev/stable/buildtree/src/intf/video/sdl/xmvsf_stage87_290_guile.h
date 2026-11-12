@@ -7,6 +7,7 @@
 #include <SDL.h>
 #include <SDL_image.h>
 #include <algorithm>
+#include <cctype>
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
@@ -52,6 +53,7 @@ struct Scene {
  SDL_Texture* flash=nullptr;
  int canvasW=0,canvasH=0;
  int groundX=0,groundY=0,groundW=0,groundH=0;
+ int bgTopY=0; // PSD source top of BG: sky's fixed-in-world bottom seam
  int cameraBaseX=0,cropStartX=0;
  bool cameraBaseSet=false;
  bool failed=false;
@@ -65,7 +67,7 @@ struct Scene {
   if(fighters)SDL_DestroyTexture(fighters);
   if(flash)SDL_DestroyTexture(flash);
   fighters=flash=nullptr;
-  canvasW=canvasH=0;groundX=groundY=groundW=groundH=0;
+  canvasW=canvasH=0;groundX=groundY=groundW=groundH=bgTopY=0;
   cameraBaseX=0;cropStartX=0;cameraBaseSet=false;
   failed=false;active=false;lastFrame=~0ull;
   root.clear();
@@ -165,7 +167,7 @@ struct Scene {
      viewH!=AUTHORED_H||cropStartX<0||
      cropStartX>groundW-AUTHORED_W){
    std::fprintf(stderr,
-    "XM87.298 GUILE_STALE_MANIFEST format=%d ground=(%d,%d %dx%d); regenerate with extractor\n",
+    "XM87.299 GUILE_STALE_MANIFEST format=%d ground=(%d,%d %dx%d); regenerate with extractor\n",
     formatVersion,groundX,groundY,groundW,groundH);
    failed=true;return false;
   }
@@ -220,6 +222,24 @@ struct Scene {
                 canvasW,canvasH,layers.size(),count[2]);
    close();failed=true;return false;
   }
+  // Register sky to the original Photoshop BG top. Prefer the named
+  // BG layer over auxiliary scenery also categorized as background.
+  bool foundBg=false,foundNamedBg=false;
+  bgTopY=groundY;
+  for(const Layer& l:layers){
+   if(l.role!="bg")continue;
+   std::string name=l.name;
+   std::transform(name.begin(),name.end(),name.begin(),
+     [](unsigned char c){return (char)std::tolower(c);});
+   const bool namedBg=(name=="bg"||name=="background");
+   if(!foundBg||(namedBg&&!foundNamedBg)||
+      (namedBg==foundNamedBg&&l.y<bgTopY)){
+    bgTopY=l.y;foundBg=true;foundNamedBg=namedBg;
+   }
+  }
+  std::fprintf(stderr,
+   "XM87.299 GUILE_SKY_SEAM bg_top_source_y=%d ground_y=%d named_bg=%d camera_y_lock=ground\n",
+   bgTopY,groundY,(int)foundNamedBg);
   fighters=SDL_CreateTexture(renderer,SDL_PIXELFORMAT_RGBA32,
        SDL_TEXTUREACCESS_STREAMING,VIEW_W,VIEW_H);
   flash=SDL_CreateTexture(renderer,SDL_PIXELFORMAT_RGBA32,
@@ -235,7 +255,7 @@ struct Scene {
    a.hold=6+(int)(rand32(a.rng)%7u);
   }
   std::fprintf(stderr,
-    "XM87.298 GUILE_READY root=%s canvas=%dx%d ground=(%d,%d %dx%d) crop=768x471 at x=%d sky=%u bg=%u ground=%u actors=%zu textures=%zu\n",
+    "XM87.299 GUILE_READY root=%s canvas=%dx%d ground=(%d,%d %dx%d) crop=768x471 at x=%d sky=%u bg=%u ground=%u actors=%zu textures=%zu\n",
     root.c_str(),canvasW,canvasH,groundX,groundY,groundW,groundH,cropStartX,
     count[0],count[1],count[2],actors.size(),layers.size());
   return true;
@@ -291,37 +311,44 @@ struct Scene {
   return SDL_RenderCopy(render,tex,nullptr,&dst)==0;
  }
  bool drawSky(SDL_Renderer* render,const Layer& l,
-              unsigned long long frame,int sourceCropX,
+              unsigned long long frame,int sourceCropX,int cameraY,
               const SDL_Rect& view)const{
   if(!l.tex||l.w<1||l.h<1)return false;
-  // High Sky is SCREEN-LOCKED in Y: do not use cameraY, ground camera,
-  // or vertical parallax here. Repeat native-size source tiles to cover
-  // the full screen even during super-jumps.
-  // Horizontal drift still loops forever at 3px/sec.
-  // Do not stretch, shrink, or resample the sky or its dithered edges.
+  // Fixed in STAGE Y, not SCREEN Y. The bottom of sky meets the
+  // Photoshop BG top and both follow identical native camera motion.
+  // Keep the sky's independent horizontal drift and light parallax.
   const int tileW=l.w,tileH=l.h;
   const int shift=int((frame/20u)%unsigned(tileW));
   const int skyCameraX=centerCrop()+(sourceCropX-centerCrop())/5;
   const int localX=l.x-groundX-skyCameraX+shift;
-  const int localY=l.y-groundY;
   const int originX=((localX%tileW)+tileW)%tileW-tileW;
-  const int originY=((localY%tileH)+tileH)%tileH-tileH;
+  const int skyBottomY=bgTopY-groundY+VIEW_H-groundH+
+                       (GROUND_CAMERA_Y-cameraY);
+  const int visibleBottom=clamp(skyBottomY,0,VIEW_H);
+  if(visibleBottom<=0)return true;
   const int band=std::max(8,(tileH+27)/28);
   for(int x=originX;x<VIEW_W;x+=tileW){
    if(x+tileW<=0)continue;
-   for(int y=originY;y<VIEW_H;y+=tileH){
-    if(y+tileH<=0)continue;
+   // Tile sky UP from the moving seam; never tile down into BG.
+   for(int y=skyBottomY-tileH;y+tileH>0;y-=tileH){
+    if(y>=VIEW_H)continue;
     for(int row=0;row<tileH;row+=band){
      const int lines=std::min(band,tileH-row);
+     const int top=std::max(0,y+row);
+     const int bottom=std::min(visibleBottom,y+row+lines);
+     if(bottom<=top)continue;
      const double cycle=double(frame)/137.0+double(row)/29.0+
                         double(l.order);
      const int wobble=(int)std::lround(std::sin(cycle));
-     const SDL_Rect src{0,row,tileW,lines};
+     const SDL_Rect src{0,top-y,tileW,bottom-top};
+     const int dstTop=view.y+(int)std::lround(double(top)*view.h/VIEW_H);
+     const int dstBottom=view.y+(int)std::lround(double(bottom)*view.h/VIEW_H);
+     if(dstBottom<=dstTop)continue;
      const SDL_Rect dst{
       view.x+(int)std::lround(double(x+wobble)*view.w/VIEW_W),
-      view.y+(int)std::lround(double(y+row)*view.h/VIEW_H),
+      dstTop,
       std::max(1,(int)std::lround(double(tileW)*view.w/VIEW_W)),
-      std::max(1,(int)std::lround(double(lines)*view.h/VIEW_H)+1)
+      dstBottom-dstTop
      };
      if(SDL_RenderCopy(render,l.tex,&src,&dst)!=0)return false;
      if(l.edge){
@@ -329,7 +356,7 @@ struct Scene {
       edgeDst.x+=(int)std::lround(
         double(int((frame/17u+unsigned(row))%3u)-1)*view.w/VIEW_W);
       SDL_SetTextureAlphaMod(l.edge,
-          (Uint8)(80u+unsigned(frame/11u+row)%5u*28u));
+        (Uint8)(80u+unsigned(frame/11u+row)%5u*28u));
       if(SDL_RenderCopy(render,l.edge,&src,&edgeDst)!=0)return false;
      }
     }
@@ -368,7 +395,7 @@ static inline bool paint(SDL_Renderer* render,const SDL_Rect& view){
  const int cameraY=clamp(xm8649Visual.nativeCameraY,-14,256);
  bool good=true;
  for(auto it=s.layers.rbegin();it!=s.layers.rend()&&good;++it)
-  if(it->role=="sky")good=s.drawSky(render,*it,frame,(int)crop,view);
+  if(it->role=="sky")good=s.drawSky(render,*it,frame,(int)crop,cameraY,view);
  for(auto it=s.layers.rbegin();it!=s.layers.rend()&&good;++it)
   if(it->role=="bg")good=s.drawTexture(render,it->tex,*it,bgCrop,cameraY,view);
  for(auto it=s.layers.rbegin();it!=s.layers.rend()&&good;++it)
