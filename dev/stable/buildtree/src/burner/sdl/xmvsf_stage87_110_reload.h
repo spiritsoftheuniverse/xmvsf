@@ -6,6 +6,7 @@
 #include "xmvsf_stage87_111_corner.h"
 #include "xmvsf_stage87_135_roster_snapshot.h"
 #include "xmvsf_stage87_105_training_reset.h"
+#include "../../burn/drv/capcom/cps.h" // exact CPS2 sprite palette/page-0 and DMA source
 #include <cstdio>
 #include <cstring>
 static inline void xm87111CheckCameraAfterFrame(bool ready,unsigned frame) {
@@ -57,6 +58,37 @@ static inline void xm87114CenterInitialTrainingView(bool ready,unsigned frame){
  }
  cpu->close();
 }
+// A first-frame FB1 snapshot contains the OLD point fighter's loaded CPS2
+// sprite RGB banks. Swapping +0x400 character objects alone does NOT swap the
+// hardware palette DMA state. Preserve the actual currently-visible sprite
+// palette when (and only when) the roster interceptor synthesizes point swaps.
+// Sprite page 0 is exactly 0x200 RGB entries / 0x400 raw bytes in cps_pal.cpp;
+// pages 1..5 (stage/HUD/background) and every original tag remain untouched.
+struct XM87135LiveSpritePalette {
+ unsigned char raw[0x400];
+ UINT32 rgb[0x200];
+ bool valid=false;
+ bool capture(){
+  if(Cps!=2||!CpsSavePal||!CpsPal||!CpsReg||!CpsRam90)return false;
+  std::memcpy(raw,CpsSavePal,sizeof(raw));
+  std::memcpy(rgb,CpsPal,sizeof(rgb));
+  valid=true;return true;
+ }
+ bool restore(){
+  if(!valid||Cps!=2||!CpsSavePal||!CpsPal||!CpsReg||!CpsRam90)return false;
+  // CPS2 DMA palette address, same formula as cps.h::GetPalette().
+  const unsigned address=
+    (unsigned(BURN_ENDIAN_SWAP_INT16(*((UINT16*)(CpsReg+0x0au))))<<8)&0xFFFC00u;
+  if(address<0x900000u || address>0x930000u-0x1800u)return false;
+  // Reassert the incoming fighter's *live* native sprite palette as the
+  // source of the next CPS2 DMA, not merely the SDL display cache.
+  std::memcpy(CpsRam90+(address-0x900000u),raw,sizeof(raw));
+  std::memcpy(CpsSavePal,raw,sizeof(raw));
+  std::memcpy(CpsPal,rgb,sizeof(rgb));
+  CpsRecalcPal=1; // recalc from corrected source on the next native draw
+  return true;
+ }
+};
 static inline bool xm87110RestartAfterFrame(bool ready,unsigned frame){
  xm87114CenterInitialTrainingView(ready,frame);
  xm87111CheckCameraAfterFrame(ready,frame);
@@ -87,9 +119,24 @@ static inline bool xm87110RestartAfterFrame(bool ready,unsigned frame){
  const bool valid=f && std::fread(sig,1,4,f)==4 && std::memcmp(sig,"FB1 ",4)==0;
  if(f)std::fclose(f);
  if(!valid){XM87110::log("RESTART_REFUSED frame=%u reason=invalid_snapshot path=%s",frame,loadPath.c_str());return false;}
+ // Only a synthesized point/reserve swap needs native palette repair.
+ // An exact-roster snapshot continues using the original load path.
+ const bool pointSwapped=(loadPath==XM87135::WORKING);
+ XM87135LiveSpritePalette livePalette;
+ if(pointSwapped && !livePalette.capture()){
+  XM87110::log("RESTART_REFUSED frame=%u reason=live_sprite_palette_unavailable",frame);
+  return false;
+ }
  // Load only at the safe post-CPU real-frame boundary.
  const int rc=BurnStateLoad((TCHAR*)loadPath.c_str(),1,NULL);
  if(rc){XM87110::log("RESTART_REFUSED frame=%u reason=load_failed rc=%d",frame,rc);return false;}
+ if(pointSwapped){
+  const bool colorsRestored=livePalette.restore();
+  XM87110::log("ROSTER_PALETTE_RESTORE frame=%u swapped=1 sprite_banks=32 source_dma=%u",
+     frame,(unsigned)colorsRestored);
+  if(!colorsRestored)std::fprintf(stderr,
+      "XM87.302 ROSTER_PALETTE_WARNING sprite palette DMA unavailable after state load\n");
+ }
  bool positioned=false;
  {
   cpu_core_config* cpu=GetCpuCoreConfig(0);
