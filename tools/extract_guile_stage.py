@@ -2,6 +2,8 @@
 """Extract Guile Stage PSD layer pixels/geometry in place (stdlib only).
 The source PSD remains untouched. Generated PNGs and manifest go in
 _art/guilestage/extracted/. Re-run only when the PSD changes.
+Optional --actor Joe updates only Joe's PNGs and manifest coordinates;
+the next ordinary full build validates the rest of the source PSD normally.
 
 Supports 8-bit RGB PSD 1.0, raw, PackBits RLE, ZIP and ZIP-prediction channels,
 Unicode names, Photoshop group dividers, per-layer alpha and pixel masks.
