@@ -35,14 +35,29 @@ trap 'rc=$?; trap - EXIT; printf "XMVSF BUILD END rc=%s elapsed_seconds=%s time=
 # while leaving manifest.tsv behind. Unchanged PSDs are an immediate cache
 # hit: Python hashes the source and exits without decoding any pixels.
 GUILE_PSD="$PROJECT/_art/guilestage/guilestage.psd"
+GUILE_EXTRACT_ARGS=()
+case "${XMVSF_GUILE_ACTOR_ONLY:-}" in
+  "") ;;
+  Joe|joe|JOE)
+    GUILE_EXTRACT_ARGS=(--actor Joe)
+    ;;
+  *)
+    echo "ERROR: Unsupported Guile actor-only build: ${XMVSF_GUILE_ACTOR_ONLY}. Only Joe is enabled." >&2
+    exit 2
+    ;;
+esac
 if [[ -s "$GUILE_PSD" ]]; then
-  echo "GUILE PSD: verifying cached layer extraction (source SHA + PNG inventory)."
+  if (( ${#GUILE_EXTRACT_ARGS[@]} )); then
+    echo "GUILE PSD: Joe-only extraction; preserving all other exported PNGs."
+  else
+    echo "GUILE PSD: verifying cached layer extraction (source SHA + PNG inventory)."
+  fi
   if command -v python3 >/dev/null 2>&1; then
-    python3 "$PROJECT/tools/extract_guile_stage.py"
+    python3 "$PROJECT/tools/extract_guile_stage.py" "${GUILE_EXTRACT_ARGS[@]}"
   elif command -v python >/dev/null 2>&1; then
-    python "$PROJECT/tools/extract_guile_stage.py"
+    python "$PROJECT/tools/extract_guile_stage.py" "${GUILE_EXTRACT_ARGS[@]}"
   elif command -v py >/dev/null 2>&1; then
-    py -3 "$PROJECT/tools/extract_guile_stage.py"
+    py -3 "$PROJECT/tools/extract_guile_stage.py" "${GUILE_EXTRACT_ARGS[@]}"
   else
     echo "ERROR: Python 3 required for Guile PSD layer extraction." >&2
     exit 2
