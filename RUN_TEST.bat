@@ -4,7 +4,7 @@ for %%I in ("%~dp0.") do set "PROJECT=%%~fI"
 set "MSYSTEM=UCRT64"
 set "PATH=C:\msys64\ucrt64\bin;C:\msys64\usr\bin;%PATH%"
 set "XMVSF_PROJECT=%PROJECT%"
-set "XMVSF_TEST_VERSION=87.273"
+set "XMVSF_TEST_VERSION=87.274"
 REM All TEST diagnostics track the same version as the launched executable.
 set "XMVSF_TEST_LOG_ROOT=%PROJECT%\test\%XMVSF_TEST_VERSION%"
 REM Offline artifact review uses Python only. Never reaches ROM checks or EXE.
@@ -62,7 +62,7 @@ if "%XM87203_STAGE_CAPTURE_ENABLE%"=="1" (
 ) else (
   set "XM87203_STAGE_CAPTURE_DIR="
 )
-echo Stage 87.273 TEST executable, source ROM: %SOURCE_ROM%
+echo Stage 87.274 TEST executable, source ROM: %SOURCE_ROM%
 echo Stage capture: %XM87203_STAGE_CAPTURE_ENABLE%
 echo Existing MSYS live console: bash dev/stage_capture/WATCH_CAPTURE.sh
 echo F9 = replay, F10 = native probe, F11 = MVC1 level capture ON/OFF.
@@ -87,13 +87,13 @@ if not defined XM87121_CYCLOPS_RELEASE set "XM87121_CYCLOPS_RELEASE=1"
 if not defined XM87121_CYCLOPS_LOG_FILE set "XM87121_CYCLOPS_LOG_FILE=%OBSROOT%\cyclops_air_throw_release.tsv"
 REM 87.235 native accepted-dash startup evidence; tiny event-only TSV.
 if not defined XM87220_DASH_LOG_FILE set "XM87220_DASH_LOG_FILE=%OBSROOT%\dash_startup.tsv"
-REM TEST 87.273: native Storm HP 68000 reaction/index/velocity and candidate writers.
+REM TEST 87.274: native Storm HP 68000 reaction/index/velocity and candidate writers.
 set "XM87223_STORM_FLIGHT_LOG_FILE=%OBSROOT%\storm_hp_native_fs.tsv"
 set "XM87223_M68K_CANDIDATES_FILE=%OBSROOT%\storm_fs_68000_opcode_candidates.tsv"
 set "XM87127_STORM_VOICE_MUTE=1"
 set "XM87127_STORM_VOICE_LOG_FILE=%OBSROOT%\storm_voice_all_modes.tsv"
 set "XM8786_STORM_BUTTON_LOG_FILE=%OBSROOT%\storm_like_flight_events.tsv"
-REM TEST 87.273: compare native hit order + current button tag.
+REM TEST 87.274: compare native hit order + current button tag.
 REM FS_HP_THEN_HK_CYCLOPS_SEVERE = previous connected HP, current HK in FS.
 REM FS_GROUNDED_HEAVY_CYCLOPS_SEVERE = grounded non-SJ HP/HK during FS.
 REM Both decisions require same attacking action through native step 2.
@@ -101,7 +101,7 @@ REM 87.235: severe post-FS relaunch requires the SAME confirmed HP/HK
 REM action until native step 2. No delayed severe knockback on LP/LK/MP.
 REM Inspect storm_like_flight_events.tsv for
 REM POST_FS_SAME_HEAVY_NATIVE_RELAUNCH_SEVERE (never on light actions).
-REM TEST 87.273: original 68000 executed PC and native knockback/knockdown writes
+REM TEST 87.274: original 68000 executed PC and native knockback/knockdown writes
 REM for Charlie air HP 1804 and super-jump HK 1A04, max 32 frames each.
 set "XM87224_CHARLIE_M68K_TRACE=1"
 set "XM87224_CHARLIE_M68K_TRACE_LOG=%OBSROOT%\charlie_native_68000_pc_writes.tsv"
@@ -115,6 +115,10 @@ REM Charlie air HP stays ROM native; confirmed HK gets Cyclops severe.
 REM 87.235 fixed Storm native baseline x1.5. Charlie conversions label
 REM CHARLIE_STORM_FIXED_BASE_XY_150PCT and the old Y-velocity
 REM carry-over is disabled only for Charlie air HP/HK.
+REM Stage 87.274: original-ROM universal DHC is experimental and must
+REM be enabled explicitly for a native Windows test. Version 3 is inert.
+if not defined XM87274_UNIFIED_DHC set "XM87274_UNIFIED_DHC=0"
+if not defined XM87274_UNIFIED_DHC_LOG set "XM87274_UNIFIED_DHC_LOG=%OBSROOT%\dhc_unified_274.tsv"
 set "XM87175_DHC_OBSERVER=1"
 set "XM87175_DHC_OBSERVER_LOG=%OBSROOT%\dhc_acceptance_test.tsv"
 REM 87.185: subframe 68000 trace; delayed priming is unsafe by default.
@@ -190,9 +194,9 @@ if errorlevel 1 (
 )
 >>"%XM87181_DIAGNOSTIC_STATUS%" echo RUN_TEST_START version=%XMVSF_TEST_VERSION% date=%DATE% time=%TIME%
 if not defined XM87180_EXPERIMENTAL_DELAYED_PRIME set "XM87180_EXPERIMENTAL_DELAYED_PRIME=0"
-set "EXE=%PROJECT%\runtime\stable\XMVSF_Test_87_273.exe"
+set "EXE=%PROJECT%\runtime\stable\XMVSF_Test_87_274.exe"
 if not exist "%EXE%" (
-  echo ERROR: Stage 87.273 TEST executable is missing; no fallback to older builds.
+  echo ERROR: Stage 87.274 TEST executable is missing; no fallback to older builds.
   echo Run BUILD_TEST.bat first. Will NOT fall back to 87.132.4 or Stable.
   goto :fail
 )
@@ -305,7 +309,7 @@ echo 87.185: delayed DHC input priming disabled by default, preserves original R
 echo 87.184 native Shinkuu action lifetime: 2E08 startup/attack, 2E0A recovery, exact exit.
 echo 87.235 ROM super start-to-real-exit DHC: %XM87191_TEST_OPEN_SUPER_LIFETIME%  (no phase/timer/air-mode availability veto)
 echo Native 2E family: %XM87189_TEST_NATIVE_SUPER_FAMILY% full original attack: %XM87188_TEST_FULL_ATTACK% recovery: %XM87185_TEST_RECOVERY_REBOUND%
-echo XMVSF Stage 87.273 TEST - KEEP KEN SHORYUREPPA; CUT OUTGOING RYU PROJECTILE HITS
+echo XMVSF Stage 87.274 TEST - KEEP KEN SHORYUREPPA; CUT OUTGOING RYU PROJECTILE HITS
 echo Executable: %EXE%
 echo SAME BUILD, TWO DHC CHOICES:
 echo   During Ryu Shinkuu Hadoken, QCF+ANY TWO PUNCHES or QCF+3P queues Ken SHORYUREPPA.
@@ -445,7 +449,7 @@ REM Stage 87.235: start the exact TEST executable without ROM argument.
 REM Restore the pre-merge zero-argument native TEST launch for XMVSF.
 REM MVC1 remains an explicit source-ROM invocation for capture option 3.
 if /I "%SOURCE_ROM%"=="xmvsfu" (
-  echo Launching native XMVSF TEST 87.273: Arcade / Training / Versus.
+  echo Launching native XMVSF TEST 87.274: Arcade / Training / Versus.
   "%EXE%"
 ) else (
   echo Launching original CPS2 donor ROM %SOURCE_ROM% with controller support.
@@ -906,9 +910,9 @@ REM ROM and advanced capture/analysis commands remain backward compatible.
 :suite_menu
 echo.
 echo ============================================================
-echo   XMVSF - TEST 87.273 / ASSET / CAPTURE SUITE
+echo   XMVSF - TEST 87.274 / ASSET / CAPTURE SUITE
 echo ============================================================
-echo   [1] Test game - XMVSF native TEST 87.273
+echo   [1] Test game - XMVSF native TEST 87.274
 echo   [2] Asset Organizer - build and open local editor
 echo   [3] Capture Level - select original donor game
 echo.
