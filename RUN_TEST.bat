@@ -76,12 +76,7 @@ if not exist "%OBSROOT%" (
   echo ERROR: Cannot create current TEST observer log directory.
   goto :fail
 )
-REM Versioned Start-gesture evidence; unlike older builds, this is inside
-REM the same folder the user archives with replay and observer logs.
-set "XM87110_LOG_FILE=%OBSROOT%\training_relocator.log"
->>"%XM87110_LOG_FILE%" echo RUN_TEST_START version=%XMVSF_TEST_VERSION% date=%DATE% time=%TIME%
 echo TEST log folder: "%XMVSF_TEST_LOG_ROOT%"
-echo Training relocator trace: "%XM87110_LOG_FILE%"
 REM XM87.235 restore previously successful 87.121 Cyclops air-throw recovery.
 REM Exact pre-throw airborne state after victim lands; no forced new jump.
 REM Inherited XM87121_CYCLOPS_RELEASE=0 remains an explicit A/B opt-out.
@@ -457,7 +452,7 @@ set "RC=%ERRORLEVEL%"
 popd
 >>"%XM87181_DIAGNOSTIC_STATUS%" echo RUN_TEST_EXIT version=%XMVSF_TEST_VERSION% code=%RC%
 REM Include the actual FBNeo-to-physical controller mapping alongside the
-REM relocator trace rather than leave it stranded under FBNeo.
+REM controller and ordinary Training side-switch traces for local diagnosis.
 if /I "%SOURCE_ROM%"=="xmvsfu" (
   if exist "%PROJECT%\FBNeo\xmvsf_stage13_1_input.log" copy /Y "%PROJECT%\FBNeo\xmvsf_stage13_1_input.log" "%OBSROOT%\controller_bindings.log" >nul
   if exist "%PROJECT%\FBNeo\xmvsf_stage18_position.log" copy /Y "%PROJECT%\FBNeo\xmvsf_stage18_position.log" "%OBSROOT%\training_side_switch.log" >nul
