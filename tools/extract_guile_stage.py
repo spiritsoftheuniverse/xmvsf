@@ -307,11 +307,15 @@ def extract(data: bytes, out: Path) -> list[str]:
     gl,gt = min(0,raw_gl),min(0,raw_gt)
     gr,gb = max(1016,raw_gr),max(471,raw_gb)
     gw,gh = gr-gl,gb-gt
+    # The camera stays centered on the original 1016px authored stage.
+    # Extra pixels introduced by a merged Ground remain preserved offscreen
+    # but must not shift all characters or the viewport by 4+ pixels.
+    view_x = (1016-768)//2 - gl
     if gw*gh > 8192*8192 or gw < 768 or gh < 471:
         raise ValueError(f"Unsafe Guile ground frame ({gl},{gt},{gr},{gb})")
     pad_ground = (gl,gt,gr,gb) != (raw_gl,raw_gt,raw_gr,raw_gb)
     print(f"GUILE PSD GROUND SOURCE ({raw_gl},{raw_gt},{raw_gr},{raw_gb}) "
-          f"frame=({gl},{gt},{gr},{gb}) centered_crop={(gw-768)//2} "
+          f"frame=({gl},{gt},{gr},{gb}) centered_crop={view_x} "
           "pixels=verbatim")
     if not actors:
         raise ValueError("Guile PSD has no raster layers inside the Characters group")
@@ -331,7 +335,7 @@ def extract(data: bytes, out: Path) -> list[str]:
         f"CANVAS\t{width}\t{height}",
         "FORMAT\t3",
         f"GROUND\t{gl}\t{gt}\t{gw}\t{gh}",
-        f"VIEW\t768\t471\t{(gw-768)//2}",
+        f"VIEW\t768\t471\t{view_x}",
     ]
     out.mkdir(parents=True,exist_ok=True)
     count = 0
@@ -441,7 +445,7 @@ def extract(data: bytes, out: Path) -> list[str]:
     for key,frames in actors.items():
         records.append(f"ACTOR\t{sanitize_field(key)}\t{len(frames)}")
     (out/"manifest.tsv").write_text("\n".join(records)+"\n",encoding="utf-8")
-    print(f"GUILE PSD INDEX ground=({gl},{gt},{gr},{gb}) visible=768x471 centered_crop={(gw-768)//2} actor_groups={len(actors)}")
+    print(f"GUILE PSD INDEX ground=({gl},{gt},{gr},{gb}) visible=768x471 centered_crop={view_x} actor_groups={len(actors)}")
     for key,frames in actors.items():
         print(f"GUILE PSD ACTOR {key}: {len(frames)} / {len(frames)} frames, bounds={actor_bounds[key]}")
     return records
