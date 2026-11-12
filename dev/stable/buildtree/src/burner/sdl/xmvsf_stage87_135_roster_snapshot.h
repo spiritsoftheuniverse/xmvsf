@@ -160,9 +160,12 @@ static inline void captureNativePairs(const unsigned char* live,bool enabled){
   // Capture only a fully initialized, ROM-owned neutral point paired
   // with its real native reserve. Never replant live throw/super/flying
   // state or an incoming tag animation into the first-frame snapshot.
-  const bool neutral=(action==0x0000u && (mode&0xff00u)==0u) ||
+  // Native 0000/002A is a tag transitional mode, NOT idle. It was
+  // observed during the Cyclops/Wolverine swap in the 87.305 F10 log.
+  const bool neutral=(action==0x0000u && mode==0x0000u) ||
                      (action==0x0006u && mode==0x0002u) ||
-                     (action==0x0002u && (mode&0xff00u)==0x0200u);
+                     (action==0x0002u &&
+                      (mode==0x0200u || mode==0x0210u));
   if(!validId(id)||!validId(other)||id==other||!neutral||
      liveWord(live,p)!=0x0101u||
      liveWord(live,r)==0u||bank==0u||script<0x00080000u||
@@ -175,7 +178,7 @@ static inline void captureNativePairs(const unsigned char* live,bool enabled){
   std::memcpy(pair.point,live+p,0x400);
   std::memcpy(pair.reserve,live+r,0x400);
   if(newRoster)std::fprintf(stderr,
-    "XM87.306 ROSTER_NATIVE_NEUTRAL_CAPTURE side=%u point=%02X reserve=%02X action=%04X bank=%04X script=%08X\\n",
+    "XM87.306 ROSTER_NATIVE_NEUTRAL_CAPTURE side=%u point=%02X reserve=%02X action=%04X bank=%04X script=%08X\n",
     side+1,id,other,action,bank,script);
  }
 }
@@ -245,13 +248,13 @@ static inline bool prepare(const char* primary,const Team& now,std::string& load
    // and throw state from the first-frame bench object.
    if((swaps&1u)&&!swapSide(ram,0x4000u,0x4800u,0u,now.id[0],now.id[2])){
     std::fprintf(stderr,
-      "XM87.306 ROSTER_REFUSED side=1 reason=no_native_neutral_tag_pair point=%02X reserve=%02X\\n",
+      "XM87.306 ROSTER_REFUSED side=1 reason=no_native_neutral_tag_pair point=%02X reserve=%02X\n",
       now.id[0],now.id[2]);
     continue;
    }
    if((swaps&2u)&&!swapSide(ram,0x4400u,0x4c00u,1u,now.id[1],now.id[3])){
     std::fprintf(stderr,
-      "XM87.306 ROSTER_REFUSED side=2 reason=no_native_neutral_tag_pair point=%02X reserve=%02X\\n",
+      "XM87.306 ROSTER_REFUSED side=2 reason=no_native_neutral_tag_pair point=%02X reserve=%02X\n",
       now.id[1],now.id[3]);
     continue;
    }
