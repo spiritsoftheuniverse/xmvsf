@@ -108,7 +108,9 @@ static inline void xm77ApplyNativeStage5(bool gameReady,bool beforeFrame) {
                                 (xm14TrainingMode==1 || xm24VersusMode==1));
         const bool customAkuma=((xm77StageChoice==0||xm77StageChoice==5) && xm77StageResolved==5 &&
                                 (xm14TrainingMode==1 || xm24VersusMode==1));
-        const bool optIn=(customWily||customFinal||customGuile||customSigma||customAkuma) &&
+        const bool customRyu=((xm77StageChoice==0||xm77StageChoice==6) && xm77StageResolved==6 &&
+                               (xm14TrainingMode==1 || xm24VersusMode==1));
+        const bool optIn=(customWily||customFinal||customGuile||customSigma||customAkuma||customRyu) &&
                           std::getenv("XM8648_NATIVE05_OFF")==nullptr;
         if(optIn && status==0 && stageByte==0 && selector==0xFF && c->write) {
             c->write(0xFF5082u,4u);  // ONLY mutation: guest FF5082=04.
