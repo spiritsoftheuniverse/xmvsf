@@ -6,7 +6,14 @@
 #include "xmvsf_stage87_111_corner.h"
 #include "xmvsf_stage87_135_roster_snapshot.h"
 #include "xmvsf_stage87_105_training_reset.h"
-#include "../../burn/drv/capcom/cps.h" // exact CPS2 sprite palette/page-0 and DMA source
+// Include only the CPS2 palette symbols. Including cps.h here imports the
+// eeprom.h interface parameter after Windows' #define interface struct,
+// breaking compilation of this SDL run.cpp TU (87.302).
+// Types match declarations in src/burn/drv/capcom/cps.h.
+extern INT32 Cps;
+extern UINT8 *CpsSavePal,*CpsReg,*CpsRam90;
+extern UINT32 *CpsPal;
+extern UINT8 CpsRecalcPal;
 #include <cstdio>
 #include <cstring>
 static inline void xm87111CheckCameraAfterFrame(bool ready,unsigned frame) {
@@ -77,8 +84,10 @@ struct XM87135LiveSpritePalette {
  bool restore(){
   if(!valid||Cps!=2||!CpsSavePal||!CpsPal||!CpsReg||!CpsRam90)return false;
   // CPS2 DMA palette address, same formula as cps.h::GetPalette().
-  const unsigned address=
-    (unsigned(BURN_ENDIAN_SWAP_INT16(*((UINT16*)(CpsReg+0x0au))))<<8)&0xFFFC00u;
+  // CPS2 register bytes are stored 68000 big-endian in CpsReg.
+  // Assemble directly; avoids pulling in the CPS-only bitswap header.
+  const unsigned reg=(unsigned(CpsReg[0x0au])<<8)|unsigned(CpsReg[0x0bu]);
+  const unsigned address=(reg<<8)&0xFFFC00u;
   if(address<0x900000u || address>0x930000u-0x1800u)return false;
   // Reassert the incoming fighter's *live* native sprite palette as the
   // source of the next CPS2 DMA, not merely the SDL display cache.
