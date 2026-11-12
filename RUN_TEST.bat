@@ -4,8 +4,8 @@ for %%I in ("%~dp0.") do set "PROJECT=%%~fI"
 set "MSYSTEM=UCRT64"
 set "PATH=C:\msys64\ucrt64\bin;C:\msys64\usr\bin;%PATH%"
 set "XMVSF_PROJECT=%PROJECT%"
-set "XMVSF_TEST_VERSION=87.327"
-REM Derived from version: 87.327 -> 87_327. Must match BUILD_TEST.bat.
+set "XMVSF_TEST_VERSION=87.328"
+REM Derived from version: 87.328 -> 87_328. Must match BUILD_TEST.bat.
 set "XMVSF_TEST_TAG=%XMVSF_TEST_VERSION:.=_%"
 REM All TEST diagnostics track the same version as the launched executable.
 set "XMVSF_TEST_LOG_ROOT=%PROJECT%\test\%XMVSF_TEST_VERSION%"
@@ -64,7 +64,7 @@ if "%XM87203_STAGE_CAPTURE_ENABLE%"=="1" (
 ) else (
   set "XM87203_STAGE_CAPTURE_DIR="
 )
-echo Stage 87.327 TEST executable, source ROM: %SOURCE_ROM%
+echo Stage 87.328 TEST executable, source ROM: %SOURCE_ROM%
 echo Stage capture: %XM87203_STAGE_CAPTURE_ENABLE%
 echo Existing MSYS live console: bash dev/stage_capture/WATCH_CAPTURE.sh
 echo F9 = replay, F10 = native probe, F11 = MVC1 level capture ON/OFF.
@@ -195,7 +195,7 @@ if errorlevel 1 (
 if not defined XM87180_EXPERIMENTAL_DELAYED_PRIME set "XM87180_EXPERIMENTAL_DELAYED_PRIME=0"
 set "EXE=%PROJECT%\runtime\stable\XMVSF_Test_%XMVSF_TEST_TAG%.exe"
 if not exist "%EXE%" (
-  echo ERROR: Stage 87.327 TEST executable is missing; no fallback to older builds.
+  echo ERROR: Stage 87.328 TEST executable is missing; no fallback to older builds.
   echo Run BUILD_TEST.bat first. Will NOT fall back to 87.132.4 or Stable.
   goto :fail
 )
@@ -218,7 +218,7 @@ if /I "%SOURCE_ROM%"=="xmvsfu" if exist "%PROJECT%\_art\guilestage\guilestage.ps
     goto :fail
   )
 )
-REM 87.327: validate Ryu's exact-coordinate PNGs, without changing binary cache.
+REM 87.328: validate Ryu's exact-coordinate PNGs, without changing binary cache.
 if /I "%SOURCE_ROM%"=="xmvsfu" if exist "%PROJECT%\_art\ryustage\ryustage.psd" (
   where python.exe >nul 2>nul
   if errorlevel 1 (
@@ -336,7 +336,7 @@ echo 87.185: delayed DHC input priming disabled by default, preserves original R
 echo 87.184 native Shinkuu action lifetime: 2E08 startup/attack, 2E0A recovery, exact exit.
 echo 87.235 ROM super start-to-real-exit DHC: %XM87191_TEST_OPEN_SUPER_LIFETIME%  (no phase/timer/air-mode availability veto)
 echo Native 2E family: %XM87189_TEST_NATIVE_SUPER_FAMILY% full original attack: %XM87188_TEST_FULL_ATTACK% recovery: %XM87185_TEST_RECOVERY_REBOUND%
-echo XMVSF Stage 87.327 TEST - KEEP KEN SHORYUREPPA; CUT OUTGOING RYU PROJECTILE HITS
+echo XMVSF Stage 87.328 TEST - KEEP KEN SHORYUREPPA; CUT OUTGOING RYU PROJECTILE HITS
 echo Executable: %EXE%
 echo SAME BUILD, TWO DHC CHOICES:
 echo   During Ryu Shinkuu Hadoken, QCF+ANY TWO PUNCHES or QCF+3P queues Ken SHORYUREPPA.
@@ -476,7 +476,7 @@ REM Stage 87.235: start the exact TEST executable without ROM argument.
 REM Restore the pre-merge zero-argument native TEST launch for XMVSF.
 REM MVC1 remains an explicit source-ROM invocation for capture option 3.
 if /I "%SOURCE_ROM%"=="xmvsfu" (
-  echo Launching native XMVSF TEST 87.327: Arcade / Training / Versus.
+  echo Launching native XMVSF TEST 87.328: Arcade / Training / Versus.
   "%EXE%"
 ) else (
   echo Launching original CPS2 donor ROM %SOURCE_ROM% with controller support.
@@ -937,9 +937,9 @@ REM ROM and advanced capture/analysis commands remain backward compatible.
 :suite_menu
 echo.
 echo ============================================================
-echo   XMVSF - TEST 87.327 / ASSET / CAPTURE SUITE
+echo   XMVSF - TEST 87.328 / ASSET / CAPTURE SUITE
 echo ============================================================
-echo   [1] Test game - XMVSF native TEST 87.327
+echo   [1] Test game - XMVSF native TEST 87.328
 echo   [2] Asset Organizer - build and open local editor
 echo   [3] Capture Level - select original donor game
 echo.
