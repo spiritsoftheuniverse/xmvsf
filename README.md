@@ -262,6 +262,55 @@ the originating HP/HK tag, not the unrelated buttons held on the
 later native substate-2 frame. Compare against Tournament OFF
 and preserve original F9 recordings.
 
+## F10 live native 68000 selection→versus capture — TEST 87.328
+
+**No replay needed.** In the real XMVSFU game launched by `RUN_TEST.bat`,
+press **F10 during the native character/team-selection screen**, complete
+both teams, wait until the actual versus screen appears (and optionally
+until combat starts), then press **F10 again**. Shift+F10 is still the
+original quick-load. The F10 hotkey is handled before Training/Versus
+menu consumers; it is not necessary to start recording at the host
+splash menu or at the beginning of the session.
+
+F10 creates three **numbered, matching** files in `test/87.328/`:
+
+- `xm87139_probe_0001.tsv`: original combat/input/fighter telemetry,
+  unchanged column structure, with counts of precombat and combat frames
+  in its stop footer. A selection-only recording is not a zero-frame
+  failure.
+- `xm87139_oam_0001.tsv`: existing native sprite/tag OAM capture,
+  unchanged and still combat/tag dependent.
+- `xm87139_m68k_0001.tsv`: **new** post-instruction 68000 transition
+  trace for all native noncombat frames while F10 is enabled. One `FRAME`
+  row per captured native CPU frame, plus `INSTRUCTION_CHANGE` rows
+  when the ORIGINAL guest 68000 changes `FF5000` (phase),
+  `FF5104` (big-endian 16-bit selection/match step), `FF5180`
+  (P1 chooser state), or `FF51A0` (P2 chooser state). Each transition
+  captures the **executed PPC**, next PC, A6/D0/D1, before/after values,
+  current stage/timer and native actor pointer `FFA014`. The change
+  mask 01/02/04/08 identifies which RAM values changed. This does not
+  infer the handoff from wall-clock timing or a F9 save-state checkpoint.
+  A bounded 20,000-row cap prevents an accidentally left-on capture
+  from growing indefinitely.
+
+The native recorder hooks the existing Musashi instruction-completion
+callback **only** during F10-enabled, noncombat XMVSF CPU frames. Its
+callback forwards any prior observer and is removed **before** Charlie
+and DHC callbacks are restored at the native frame boundary. ROM,
+guest RAM, input ports, timer, and CPU cycles are never written by
+this tracer. F10-OFF and non-XMVSF games pay no per-instruction cost.
+
+A single `FF5104` transition event is evidence for the actual executed
+writer PC. Whether that event corresponds to **versus-screen entry**
+rather than a preceding chooser step must be confirmed from the
+recorded sequence and native screen, not guessed. The separate
+`xm20_vs_transition.h` music-cue gate has **not** been changed in
+87.328; this update gathers the missing evidence before touching audio.
+
+**Validation status:** code-level hook and output-path checks only;
+the actual Windows 68000 capture requires one native TEST 87.328 run.
+No changes to Stable, no new build gates, and no GitHub Actions.
+
 ## Verified versus-screen M68K checkpoint — TEST 87.324
 
 The original uploaded **87.320** F9 recording starts with a
