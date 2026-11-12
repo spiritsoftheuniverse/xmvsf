@@ -1,12 +1,13 @@
 #ifndef XMVSF_STAGE20_VS_EARLY_PHASE_H
 #define XMVSF_STAGE20_VS_EARLY_PHASE_H
-// 87.313: pure read-only detector for the native chooser -> versus handoff.
-// FF5180/FF51A0: 0x20-byte player choosing records; byte 0 == 7 when
-// all character and speed choices are accepted by the ROM.
-// FF5104: game step 4 choosing, 8 match setup.
-// These are earlier than FF5000=02 (stage load / closing VS screen).
+// 87.322: versus-song cue follows the ROM's first PRE-MATCH screen
+// handoff (step 04 -> intermediate 05/06/07), never the combat screen.
+// Last character/speed choice reaching 07 is NOT the versus screen.
+// A direct 04 -> 08 transition is retained as a no-intermediate fallback
+// for ROM revisions that skip step 06; it cannot fire after combat.
+// No writes to emulated RAM, inputs or ROM.
 namespace XM20VsEarly {
-enum Event { NONE=0, BOTH_CHOOSERS_DONE=1, MATCH_SETUP_EDGE=2 };
+enum Event { NONE=0, VS_SCREEN_EDGE=1, MATCH_SETUP_EDGE=2 };
 struct Gate {
     unsigned previousStep=0xffffffffu;
     bool sawChoosing=false;
@@ -19,12 +20,12 @@ struct Gate {
                 sawActiveChooser=true;
         }
         Event answer=NONE;
-        if(!fired && sawChoosing){
-            // A completed P1 alone must NEVER start VS while P2 selects.
-            if(step==4u && sawActiveChooser && p1==7u && p2==7u)
-                answer=BOTH_CHOOSERS_DONE;
-            else if(previousStep==4u && step==8u)
-                answer=MATCH_SETUP_EDGE;
+        // The native 04 -> 05/06/07 screen handoff, not the last button
+        // acceptance, is the first frame of the versus presentation.
+        // Jumping directly to 08 can happen after restored snapshots.
+        if(!fired && sawChoosing && previousStep==4u){
+            if(step>=5u && step<8u)answer=VS_SCREEN_EDGE;
+            else if(step==8u)answer=MATCH_SETUP_EDGE;
             if(answer!=NONE)fired=true;
         }
         previousStep=step;
