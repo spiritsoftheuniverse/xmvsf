@@ -150,6 +150,13 @@ static inline void swapSide(unsigned char* ram,unsigned a,unsigned b){
  copySpan(ram+b,originalB,0x060,0x002);
  copySpan(ram+a,originalA,0x200,0x010);
  copySpan(ram+b,originalB,0x200,0x010);
+ // Native tag eligibility checks the point/partner +0x210 state together
+ // with the +0x224 partner pointer (ROM PC 013B48..013B94; 87.146 audit).
+ // Both are SLOT-role data. Swapping the fighter character records while
+ // leaving the reserve's old +0x210 in the new point makes the next tag
+ // select the wrong fighter (often the same point fighter again).
+ copySpan(ram+a,originalA,0x210,0x008);
+ copySpan(ram+b,originalB,0x210,0x008);
  copySpan(ram+a,originalA,0x220,0x008);
  copySpan(ram+b,originalB,0x220,0x008);
 }
