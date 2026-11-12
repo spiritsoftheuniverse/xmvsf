@@ -297,7 +297,7 @@ struct Scene {
   // High Sky is SCREEN-LOCKED in Y: do not use cameraY, ground camera,
   // or vertical parallax here. Repeat native-size source tiles to cover
   // the full screen even during super-jumps.
-  // super-jumps. The horizontal drift still loops forever at 3px/sec.
+  // Horizontal drift still loops forever at 3px/sec.
   // Do not stretch, shrink, or resample the sky or its dithered edges.
   const int tileW=l.w,tileH=l.h;
   const int shift=int((frame/20u)%unsigned(tileW));
