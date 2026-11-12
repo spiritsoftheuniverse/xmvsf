@@ -128,18 +128,26 @@ static inline void swapSide(unsigned char* ram,unsigned a,unsigned b){
  std::memcpy(originalB,ram+b,0x400);
  std::memcpy(ram+a,originalB,0x400);
  std::memcpy(ram+b,originalA,0x400);
- // Native point/bench, neutral beginning-of-round movement, facing, action,
- // controller link and slot-specific partner pointer are POSITION/ROLE state.
- copySpan(ram+a,originalA,0x000,0x020);
- copySpan(ram+b,originalB,0x000,0x020);
+ // Only native slot activity/role and world position/velocity are
+ // restored from the old point/bench addresses. +0x06/+0x08 are the
+ // character's live animation/reaction and native step, not position.
+ // Copying +0x00..+0x1F wholesale substituted Cyclops' idle animation
+ // state for Wolverine's after a synthesized roster swap; the incoming
+ // point could remain invisible until a movement generated a new pose.
+ copySpan(ram+a,originalA,0x000,0x006);
+ copySpan(ram+b,originalB,0x000,0x006);
+ copySpan(ram+a,originalA,0x00c,0x014);
+ copySpan(ram+b,originalB,0x00c,0x014);
  // The native +0x4B facing flag maps to RAW saved-RAM byte +0x4A
  // (CPS2 68000 byte lanes are XOR 1). The surrounding +0x4B..+0x4F
  // raw bytes are not proven slot-role state: keep them with the
  // incoming character instead of restoring Cyclops-owned display data.
  ram[a+0x04au]=(unsigned char)((ram[a+0x04au]&~1u)|(originalA[0x04au]&1u));
  ram[b+0x04au]=(unsigned char)((ram[b+0x04au]&~1u)|(originalB[0x04au]&1u));
- copySpan(ram+a,originalA,0x060,0x00c);
- copySpan(ram+b,originalB,0x060,0x00c);
+ // Keep the point slot's neutral action WORD, not the old fighter's
+ // character-dependent animation/action substates at +0x62..+0x6B.
+ copySpan(ram+a,originalA,0x060,0x002);
+ copySpan(ram+b,originalB,0x060,0x002);
  copySpan(ram+a,originalA,0x200,0x010);
  copySpan(ram+b,originalB,0x200,0x010);
  copySpan(ram+a,originalA,0x220,0x008);
