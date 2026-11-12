@@ -144,7 +144,7 @@ static inline bool xm87110RestartAfterFrame(bool ready,unsigned frame){
   XM87110::log("ROSTER_PALETTE_RESTORE frame=%u swapped=1 sprite_banks=32 source_dma=%u",
      frame,(unsigned)colorsRestored);
   if(!colorsRestored)std::fprintf(stderr,
-      "XM87.302 ROSTER_PALETTE_WARNING sprite palette DMA unavailable after state load\n");
+      "XM87.303 ROSTER_PALETTE_WARNING sprite palette DMA unavailable after state load\n");
  }
  bool positioned=false;
  {
