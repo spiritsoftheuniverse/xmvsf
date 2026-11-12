@@ -28214,3 +28214,428 @@ b7f92a94e6a705829e184d3f5ca504ebd14783a61328652e25259c9477750962 */f/xmvsf/_art/
 Stage 87.310: native sources dependency-cached; Stable and previous TESTs untouched.
 XMVSF BUILD END rc=0 elapsed_seconds=547 time=2026-11-12 06:44:40 log=/f/xmvsf/test/build_logs/BUILD_TEST.log
 BATCH RESULT: SUCCESS Thu 11/12/2026  6:44:41.14
+
+========== XMVSF BUILD_TEST.bat 87.311 START Thu 11/12/2026  7:17:05.33 ==========
+Project: F:\xmvsf
+
+========== XMVSF BUILD_TEST.bat 87.312 START Thu 11/12/2026  7:19:12.71 ==========
+Project: F:\xmvsf
+
+========== XMVSF TEST 87.312 BUILD BEGIN 2026-11-12 07:19:15 ==========
+Project: /f/xmvsf
+Log: /f/xmvsf/test/build_logs/BUILD_TEST.log
+GUILE PSD: verifying cached layer extraction (source SHA + PNG inventory).
+GUILE PSD unchanged: F:/xmvsf/_art/guilestage/extracted/manifest.tsv (23 layers)
+87.235 menu preflight: native boot and glyph/FX sources present; logo, fonts and menuanimation.gif verified.
+87.235 draw path is verified by native compile and runtime, not a stale grep for XMGlyph::logo(render).
+BUILD CACHE: compiler/settings match; retaining existing objects.
+BUILD CACHE: fingerprint=cc24b66d70a424d766a1dd3da98614f91463cd30cf9a9e808027ee108436d6ea
+BUILD CACHE: native objects=/f/xmvsf/dev/stable/buildtree/obj; state=/f/xmvsf/test/build_cache
+BUILD CACHE: optional ccache unavailable/disabled; normal gcc.
+BUILD: optional regression suite skipped; proceeding to native incremental Make.
+XMVSF Stage 87.312 TEST: incremental build; preserving cached objects
+Source branch: feature/dhc-unified-m68k
+Source revision: 03f2c088
+Dependencies: GNU Make + persistent obj/**/*.d header dependency files
+BUILD PHASE native_make_start elapsed_seconds=8
+BUILD MODE: standard dependency-safe two-pass native Make.
+make[1]: Entering directory '/f/xmvsf/dev/stable/buildtree'
+Making normal build...
+
+Generating depend file for src/burner/sdl/run.cpp...
+
+Warning: Perl is not available on this system.
+src/dep/generated/driverlist.h cannot be updated or created!
+
+Compiling src/intf/audio/sdl/aud_sdl.cpp...
+Compiling src/burner/sdl/main.cpp...
+Compiling src/burner/sdl/run.cpp...
+In file included from src/intf/audio/sdl/aud_sdl.cpp:7:
+src/intf/audio/sdl/xm20_wasapi_impl.h: In function 'DWORD xm20::audioThread(LPVOID)':
+src/intf/audio/sdl/xm20_wasapi_impl.h:471:5: warning: this 'if' clause does not guard... [-Wmisleading-indentation]
+  471 |     if(render)render->Release();if(client)client->Release();if(endpoint)endpoint->Release();if(en)en->Release();
+      |     ^~
+src/intf/audio/sdl/xm20_wasapi_impl.h:471:33: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the 'if'
+  471 |     if(render)render->Release();if(client)client->Release();if(endpoint)endpoint->Release();if(en)en->Release();
+      |                                 ^~
+In file included from src/burner/sdl/xmvsf_stage14_boot.h:84,
+                 from src/burner/sdl/main.cpp:23:
+src/burner/sdl/xmvsf_stage87_33_dizzy_option.h: In function 'void xm8733DizzyLoad()':
+src/burner/sdl/xmvsf_stage87_33_dizzy_option.h:19:24: warning: this 'if' clause does not guard... [-Wmisleading-indentation]
+   19 |     if(f){int flag=-1; if(std::fscanf(f,"dizzy_bar=%d",&flag)==1 && (flag==0||flag==1))
+      |                        ^~
+src/burner/sdl/xmvsf_stage87_33_dizzy_option.h:20:40: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the 'if'
+   20 |         xm8733DizzyEnabled()=(flag==1);std::fclose(f);}
+      |                                        ^~~
+In file included from src/burner/sdl/main.cpp:24:
+src/burner/sdl/xmvsf_stage87_206_crash_report.h: In function 'LONG XM87206Crash::onUnhandled(EXCEPTION_POINTERS*)':
+src/burner/sdl/xmvsf_stage87_206_crash_report.h:60:27: warning: cast between incompatible function types from 'FARPROC' {aka 'long long int (*)()'} to 'DumpFn' {aka 'int (*)(void*, long unsigned int, void*, MINIDUMP_TYPE, _MINIDUMP_EXCEPTION_INFORMATION*, _MINIDUMP_USER_STREAM_INFORMATION*, _MINIDUMP_CALLBACK_INFORMATION*)'} [-Wcast-function-type]
+   60 |         const DumpFn dump=reinterpret_cast<DumpFn>(
+      |                           ^~~~~~~~~~~~~~~~~~~~~~~~~
+   61 |             GetProcAddress(dll,"MiniDumpWriteDump"));
+      |             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+In file included from src/burner/sdl/run.cpp:34:
+src/burner/sdl/xmvsf_stage87_206_crash_report.h: In function 'LONG XM87206Crash::onUnhandled(EXCEPTION_POINTERS*)':
+src/burner/sdl/xmvsf_stage87_206_crash_report.h:60:27: warning: cast between incompatible function types from 'FARPROC' {aka 'long long int (*)()'} to 'DumpFn' {aka 'int (*)(void*, long unsigned int, void*, MINIDUMP_TYPE, _MINIDUMP_EXCEPTION_INFORMATION*, _MINIDUMP_USER_STREAM_INFORMATION*, _MINIDUMP_CALLBACK_INFORMATION*)'} [-Wcast-function-type]
+   60 |         const DumpFn dump=reinterpret_cast<DumpFn>(
+      |                           ^~~~~~~~~~~~~~~~~~~~~~~~~
+   61 |             GetProcAddress(dll,"MiniDumpWriteDump"));
+      |             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+src/burner/sdl/main.cpp: At global scope:
+src/burner/sdl/main.cpp:372:20: warning: 'int AppDebugPrintf(int, TCHAR*, ...)' defined but not used [-Wunused-function]
+  372 | static int __cdecl AppDebugPrintf(int nStatus, TCHAR* pszFormat, ...)
+      |                    ^~~~~~~~~~~~~~
+In file included from src/burner/sdl/xmvsf_stage14_boot.h:86:
+src/burner/sdl/xmvsf_stage13_controls.h:749:12: warning: 'int xm13ReadInput(const XM13_Settings*, int, int, SDL_Joystick**, SDL_GameController**, int)' defined but not used [-Wunused-function]
+  749 | static int xm13ReadInput(const XM13_Settings* s,int player,int sub,
+      |            ^~~~~~~~~~~~~
+In file included from src/burner/sdl/xmvsf_stage23_ui.h:11,
+                 from src/burner/sdl/xmvsf_stage23_engine.h:3,
+                 from src/burner/sdl/run.cpp:25:
+src/burner/sdl/xmvsf_stage13_controls.h: At global scope:
+src/burner/sdl/xmvsf_stage13_controls.h:749:12: warning: 'int xm13ReadInput(const XM13_Settings*, int, int, SDL_Joystick**, SDL_GameController**, int)' defined but not used [-Wunused-function]
+  749 | static int xm13ReadInput(const XM13_Settings* s,int player,int sub,
+      |            ^~~~~~~~~~~~~
+src/burner/sdl/xmvsf_stage13_controls.h:580:12: warning: 'int xm13Assign(XM13_Settings*, int, int)' defined but not used [-Wunused-function]
+  580 | static int xm13Assign(XM13_Settings* settings,int player,int device){
+      |            ^~~~~~~~~~
+src/burner/sdl/xmvsf_stage13_controls.h:547:12: warning: 'int xm13AssignKeyboard(XM13_Settings*, int)' defined but not used [-Wunused-function]
+  547 | static int xm13AssignKeyboard(XM13_Settings* settings,int player){
+      |            ^~~~~~~~~~~~~~~~~~
+src/burner/sdl/main.cpp: In function 'int SDL_main(int, char**)':
+src/burner/sdl/main.cpp:507:52: warning: '%s' directive output may be truncated writing up to 2339 bytes into a region of size 260 [-Wformat-truncation=]
+  507 |                 snprintf(currentPath, MAX_PATH, "%s%s", base_path, szDirs[x]);
+      |                                                    ^~
+src/burner/sdl/main.cpp:507:25: note: 'snprintf' output 1 or more bytes (assuming 2340) into a destination of size 260
+  507 |                 snprintf(currentPath, MAX_PATH, "%s%s", base_path, szDirs[x]);
+      |                 ~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Linking executable... fbneo
+make[1]: Leaving directory '/f/xmvsf/dev/stable/buildtree'
+BUILD PHASE native_make_end duration_seconds=507
+TEST PUBLISH: atomic TEST-only update completed.
+TEST BUILD READY: /f/xmvsf/runtime/stable/XMVSF_Test_87_312.exe
+BUILD PHASE publish_complete duration_seconds=509
+BUILD CACHE SUMMARY: rebuilt 3 of 1174 local objects; reused 1171.
+BUILD CACHE INVENTORY: /f/xmvsf/test/build_cache/object_inventory.tsv
+BUILD CACHE REBUILT FILES: /f/xmvsf/test/build_cache/last_rebuilt_objects.txt
+BUILD CACHE LAST SUCCESS: /f/xmvsf/test/build_cache/last_success.tsv
+87.312 compiled TEST sha256: f6d486d1cd6d4a0343a919b4e06a5c96096fd28fd53edc4527ed77c572ff0c7a
+87.235 menu source asset checksums:
+edcdd44ef15fecff65ed0cb8f80644bea076027bc65cf8102419d094335172bd */f/xmvsf/_art/logo.png
+94fc3ea5e03113137336635a896b782b404b742a0c2b1bcdd98fb5b740f9f276 */f/xmvsf/_art/sf2font.png
+bdd1f33563d97781ecb43efa54ee445af50b790ca4f544016890e68556b28aa0 */f/xmvsf/_art/sf2fontsmall.png
+e20c0dcd1dc34dd15739d55d6d519d8eaabef283aed556105310ae5e80fc5945 */f/xmvsf/_art/menuanimation.gif
+b7f92a94e6a705829e184d3f5ca504ebd14783a61328652e25259c9477750962 */f/xmvsf/_art/stunbar_base.png
+Stage 87.312: native sources dependency-cached; Stable and previous TESTs untouched.
+XMVSF BUILD END rc=0 elapsed_seconds=521 time=2026-11-12 07:27:55 log=/f/xmvsf/test/build_logs/BUILD_TEST.log
+BATCH RESULT: SUCCESS Thu 11/12/2026  7:27:56.08
+
+========== XMVSF BUILD_TEST.bat 87.312 START Thu 11/12/2026  7:35:50.83 ==========
+Project: F:\xmvsf
+
+========== XMVSF TEST 87.312 BUILD BEGIN 2026-11-12 07:35:53 ==========
+Project: /f/xmvsf
+Log: /f/xmvsf/test/build_logs/BUILD_TEST.log
+GUILE PSD: verifying cached layer extraction (source SHA + PNG inventory).
+GUILE PSD unchanged: F:/xmvsf/_art/guilestage/extracted/manifest.tsv (23 layers)
+87.235 menu preflight: native boot and glyph/FX sources present; logo, fonts and menuanimation.gif verified.
+87.235 draw path is verified by native compile and runtime, not a stale grep for XMGlyph::logo(render).
+
+========== XMVSF BUILD_TEST.bat 87.313 START Thu 11/12/2026  8:00:20.27 ==========
+Project: F:\xmvsf
+
+========== XMVSF TEST 87.313 BUILD BEGIN 2026-11-12 08:00:22 ==========
+Project: /f/xmvsf
+Log: /f/xmvsf/test/build_logs/BUILD_TEST.log
+GUILE PSD: verifying cached layer extraction (source SHA + PNG inventory).
+GUILE PSD unchanged: F:/xmvsf/_art/guilestage/extracted/manifest.tsv (23 layers)
+87.235 menu preflight: native boot and glyph/FX sources present; logo, fonts and menuanimation.gif verified.
+87.235 draw path is verified by native compile and runtime, not a stale grep for XMGlyph::logo(render).
+BUILD CACHE: compiler/settings match; retaining existing objects.
+BUILD CACHE: fingerprint=cc24b66d70a424d766a1dd3da98614f91463cd30cf9a9e808027ee108436d6ea
+BUILD CACHE: native objects=/f/xmvsf/dev/stable/buildtree/obj; state=/f/xmvsf/test/build_cache
+BUILD CACHE: optional ccache unavailable/disabled; normal gcc.
+BUILD: optional regression suite skipped; proceeding to native incremental Make.
+XMVSF Stage 87.313 TEST: incremental build; preserving cached objects
+Source branch: feature/dhc-unified-m68k
+Source revision: 3a2e8116
+Dependencies: GNU Make + persistent obj/**/*.d header dependency files
+BUILD PHASE native_make_start elapsed_seconds=8
+BUILD MODE: standard dependency-safe two-pass native Make.
+make[1]: Entering directory '/f/xmvsf/dev/stable/buildtree'
+Making normal build...
+
+
+Warning: Perl is not available on this system.
+src/dep/generated/driverlist.h cannot be updated or created!
+
+Compiling src/burner/sdl/main.cpp...
+Compiling src/burner/sdl/run.cpp...
+In file included from src/burner/sdl/xmvsf_stage14_boot.h:84,
+                 from src/burner/sdl/main.cpp:23:
+src/burner/sdl/xmvsf_stage87_33_dizzy_option.h: In function 'void xm8733DizzyLoad()':
+src/burner/sdl/xmvsf_stage87_33_dizzy_option.h:19:24: warning: this 'if' clause does not guard... [-Wmisleading-indentation]
+   19 |     if(f){int flag=-1; if(std::fscanf(f,"dizzy_bar=%d",&flag)==1 && (flag==0||flag==1))
+      |                        ^~
+src/burner/sdl/xmvsf_stage87_33_dizzy_option.h:20:40: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the 'if'
+   20 |         xm8733DizzyEnabled()=(flag==1);std::fclose(f);}
+      |                                        ^~~
+In file included from src/burner/sdl/main.cpp:24:
+src/burner/sdl/xmvsf_stage87_206_crash_report.h: In function 'LONG XM87206Crash::onUnhandled(EXCEPTION_POINTERS*)':
+src/burner/sdl/xmvsf_stage87_206_crash_report.h:60:27: warning: cast between incompatible function types from 'FARPROC' {aka 'long long int (*)()'} to 'DumpFn' {aka 'int (*)(void*, long unsigned int, void*, MINIDUMP_TYPE, _MINIDUMP_EXCEPTION_INFORMATION*, _MINIDUMP_USER_STREAM_INFORMATION*, _MINIDUMP_CALLBACK_INFORMATION*)'} [-Wcast-function-type]
+   60 |         const DumpFn dump=reinterpret_cast<DumpFn>(
+      |                           ^~~~~~~~~~~~~~~~~~~~~~~~~
+   61 |             GetProcAddress(dll,"MiniDumpWriteDump"));
+      |             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+In file included from src/burner/sdl/run.cpp:34:
+src/burner/sdl/xmvsf_stage87_206_crash_report.h: In function 'LONG XM87206Crash::onUnhandled(EXCEPTION_POINTERS*)':
+src/burner/sdl/xmvsf_stage87_206_crash_report.h:60:27: warning: cast between incompatible function types from 'FARPROC' {aka 'long long int (*)()'} to 'DumpFn' {aka 'int (*)(void*, long unsigned int, void*, MINIDUMP_TYPE, _MINIDUMP_EXCEPTION_INFORMATION*, _MINIDUMP_USER_STREAM_INFORMATION*, _MINIDUMP_CALLBACK_INFORMATION*)'} [-Wcast-function-type]
+   60 |         const DumpFn dump=reinterpret_cast<DumpFn>(
+      |                           ^~~~~~~~~~~~~~~~~~~~~~~~~
+   61 |             GetProcAddress(dll,"MiniDumpWriteDump"));
+      |             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+src/burner/sdl/main.cpp: At global scope:
+src/burner/sdl/main.cpp:372:20: warning: 'int AppDebugPrintf(int, TCHAR*, ...)' defined but not used [-Wunused-function]
+  372 | static int __cdecl AppDebugPrintf(int nStatus, TCHAR* pszFormat, ...)
+      |                    ^~~~~~~~~~~~~~
+In file included from src/burner/sdl/xmvsf_stage14_boot.h:86:
+src/burner/sdl/xmvsf_stage13_controls.h:749:12: warning: 'int xm13ReadInput(const XM13_Settings*, int, int, SDL_Joystick**, SDL_GameController**, int)' defined but not used [-Wunused-function]
+  749 | static int xm13ReadInput(const XM13_Settings* s,int player,int sub,
+      |            ^~~~~~~~~~~~~
+In file included from src/burner/sdl/xmvsf_stage23_ui.h:11,
+                 from src/burner/sdl/xmvsf_stage23_engine.h:3,
+                 from src/burner/sdl/run.cpp:25:
+src/burner/sdl/xmvsf_stage13_controls.h: At global scope:
+src/burner/sdl/xmvsf_stage13_controls.h:749:12: warning: 'int xm13ReadInput(const XM13_Settings*, int, int, SDL_Joystick**, SDL_GameController**, int)' defined but not used [-Wunused-function]
+  749 | static int xm13ReadInput(const XM13_Settings* s,int player,int sub,
+      |            ^~~~~~~~~~~~~
+src/burner/sdl/xmvsf_stage13_controls.h:580:12: warning: 'int xm13Assign(XM13_Settings*, int, int)' defined but not used [-Wunused-function]
+  580 | static int xm13Assign(XM13_Settings* settings,int player,int device){
+      |            ^~~~~~~~~~
+src/burner/sdl/xmvsf_stage13_controls.h:547:12: warning: 'int xm13AssignKeyboard(XM13_Settings*, int)' defined but not used [-Wunused-function]
+  547 | static int xm13AssignKeyboard(XM13_Settings* settings,int player){
+      |            ^~~~~~~~~~~~~~~~~~
+src/burner/sdl/main.cpp: In function 'int SDL_main(int, char**)':
+src/burner/sdl/main.cpp:507:52: warning: '%s' directive output may be truncated writing up to 2339 bytes into a region of size 260 [-Wformat-truncation=]
+  507 |                 snprintf(currentPath, MAX_PATH, "%s%s", base_path, szDirs[x]);
+      |                                                    ^~
+src/burner/sdl/main.cpp:507:25: note: 'snprintf' output 1 or more bytes (assuming 2340) into a destination of size 260
+  507 |                 snprintf(currentPath, MAX_PATH, "%s%s", base_path, szDirs[x]);
+      |                 ~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Linking executable... fbneo
+make[1]: Leaving directory '/f/xmvsf/dev/stable/buildtree'
+BUILD PHASE native_make_end duration_seconds=547
+TEST PUBLISH: atomic TEST-only update completed.
+TEST BUILD READY: /f/xmvsf/runtime/stable/XMVSF_Test_87_313.exe
+BUILD PHASE publish_complete duration_seconds=549
+BUILD CACHE SUMMARY: rebuilt 2 of 1174 local objects; reused 1172.
+BUILD CACHE INVENTORY: /f/xmvsf/test/build_cache/object_inventory.tsv
+BUILD CACHE REBUILT FILES: /f/xmvsf/test/build_cache/last_rebuilt_objects.txt
+BUILD CACHE LAST SUCCESS: /f/xmvsf/test/build_cache/last_success.tsv
+87.313 compiled TEST sha256: c97a65946f77a90af651a80f6f9889a815febcd590ae44f93d21acb161687016
+87.235 menu source asset checksums:
+edcdd44ef15fecff65ed0cb8f80644bea076027bc65cf8102419d094335172bd */f/xmvsf/_art/logo.png
+94fc3ea5e03113137336635a896b782b404b742a0c2b1bcdd98fb5b740f9f276 */f/xmvsf/_art/sf2font.png
+bdd1f33563d97781ecb43efa54ee445af50b790ca4f544016890e68556b28aa0 */f/xmvsf/_art/sf2fontsmall.png
+e20c0dcd1dc34dd15739d55d6d519d8eaabef283aed556105310ae5e80fc5945 */f/xmvsf/_art/menuanimation.gif
+b7f92a94e6a705829e184d3f5ca504ebd14783a61328652e25259c9477750962 */f/xmvsf/_art/stunbar_base.png
+Stage 87.313: native sources dependency-cached; Stable and previous TESTs untouched.
+XMVSF BUILD END rc=0 elapsed_seconds=562 time=2026-11-12 08:09:44 log=/f/xmvsf/test/build_logs/BUILD_TEST.log
+BATCH RESULT: SUCCESS Thu 11/12/2026  8:09:44.17
+
+========== XMVSF TEST 87.313 BUILD BEGIN 2026-11-12 08:09:44 ==========
+Project: /f/xmvsf
+Log: /f/xmvsf/test/build_logs/BUILD_TEST.log
+GUILE PSD: verifying cached layer extraction (source SHA + PNG inventory).
+GUILE PSD unchanged: F:/xmvsf/_art/guilestage/extracted/manifest.tsv (23 layers)
+87.235 menu preflight: native boot and glyph/FX sources present; logo, fonts and menuanimation.gif verified.
+87.235 draw path is verified by native compile and runtime, not a stale grep for XMGlyph::logo(render).
+BUILD CACHE: compiler/settings match; retaining existing objects.
+BUILD CACHE: fingerprint=cc24b66d70a424d766a1dd3da98614f91463cd30cf9a9e808027ee108436d6ea
+BUILD CACHE: native objects=/f/xmvsf/dev/stable/buildtree/obj; state=/f/xmvsf/test/build_cache
+BUILD CACHE: optional ccache unavailable/disabled; normal gcc.
+BUILD: optional regression suite skipped; proceeding to native incremental Make.
+XMVSF Stage 87.313 TEST: incremental build; preserving cached objects
+Source branch: feature/dhc-unified-m68k
+Source revision: 3a2e8116
+Dependencies: GNU Make + persistent obj/**/*.d header dependency files
+BUILD PHASE native_make_start elapsed_seconds=14
+BUILD MODE: standard dependency-safe two-pass native Make.
+make[1]: Entering directory '/f/xmvsf/dev/stable/buildtree'
+Making normal build...
+
+
+Warning: Perl is not available on this system.
+src/dep/generated/driverlist.h cannot be updated or created!
+
+make[1]: Leaving directory '/f/xmvsf/dev/stable/buildtree'
+BUILD PHASE native_make_end duration_seconds=335
+TEST PUBLISH: identical executable, keeping previous TEST file untouched.
+TEST BUILD READY: /f/xmvsf/runtime/stable/XMVSF_Test_87_313.exe
+BUILD PHASE publish_complete duration_seconds=337
+BUILD CACHE SUMMARY: rebuilt 0 of 1174 local objects; reused 1174.
+BUILD CACHE INVENTORY: /f/xmvsf/test/build_cache/object_inventory.tsv
+BUILD CACHE REBUILT FILES: /f/xmvsf/test/build_cache/last_rebuilt_objects.txt
+BUILD CACHE LAST SUCCESS: /f/xmvsf/test/build_cache/last_success.tsv
+87.313 compiled TEST sha256: c97a65946f77a90af651a80f6f9889a815febcd590ae44f93d21acb161687016
+87.235 menu source asset checksums:
+edcdd44ef15fecff65ed0cb8f80644bea076027bc65cf8102419d094335172bd */f/xmvsf/_art/logo.png
+94fc3ea5e03113137336635a896b782b404b742a0c2b1bcdd98fb5b740f9f276 */f/xmvsf/_art/sf2font.png
+bdd1f33563d97781ecb43efa54ee445af50b790ca4f544016890e68556b28aa0 */f/xmvsf/_art/sf2fontsmall.png
+e20c0dcd1dc34dd15739d55d6d519d8eaabef283aed556105310ae5e80fc5945 */f/xmvsf/_art/menuanimation.gif
+b7f92a94e6a705829e184d3f5ca504ebd14783a61328652e25259c9477750962 */f/xmvsf/_art/stunbar_base.png
+Stage 87.313: native sources dependency-cached; Stable and previous TESTs untouched.
+XMVSF BUILD END rc=0 elapsed_seconds=355 time=2026-11-12 08:15:38 log=/f/xmvsf/test/build_logs/BUILD_TEST.log
+BATCH RESULT: SUCCESS Thu 11/12/2026  8:15:39.01
+
+========== XMVSF BUILD_TEST.bat 87.313 START Thu 11/12/2026  8:29:37.59 ==========
+Project: F:\xmvsf
+
+========== XMVSF BUILD_TEST.bat 87.314 START Thu 11/12/2026  8:31:42.40 ==========
+Project: F:\xmvsf
+
+========== XMVSF TEST 87.314 BUILD BEGIN 2026-11-12 08:31:44 ==========
+Project: /f/xmvsf
+Log: /f/xmvsf/test/build_logs/BUILD_TEST.log
+GUILE PSD: verifying cached layer extraction (source SHA + PNG inventory).
+GUILE PSD unchanged: F:/xmvsf/_art/guilestage/extracted/manifest.tsv (23 layers)
+87.235 menu preflight: native boot and glyph/FX sources present; logo, fonts and menuanimation.gif verified.
+87.235 draw path is verified by native compile and runtime, not a stale grep for XMGlyph::logo(render).
+BUILD CACHE: compiler/settings match; retaining existing objects.
+BUILD CACHE: fingerprint=cc24b66d70a424d766a1dd3da98614f91463cd30cf9a9e808027ee108436d6ea
+BUILD CACHE: native objects=/f/xmvsf/dev/stable/buildtree/obj; state=/f/xmvsf/test/build_cache
+BUILD CACHE: optional ccache unavailable/disabled; normal gcc.
+BUILD: optional regression suite skipped; proceeding to native incremental Make.
+XMVSF Stage 87.314 TEST: incremental build; preserving cached objects
+Source branch: feature/dhc-unified-m68k
+Source revision: b99f3727
+Dependencies: GNU Make + persistent obj/**/*.d header dependency files
+BUILD PHASE native_make_start elapsed_seconds=7
+BUILD MODE: standard dependency-safe two-pass native Make.
+make[1]: Entering directory '/f/xmvsf/dev/stable/buildtree'
+Making normal build...
+
+Generating depend file for src/burner/sdl/run.cpp...
+Generating depend file for src/intf/video/sdl/vid_sdl2.cpp...
+
+Warning: Perl is not available on this system.
+src/dep/generated/driverlist.h cannot be updated or created!
+
+Compiling src/intf/audio/sdl/aud_sdl.cpp...
+Compiling src/burner/sdl/main.cpp...
+Compiling src/burner/sdl/run.cpp...
+Compiling src/intf/video/sdl/vid_sdl2.cpp...
+In file included from src/intf/audio/sdl/aud_sdl.cpp:7:
+src/intf/audio/sdl/xm20_wasapi_impl.h: In function 'DWORD xm20::audioThread(LPVOID)':
+src/intf/audio/sdl/xm20_wasapi_impl.h:500:5: warning: this 'if' clause does not guard... [-Wmisleading-indentation]
+  500 |     if(render)render->Release();if(client)client->Release();if(endpoint)endpoint->Release();if(en)en->Release();
+      |     ^~
+src/intf/audio/sdl/xm20_wasapi_impl.h:500:33: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the 'if'
+  500 |     if(render)render->Release();if(client)client->Release();if(endpoint)endpoint->Release();if(en)en->Release();
+      |                                 ^~
+In file included from src/burner/sdl/xmvsf_stage14_boot.h:84,
+                 from src/burner/sdl/main.cpp:23:
+src/burner/sdl/xmvsf_stage87_33_dizzy_option.h: In function 'void xm8733DizzyLoad()':
+src/burner/sdl/xmvsf_stage87_33_dizzy_option.h:19:24: warning: this 'if' clause does not guard... [-Wmisleading-indentation]
+   19 |     if(f){int flag=-1; if(std::fscanf(f,"dizzy_bar=%d",&flag)==1 && (flag==0||flag==1))
+      |                        ^~
+src/burner/sdl/xmvsf_stage87_33_dizzy_option.h:20:40: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the 'if'
+   20 |         xm8733DizzyEnabled()=(flag==1);std::fclose(f);}
+      |                                        ^~~
+In file included from src/burner/sdl/main.cpp:24:
+src/burner/sdl/xmvsf_stage87_206_crash_report.h: In function 'LONG XM87206Crash::onUnhandled(EXCEPTION_POINTERS*)':
+src/burner/sdl/xmvsf_stage87_206_crash_report.h:60:27: warning: cast between incompatible function types from 'FARPROC' {aka 'long long int (*)()'} to 'DumpFn' {aka 'int (*)(void*, long unsigned int, void*, MINIDUMP_TYPE, _MINIDUMP_EXCEPTION_INFORMATION*, _MINIDUMP_USER_STREAM_INFORMATION*, _MINIDUMP_CALLBACK_INFORMATION*)'} [-Wcast-function-type]
+   60 |         const DumpFn dump=reinterpret_cast<DumpFn>(
+      |                           ^~~~~~~~~~~~~~~~~~~~~~~~~
+   61 |             GetProcAddress(dll,"MiniDumpWriteDump"));
+      |             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+In file included from src/burner/sdl/run.cpp:34:
+src/burner/sdl/xmvsf_stage87_206_crash_report.h: In function 'LONG XM87206Crash::onUnhandled(EXCEPTION_POINTERS*)':
+src/burner/sdl/xmvsf_stage87_206_crash_report.h:60:27: warning: cast between incompatible function types from 'FARPROC' {aka 'long long int (*)()'} to 'DumpFn' {aka 'int (*)(void*, long unsigned int, void*, MINIDUMP_TYPE, _MINIDUMP_EXCEPTION_INFORMATION*, _MINIDUMP_USER_STREAM_INFORMATION*, _MINIDUMP_CALLBACK_INFORMATION*)'} [-Wcast-function-type]
+   60 |         const DumpFn dump=reinterpret_cast<DumpFn>(
+      |                           ^~~~~~~~~~~~~~~~~~~~~~~~~
+   61 |             GetProcAddress(dll,"MiniDumpWriteDump"));
+      |             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+src/burner/sdl/main.cpp: At global scope:
+src/burner/sdl/main.cpp:372:20: warning: 'int AppDebugPrintf(int, TCHAR*, ...)' defined but not used [-Wunused-function]
+  372 | static int __cdecl AppDebugPrintf(int nStatus, TCHAR* pszFormat, ...)
+      |                    ^~~~~~~~~~~~~~
+In file included from src/burner/sdl/xmvsf_stage14_boot.h:86:
+src/burner/sdl/xmvsf_stage13_controls.h:749:12: warning: 'int xm13ReadInput(const XM13_Settings*, int, int, SDL_Joystick**, SDL_GameController**, int)' defined but not used [-Wunused-function]
+  749 | static int xm13ReadInput(const XM13_Settings* s,int player,int sub,
+      |            ^~~~~~~~~~~~~
+In file included from src/intf/video/sdl/vid_sdl2.cpp:19:
+src/intf/video/sdl/xmvsf_stage87_140_chat_overlay.h: In function 'void xm87140ChatOverlay(SDL_Renderer*)':
+src/intf/video/sdl/xmvsf_stage87_140_chat_overlay.h:59:24: warning: unused variable 'age' [-Wunused-variable]
+   59 |         const unsigned age=(now>=line.frame)?now-line.frame:180u;
+      |                        ^~~
+In file included from src/burner/sdl/xmvsf_stage23_ui.h:11,
+                 from src/burner/sdl/xmvsf_stage23_engine.h:3,
+                 from src/burner/sdl/run.cpp:25:
+src/burner/sdl/xmvsf_stage13_controls.h: At global scope:
+src/burner/sdl/xmvsf_stage13_controls.h:749:12: warning: 'int xm13ReadInput(const XM13_Settings*, int, int, SDL_Joystick**, SDL_GameController**, int)' defined but not used [-Wunused-function]
+  749 | static int xm13ReadInput(const XM13_Settings* s,int player,int sub,
+      |            ^~~~~~~~~~~~~
+src/burner/sdl/xmvsf_stage13_controls.h:580:12: warning: 'int xm13Assign(XM13_Settings*, int, int)' defined but not used [-Wunused-function]
+  580 | static int xm13Assign(XM13_Settings* settings,int player,int device){
+      |            ^~~~~~~~~~
+src/burner/sdl/xmvsf_stage13_controls.h:547:12: warning: 'int xm13AssignKeyboard(XM13_Settings*, int)' defined but not used [-Wunused-function]
+  547 | static int xm13AssignKeyboard(XM13_Settings* settings,int player){
+      |            ^~~~~~~~~~~~~~~~~~
+In file included from src/intf/video/sdl/vid_sdl2.cpp:20:
+src/intf/video/sdl/../../../burner/sdl/xmvsf_stage87_206_crash_report.h: In function 'LONG XM87206Crash::onUnhandled(EXCEPTION_POINTERS*)':
+src/intf/video/sdl/../../../burner/sdl/xmvsf_stage87_206_crash_report.h:60:27: warning: cast between incompatible function types from 'FARPROC' {aka 'long long int (*)()'} to 'DumpFn' {aka 'int (*)(void*, long unsigned int, void*, MINIDUMP_TYPE, _MINIDUMP_EXCEPTION_INFORMATION*, _MINIDUMP_USER_STREAM_INFORMATION*, _MINIDUMP_CALLBACK_INFORMATION*)'} [-Wcast-function-type]
+   60 |         const DumpFn dump=reinterpret_cast<DumpFn>(
+      |                           ^~~~~~~~~~~~~~~~~~~~~~~~~
+   61 |             GetProcAddress(dll,"MiniDumpWriteDump"));
+      |             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+In file included from src/intf/video/sdl/vid_sdl2.cpp:63:
+src/intf/video/sdl/xmvsf_stage87_314_sigma.h: In member function 'bool XMSigma::Scene::load(SDL_Renderer*)':
+src/intf/video/sdl/xmvsf_stage87_314_sigma.h:80:4: warning: this 'if' clause does not guard... [-Wmisleading-indentation]
+   80 |    if(o)SDL_FreeSurface(o);if(w)SDL_FreeSurface(w);if(b)SDL_FreeSurface(b);
+      |    ^~
+src/intf/video/sdl/xmvsf_stage87_314_sigma.h:80:28: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the 'if'
+   80 |    if(o)SDL_FreeSurface(o);if(w)SDL_FreeSurface(w);if(b)SDL_FreeSurface(b);
+      |                            ^~
+In file included from src/intf/video/sdl/../../../burner/sdl/xmvsf_stage23_ui.h:11,
+                 from src/intf/video/sdl/vid_sdl2.cpp:21:
+src/intf/video/sdl/../../../burner/sdl/xmvsf_stage13_controls.h: At global scope:
+src/intf/video/sdl/../../../burner/sdl/xmvsf_stage13_controls.h:749:12: warning: 'int xm13ReadInput(const XM13_Settings*, int, int, SDL_Joystick**, SDL_GameController**, int)' defined but not used [-Wunused-function]
+  749 | static int xm13ReadInput(const XM13_Settings* s,int player,int sub,
+      |            ^~~~~~~~~~~~~
+src/intf/video/sdl/../../../burner/sdl/xmvsf_stage13_controls.h:580:12: warning: 'int xm13Assign(XM13_Settings*, int, int)' defined but not used [-Wunused-function]
+  580 | static int xm13Assign(XM13_Settings* settings,int player,int device){
+      |            ^~~~~~~~~~
+src/intf/video/sdl/../../../burner/sdl/xmvsf_stage13_controls.h:547:12: warning: 'int xm13AssignKeyboard(XM13_Settings*, int)' defined but not used [-Wunused-function]
+  547 | static int xm13AssignKeyboard(XM13_Settings* settings,int player){
+      |            ^~~~~~~~~~~~~~~~~~
+src/burner/sdl/main.cpp: In function 'int SDL_main(int, char**)':
+src/burner/sdl/main.cpp:507:52: warning: '%s' directive output may be truncated writing up to 2339 bytes into a region of size 260 [-Wformat-truncation=]
+  507 |                 snprintf(currentPath, MAX_PATH, "%s%s", base_path, szDirs[x]);
+      |                                                    ^~
+src/burner/sdl/main.cpp:507:25: note: 'snprintf' output 1 or more bytes (assuming 2340) into a destination of size 260
+  507 |                 snprintf(currentPath, MAX_PATH, "%s%s", base_path, szDirs[x]);
+      |                 ~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Linking executable... fbneo
+make[1]: Leaving directory '/f/xmvsf/dev/stable/buildtree'
+BUILD PHASE native_make_end duration_seconds=527
+TEST PUBLISH: atomic TEST-only update completed.
+TEST BUILD READY: /f/xmvsf/runtime/stable/XMVSF_Test_87_314.exe
+BUILD PHASE publish_complete duration_seconds=530
+BUILD CACHE SUMMARY: rebuilt 4 of 1174 local objects; reused 1170.
+BUILD CACHE INVENTORY: /f/xmvsf/test/build_cache/object_inventory.tsv
+BUILD CACHE REBUILT FILES: /f/xmvsf/test/build_cache/last_rebuilt_objects.txt
+BUILD CACHE LAST SUCCESS: /f/xmvsf/test/build_cache/last_success.tsv
+87.314 compiled TEST sha256: a8a34701f883dfc45adfe8bef2500a5d5bee2849762946beaf4ab5c544dd11e8
+87.235 menu source asset checksums:
+edcdd44ef15fecff65ed0cb8f80644bea076027bc65cf8102419d094335172bd */f/xmvsf/_art/logo.png
+94fc3ea5e03113137336635a896b782b404b742a0c2b1bcdd98fb5b740f9f276 */f/xmvsf/_art/sf2font.png
+bdd1f33563d97781ecb43efa54ee445af50b790ca4f544016890e68556b28aa0 */f/xmvsf/_art/sf2fontsmall.png
+e20c0dcd1dc34dd15739d55d6d519d8eaabef283aed556105310ae5e80fc5945 */f/xmvsf/_art/menuanimation.gif
+b7f92a94e6a705829e184d3f5ca504ebd14783a61328652e25259c9477750962 */f/xmvsf/_art/stunbar_base.png
+Stage 87.314: native sources dependency-cached; Stable and previous TESTs untouched.
+XMVSF BUILD END rc=0 elapsed_seconds=541 time=2026-11-12 08:40:44 log=/f/xmvsf/test/build_logs/BUILD_TEST.log
+BATCH RESULT: SUCCESS Thu 11/12/2026  8:40:44.82
