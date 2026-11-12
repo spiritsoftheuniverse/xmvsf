@@ -160,13 +160,20 @@ static inline void captureNativePairs(const unsigned char* live,bool enabled){
   // Capture only a fully initialized, ROM-owned neutral point paired
   // with its real native reserve. Never replant live throw/super/flying
   // state or an incoming tag animation into the first-frame snapshot.
-  // Native 0000/002A is a tag transitional mode, NOT idle. It was
-  // observed during the Cyclops/Wolverine swap in the 87.305 F10 log.
-  const bool neutral=(action==0x0000u && mode==0x0000u) ||
-                     (action==0x0006u && mode==0x0002u) ||
+  // Native 0000/002A is a tag transition, NOT idle. Wolverine's
+  // 0006/0002 and 0000/0000,0008,0010 are proven stationary in the
+  // 87.305 probe (actual +14 X velocity and +1C Y velocity both zero).
+  // 0002/0200 usually carries +/-3px/frame WALK velocity; never clone
+  // movement into a fresh round or into an airborne/throw state.
+  const bool neutral=(action==0x0006u && mode==0x0002u) ||
+                     (action==0x0000u &&
+                      (mode==0x0000u||mode==0x0008u||mode==0x0010u)) ||
                      (action==0x0002u &&
-                      (mode==0x0200u || mode==0x0210u));
-  if(!validId(id)||!validId(other)||id==other||!neutral||
+                      (mode==0x0200u||mode==0x0210u));
+  const bool stationary=liveLong(live,p+0x14u)==0u &&
+                        liveLong(live,p+0x1cu)==0u &&
+                        (liveWord(live,p+0xAAu)>>8)==0u;
+  if(!validId(id)||!validId(other)||id==other||!neutral||!stationary||
      liveWord(live,p)!=0x0101u||
      liveWord(live,r)==0u||bank==0u||script<0x00080000u||
      script>=0x00110000u||
