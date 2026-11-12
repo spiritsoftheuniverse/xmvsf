@@ -165,7 +165,7 @@ struct Scene {
      viewH!=AUTHORED_H||cropStartX<0||
      cropStartX>groundW-AUTHORED_W){
    std::fprintf(stderr,
-    "XM87.295 GUILE_STALE_MANIFEST format=%d ground=(%d,%d %dx%d); regenerate with extractor\n",
+    "XM87.296 GUILE_STALE_MANIFEST format=%d ground=(%d,%d %dx%d); regenerate with extractor\n",
     formatVersion,groundX,groundY,groundW,groundH);
    failed=true;return false;
   }
