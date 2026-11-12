@@ -140,7 +140,38 @@ struct Scene {
   SDL_FillRect(o,nullptr,SDL_MapRGBA(o->format,0,0,0,0));
   SDL_FillRect(w,nullptr,SDL_MapRGBA(w->format,0,0,0,0));
   SDL_FillRect(b,nullptr,SDL_MapRGBA(b->format,0,0,0,0));
-  uint64_t reds=0,browns=0;
+  uint64_t reds=0,browns=0,orangeDots=0,whiteDots=0;
+  // One-time Manhattan distance from each red highlight to its dark
+  // border. This creates a genuine spatial heat gradient: red edges,
+  // glowing orange mids, white-hot cores. It does not flatten the
+  // original pixel-art shading into a solid white rectangle.
+  const size_t n=(size_t)imageW*(size_t)imageH;
+  std::vector<Uint8> distance(n,0u);
+  for(int y=0;y<imageH;++y)for(int x=0;x<imageW;++x){
+   const Uint8* p=(const Uint8*)image->pixels+(size_t)y*image->pitch+4u*x;
+   if(p[3] && p[0]>=160 && p[0]>=p[1]+48 && p[0]>=p[2]+48)
+    distance[(size_t)y*imageW+x]=32u;
+  }
+  for(int y=0;y<imageH;++y)for(int x=0;x<imageW;++x){
+   Uint8& d=distance[(size_t)y*imageW+x];
+   if(!d)continue;
+   if(x>0)d=std::min<int>(d,distance[(size_t)y*imageW+x-1]+1);
+   if(y>0)d=std::min<int>(d,distance[(size_t)(y-1)*imageW+x]+1);
+  }
+  for(int y=imageH-1;y>=0;--y)for(int x=imageW-1;x>=0;--x){
+   Uint8& d=distance[(size_t)y*imageW+x];
+   if(!d)continue;
+   if(x+1<imageW)d=std::min<int>(d,distance[(size_t)y*imageW+x+1]+1);
+   if(y+1<imageH)d=std::min<int>(d,distance[(size_t)(y+1)*imageW+x]+1);
+  }
+  // Ordered 8x8 dither is baked into the two immutable highlight masks.
+  // Rendering uses only two global opacity modulations per frame.
+  static const Uint8 bayer[64]={
+   0,48,12,60,3,51,15,63,32,16,44,28,35,19,47,31,
+   8,56,4,52,11,59,7,55,40,24,36,20,43,27,39,23,
+   2,50,14,62,1,49,13,61,34,18,46,30,33,17,45,29,
+   10,58,6,54,9,57,5,53,42,26,38,22,41,25,37,21
+  };
   // RGBA32 surface data has byte order R,G,B,A on Windows.
   for(int y=0;y<imageH;++y)for(int x=0;x<imageW;++x){
    const Uint8* p=(const Uint8*)image->pixels+(size_t)y*image->pitch+4u*x;
@@ -149,13 +180,26 @@ struct Scene {
    Uint8* po=(Uint8*)o->pixels+(size_t)y*o->pitch+4u*x;
    Uint8* pw=(Uint8*)w->pixels+(size_t)y*w->pitch+4u*x;
    Uint8* pb=(Uint8*)b->pixels+(size_t)y*b->pitch+4u*x;
-   // Bright saturated red ONLY. Continuous strength softens the boundary
-   // to orange and dark red; dark background colors remain unmodified.
-   if(r>=160 && r>=g+48 && r>=bl+48){
-    const unsigned strength=(unsigned)std::min(255,(r-145)*6);
-    const Uint8 alpha=(Uint8)((unsigned)a*strength/255u);
-    po[0]=255;po[1]=133;po[2]=20;po[3]=alpha;
-    pw[0]=255;pw[1]=255;pw[2]=255;pw[3]=alpha;
+   // Hue/brightness ramp depends on ORIGINAL RED and distance from
+   // a silhouette edge. Bayer thresholds vary its coverage by pixel;
+   // red survives at edges, orange fills midtones, sparse near-white
+   // points intensify toward the core (max white coverage 58/64).
+   if(distance[(size_t)y*imageW+x]){
+    const int heat=clampi((int(distance[(size_t)y*imageW+x])-1)*27+
+                            (r-160)*2+g/4,0,255);
+    const int threshold=bayer[((y&7)<<3)|(x&7)];
+    const int orangeCoverage=clampi((heat-30)*64/170,0,64);
+    const int whiteCoverage=clampi((heat-120)*58/135,0,58);
+    if(threshold<orangeCoverage){
+     po[0]=255;po[1]=(Uint8)(145+heat/12);po[2]=(Uint8)(20+heat/22);
+     po[3]=(Uint8)((unsigned)a*(unsigned)(150+heat/3)/255u);
+     ++orangeDots;
+    }
+    if(threshold<whiteCoverage){
+     pw[0]=255;pw[1]=255;pw[2]=255;
+     pw[3]=(Uint8)((unsigned)a*(unsigned)(160+heat/4)/255u);
+     ++whiteDots;
+    }
     ++reds;
    }else if(r>=63 && g>=28 && r>bl+26 && g>bl+21 &&
             g*4>=r && g<=r+40){
@@ -188,9 +232,10 @@ struct Scene {
    SDL_SetTextureScaleMode(t,SDL_ScaleModeNearest);
   }
   std::fprintf(stderr,
-    "XM87.314 SIGMA_READY path=%s image=%dx%d worldWidth=%d brightestReds=%llu yellowBrown=%llu camera=native05\n",
-    found.c_str(),imageW,imageH,WORLD_W,
-    (unsigned long long)reds,(unsigned long long)browns);
+    "XM87.321 SIGMA_GRADIENT_READY path=%s image=%dx%d worldWidth=%d red=%llu orange=%llu white=%llu yellowBrown=%llu bayer=8x8 maximum=red-orange-white\n",
+    found.c_str(),imageW,imageH,WORLD_W,(unsigned long long)reds,
+    (unsigned long long)orangeDots,(unsigned long long)whiteDots,
+    (unsigned long long)browns);
   return true;
  }
 };
@@ -238,13 +283,16 @@ static inline bool paint(SDL_Renderer* render,const SDL_Rect& view){
  SDL_Rect oldClip={0,0,0,0};
  if(clipped)SDL_RenderGetClipRect(render,&oldClip);
  SDL_RenderSetClipRect(render,&view);
- // 8-second full pulse: vivid red -> bright orange -> white -> orange -> red.
- // Brightening and darkening are identical smooth sinusoidal halves.
+ // Eight-second pulse, but its maximum is a spatial Bayer-dithered
+ // heat gradient, NOT an all-over white filter. Smoothstep softens both
+ // the temporal ramp and the crossover between orange and white.
  const double frame=(double)xm8649Visual.frames;
  const double cycle=6.2831853071795864769/480.0;
  const double red=(1.0-std::cos(frame*cycle))*0.5;
- const double orangeAlpha=std::min(1.0,red*2.0);
- const double whiteAlpha=std::max(0.0,red*2.0-1.0);
+ const double orangeT=std::min(1.0,red/0.62);
+ const double whiteT=std::max(0.0,std::min(1.0,(red-0.20)/0.80));
+ const double orangeAlpha=orangeT*orangeT*(3.0-2.0*orangeT);
+ const double whiteAlpha=whiteT*whiteT*(3.0-2.0*whiteT);
  // The warm mask trails the reds by 54 game frames (~0.9 seconds)
  // both on its rise and on its fall, with a deliberately smaller lift.
  const double delayed=(1.0-std::cos((frame-54.0)*cycle))*0.5;
@@ -261,7 +309,7 @@ static inline bool paint(SDL_Renderer* render,const SDL_Rect& view){
   if(nativeFlash)good=SDL_RenderCopy(render,s.flash,nullptr,&view)==0 && good;
  }
  SDL_RenderSetClipRect(render,clipped?&oldClip:nullptr);
- if(!good)std::fprintf(stderr,"XM87.314 SIGMA_DRAW_FAILED %s\n",SDL_GetError());
+ if(!good)std::fprintf(stderr,"XM87.321 SIGMA_DRAW_FAILED %s\n",SDL_GetError());
  return good;
 }
 } // namespace XMSigma
