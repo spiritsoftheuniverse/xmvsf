@@ -273,6 +273,19 @@ static inline bool xm87110RestartAfterFrame(bool ready,unsigned frame){
      XM87102Lab::read16(role,reserve+0x210u),
      XM87102Lab::read32(role,p+0x224u),
      XM87102Lab::read32(role,reserve+0x224u));
+    // One bounded post-reset record for the native throws/tag-back.
+    // A blank bank/script here is the exact 87.305 failure signature.
+    XM87110::log("ROSTER_NATIVE_INIT frame=%u side=%u point_id=%04X reserve_id=%04X bank40=%04X anim42=%04X action60=%04X script34=%08X tag214=%04X bench220=%04X bench222=%04X",
+     frame,side+1u,
+     XM87102Lab::read16(role,p+0x52u),
+     XM87102Lab::read16(role,reserve+0x52u),
+     XM87102Lab::read16(role,p+0x40u),
+     XM87102Lab::read16(role,p+0x42u),
+     XM87102Lab::read16(role,p+0x60u),
+     XM87102Lab::read32(role,p+0x34u),
+     XM87102Lab::read16(role,p+0x214u),
+     XM87102Lab::read16(role,reserve+0x220u),
+     XM87102Lab::read16(role,reserve+0x222u));
    }
    role->close();
   }
