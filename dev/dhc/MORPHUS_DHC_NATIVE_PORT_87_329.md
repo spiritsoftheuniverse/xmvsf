@@ -10,6 +10,8 @@ On `feature/dhc-morphus-native-87-329`, from `feature/dhc-unified-m68k`:
 - An exact 19-row, 10-byte-per-row **read-only** native Hyper catalog transcribed from `source/engine/dhc_table.inc`: incoming character +D6 Hyper ID per motion (7 columns) plus air-only, conditional and throw bitmasks.
 - An **opt-in pre-tag gate** in the existing 87.274 universal DHC executor. When the experimental executor has identified a native outgoing Hyper and a fresh reserve gesture, it can refuse a *known empty*, *air-only* or *conditional* incoming Hyper **before controller 8 / native swap**. The outgoing Hyper remains intact. Unknown gestures fail open; possible and throw Hypers remain native-ROM verified after tag.
 - A standalone C++11 policy test, **not added to BUILD_TEST**. No native 68000 instructions are patched here.
+- A separately opt-in **read-only opcode audit** compares the actual decrypted `CpsCode` bytes against Daniel's EURO native-hook guard signatures: `$13AA8 = 0C2E000400A4` and `$11DB0 = 302E0052D040`. Set `XM87329_DHC_HOOK_PROBE=1` before `RUN_TEST.bat xmvsfu`; it writes `test/87.329/observer/morphus_opcode_sites_329.tsv`. `MATCH` at these two sites alone does **not** authorize transplantation without the complete ROM/site and dispatch verification.
+- A separate standalone C++11 test validates probe bounds, exact signatures and mismatch detection; it is not a normal build gate.
 
 Enable only in **Version 4** with `XM87274_UNIFIED_DHC=1` and `XM87329_DHC_PREFLIGHT=1`. Default is off. Version 3 is untouched. Use root `BUILD_TEST.bat` / `RUN_TEST.bat xmvsfu`, with existing warm cache, and preserve Stable. No GitHub Actions.
 
