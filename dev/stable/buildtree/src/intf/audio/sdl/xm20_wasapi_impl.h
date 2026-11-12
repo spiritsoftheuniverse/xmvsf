@@ -50,6 +50,7 @@ struct Machine {
     Clip crash, welcome, fightVoice; // authored 87.235; same WASAPI device
     Clip fdStart, fdLoop; // Final Destination OGG intro and seamless loop
     Clip guileLoop; // Guile Stage has one seamless OGG loop
+    Clip sigmaLoop; // Sigma Stage single seamless Vorbis loop
     Clip versus; // native pre-fight versus screen, separate from stage BGM
     double meterPos[2] = {0.0,0.0};
     bool meterOn[2] = {false,false};
@@ -60,14 +61,15 @@ struct Machine {
     bool moveOn = false, confirmOn = false, fight = false, gameStarted = false;
     bool crashOn=false,welcomeOn=false,fightVoiceOn=false;
     bool musicEnabled=false; // no music before explicit menu start/reveal
-    HANDLE fdLoadThread=nullptr,guileLoadThread=nullptr,versusLoadThread=nullptr;
+    HANDLE fdLoadThread=nullptr,guileLoadThread=nullptr,versusLoadThread=nullptr,sigmaLoadThread=nullptr;
     int versusLoadState=0; // 0=idle, 1=loading, 2=ready, 3=missing/failed
     bool versusPending=false,versusPlaying=false;
     int guileLoadState=0; // same 0/1/2/3 convention as FD
-    int activeStageMusic=0; // 0=native,2=Final Destination,3=Guile Stage
+    int sigmaLoadState=0; // Sigma Stage preload result 0 idle/1 work/2 ready/3 failed
+    int activeStageMusic=0; // 0=native,2=FD,3=Guile,4=Sigma
     int fdLoadState=0; // 0=never attempted,1=loading,2=ready,3=unavailable
     bool fdPending=false,fdStarted=false,fdKo=false;
-    unsigned fdPhase=0u; // 0=off,1=intro,2=loop
+    unsigned fdPhase=0u; // 0=off,1=FD intro,2=FD loop,3=Guile,4=Sigma
     float fdGain=1.f,fdFadeSeconds=0.f,fdFadeElapsed=0.f;
     uint32_t gameHz = 48000;
     int16_t* game = nullptr;
@@ -229,6 +231,26 @@ static DWORD WINAPI guileLoadWorker(LPVOID){
     std::fprintf(stderr,"XM87.290 GUILE_OGG_PRELOAD %s\n",ok?"READY":"FAILED");
     return 0;
 }
+static DWORD WINAPI sigmaLoadWorker(LPVOID){
+    SetThreadPriority(GetCurrentThread(),THREAD_PRIORITY_BELOW_NORMAL);
+    Clip music;
+    // Accept the common authoring filenames. No edits to the source OGG.
+    const bool ok=clipLoadOggRepo(music,"sigmastage.ogg") ||
+                  clipLoadOggRepo(music,"sigma.ogg") ||
+                  clipLoadOggRepo(music,"sigma_stage.ogg") ||
+                  clipLoadOggRepo(music,"Sigma Stage.ogg");
+    EnterCriticalSection(&m.lock);
+    if(ok){
+        m.sigmaLoop=music;
+        music.pcm=nullptr;
+        m.sigmaLoadState=2;
+    }else m.sigmaLoadState=3;
+    LeaveCriticalSection(&m.lock);
+    music.release();
+    std::fprintf(stderr,"XM87.314 SIGMA_OGG_PRELOAD %s (audio/music/)\n",
+                 ok?"READY":"FAILED");
+    return 0;
+}
 // Asynchronous decode shares the same WASAPI device as menu/game/stage audio.
 static DWORD WINAPI versusLoadWorker(LPVOID){
     SetThreadPriority(GetCurrentThread(),THREAD_PRIORITY_BELOW_NORMAL);
@@ -365,12 +387,18 @@ static void fillFrames(BYTE* output, UINT32 count, const WAVEFORMATEX* fmt) {
                     m.guileLoop.pos=0.0;m.fdGain=1.f;
                     std::fprintf(stderr,"XM87.290 GUILE_OGG_PLAY_LOOP frames=%u\n",
                                  unsigned(m.guileLoop.frames));
+                }else if(m.activeStageMusic==4 && m.sigmaLoadState==2){
+                    m.fdPending=false;m.fdPhase=4u;
+                    m.sigmaLoop.pos=0.0;m.fdGain=1.f;
+                    std::fprintf(stderr,"XM87.314 SIGMA_OGG_PLAY_LOOP frames=%u\n",
+                                 unsigned(m.sigmaLoop.frames));
                 }
             }
             float fd=0.f;
             if(m.fdPhase==1u)fd=linearClip(m.fdStart,m.fdStart.pos,ch);
             else if(m.fdPhase==2u)fd=linearClip(m.fdLoop,m.fdLoop.pos,ch);
             else if(m.fdPhase==3u)fd=linearClip(m.guileLoop,m.guileLoop.pos,ch);
+            else if(m.fdPhase==4u)fd=linearClip(m.sigmaLoop,m.sigmaLoop.pos,ch);
             if(m.fdFadeSeconds>0.f){
                 const float t=std::min(1.f,m.fdFadeElapsed/m.fdFadeSeconds);
                 m.fdGain=(1.f-t)*(1.f-t)*(1.f+2.f*t);
@@ -399,6 +427,7 @@ static void fillFrames(BYTE* output, UINT32 count, const WAVEFORMATEX* fmt) {
             if(m.fdStart.pos>=m.fdStart.frames)m.fdPhase=2u; // one-shot intro -> loop
         }else if(m.fdPhase==2u)advanceClip(m.fdLoop,musicStep,true);
         else if(m.fdPhase==3u)advanceClip(m.guileLoop,musicStep,true);
+        else if(m.fdPhase==4u)advanceClip(m.sigmaLoop,musicStep,true);
         if(m.fdFadeSeconds>0.f){
             m.fdFadeElapsed+=1.f/float(hz);
             if(m.fdFadeElapsed>=m.fdFadeSeconds){
@@ -474,6 +503,10 @@ static DWORD WINAPI audioThread(LPVOID) {
 }
 static void shutdown() {
     if(!m.begun)return;
+    if(m.sigmaLoadThread){
+        WaitForSingleObject(m.sigmaLoadThread,INFINITE);
+        CloseHandle(m.sigmaLoadThread);m.sigmaLoadThread=nullptr;
+    }
     if(m.versusLoadThread){
         WaitForSingleObject(m.versusLoadThread,INFINITE);
         CloseHandle(m.versusLoadThread);m.versusLoadThread=nullptr;
@@ -493,10 +526,10 @@ static void shutdown() {
     if(m.event){CloseHandle(m.event);m.event=nullptr;}
     m.music.release();m.move.release();m.confirm.release();m.meter.release();
     m.crash.release();m.welcome.release();m.fightVoice.release();
-    m.fdStart.release();m.fdLoop.release();m.guileLoop.release();
+    m.fdStart.release();m.fdLoop.release();m.guileLoop.release();m.sigmaLoop.release();
     m.versus.release();
     m.versusLoadState=0;m.versusPending=m.versusPlaying=false;
-    m.fdLoadState=0;m.guileLoadState=0;m.activeStageMusic=0;
+    m.fdLoadState=0;m.guileLoadState=0;m.sigmaLoadState=0;m.activeStageMusic=0;
     m.fdPhase=0u;m.fdPending=m.fdStarted=m.fdKo=false;
     if(m.game){free(m.game);m.game=nullptr;}
     if(m.csReady){DeleteCriticalSection(&m.lock);m.csReady=false;}
@@ -558,6 +591,19 @@ void xm20GuilePrepare(){
         if(!xm20::m.guileLoadThread){
             xm20::m.guileLoadState=3;
             std::fprintf(stderr,"XM87.290 GUILE_OGG_THREAD_FAILED\n");
+        }
+    }
+    LeaveCriticalSection(&xm20::m.lock);
+}
+void xm20SigmaPrepare(){
+    if(!xm20::start()||!xm20::m.csReady)return;
+    EnterCriticalSection(&xm20::m.lock);
+    if(xm20::m.sigmaLoadState==0){
+        xm20::m.sigmaLoadState=1;
+        xm20::m.sigmaLoadThread=CreateThread(nullptr,0,xm20::sigmaLoadWorker,nullptr,0,nullptr);
+        if(!xm20::m.sigmaLoadThread){
+            xm20::m.sigmaLoadState=3;
+            std::fprintf(stderr,"XM87.314 SIGMA_OGG_THREAD_FAILED\n");
         }
     }
     LeaveCriticalSection(&xm20::m.lock);
