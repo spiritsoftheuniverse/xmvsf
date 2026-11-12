@@ -142,7 +142,7 @@ def padded_rgba(pixels: bytes, w: int, h: int, x: int, y: int,
             out[start:start+w*4] = pixels[row*w*4:(row+1)*w*4]
     return bytes(out)
 
-def extract(data: bytes, out: Path) -> list[str]:
+def extract(data: bytes, out: Path, actor_only: str | None = None) -> list[str]:
     p = PSD(data)
     if p.take(4) != b"8BPS" or p.u16() != 1:
         raise ValueError("Guile stage needs a Photoshop PSD (not PSB)")
@@ -338,9 +338,62 @@ def extract(data: bytes, out: Path) -> list[str]:
         f"VIEW\t768\t471\t{view_x}",
     ]
     out.mkdir(parents=True,exist_ok=True)
+    target_actor: str | None = None
+    positions: dict[int, int] = {}
+    pending_pngs: dict[str, bytes] = {}
+    if actor_only is not None:
+        matches = [key for key in actors if key.casefold() == actor_only.casefold()]
+        if len(matches) != 1:
+            raise ValueError(f"PSD has no unique Characters actor {actor_only!r}")
+        target_actor = matches[0]
+        previous = out / "manifest.tsv"
+        if not previous.is_file():
+            raise ValueError("Joe-only export requires an existing full manifest; first run full extraction")
+        previous_rows = previous.read_text(encoding="utf-8").splitlines()
+        for header in records:
+            if header not in previous_rows:
+                raise ValueError(f"Stage geometry changed ({header}); run full extraction")
+        records = [line for line in previous_rows if not line.startswith("PARTIAL_ACTOR\t")]
+        previous_layers: dict[int, list[str]] = {}
+        for index,line in enumerate(records):
+            fields = line.split("\t")
+            if fields[0] != "LAYER":
+                continue
+            if len(fields) < 16:
+                raise ValueError("Existing stage manifest is incomplete; run full extraction")
+            psd_index = int(fields[3])
+            if psd_index in previous_layers or not 0 <= psd_index < len(layers):
+                raise ValueError("Stage layer indexing changed; run full extraction")
+            previous_layers[psd_index] = fields
+            if fields[1] == "actor" and fields[2].casefold() == target_actor.casefold():
+                positions[psd_index] = index
+            else:
+                layer = layers[psd_index]
+                old_bounds = [str(layer[key]) for key in ("left","top","right","bottom")]
+                old_path = "/".join(sanitize_field(x) for x in layer["path"])
+                if (fields[1] != layer["role"] or
+                    fields[2] != (layer.get("actor") if layer["role"] == "actor" else "-") or
+                    fields[9] != sanitize_field(layer["name"]) or
+                    fields[10] != old_path or fields[11:15] != old_bounds or
+                    fields[15] != str(int(layer["visible"])) or
+                    not (out / fields[8]).is_file()):
+                    raise ValueError(f"Non-Joe layer {psd_index} changed or PNG missing; run full extraction")
+        current_target = {layer["index"] for layer in actors[target_actor]}
+        if not positions or set(positions) != current_target:
+            raise ValueError("Joe frame indices/count changed; run full extraction")
+        if len(previous_layers) != len([line for line in records if line.startswith("LAYER\t")]):
+            raise ValueError("Existing stage manifest has duplicate layers; run full extraction")
+        print(f"GUILE PSD JOE ONLY: {len(positions)} frame(s); all other PNGs and stage layers preserved")
     count = 0
     actor_count = 0
     for layer in layers:
+        # The PSD channel stream is sequential. Skip every unrelated
+        # payload verbatim: no decode, PNG rewrite or mask processing.
+        if target_actor is not None and not (
+                layer["role"] == "actor" and layer["actor"] == target_actor):
+            for _, length in layer["channels"]:
+                p.skip(length)
+            continue
         planes = {}
         w,h = layer["right"]-layer["left"],layer["bottom"]-layer["top"]
         # Always consume this layer's entire channel block, even if the
@@ -419,20 +472,49 @@ def extract(data: bytes, out: Path) -> list[str]:
             texture = bytes(rgba)
             image_x,image_y = layer["left"],layer["top"]
             image_w,image_h = w,h
-        (out/filename).write_bytes(png_rgba(image_w,image_h,texture))
+        png_data = png_rgba(image_w,image_h,texture)
+        if target_actor is None:
+            (out/filename).write_bytes(png_data)
+        else:
+            pending_pngs[filename] = png_data
+            print(f"GUILE PSD JOE FRAME {layer['name']}: "
+                  f"source=({layer['left']},{layer['top']},{layer['right']},{layer['bottom']}) "
+                  f"padded=({image_x},{image_y},{image_w},{image_h})")
         # The first nine columns are the renderer contract. Additional columns
         # index the exact PSD layer name, hierarchy, ORIGINAL pixel bounds and
         # visibility. The PNG coordinates may describe a padded actor canvas.
         original = (layer["left"],layer["top"],layer["right"],layer["bottom"])
         path = "/".join(sanitize_field(x) for x in layer["path"])
-        records.append(
+        new_record = (
             f"LAYER\t{role}\t{sanitize_field(actor)}\t{layer['index']}\t"
             f"{image_x}\t{image_y}\t{image_w}\t{image_h}\t{filename}\t"
             f"{sanitize_field(layer['name'])}\t{path}\t"
             f"{original[0]}\t{original[1]}\t{original[2]}\t{original[3]}\t"
             f"{int(layer['visible'])}"
         )
+        if target_actor is None:
+            records.append(new_record)
+        else:
+            records[positions[layer["index"]]] = new_record
         count += 1
+    if target_actor is not None:
+        if count != len(actors[target_actor]) or set(pending_pngs) != {
+                f"{layer['index']:04d}.png" for layer in actors[target_actor]}:
+            raise ValueError("Joe-only PNG inventory incomplete; no files were replaced")
+        # Commit the PNGs after successful decoding of EVERY Joe frame.
+        # Keep the original full-export SHA as a stale marker; a later
+        # normal build will correctly revalidate/re-export the whole PSD.
+        for filename,payload in pending_pngs.items():
+            pending = out / (filename + ".joe.pending")
+            pending.write_bytes(payload)
+            os.replace(pending, out / filename)
+        records.append(f"PARTIAL_ACTOR\t{target_actor}\t{hashlib.sha256(data).hexdigest()}")
+        pending_manifest = out / "manifest.tsv.joe.pending"
+        pending_manifest.write_text("\n".join(records)+"\n",encoding="utf-8")
+        os.replace(pending_manifest, out / "manifest.tsv")
+        print(f"GUILE PSD JOE ONLY DONE: {count} frames rewritten; "
+              "all other stage PNGs untouched; full SHA validation deferred")
+        return records
     if not count:
         raise ValueError("PSD contains no rasterizable stage layers")
     if actor_count != sum(len(frames) for frames in actors.values()):
@@ -454,6 +536,9 @@ def main() -> int:
     ap=argparse.ArgumentParser()
     ap.add_argument("--source",type=Path,default=SOURCE)
     ap.add_argument("--output",type=Path,default=OUT)
+    ap.add_argument("--actor",metavar="NAME",
+                    help="re-extract only this actor's layers (e.g. Joe); "
+                         "requires the existing full manifest")
     args=ap.parse_args()
     if not args.source.is_file():
         print(f"GUILE PSD missing: {args.source}",file=sys.stderr)
@@ -464,7 +549,8 @@ def main() -> int:
     extractor_digest=hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
     if manifest.is_file():
         cached = manifest.read_text(encoding="utf-8")
-        if (f"SOURCE_SHA256\t{digest}" in cached and
+        if (not args.actor and "PARTIAL_ACTOR\t" not in cached and
+                f"SOURCE_SHA256\t{digest}" in cached and
                 f"EXTRACTOR_SHA256\t{extractor_digest}" in cached and
                 "FORMAT\t3" in cached):
             # A manifest can survive the deletion of exported PNGs.
@@ -478,11 +564,12 @@ def main() -> int:
                 print(f"GUILE PSD unchanged: {manifest} ({len(exports)} layers)")
                 return 0
     try:
-        rows=extract(raw,args.output)
+        rows=extract(raw,args.output,args.actor)
     except (ValueError,struct.error,zlib.error) as ex:
         print(f"GUILE PSD extraction failed: {ex}",file=sys.stderr)
         return 1
-    print(f"GUILE PSD extracted: {rows[0]}, {rows[2]}, {manifest}")
+    if not args.actor:
+        print(f"GUILE PSD extracted: {rows[0]}, {rows[2]}, {manifest}")
     return 0
 
 if __name__=="__main__":
