@@ -52,7 +52,7 @@ struct Scene {
  SDL_Texture* flash=nullptr;
  int canvasW=0,canvasH=0;
  int groundX=0,groundY=0,groundW=0,groundH=0;
- int cameraBaseX=0;
+ int cameraBaseX=0,cropStartX=0;
  bool cameraBaseSet=false;
  bool failed=false;
  bool active=false;
@@ -66,7 +66,7 @@ struct Scene {
   if(flash)SDL_DestroyTexture(flash);
   fighters=flash=nullptr;
   canvasW=canvasH=0;groundX=groundY=groundW=groundH=0;
-  cameraBaseX=0;cameraBaseSet=false;
+  cameraBaseX=0;cropStartX=0;cameraBaseSet=false;
   failed=false;active=false;lastFrame=~0ull;
   root.clear();
  }
@@ -144,7 +144,7 @@ struct Scene {
   std::string line;
   std::map<std::string,size_t> actorIndex;
   unsigned count[4]={};
-  int formatVersion=0;
+  int formatVersion=0,viewW=0,viewH=0;
   while(std::getline(manifest,line)){
    if(line.empty()||line[0]=='#')continue;
    const std::vector<std::string> f=split(line);
@@ -155,10 +155,15 @@ struct Scene {
    }else if(f.size()==5&&f[0]=="GROUND"){
     groundX=std::atoi(f[1].c_str());groundY=std::atoi(f[2].c_str());
     groundW=std::atoi(f[3].c_str());groundH=std::atoi(f[4].c_str());
+   }else if(f.size()==4&&f[0]=="VIEW"){
+    viewW=std::atoi(f[1].c_str());viewH=std::atoi(f[2].c_str());
+    cropStartX=std::atoi(f[3].c_str());
    }
   }
   if(formatVersion!=3||groundW<AUTHORED_W||groundH<AUTHORED_H||
-     groundW>8192||groundH>8192){
+     groundW>8192||groundH>8192||viewW!=AUTHORED_W||
+     viewH!=AUTHORED_H||cropStartX<0||
+     cropStartX>groundW-AUTHORED_W){
    std::fprintf(stderr,
     "XM87.295 GUILE_STALE_MANIFEST format=%d ground=(%d,%d %dx%d); regenerate with extractor\n",
     formatVersion,groundX,groundY,groundW,groundH);
@@ -230,8 +235,8 @@ struct Scene {
    a.hold=6+(int)(rand32(a.rng)%7u);
   }
   std::fprintf(stderr,
-    "XM87.295 GUILE_READY root=%s canvas=%dx%d ground=(%d,%d %dx%d) crop=768x471 sky=%u bg=%u ground=%u actors=%zu textures=%zu\n",
-    root.c_str(),canvasW,canvasH,groundX,groundY,groundW,groundH,
+    "XM87.296 GUILE_READY root=%s canvas=%dx%d ground=(%d,%d %dx%d) crop=768x471 at x=%d sky=%u bg=%u ground=%u actors=%zu textures=%zu\n",
+    root.c_str(),canvasW,canvasH,groundX,groundY,groundW,groundH,cropStartX,
     count[0],count[1],count[2],actors.size(),layers.size());
   return true;
  }
@@ -257,7 +262,7 @@ struct Scene {
  // coordinate at the first rendered stage frame.
  int groundCrop(int nativeCameraX){
   if(!cameraBaseSet){cameraBaseX=nativeCameraX;cameraBaseSet=true;}
-  return clamp((groundW-AUTHORED_W)/2+(nativeCameraX-cameraBaseX),
+  return clamp(cropStartX+(nativeCameraX-cameraBaseX),
                0,groundW-AUTHORED_W);
  }
  bool drawTexture(SDL_Renderer* render,SDL_Texture* tex,
@@ -283,7 +288,7 @@ struct Scene {
   // Rightward drift is 3 source pixels per second at 60 Hz, endless wrap.
   // Respect the sky layer's ORIGINAL PSD X offset relative to ground.
   const int shift=int((frame/20u)%unsigned(tile));
-  const int centerCrop=(groundW-AUTHORED_W)/2;
+  const int centerCrop=cropStartX;
   const int relative=l.x-groundX-centerCrop+shift;
   const int origin=((relative%tile)+tile)%tile-tile;
   const double skyY=double(l.y-groundY)+
@@ -344,7 +349,7 @@ static inline bool paint(SDL_Renderer* render,const SDL_Rect& view){
  if(hadClip)SDL_RenderGetClipRect(render,&oldClip);
  SDL_RenderSetClipRect(render,&view);
  const double crop=double(s.groundCrop(xm8649Visual.nativeCameraX));
- const double centerCrop=double((s.groundW-AUTHORED_W)/2);
+ const double centerCrop=double(s.cropStartX);
  const double bgCrop=centerCrop+(crop-centerCrop)*0.45;
  const int cameraY=clamp(xm8649Visual.nativeCameraY,-14,256);
  bool good=true;
