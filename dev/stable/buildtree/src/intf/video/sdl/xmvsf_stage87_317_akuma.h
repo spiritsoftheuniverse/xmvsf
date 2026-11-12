@@ -28,17 +28,19 @@ struct Layer {
  std::vector<Uint8> source; // exact original A RGBA
  std::vector<Uint8> originalB,greenMatchedB,pixelsB; // B green -> red
  int w=0,h=0,bw=0,bh=0,lastTint=-1;
+ // Only moon textures use these visible-alpha vertical centers.
+ int visibleCenterYA=0,visibleCenterYB=0;
  void close(){
   if(a)SDL_DestroyTexture(a);if(b)SDL_DestroyTexture(b);
   a=b=nullptr;source.clear();originalB.clear();greenMatchedB.clear();pixelsB.clear();
-  w=h=bw=bh=0;lastTint=-1;
+  w=h=bw=bh=0;lastTint=-1;visibleCenterYA=visibleCenterYB=0;
  }
  bool load(SDL_Renderer* renderer,const std::string& root,
            const char* nameA,const char* nameB,bool cloud){
   SDL_Surface* rawA=IMG_Load((root+nameA).c_str());
   SDL_Surface* rawB=IMG_Load((root+nameB).c_str());
   if(!rawA||!rawB){
-   std::fprintf(stderr,"XM87.320 AKUMA_ART_MISSING A=%s B=%s root=%s error=%s\n",
+   std::fprintf(stderr,"XM87.321 AKUMA_ART_MISSING A=%s B=%s root=%s error=%s\n",
                 nameA,nameB,root.c_str(),IMG_GetError());
    if(rawA)SDL_FreeSurface(rawA);
    if(rawB)SDL_FreeSurface(rawB);
@@ -69,6 +71,29 @@ struct Layer {
                (const Uint8*)rgbaB->pixels+(size_t)y*rgbaB->pitch,
                (size_t)bw*4u);
   SDL_FreeSurface(rgbaA);SDL_FreeSurface(rgbaB);
+  // The PNG canvases have equal height but the circular moon artwork
+  // need not occupy identical rows inside those transparent canvases.
+  // Register the ACTUAL alpha silhouettes, never just the PNG bounds.
+  if(!cloud && std::strstr(nameA,"_a2.png")){
+   auto centerY=[](const std::vector<Uint8>& rgba,int width,int height){
+    int first=height,last=-1;
+    for(int y=0;y<height;++y){
+     const size_t row=(size_t)y*(size_t)width*4u;
+     for(int x=0;x<width;++x){
+      if(rgba[row+(size_t)x*4u+3u]>=32u){
+       first=std::min(first,y);last=std::max(last,y);
+      }
+     }
+    }
+    return last<0?height-1:first+last; // twice the visible center
+   };
+   visibleCenterYA=centerY(source,w,h);
+   visibleCenterYB=centerY(originalB,bw,bh);
+   std::fprintf(stderr,
+    "XM87.321 AKUMA_MOON_ALPHA_CENTER A2=%d B2=%d correctionY=%d\n",
+    visibleCenterYA,visibleCenterYB,
+    (visibleCenterYA-visibleCenterYB)/2);
+  }
   greenMatchedB=originalB;
   // Establish B's FIRST-REVEAL RGB ONCE. A occupies the same world
   // coordinates; green-rich A foliage informs a strong environmental
@@ -117,7 +142,7 @@ struct Layer {
   if(SDL_UpdateTexture(a,nullptr,source.data(),w*4)!=0)return false;
   lastTint=-1;
   if(!updateTint(0))return false;
-  std::fprintf(stderr,"XM87.320 AKUMA_LAYER A=%s %dx%d B=%s %dx%d initialGreenB=1 staticScenery=1\n",
+  std::fprintf(stderr,"XM87.321 AKUMA_LAYER A=%s %dx%d B=%s %dx%d initialGreenB=1 staticScenery=1\n",
                nameA,w,h,nameB,bw,bh);
   return true;
  }
@@ -157,10 +182,10 @@ struct Scene {
  void saveMoon(){
   if(!moonDirty||moonSettingsPath.empty())return;
   std::ofstream out(moonSettingsPath.c_str(),std::ios::trunc);
-  if(!out){std::fprintf(stderr,"XM87.320 AKUMA_MOON_SAVE_FAILED path=%s\n",moonSettingsPath.c_str());return;}
+  if(!out){std::fprintf(stderr,"XM87.321 AKUMA_MOON_SAVE_FAILED path=%s\n",moonSettingsPath.c_str());return;}
   out<<moonOffset<<"\n";
   if(out.good()){moonDirty=false;
-   std::fprintf(stderr,"XM87.320 AKUMA_MOON_SAVED offset=%d\n",moonOffset);
+   std::fprintf(stderr,"XM87.321 AKUMA_MOON_SAVED offset=%d\n",moonOffset);
   }
  }
  void loadMoon(){
@@ -173,7 +198,7 @@ struct Scene {
    std::ifstream in(moonSettingsPath.c_str());
    int v=0;if(in>>v)moonOffset=clampi(v,-768,768);
   }
-  std::fprintf(stderr,"XM87.320 AKUMA_MOON_POSITION offset=%d\n",moonOffset);
+  std::fprintf(stderr,"XM87.321 AKUMA_MOON_POSITION offset=%d\n",moonOffset);
  }
  void adjustMoon(unsigned long long frame){
   const Uint8* keys=SDL_GetKeyboardState(nullptr);
@@ -219,7 +244,7 @@ struct Scene {
   if(failed)return false;
   const std::string root=locate();
   if(root.empty()){
-   std::fprintf(stderr,"XM87.320 AKUMA_ASSETS_MISSING _art/sf3akuma/sf3akuma1_a1.png\n");
+   std::fprintf(stderr,"XM87.321 AKUMA_ASSETS_MISSING _art/sf3akuma/sf3akuma1_a1.png\n");
    failed=true;return false;
   }
   const char* a[]={"sf3akuma1_a1.png","sf3akuma1_a2.png","sf3akuma1_a3.png"};
@@ -231,7 +256,7 @@ struct Scene {
   // Both A and B independently anchor their last row to the same floor.
   if(good && (layers[0].w!=STAGE_W||layers[0].bw!=STAGE_W||
               layers[0].h<VIEW_H||layers[0].bh<VIEW_H)){
-   std::fprintf(stderr,"XM87.320 AKUMA_GROUND_SIZE_INVALID expectedWidth=%d A=%dx%d B=%dx%d\n",
+   std::fprintf(stderr,"XM87.321 AKUMA_GROUND_SIZE_INVALID expectedWidth=%d A=%dx%d B=%dx%d\n",
                 STAGE_W,layers[0].w,layers[0].h,layers[0].bw,layers[0].bh);
    good=false;
   }
@@ -249,12 +274,12 @@ struct Scene {
    }
   }
   if(!good){
-   std::fprintf(stderr,"XM87.320 AKUMA_TEXTURE_FAILED %s\n",SDL_GetError());
+   std::fprintf(stderr,"XM87.321 AKUMA_TEXTURE_FAILED %s\n",SDL_GetError());
    close();failed=true;return false;
   }
   loaded=true;
   loadMoon();
-  std::fprintf(stderr,"XM87.320 AKUMA_READY root=%s groundA=%dx%d groundB=%dx%d moonA=%dx%d moonB=%dx%d delay=%d transition=%d bottom=1 cloudScale=50pct greenB=1 alphaFade=1\n",
+  std::fprintf(stderr,"XM87.321 AKUMA_READY root=%s groundA=%dx%d groundB=%dx%d moonA=%dx%d moonB=%dx%d delay=%d transition=%d bottom=1 cloudScale=50pct greenB=1 alphaFade=1\n",
                root.c_str(),layers[0].w,layers[0].h,layers[0].bw,layers[0].bh,
                layers[1].w,layers[1].h,layers[1].bw,layers[1].bh,
                COMBAT_WAIT_FRAMES,TRANSITION_FRAMES);
@@ -272,7 +297,7 @@ struct Scene {
      previousStatus>=8u)newSession(gen);
   if(status==8u && combatStart==~0ull){
    combatStart=frame;
-   std::fprintf(stderr,"XM87.320 AKUMA_COMBAT_START frame=%llu fadeStart=+%d complete=+%d\n",
+   std::fprintf(stderr,"XM87.321 AKUMA_COMBAT_START frame=%llu fadeStart=+%d complete=+%d\n",
                 frame,COMBAT_WAIT_FRAMES,COMBAT_WAIT_FRAMES+TRANSITION_FRAMES);
   }
   previousStatus=status;
@@ -282,7 +307,7 @@ struct Scene {
   const int tick=elapsed*64/TRANSITION_FRAMES;
   if(tick!=lastProgress){
    if(tick==1||tick==16||tick==32||tick==48||tick==64)
-    std::fprintf(stderr,"XM87.320 AKUMA_OPACITY_FADE step=%d/64 combatFrames=%llu\n",
+    std::fprintf(stderr,"XM87.321 AKUMA_OPACITY_FADE step=%d/64 combatFrames=%llu\n",
                  tick,frame-combatStart);
    lastProgress=tick;
   }
@@ -349,12 +374,17 @@ struct Scene {
    // Clouds render farthest back; moon above clouds; ground in front.
    // Each B is drawn immediately beneath its matching A at equal depth.
    const int rate=i==2?30:(i==1?55:100);
+   // A2 and B2 use the same saved horizontal offset and camera.
+   // Correct only the B moon's internal transparent-canvas Y offset.
+   const int moonDyB=i==1?
+       (l.visibleCenterYA-l.visibleCenterYB)/2:0;
    if(elapsed>0){
     if(!l.updateTint(tintStep)){good=false;break;}
     if(i==2)good=drawCloudTiles(renderer,l.b,l.bw,l.bh,camera,camY,frame,view);
     else{
-     const SDL_Rect b=bottomAnchored(view,l.bw,l.bh,camera,camY,rate,
-                                     i==1?moonOffset:0);
+     SDL_Rect b=bottomAnchored(view,l.bw,l.bh,camera,camY,rate,
+                               i==1?moonOffset:0);
+     if(i==1)b.y+=(int)std::lround(double(moonDyB)*view.h/VIEW_H);
      good=SDL_RenderCopy(renderer,l.b,nullptr,&b)==0;
     }
    }
@@ -377,7 +407,7 @@ struct Scene {
     good=SDL_RenderCopy(renderer,flash,nullptr,&view)==0&&good;
   }
   SDL_RenderSetClipRect(renderer,clipBefore?&oldClip:nullptr);
-  if(!good)std::fprintf(stderr,"XM87.320 AKUMA_DRAW_FAILED %s\n",SDL_GetError());
+  if(!good)std::fprintf(stderr,"XM87.321 AKUMA_DRAW_FAILED %s\n",SDL_GetError());
   return good;
  }
 };
