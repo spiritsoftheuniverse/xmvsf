@@ -355,7 +355,7 @@ echo Verified modes: normal 28xx, special 2Cxx, and multi-step super 2Exx.
 echo Saved: hitboxes, display, meter, dizzy, damage mode, two dummy HPs, player select, frame data.
 echo Super-candidate inputs print to Warcraft-style chat and fade after 3 sec.
 echo Shift+G opens/closes the full chat history.
-echo F10 native capture ON/OFF is acknowledged in chat and written to disk.
+echo F10 native chooser/VS 68000 PPC capture ON/OFF is acknowledged in chat.
 echo F9 now toggles HOST-AWARE v2 recording, including in the main menu.
 echo V2 sessions: %XM8764_REPLAY_ROOT%\session_XXXX\manifest.tsv
 echo Multiple menu/game resets and native state reloads are checkpointed.
@@ -387,7 +387,7 @@ echo Warning lines containing -winwrite are filtered by the TEST builder; other 
 echo Stable untouched.
 echo Active Tournament rules audit: %XM87149_TOURNAMENT_AUDIT%
 echo Tournament rules are applied ONLY when selected in the Options menu.
-echo F10 probe files: %XM87139_PROBE_DIR%
+echo F10 probe, OAM, and live M68K transition files: %XM87139_PROBE_DIR%
 :mvc_source_banner
 if /I "%SOURCE_ROM:~0,4%"=="mvsc" (
   echo Marvel vs. Capcom 1 native donor: %SOURCE_ROM%
@@ -607,7 +607,7 @@ if exist "%XM87186_OPENING_OBSERVER_LOG%" (
 )
 :mvc_donor_post
 echo Stage %XMVSF_TEST_VERSION% TEST exit code: %RC%
-echo Probe directory: %XM87139_PROBE_DIR%
+echo F10 native PPC/chooser capture directory: %XM87139_PROBE_DIR%
 pause
 exit /b %RC%
 :fail
