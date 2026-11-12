@@ -12,7 +12,7 @@
 // breaking compilation of this SDL run.cpp TU (87.302).
 // Types match declarations in src/burn/drv/capcom/cps.h.
 extern INT32 Cps;
-extern UINT8 *CpsSavePal,*CpsReg,*CpsRam90;
+extern UINT8 *CpsSavePal;
 extern UINT32 *CpsPal;
 extern UINT8 CpsRecalcPal;
 #include <cstdio>
@@ -88,25 +88,23 @@ struct XM87135LiveSpritePalette {
  UINT32 rgb[0x200];
  bool valid=false;
  bool capture(){
-  if(Cps!=2||!CpsSavePal||!CpsPal||!CpsReg||!CpsRam90)return false;
+  if(Cps!=2||!CpsSavePal||!CpsPal)return false;
   std::memcpy(raw,CpsSavePal,sizeof(raw));
   std::memcpy(rgb,CpsPal,sizeof(rgb));
   valid=true;return true;
  }
  bool restore(){
-  if(!valid||Cps!=2||!CpsSavePal||!CpsPal||!CpsReg||!CpsRam90)return false;
-  // CPS2 DMA palette address, same formula as cps.h::GetPalette().
-  // CPS2 register bytes are stored 68000 big-endian in CpsReg.
-  // Assemble directly; avoids pulling in the CPS-only bitswap header.
-  const unsigned reg=(unsigned(CpsReg[0x0au])<<8)|unsigned(CpsReg[0x0bu]);
-  const unsigned address=(reg<<8)&0xFFFC00u;
-  if(address<0x900000u || address>0x930000u-0x1800u)return false;
-  // Reassert the incoming fighter's *live* native sprite palette as the
-  // source of the next CPS2 DMA, not merely the SDL display cache.
-  std::memcpy(CpsRam90+(address-0x900000u),raw,sizeof(raw));
+  if(!valid||Cps!=2||!CpsSavePal||!CpsPal)return false;
+  // Restore the currently tagged point's display palette only.
+  // Do NOT write CpsRam90, which is ROM-owned CPS2 graphics RAM and the
+  // palette DMA source for subsequent supers/special effects. 87.302
+  // overwrote it with an old-frame palette, contaminating future effects.
   std::memcpy(CpsSavePal,raw,sizeof(raw));
   std::memcpy(CpsPal,rgb,sizeof(rgb));
-  CpsRecalcPal=1; // recalc from corrected source on the next native draw
+  // The state load marks the entire palette dirty. Rebuilding immediately
+  // from the unrelated first-frame snapshot would undo the corrected RGB.
+  // Native ROM palette writes remain free to update future frames normally.
+  CpsRecalcPal=0;
   return true;
  }
 };
@@ -153,10 +151,10 @@ static inline bool xm87110RestartAfterFrame(bool ready,unsigned frame){
  if(rc){XM87110::log("RESTART_REFUSED frame=%u reason=load_failed rc=%d",frame,rc);return false;}
  if(pointSwapped){
   const bool colorsRestored=livePalette.restore();
-  XM87110::log("ROSTER_PALETTE_RESTORE frame=%u swapped=1 sprite_banks=32 source_dma=%u",
+  XM87110::log("ROSTER_PALETTE_RESTORE frame=%u swapped=1 sprite_banks=32 native_dma_unmodified=%u",
      frame,(unsigned)colorsRestored);
   if(!colorsRestored)std::fprintf(stderr,
-      "XM87.303 ROSTER_PALETTE_WARNING sprite palette DMA unavailable after state load\n");
+      "XM87.305 ROSTER_PALETTE_WARNING sprite palette cache unavailable after state load\n");
  }
  bool positioned=false;
  {
