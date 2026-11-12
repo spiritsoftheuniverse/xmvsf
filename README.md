@@ -108,6 +108,36 @@ verify the committed asset, runtime lookup path, and native sprite/camera
 gate. No stage-specific workaround may replace the game's ROM camera or
 reset verified combat behavior to hide a missing-asset problem.
 
+## Repository tracking and local TEST retention
+
+Git is **source control, not the build archive**. The repository deliberately
+tracks authored artwork/audio (including Sigma and Final Destination FDB video),
+native C++ sources, Wily runtime assets, and the protected Stable build. It
+must not track the numbered `runtime/stable/XMVSF_Test_87_*.exe` outputs,
+`dev/stable/buildtree/fbneo.exe`, generated hitbox/diagnostic logs, or
+`local_rom_dump/` decrypted CPS2 bytes. They are build or machine output,
+not new source. Existing replay evidence under `test/` remains in Git for
+this cleanup; the test directory is ignored for new locally generated sessions.
+Do not remove source files or replay captures as part of Git performance work.
+
+**Pull safety:** The cleanup commit removes previously tracked binaries from
+the Git tree. A normal pull may **delete those tracked files from the local
+working checkout**. To retain earlier TEST executables, back them up to a
+directory outside `F:\xmvsf` BEFORE pulling the cleanup commit, e.g.:
+
+```powershell
+$archive = 'F:\xmvsf_local_test_archive'
+New-Item -ItemType Directory -Force -Path $archive | Out-Null
+Copy-Item 'F:\xmvsf\runtime\stable\XMVSF_Test_87_*.exe' $archive
+```
+
+Only numbered TEST builds are removed from version control; **do not delete
+or overwrite `runtime/stable/XMVSF_Stable.exe`**. Running
+`BUILD_TEST.bat` regenerates the current TEST executable locally using
+the warm build cache. Keeping history as-is means older Git objects remain
+reachable; this is **not** a destructive rewrite of branches, Git history,
+the Stable build, or past replay recordings.
+
 ## Our data-model manifesto
 
 **[READ THE REPLAY DATA MODEL MANIFESTO](REPLAY_DATA_MODEL_MANIFESTO.md)**

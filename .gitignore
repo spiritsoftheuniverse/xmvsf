@@ -1,28 +1,65 @@
+# XMVSF: keep source, authored assets, and intentional runtime resources.
+# Ignore rules do not untrack files already committed.
+# Temporary builds, ROM exports, replay output, and logs stay local.
+
 /archive/
 /dev/stable/releases/
 /packed/
 /testdata/
 /test/
 /dev/stable/buildtree/obj/
-/fbneo/*.log
-/runtime/stable/xmvsfu_*
 /dev/stable/buildtree/fbneo.exe
+/runtime/stable/XMVSF_Test_*.exe
+/runtime/stable/.XMVSF_Test_*_pending.exe
+/runtime/stable/XMVSF_Test_*.json
+/runtime/stable/RUN_TEST_87_*.bat
 *.o
+*.obj
 *.d
+*.a
+*.pdb
+*.ilk
+*.pch
+*.idb
+*.tmp
+*.temp
+*.part
 *.zip
 
-# Local-only decrypted CPS2 program/data bytes for ROM command study.
-# Never upload or commit ROM exports; these are generated on the user's PC.
-/local_rom_dump/
-
-# Local TEST compiler/linker transcripts. Keep potentially large machine
-# diagnostics private; users can attach BUILD_TEST.log when a build fails.
+# Preserve XMVSF_Stable.exe and the wily75/runtime stage assets.
+/runtime/stable/*.log
+/runtime/stable/xmvsfu_*
+/runtime/stable/XMVSF_WindowState.ini
+/runtime/stable/fbneo.ini
+/FBNeo/*.log
+/FBNeo/*.ini.bak
+/FBNeo/xmvsf_controller_map.ini
+/FBNeo/fbneo.ini
+/FBNeo/config/*.ini
 /test/build_logs/
+*.log
 *.ini
 
-# Generated locally by tools/pack_fd_video.ps1; source PNGs stay in Git.
-_art/video/*.fdb
-_art/video/*.fdb.partial
+# Never commit decrypted ROM dumps.
+/local_rom_dump/
 
-# Local OST Studio original backups, saved slider preferences and analysis state.
+# FD .fdb stage videos ARE runtime assets and must remain committed.
+# Only exclude partially generated files.
+/_art/video/*.fdb.partial
+
+# Normalizer's machine-local backups/settings (original OGGs stay tracked).
 /audio/.ost_studio/
+/audio_normalizer/backups/
+/audio_normalizer/output/
+/audio_normalizer/logs/
+
+# Editor, interpreter and OS temporary output.
+.vs/
+.vscode/
+__pycache__/
+.pytest_cache/
+.mypy_cache/
+*.pyc
+*.pyo
+.DS_Store
+Thumbs.db

@@ -1,4 +1,0 @@
-frame=1 reason=SELECTION_PHASE status=00 p1ptr=00FF5180 gameStep=00 chooserP1=01 chooserP2=01 selecting=0 owned=0
-frame=467 reason=SELECTION_PHASE status=00 p1ptr=00FF4000 gameStep=00 chooserP1=07 chooserP2=07 selecting=0 owned=0
-frame=469 reason=LATE_FALLBACK_FF5000_02_07 status=02 p1ptr=00FF4000 gameStep=00 chooserP1=07 chooserP2=07 selecting=0 owned=0
-frame=754 reason=VS_TO_COMBAT status=08 p1ptr=00FF4000 gameStep=00 chooserP1=07 chooserP2=07 selecting=0 owned=1
