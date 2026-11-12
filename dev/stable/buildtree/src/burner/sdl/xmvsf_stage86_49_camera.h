@@ -46,11 +46,14 @@ static inline void xm8649ObserveCamera(bool gameReady){
  const bool active=(stage==5u && XM87108::StagePhase(status));
  // XMVSF USA stage 05: $FF8000-0x2DC0 = $FF5240; native camera
  // is s16(+0C)+64 horizontally, s16(+10) vertically.
- // Same ROM camera contract used by Stage86.29 sidecar; no midpoint estimate.
- int x=0,y=256;
- if(active && actor==0x00FF4000u){x=xm8649SignedWord(c,0xFF524Cu)+64;
-            y=xm8649SignedWord(c,0xFF5250u);}
- else if(active){x=xm8649Visual.nativeCameraX;y=xm8649Visual.nativeCameraY;}
+ // This scroll object remains the native camera even when the point
+ // pointer changes during startup, tag or entry. The previous code
+ // HELD the last-frame camera whenever actor != FF4000, visibly making
+ // custom scenery lag behind fighters and then snap back on reacquisition.
+ // Read the actual scroll coordinates every frame instead; no virtual
+ // camera, interpolation, smoothing or extra frame of delay.
+ const int x=active?xm8649SignedWord(c,0xFF524Cu)+64:0;
+ const int y=active?xm8649SignedWord(c,0xFF5250u):256;
  c->close();
  xm8649Visual.stage=stage; xm8649Visual.status=status;
  xm8649Visual.pointer=actor; xm8649Visual.sceneActive=active;
