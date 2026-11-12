@@ -88,9 +88,9 @@ struct State {
                    const NativeSnapshot& after,unsigned changes){
         if(!nativeTrace || nativeRows>=20000u)return;
         std::fprintf(nativeTrace,
-            "%u\t%s\t%u\t%06X\t%06X\t%02X\t%02X\t%04X\t%08X"
+            "%u\t%s\t%u\t%06X\t%06X\t%02X\t%06X\t%08X\t%08X"
             "\t%02X\t%02X\t%04X\t%04X\t%02X\t%02X\t%02X\t%02X"
-            "\t%02X\t%02X\t%02X\t%02X\t%08X\n",
+            "\t%02X\t%02X\t%08X\t%u\t%u\n",
             nativeFrameId,event,nativeOrdinal,
             nativeLastPpc,nativeLastNext,changes,
             nativeA6,nativeD0,nativeD1,
@@ -105,11 +105,13 @@ struct State {
     void nativeInstruction(){
         if(!nativeHook || !nativeRam)return;
         ++nativeOrdinal;
-        nativeLastPpc=SekGetPPC(-1)&0xffffffu;
-        nativeLastNext=SekGetPC(-1)&0xffffffu;
         const NativeSnapshot now=snapshot(nativeRam);
         const unsigned changed=delta(nativePrevious,now);
         if(!changed)return;
+        // CPU register sampling is reserved for actual RAM transitions,
+        // avoiding heavyweight getters on every 68000 instruction.
+        nativeLastPpc=SekGetPPC(-1)&0xffffffu;
+        nativeLastNext=SekGetPC(-1)&0xffffffu;
         nativeA6=(unsigned)m68k_get_reg(nullptr,M68K_REG_A6)&0xffffffu;
         nativeD0=(unsigned)m68k_get_reg(nullptr,M68K_REG_D0);
         nativeD1=(unsigned)m68k_get_reg(nullptr,M68K_REG_D1);
