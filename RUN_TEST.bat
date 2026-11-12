@@ -5,6 +5,8 @@ set "MSYSTEM=UCRT64"
 set "PATH=C:\msys64\ucrt64\bin;C:\msys64\usr\bin;%PATH%"
 set "XMVSF_PROJECT=%PROJECT%"
 set "XMVSF_TEST_VERSION=87.296"
+REM Derived from version: 87.296 -> 87_296. Must match BUILD_TEST.bat.
+set "XMVSF_TEST_TAG=%XMVSF_TEST_VERSION:.=_%"
 REM All TEST diagnostics track the same version as the launched executable.
 set "XMVSF_TEST_LOG_ROOT=%PROJECT%\test\%XMVSF_TEST_VERSION%"
 REM Offline artifact review uses Python only. Never reaches ROM checks or EXE.
@@ -190,7 +192,7 @@ if errorlevel 1 (
 )
 >>"%XM87181_DIAGNOSTIC_STATUS%" echo RUN_TEST_START version=%XMVSF_TEST_VERSION% date=%DATE% time=%TIME%
 if not defined XM87180_EXPERIMENTAL_DELAYED_PRIME set "XM87180_EXPERIMENTAL_DELAYED_PRIME=0"
-set "EXE=%PROJECT%\runtime\stable\XMVSF_Test_87_293.exe"
+set "EXE=%PROJECT%\runtime\stable\XMVSF_Test_%XMVSF_TEST_TAG%.exe"
 if not exist "%EXE%" (
   echo ERROR: Stage 87.296 TEST executable is missing; no fallback to older builds.
   echo Run BUILD_TEST.bat first. Will NOT fall back to 87.132.4 or Stable.
