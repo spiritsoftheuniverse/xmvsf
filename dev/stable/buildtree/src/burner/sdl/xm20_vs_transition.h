@@ -41,10 +41,10 @@ static inline void xm20VsCheck(int ready,int paused) {
         // Stage20's existing combat detector remains the ultimate fallback.
         xm20VsLog("COMBAT_FALLBACK",status,p1ptr);
         xm20Vs.triggered=true;
-        // The original fallback set triggered but never notified the
-        // WASAPI host. That delayed the music cut until a separate
-        // polling pass later in FIGHT. Notify exactly once here.
-        xmvsfHost::enterVs();
+        // Actual COMBAT is too late to start versus music. Cut both
+        // menu and VS tracks now; the pre-combat candidate is the only
+        // permissible VS song start, and stage audio remains authoritative.
+        xmvsfHost::enterCombat();
         return;
     }
     // The stage17 select state is from the XMVSF gameplay sources, not from a

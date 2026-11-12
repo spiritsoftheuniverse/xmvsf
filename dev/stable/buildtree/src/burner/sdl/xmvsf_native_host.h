@@ -10,6 +10,7 @@ inline void cursorMove() { xm20MenuMovement(); }
 inline void confirm() { xm20MenuConfirm(); }
 inline void enterGame() { xm20MenuEnterGame(); }
 inline void enterVs() { xm20OnCombat(); }
+inline void enterCombat() { xm20CombatMusicHandoff(); }
 inline void resetClock() { xm20ClockReset(); }
 inline int frameDue(int fpsHundredths) { return xm20FrameDue(fpsHundredths); }
 }

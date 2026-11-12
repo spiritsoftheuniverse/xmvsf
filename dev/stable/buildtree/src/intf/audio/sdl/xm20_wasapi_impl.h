@@ -50,6 +50,7 @@ struct Machine {
     Clip crash, welcome, fightVoice; // authored 87.235; same WASAPI device
     Clip fdStart, fdLoop; // Final Destination OGG intro and seamless loop
     Clip guileLoop; // Guile Stage has one seamless OGG loop
+    Clip versus; // native pre-fight versus screen, separate from stage BGM
     double meterPos[2] = {0.0,0.0};
     bool meterOn[2] = {false,false};
     float musicGain = 1.f, musicTarget = 1.f, gameGain = 1.f;
@@ -59,7 +60,9 @@ struct Machine {
     bool moveOn = false, confirmOn = false, fight = false, gameStarted = false;
     bool crashOn=false,welcomeOn=false,fightVoiceOn=false;
     bool musicEnabled=false; // no music before explicit menu start/reveal
-    HANDLE fdLoadThread=nullptr,guileLoadThread=nullptr;
+    HANDLE fdLoadThread=nullptr,guileLoadThread=nullptr,versusLoadThread=nullptr;
+    int versusLoadState=0; // 0=idle, 1=loading, 2=ready, 3=missing/failed
+    bool versusPending=false,versusPlaying=false;
     int guileLoadState=0; // same 0/1/2/3 convention as FD
     int activeStageMusic=0; // 0=native,2=Final Destination,3=Guile Stage
     int fdLoadState=0; // 0=never attempted,1=loading,2=ready,3=unavailable
@@ -226,6 +229,25 @@ static DWORD WINAPI guileLoadWorker(LPVOID){
     std::fprintf(stderr,"XM87.290 GUILE_OGG_PRELOAD %s\n",ok?"READY":"FAILED");
     return 0;
 }
+// Asynchronous decode shares the same WASAPI device as menu/game/stage audio.
+static DWORD WINAPI versusLoadWorker(LPVOID){
+    SetThreadPriority(GetCurrentThread(),THREAD_PRIORITY_BELOW_NORMAL);
+    Clip music;
+    const bool ok=clipLoadOggRepo(music,"versusscreen.ogg");
+    EnterCriticalSection(&m.lock);
+    if(ok){
+        m.versus=music;
+        music.pcm=nullptr;
+        m.versusLoadState=2;
+    }else{
+        m.versusLoadState=3;
+    }
+    LeaveCriticalSection(&m.lock);
+    music.release();
+    std::fprintf(stderr,"XM87.311 VERSUS_OGG_PRELOAD %s (audio/music/versusscreen.ogg)\n",
+                 ok?"READY":"FAILED");
+    return 0;
+}
 static float clipSample(const Clip& c, uint32_t f, int ch) {
     if (!c.pcm || f>=c.frames) return 0.f;
     return (reinterpret_cast<const int16_t*>(c.pcm)[f*2+ch])/32768.f;
@@ -294,6 +316,16 @@ static void fillFrames(BYTE* output, UINT32 count, const WAVEFORMATEX* fmt) {
                 m.musicGain=m.musicTarget;m.fadeSeconds=0.f;
             }
         }else m.musicGain=m.musicTarget;
+        if(m.versusPending && m.versusLoadState==2){
+            m.versusPending=false;
+            m.versusPlaying=true;
+            m.versus.pos=0.0;
+            std::fprintf(stderr,"XM87.311 VERSUS_OGG_PLAY frames=%u\n",
+                         unsigned(m.versus.frames));
+        }else if(m.versusPending && m.versusLoadState==3){
+            m.versusPending=false;
+            std::fprintf(stderr,"XM87.311 VERSUS_OGG_UNAVAILABLE\n");
+        }
         float channelsOut[2]={};
         for (int ch=0;ch<2;ch++) {
             float game=0;
@@ -345,12 +377,16 @@ static void fillFrames(BYTE* output, UINT32 count, const WAVEFORMATEX* fmt) {
             }
             // Use the revised OGG's authored level; no hidden 70% attenuation.
             fd*=m.fdGain;
+            // Versus music replaces menu music on the pre-fight screen only.
+            const float versusSound=m.versusPlaying?
+                linearClip(m.versus,m.versus.pos,ch):0.f;
             // Stage22 controls QSound BGM only; native QSound effects stay mixed.
-            channelsOut[ch]=clamp(game+m.musicGain*0.70f*0.70f*music*musicDuck /* 49% base, duck for authored voices */+fd+movement+confirmation+meterSound+crashSfx+welcomeVoice+fightVoice); /* XMVSF_STAGE22_SELECTION_SFX: native game SFX always audible; sound CPU suppresses BGM */
+            channelsOut[ch]=clamp(game+m.musicGain*0.70f*0.70f*music*musicDuck /* 49% base, duck for authored voices */+fd+versusSound+movement+confirmation+meterSound+crashSfx+welcomeVoice+fightVoice); /* XMVSF_STAGE22_SELECTION_SFX: native game SFX always audible; sound CPU suppresses BGM */
         }
         BYTE* dest=output+static_cast<size_t>(i)*fmt->nBlockAlign;
         for(unsigned ch=0;ch<channels;ch++)putSample(dest,ch,bits,floats,ch<2?channelsOut[ch]:0.f);
         if(m.musicEnabled)advanceClip(m.music,musicStep,true);
+        if(m.versusPlaying)advanceClip(m.versus,musicStep,true);
         if(m.fdPhase==1u){
             advanceClip(m.fdStart,musicStep,false);
             if(m.fdStart.pos>=m.fdStart.frames)m.fdPhase=2u; // one-shot intro -> loop
@@ -431,6 +467,10 @@ static DWORD WINAPI audioThread(LPVOID) {
 }
 static void shutdown() {
     if(!m.begun)return;
+    if(m.versusLoadThread){
+        WaitForSingleObject(m.versusLoadThread,INFINITE);
+        CloseHandle(m.versusLoadThread);m.versusLoadThread=nullptr;
+    }
     if(m.guileLoadThread){
         WaitForSingleObject(m.guileLoadThread,INFINITE);
         CloseHandle(m.guileLoadThread);m.guileLoadThread=nullptr;
@@ -447,6 +487,8 @@ static void shutdown() {
     m.music.release();m.move.release();m.confirm.release();m.meter.release();
     m.crash.release();m.welcome.release();m.fightVoice.release();
     m.fdStart.release();m.fdLoop.release();m.guileLoop.release();
+    m.versus.release();
+    m.versusLoadState=0;m.versusPending=m.versusPlaying=false;
     m.fdLoadState=0;m.guileLoadState=0;m.activeStageMusic=0;
     m.fdPhase=0u;m.fdPending=m.fdStarted=m.fdKo=false;
     if(m.game){free(m.game);m.game=nullptr;}
@@ -513,11 +555,32 @@ void xm20GuilePrepare(){
     }
     LeaveCriticalSection(&xm20::m.lock);
 }
+// Preload once at the native character-select entry, without a sound-device reset.
+void xm20VersusPrepare(){
+    if(!xm20::start()||!xm20::m.csReady)return;
+    EnterCriticalSection(&xm20::m.lock);
+    if(xm20::m.versusLoadState==0){
+        xm20::m.versusLoadState=1;
+        xm20::m.versusLoadThread=CreateThread(nullptr,0,xm20::versusLoadWorker,
+                                               nullptr,0,nullptr);
+        if(!xm20::m.versusLoadThread){
+            xm20::m.versusLoadState=3;
+            std::fprintf(stderr,"XM87.311 VERSUS_OGG_THREAD_FAILED\n");
+        }
+    }
+    LeaveCriticalSection(&xm20::m.lock);
+}
 // Read-only native status 08 is live combat, 0A is round-ending team KO,
 // 0C is results. A fallen first teammate stays in status 08 and does NOT fade.
 void xm20CustomStagePhase(int selectedStage,int nativeStatus){
     if(!xm20::m.csReady)return;
     EnterCriticalSection(&xm20::m.lock);
+    if(nativeStatus==8 && (xm20::m.versusPending || xm20::m.versusPlaying)){
+        xm20::m.versusPending=xm20::m.versusPlaying=false;
+        xm20::m.versus.pos=0.0;
+        std::fprintf(stderr,"XM87.311 VERSUS_OGG_STOP_COMBAT stage=%d\n",
+                     selectedStage);
+    }
     if(selectedStage!=xm20::m.activeStageMusic){
         // No incoming stage inherits another stage's loop or KO envelope.
         xm20::m.activeStageMusic=selectedStage;
@@ -561,6 +624,8 @@ void xm20MenuStart(){
     xm20::start();
     if(!xm20::m.csReady)return;
     EnterCriticalSection(&xm20::m.lock);
+    xm20::m.versusPending=xm20::m.versusPlaying=false;
+    xm20::m.versus.pos=0.0;
     xm20::m.musicEnabled=true; // regular return/replay starts normally
     xm20::m.fdPending=xm20::m.fdStarted=xm20::m.fdKo=false;
     xm20::m.fdPhase=0u;xm20::m.fdGain=1.f;xm20::m.activeStageMusic=0;
@@ -630,6 +695,7 @@ void xm20MeterCharged(int player){
     LeaveCriticalSection(&xm20::m.lock);
 }
 void xm20MenuEnterGame(){
+    xm20VersusPrepare(); // decode concurrently with the native character selector
     if(!xm20::m.csReady)return;
     EnterCriticalSection(&xm20::m.lock);
     xm20::m.fadeFrom=xm20::m.musicGain;
@@ -637,24 +703,41 @@ void xm20MenuEnterGame(){
     xm20::m.fadeElapsed=0.f;
     xm20::m.fadeSeconds=0.15f; // ordinary start/upward gain stays quick
     xm20::m.fight=false;
+    xm20::m.versusPending=xm20::m.versusPlaying=false;
+    xm20::m.versus.pos=0.0;
     LeaveCriticalSection(&xm20::m.lock);
 }
 void xm20OnCombat(){
     if(!xm20::m.csReady)return;
     EnterCriticalSection(&xm20::m.lock);
     if(!xm20::m.fight){
-        // Trigger only ONCE at the earliest verified VS/crush boundary;
-        // repeated COMBAT observations cannot restart the envelope.
-        xm20::m.fadeFrom=xm20::m.musicGain;
-        xm20::m.musicTarget=0.f;
-        xm20::m.fadeElapsed=0.f;
-        xm20::m.fadeSeconds=0.5f;
+        // At the native PRECOMBAT VS transition, replace the menu song
+        // immediately. No 500ms menu overlap; the versus clip shares WASAPI.
+        xm20::m.musicEnabled=false;
+        xm20::m.musicGain=xm20::m.musicTarget=0.f;
+        xm20::m.fadeFrom=xm20::m.fadeSeconds=xm20::m.fadeElapsed=0.f;
+        xm20::m.versus.pos=0.0;
+        xm20::m.versusPlaying=false;
+        xm20::m.versusPending=true; // fillFrames starts it as soon as decoded
         xm20::m.fight=true;
         std::fprintf(stderr,
-            "XM87.206 VS MUSIC_FADE_BEGIN duration=500ms start=%.3f\n",
-            xm20::m.fadeFrom);
+            "XM87.311 VS_MENU_STOP_VERSUS_REQUEST load=%d\n",
+            xm20::m.versusLoadState);
     }
     LeaveCriticalSection(&xm20::m.lock);
+}
+// Combat fallback must never start the VS song AFTER the VS screen has ended.
+void xm20CombatMusicHandoff(){
+    if(!xm20::m.csReady)return;
+    EnterCriticalSection(&xm20::m.lock);
+    xm20::m.musicEnabled=false;
+    xm20::m.musicGain=xm20::m.musicTarget=0.f;
+    xm20::m.fadeFrom=xm20::m.fadeSeconds=xm20::m.fadeElapsed=0.f;
+    xm20::m.versusPending=xm20::m.versusPlaying=false;
+    xm20::m.versus.pos=0.0;
+    xm20::m.fight=true;
+    LeaveCriticalSection(&xm20::m.lock);
+    std::fprintf(stderr,"XM87.311 COMBAT_FALLBACK_MUSIC_CUT\n");
 }
 void xm20ClockReset(){xm20::clockStarted=false;}
 // Stage 87.284: bounded elapsed-time catch-up. The legacy frameDue()
