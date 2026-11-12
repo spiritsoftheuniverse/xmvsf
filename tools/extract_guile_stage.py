@@ -383,6 +383,19 @@ def extract(data: bytes, out: Path, actor_only: str | None = None) -> list[str]:
             raise ValueError("Joe frame indices/count changed; run full extraction")
         if len(previous_layers) != len([line for line in records if line.startswith("LAYER\t")]):
             raise ValueError("Existing stage manifest has duplicate layers; run full extraction")
+        # No new non-Joe raster may silently disappear from the old manifest.
+        # Targeted extraction is valid only when the original layer roster
+        # and all geometry still match the previously exported stage.
+        for layer in layers:
+            if layer["role"] == "folder":
+                continue
+            w = layer["right"] - layer["left"]
+            h = layer["bottom"] - layer["top"]
+            if (layer["role"] == "actor" or
+                    (layer["visible"] and w > 0 and h > 0)):
+                if layer["index"] not in previous_layers:
+                    raise ValueError(
+                        f"New stage layer {layer['index']} detected; run full extraction")
         print(f"GUILE PSD JOE ONLY: {len(positions)} frame(s); all other PNGs and stage layers preserved")
     count = 0
     actor_count = 0
