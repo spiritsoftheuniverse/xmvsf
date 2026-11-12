@@ -1,19 +1,12 @@
 #ifndef XMVSF_STAGE87_317_AKUMA_H
 #define XMVSF_STAGE87_317_AKUMA_H
-// Akuma Stage: native stage05 camera, original-sized PNG pairs.
-// For each role, B is under A at the SAME depth and world placement.
-// At combat frame +600 reveal B with strongly GREEN pregraded RGB;
-// restore B's ORIGINAL authored colors as A dithers over 2700 frames.
-// B's original alpha is untouched; NO global brightness darkening.
-// The moon shifts left at center camera; clouds tile at half scale,
-// down 30% of world height, with slow breathing; foliage wiggles subtly.
-// Ground and moon anchor their ACTUAL bottom rows to native ground Y=256;
-// newly added pixels therefore extend UPWARD and never displace the floor.
-// Clouds tile and drift right at 2 authored pixels / 3 emulated frames.
-// No first-death/KO trigger.
-// Four-bit SDL alpha blending is NOT used as a substitute for dithering:
-// a fixed world-pixel 8x8 Bayer mask punches actual alpha holes.
-// An A texture is uploaded only when its 0..64 dither step changes.
+// Akuma Stage: original-sized A/B scenery registered to native stage 05.
+// Hold A for 600 combat frames, then alpha-fade A over 2700 frames.
+// B remains behind A, first green-matched, gradually returning to red.
+// Both moons share a user-adjustable horizontal offset, saved on key release.
+// Clouds tile at half scale, scroll to the right at ~13px/second.
+// No moon automation, foliage wiggle, cloud breathing or Bayer dithering.
+// Ground/foreground images keep their original bottom-anchored world pixels.
 #include <SDL.h>
 #include <SDL_image.h>
 #include <algorithm>
@@ -31,24 +24,17 @@ static const int COMBAT_WAIT_FRAMES=600,TRANSITION_FRAMES=2700;
 static inline int clampi(int x,int lo,int hi){return std::max(lo,std::min(hi,x));}
 
 struct Layer {
- SDL_Texture *a=nullptr,*b=nullptr,*foliageA=nullptr,*foliageB=nullptr;
- std::vector<Uint8> source,pixels; // A original and dithered alpha
- std::vector<Uint8> originalB,greenMatchedB,pixelsB; // B RGB green→native
- std::vector<Uint8> foliageMaskA,foliageMaskB,foliagePixelsA,foliagePixelsB;
- bool vegetation=false;
- int w=0,h=0,bw=0,bh=0,lastCut=-1;
+ SDL_Texture *a=nullptr,*b=nullptr;
+ std::vector<Uint8> source; // exact original A RGBA
+ std::vector<Uint8> originalB,greenMatchedB,pixelsB; // B green -> red
+ int w=0,h=0,bw=0,bh=0,lastTint=-1;
  void close(){
   if(a)SDL_DestroyTexture(a);if(b)SDL_DestroyTexture(b);
-  if(foliageA)SDL_DestroyTexture(foliageA);
-  if(foliageB)SDL_DestroyTexture(foliageB);
-  a=b=foliageA=foliageB=nullptr;source.clear();pixels.clear();
-  originalB.clear();greenMatchedB.clear();pixelsB.clear();
-  foliageMaskA.clear();foliageMaskB.clear();
-  foliagePixelsA.clear();foliagePixelsB.clear();
-  vegetation=false;w=h=bw=bh=0;lastCut=-1;
+  a=b=nullptr;source.clear();originalB.clear();greenMatchedB.clear();pixelsB.clear();
+  w=h=bw=bh=0;lastTint=-1;
  }
  bool load(SDL_Renderer* renderer,const std::string& root,
-           const char* nameA,const char* nameB,bool cloud,bool ground){
+           const char* nameA,const char* nameB,bool cloud){
   SDL_Surface* rawA=IMG_Load((root+nameA).c_str());
   SDL_Surface* rawB=IMG_Load((root+nameB).c_str());
   if(!rawA||!rawB){
@@ -84,22 +70,6 @@ struct Layer {
                (size_t)bw*4u);
   SDL_FreeSurface(rgbaA);SDL_FreeSurface(rgbaB);
   greenMatchedB=originalB;
-  vegetation=ground;
-  if(vegetation){
-   foliageMaskA.resize((size_t)w*h,0u);
-   foliageMaskB.resize((size_t)bw*bh,0u);
-   for(int y=0;y<h;++y)for(int x=0;x<w;++x){
-    const size_t p=((size_t)y*w+x)*4u;
-    // Animated only on the GREEN leaf canopy and grass strips;
-    // rocks, floor geometry, trunk and camera remain completely still.
-    const bool edge=(y*100<h*47)||(y*100>h*76);
-    const bool green=source[p+3]>24 &&
-       (int)source[p+1]>(int)source[p]+11 &&
-       (int)source[p+1]>(int)source[p+2]+7 &&
-       source[p+1]>48;
-    if(edge&&green)foliageMaskA[(size_t)y*w+x]=1u;
-   }
-  }
   // Establish B's FIRST-REVEAL RGB ONCE. A occupies the same world
   // coordinates; green-rich A foliage informs a strong environmental
   // green cast. Where A is transparent, hue-map B orange/red to green
@@ -132,11 +102,9 @@ struct Layer {
      greenMatchedB[bi+ch]=(Uint8)(
          (tinted*232u+originalB[bi+ch]*24u+128u)/256u);
     }
-    if(vegetation&&foliageMaskA[(size_t)ay*w+ax])
-     foliageMaskB[(size_t)y*bw+x]=1u;
    }
   }
-  pixels=source;pixelsB=originalB;
+  pixelsB=originalB;
   a=SDL_CreateTexture(renderer,SDL_PIXELFORMAT_RGBA32,
                       SDL_TEXTUREACCESS_STREAMING,w,h);
   b=SDL_CreateTexture(renderer,SDL_PIXELFORMAT_RGBA32,
@@ -146,27 +114,16 @@ struct Layer {
   SDL_SetTextureBlendMode(b,SDL_BLENDMODE_BLEND);
   SDL_SetTextureScaleMode(a,SDL_ScaleModeNearest);
   SDL_SetTextureScaleMode(b,SDL_ScaleModeNearest);
-  if(vegetation){
-   foliageA=SDL_CreateTexture(renderer,SDL_PIXELFORMAT_RGBA32,
-                              SDL_TEXTUREACCESS_STREAMING,w,h);
-   foliageB=SDL_CreateTexture(renderer,SDL_PIXELFORMAT_RGBA32,
-                              SDL_TEXTUREACCESS_STREAMING,bw,bh);
-   if(!foliageA||!foliageB)return false;
-   SDL_SetTextureBlendMode(foliageA,SDL_BLENDMODE_BLEND);
-   SDL_SetTextureBlendMode(foliageB,SDL_BLENDMODE_BLEND);
-   SDL_SetTextureScaleMode(foliageA,SDL_ScaleModeNearest);
-   SDL_SetTextureScaleMode(foliageB,SDL_ScaleModeNearest);
-  }
   if(SDL_UpdateTexture(a,nullptr,source.data(),w*4)!=0)return false;
-  lastCut=-1;
+  lastTint=-1;
   if(!updateTint(0))return false;
-  std::fprintf(stderr,"XM87.320 AKUMA_LAYER A=%s %dx%d B=%s %dx%d initialGreenB=1 staticFoliage=%d\n",
-               nameA,w,h,nameB,bw,bh,(int)vegetation);
+  std::fprintf(stderr,"XM87.320 AKUMA_LAYER A=%s %dx%d B=%s %dx%d initialGreenB=1 staticScenery=1\n",
+               nameA,w,h,nameB,bw,bh);
   return true;
  }
  bool updateTint(int step){
   step=clampi(step,0,64);
-  if(step==lastCut)return true;
+  if(step==lastTint)return true;
   // B only: preserve authored alpha, interpolate green to native red.
   if(step==64)pixelsB=originalB;
   else{
@@ -180,7 +137,7 @@ struct Layer {
    }
   }
   if(SDL_UpdateTexture(b,nullptr,pixelsB.data(),bw*4)!=0)return false;
-  lastCut=step;return true;
+  lastTint=step;return true;
  }
 };
 struct Scene {
@@ -268,7 +225,7 @@ struct Scene {
   const char* a[]={"sf3akuma1_a1.png","sf3akuma1_a2.png","sf3akuma1_a3.png"};
   const char* b[]={"sf3akuma1_b.png","sf3akuma1_b2.png","sf3akuma1_b3.png"};
   bool good=true;
-  for(int i=0;i<3&&good;++i)good=layers[i].load(renderer,root,a[i],b[i],i==2,i==0);
+  for(int i=0;i<3&&good;++i)good=layers[i].load(renderer,root,a[i],b[i],i==2);
   // The horizontal authoring width is fixed. The art may extend above
   // 471 px after the artist adds sky pixels: accept the new ACTUAL height.
   // Both A and B independently anchor their last row to the same floor.
