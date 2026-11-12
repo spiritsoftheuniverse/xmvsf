@@ -289,7 +289,7 @@ static DWORD WINAPI akumaLoadWorker(LPVOID){
     SetThreadPriority(GetCurrentThread(),THREAD_PRIORITY_BELOW_NORMAL);
     Clip music;
     // Authored stage OGG. Missing audio never blocks stage rendering.
-    const bool ok=clipLoadWavRepoMusic(music,"sf3akumastage.wav") ||
+    const bool ok=clipLoadOggRepo(music,"sf3akumastage.ogg") ||
                   clipLoadOggRepo(music,"akumastage.ogg") ||
                   clipLoadOggRepo(music,"sf3akuma.ogg") ||
                   clipLoadOggRepo(music,"akuma.ogg") ||
@@ -302,7 +302,7 @@ static DWORD WINAPI akumaLoadWorker(LPVOID){
     }else m.akumaLoadState=3;
     LeaveCriticalSection(&m.lock);
     music.release();
-    std::fprintf(stderr,"XM87.317 AKUMA_MUSIC_PRELOAD %s source=audio/music/sf3akumastage.wav\n",
+    std::fprintf(stderr,"XM87.323 AKUMA_MUSIC_PRELOAD %s source=audio/music/sf3akumastage.ogg\n",
                  ok?"READY":"MISSING");
     return 0;
 }
