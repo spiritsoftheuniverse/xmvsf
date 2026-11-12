@@ -132,8 +132,13 @@ static inline void swapSide(unsigned char* ram,unsigned a,unsigned b){
  // controller link and slot-specific partner pointer are POSITION/ROLE state.
  copySpan(ram+a,originalA,0x000,0x020);
  copySpan(ram+b,originalB,0x000,0x020);
- copySpan(ram+a,originalA,0x04a,0x006);
- copySpan(ram+b,originalB,0x04a,0x006);
+ // +0x4B is the verified slot-facing flag. Neighboring +0x4A,
+ // +0x4C..+0x4F are NOT established slot-role bytes; copying all six
+ // back from the old point reintroduced Cyclops display/palette state
+ // into Wolverine after a first-frame roster swap. Keep those bytes
+ // with the incoming CHARACTER, preserving only the slot's facing bit.
+ ram[a+0x04bu]=(unsigned char)((ram[a+0x04bu]&~1u)|(originalA[0x04bu]&1u));
+ ram[b+0x04bu]=(unsigned char)((ram[b+0x04bu]&~1u)|(originalB[0x04bu]&1u));
  copySpan(ram+a,originalA,0x060,0x00c);
  copySpan(ram+b,originalB,0x060,0x00c);
  copySpan(ram+a,originalA,0x200,0x010);
