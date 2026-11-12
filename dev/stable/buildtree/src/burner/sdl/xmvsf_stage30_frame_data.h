@@ -104,8 +104,15 @@ static inline unsigned xm30NativeAttackFamily(const XM41ActorSample& a){
     // before any successful catch switches to throw controller 32.
     // The family alone is not enough to CREATE a card: the 87.259
     // input-backed freshThrow gate remains mandatory for a new root.
-    if(mode==0x20u || mode==0x30u || mode==0x32u)
-        return XM30_THROW_FAMILY;
+    // 20/30 are shared native controllers, not proof of a live throw.
+    // A whiffed grab can genuinely run there, but only while the ROM is
+    // still executing its 02xx grab/throw action. Returning to ordinary
+    // locomotion under 20/30 MUST end the card immediately; otherwise
+    // xm30SameNativeAttack() keeps matching the synthetic 32 family and
+    // its wall timeline runs until the 360-tick stalled-card watchdog.
+    if(mode==0x20u || mode==0x30u)
+        return actionFamily==0x02u ? XM30_THROW_FAMILY : 0u;
+    if(mode==0x32u)return XM30_THROW_FAMILY;
     return 0u;
 }
 static inline bool xm30SameNativeAttack(const XM41ActorSample& a,

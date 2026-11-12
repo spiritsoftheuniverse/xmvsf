@@ -10,6 +10,16 @@
 extern int xm14TrainingMode;
 extern int xm24VersusMode;
 extern bool bRunPause;
+// Cps2ObjDraw publishes the native camera recorded with its exact
+// buffered CPS2 sprite list (cps_obj.cpp). The custom stage uses that
+// same camera, not an approximate 1-frame host-history timer.
+extern bool xm8649BufferedObjCameraValid;
+extern int xm8649BufferedObjCameraX,xm8649BufferedObjCameraY;
+extern unsigned xm8649BufferedObjCameraFrame;
+static inline void xm8649ForgetCameraHistory(){
+ xm8649BufferedObjCameraValid=false;
+ xm8649BufferedObjCameraFrame=0u;
+}
 static inline int xm8649SignedWord(cpu_core_config* c, unsigned a){
  const unsigned u=((c->read(a)&255u)<<8)|(c->read(a+1)&255u);
  return (u&0x8000u)?int(u)-65536:int(u);
@@ -17,11 +27,16 @@ static inline int xm8649SignedWord(cpu_core_config* c, unsigned a){
 static inline void xm8649ObserveCamera(bool gameReady){
  static bool previouslyActive=false;
  if(bRunPause)return; // pausing must never reveal the original stage
- if(!gameReady || bBurnRunAheadFrame ||
-   // Wily stage assignment is independent of Double Feature color grading.
-   xm77StageChoice!=1 || xm77StageResolved!=1 ||
-   xm14TrainingMode!=1 || xm24VersusMode!=0){
-  xm8649Visual.sceneActive=false;return;
+ // Share the verified stage-05 camera with both custom renderers.
+ // Wily remains Training-only; Final Destination works in Training/Versus.
+ const bool wily=((xm77StageChoice==0||xm77StageChoice==1) && xm77StageResolved==1 &&
+                  xm14TrainingMode==1 && xm24VersusMode==0);
+ const bool finalDestination=((xm77StageChoice==0||xm77StageChoice==2) && xm77StageResolved==2 &&
+                             (xm14TrainingMode==1 || xm24VersusMode==1));
+ const bool guileStage=((xm77StageChoice==0||xm77StageChoice==3) && xm77StageResolved==3 &&
+                        (xm14TrainingMode==1 || xm24VersusMode==1));
+ if(!gameReady || bBurnRunAheadFrame || (!wily&&!finalDestination&&!guileStage)){
+  xm8649Visual.sceneActive=false;xm8649ForgetCameraHistory();return;
  }
  const char* name=BurnDrvGetTextA(DRV_NAME);
  if(!name || std::strncmp(name,"xmvsf",5)!=0){xm8649Visual.sceneActive=false;return;}
@@ -41,11 +56,17 @@ static inline void xm8649ObserveCamera(bool gameReady){
  const bool active=(stage==5u && XM87108::StagePhase(status));
  // XMVSF USA stage 05: $FF8000-0x2DC0 = $FF5240; native camera
  // is s16(+0C)+64 horizontally, s16(+10) vertically.
- // Same ROM camera contract used by Stage86.29 sidecar; no midpoint estimate.
- int x=0,y=256;
- if(active && actor==0x00FF4000u){x=xm8649SignedWord(c,0xFF524Cu)+64;
-            y=xm8649SignedWord(c,0xFF5250u);}
- else if(active){x=xm8649Visual.nativeCameraX;y=xm8649Visual.nativeCameraY;}
+ // ROM-owned camera is always the fallback. Once the native CPS2 OBJ draw
+ // has published THIS frame's buffered sprite list, follow its exact
+ // camera sample. Skip-frame/replay/reset transitions cannot cause
+ // unsynchronized estimates or inertial "follow" motion.
+ const int rawX=active?xm8649SignedWord(c,0xFF524Cu)+64:0;
+ const int rawY=active?xm8649SignedWord(c,0xFF5250u):256;
+ const bool matchingBufferedOAM=active && xm8649BufferedObjCameraValid &&
+      xm8649BufferedObjCameraFrame==(unsigned)GetCurrentFrame();
+ const int x=matchingBufferedOAM?xm8649BufferedObjCameraX:rawX;
+ const int y=matchingBufferedOAM?xm8649BufferedObjCameraY:rawY;
+ if(!active)xm8649ForgetCameraHistory();
  c->close();
  xm8649Visual.stage=stage; xm8649Visual.status=status;
  xm8649Visual.pointer=actor; xm8649Visual.sceneActive=active;

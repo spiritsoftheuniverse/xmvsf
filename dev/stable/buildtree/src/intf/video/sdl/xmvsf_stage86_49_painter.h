@@ -121,7 +121,7 @@ static void xm8649VideoCleanup(){
  XM8763::State().Reset();
 }
 static bool xm8649Paint(SDL_Renderer* render,const SDL_Rect& view){
- if(!xm8649Visual.sceneActive ||
+ if(xm77StageResolved!=1 || !xm8649Visual.sceneActive ||
     xm8649Visual.stage!=5 || xm8649Unavailable ||
     !xm77SpriteValid || xm77SpriteWidth!=384 || xm77SpriteHeight!=224 ||
     !xm77SpritePixels())return false;

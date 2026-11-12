@@ -24,7 +24,18 @@ xm235_fast_link_inputs() {
     # granularity; reject maps clearly older than the linked binary.
     map_time="$(stat -c %Y "$map")" || return 1
     exe_time="$(stat -c %Y "$exe")" || return 1
-    (( map_time + 2 >= exe_time )) || return 1
+    if (( map_time + 2 < exe_time )); then
+        # A Git checkout may replace the *tracked* fbneo.exe and refresh its
+        # mtime without refreshing the ignored linker map. Accept that case
+        # only when the binary's bytes match the last successful native
+        # build, and only after validating EVERY mapped local object below.
+        local previous_sha current_sha
+        previous_sha="$(sed -n 's/^test_executable_sha256[[:space:]]*//p' \
+          "$tree/../../../test/build_cache/last_success.tsv" 2>/dev/null | tail -n 1)"
+        [[ "${#previous_sha}" == 64 ]] || return 1
+        current_sha="$(sha256sum "$exe" | cut -d ' ' -f 1)" || return 1
+        [[ "$previous_sha" == "$current_sha" ]] || return 1
+    fi
 
     # Only source-object LOAD lines, never GCC/system library/archive LOADs.
     # Paths must be relative to the buildtree; all are local ignored cache.

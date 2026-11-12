@@ -10,9 +10,14 @@ void xm20MenuIntroMusic();
 void xm20MenuCrash();
 void xm20MenuWelcome();
 void xm20MenuFight();
+void xm20FDPrepare(); // async Vorbis decode on Final Destination stage highlight
+void xm20GuilePrepare(); // preload single Guile Stage Vorbis loop
+void xm20CustomStagePhase(int selectedStage,int nativeStatus); // 0=native 2=FD 3=Guile
 void xm20MeterCharged(int player); // XM87.118 per-stock event
 void xm20MenuEnterGame();
 void xm20OnCombat();
 void xm20ClockReset();
 int xm20FrameDue(int fpsHundredths);
+int xm20FrameDueCatchup(int fpsHundredths,int maxFrames);
+void xm20AdvanceSoundNoPaint();
 #endif

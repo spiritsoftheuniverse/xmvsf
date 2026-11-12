@@ -190,6 +190,61 @@ static void superVictimHitstopIsVisualNotANativeClockFreeze(){
     assert(!xm30VisualHeld(idle,e,2u,tick.native));
     assert(!xm30VisualHeld(tick,e,2u,e.attackStartFrame-1u));
 }
+// 87.285: an ordinary 20/30 controller after a whiff is not a throw.
+// The old generic 20/30->32 family mapping left this card running until
+// the 360-wall-tick rescue timeout, hiding its actual ROM end.
+static void grabWhiffReturningToNeutralControllerEndsImmediately(){
+    XM30FrameData f{};f.setEnabled(true);f.beginCombat();
+    XM30Sample none{};auto b=dummy();
+    auto p=actor(0x3000u,0x0200u,2u,0u,0xAA700u);
+    f.press(0,0x80);f.onFrame(none,none,p,b);
+    assert(f.count==1 && f.history[0].attackFamily==XM30_THROW_FAMILY);
+    for(int i=0;i<8;++i){
+        p.nativeAction=0x0202u;++p.animTimer;
+        f.onFrame(none,none,p,b);
+    }
+    assert(!f.history[0].attackEnded);
+    const unsigned long long lastAttack=f.history[0].attackLastFrame;
+    // The controller stays in the 20 family while the ROM leaves 02xx.
+    p=actor(0x2000u,0x1C00u,0u,0u,0xAA710u);
+    f.onFrame(none,none,p,b);
+    assert(f.history[0].attackEnded);
+    assert(f.history[0].attackEndFrame==lastAttack);
+    const unsigned long long wallAtEnd=f.history[0].lastWallFrame;
+    for(int i=0;i<400;++i){
+        ++p.animTimer;f.onFrame(none,none,p,b);
+    }
+    assert(f.count==1 && f.eventsCreated==1u);
+    assert(f.history[0].lastWallFrame==wallAtEnd);
+    assert(f.history[0].attackEndFrame==lastAttack);
+}
+static void grabSuperAlsoEndsWhenThrowReleasesToNeutralTwenty(){
+    XM30FrameData f{};f.setEnabled(true);f.beginCombat();
+    XM30Sample none{};auto b=dummy();
+    auto p=actor(0x2A28u,0x2E00u,4u,0x80u,0xAA720u);
+    f.onFrame(none,none,p,b);
+    assert(f.count==1 && f.history[0].attackFamily==0x2Eu);
+    p=actor(0x3200u,0x0200u,4u,0u,0xAA721u);
+    f.onFrame(none,none,p,b);
+    assert(!f.history[0].attackEnded);
+    p=actor(0x2000u,0x1C00u,0u,0u,0xAA722u);
+    f.onFrame(none,none,p,b);
+    assert(f.history[0].attackEnded);
+    assert(f.eventsCreated==1u);
+}
+static void neutralTwentyThirtyNeverPretendToBeAttacks(){
+    XM30FrameData f{};f.setEnabled(true);f.beginCombat();
+    XM30Sample none{};auto b=dummy();
+    auto p=actor(0x2000u,0x1C00u,0u,0u,0xAA730u);
+    f.press(0,0x80);f.onFrame(none,none,p,b);
+    assert(xm30NativeAttackFamily(p)==0u && f.count==0);
+    p.mode=0x3000u;p.nativeAction=0x1000u;
+    f.onFrame(none,none,p,b);
+    assert(xm30NativeAttackFamily(p)==0u && f.count==0);
+    p.nativeAction=0x0200u;p.nativeStep=2u;
+    assert(xm30NativeAttackFamily(p)==XM30_THROW_FAMILY);
+}
+
 int main(){
     portraitPhase81AcrossNativeSubstages();
     stageTwoPhase80StasisMakesRealGrayTime();
@@ -202,6 +257,9 @@ int main(){
     whiffedSuperGrabDoesNotDuplicateWhen2EAppears();
     passiveWhiffControllersNeverInventCards();
     superVictimHitstopIsVisualNotANativeClockFreeze();
+    grabWhiffReturningToNeutralControllerEndsImmediately();
+    grabSuperAlsoEndsWhenThrowReleasesToNeutralTwenty();
+    neutralTwentyThirtyNeverPretendToBeAttacks();
     std::puts("XMVSF 87.260 grab whiff and defender hitstop display coverage PASS");
     return 0;
 }

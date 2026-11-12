@@ -23,6 +23,15 @@ static int XM20SoundCheck() {
     xm20::queue(nAudNextSound,static_cast<unsigned>(nAudSegLen),static_cast<unsigned>(nAudSampleRate[0]));
     return 0;
 }
+// FD-only deadline catch-up: produce normal, ordered WASAPI audio while
+// deliberately omitting the expensive SDL paint for overdue native frames.
+void xm20AdvanceSoundNoPaint(){
+    if(!bAudPlaying || !nAudNextSound || nAudSegLen<=0)return;
+    (xm20NextSound ? xm20NextSound : xm20Silence)(0);
+    if(nAudDSPModule[0])DspDo(nAudNextSound,nAudSegLen);
+    xm20::queue(nAudNextSound,static_cast<unsigned>(nAudSegLen),
+                static_cast<unsigned>(nAudSampleRate[0]));
+}
 static int XM20SoundInit() {
     if(nAudSampleRate[0]<=0 || nAppVirtualFps<=0)return 1;
     nAudSegLen=(nAudSampleRate[0]*100+(nAppVirtualFps>>1))/nAppVirtualFps;

@@ -4,7 +4,6 @@
 // fighter reaches the observed native ground-entry action transition.
 // Do not reload inside a CPU-core open() section or during runahead.
 #include "xmvsf_stage87_105_ko_reset.h"
-#include "xmvsf_stage87_110_restart.h"
 #include "xmvsf_stage87_105_training_hp.h"
 #include "xmvsf_stage87_102_training_lab.h"
 #include "xmvsf_stage87_100_idle_logic.h"
@@ -49,7 +48,6 @@ static inline void xm87105TrainingResetOnLanding(bool ready,unsigned frame){
     det.reset();
     xm18Position.requested[0]=xm18Position.requested[1]=0;
     xm18Position.held[0]=xm18Position.held[1]=0;
-    XM87110::state().didRestore();
     xm25BeginInputHandoff();
 }
 #endif

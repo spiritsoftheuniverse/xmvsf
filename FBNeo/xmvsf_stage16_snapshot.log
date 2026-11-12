@@ -134,8 +134,6 @@ LOAD_OK result=0 mode=1 file=config/games/xmvsfu_training_select.fs
 LOAD_OK result=0 mode=1 file=config/games/xmvsfu_training_select.fs
 LOAD_OK result=0 mode=1 file=config/games/xmvsfu_training_select.fs
 LOAD_OK result=0 mode=1 file=config/games/xmvsfu_training_select.fs
-<<<<<<< Updated upstream
-=======
 LOAD_OK result=0 mode=1 file=config/games/xmvsfu_training_select.fs
 LOAD_OK result=0 mode=1 file=config/games/xmvsfu_training_select.fs
 LOAD_OK result=0 mode=1 file=config/games/xmvsfu_training_select.fs
@@ -154,27 +152,3 @@ LOAD_OK result=0 mode=1 file=config/games/xmvsfu_training_select.fs
 LOAD_OK result=0 mode=1 file=config/games/xmvsfu_training_select.fs
 LOAD_OK result=0 mode=1 file=config/games/xmvsfu_training_select.fs
 LOAD_OK result=0 mode=1 file=config/games/xmvsfu_training_select.fs
-LOAD_OK result=0 mode=1 file=config/games/xmvsfu_training_select.fs
-LOAD_OK result=0 mode=1 file=config/games/xmvsfu_training_select.fs
-LOAD_OK result=0 mode=1 file=config/games/xmvsfu_training_select.fs
-LOAD_OK result=0 mode=1 file=config/games/xmvsfu_training_select.fs
-LOAD_OK result=0 mode=1 file=config/games/xmvsfu_training_select.fs
-LOAD_OK result=0 mode=1 file=config/games/xmvsfu_training_select.fs
-LOAD_OK result=0 mode=1 file=config/games/xmvsfu_training_select.fs
-LOAD_OK result=0 mode=1 file=config/games/xmvsfu_training_select.fs
-LOAD_OK result=0 mode=1 file=config/games/xmvsfu_training_select.fs
-LOAD_OK result=0 mode=1 file=config/games/xmvsfu_training_select.fs
-LOAD_OK result=0 mode=1 file=config/games/xmvsfu_training_select.fs
-LOAD_OK result=0 mode=1 file=config/games/xmvsfu_training_select.fs
-LOAD_OK result=0 mode=1 file=config/games/xmvsfu_training_select.fs
-LOAD_OK result=0 mode=1 file=config/games/xmvsfu_training_select.fs
-LOAD_OK result=0 mode=1 file=config/games/xmvsfu_training_select.fs
-LOAD_OK result=0 mode=1 file=config/games/xmvsfu_training_select.fs
-LOAD_OK result=0 mode=1 file=config/games/xmvsfu_training_select.fs
-LOAD_OK result=0 mode=1 file=config/games/xmvsfu_training_select.fs
-LOAD_OK result=0 mode=1 file=config/games/xmvsfu_training_select.fs
-LOAD_OK result=0 mode=1 file=config/games/xmvsfu_training_select.fs
-LOAD_OK result=0 mode=1 file=config/games/xmvsfu_training_select.fs
-LOAD_OK result=0 mode=1 file=config/games/xmvsfu_training_select.fs
-LOAD_OK result=0 mode=1 file=config/games/xmvsfu_training_select.fs
->>>>>>> Stashed changes

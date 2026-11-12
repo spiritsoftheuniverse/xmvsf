@@ -3,15 +3,16 @@
 // XMVSF USA 961023: sound-CPU BGM-only muting before VS.
 // Based on the CPS2 QSound cheat for XMVSF: CPU 1, $F026/$F027 = 0.
 // Does not touch the main 68000 RAM, QSound output samples, input, or clock.
-// When the existing Stage20.1 VS detection fires, leave sound RAM untouched.
+// When Stage20.1 VS detection fires, release the mute on ordinary stages.
+// Final Destination keeps this music-only mute through combat; all native SFX remain.
 #include <cstdio>
 
 namespace xm22 {
 static bool diagnosticWritten = false;
 static unsigned int writes = 0;
 
-static inline void muteSelectionBgm(bool driverReady, bool paused, bool versusReached) {
-    if (!driverReady || paused || bBurnRunAheadFrame || versusReached) return;
+static inline void muteSelectionBgm(bool driverReady, bool paused, bool versusReached, bool fdMusic=false) {
+    if (!driverReady || paused || bBurnRunAheadFrame || (versusReached && !fdMusic)) return;
     cpu_core_config* sound = GetCpuCoreConfig(1);
     if (!sound || !sound->open || !sound->close || !sound->write) {
         if (!diagnosticWritten) {

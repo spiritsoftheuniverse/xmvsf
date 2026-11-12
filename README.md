@@ -4,6 +4,49 @@ This repository develops a native Windows X-Men vs. Street Fighter
 application with its own SDL boot menu, Training, Versus, Arcade,
 Tournament rules, DHC research tools, and full-state replay testing.
 
+## Read first: native camera and custom-stage contract
+
+**Before editing, importing, or rendering ANY custom level**, read
+`dev/stable/buildtree/src/burner/sdl/xmvsf_stage86_49_camera.h`
+and `dev/stable/buildtree/src/burner/sdl/xmvsf_stage86_49_state.h`
+(the existing native camera capture/observer implementation), then
+`dev/dhc/FINAL_DESTINATION_274.md` for the current custom-stage integration.
+The game's own camera model is authoritative—not character midpoint estimates,
+a fixed SDL viewport coordinate, or artwork-driven camera substitutions.
+
+- **Custom levels must behave like normal native levels.** The scrolling
+  arena and stationary world geometry are owned by the game's camera.
+  Foreground/platform/art must use **both native horizontal and vertical
+  camera coordinates**, not follow either player's jump or keep its floor
+  pinned to the viewport. Only parallax back layers may use different
+  camera-relative rates.
+- **Native stage-05 verified register contract:** native camera X =
+  signed 16-bit word at `0xFF524C` plus 64; native camera Y =
+  signed 16-bit word at `0xFF5250`. Super-jump observations carry Y
+  approximately **256 → 0**. This is camera motion, not a fighter Y
+  adjustment. For a bottom-registered world asset at ground camera Y=256,
+  its screen top is `224 - worldImageHeight + (256 - cameraY)` in native
+  384×224 coordinates. As the camera rises, the fixed world floor moves
+  down/off-screen rather than moving upward with the fighter.
+- **Stage-specific verification is mandatory.** Do not extrapolate the
+  stage-05 RAM addresses, vertical range, or camera origin to another
+  native stage without its own recorded camera contract. Preserve game
+  physics, camera state, and stage collision; do not write RAM to imitate
+  scenery movement.
+- Preserve the original transparent stage asset, use
+  **nearest-neighbor** sampling for pixel art, and keep scene →
+  platform → native fighters/FX → existing HUD depth.
+- Maintain camera X/Y evidence in the existing native diagnostic log.
+  Read native movement first and verify idle, jump, super jump, and
+  landing before claiming a new level behaves like a native level.
+  Local incremental `BUILD_TEST.bat` and `RUN_TEST.bat` remain the
+  only build/test entrypoints; no GitHub Actions or new build gates.
+
+This rule applies to Final Destination, Wily Factory, and any future
+custom level. If another archived camera project is used for comparison,
+the in-repository native observer and ROM camera capture are still the
+required source of truth for the active TEST branch.
+
 ## Our data-model manifesto
 
 **[READ THE REPLAY DATA MODEL MANIFESTO](REPLAY_DATA_MODEL_MANIFESTO.md)**

@@ -38,8 +38,6 @@
 #include "xm20_vs_transition.h" /* XMVSF_STAGE20_1_VERSUS */ // XMVSF_STAGE17_AUTO
 #include "xmvsf_stage16_snapshot.h" // XMVSF_STAGE16_SNAPSHOT
 #include "xmvsf_stage87_105_training_reset.h" // XM87.105 KO landing snapshot reset
-#include "xmvsf_stage87_110_restart.h" // XM87.110 training triple-tap restart
-#include "xmvsf_stage87_110_reload.h" // XM87.110 snapshot load + placement
 // XM87.105 removed supplemental flying-screen WAV; native ROM sound retained // XMVSF_STAGE15_MACHINE // XMVSF_STAGE14_TRAINING_CHEATS
 #ifdef BUILD_SDL2
 #include "sdl2_gui_common.h"
@@ -414,6 +412,9 @@ static int RunFrame(int bDraw, int bPause)
 		pBurnDraw = NULL;                    // Make sure no image is drawn
 		BurnDrvFrame();
 		if (!bPause) {
+            xm8658ObserveGamePhase(bDrvOkay); // phase 08/0A even during FD paint skips
+            // Advance native-camera OAM alignment across skipped real frames.
+            xm8649ObserveCamera(bDrvOkay);
             xm14ApplyTrainingCheats(xm14TrainingMode && !xm23State.dizzyAllowed); // XM87.100 non-rendered frame
             // Even skipped pictures must contribute one native sample;
             // the final drawn frame samples immediately before VidPaint.
@@ -425,26 +426,20 @@ static int RunFrame(int bDraw, int bPause)
     XM87206Crash::mark(340,(int)nCurrentFrame);
     xm20VsCheck(bDrvOkay,bRunPause); /* XMVSF_STAGE20_1_VERSUS */
     XM87206Crash::mark(341,(int)nCurrentFrame);
-    xm22::muteSelectionBgm(bDrvOkay, bRunPause, xm20Vs.triggered); /* XMVSF_STAGE22_SELECTION_SFX */
+    xm22::muteSelectionBgm(bDrvOkay, bRunPause, xm20Vs.triggered,
+                           (xm77StageResolved==2 || xm77StageResolved==3)); /* QSound BGM only, retain SFX */
+    // Native 08 is combat; 0A is the round-ending team KO, not a tag-out.
+    // Mixer state only; no audio decode or file reads in RunFrame.
+    if(bDrvOkay && !bBurnRunAheadFrame)
+        xm20CustomStagePhase((xm77StageResolved==2||xm77StageResolved==3)?xm77StageResolved:0,xm8658GameStatus);
     // XMVSF_STAGE23_TRAINING_MENU already sampled on both draw paths
     // BEFORE native presentation, exactly once per completed CPU frame.
     xm87118OnRealFrame(bDrvOkay); /* XM87.118 completed super-stock observer */
     xm24OnRealFrame(bDrvOkay); /* XMVSF_STAGE24_VERSUS */
-    // XM87.270: The first-live-frame saver was defined but never CALLED.
-    // Capture at the completed real-frame boundary after all CPU scopes close,
-    // before either triple-Start or KO landing can request a snapshot reload.
-    // This is shared by both Training damage modes and is a one-shot per round.
-    XM87102Lab::Capture& trainingMatch=XM87102Lab::capture();
-    trainingMatch.frame(bDrvOkay,(unsigned)nCurrentFrame);
-    if(trainingMatch.tried && trainingMatch.frames==1u)
-        XM87110::log("MATCH_START_CAPTURE frame=%u saved=%u path=%s",
-            (unsigned)nCurrentFrame,(unsigned)trainingMatch.saved,
-            XM87102Lab::SNAPSHOT);
-    // Triple-Start restart takes priority over the KO-landing autoload.
-    if(xm87110RestartAfterFrame(bDrvOkay,(unsigned)nCurrentFrame))
-        XM8764::checkpoint("TRAINING_TRIPLE_START_RELOAD");
-    else
-        xm87105TrainingResetOnLanding(bDrvOkay,(unsigned)nCurrentFrame); // KO -> landed -> match snapshot
+    // First-live-frame Training snapshot is retained for the existing
+    // KO-landing reset. Triple-Start roster replay/placement was removed.
+    XM87102Lab::capture().frame(bDrvOkay,(unsigned)nCurrentFrame);
+    xm87105TrainingResetOnLanding(bDrvOkay,(unsigned)nCurrentFrame);
     if(traceFrame){std::fprintf(stderr,"XM86.34 FIRST RunFrame reached stage5 hook\n");std::fflush(stderr);}
     // Stage86.57: stage resolution and camera were sampled before VidPaint.
     // Do not run the stage hook a second time after presenting the frame.
@@ -559,8 +554,24 @@ int RunIdle()
         }
         return 0;
     }
-    if(!xmvsfHost::frameDue(nAppVirtualFps)) return 0;
-    if(bAudPlaying) AudSoundCheck();
+    // 87.284 FD-only: a late SDL video paint cannot permanently reduce the
+    // native fight clock. Emulate up to two missed game frames without SDL
+    // paints, maintaining their real input and audio events in order, then
+    // render the final frame. Normal stages retain the old scheduler.
+    const bool fdClockRecover=xm77StageResolved==2 &&
+        xm8649Visual.sceneActive && xm8649Visual.stage==5 &&
+        !bRunPause && !bAppDoFast && !bAppDoStep;
+    const int owed=fdClockRecover?
+        xm20FrameDueCatchup(nAppVirtualFps,3):
+        xmvsfHost::frameDue(nAppVirtualFps);
+    if(owed<=0)return 0;
+    if(fdClockRecover && owed>1){
+        for(int i=1;i<owed;++i){
+            if(bAudPlaying)xm20AdvanceSoundNoPaint();
+            else RunFrame(0,0);
+        }
+    }
+    if(bAudPlaying)AudSoundCheck();
     else RunFrame(1,0);
     return 0; /* XMVSF_STAGE20_WASAPI */
 
