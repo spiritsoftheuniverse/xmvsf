@@ -52,6 +52,7 @@ struct Machine {
     Clip guileLoop; // Guile Stage has one seamless OGG loop
     Clip sigmaLoop; // Sigma Stage single seamless Vorbis loop
     Clip akumaLoop; // Akuma Stage looping Vorbis
+    Clip ryuLoop; // Ryu Stage looping Vorbis
     Clip versus; // native pre-fight versus screen, separate from stage BGM
     double meterPos[2] = {0.0,0.0};
     bool meterOn[2] = {false,false};
@@ -62,13 +63,14 @@ struct Machine {
     bool moveOn = false, confirmOn = false, fight = false, gameStarted = false;
     bool crashOn=false,welcomeOn=false,fightVoiceOn=false;
     bool musicEnabled=false; // no music before explicit menu start/reveal
-    HANDLE fdLoadThread=nullptr,guileLoadThread=nullptr,versusLoadThread=nullptr,sigmaLoadThread=nullptr,akumaLoadThread=nullptr;
+    HANDLE fdLoadThread=nullptr,guileLoadThread=nullptr,versusLoadThread=nullptr,sigmaLoadThread=nullptr,akumaLoadThread=nullptr,ryuLoadThread=nullptr;
     int versusLoadState=0; // 0=idle, 1=loading, 2=ready, 3=missing/failed
     bool versusPending=false,versusPlaying=false;
     int guileLoadState=0; // same 0/1/2/3 convention as FD
     int sigmaLoadState=0; // Sigma Stage preload result 0 idle/1 work/2 ready/3 failed
     int akumaLoadState=0; // Akuma Stage preload result
-    int activeStageMusic=0; // 0=native,2=FD,3=Guile,4=Sigma,5=Akuma
+    int ryuLoadState=0; // Ryu Stage preload result
+    int activeStageMusic=0; // 0=native,2=FD,3=Guile,4=Sigma,5=Akuma,6=Ryu
     int fdLoadState=0; // 0=never attempted,1=loading,2=ready,3=unavailable
     bool fdPending=false,fdStarted=false,fdKo=false;
     unsigned fdPhase=0u; // 0=off,1=FD intro,2=FD loop,3=Guile,4=Sigma,5=Akuma
@@ -306,6 +308,20 @@ static DWORD WINAPI akumaLoadWorker(LPVOID){
                  ok?"READY":"MISSING");
     return 0;
 }
+static DWORD WINAPI ryuLoadWorker(LPVOID){
+    SetThreadPriority(GetCurrentThread(),THREAD_PRIORITY_BELOW_NORMAL);
+    Clip music;
+    const bool ok=clipLoadOggRepo(music,"ryustage.ogg");
+    EnterCriticalSection(&m.lock);
+    if(ok){
+        m.ryuLoop=music;music.pcm=nullptr;m.ryuLoadState=2;
+    }else m.ryuLoadState=3;
+    LeaveCriticalSection(&m.lock);
+    music.release();
+    std::fprintf(stderr,"XM87.323 RYU_MUSIC_PRELOAD %s source=audio/music/ryustage.ogg\n",
+                 ok?"READY":"MISSING");
+    return 0;
+}
 // Asynchronous decode shares the same WASAPI device as menu/game/stage audio.
 static DWORD WINAPI versusLoadWorker(LPVOID){
     SetThreadPriority(GetCurrentThread(),THREAD_PRIORITY_BELOW_NORMAL);
@@ -452,6 +468,11 @@ static void fillFrames(BYTE* output, UINT32 count, const WAVEFORMATEX* fmt) {
                     m.akumaLoop.pos=0.0;m.fdGain=1.f;
                     std::fprintf(stderr,"XM87.317 AKUMA_OGG_PLAY_LOOP frames=%u\n",
                                  unsigned(m.akumaLoop.frames));
+                }else if(m.activeStageMusic==6 && m.ryuLoadState==2){
+                    m.fdPending=false;m.fdPhase=6u;
+                    m.ryuLoop.pos=0.0;m.fdGain=1.f;
+                    std::fprintf(stderr,"XM87.323 RYU_OGG_PLAY_LOOP frames=%u\n",
+                                 unsigned(m.ryuLoop.frames));
                 }
             }
             float fd=0.f;
@@ -460,6 +481,7 @@ static void fillFrames(BYTE* output, UINT32 count, const WAVEFORMATEX* fmt) {
             else if(m.fdPhase==3u)fd=linearClip(m.guileLoop,m.guileLoop.pos,ch);
             else if(m.fdPhase==4u)fd=linearClip(m.sigmaLoop,m.sigmaLoop.pos,ch);
             else if(m.fdPhase==5u)fd=linearClip(m.akumaLoop,m.akumaLoop.pos,ch);
+            else if(m.fdPhase==6u)fd=linearClip(m.ryuLoop,m.ryuLoop.pos,ch);
             if(m.fdFadeSeconds>0.f){
                 const float t=std::min(1.f,m.fdFadeElapsed/m.fdFadeSeconds);
                 m.fdGain=(1.f-t)*(1.f-t)*(1.f+2.f*t);
@@ -490,6 +512,7 @@ static void fillFrames(BYTE* output, UINT32 count, const WAVEFORMATEX* fmt) {
         else if(m.fdPhase==3u)advanceClip(m.guileLoop,musicStep,true);
         else if(m.fdPhase==4u)advanceClip(m.sigmaLoop,musicStep,true);
         else if(m.fdPhase==5u)advanceClip(m.akumaLoop,musicStep,true);
+        else if(m.fdPhase==6u)advanceClip(m.ryuLoop,musicStep,true);
         if(m.fdFadeSeconds>0.f){
             m.fdFadeElapsed+=1.f/float(hz);
             if(m.fdFadeElapsed>=m.fdFadeSeconds){
@@ -565,6 +588,10 @@ static DWORD WINAPI audioThread(LPVOID) {
 }
 static void shutdown() {
     if(!m.begun)return;
+    if(m.ryuLoadThread){
+        WaitForSingleObject(m.ryuLoadThread,INFINITE);
+        CloseHandle(m.ryuLoadThread);m.ryuLoadThread=nullptr;
+    }
     if(m.akumaLoadThread){
         WaitForSingleObject(m.akumaLoadThread,INFINITE);
         CloseHandle(m.akumaLoadThread);m.akumaLoadThread=nullptr;
@@ -592,10 +619,10 @@ static void shutdown() {
     if(m.event){CloseHandle(m.event);m.event=nullptr;}
     m.music.release();m.move.release();m.confirm.release();m.meter.release();
     m.crash.release();m.welcome.release();m.fightVoice.release();
-    m.fdStart.release();m.fdLoop.release();m.guileLoop.release();m.sigmaLoop.release();m.akumaLoop.release();
+    m.fdStart.release();m.fdLoop.release();m.guileLoop.release();m.sigmaLoop.release();m.akumaLoop.release();m.ryuLoop.release();
     m.versus.release();
     m.versusLoadState=0;m.versusPending=m.versusPlaying=false;
-    m.fdLoadState=0;m.guileLoadState=0;m.sigmaLoadState=0;m.akumaLoadState=0;m.activeStageMusic=0;
+    m.fdLoadState=0;m.guileLoadState=0;m.sigmaLoadState=0;m.akumaLoadState=0;m.ryuLoadState=0;m.activeStageMusic=0;
     m.fdPhase=0u;m.fdPending=m.fdStarted=m.fdKo=false;
     if(m.game){free(m.game);m.game=nullptr;}
     if(m.csReady){DeleteCriticalSection(&m.lock);m.csReady=false;}
@@ -683,6 +710,19 @@ void xm20AkumaPrepare(){
         if(!xm20::m.akumaLoadThread){
             xm20::m.akumaLoadState=3;
             std::fprintf(stderr,"XM87.317 AKUMA_OGG_THREAD_FAILED\n");
+        }
+    }
+    LeaveCriticalSection(&xm20::m.lock);
+}
+void xm20RyuPrepare(){
+    if(!xm20::start()||!xm20::m.csReady)return;
+    EnterCriticalSection(&xm20::m.lock);
+    if(xm20::m.ryuLoadState==0){
+        xm20::m.ryuLoadState=1;
+        xm20::m.ryuLoadThread=CreateThread(nullptr,0,xm20::ryuLoadWorker,nullptr,0,nullptr);
+        if(!xm20::m.ryuLoadThread){
+            xm20::m.ryuLoadState=3;
+            std::fprintf(stderr,"XM87.323 RYU_OGG_THREAD_FAILED\n");
         }
     }
     LeaveCriticalSection(&xm20::m.lock);
