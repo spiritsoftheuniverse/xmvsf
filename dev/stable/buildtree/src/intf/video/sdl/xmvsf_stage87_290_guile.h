@@ -166,7 +166,7 @@ struct Scene {
      viewH!=AUTHORED_H||cropStartX<0||
      cropStartX>groundW-AUTHORED_W){
    std::fprintf(stderr,
-    "XM87.300 GUILE_STALE_MANIFEST format=%d ground=(%d,%d %dx%d); regenerate with extractor\n",
+    "XM87.304 GUILE_STALE_MANIFEST format=%d ground=(%d,%d %dx%d); regenerate with extractor\n",
     formatVersion,groundX,groundY,groundW,groundH);
    failed=true;return false;
   }
@@ -237,7 +237,7 @@ struct Scene {
    }
   }
   std::fprintf(stderr,
-   "XM87.300 GUILE_SKY_SEAM bg_top_source_y=%d ground_y=%d named_bg=%d camera_y_lock=ground\n",
+   "XM87.304 GUILE_SKY_SEAM bg_top_source_y=%d ground_y=%d named_bg=%d camera_y_lock=ground\n",
    bgTopY,groundY,(int)foundNamedBg);
   fighters=SDL_CreateTexture(renderer,SDL_PIXELFORMAT_RGBA32,
        SDL_TEXTUREACCESS_STREAMING,VIEW_W,VIEW_H);
@@ -254,7 +254,7 @@ struct Scene {
    a.hold=6+(int)(rand32(a.rng)%7u);
   }
   std::fprintf(stderr,
-    "XM87.300 GUILE_READY root=%s canvas=%dx%d ground=(%d,%d %dx%d) crop=768x471 at x=%d sky=%u bg=%u ground=%u actors=%zu textures=%zu\n",
+    "XM87.304 GUILE_READY root=%s canvas=%dx%d ground=(%d,%d %dx%d) crop=768x471 at x=%d sky=%u bg=%u ground=%u actors=%zu textures=%zu\n",
     root.c_str(),canvasW,canvasH,groundX,groundY,groundW,groundH,cropStartX,
     count[0],count[1],count[2],actors.size(),layers.size());
   return true;
