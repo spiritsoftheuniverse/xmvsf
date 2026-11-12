@@ -1038,6 +1038,50 @@ INT32 Cps2Frame()
             xm87140_p1_dir,xm87140_p2_dir,
             xm8786_p1_buttons,xm8786_p2_buttons,
             romReport.verifiedSuperMask,CpsRom,(unsigned)nCpsRomLen);
+        // 87.309: read-only physical input evidence for experimental universal DHC.
+        // The old chat only reported gestures AFTER a ROM super candidate.
+        // Capture fresh physical button edges independently so a silent
+        // candidate/rejection can be distinguished from missing controller input.
+        // Never use this observer to drive a tag, alter CPS2 ports, or spend meter.
+        {
+            static unsigned lastPhysical[2]={0u,0u};
+            static bool watching=false;
+            static unsigned lastWatchFrame=~0u;
+            const bool active=xm274Unified &&
+                XM87142::ramB(CpsRamFF,0x5000u)==8u;
+            const unsigned now=(unsigned)GetCurrentFrame();
+            if(!active || (watching && now<lastWatchFrame)){
+                watching=false;lastPhysical[0]=lastPhysical[1]=0u;
+            }
+            if(active){
+                if(!watching){
+                    watching=true;
+                    XM87274Unified::state().event(now,0u,
+                        "UNIFIED_DHC_PHYSICAL_INPUT_MONITOR_ACTIVE");
+                    XM87140Chat::state().log(now,XM87140Chat::SYSTEM,
+                        "UNIFIED M68K DHC ACTIVE: physical input monitor for P1/P2");
+                }
+                const unsigned buttons[2]={xm8786_p1_buttons,xm8786_p2_buttons};
+                const unsigned directions[2]={xm87140_p1_dir,xm87140_p2_dir};
+                for(unsigned side=0u;side<2u;++side){
+                    const unsigned pressed=buttons[side]&~lastPhysical[side];
+                    if(pressed){
+                        char message[XM87140Chat::CHAT_LENGTH];
+                        const bool nativeWindow=
+                            XM87189Family::state().side[side].recognizes();
+                        std::snprintf(message,sizeof(message),
+                            "P%u DHC PHYSICAL INPUT read=%02X held=%02X dir=%X native_super=%u candidate=%u",
+                            side+1u,pressed,buttons[side],directions[side],
+                            (unsigned)nativeWindow,
+                            (unsigned)XM87140Chat::state().candidate[side]);
+                        XM87140Chat::state().log(now,XM87140Chat::INPUT,message);
+                        XM87274Unified::state().event(now,side,message);
+                    }
+                    lastPhysical[side]=buttons[side];
+                }
+                lastWatchFrame=now;
+            }
+        }
         if(dhcInput.priming)
             XM87140Chat::state().log((unsigned)GetCurrentFrame(),
                 XM87140Chat::SYSTEM,

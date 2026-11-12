@@ -496,6 +496,9 @@ def extract(data: bytes, out: Path, actor_only: str | None = None) -> list[str]:
             (out/filename).write_bytes(png_data)
         else:
             pending_pngs[filename] = png_data
+        # Print Joe's exact per-frame original PSD rectangle on BOTH full
+        # and Joe-only extracts; never silently realign authored pixel positions.
+        if role == "actor" and layer["actor"].casefold() == "joe":
             print(f"GUILE PSD JOE FRAME {layer['name']}: "
                   f"source=({layer['left']},{layer['top']},{layer['right']},{layer['bottom']}) "
                   f"padded=({image_x},{image_y},{image_w},{image_h})")
