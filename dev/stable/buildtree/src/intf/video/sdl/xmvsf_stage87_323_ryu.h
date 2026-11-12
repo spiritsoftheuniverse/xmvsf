@@ -262,13 +262,23 @@ struct Scene {
   // Log actual native X/Y and resulting parallax positions: verifies
   // horizontal movement without a synthetic camera or fighter tracking.
   if(ok && (frame<2u || frame%120u==0u)){
+   int roofX=0,roofY=0,roof2X=0,roof2Y=0,roof3X=0,roof3Y=0;
+   for(const Layer& l:layers){
+    if(l.role=="roof"){
+     roofX=xAt(l,crop,ROOF_X_PERCENT);
+     roofY=yAt(l.y,cameraY,ROOF_Y_PERCENT);
+    }else if(l.role=="roof2"){
+     roof2X=xAt(l,crop,ROOF2_X_PERCENT);
+     roof2Y=yAt(l.y,cameraY,ROOF2_Y_PERCENT);
+    }else if(l.role=="roof3"){
+     roof3X=xAt(l,crop,ROOF3_X_PERCENT);
+     roof3Y=yAt(l.y,cameraY,ROOF3_Y_PERCENT);
+    }
+   }
    std::fprintf(stderr,
-    "XM87.325 RYU_CAMERA native=%d,%d crop=%d groundX=%d roofX=%d roof2X=%d roof3X=%d roof3Y=%d\n",
-     camera,cameraY,crop,-crop,
-     -CENTER_WORLD_CROP_X-(crop-CENTER_WORLD_CROP_X)*ROOF_X_PERCENT/100,
-     -CENTER_WORLD_CROP_X-(crop-CENTER_WORLD_CROP_X)*ROOF2_X_PERCENT/100,
-     -CENTER_WORLD_CROP_X-(crop-CENTER_WORLD_CROP_X)*ROOF3_X_PERCENT/100,
-     yAt(0,cameraY,ROOF3_Y_PERCENT));
+    "XM87.325 RYU_CAMERA native=%d,%d crop=%d ground=%d,%d roof=%d,%d roof2=%d,%d roof3=%d,%d\n",
+     camera,cameraY,crop,-crop,yAt(0,cameraY,100),
+     roofX,roofY,roof2X,roof2Y,roof3X,roof3Y);
   }
   if(ok){
    xm8733Overlay(render,view);
