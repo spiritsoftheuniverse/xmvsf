@@ -817,12 +817,13 @@ int RunMessageLoop()
                             "F10 PROBE ERROR: %s",
                             bDrvOkay?"LOG FILE COULD NOT OPEN":"NO GAME ACTIVE");
                         else if(wasActive)std::snprintf(note,sizeof(note),
-                            "F10 PROBE STOP frames=%u file=%s",
+                            "F10 STOP: %u chooser/VS frames, %u combat; M68K=%s",
+                            XM87139Probe::state().precombatFrames,
                             XM87139Probe::state().frames,
-                            XM87139Probe::state().tracePath.c_str());
+                            XM87139Probe::state().nativePath.c_str());
                         else std::snprintf(note,sizeof(note),
-                            "F10 PROBE ON writing %s",
-                            XM87139Probe::state().tracePath.c_str());
+                            "F10 ON: live 68000 chooser/VS PPC capture=%s",
+                            XM87139Probe::state().nativePath.c_str());
                         XM87140Chat::state().log((unsigned)GetCurrentFrame(),
                             ok?XM87140Chat::SYSTEM:XM87140Chat::ALERT,note);
                     }
