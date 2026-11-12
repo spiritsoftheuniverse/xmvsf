@@ -1,14 +1,17 @@
 #ifndef XMVSF_STAGE87_323_RYU_H
 #define XMVSF_STAGE87_323_RYU_H
-// TEST 87.325: _art/ryustage/ryustage.png is the authoritative ground,
-// an unmodified 768x471 world/camera holder. The PSD contributes only
-// original-position parallax (sky and roof); PSD Ground/Layer 2 are NOT
-// composited. Back-to-front: Sky Top, Sky Bottom, Roof3, Roof2, Roof,
-// ground PNG, native HUD, native fighters/FX. Roof3 uses the SAME native
-// camera Y as the ground, while Roof/2 move vertically at slower rates.
-// All horizontal motion is native camera-relative, no player midpoint.
-// Original PSD out-of-canvas X/Y coordinates are preserved and clipped
-// only to the 384x224 display; no scaling/smoothing of source pixels.
+// TEST 87.326: the PNG ground uses the real native CPS2 stage-05 camera
+// X DIRECTLY: camera 0 -> PNG crop 0; camera 384 -> crop 384.
+// 87.325 wrongly subtracted 104px from native X, making the artwork
+// stand still until camera X reached 104 and losing 104px at the
+// right arena corner. The user F9 checkpoint confirms raw 68000
+// FF524C=FFC0 -> native X=0 with the fighter near X21.
+// Roof and skies retain their original authored screen registration
+// while their X parallax follows the unclamped native camera delta.
+// ALL stage layers share the very same native camera Y transform:
+// no independent Y parallax, no viewport-lock or jump-relative motion.
+// Scene order: Sky Top/Bottom -> Roof3 -> Roof2 -> Roof ->
+// unmodified 768x471 PNG ground -> native HUD -> fighters and FX.
 #include <SDL.h>
 #include <SDL_image.h>
 #include <algorithm>
@@ -25,12 +28,10 @@ static const int W=384,H=224,WORLD_W=768,WORLD_H=471;
 static const int GROUND_CAMERA_Y=256;
 static const int OPENING_NATIVE_CAMERA_X=296;
 static const int CENTER_WORLD_CROP_X=(WORLD_W-W)/2;
-// Slower X shift toward the rear of the scene; tied to Ground's
-// actual native camera displacement (never an independent clock).
+// Parallax rates are horizontal ONLY. X delta is always ROM-native,
+// not derived from the clipped Ground PNG crop. This prevents any
+// false movement/dead zone at camera boundaries.
 static const int ROOF_X_PERCENT=45,ROOF2_X_PERCENT=27,ROOF3_X_PERCENT=13;
-// Roof3 stays ground-locked in Y. Roof1 and Roof2 slide over it
-// during native super-jumps. Sky remains locked in Y to Ground.
-static const int ROOF_Y_PERCENT=50,ROOF2_Y_PERCENT=75,ROOF3_Y_PERCENT=100;
 static inline int limit(int x,int lo,int hi){return std::max(lo,std::min(hi,x));}
 struct Layer {
  SDL_Texture* tex=nullptr;
@@ -72,7 +73,7 @@ struct Scene {
   if(failed||!render)return false;
   root=locate();
   if(root.empty()){std::fprintf(stderr,
-      "XM87.325 RYU_ASSETS_MISSING extracted manifest absent; run tools/extract_ryu_stage.py\n");
+      "XM87.326 RYU_ASSETS_MISSING extracted manifest absent; run tools/extract_ryu_stage.py\n");
    failed=true;return false;
   }
   // The PSD's old Ground layer is deliberately not used: the authored
@@ -80,12 +81,12 @@ struct Scene {
   const std::string groundPath=root+"../ryustage.png";
   SDL_Surface* groundSurface=IMG_Load(groundPath.c_str());
   if(!groundSurface){
-   std::fprintf(stderr,"XM87.325 RYU_GROUND_PNG_MISSING %s: %s\n",
+   std::fprintf(stderr,"XM87.326 RYU_GROUND_PNG_MISSING %s: %s\n",
                 groundPath.c_str(),IMG_GetError());
    failed=true;return false;
   }
   if(groundSurface->w!=WORLD_W||groundSurface->h!=WORLD_H){
-   std::fprintf(stderr,"XM87.325 RYU_GROUND_BOUNDS_BAD %s got=%dx%d need=768x471\n",
+   std::fprintf(stderr,"XM87.326 RYU_GROUND_BOUNDS_BAD %s got=%dx%d need=768x471\n",
        groundPath.c_str(),groundSurface->w,groundSurface->h);
    SDL_FreeSurface(groundSurface);failed=true;return false;
   }
@@ -117,12 +118,12 @@ struct Scene {
    l.w=std::atoi(w.c_str());l.h=std::atoi(h.c_str());l.name=name;
    if(l.w<1||l.h<1||l.w>4096||l.h>4096){close();failed=true;return false;}
    SDL_Surface* surface=IMG_Load((root+file).c_str());
-   if(!surface){std::fprintf(stderr,"XM87.325 RYU_PNG_MISSING %s%s\n",
+   if(!surface){std::fprintf(stderr,"XM87.326 RYU_PNG_MISSING %s%s\n",
                             root.c_str(),file.c_str());
     close();failed=true;return false;
    }
    if(surface->w!=l.w||surface->h!=l.h){
-    std::fprintf(stderr,"XM87.325 RYU_PNG_BOUNDS_MISMATCH %s\n",name.c_str());
+    std::fprintf(stderr,"XM87.326 RYU_PNG_BOUNDS_MISMATCH %s\n",name.c_str());
     SDL_FreeSurface(surface);close();failed=true;return false;
    }
    l.tex=SDL_CreateTextureFromSurface(render,surface);SDL_FreeSurface(surface);
@@ -138,7 +139,7 @@ struct Scene {
   }
   if(!header||!hasRoof||!hasRoof2||!hasRoof3||!hasTop||!hasBottom){
    std::fprintf(stderr,
-     "XM87.325 RYU_MANIFEST_BAD canvas=%d roofs=%d/%d/%d skies=%d/%d\n",
+     "XM87.326 RYU_MANIFEST_BAD canvas=%d roofs=%d/%d/%d skies=%d/%d\n",
      (int)header,(int)hasRoof,(int)hasRoof2,(int)hasRoof3,
      (int)hasTop,(int)hasBottom);
    close();failed=true;return false;
@@ -154,29 +155,32 @@ struct Scene {
   SDL_SetTextureScaleMode(flash,SDL_ScaleModeNearest);
   loaded=true;
   std::fprintf(stderr,
-   "XM87.325 RYU_READY ground=ryustage.png world=768x471 layers=%zu clip=384x224 roofZ=3,2,1,GROUND roofXY=%d,%d roof2XY=%d,%d roof3XY=%d,%d skyTile=opposite\n",
-   layers.size(),ROOF_X_PERCENT,ROOF_Y_PERCENT,ROOF2_X_PERCENT,ROOF2_Y_PERCENT,
-   ROOF3_X_PERCENT,ROOF3_Y_PERCENT);
+   "XM87.326 RYU_READY ground=ryustage.png world=768x471 layers=%zu clip=384x224 roofZ=3,2,1,GROUND roofX=%d roof2X=%d roof3X=%d allY=native100 skyTile=opposite\n",
+   layers.size(),ROOF_X_PERCENT,ROOF2_X_PERCENT,ROOF3_X_PERCENT);
   for(const Layer& l:layers)
-   std::fprintf(stderr,"XM87.325 RYU_LAYER %s %s (%d,%d) %dx%d\n",
+   std::fprintf(stderr,"XM87.326 RYU_LAYER %s %s (%d,%d) %dx%d\n",
        l.role.c_str(),l.name.c_str(),l.x,l.y,l.w,l.h);
   return true;
  }
- // Native stage-05 world X is authoritative. The PNG's 768px canvas
- // covers the full stage width; center a 384px window at opening X296
- // and follow each subsequent ROM camera displacement 1:1.
- static int groundCrop(int camera){
-  return limit(CENTER_WORLD_CROP_X+(camera-OPENING_NATIVE_CAMERA_X),
-               0,WORLD_W-W);
+ // Native camera X already includes the CPS2 stage-05 +64 adjustment.
+ // The 768px ground has exactly a 384px scroll range, not a centered
+ // opening-camera offset. This aligns original fighter world X=0..768
+ // with image X=0..768, including BOTH arena corners.
+ static int groundCrop(int nativeCameraX){
+  return limit(nativeCameraX,0,WORLD_W-W);
  }
- // Every PSD layer keeps its absolute authored X. Moving the camera
- // slows as the layer recedes: Roof=45%, Roof2=27%, Roof3=13%.
- static int xAt(const Layer& l,int crop,int xPercent){
+ // Preserve 87.325's authored roof/sky placement at opening camera
+ // X296, while following EVERY native X change at its own slow rate.
+ // Never use the clamped ground crop as the parallax input; doing so
+ // freezes the roof at the arena edges.
+ static int xAt(const Layer& l,int nativeCameraX,int xPercent){
   return l.x-CENTER_WORLD_CROP_X-
-         (crop-CENTER_WORLD_CROP_X)*xPercent/100;
+         (nativeCameraX-OPENING_NATIVE_CAMERA_X)*xPercent/100;
  }
- static int yAt(int layerTop,int cameraY,int yPercent){
-  return H-WORLD_H+layerTop+(GROUND_CAMERA_Y-cameraY)*yPercent/100;
+ // There is NO vertical parallax. All sky, roof, and Ground layers
+ // translate exactly together with the original ROM camera Y.
+ static int yAt(int layerTop,int cameraY){
+  return H-WORLD_H+layerTop+GROUND_CAMERA_Y-cameraY;
  }
  static SDL_Rect scaledRect(const SDL_Rect& view,int x,int y,int w,int h){
   const int left=view.x+(int)std::lround(double(x)*view.w/W);
@@ -186,20 +190,20 @@ struct Scene {
   return SDL_Rect{left,top,std::max(1,right-left),std::max(1,bottom-top)};
  }
  static SDL_Rect rect(const SDL_Rect& view,const Layer& l,
-                      int crop,int cameraY,int xPercent,int yPercent){
-  return scaledRect(view,xAt(l,crop,xPercent),
-    yAt(l.y,cameraY,yPercent),l.w,l.h);
+                      int nativeCameraX,int cameraY,int xPercent){
+  return scaledRect(view,xAt(l,nativeCameraX,xPercent),
+    yAt(l.y,cameraY),l.w,l.h);
  }
  static bool drawTile(SDL_Renderer* r,const SDL_Rect& view,const Layer& l,
-                      int crop,int cameraY,unsigned long long frame,
+                      int nativeCameraX,int cameraY,unsigned long long frame,
                       int percent,int direction){
   if(l.w<1||!l.tex)return false;
   // Continuous edge-to-edge X tiling. No Y repeats, independent wobble,
   // breathing, alpha fade or pixel removal.
   const int drift=(int)((frame/12ull)%(unsigned)l.w);
-  const int origin=xAt(l,crop,percent)+direction*drift;
+  const int origin=xAt(l,nativeCameraX,percent)+direction*drift;
   const int first=((origin%l.w)+l.w)%l.w-l.w;
-  const int y=yAt(l.y,cameraY,100);
+  const int y=yAt(l.y,cameraY);
   const int top=view.y+(int)std::lround(double(y)*view.h/H);
   const int bottom=view.y+(int)std::lround(double(y+l.h)*view.h/H);
   if(bottom<=top)return true;
@@ -240,14 +244,12 @@ struct Scene {
   bool ok=true;
   for(size_t index:indices){
    const Layer& l=layers[index];
-   if(l.role=="skytop")ok=drawTile(render,view,l,crop,cameraY,frame,20,-1);
-   else if(l.role=="skybottom")ok=drawTile(render,view,l,crop,cameraY,frame,28,+1);
+   if(l.role=="skytop")ok=drawTile(render,view,l,camera,cameraY,frame,20,-1);
+   else if(l.role=="skybottom")ok=drawTile(render,view,l,camera,cameraY,frame,28,+1);
    else{
     const int rateX=l.role=="roof"?ROOF_X_PERCENT:
            l.role=="roof2"?ROOF2_X_PERCENT:ROOF3_X_PERCENT;
-    const int rateY=l.role=="roof"?ROOF_Y_PERCENT:
-           l.role=="roof2"?ROOF2_Y_PERCENT:ROOF3_Y_PERCENT;
-    const SDL_Rect dst=rect(view,l,crop,cameraY,rateX,rateY);
+    const SDL_Rect dst=rect(view,l,camera,cameraY,rateX);
     ok=SDL_RenderCopy(render,l.tex,nullptr,&dst)==0;
    }
    if(!ok)break;
@@ -255,7 +257,7 @@ struct Scene {
   // Ground PNG MUST overdraw all roof/sky layers, but native
   // fighter/FX and existing HUD remain on their established planes.
   if(ok){
-   const SDL_Rect groundDst=scaledRect(view,-crop,yAt(0,cameraY,100),
+   const SDL_Rect groundDst=scaledRect(view,-crop,yAt(0,cameraY),
                                        WORLD_W,WORLD_H);
    ok=SDL_RenderCopy(render,ground,nullptr,&groundDst)==0;
   }
@@ -265,19 +267,19 @@ struct Scene {
    int roofX=0,roofY=0,roof2X=0,roof2Y=0,roof3X=0,roof3Y=0;
    for(const Layer& l:layers){
     if(l.role=="roof"){
-     roofX=xAt(l,crop,ROOF_X_PERCENT);
-     roofY=yAt(l.y,cameraY,ROOF_Y_PERCENT);
+     roofX=xAt(l,camera,ROOF_X_PERCENT);
+     roofY=yAt(l.y,cameraY);
     }else if(l.role=="roof2"){
-     roof2X=xAt(l,crop,ROOF2_X_PERCENT);
-     roof2Y=yAt(l.y,cameraY,ROOF2_Y_PERCENT);
+     roof2X=xAt(l,camera,ROOF2_X_PERCENT);
+     roof2Y=yAt(l.y,cameraY);
     }else if(l.role=="roof3"){
-     roof3X=xAt(l,crop,ROOF3_X_PERCENT);
-     roof3Y=yAt(l.y,cameraY,ROOF3_Y_PERCENT);
+     roof3X=xAt(l,camera,ROOF3_X_PERCENT);
+     roof3Y=yAt(l.y,cameraY);
     }
    }
    std::fprintf(stderr,
-    "XM87.325 RYU_CAMERA native=%d,%d crop=%d ground=%d,%d roof=%d,%d roof2=%d,%d roof3=%d,%d\n",
-     camera,cameraY,crop,-crop,yAt(0,cameraY,100),
+    "XM87.326 RYU_CAMERA native=%d,%d crop=%d ground=%d,%d roof=%d,%d roof2=%d,%d roof3=%d,%d\n",
+     camera,cameraY,crop,-crop,yAt(0,cameraY),
      roofX,roofY,roof2X,roof2Y,roof3X,roof3Y);
   }
   if(ok){
@@ -288,7 +290,7 @@ struct Scene {
     ok=SDL_RenderCopy(render,flash,nullptr,&view)==0&&ok;
   }
   SDL_RenderSetClipRect(render,clipBefore?&previous:nullptr);
-  if(!ok)std::fprintf(stderr,"XM87.325 RYU_DRAW_FAILED %s\n",SDL_GetError());
+  if(!ok)std::fprintf(stderr,"XM87.326 RYU_DRAW_FAILED %s\n",SDL_GetError());
   return ok;
  }
 };
@@ -305,7 +307,7 @@ static inline bool paint(SDL_Renderer* r,const SDL_Rect& view){
  const int gate=(stageReady?1:0)|(nativeReady?2:0);
  if(gate!=lastGate){
   std::fprintf(stderr,
-   "XM87.325 RYU_GATE resolved=%d native_stage=%u phase=%02X camera_active=%d sprite_valid=%d sprite=%dx%d\n",
+   "XM87.326 RYU_GATE resolved=%d native_stage=%u phase=%02X camera_active=%d sprite_valid=%d sprite=%dx%d\n",
    xm77StageResolved,xm8649Visual.stage,xm8649Visual.status,
    (int)stageReady,(int)nativeReady,xm77SpriteWidth,xm77SpriteHeight);
   lastGate=gate;
