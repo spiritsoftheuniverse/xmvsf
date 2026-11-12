@@ -50,18 +50,20 @@ extern "C" int xm87137ReadMappedInput(unsigned side,unsigned ago,
                                      unsigned* frame,unsigned* direction,
                                      unsigned* held,unsigned* pressed);
 struct NativeSnapshot {
-    unsigned phase=0,step=0,p1=0,p2=0,stage=0,timer=0;
+    unsigned phase=0,step=0,p1=0,p2=0,stage=0,timer=0,actorPtr=0;
 };
 static inline NativeSnapshot snapshot(const std::uint8_t* r){
     NativeSnapshot s;
     s.phase=b(r,0x5000u);s.step=w(r,0x5104u);
     s.p1=b(r,0x5180u);s.p2=b(r,0x51a0u);
     s.stage=b(r,0x5113u);s.timer=b(r,0x5008u);
+    s.actorPtr=d(r,0xa014u);
     return s;
 }
 static inline unsigned delta(const NativeSnapshot& a,const NativeSnapshot& z){
     return (a.phase!=z.phase?1u:0u)|(a.step!=z.step?2u:0u)|
-           (a.p1!=z.p1?4u:0u)|(a.p2!=z.p2?8u:0u);
+           (a.p1!=z.p1?4u:0u)|(a.p2!=z.p2?8u:0u)|
+           (a.actorPtr!=z.actorPtr?16u:0u);
 }
 struct State;
 inline State& state(); // The 68000 post-instruction bridge needs this forward declaration.
@@ -90,16 +92,15 @@ struct State {
         std::fprintf(nativeTrace,
             "%u\t%s\t%u\t%06X\t%06X\t%02X\t%06X\t%08X\t%08X"
             "\t%02X\t%02X\t%04X\t%04X\t%02X\t%02X\t%02X\t%02X"
-            "\t%02X\t%02X\t%08X\t%u\t%u\n",
+            "\t%02X\t%02X\t%08X\t%08X\t%u\t%u\n",
             nativeFrameId,event,nativeOrdinal,
             nativeLastPpc,nativeLastNext,changes,
             nativeA6,nativeD0,nativeD1,
             before.phase,after.phase,before.step,after.step,
             before.p1,after.p1,before.p2,after.p2,
             after.stage,after.timer,
-            // FF[A014] is a native pointer, not an inferred screen label.
-            nativeRam?d(nativeRam,0xa014u):0u,
-            nativeChanges,nativeRows);
+            // FF[A014] is the actual native selection actor pointer.
+            before.actorPtr,after.actorPtr,nativeChanges,nativeRows);
         ++nativeRows;
     }
     void nativeInstruction(){
@@ -225,10 +226,11 @@ struct State {
                    "\tA6\tD0\tD1\tstatus_before\tstatus_after"
                    "\tstep_before\tstep_after\tchooserP1_before"
                    "\tchooserP1_after\tchooserP2_before\tchooserP2_after"
-                   "\tstage\ttimer\tactor_pointer\ttotal_changes\trows_before\n",
+                   "\tstage\ttimer\tactor_ptr_before\tactor_ptr_after"
+                   "\ttotal_changes\trows_before\n",
                    nativeTrace);
         std::fputs("# change_bits: 01=status FF5000; 02=step FF5104 WORD;"
-                   " 04=P1 FF5180; 08=P2 FF51A0;"
+                   " 04=P1 FF5180; 08=P2 FF51A0; 10=actor FF[A014];"
                    " INSTRUCTION_CHANGE uses executed PPC, FRAME is post-CPU\n",
                    nativeTrace);
         std::fflush(nativeTrace);
