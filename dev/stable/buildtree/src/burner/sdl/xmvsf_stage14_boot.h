@@ -113,7 +113,7 @@ static int xmvsfBootSelector(bool returningFromGame=false) {
     xm8733DizzyLoad();
     XM8755Mode::Load();
     xm8655ApplyMode(); // Apply saved DF only when the selected game is V4.
-    std::fprintf(stderr,"XMVSF NATIVE TEST 87.316 | Game Version 3/4 + independent Tournament selection\n");
+    std::fprintf(stderr,"XMVSF NATIVE TEST 87.317 | Game Version 3/4 + independent Tournament selection\n");
     std::fprintf(stderr,"XM27: boot selector ENTER (%s)\n",returningFromGame?"return":"startup");
     std::fflush(stderr);
     if(SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER | SDL_INIT_JOYSTICK | SDL_INIT_GAMECONTROLLER)!=0) {
@@ -128,13 +128,13 @@ static int xmvsfBootSelector(bool returningFromGame=false) {
     const bool xm87226FirstWindow=(sdlWindow==nullptr && !returningFromGame);
     SDL_Window* window=sdlWindow;
     if(!window){
-        window=SDL_CreateWindow("X-MEN VS. STREET FIGHTER II | TEST 87.316",
+        window=SDL_CreateWindow("X-MEN VS. STREET FIGHTER II | TEST 87.317",
             SDL_WINDOWPOS_CENTERED,SDL_WINDOWPOS_CENTERED,xm8652StartupWidth,xm8652StartupHeight,
             SDL_WINDOW_SHOWN|SDL_WINDOW_RESIZABLE);
     }
     if(!window) {fprintf(stderr,"XMVSF menu window: %s\n",SDL_GetError());return -1;}
     sdlWindow=window;
-    SDL_SetWindowTitle(window,"X-MEN VS. STREET FIGHTER II | TEST 87.316");
+    SDL_SetWindowTitle(window,"X-MEN VS. STREET FIGHTER II | TEST 87.317");
     SDL_Renderer* render=SDL_GetRenderer(window);
     const bool existingRenderer=render!=nullptr;
     if(!render)render=SDL_CreateRenderer(window,-1,SDL_RENDERER_ACCELERATED|SDL_RENDERER_PRESENTVSYNC);
@@ -231,6 +231,7 @@ static int xmvsfBootSelector(bool returningFromGame=false) {
             if(xm77StageResolved==2)xm20FDPrepare();
             if(xm77StageResolved==3)xm20GuilePrepare();
             if(xm77StageResolved==4)xm20SigmaPrepare();
+            if(xm77StageResolved==5)xm20AkumaPrepare();
             ++xm77StageRollGeneration(); // same new-session stage latch
         }
         std::fprintf(stderr,
@@ -239,7 +240,7 @@ static int xmvsfBootSelector(bool returningFromGame=false) {
         std::fflush(stderr);
         xm8652TrackWindowGeometry(window,true,"boot-exit");
         xmvsfHost::enterGame();
-        SDL_SetWindowTitle(window,"X-MEN VS. STREET FIGHTER II | TEST 87.316");
+        SDL_SetWindowTitle(window,"X-MEN VS. STREET FIGHTER II | TEST 87.317");
         return recordedChoice;
     }
     if(!introEnabled)xmvsfHost::menuStart(); /* XMVSF_STAGE20_WASAPI */
@@ -482,7 +483,7 @@ static int xmvsfBootSelector(bool returningFromGame=false) {
                 xm249SelectSessionPad(0,ev.jbutton.which);
             if(screen==5) { // Stage selection, before loading the character select save-state.
                 if(back){screen=returnScreen;menuGate.begin();continue;}
-                if(direction){stageRow=(stageRow+5+(direction>0?1:4))%5;xm25MenuSound(false);}
+                if(direction){stageRow=(stageRow+6+(direction>0?1:5))%6;xm25MenuSound(false);}
                 if(accept){
                     if(pendingMode==1)xm20MenuFight(); // Training: cue at stage confirmation
                     else xm25MenuSound(true);
@@ -492,7 +493,8 @@ static int xmvsfBootSelector(bool returningFromGame=false) {
                     if(xm77StageResolved==2)xm20FDPrepare();
                     if(xm77StageResolved==3)xm20GuilePrepare();
             if(xm77StageResolved==4)xm20SigmaPrepare();
-                    preloadRequested=(xm77StageResolved>=2&&xm77StageResolved<=4)?xm77StageResolved:0;
+            if(xm77StageResolved==5)xm20AkumaPrepare();
+                    preloadRequested=(xm77StageResolved>=2&&xm77StageResolved<=5)?xm77StageResolved:0;
                     std::fprintf(stderr,"XM86.32 STAGE MENU CONFIRM mode=%d selected=%d resolved=%d\n",pendingMode,xm77StageChoice,xm77StageResolved);std::fflush(stderr);
                     xm25BeginInputHandoff();
                     outcome=pendingMode;running=0;
@@ -607,12 +609,13 @@ static int xmvsfBootSelector(bool returningFromGame=false) {
         }
         // Begin low-priority preload when FD is highlighted; pause when leaving.
         // Do not override the final resolved choice while exiting selection.
-        const int wantStage=(screen==5 && stageRow>=2 && stageRow<=4)?stageRow:0;
+        const int wantStage=(screen==5 && stageRow>=2 && stageRow<=5)?stageRow:0;
         if(running && wantStage!=preloadRequested){
             xmFDPreloadSetActive(wantStage==2);
             if(wantStage==2)xm20FDPrepare();
             if(wantStage==3)xm20GuilePrepare();
             if(wantStage==4)xm20SigmaPrepare();
+            if(wantStage==5)xm20AkumaPrepare();
             preloadRequested=wantStage;
         }
         const float backgroundStrength=introEnabled?
@@ -664,15 +667,15 @@ static int xmvsfBootSelector(bool returningFromGame=false) {
             if(!XMGlyph::menuExit(render,"ESC TO QUIT"))
                 xmvsfPixelText(render,"ESC TO QUIT",58,
                     XMGlyph::MainLayout::ExitY,1,185,185,185);
-            if(!XMGlyph::menuVersion(render,"TEST 87.316"))
-                xmvsfPixelText(render,"TEST 87.316",896,
+            if(!XMGlyph::menuVersion(render,"TEST 87.317"))
+                xmvsfPixelText(render,"TEST 87.317",896,
                     XMGlyph::MainLayout::ExitY,1,185,185,185);
             }
         } else if(screen==5) {
             xmvsfPixelText(render,"SELECT STAGE",480,90,5,108,193,255);
-            const char* stages[5]={"RANDOM","WILY FACTORY","FINAL DESTINATION","GUILE STAGE","SIGMA STAGE"};
-            for(int i=0;i<5;++i){
-                const int y=143+i*55;
+            const char* stages[6]={"RANDOM","WILY FACTORY","FINAL DESTINATION","GUILE STAGE","SIGMA STAGE","AKUMA STAGE"};
+            for(int i=0;i<6;++i){
+                const int y=139+i*50;
                 const Uint8 bright=(i==stageRow)?255:80;
                 xmvsfPixelText(render,stages[i],480,y,4,bright,bright,bright);
             }
@@ -823,7 +826,7 @@ static int xmvsfBootSelector(bool returningFromGame=false) {
     if(outcome==0 || outcome==1 || outcome==2) { /* XMVSF_STAGE24_VERSUS */
         xmvsfHost::enterGame(); /* XMVSF_STAGE20_WASAPI */
         sdlWindow=window;
-        SDL_SetWindowTitle(sdlWindow,"X-MEN VS. STREET FIGHTER II | TEST 87.316");
+        SDL_SetWindowTitle(sdlWindow,"X-MEN VS. STREET FIGHTER II | TEST 87.317");
     } else {
         SDL_DestroyRenderer(render);
         if(window==sdlWindow)sdlWindow=nullptr;

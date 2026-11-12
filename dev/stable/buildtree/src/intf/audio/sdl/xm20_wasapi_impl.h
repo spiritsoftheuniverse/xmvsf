@@ -51,6 +51,7 @@ struct Machine {
     Clip fdStart, fdLoop; // Final Destination OGG intro and seamless loop
     Clip guileLoop; // Guile Stage has one seamless OGG loop
     Clip sigmaLoop; // Sigma Stage single seamless Vorbis loop
+    Clip akumaLoop; // Akuma Stage looping Vorbis
     Clip versus; // native pre-fight versus screen, separate from stage BGM
     double meterPos[2] = {0.0,0.0};
     bool meterOn[2] = {false,false};
@@ -61,15 +62,16 @@ struct Machine {
     bool moveOn = false, confirmOn = false, fight = false, gameStarted = false;
     bool crashOn=false,welcomeOn=false,fightVoiceOn=false;
     bool musicEnabled=false; // no music before explicit menu start/reveal
-    HANDLE fdLoadThread=nullptr,guileLoadThread=nullptr,versusLoadThread=nullptr,sigmaLoadThread=nullptr;
+    HANDLE fdLoadThread=nullptr,guileLoadThread=nullptr,versusLoadThread=nullptr,sigmaLoadThread=nullptr,akumaLoadThread=nullptr;
     int versusLoadState=0; // 0=idle, 1=loading, 2=ready, 3=missing/failed
     bool versusPending=false,versusPlaying=false;
     int guileLoadState=0; // same 0/1/2/3 convention as FD
     int sigmaLoadState=0; // Sigma Stage preload result 0 idle/1 work/2 ready/3 failed
-    int activeStageMusic=0; // 0=native,2=FD,3=Guile,4=Sigma
+    int akumaLoadState=0; // Akuma Stage preload result
+    int activeStageMusic=0; // 0=native,2=FD,3=Guile,4=Sigma,5=Akuma
     int fdLoadState=0; // 0=never attempted,1=loading,2=ready,3=unavailable
     bool fdPending=false,fdStarted=false,fdKo=false;
-    unsigned fdPhase=0u; // 0=off,1=FD intro,2=FD loop,3=Guile,4=Sigma
+    unsigned fdPhase=0u; // 0=off,1=FD intro,2=FD loop,3=Guile,4=Sigma,5=Akuma
     float fdGain=1.f,fdFadeSeconds=0.f,fdFadeElapsed=0.f;
     uint32_t gameHz = 48000;
     int16_t* game = nullptr;
@@ -136,6 +138,38 @@ static bool clipLoadRepoAudio(Clip& dst,const char* filename){
     return false;
 }
 
+// Dedicated music WAV path: the Akuma source is
+// audio/music/sf3akumastage.wav (not an OGG). Decode once on the
+// existing low-priority audio worker and feed the same WASAPI mixer.
+// The portable WAV loader accepts 48k stereo and 16-bit mono/stereo
+// sources (resamples other supported rates to 48k).
+static bool clipLoadWavRepoMusic(Clip& dst,const char* filename){
+    char base[4096]={};
+    const DWORD n=GetModuleFileNameA(nullptr,base,static_cast<DWORD>(sizeof(base)));
+    if(!n||n>=sizeof(base))return false;
+    char* slash=std::strrchr(base,'\\');
+    if(!slash)slash=std::strrchr(base,'/');
+    if(!slash)return false;
+    *(slash+1)=0;
+    const char* dirs[]={
+        "../../audio/music/","../audio/music/","audio/music/"
+    };
+    for(const char* dir:dirs){
+        char path[4096]={};
+        const int w=std::snprintf(path,sizeof(path),"%s%s%s",base,dir,filename);
+        if(w<=0||size_t(w)>=sizeof(path))continue;
+        unsigned char* pcm=nullptr;uint32_t frames=0;
+        if(xmvsfPcm::load48kStereo16(path,&pcm,&frames) ||
+           xmvsfPcm::loadEffectStereo16(path,&pcm,&frames)){
+            dst.pcm=pcm;dst.frames=frames;dst.pos=0.0;
+            std::fprintf(stderr,"XM87.317 AKUMA_WAV_LOADED path=%s frames48k=%u\n",
+                         path,unsigned(frames));
+            return true;
+        }
+    }
+    std::fprintf(stderr,"XM87.317 AKUMA_WAV_MISSING_OR_UNSUPPORTED name=%s expected=audio/music/\n",filename);
+    return false;
+}
 // Decode on a separate low-priority worker, never in fillFrames().
 static bool clipLoadOggRepo(Clip& dst,const char* filename){
     char base[4096]={};
@@ -249,6 +283,27 @@ static DWORD WINAPI sigmaLoadWorker(LPVOID){
     music.release();
     std::fprintf(stderr,"XM87.314 SIGMA_OGG_PRELOAD %s (audio/music/)\n",
                  ok?"READY":"FAILED");
+    return 0;
+}
+static DWORD WINAPI akumaLoadWorker(LPVOID){
+    SetThreadPriority(GetCurrentThread(),THREAD_PRIORITY_BELOW_NORMAL);
+    Clip music;
+    // Authored stage OGG. Missing audio never blocks stage rendering.
+    const bool ok=clipLoadWavRepoMusic(music,"sf3akumastage.wav") ||
+                  clipLoadOggRepo(music,"akumastage.ogg") ||
+                  clipLoadOggRepo(music,"sf3akuma.ogg") ||
+                  clipLoadOggRepo(music,"akuma.ogg") ||
+                  clipLoadOggRepo(music,"sf3akuma_stage.ogg");
+    EnterCriticalSection(&m.lock);
+    if(ok){
+        m.akumaLoop=music;
+        music.pcm=nullptr;
+        m.akumaLoadState=2;
+    }else m.akumaLoadState=3;
+    LeaveCriticalSection(&m.lock);
+    music.release();
+    std::fprintf(stderr,"XM87.317 AKUMA_MUSIC_PRELOAD %s source=audio/music/sf3akumastage.wav\n",
+                 ok?"READY":"MISSING");
     return 0;
 }
 // Asynchronous decode shares the same WASAPI device as menu/game/stage audio.
@@ -392,6 +447,11 @@ static void fillFrames(BYTE* output, UINT32 count, const WAVEFORMATEX* fmt) {
                     m.sigmaLoop.pos=0.0;m.fdGain=1.f;
                     std::fprintf(stderr,"XM87.314 SIGMA_OGG_PLAY_LOOP frames=%u\n",
                                  unsigned(m.sigmaLoop.frames));
+                }else if(m.activeStageMusic==5 && m.akumaLoadState==2){
+                    m.fdPending=false;m.fdPhase=5u;
+                    m.akumaLoop.pos=0.0;m.fdGain=1.f;
+                    std::fprintf(stderr,"XM87.317 AKUMA_OGG_PLAY_LOOP frames=%u\n",
+                                 unsigned(m.akumaLoop.frames));
                 }
             }
             float fd=0.f;
@@ -399,6 +459,7 @@ static void fillFrames(BYTE* output, UINT32 count, const WAVEFORMATEX* fmt) {
             else if(m.fdPhase==2u)fd=linearClip(m.fdLoop,m.fdLoop.pos,ch);
             else if(m.fdPhase==3u)fd=linearClip(m.guileLoop,m.guileLoop.pos,ch);
             else if(m.fdPhase==4u)fd=linearClip(m.sigmaLoop,m.sigmaLoop.pos,ch);
+            else if(m.fdPhase==5u)fd=linearClip(m.akumaLoop,m.akumaLoop.pos,ch);
             if(m.fdFadeSeconds>0.f){
                 const float t=std::min(1.f,m.fdFadeElapsed/m.fdFadeSeconds);
                 m.fdGain=(1.f-t)*(1.f-t)*(1.f+2.f*t);
@@ -428,6 +489,7 @@ static void fillFrames(BYTE* output, UINT32 count, const WAVEFORMATEX* fmt) {
         }else if(m.fdPhase==2u)advanceClip(m.fdLoop,musicStep,true);
         else if(m.fdPhase==3u)advanceClip(m.guileLoop,musicStep,true);
         else if(m.fdPhase==4u)advanceClip(m.sigmaLoop,musicStep,true);
+        else if(m.fdPhase==5u)advanceClip(m.akumaLoop,musicStep,true);
         if(m.fdFadeSeconds>0.f){
             m.fdFadeElapsed+=1.f/float(hz);
             if(m.fdFadeElapsed>=m.fdFadeSeconds){
@@ -503,6 +565,10 @@ static DWORD WINAPI audioThread(LPVOID) {
 }
 static void shutdown() {
     if(!m.begun)return;
+    if(m.akumaLoadThread){
+        WaitForSingleObject(m.akumaLoadThread,INFINITE);
+        CloseHandle(m.akumaLoadThread);m.akumaLoadThread=nullptr;
+    }
     if(m.sigmaLoadThread){
         WaitForSingleObject(m.sigmaLoadThread,INFINITE);
         CloseHandle(m.sigmaLoadThread);m.sigmaLoadThread=nullptr;
@@ -526,10 +592,10 @@ static void shutdown() {
     if(m.event){CloseHandle(m.event);m.event=nullptr;}
     m.music.release();m.move.release();m.confirm.release();m.meter.release();
     m.crash.release();m.welcome.release();m.fightVoice.release();
-    m.fdStart.release();m.fdLoop.release();m.guileLoop.release();m.sigmaLoop.release();
+    m.fdStart.release();m.fdLoop.release();m.guileLoop.release();m.sigmaLoop.release();m.akumaLoop.release();
     m.versus.release();
     m.versusLoadState=0;m.versusPending=m.versusPlaying=false;
-    m.fdLoadState=0;m.guileLoadState=0;m.sigmaLoadState=0;m.activeStageMusic=0;
+    m.fdLoadState=0;m.guileLoadState=0;m.sigmaLoadState=0;m.akumaLoadState=0;m.activeStageMusic=0;
     m.fdPhase=0u;m.fdPending=m.fdStarted=m.fdKo=false;
     if(m.game){free(m.game);m.game=nullptr;}
     if(m.csReady){DeleteCriticalSection(&m.lock);m.csReady=false;}
@@ -604,6 +670,19 @@ void xm20SigmaPrepare(){
         if(!xm20::m.sigmaLoadThread){
             xm20::m.sigmaLoadState=3;
             std::fprintf(stderr,"XM87.314 SIGMA_OGG_THREAD_FAILED\n");
+        }
+    }
+    LeaveCriticalSection(&xm20::m.lock);
+}
+void xm20AkumaPrepare(){
+    if(!xm20::start()||!xm20::m.csReady)return;
+    EnterCriticalSection(&xm20::m.lock);
+    if(xm20::m.akumaLoadState==0){
+        xm20::m.akumaLoadState=1;
+        xm20::m.akumaLoadThread=CreateThread(nullptr,0,xm20::akumaLoadWorker,nullptr,0,nullptr);
+        if(!xm20::m.akumaLoadThread){
+            xm20::m.akumaLoadState=3;
+            std::fprintf(stderr,"XM87.317 AKUMA_OGG_THREAD_FAILED\n");
         }
     }
     LeaveCriticalSection(&xm20::m.lock);

@@ -138,6 +138,51 @@ the warm build cache. Keeping history as-is means older Git objects remain
 reachable; this is **not** a destructive rewrite of branches, Git history,
 the Stable build, or past replay recordings.
 
+## Akuma Stage A/B visual contract (TEST 87.317)
+
+**Six original raster assets**, all under `_art/sf3akuma/`, are used directly:
+
+| Layer / depth | A, initially visible | B, revealed below A |
+|---|---|---|
+| 1. Stage (front of scenery) | `sf3akuma1_a1.png` | `sf3akuma1_b.png` |
+| 2. Moon | `sf3akuma1_a2.png` | `sf3akuma1_b2.png` |
+| 3. Clouds (farthest) | `sf3akuma1_a3.png` | `sf3akuma1_b3.png` |
+
+Both stage images are **768×471** in original native pixel units. The moon
+and cloud rasters are centered relative to the same 768×471 stage world;
+**do not strip transparent padding, rescale the large moon or cloud source,
+or force B3 to have the same dimensions as A3**. The committed B3 raster
+is 1491×1055; its actual pixels remain intact and centered. Stage moves
+with 100% native horizontal camera; moon moves at 55%, clouds at 30%;
+all use the same native vertical grounded/super-jump camera registration.
+
+**Transition is time-based, not KO-based.** Start the clock at first native
+combat phase 08. Keep A entirely visible for the first **600 emulated
+frames** (10 seconds at 60 fps). Then reveal each B layer **behind its
+matching A at the same Z depth**, and remove A over the next **2700
+emulated frames** (approximately 45 seconds), finishing at combat frame
+3300. Use world-anchored **ordered alpha dithering**, not crossfade or
+an instant swap. Keep depth order clouds → moon → stage → native stun HUD
+→ native fighter/FX, so the two stages cannot overdraw fighters during
+the transition. Renderer must not depend on first character death,
+team KO, or damage meter state; timer pauses with the emulation.
+
+The authored soundtrack is **`audio/music/sf3akumastage.wav`**,
+committed in the concurrent `audio update.` revision. The existing
+low-priority WASAPI worker loads it using the native 48k PCM WAV reader
+(with supported 16-bit conversion). Common Akuma OGG filenames are
+optional fallbacks. Akuma scenery is independent of audio load state;
+a missing/unsupported track logs `AKUMA_MUSIC_PRELOAD MISSING`.
+Never silently substitute FD, Sigma, or Guile music.
+
+To avoid the earlier Guile and Sigma culling regressions, native stage
+05 admission for Akuma ID **5** must be added consistently to the
+stage picker, selector, camera observer, **CPS2 fighter/FX capture gate**,
+palette exception, SDL compositor, native BGM suppression, and WASAPI
+stage audio. Preserve all other custom stages and Stable. Verify actual
+visual display and audio on the local Windows TEST build before claiming
+live verification.
+
 ## Our data-model manifesto
 
 **[READ THE REPLAY DATA MODEL MANIFESTO](REPLAY_DATA_MODEL_MANIFESTO.md)**

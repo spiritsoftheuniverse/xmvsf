@@ -427,11 +427,11 @@ static int RunFrame(int bDraw, int bPause)
     xm20VsCheck(bDrvOkay,bRunPause); /* XMVSF_STAGE20_1_VERSUS */
     XM87206Crash::mark(341,(int)nCurrentFrame);
     xm22::muteSelectionBgm(bDrvOkay, bRunPause, xm20Vs.triggered,
-                           (xm77StageResolved>=2 && xm77StageResolved<=4)); /* QSound BGM only, retain SFX */
+                           (xm77StageResolved>=2 && xm77StageResolved<=5)); /* QSound BGM only, retain SFX */
     // Native 08 is combat; 0A is the round-ending team KO, not a tag-out.
     // Mixer state only; no audio decode or file reads in RunFrame.
     if(bDrvOkay && !bBurnRunAheadFrame)
-        xm20CustomStagePhase((xm77StageResolved>=2&&xm77StageResolved<=4)?xm77StageResolved:0,xm8658GameStatus);
+        xm20CustomStagePhase((xm77StageResolved>=2&&xm77StageResolved<=5)?xm77StageResolved:0,xm8658GameStatus);
     // XMVSF_STAGE23_TRAINING_MENU already sampled on both draw paths
     // BEFORE native presentation, exactly once per completed CPU frame.
     xm87118OnRealFrame(bDrvOkay); /* XM87.118 completed super-stock observer */

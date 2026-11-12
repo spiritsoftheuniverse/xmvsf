@@ -535,7 +535,7 @@ static void xm8657BeginNativeGrade(){
     // except during ROM-native full-screen effects. Keep their original white
     // for the flash classifier in BOTH normal and Double Feature modes.
     // Fighter-specific monochrome, HUD and FX palette arrays remain unchanged.
-    const bool wilyNativeUnmodifiedBg=((xm77StageResolved>=1 && xm77StageResolved<=4) &&
+    const bool wilyNativeUnmodifiedBg=((xm77StageResolved>=1 && xm77StageResolved<=5) &&
              xm8649Visual.sceneActive && xm8649Visual.stage==5);
     static bool reportedWilyNativeBg=false;
     if(wilyNativeUnmodifiedBg && !reportedWilyNativeBg){
@@ -897,9 +897,9 @@ static std::vector<UINT8> xm77Pixels;
 const UINT8* xm77SpritePixels(){return xm77SpriteValid?xm77Pixels.data():NULL;}
 static void xm77CaptureSprites(){
     xm77SpriteValid=0;
-    // All custom stages (Wily 1, FD 2, Guile 3, Sigma 4) need native fighter/FX capture.
+    // All custom stages (Wily 1, FD 2, Guile 3, Sigma 4, Akuma 5) need native fighter/FX capture.
     // Double Feature remains an independent palette/lighting switch.
-    if((xm77StageResolved<1 || xm77StageResolved>4) || !xm8649Visual.sceneActive || Cps!=2 || !pBurnDraw ||
+    if((xm77StageResolved<1 || xm77StageResolved>5) || !xm8649Visual.sceneActive || Cps!=2 || !pBurnDraw ||
        nBurnBpp!=4 || nCpsScreenWidth!=384 || nCpsScreenHeight!=224 || nBurnPitch<384*4)
         return;
     const int w=384,h=224;

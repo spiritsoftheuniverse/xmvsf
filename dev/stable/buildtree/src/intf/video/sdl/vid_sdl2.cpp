@@ -61,6 +61,7 @@ static SDL_Rect dstrect;
 #include "xmvsf_stage87_274_final_destination.h" // custom stage: sky / platform / native fighter layers
 #include "xmvsf_stage87_290_guile.h" // custom Guile PSD layers / native camera
 #include "xmvsf_stage87_314_sigma.h" // authored Sigma PNG, delayed warm glow
+#include "xmvsf_stage87_317_akuma.h" // native camera Akuma A/B dither / parallax
 // Shared menu-to-video preload bridge: no SDL texture calls from the worker.
 void xmFDPreloadSetActive(bool enabled){
  XMFDVideo::preload().setEnabled(enabled);
@@ -194,6 +195,7 @@ static int Exit()
     XMFD::cleanup(); // Release procedural Final Destination and original platform textures.
     XMGuile::cleanup(); // Release all Guile PSD textures on renderer shutdown.
     XMSigma::cleanup(); // Sigma base art and cached glow-mask textures.
+    XMAkuma::cleanup(); // Akuma A/B PNG pairs and fighter layers.
     xm8649VideoCleanup(); // XM86.49 release textures before renderer destruction
     if(xm8733Texture){SDL_DestroyTexture(xm8733Texture);xm8733Texture=NULL;}
     if(xm87217FloatTexture){
@@ -789,7 +791,8 @@ static int Paint(int bValidate)
     // 64 blank framebuffer rows. Read-only diagnostics identify any DF offset.
     SDL_Rect xm87127View=dstrect;
     XM87206Crash::mark(420,nFramesEmulated);
-	const bool xm8649Painted=XMSigma::paint(sdlRenderer,xm87127View) ||
+	const bool xm8649Painted=XMAkuma::paint(sdlRenderer,xm87127View) ||
+                             XMSigma::paint(sdlRenderer,xm87127View) ||
                              XMGuile::paint(sdlRenderer,xm87127View) ||
                              XMFD::paint(sdlRenderer,xm87127View) ||
 	                         xm8649Paint(sdlRenderer,xm87127View);

@@ -5,8 +5,8 @@
 // Implemented in the SDL video TU; no new link target or render-thread decoder.
 void xmFDPreloadSetActive(bool enabled);
 void xmFDPreloadRelease();
-extern int xm77StageChoice;    // 0 Random, 1 Wily, 2 FD, 3 Guile, 4 Sigma
-extern int xm77StageResolved;  // 0 native, 1 Wily, 2 FD, 3 Guile, 4 Sigma
+extern int xm77StageChoice;    // 0 Random, 1 Wily, 2 FD, 3 Guile, 4 Sigma, 5 Akuma
+extern int xm77StageResolved;  // 0 native, 1 Wily, 2 FD, 3 Guile, 4 Sigma, 5 Akuma
 // Shared across the host menu and emulation translation units.
 inline unsigned& xm77StageRollGeneration(){static unsigned value=0;return value;}
 static inline void xm77RollStage() {
@@ -19,9 +19,10 @@ static inline void xm77RollStage() {
     else if(xm77StageChoice==2)xm77StageResolved=2;
     else if(xm77StageChoice==3)xm77StageResolved=3;
     else if(xm77StageChoice==4)xm77StageResolved=4;
+    else if(xm77StageChoice==5)xm77StageResolved=5;
     else {
-        const int roll=std::rand()%16; // 12 original stages, plus four custom
-        xm77StageResolved=roll==0?1:(roll==1?2:(roll==2?3:(roll==3?4:0)));
+        const int roll=std::rand()%17; // 12 original stages, plus five custom
+        xm77StageResolved=(roll>=0&&roll<=4)?roll+1:0;
     }
     ++xm77StageRollGeneration();
 }
