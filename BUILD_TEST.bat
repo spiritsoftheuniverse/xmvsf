@@ -8,6 +8,13 @@ REM Freeze the target for this invocation: updates during a long build must not
 REM make the wrapper look for a different version than the shell published.
 set "XMVSF_TEST_VERSION=87.300"
 set "XMVSF_TEST_TAG=%XMVSF_TEST_VERSION:.=_%"
+REM Explicit Joe-only refresh: BUILD_TEST.bat joe. No other PSD PNG is touched.
+REM Normal BUILD_TEST.bat keeps the original complete SHA-inventory validation.
+set "XMVSF_GUILE_ACTOR_ONLY="
+if /I "%~1"=="joe" (
+  set "XMVSF_GUILE_ACTOR_ONLY=Joe"
+  echo Joe-only Guile PSD refresh requested; build still uses native warm cache.
+)
 REM Build logs are written BEFORE checking prerequisites. This path is
 REM stable across point versions and never touches or deletes build objects.
 set "LOGDIR=%PROJECT%\test\build_logs"
