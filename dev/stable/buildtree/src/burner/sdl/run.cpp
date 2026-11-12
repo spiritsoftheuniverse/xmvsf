@@ -398,6 +398,8 @@ static int RunFrame(int bDraw, int bPause)
             xm77ApplyNativeStage5(bDrvOkay,false);
             xm8658ObserveGamePhase(bDrvOkay);
             xm8649ObserveCamera(bDrvOkay);
+            // Cue audio on the first native VS frame, BEFORE VidPaint.
+            xm20VsCheck(bDrvOkay,bRunPause);
             xm14ApplyTrainingCheats(xm14TrainingMode && !xm23State.dizzyAllowed); // XM87.44: before first presentation
         }
 	    if(traceFrame){std::fprintf(stderr,"XM86.34 FRAME1 BEFORE_VIDPAINT\n");std::fflush(stderr);}
@@ -413,6 +415,7 @@ static int RunFrame(int bDraw, int bPause)
 		BurnDrvFrame();
 		if (!bPause) {
             xm8658ObserveGamePhase(bDrvOkay); // phase 08/0A even during FD paint skips
+            xm20VsCheck(bDrvOkay,bRunPause); // precombat VS cue on skipped frames
             // Advance native-camera OAM alignment across skipped real frames.
             xm8649ObserveCamera(bDrvOkay);
             xm14ApplyTrainingCheats(xm14TrainingMode && !xm23State.dizzyAllowed); // XM87.100 non-rendered frame
@@ -424,7 +427,7 @@ static int RunFrame(int bDraw, int bPause)
 
 	if (!bPause) { /* XM87.44: Training applied before VidPaint, not after */ xm15OnRealFrame(bDrvOkay); xm17OnRealFrame(bDrvOkay); xm18ApplyPosition(bDrvOkay); /* XMVSF_STAGE18_POSITION */
     XM87206Crash::mark(340,(int)nCurrentFrame);
-    xm20VsCheck(bDrvOkay,bRunPause); /* XMVSF_STAGE20_1_VERSUS */
+    // VS screen transition already checked before native presentation above.
     XM87206Crash::mark(341,(int)nCurrentFrame);
     xm22::muteSelectionBgm(bDrvOkay, bRunPause, xm20Vs.triggered,
                            (xm77StageResolved>=2 && xm77StageResolved<=5)); /* QSound BGM only, retain SFX */
