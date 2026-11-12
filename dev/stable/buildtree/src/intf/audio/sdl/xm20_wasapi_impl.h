@@ -386,7 +386,14 @@ static void fillFrames(BYTE* output, UINT32 count, const WAVEFORMATEX* fmt) {
         BYTE* dest=output+static_cast<size_t>(i)*fmt->nBlockAlign;
         for(unsigned ch=0;ch<channels;ch++)putSample(dest,ch,bits,floats,ch<2?channelsOut[ch]:0.f);
         if(m.musicEnabled)advanceClip(m.music,musicStep,true);
-        if(m.versusPlaying)advanceClip(m.versus,musicStep,true);
+        if(m.versusPlaying){
+            // VS theme is authored as a one-shot, never a loop.
+            advanceClip(m.versus,musicStep,false);
+            if(m.versus.pos>=m.versus.frames){
+                m.versusPlaying=false;
+                std::fprintf(stderr,"XM87.312 VERSUS_OGG_COMPLETE_ONCE\n");
+            }
+        }
         if(m.fdPhase==1u){
             advanceClip(m.fdStart,musicStep,false);
             if(m.fdStart.pos>=m.fdStart.frames)m.fdPhase=2u; // one-shot intro -> loop
@@ -730,6 +737,8 @@ void xm20OnCombat(){
 void xm20CombatMusicHandoff(){
     if(!xm20::m.csReady)return;
     EnterCriticalSection(&xm20::m.lock);
+    const bool changed=xm20::m.musicEnabled || xm20::m.versusPending ||
+                       xm20::m.versusPlaying || !xm20::m.fight;
     xm20::m.musicEnabled=false;
     xm20::m.musicGain=xm20::m.musicTarget=0.f;
     xm20::m.fadeFrom=xm20::m.fadeSeconds=xm20::m.fadeElapsed=0.f;
@@ -737,7 +746,7 @@ void xm20CombatMusicHandoff(){
     xm20::m.versus.pos=0.0;
     xm20::m.fight=true;
     LeaveCriticalSection(&xm20::m.lock);
-    std::fprintf(stderr,"XM87.311 COMBAT_FALLBACK_MUSIC_CUT\n");
+    if(changed)std::fprintf(stderr,"XM87.312 COMBAT_MUSIC_CUT\n");
 }
 void xm20ClockReset(){xm20::clockStarted=false;}
 // Stage 87.284: bounded elapsed-time catch-up. The legacy frameDue()

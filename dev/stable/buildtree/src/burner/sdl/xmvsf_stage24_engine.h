@@ -153,7 +153,7 @@ static inline void xm24HandlePendingCommand() {
         xm24Log("RESELECT_LOADED_SCORE_RETAINED");
     } else {
         xm20Vs.triggered=true;
-        xmvsfHost::enterVs();
+        xmvsfHost::enterCombat(); // loaded directly into battle, no VS track
         xm24Log("REMATCH_LOADED_SCORE_RETAINED");
     }
     bRunPause=0;

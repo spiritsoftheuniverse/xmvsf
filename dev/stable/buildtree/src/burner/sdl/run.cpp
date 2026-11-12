@@ -446,7 +446,7 @@ static int RunFrame(int bDraw, int bPause)
     if(traceFrame){std::fprintf(stderr,"XM86.34 FIRST RunFrame stage5 hook returned\n");std::fflush(stderr);}
     XM87206Crash::mark(350,(int)nCurrentFrame);
     if (bDrvOkay && !bBurnRunAheadFrame && !bRunPause) {
-        if (xm18Position.combat) xmvsfHost::enterVs();
+        if (xm18Position.combat) xmvsfHost::enterCombat();
         else if (!xm14TrainingMode) {
             static unsigned xm20ScanFrames=0;
             if ((++xm20ScanFrames & 7)==0) {
@@ -455,7 +455,7 @@ static int RunFrame(int bDraw, int bPause)
                     cpu->open(0);
                     const bool live=(cpu->read(0xFF5000)==0x08);
                     cpu->close();
-                    if(live)xmvsfHost::enterVs();
+                    if(live)xmvsfHost::enterCombat();
                 }
             }
         }

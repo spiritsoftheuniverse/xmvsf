@@ -10,7 +10,7 @@ struct XM20VsTracker {
     unsigned int polls=0, selectionSamples=0, nonActorSamples=0;
     unsigned int selectionStatus=0xffffffffu, previousStatus=0xffffffffu;
     unsigned int previousPointer=0xffffffffu;
-    bool armed=false, triggered=false;
+    bool armed=false, triggered=false, combatNotified=false;
     FILE* log=nullptr;
 };
 static XM20VsTracker xm20Vs;
@@ -26,52 +26,43 @@ static inline void xm20VsLog(const char* why,unsigned int status,unsigned int p1
 }
 
 static inline void xm20VsCheck(int ready,int paused) {
-    if(!ready || paused || bBurnRunAheadFrame || xm20Vs.triggered) return;
+    if(!ready || paused || bBurnRunAheadFrame || xm20Vs.combatNotified)return;
     cpu_core_config* cpu=GetCpuCoreConfig(0);
     if(!cpu || !cpu->open || !cpu->close || !cpu->read)return;
     cpu->open(0);
-    const unsigned int status=cpu->read(0xFF5000)&255u;
-    const unsigned int p1ptr=((cpu->read(0xFFA014)&255u)<<24)|
-       ((cpu->read(0xFFA015)&255u)<<16)|
-       ((cpu->read(0xFFA016)&255u)<<8)|(cpu->read(0xFFA017)&255u);
+    // FF5000 first transitions out of character select to the native
+    // pre-fight/VS sequence at 02. The fighter pointer often remains
+    // unset until COMBAT; waiting for it moves the BGM one screen late.
+    const unsigned status=cpu->read(0xFF5000u)&255u;
+    const unsigned p1ptr=((cpu->read(0xFFA014u)&255u)<<24)|
+       ((cpu->read(0xFFA015u)&255u)<<16)|
+       ((cpu->read(0xFFA016u)&255u)<<8)|(cpu->read(0xFFA017u)&255u);
     cpu->close();
     ++xm20Vs.polls;
-    const bool combat=(status==0x08 && p1ptr==0x00FF4000);
-    if (combat) {
-        // Stage20's existing combat detector remains the ultimate fallback.
-        xm20VsLog("COMBAT_FALLBACK",status,p1ptr);
+    if(status==0x08u) {
+        // Combat always terminates the VS track. If this session skipped
+        // pre-combat statuses, cut menu music, but do NOT start VS music late.
+        if(!xm20Vs.triggered)xm20VsLog("COMBAT_WITHOUT_VS_PHASE",status,p1ptr);
+        else xm20VsLog("VS_TO_COMBAT",status,p1ptr);
         xm20Vs.triggered=true;
-        // Actual COMBAT is too late to start versus music. Cut both
-        // menu and VS tracks now; the pre-combat candidate is the only
-        // permissible VS song start, and stage audio remains authoritative.
+        xm20Vs.combatNotified=true;
         xmvsfHost::enterCombat();
         return;
     }
-    // The stage17 select state is from the XMVSF gameplay sources, not from a
-    // guessed MvC RAM layout. Training's save state arms this immediately.
-    if(xm14TrainingMode && (xm17.phase==XM17_P1 || xm17.phase==XM17_P1_SETTLE || xm17.phase==XM17_P2)) {
-        if(xm20Vs.selectionStatus==status)++xm20Vs.selectionSamples;
-        else {xm20Vs.selectionStatus=status;xm20Vs.selectionSamples=1;}
-        if(xm20Vs.selectionSamples>=8)xm20Vs.armed=true;
-    }
-    if(p1ptr!=0x00FF4000 && status!=0x08) {
-        if(xm20Vs.nonActorSamples<100000)++xm20Vs.nonActorSamples;
-    }
-    const bool trainingExit=(xm14TrainingMode && xm17.phase==XM17_DONE &&
-       xm20Vs.armed && status!=xm20Vs.selectionStatus && status!=0x08);
-    // This is deliberately conservative for Arcade: a valid active-fighter
-    // pointer while match status is not yet 8 implies pre-combat setup.
-    // If the pointer is not initialized until combat, existing fallback works.
-    const bool actorSetup=(xm20Vs.nonActorSamples>=20 &&
-       p1ptr==0x00FF4000 && status!=0x08);
-    if((trainingExit||actorSetup) && !xm20Vs.triggered) {
-        xm20VsLog(trainingExit?"TRAINING_SELECT_EXIT_VS_CANDIDATE":"PRECOMBAT_ACTOR_VS_CANDIDATE",status,p1ptr);
+    if(!xm20Vs.triggered && status>=0x02u && status<0x08u) {
+        xm20VsLog("VS_NATIVE_PRECOMBAT_PHASE",status,p1ptr);
         xm20Vs.triggered=true;
-        xmvsfHost::enterVs(); // XMVSF_STAGE21_BOUNDARY: host boundary; no clock changes
-    } else if(status!=xm20Vs.previousStatus || p1ptr!=xm20Vs.previousPointer) {
-        // Log only transitions for compact diagnostics. First 6000 frames max.
-        if(xm20Vs.polls<6000)xm20VsLog("PHASE_OBSERVED",status,p1ptr);
+        xmvsfHost::enterVs();
+        xm20Vs.previousStatus=status;
+        xm20Vs.previousPointer=p1ptr;
+        return;
     }
+    // Observe the pre- versus character-select phase without treating
+    // a late actor pointer as screen identity.
+    if(!xm20Vs.triggered &&
+       (status!=xm20Vs.previousStatus || p1ptr!=xm20Vs.previousPointer) &&
+       xm20Vs.polls<6000u)
+        xm20VsLog("SELECTION_PHASE",status,p1ptr);
     xm20Vs.previousStatus=status;
     xm20Vs.previousPointer=p1ptr;
 }
