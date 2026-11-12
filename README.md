@@ -128,6 +128,50 @@ are populated. Read `RYU_GATE`, `RYU_READY`, `RYU_ASSETS_MISSING`
 and `RYU_DRAW_FAILED` in the live TEST log; never diagnose a blank
 custom stage by rewriting parallax coordinates first.
 
+## Ryu Stage 87.325 — PNG ground and native roof parallax
+
+The user's new `_art/ryustage/ryustage.png` is now the **only Ground**.
+Its original **768×471 RGBA** is loaded without scaling, recropping or
+regenerating it from Photoshop. The 384×224 native view begins centered
+at X=192 of the PNG when the real stage-05 ROM camera X=296. Ground
+follows the native camera X **one authored pixel per camera pixel**,
+bounded by the 768px image's full width. At camera Y=256 its bottom
+source row is anchored to viewport Y=224; during super-jumps the native
+vertical camera moves the floor down/off-screen. Neither player nor
+combat collision/camera registers are modified.
+
+The current 768×471 PSD has exactly five named parallax roles:
+Sky Bottom, Sky Top, Roof3, Roof2, and Roof. All retain original
+Photoshop dimensions and X/Y coordinates, including overflow beyond
+the PSD canvas. Its unnamed opaque Layer 2 construction raster does
+**not** render or cover the skies. The obsolete prior PSD Ground PNG
+remains historical generated data and is not used. The extraction
+manifest records only the five active roles; the edited Roof2
+texture was regenerated while the four unchanged named textures
+were retained. PSD/extractor SHA warm caching remains enabled.
+
+**Render order, back to front:** Sky Top -> Sky Bottom -> Roof3 ->
+Roof2 -> Roof -> `ryustage.png` Ground -> original HUD ->
+native fighter/FX and flashes. Ground is above *all* parallax,
+not underneath any roof.
+
+All X rates use the ROM camera displacement relative to Ground at
+100%: Roof **45%**, Roof2 **27%**, Roof3 **13%**, so the foremost
+Roof moves visibly yet slowly as the native camera scrolls. Roof3
+tracks Ground's Y at **100%**; Roof2 moves at **75%** Y and Roof
+at **50%** Y, creating visible relative vertical motion as the
+camera rises. Sky Top and Bottom tile left/right respectively and
+retain Ground-locked vertical position.
+
+On Windows TEST 87.325, use the established `RYU_GATE` and
+`RYU_READY` logs plus `RYU_GROUND_PNG_MISSING`,
+`RYU_GROUND_BOUNDS_BAD`, `RYU_CAMERA`, and
+`RYU_DRAW_FAILED` to confirm the image and native camera.
+The mandatory camera/OBJ-capture/palette stage ID 6 gates remain
+unchanged. Actual gameplay validation requires local
+`BUILD_TEST.bat` and `RUN_TEST.bat`; a source check is not a
+claim that the Windows renderer was run.
+
 ## Verified versus-screen M68K checkpoint — TEST 87.324
 
 The original uploaded **87.320** F9 recording starts with a
