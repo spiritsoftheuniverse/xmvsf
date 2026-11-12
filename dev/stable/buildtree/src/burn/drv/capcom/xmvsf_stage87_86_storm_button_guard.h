@@ -18,6 +18,11 @@
 // animation pointer or Stage87.80's previously overwritten launch velocity.
 // This closes the 87.84 shortcut where a Storm soft-reaction medium could be
 // converted solely through an exact animation pointer and victim velocity.
+// TEST 87.327: the later per-hit FS baseline accidentally bypassed this guard:
+// any 18xx/1Axx normal (including Ryu 1A02/MK) could latch a Storm
+// knockdown and overwrite vertical velocity 9 frames later. Physical
+// HP/HK identity plus a matching heavy action is mandatory for ALL host
+// velocity/state writes; light/medium hits still count for combo history.
 // Normal heavy action codes are provisional until ROM/input verification.
 // Original Cyclops down+MP, Wolverine Drill Claw and protected Stable unchanged.
 #include <cstdint>
@@ -97,6 +102,17 @@ static inline bool groundedNormalHeavy(unsigned action){
     return groundedNormalAttack(action) &&
            (suffix==0x0004u || suffix==0x000au);
 }
+// Only a newly CONFIRMED physical HP/HK is permitted to request a
+// Tournament flying-screen rewrite. Animation-only classification is
+// insufficient: shared 1A04 animations can represent medium attacks.
+// Light/medium hits retain the original native reaction and velocity.
+static inline bool confirmedHeavyNormal(unsigned action,unsigned button,
+                                        bool buttonEvidence,bool airborne,
+                                        bool grounded){
+    if(!buttonEvidence || (button!=(1u<<2u) && button!=(1u<<5u)))return false;
+    return (airborne && heavyAirAttack(action)) ||
+           (grounded && groundedNormalHeavy(action));
+}
 // XM87.124: fighter +0x52 is the ROM's character-id field. Values below
 // follow the native roster convention (Cyclops=0x02 in 87.119 snapshots).
 // Unknown button evidence on a heavy action fails closed for these two.
@@ -156,6 +172,7 @@ struct Actor {
     bool fsConditionalPending=false,fsPendingGround=false,fsPendingSevere=false,fsPendingCharlieHK=false;
     bool fsPendingOriginGrounded=false;
     unsigned fsPendingAge=1000u,fsPendingAction=0u,fsPendingSerial=0u;
+    unsigned fsPendingButton=0u; // confirmed HP/HK at original hit; never reassigned
     unsigned fsPendingPreviousHitButton=0u;
     unsigned fsPendingAttacker=~0u,fsPendingVictim=~0u;
     unsigned lastConnectedButton=0u,lastConnectedAttacker=~0u,lastConnectedVictim=~0u;
@@ -174,7 +191,8 @@ struct Actor {
         pendingAge=1000;pendingButton=0;nativeLaunched=false;
         fsConditionalPending=false;fsPendingSevere=false;fsPendingCharlieHK=false;
         fsPendingAge=1000u;
-        fsPendingAction=0u;fsPendingSerial=0u;fsPendingGround=false;
+        fsPendingAction=0u;fsPendingSerial=0u;fsPendingButton=0u;
+        fsPendingGround=false;
         // This air-sequence gate deliberately survives ordinary combo
         // gaps. Only tag-out, a confirmed landing, or match exit clears
         // postFlightNeedsNativeLanding.
@@ -224,7 +242,7 @@ struct Actor {
             postFlightNeedsNativeLanding=false;
             fsConditionalPending=false;
             fsPendingSevere=false;fsPendingCharlieHK=false;
-            fsPendingAge=1000u;
+            fsPendingAge=1000u;fsPendingButton=0u;
             lastConnectedButton=0u;
             lastConnectedAttacker=~0u;
             lastConnectedVictim=~0u;
@@ -303,7 +321,7 @@ struct Actor {
             // an old HP/HK cannot leak into a subsequent LP/LK/MP.
             fsConditionalPending=false;
             fsPendingSevere=false;fsPendingCharlieHK=false;
-            fsPendingAge=1000u;
+            fsPendingAge=1000u;fsPendingButton=0u;
             // A new hit invalidates any older pending Storm conversion.
             pendingSevere=false;pendingStormRepeatHK=false;pendingAge=1000u;pendingButton=0u;
             d.buttonAge=recentButtonAge;
@@ -336,11 +354,12 @@ struct Actor {
                 groundAttackNow)?d.taggedButton:0u;
             lastConnectedAttacker=d.attackerId;
             lastConnectedVictim=d.victimId;
-            // 87.231: FS is a FLOOR, not a once-per-landing permission
-            // to hit the victim. EVERY newly connected normal during an
-            // existing FS gets its own Storm baseline at that hit's native
-            // substate 2. Only the two explicit finishers upgrade to Cyclops.
-            // Keep protected original native moves untouched.
+            // 87.327: Tournament is permitted to modify only CONFIRMED
+            // HP/HK finishing knockdowns. The older 87.231 blanket FS
+            // baseline on every normal hit rewrote Ryu 1A02/MK, 1800/LP
+            // and other medium/light attacks while a previous FS lingered.
+            // Keep their native upward velocity and reaction untouched.
+            // All connected hits still update the HP->HK combo ledger.
             const Signature* fsSignature=match(d.attackerBank,d.attackerAction,
                 d.attackerPointer,d.victimActionBefore,d.victimProfileBefore);
             const bool protectedFSNative=
@@ -348,8 +367,11 @@ struct Actor {
                 excludedCharacterHP(d.attackerId,d.attackerAction,d.taggedButton) ||
                 isDrillCandidate(d.attackerAction) ||
                 (fsSignature && fsSignature->preserveNative);
+            const bool confirmedHeavy=confirmedHeavyNormal(
+                d.attackerAction,d.taggedButton,d.buttonEvidence,
+                attackerAir,attackerGrounded);
             const bool fsStormBaseline=flightAlready && !protectedFSNative &&
-                (normalAirAttack(d.attackerAction) || groundAttackNow);
+                confirmedHeavy;
             if(enabled && fsStormBaseline){
                 fsConditionalPending=true;
                 // Charlie's separately accepted first HK severe is an
@@ -362,6 +384,7 @@ struct Actor {
                 fsPendingPreviousHitButton=d.previousHitButton;
                 fsPendingAge=0u;
                 fsPendingAction=d.attackerAction;
+                fsPendingButton=d.taggedButton; // immutable hit identity
                 fsPendingSerial=attackSerial;
                 fsPendingAttacker=d.attackerId;
                 fsPendingVictim=d.victimId;
@@ -398,8 +421,10 @@ struct Actor {
                 (d.attackerAction==0x1A04u || d.attackerAction==0x1804u);
             const bool stormRepeatHK=stormConfirmedHeavy && d.taggedButton==(1u<<5) &&
                 connectedStormHeavyHits>0u && d.hadConnectedAirHit;
+            // The older fallback severe conversion is ALSO a RAM writer:
+            // it must not infer HP/HK from shared move animation alone.
             d.heavyFollowup=d.hadConnectedAirHit && (d.nativeLaunched || stormRepeatHK) &&
-                d.provisionalHeavy && !medium && paired &&
+                d.provisionalHeavy && !medium && paired && confirmedHeavy &&
                 !isDrillCandidate(d.attackerAction) && !d.characterHPExcluded;
             if(stormConfirmedHeavy)++connectedStormHeavyHits;
             d.candidate=d.heavyFollowup;
@@ -479,14 +504,21 @@ struct Actor {
             const bool nativePair=paired ||
                 nativeLaunchReaction(d.victimActionBefore,
                                      d.victimProfileBefore);
+            // Defense in depth: a previous attack's button, or an
+            // ambiguous/medium hit, can never survive into a velocity
+            // write even if a future change accidentally re-arms FS.
+            const bool originalHeavy=
+                (fsPendingButton==(1u<<2u) || fsPendingButton==(1u<<5u)) &&
+                (heavyAirAttack(fsPendingAction) ||
+                 groundedNormalHeavy(fsPendingAction));
             const bool expired=fsPendingAge>24u || !enabled || !combat ||
-                !sameHit || nativeLanded ||
+                !originalHeavy || !sameHit || nativeLanded ||
                 !(postFlightNeedsNativeLanding || stormFlightUsedUntilLanding) ||
                 d.reaction!=0x000cu || d.y>=472u;
             if(expired){
                 fsConditionalPending=false;
                 fsPendingSevere=false;fsPendingCharlieHK=false;
-                fsPendingAge=1000u;
+                fsPendingAge=1000u;fsPendingButton=0u;
                 d.outcome="FS_HIT_CONVERSION_CANCELLED";
             }else if(d.substate==2u && nativePair){
                 d.candidate=true; // also log native-steep preservation
@@ -533,7 +565,7 @@ struct Actor {
                 }
                 fsConditionalPending=false;
                 fsPendingSevere=false;fsPendingCharlieHK=false;
-                fsPendingAge=1000u;
+                fsPendingAge=1000u;fsPendingButton=0u;
             }
         }
         if(pendingSevere && !d.hitConfirmed){
@@ -545,9 +577,12 @@ struct Actor {
             const bool alreadyNativeSteep=severe &&
                 signedFixed(d.beforeY)>=0x00100000LL &&
                 magnitude(signedFixed(d.beforeX))<=0x000a0000LL;
+            const bool pendingHeavy=
+                (pendingButton==(1u<<2u) || pendingButton==(1u<<5u)) &&
+                heavyAirAttack(pendingAction);
             const bool stale=stormFlightUsedUntilLanding ||
               (postFlightNeedsNativeLanding && !alreadyNativeSteep) ||
-              pendingAge>24u || !combat || !attackerAir ||
+              !pendingHeavy || pendingAge>24u || !combat || !attackerAir ||
               d.reaction!=0x000Cu || d.y>=472u ||
               d.attackerAction!=pendingAction || d.attackerBank!=pendingBank ||
               d.attackerId!=pendingAttackerId || (!nativeLaunched && !pendingStormRepeatHK);
@@ -638,7 +673,7 @@ struct Controller {
             log=std::fopen(path,"wb");
             if(log)std::fputs("frame\tvictim\tattacker_bank\tattacker_action\tattacker_pointer\treaction\tsubstate\ty\tvictim_action_before\tvictim_profile_before\toriginal_vx\toriginal_vy\tfinal_vx\tfinal_vy\tvictim_action_after\tvictim_profile_after\trom_signature_matched\tfirst_air_followup\tair_attack_index\theavy_followup\tnew_air_attack\tconnected_hits_before\tconnected_hits_after\tcombo_continuous\thit_confirmed\tvelocity_written\tstate_pair_written\texcluded\tbutton_bits\tbutton_tag\tbutton_age\tbutton_evidence\tstorm_mk\tstorm_heavy\tdecision\tattacker_id\tvictim_id\tobserved_native_launch\tcharacter_hp_excluded\tprevious_confirmed_hit_button\tattacker_grounded\tfs_active\n",log);
         }
-        std::fprintf(stderr,"XM87.231 FS_STORM_PER_HIT_SEVERE_PRIORITY_READY enabled=%d fallback_x=0010AA00 fallback_y=0000B000 index=0230 fs_latch_until_landing=1 protected_drill=2C1E,2C46\n",int(enabled));
+        std::fprintf(stderr,"XM87.327 FS_HEAVY_ONLY_READY enabled=%d confirmed_button=HP/HK shared_medium_safe=1 fallback_x=0010AA00 fallback_y=0000B000 fs_latch_until_landing=1\n",int(enabled));
     }
     void frame(unsigned tick,std::uint8_t* r,unsigned p1Buttons,unsigned p2Buttons){
         if(!initialized)init();
