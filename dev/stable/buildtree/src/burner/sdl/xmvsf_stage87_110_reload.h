@@ -112,7 +112,15 @@ static inline bool xm87110RestartAfterFrame(bool ready,unsigned frame){
  xm87114CenterInitialTrainingView(ready,frame);
  xm87111CheckCameraAfterFrame(ready,frame);
  XM87110::State& s=XM87110::state();
- if(!xm14TrainingMode){s.reset();return false;}
+ if(!xm14TrainingMode){XM87135::clearNativePairs();s.reset();return false;}
+ // Learn exact neutral point+bench states from the ROM AFTER genuine tags,
+ // before a triple-Start can replace the match state. Never infer the
+ // fighter's graphics or throw controller from the dormant reserve slot.
+ if(ready && !bBurnRunAheadFrame){
+  const char* currentDriver=BurnDrvGetTextA(DRV_NAME);
+  XM87135::captureNativePairs(CpsRamFF,
+      currentDriver && std::strcmp(currentDriver,"xmvsfu")==0);
+ }
  if(!ready || bBurnRunAheadFrame || s.pending==XM87110::NONE)return false;
  const char* driver=BurnDrvGetTextA(DRV_NAME);
  if(!driver || std::strcmp(driver,"xmvsfu")!=0){s.take();return false;}
