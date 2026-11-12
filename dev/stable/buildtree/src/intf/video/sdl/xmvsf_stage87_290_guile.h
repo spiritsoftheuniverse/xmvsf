@@ -276,16 +276,20 @@ struct Scene {
    }
   }
  }
- // A native camera of X=0 sees the LEFT edge of the 768px PSD stage
- // window; X=192 sees its center; X=384 sees the RIGHT edge. Follow the
- // native 1:1 world sweep directly. Do NOT latch a "first camera" during
- // pre-fight stage loading: it can precede the first valid fighter pointer,
- // causing an opening shift and a permanent camera origin error.
+ // The Guile composition was centered on the 87.109 first-live-stage
+ // camera (point X=462, opponent X=514, native camera X=296). Preserve
+ // that authored registration exactly, but follow EVERY subsequent native
+ // camera sample at a direct one-to-one world-pixel displacement.
+ // Never latch an origin from the first pre-fight paint (the camera may not
+ // have initialized yet): that produces a match-start jump and run-dependent
+ // offsets. This reference is fixed, not a simulated/following camera.
+ static constexpr int OPENING_NATIVE_CAMERA_X=296;
  int centerCrop()const{
   return cropStartX+(AUTHORED_W-VIEW_W)/2;
  }
  int groundCrop(int nativeCameraX)const{
-  return cropStartX+clamp(nativeCameraX,0,AUTHORED_W-VIEW_W);
+  return clamp(centerCrop()+(nativeCameraX-OPENING_NATIVE_CAMERA_X),
+               cropStartX,cropStartX+AUTHORED_W-VIEW_W);
  }
  bool drawTexture(SDL_Renderer* render,SDL_Texture* tex,
                   const Layer& l,double sourceCropX,int cameraY,
