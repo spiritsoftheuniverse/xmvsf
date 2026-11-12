@@ -128,10 +128,14 @@ struct Scene {
        l.role.c_str(),l.name.c_str(),l.x,l.y,l.w,l.h);
   return true;
  }
- // At centered 768px canvas camera (192), every original source X
- // remains registered. Parallax only changes offset AWAY from that anchor.
+ // Match the established Guile/FD registration: native opening camera
+ // X=296 corresponds to the authored 768px world's centered 384px view.
+ // At that opening reference ALL layers remain in their original PSD
+ // coordinates (X-192), including negative X or overflow past 768.
+ // Parallax begins only when native camera moves away from that anchor.
  static int xAt(const Layer& l,int camera,int percent){
-  return l.x-camera+(camera-192)*(100-percent)/100;
+  const int delta=limit(camera-296,-192,192);
+  return l.x-192-delta*percent/100;
  }
  static SDL_Rect rect(const SDL_Rect& view,const Layer& l,
                       int camera,int cameraY,int percent,bool fixedY=false){
@@ -180,7 +184,7 @@ struct Scene {
  bool paint(SDL_Renderer* render,const SDL_Rect& view){
   if(!load(render))return false;
   if(SDL_UpdateTexture(fighters,nullptr,xm77SpritePixels(),W*4)!=0)return false;
-  const int camera=limit(xm8649Visual.nativeCameraX,0,WORLD_W-W);
+  const int camera=limit(xm8649Visual.nativeCameraX,0,4096);
   const int cameraY=limit(xm8649Visual.nativeCameraY,-14,GROUND_CAMERA_Y);
   const unsigned long long frame=xm8649Visual.frames;
   const bool clipBefore=SDL_RenderIsClipEnabled(render)==SDL_TRUE;
