@@ -6,7 +6,7 @@ set "PATH=C:\msys64\ucrt64\bin;C:\msys64\usr\bin;%PATH%"
 set "XMVSF_PROJECT=%PROJECT%"
 REM Freeze the target for this invocation: updates during a long build must not
 REM make the wrapper look for a different version than the shell published.
-set "XMVSF_TEST_VERSION=87.300"
+set "XMVSF_TEST_VERSION=87.301"
 set "XMVSF_TEST_TAG=%XMVSF_TEST_VERSION:.=_%"
 REM Explicit Joe-only refresh: BUILD_TEST.bat joe. No other PSD PNG is touched.
 REM Normal BUILD_TEST.bat keeps the original complete SHA-inventory validation.
