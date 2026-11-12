@@ -15,7 +15,8 @@ void xm20CombatMusicHandoff(); // native combat: stop VS music, never start it l
 void xm20FDPrepare(); // async Vorbis decode on Final Destination stage highlight
 void xm20GuilePrepare(); // preload single Guile Stage Vorbis loop
 void xm20SigmaPrepare(); // preload single Sigma Stage Vorbis loop
-void xm20AkumaPrepare(); // preload single Akuma Stage Vorbis loop
+void xm20AkumaPrepare();
+void xm20RyuPrepare(); // cached async Ryu Stage Vorbis loop // preload single Akuma Stage Vorbis loop
 void xm20CustomStagePhase(int selectedStage,int nativeStatus); // 0=native 2=FD 3=Guile 4=Sigma 5=Akuma
 void xm20MeterCharged(int player); // XM87.118 per-stock event
 void xm20MenuEnterGame();
