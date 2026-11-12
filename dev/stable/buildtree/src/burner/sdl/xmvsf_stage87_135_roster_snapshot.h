@@ -118,47 +118,101 @@ static inline bool identical(const Team& a,const Team& b){
 static inline void copySpan(unsigned char* dst,const unsigned char* original,unsigned base,unsigned len){
  std::memcpy(dst+base,original+base,len);
 }
-// For native tags the ROM swaps which character occupies point/reserve.
-// Use both correctly initialized 0x400-byte CHARACTER records from the same
-// first-frame state; restore ROLE/neutral-frame fields from the original slots.
-// This is not intended for importing an arbitrary foreign fighter ID.
-static inline void swapSide(unsigned char* ram,unsigned a,unsigned b){
+// Only a ROM-NATIVE point/bench pair can be used as the source of an
+// alternate point roster. A pre-match reserve object has NO initialized
+// animation bank or script: blindly swapping it into the point slot
+// produced Wolverine's blank first pose, fragile throws and broken tags.
+struct NativePointPair {
+ bool valid=false;
+ unsigned pointId=~0u,reserveId=~0u;
+ unsigned char point[0x400]{},reserve[0x400]{};
+};
+static inline NativePointPair& nativePair(unsigned side){
+ static NativePointPair pair[2];return pair[side];
+}
+static inline void clearNativePairs(){
+ nativePair(0)=NativePointPair{};
+ nativePair(1)=NativePointPair{};
+}
+static inline unsigned liveByte(const unsigned char* r,unsigned a){
+ return r[(a&0xffffu)^1u]; // CPS2 word-swapped host CpsRamFF
+}
+static inline unsigned liveWord(const unsigned char* r,unsigned a){
+ return (liveByte(r,a)<<8)|liveByte(r,a+1u);
+}
+static inline unsigned liveLong(const unsigned char* r,unsigned a){
+ return (liveWord(r,a)<<16)|liveWord(r,a+2u);
+}
+static inline void captureNativePairs(const unsigned char* live,bool enabled){
+ if(!enabled||!live||liveByte(live,0x5000u)!=8u){
+  clearNativePairs();return;
+ }
+ for(unsigned side=0;side<2u;++side){
+  const unsigned p=0x4000u+side*0x400u,r=p+0x800u;
+  const unsigned id=liveWord(live,p+0x52u);
+  const unsigned other=liveWord(live,r+0x52u);
+  const unsigned action=liveWord(live,p+0x60u);
+  const unsigned mode=liveWord(live,p+0xA0u);
+  const unsigned script=liveLong(live,p+0x34u);
+  const unsigned bank=liveWord(live,p+0x40u);
+  const unsigned pointPtr=0x00FF0000u+r;
+  const unsigned reservePtr=0x00FF0000u+p;
+  // Capture only a fully initialized, ROM-owned neutral point paired
+  // with its real native reserve. Never replant live throw/super/flying
+  // state or an incoming tag animation into the first-frame snapshot.
+  const bool neutral=(action==0x0000u && (mode&0xff00u)==0u) ||
+                     (action==0x0006u && mode==0x0002u) ||
+                     (action==0x0002u && (mode&0xff00u)==0x0200u);
+  if(!validId(id)||!validId(other)||id==other||!neutral||
+     liveWord(live,p)!=0x0101u||
+     liveWord(live,r)==0u||bank==0u||script<0x00080000u||
+     script>=0x00110000u||
+     liveLong(live,p+0x224u)!=pointPtr||
+     liveLong(live,r+0x224u)!=reservePtr)continue;
+  NativePointPair& pair=nativePair(side);
+  const bool newRoster=!pair.valid||pair.pointId!=id||pair.reserveId!=other;
+  pair.valid=true;pair.pointId=id;pair.reserveId=other;
+  std::memcpy(pair.point,live+p,0x400);
+  std::memcpy(pair.reserve,live+r,0x400);
+  if(newRoster)std::fprintf(stderr,
+    "XM87.306 ROSTER_NATIVE_NEUTRAL_CAPTURE side=%u point=%02X reserve=%02X action=%04X bank=%04X script=%08X\\n",
+    side+1,id,other,action,bank,script);
+ }
+}
+// Start from a real, ALREADY INITIALIZED native tag pair from the current
+// match, not from a reserve record that was never a point. First-frame
+// coordinates/health/slot ownership come from the original snapshot.
+// Native action, script, animation bank and tag controller stay coherent.
+static inline bool swapSide(unsigned char* ram,unsigned a,unsigned b,
+                            unsigned side,unsigned expectedPoint,
+                            unsigned expectedReserve){
+ const NativePointPair& pair=nativePair(side);
+ if(!pair.valid||pair.pointId!=expectedPoint||
+    pair.reserveId!=expectedReserve)return false;
  unsigned char originalA[0x400],originalB[0x400];
  std::memcpy(originalA,ram+a,0x400);
  std::memcpy(originalB,ram+b,0x400);
- std::memcpy(ram+a,originalB,0x400);
- std::memcpy(ram+b,originalA,0x400);
- // Only native slot activity/role and world position/velocity are
- // restored from the old point/bench addresses. +0x06/+0x08 are the
- // character's live animation/reaction and native step, not position.
- // Copying +0x00..+0x1F wholesale substituted Cyclops' idle animation
- // state for Wolverine's after a synthesized roster swap; the incoming
- // point could remain invisible until a movement generated a new pose.
+ std::memcpy(ram+a,pair.point,0x400);
+ std::memcpy(ram+b,pair.reserve,0x400);
+ // Reset ACTIVITY / slot binding and world POSITION (not velocity!)
+ // to match the recorded round-start stage/camera. Preserve the native
+ // neutral actor's velocity, animation/script and throw controller.
  copySpan(ram+a,originalA,0x000,0x006);
  copySpan(ram+b,originalB,0x000,0x006);
- copySpan(ram+a,originalA,0x00c,0x014);
- copySpan(ram+b,originalB,0x00c,0x014);
- // The native +0x4B facing flag maps to RAW saved-RAM byte +0x4A
- // (CPS2 68000 byte lanes are XOR 1). The surrounding +0x4B..+0x4F
- // raw bytes are not proven slot-role state: keep them with the
- // incoming character instead of restoring Cyclops-owned display data.
- ram[a+0x04au]=(unsigned char)((ram[a+0x04au]&~1u)|(originalA[0x04au]&1u));
- ram[b+0x04au]=(unsigned char)((ram[b+0x04au]&~1u)|(originalB[0x04au]&1u));
- // Keep the point slot's neutral action WORD, not the old fighter's
- // character-dependent animation/action substates at +0x62..+0x6B.
- copySpan(ram+a,originalA,0x060,0x002);
- copySpan(ram+b,originalB,0x060,0x002);
- copySpan(ram+a,originalA,0x200,0x010);
- copySpan(ram+b,originalB,0x200,0x010);
- // Native tag eligibility checks the point/partner +0x210 state together
- // with the +0x224 partner pointer (ROM PC 013B48..013B94; 87.146 audit).
- // Both are SLOT-role data. Swapping the fighter character records while
- // leaving the reserve's old +0x210 in the new point makes the next tag
- // select the wrong fighter (often the same point fighter again).
- copySpan(ram+a,originalA,0x210,0x008);
- copySpan(ram+b,originalB,0x210,0x008);
+ copySpan(ram+a,originalA,0x00c,0x008);
+ copySpan(ram+b,originalB,0x00c,0x008);
+ ram[a+0x04au]=(unsigned char)((ram[a+0x04au]&~1u)|
+                                (originalA[0x04au]&1u));
+ ram[b+0x04au]=(unsigned char)((ram[b+0x04au]&~1u)|
+                                (originalB[0x04au]&1u));
+ // Health/meter and slot-specific partner indices from the original
+ // first-frame reset. +0x224 pointer points to the opposite slot.
+ copySpan(ram+a,originalA,0x200,0x018);
+ copySpan(ram+b,originalB,0x200,0x018);
  copySpan(ram+a,originalA,0x220,0x008);
  copySpan(ram+b,originalB,0x220,0x008);
+ return word(ram,a+0x52u)==expectedPoint&&
+        word(ram,b+0x52u)==expectedReserve;
 }
 // Called immediately before BurnStateLoad, with the *live* roster captured.
 // Finds a full first-frame snapshot of the same two team members; when tagging
@@ -186,8 +240,21 @@ static inline bool prepare(const char* primary,const Team& now,std::string& load
    if(!fileRead(sources[j],src)||!findRam(src,ram)||!readIds(ram,was))continue;
    if(!sideMatches(now,was,0,2)||!sideMatches(now,was,1,3))continue;
    const unsigned swaps=(now.id[0]!=was.id[0]?1u:0u) | (now.id[1]!=was.id[1]?2u:0u);
-   if(swaps&1u)swapSide(ram,0x4000u,0x4800u);
-   if(swaps&2u)swapSide(ram,0x4400u,0x4c00u);
+   // If the game never produced a real neutral point of this identity,
+   // refuse the reset rather than creating a fighter with zero animation
+   // and throw state from the first-frame bench object.
+   if((swaps&1u)&&!swapSide(ram,0x4000u,0x4800u,0u,now.id[0],now.id[2])){
+    std::fprintf(stderr,
+      "XM87.306 ROSTER_REFUSED side=1 reason=no_native_neutral_tag_pair point=%02X reserve=%02X\\n",
+      now.id[0],now.id[2]);
+    continue;
+   }
+   if((swaps&2u)&&!swapSide(ram,0x4400u,0x4c00u,1u,now.id[1],now.id[3])){
+    std::fprintf(stderr,
+      "XM87.306 ROSTER_REFUSED side=2 reason=no_native_neutral_tag_pair point=%02X reserve=%02X\\n",
+      now.id[1],now.id[3]);
+    continue;
+   }
    Team result;
    if(!readIds(ram,result)||!identical(now,result))continue;
    if(!fileWrite(WORKING,src))return false;
