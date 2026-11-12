@@ -1,33 +1,33 @@
 CANVAS	1016	471
-SOURCE_SHA256	4bac9b1761b3026ae319b509f19170af01a933074b9c5cdd508f16b108e31289
+SOURCE_SHA256	f9d77857b5360cb82e20d9e6b5ae31326f3f3cd7ff2c309cf28d24594af04819
 SUMMARY	23	20
-EXTRACTOR_SHA256	f20790fbe675be293315baf1238504f80fab9f1b432e739efa66ab63746bd2e6
+EXTRACTOR_SHA256	13b2bc80cf64b14b14a355fe10580e52fca0386974695e5e397991e09a8d9882
 FORMAT	3
-GROUND	0	0	1025	471
-VIEW	768	471	124
+GROUND	-81	0	1106	471
+VIEW	768	471	205
 LAYER	bg	-	0	0	183	1016	224	0000.png	BG	BG	0	183	1016	407	1
 LAYER	sky	-	1	0	-18	1016	210	0001.png	high sky	high sky	0	-18	1016	192	1
-LAYER	ground	-	2	0	0	1025	471	0002.png	ground	ground	0	237	1025	471	1
-LAYER	actor	Bro	4	0	0	1025	471	0004.png	Bro1	Characters/Bro1	584	374	608	390	1
-LAYER	actor	Bro	5	0	0	1025	471	0005.png	Bro2	Characters/Bro2	584	374	608	390	1
-LAYER	actor	Bro	6	0	0	1025	471	0006.png	Bro3	Characters/Bro3	584	374	608	390	1
-LAYER	actor	ladyRB	7	0	0	1025	471	0007.png	ladyRB1	Characters/ladyRB1	616	356	640	392	1
-LAYER	actor	ladyRB	8	0	0	1025	471	0008.png	ladyRB2	Characters/ladyRB2	616	356	634	392	1
-LAYER	actor	ladyRB	9	0	0	1025	471	0009.png	LadyRB3	Characters/LadyRB3	616	348	633	392	1
-LAYER	actor	LadyR	10	0	0	1025	471	0010.png	LadyR1	Characters/LadyR1	608	390	637	435	1
-LAYER	actor	LadyR	11	0	0	1025	471	0011.png	LadyR2	Characters/LadyR2	608	390	636	435	1
-LAYER	actor	Joe	12	0	0	1025	471	0012.png	Joe1	Characters/Joe1	331	337	379	380	1
-LAYER	actor	Joe	13	0	0	1025	471	0013.png	Joe2	Characters/Joe2	331	337	379	380	1
-LAYER	actor	Joe	14	0	0	1025	471	0014.png	Joe3	Characters/Joe3	331	326	379	380	1
-LAYER	actor	LadyL	15	0	0	1025	471	0015.png	LadyL1	Characters/LadyL1	322	396	370	438	1
-LAYER	actor	LadyL	16	0	0	1025	471	0016.png	ladyL2	Characters/ladyL2	322	396	370	438	1
-LAYER	actor	Tom	17	0	0	1025	471	0017.png	Tom1	Characters/Tom1	500	384	524	434	1
-LAYER	actor	Tom	18	0	0	1025	471	0018.png	Tom2	Characters/Tom2	500	384	524	434	1
-LAYER	actor	shades	19	0	0	1025	471	0019.png	shades1	Characters/shades1	428	357	460	435	1
-LAYER	actor	shades	20	0	0	1025	471	0020.png	shades2	Characters/shades2	428	357	460	435	1
-LAYER	actor	shadesB	21	0	0	1025	471	0021.png	shadesB1	Characters/shadesB1	403	357	428	396	1
-LAYER	actor	shadesB	22	0	0	1025	471	0022.png	shadesB2	Characters/shadesB2	404	357	428	396	1
-LAYER	actor	shadesB	23	0	0	1025	471	0023.png	shadesB3	Characters/shadesB3	406	357	428	396	1
+LAYER	ground	-	2	-81	0	1106	471	0002.png	ground	ground	-81	237	1025	471	1
+LAYER	actor	Bro	4	-81	0	1106	471	0004.png	Bro1	Characters/Bro1	584	374	608	390	1
+LAYER	actor	Bro	5	-81	0	1106	471	0005.png	Bro2	Characters/Bro2	584	374	608	390	1
+LAYER	actor	Bro	6	-81	0	1106	471	0006.png	Bro3	Characters/Bro3	584	374	608	390	1
+LAYER	actor	ladyRB	7	-81	0	1106	471	0007.png	ladyRB1	Characters/ladyRB1	616	356	640	392	1
+LAYER	actor	ladyRB	8	-81	0	1106	471	0008.png	ladyRB2	Characters/ladyRB2	616	356	634	392	1
+LAYER	actor	ladyRB	9	-81	0	1106	471	0009.png	LadyRB3	Characters/LadyRB3	616	348	633	392	1
+LAYER	actor	LadyR	10	-81	0	1106	471	0010.png	LadyR1	Characters/LadyR1	608	390	637	435	1
+LAYER	actor	LadyR	11	-81	0	1106	471	0011.png	LadyR2	Characters/LadyR2	608	390	636	435	1
+LAYER	actor	Joe	12	-81	0	1106	471	0012.png	Joe1	Characters/Joe1	331	338	379	381	1
+LAYER	actor	Joe	13	-81	0	1106	471	0013.png	Joe2	Characters/Joe2	331	338	379	381	1
+LAYER	actor	Joe	14	-81	0	1106	471	0014.png	Joe3	Characters/Joe3	331	327	379	381	1
+LAYER	actor	LadyL	15	-81	0	1106	471	0015.png	LadyL1	Characters/LadyL1	322	396	370	438	1
+LAYER	actor	LadyL	16	-81	0	1106	471	0016.png	ladyL2	Characters/ladyL2	322	396	370	438	1
+LAYER	actor	Tom	17	-81	0	1106	471	0017.png	Tom1	Characters/Tom1	500	384	524	434	1
+LAYER	actor	Tom	18	-81	0	1106	471	0018.png	Tom2	Characters/Tom2	500	384	524	434	1
+LAYER	actor	shades	19	-81	0	1106	471	0019.png	shades1	Characters/shades1	428	357	460	435	1
+LAYER	actor	shades	20	-81	0	1106	471	0020.png	shades2	Characters/shades2	428	357	460	435	1
+LAYER	actor	shadesB	21	-81	0	1106	471	0021.png	shadesB1	Characters/shadesB1	403	357	428	396	1
+LAYER	actor	shadesB	22	-81	0	1106	471	0022.png	shadesB2	Characters/shadesB2	404	357	428	396	1
+LAYER	actor	shadesB	23	-81	0	1106	471	0023.png	shadesB3	Characters/shadesB3	406	357	428	396	1
 ACTOR	Bro	3
 ACTOR	ladyRB	3
 ACTOR	LadyR	2
