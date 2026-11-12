@@ -87,9 +87,9 @@ set "XM87180_EXPERIMENTAL_DELAYED_PRIME=0"
 REM Dedicated replay channel. Existing BUILD_TEST/RUN_TEST names are unchanged.
 REM Replay the original 87.161 F9 full-state + exact CPS2 inputs without
 REM creating replacement ROM scripts, patching native input, or touching Stable.
-set "EXE=%PROJECT%\runtime\stable\XMVSF_Test_87_326.exe"
+set "EXE=%PROJECT%\runtime\stable\XMVSF_Test_87_327.exe"
 if not exist "%EXE%" (
-  echo ERROR: TEST 87.326 is missing. Run BUILD_TEST.bat first; older builds are not used.
+  echo ERROR: TEST 87.327 is missing. Run BUILD_TEST.bat first; older builds are not used.
   goto :fail
 )
 if not exist "%PROJECT%\FBNeo" (
@@ -107,7 +107,7 @@ if not "%~1"=="" (
 REM Current v2 recordings live alongside the current version's replay
 REM files so they are included in ordinary versioned test ZIPs.
 REM Never prefer an old hard-coded 87.235 movie ahead of the user's
-REM latest 87.320/87.326 recording. Search versions newest-first below.
+REM latest 87.320/87.327 recording. Search versions newest-first below.
 REM Keep replays available even AFTER a version bump: find the latest
 REM completed session in older numbered TEST directories, newest first.
 REM This never deletes or migrates the original recording/checkpoints.
@@ -370,7 +370,7 @@ if not exist "%TRACE%" goto :fail
 REM Keep all replay-time host diagnostics outside the original F9 session.
 REM The native FF5104 WORD handoff trace belongs to this TEST, never
 REM inside the original user recording. It is read-only and bounded.
-set "XMVSF_VS_M68K_TRACE_DIR=%PROJECT%\test\87.326\replay_results"
+set "XMVSF_VS_M68K_TRACE_DIR=%PROJECT%\test\87.327\replay_results"
 if not exist "%XMVSF_VS_M68K_TRACE_DIR%" mkdir "%XMVSF_VS_M68K_TRACE_DIR%"
 if not exist "%XMVSF_VS_M68K_TRACE_DIR%" goto :fail
 set "XMVSF_VS_M68K_TRACE_LOG=%XMVSF_VS_M68K_TRACE_DIR%\versus_m68k_handoff.tsv"
@@ -390,7 +390,7 @@ set "XM87160_DISCOVER=1"
 set "XM87160_CATALOG_LOG=%TRACE%\rom_super_catalog.tsv"
 set "XM87160_OBSERVED_LOG=%TRACE%\rom_super_observed.tsv"
 echo.
-echo XMVSF HOST-AWARE F9 REPLAY V2 - CURRENT TEST 87.326
+echo XMVSF HOST-AWARE F9 REPLAY V2 - CURRENT TEST 87.327
 echo Manifest: "%V2_SESSION%\manifest.tsv"
 echo Application menu, game resets, native savestate reloads and inputs
 echo will follow the recorded session/checkpoint timeline.
