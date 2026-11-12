@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>XMVSF · OST Normalization Studio</title>
+<style>
+:root{color-scheme:dark;font-family:Segoe UI,Inter,Arial,sans-serif;background:#0a1020;color:#e8f2ff}
+*{box-sizing:border-box}
+body{margin:0;background:radial-gradient(circle at top right,#182743 0,#0a1020 48%);min-height:100vh}
+header{padding:28px clamp(16px,3vw,44px) 20px;border-bottom:1px solid #344967;background:#101b2cf2}
+.header-top{display:flex;gap:18px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+h1{margin:4px 0 3px;letter-spacing:.04em;font-size:clamp(22px,3vw,34px)}
+.eyebrow{font-size:11px;letter-spacing:.28em;color:#84bce3;font-weight:800}
+.sub{margin:0;color:#9ab0c9;font-size:13px}
+.badge{font-size:12px;border-radius:999px;border:1px solid #395b7b;padding:8px 12px;color:#9fd6f8;background:#12263a}
+main{display:grid;grid-template-columns:minmax(300px,390px) minmax(390px,1fr);gap:18px;max-width:1450px;margin:auto;padding:24px clamp(16px,3vw,44px)}
+.panel{background:#101c2dcc;border:1px solid #304563;border-radius:16px;box-shadow:0 16px 40px #03091535;min-width:0}
+.library{padding:18px 0}
+.sectionhead{display:flex;justify-content:space-between;align-items:center;margin:0 18px 14px}
+h2{font-size:15px;letter-spacing:.09em;text-transform:uppercase;margin:0;color:#bddeff}
+button{cursor:pointer;background:#203751;border:1px solid #4a6789;color:#eaf4ff;border-radius:9px;font:inherit;font-size:13px;font-weight:650;padding:10px 15px}
+button:hover:not(:disabled){background:#294c6c;border-color:#67b8fa}
+button:disabled{opacity:.38;cursor:not-allowed}
+button.primary{background:#208bc6;border:1px solid #5fbcf3;color:#fff;font-weight:800}
+button.primary:hover:not(:disabled){background:#25a0e0}
+button.ghost{background:transparent}
+button.active{background:#1a6993;border-color:#64c2f9}
+.small{font-size:12px;padding:6px 10px}
+input[type=search]{width:calc(100% - 36px);margin:0 18px 14px;padding:11px 13px;border-radius:9px;border:1px solid #425c77;background:#0d1727;color:#fff;font:inherit;outline:none}
+input[type=search]:focus{border-color:#66bffc}
+.tabs{display:flex;gap:5px;border-bottom:1px solid #2b4260;overflow-x:auto;padding:0 16px}
+.tabs button{border-radius:9px 9px 0 0;background:transparent;border:1px solid transparent;border-bottom:0;white-space:nowrap;color:#9cb3cb}
+.tabs button.active{background:#243b57;border-color:#4c6d8f;color:#f5fbff}
+.tabs button span{margin-left:6px;color:#8ab0cb;font-size:11px}
+.list{max-height:min(64vh,670px);min-height:330px;overflow-y:auto;padding:10px}
+.track{display:flex;align-items:center;gap:12px;width:100%;text-align:left;border:1px solid transparent;background:transparent;line-height:1.3;padding:12px 10px}
+.track:hover{background:#1a3047}
+.track.selected{background:#1c3955;border-color:#509ac7}
+.track .note{width:30px;height:30px;display:grid;place-items:center;flex:none;border-radius:8px;background:#23415e;color:#95d7ff;font-size:18px}
+.track .info{min-width:0;flex:1}
+.track strong{font-weight:650;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px}
+.track small{display:block;color:#8bacc8;font-size:11px;margin-top:4px}
+.track .saved{color:#a9e5bd;font-size:11px;white-space:nowrap}
+.empty{padding:30px 16px;color:#8babc5;text-align:center}
+.workspace{padding:26px;display:flex;flex-direction:column;gap:18px;min-height:540px}
+.hero{border-radius:12px;border:1px solid #315473;background:linear-gradient(115deg,#243f5e,#152842 60%,#101d31);padding:26px;min-height:155px}
+.label{color:#83badf;font-size:11px;font-weight:750;letter-spacing:.15em;text-transform:uppercase}
+.title{font-size:clamp(19px,2.5vw,29px);margin:10px 0 8px;word-break:break-word}
+.filepath{color:#a8bfd5;font-size:12px;word-break:break-all}
+.controls{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+audio{display:none}
+.time{font-size:12px;font-variant-numeric:tabular-nums;color:#aabfd2;margin-left:auto}
+input[type=range]{width:100%;cursor:pointer;accent-color:#65c8ff}
+.seek{margin:3px 0 0}
+.volume{border:1px solid #344b68;border-radius:13px;padding:22px;background:#0e1b2d}
+.vol-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:15px}
+.volume strong{font-size:29px;font-variant-numeric:tabular-nums}
+.volume .db{color:#81bcdd;margin-left:8px;font-size:13px}
+.scale{display:flex;justify-content:space-between;font-size:11px;color:#91a9c1;margin-top:8px}
+.meter{font-size:12px;color:#c1d1e2;margin-top:15px;min-height:20px}
+.warn{color:#ffc38b!important}
+.hint{color:#819bb5;font-size:12px;line-height:1.5;margin:0}
+.savebar{display:flex;align-items:center;justify-content:space-between;gap:13px;flex-wrap:wrap;border-top:1px solid #31435c;padding-top:19px}
+.message{font-size:12px;color:#a5d7f5;line-height:1.5;word-break:break-word}
+.message.error{color:#ffb5ae}
+.message.success{color:#b9eccb}
+.footer{padding:0 20px 25px;max-width:1450px;margin:auto;color:#7e94ab;font-size:12px}
+@media(max-width:800px){main{grid-template-columns:1fr}.workspace{min-height:440px}.list{min-height:170px;max-height:280px}}
+</style>
+</head>
+<body>
+<header>
+ <div class="header-top">
+  <div><div class="eyebrow">X-MEN VS. STREET FIGHTER II · AUDIO TOOLS</div>
+  <h1>OST Normalization Studio</h1>
+  <p class="sub">Local audio library · live gain preview · untouched originals preserved</p></div>
+  <div id="engine" class="badge">Checking audio engine…</div>
+ </div>
+</header>
+<main>
+<section class="panel library">
+ <div class="sectionhead"><h2>Audio Library</h2><button id="refresh" class="small ghost">↻ Refresh</button></div>
+ <input id="search" type="search" placeholder="Search filename or folder…" aria-label="Search tracks">
+ <div id="tabs" class="tabs" role="tablist"></div>
+ <div id="list" class="list"></div>
+</section>
+<section class="panel workspace">
+ <div class="hero">
+  <div class="label">Selected audio</div>
+  <div id="title" class="title">Select a track</div>
+  <div id="path" class="filepath">Audio files are discovered automatically from the project audio folder.</div>
+ </div>
+ <div class="controls">
+  <button id="play" class="primary" disabled>▶ Preview</button>
+  <button id="stop" disabled>■ Stop</button>
+  <span class="time" id="time">00:00 / 00:00</span>
+ </div>
+ <input class="seek" id="seek" type="range" min="0" max="1000" step="1" value="0" disabled aria-label="Audio position">
+ <audio id="player" preload="metadata"></audio>
+ <div class="volume">
+  <div class="vol-head"><span class="label">Output volume</span><div><strong id="amount">100%</strong><span id="decibels" class="db">0.00 dB</span></div></div>
+  <input id="volume" type="range" min="0" max="300" step="1" value="100" disabled aria-label="Volume percentage">
+  <div class="scale"><span>0% · Mute</span><span>100% · Original</span><span>300% · Boost</span></div>
+  <div id="peak" class="meter">Scan the original's peak to check for possible clipping.</div>
+  <div class="controls"><button id="scan" class="small ghost" disabled>Analyze original peak</button><button id="reset" class="small ghost" disabled>Reset slider to 100%</button></div>
+ </div>
+ <p class="hint">The slider adjusts preview volume immediately. Save applies that same gain to the file on disk. Every re-save starts from the untouched backup—never from an earlier lossy export.</p>
+ <div class="savebar"><button id="save" class="primary" disabled>Save adjusted file</button><div id="status" class="message">Choose a track to begin.</div></div>
+</section>
+</main>
+<div class="footer">Backups: audio/.ost_studio/originals/ · Supports WAV, OGG, FLAC, MP3, Opus, M4A and AIFF · All processing stays on this computer.</div>
+<script>
+"use strict";
+const TOKEN="__TOKEN__";
+const $=id=>document.getElementById(id);
+const state={files:[],levels:{},group:"Music",selected:null,peak:null,busy:false,audioContext:null,gainNode:null};
+const player=$("player");
+function formatTime(time){
+ if(!Number.isFinite(time)||time<0)return "00:00";
+ const t=Math.floor(time);return String(Math.floor(t/60)).padStart(2,"0")+":"+String(t%60).padStart(2,"0");
+}
+function db(gain){
+ return gain===0?"−∞ dB":(20*Math.log10(gain/100)).toFixed(2)+" dB";
+}
+function setStatus(message,kind=""){
+ $("status").textContent=message;$("status").className="message "+kind;
+}
+async function api(endpoint,payload){
+ const options={headers:{"X-Studio-Token":TOKEN}};
+ if(payload!==undefined){
+  options.method="POST";options.headers["Content-Type"]="application/json";
+  options.body=JSON.stringify(payload);
+ }
+ const resp=await fetch(endpoint,options);
+ let data;
+ try{data=await resp.json()}catch(e){throw new Error("Studio returned an invalid response");}
+ if(!resp.ok)throw new Error(data.error||"Request failed");
+ return data;
+}
+function selectedFile(){return state.files.find(f=>f.path===state.selected)||null;}
+function groupNames(){
+ const names=new Set(["Music","Effects"]);
+ state.files.forEach(f=>names.add(f.group));
+ return [...names].sort((a,b)=>{
+  if(a==="Music")return -1;if(b==="Music")return 1;
+  if(a==="Effects")return -1;if(b==="Effects")return 1;
+  return a.localeCompare(b);
+ });
+}
+function renderTabs(){
+ const root=$("tabs");root.replaceChildren();
+ groupNames().forEach(group=>{
+  const count=state.files.filter(f=>f.group===group).length;
+  const b=document.createElement("button");b.type="button";
+  b.className=group===state.group?"active":"";
+  b.setAttribute("role","tab");b.setAttribute("aria-selected",String(group===state.group));
+  b.append(document.createTextNode(group));
+  const countEl=document.createElement("span");countEl.textContent=String(count);
+  b.append(countEl);
+  b.onclick=()=>{state.group=group;renderTabs();renderList();};
+  root.append(b);
+ });
+}
+function renderList(){
+ const root=$("list");root.replaceChildren();
+ const query=$("search").value.toLowerCase().trim();
+ const tracks=state.files.filter(f=>f.group===state.group &&
+  (!query||(f.path.toLowerCase().includes(query)||f.name.toLowerCase().includes(query))));
+ if(!tracks.length){const m=document.createElement("div");m.className="empty";m.textContent="No audio tracks in this tab. Add files under audio/"+(state.group==="Music"?"music/":"")+" and press Refresh.";root.append(m);return;}
+ tracks.forEach(file=>{
+  const button=document.createElement("button");button.type="button";
+  button.className="track "+(file.path===state.selected?"selected":"");
+  const note=document.createElement("div");note.className="note";note.textContent="♫";
+  const info=document.createElement("div");info.className="info";
+  const name=document.createElement("strong");name.textContent=file.name;
+  const size=document.createElement("small");
+  size.textContent=file.path+(file.bytes?" · "+(file.bytes/1024/1024).toFixed(2)+" MB":"");
+  info.append(name,size);button.append(note,info);
+  if(file.backup){const status=document.createElement("span");status.className="saved";status.textContent="Backup ✓";button.append(status);}
+  button.onclick=()=>choose(file.path);
+  root.append(button);
+ });
+}
+function stopPlayback(clear=false){
+ player.pause();
+ player.currentTime=0;
+ $("play").textContent="▶ Preview";
+ if(clear){player.removeAttribute("src");player.load();}
+ $("seek").value=0;
+ $("time").textContent="00:00 / 00:00";
+}
+function mediaUrl(path){
+ return "/media/"+path.split("/").map(encodeURIComponent).join("/")+
+  "?token="+encodeURIComponent(TOKEN)+"&v="+Date.now();
+}
+function gainValue(){return Number($("volume").value);}
+function updateGain(){
+ const gain=gainValue();$("amount").textContent=gain+"%";$("decibels").textContent=db(gain);
+ if(state.gainNode)state.gainNode.gain.value=gain/100;
+ const peak=state.peak;
+ if(peak===null){$("peak").textContent="Scan the original's peak to check for possible clipping.";$("peak").className="meter";return;}
+ const projected=gain===0?-Infinity:peak+20*Math.log10(gain/100);
+ if(projected>0.01){$("peak").textContent="Original peak "+peak.toFixed(1)+" dBFS · adjusted peak "+projected.toFixed(1)+" dBFS · may clip on export";$("peak").className="meter warn";}
+ else{$("peak").textContent="Original peak "+peak.toFixed(1)+" dBFS · adjusted peak "+(Number.isFinite(projected)?projected.toFixed(1):"−∞")+" dBFS";$("peak").className="meter";}
+}
+function choose(path){
+ if(state.busy)return;
+ stopPlayback(true);state.selected=path;state.peak=null;
+ const file=selectedFile();if(!file)return;
+ state.group=file.group;
+ $("title").textContent=file.name;$("path").textContent="audio/"+file.path;
+ $("volume").value=Math.max(0,Math.min(300,Number(state.levels[path]??100)));
+ player.src=mediaUrl(path);player.load();
+ setStatus(file.backup?"Original backup exists. Adjust and save again.":"First save will create a pristine backup.");
+ updateGain();renderTabs();renderList();enableControls();
+}
+function enableControls(){
+ const selected=!!selectedFile(),editable=selected&&!state.busy;
+ for(const id of ["play","stop","volume","reset","scan"]){$(id).disabled=!editable;}
+ $("save").disabled=!editable||$("engine").dataset.available!=="true";
+ $("seek").disabled=!editable;
+ $("refresh").disabled=state.busy;
+}
+async function refresh(){
+ try{
+  const result=await api("/api/files");
+  state.files=result.files;state.levels=result.levels;
+  $("engine").textContent=result.ffmpeg?"FFmpeg ready · local processing":"FFmpeg missing · preview only";
+  $("engine").dataset.available=String(result.ffmpeg);
+  if(!selectedFile()){
+   state.selected=null;state.peak=null;stopPlayback(true);
+   $("title").textContent="Select a track";$("path").textContent="Add music to audio/music/ or sound effects directly to audio/.";
+  }
+  renderTabs();renderList();enableControls();
+ }catch(e){setStatus(e.message,"error");}
+}
+function activateAudio(){
+ if(state.audioContext)return;
+ const Context=window.AudioContext||window.webkitAudioContext;
+ if(!Context)throw new Error("This browser has no Web Audio API");
+ state.audioContext=new Context();
+ state.gainNode=state.audioContext.createGain();
+ const source=state.audioContext.createMediaElementSource(player);
+ source.connect(state.gainNode);state.gainNode.connect(state.audioContext.destination);
+ updateGain();
+}
+$("play").onclick=async()=>{
+ if(!selectedFile()||state.busy)return;
+ try{
+  activateAudio();await state.audioContext.resume();
+  if(player.paused){await player.play();$("play").textContent="❚❚ Pause";}
+  else{player.pause();$("play").textContent="▶ Resume";}
+ }catch(e){setStatus("Preview failed: "+e.message,"error");}
+};
+$("stop").onclick=()=>stopPlayback();
+$("volume").addEventListener("input",updateGain);
+$("reset").onclick=()=>{$("volume").value=100;updateGain();};
+$("search").addEventListener("input",renderList);
+$("refresh").onclick=refresh;
+$("scan").onclick=async()=>{
+ if(!selectedFile()||state.busy)return;
+ state.busy=true;enableControls();setStatus("Analyzing untouched source peak…");
+ try{
+  const r=await api("/api/peak",{path:state.selected});
+  state.peak=r.peak_dbfs;updateGain();setStatus("Peak analysis complete.");
+ }catch(e){setStatus(e.message,"error");}
+ finally{state.busy=false;enableControls();}
+};
+$("save").onclick=async()=>{
+ const file=selectedFile();if(!file||state.busy)return;
+ const path=file.path,gain=gainValue();
+ state.busy=true;enableControls();
+ stopPlayback(true);
+ setStatus("Backing up original and encoding adjusted audio…");
+ try{
+  const result=await api("/api/save",{path,gain});
+  state.levels[path]=gain;
+  await refresh();
+  state.selected=path;
+  const selected=selectedFile();
+  if(selected){selected.backup=true;renderList();}
+  if(selected){player.src=mediaUrl(path);player.load();}
+  setStatus("Saved "+gain+"%. Original preserved at audio/"+result.backup,"success");
+ }catch(e){
+  if(selectedFile()){player.src=mediaUrl(path);player.load();}
+  setStatus("Save failed: "+e.message,"error");
+ }finally{state.busy=false;enableControls();}
+};
+$("seek").addEventListener("input",()=>{
+ if(Number.isFinite(player.duration)&&player.duration>0)
+  player.currentTime=player.duration*Number($("seek").value)/1000;
+});
+player.addEventListener("timeupdate",()=>{
+ const duration=Number.isFinite(player.duration)?player.duration:0;
+ $("time").textContent=formatTime(player.currentTime)+" / "+formatTime(duration);
+ if(duration>0)$("seek").value=Math.round(player.currentTime/duration*1000);
+});
+player.addEventListener("ended",()=>{$("play").textContent="▶ Preview";});
+player.addEventListener("error",()=>{if(state.selected)setStatus("Browser could not decode this file; FFmpeg export may still work.","error");});
+refresh();
+</script>
+</body>
+</html>

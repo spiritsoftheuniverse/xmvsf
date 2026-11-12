@@ -23,3 +23,6 @@
 # Generated locally by tools/pack_fd_video.ps1; source PNGs stay in Git.
 _art/video/*.fdb
 _art/video/*.fdb.partial
+
+# Local OST Studio original backups, saved slider preferences and analysis state.
+/audio/.ost_studio/
