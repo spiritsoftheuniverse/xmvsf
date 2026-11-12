@@ -149,6 +149,9 @@ static inline bool xm87110RestartAfterFrame(bool ready,unsigned frame){
  // Load only at the safe post-CPU real-frame boundary.
  const int rc=BurnStateLoad((TCHAR*)loadPath.c_str(),1,NULL);
  if(rc){XM87110::log("RESTART_REFUSED frame=%u reason=load_failed rc=%d",frame,rc);return false;}
+ // Savestate includes CPS2 delayed OAM. A pre-load camera history refers to
+ // a DIFFERENT world frame; discard it before resuming native presentation.
+ xm8649ForgetCameraHistory();
  if(pointSwapped){
   const bool colorsRestored=livePalette.restore();
   XM87110::log("ROSTER_PALETTE_RESTORE frame=%u swapped=1 sprite_banks=32 native_dma_unmodified=%u",
@@ -243,6 +246,28 @@ static inline bool xm87110RestartAfterFrame(bool ready,unsigned frame){
   }
  }
  // Verify all four native identities, not just the on-screen pair.
+ // Snapshot repair must preserve both the character identity and the
+ // native point/reserve tag controller fields. Log the actual post-load
+ // +0x210 eligibility and +0x224 partner pointers once per triple-Start.
+ if(pointSwapped){
+  cpu_core_config* role=GetCpuCoreConfig(0);
+  if(role&&role->open&&role->close&&role->read){
+   role->open(0);
+   for(unsigned side=0;side<2u;++side){
+    const unsigned p=0xFF4000u+side*0x400u;
+    const unsigned reserve=p+0x800u;
+    XM87110::log("ROSTER_TAG_ROLE frame=%u side=%u point_id=%04X reserve_id=%04X point210=%04X reserve210=%04X point224=%08X reserve224=%08X",
+     frame,side+1u,
+     XM87102Lab::read16(role,p+0x52u),
+     XM87102Lab::read16(role,reserve+0x52u),
+     XM87102Lab::read16(role,p+0x210u),
+     XM87102Lab::read16(role,reserve+0x210u),
+     XM87102Lab::read32(role,p+0x224u),
+     XM87102Lab::read32(role,reserve+0x224u));
+   }
+   role->close();
+  }
+ }
  XM87135::Team restored;
  if(!XM87135::fromCPU(restored) || !XM87135::identical(restored,liveTeam)){
   std::fprintf(stderr,"XM87.135 ROSTER_POSTLOAD_MISMATCH frame=%u path=%s\n",
