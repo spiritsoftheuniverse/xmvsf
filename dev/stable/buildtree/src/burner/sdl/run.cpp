@@ -415,6 +415,8 @@ static int RunFrame(int bDraw, int bPause)
 		BurnDrvFrame();
 		if (!bPause) {
             xm8658ObserveGamePhase(bDrvOkay); // phase 08/0A even during FD paint skips
+            // Advance native-camera OAM alignment across skipped real frames.
+            xm8649ObserveCamera(bDrvOkay);
             xm14ApplyTrainingCheats(xm14TrainingMode && !xm23State.dizzyAllowed); // XM87.100 non-rendered frame
             // Even skipped pictures must contribute one native sample;
             // the final drawn frame samples immediately before VidPaint.
