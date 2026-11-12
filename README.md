@@ -108,6 +108,49 @@ verify the committed asset, runtime lookup path, and native sprite/camera
 gate. No stage-specific workaround may replace the game's ROM camera or
 reset verified combat behavior to hide a missing-asset problem.
 
+## Ryu Stage visibility audit — TEST 87.324
+
+Ryu Stage uses custom host stage ID **6**, backed by ROM-native stage 05.
+Like Sigma and Akuma, adding a menu row or renderer alone is insufficient.
+The six original PSD-derived PNG layers and coordinate manifest are
+tracked under `_art/ryustage/extracted/` on the **same branch** as
+`_art/ryustage/ryustage.psd` and `audio/music/ryustage.ogg`.
+The extractor has cached source/extractor SHA256 markers; an unchanged
+PSD should never cause PNG rewrites or a binary build-cache invalidation.
+Original source bounds may be outside 768×471; no pixels are clipped
+during extraction.
+
+**All three required native gates admit ID 6:** the camera observer in
+`xmvsf_stage86_49_camera.h`, the CPS2 OBJ capture whitelist and the
+native palette exception in `cps_draw.cpp`. An SDL painter that
+requires `xm77SpriteValid` cannot display custom art until those gates
+are populated. Read `RYU_GATE`, `RYU_READY`, `RYU_ASSETS_MISSING`
+and `RYU_DRAW_FAILED` in the live TEST log; never diagnose a blank
+custom stage by rewriting parallax coordinates first.
+
+## Verified versus-screen M68K checkpoint — TEST 87.324
+
+The original uploaded **87.320** F9 recording starts with a
+358,352-byte FBNeo `FB1 FS1` checkpoint, followed by **148 native
+input frames**. Parsing the `CpsRamFF` save-state block with the
+CPS2 RAM byte-swap shows `FF5104=00`, `FF5105=04`,
+so the authentic big-endian 68000 game-step **word is 0004**.
+At that exact checkpoint `FF5000=00`, `FF5180=07` and
+`FF51A0=03` (P1 done, P2 selecting).
+The old verse cue read `FF5104` as one byte and got 00, so the
+`step==4` detector could not arm. The corrected detector reads the
+full word; there is no hard-coded half-second shift or late status-only
+fallback.
+
+`RUN_REPLAY.bat` with the original 87.320 F9 session emits
+`test/87.324/replay_results/versus_m68k_handoff.tsv` containing
+the exact movie frame, native frame, 68000 PC/PPC, ROM opcode,
+game-step word, selection records, phase and stage. Only that
+native trace can confirm the exact SCREEN handoff frame at runtime;
+a checkpoint alone cannot reveal the next 148 executed M68K states.
+Keep the original recording untouched. No GitHub builds or extra
+build gates are introduced.
+
 ## Repository tracking and local TEST retention
 
 Git is **source control, not the build archive**. The repository deliberately
