@@ -132,13 +132,12 @@ static inline void swapSide(unsigned char* ram,unsigned a,unsigned b){
  // controller link and slot-specific partner pointer are POSITION/ROLE state.
  copySpan(ram+a,originalA,0x000,0x020);
  copySpan(ram+b,originalB,0x000,0x020);
- // +0x4B is the verified slot-facing flag. Neighboring +0x4A,
- // +0x4C..+0x4F are NOT established slot-role bytes; copying all six
- // back from the old point reintroduced Cyclops display/palette state
- // into Wolverine after a first-frame roster swap. Keep those bytes
- // with the incoming CHARACTER, preserving only the slot's facing bit.
- ram[a+0x04bu]=(unsigned char)((ram[a+0x04bu]&~1u)|(originalA[0x04bu]&1u));
- ram[b+0x04bu]=(unsigned char)((ram[b+0x04bu]&~1u)|(originalB[0x04bu]&1u));
+ // The native +0x4B facing flag maps to RAW saved-RAM byte +0x4A
+ // (CPS2 68000 byte lanes are XOR 1). The surrounding +0x4B..+0x4F
+ // raw bytes are not proven slot-role state: keep them with the
+ // incoming character instead of restoring Cyclops-owned display data.
+ ram[a+0x04au]=(unsigned char)((ram[a+0x04au]&~1u)|(originalA[0x04au]&1u));
+ ram[b+0x04au]=(unsigned char)((ram[b+0x04au]&~1u)|(originalB[0x04au]&1u));
  copySpan(ram+a,originalA,0x060,0x00c);
  copySpan(ram+b,originalB,0x060,0x00c);
  copySpan(ram+a,originalA,0x200,0x010);
