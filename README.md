@@ -172,6 +172,47 @@ unchanged. Actual gameplay validation requires local
 `BUILD_TEST.bat` and `RUN_TEST.bat`; a source check is not a
 claim that the Windows renderer was run.
 
+## Ryu Stage 87.326 — corner-accurate camera and uniform Y motion
+
+The user's TEST 87.325 capture contains a complete native FBNeo
+`FB1 FS1` save state, inputs, and F10 fighter-location observations.
+The checkpoint's CPS2 `CpsRamFF` bytes at `FF524C..FF524D`
+are **FF C0** (signed -64). The established native stage-05 camera
+observer adds **64**, so the **real camera X is 0** at the left arena
+corner. The F10 data independently shows fighter X ranges extending
+near both ends of the 768-pixel native world (X=21 through X=749).
+These are native ROM observations, not a new camera approximation.
+
+87.325 incorrectly used:
+`groundCrop = clamp(192 + (nativeCameraX - 296), 0, 384)`.
+This is equivalent to `clamp(nativeCameraX - 104, 0, 384)`.
+It held the ground image still as native X traveled **0 through 104**,
+then stopped at crop **280** when native X reached **384**. That
+accounts for the left-side hitch and the missing right-side corner.
+
+**87.326 uses exactly**
+`groundCrop = clamp(nativeCameraX, 0, 384)`.
+It maps left camera X=0 to source crop 0, center X=296 to crop 296,
+and right camera X=384 to source crop 384. The `ryustage.png`
+ground remains the original 768×471 image without scaling or
+reindexing, and native fighter/camera/collision RAM is unchanged.
+
+**No vertical parallax whatsoever.** Ground, both skies, and all
+three Roof layers share the same native Y shift:
+`224 - 471 + layerSourceY + (256 - nativeCameraY)`.
+Roof3 is no longer the only fully ground-locked layer; Roof and Roof2
+now also move at 100% native camera Y. Horizontal rates remain Roof
+45%, Roof2 27%, Roof3 13%, and both skies keep their opposite looping
+motions. Horizontal parallax follows **unclamped nativeCameraX**
+relative to the previously established X=296 art-registration point;
+it does not freeze when Ground reaches a source-image edge.
+The unchanged render order remains skies -> Roof3 -> Roof2 -> Roof ->
+PNG Ground -> native HUD/fighter layers.
+
+Only the existing local `BUILD_TEST.bat` and `RUN_TEST.bat` are
+used for native validation. Source math and original checkpoint were
+inspected; actual Windows TEST 87.326 playback is not claimed.
+
 ## Verified versus-screen M68K checkpoint — TEST 87.324
 
 The original uploaded **87.320** F9 recording starts with a
