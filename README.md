@@ -138,7 +138,7 @@ the warm build cache. Keeping history as-is means older Git objects remain
 reachable; this is **not** a destructive rewrite of branches, Git history,
 the Stable build, or past replay recordings.
 
-## Akuma Stage A/B visual contract (TEST 87.317)
+## Akuma Stage A/B visual contract (TEST 87.318)
 
 **Six original raster assets**, all under `_art/sf3akuma/`, are used directly:
 
@@ -148,13 +148,37 @@ the Stable build, or past replay recordings.
 | 2. Moon | `sf3akuma1_a2.png` | `sf3akuma1_b2.png` |
 | 3. Clouds (farthest) | `sf3akuma1_a3.png` | `sf3akuma1_b3.png` |
 
-Both stage images are **768×471** in original native pixel units. The moon
-and cloud rasters are centered relative to the same 768×471 stage world;
-**do not strip transparent padding, rescale the large moon or cloud source,
-or force B3 to have the same dimensions as A3**. The committed B3 raster
-is 1491×1055; its actual pixels remain intact and centered. Stage moves
-with 100% native horizontal camera; moon moves at 55%, clouds at 30%;
-all use the same native vertical grounded/super-jump camera registration.
+Stage images retain their **768-pixel original world width**. Their
+height may now exceed 471 pixels to add sky above the frame (committed A1
+is 768×512 and B1 is 768×526). **Anchor
+the ACTUAL bottom pixel of each A1/B stage texture at native ground
+camera Y=256**, so added upper rows extend UP, never shift the floor
+or get resized/cropped; the previous 471-pixel sky could leave a 9px
+gap when native camera Y reaches zero. The updated moon A2/B2 source is
+**768×471** for both textures, and also aligns by its bottom edge; the
+renderer accepts old moon dimensions without stretching. The cloud
+A3/B3 images keep their independent original dimensions and vertical
+center relative to the baseline 768×471 world. Render clouds behind
+the moon and ground, repeating them horizontally with a steady
+**rightward 2px per 3 emulated frames (40px/sec)**, source pixel tiles
+edge-to-edge and a 30% native horizontal camera parallax. The moon
+uses 55% horizontal parallax; the ground uses 100%. All layers retain
+the same native vertical camera translation. Never change source image
+padding, remap sprites, or use the stage art as a camera origin.
+
+During the 2700-frame A→B ordered-dither interval, draw B behind the
+corresponding A texture at the same layer depth. **Do NOT darken B to
+60% or apply global brightness modulation.** On the first reveal,
+color-match each B pixel halfway (50%) toward its corresponding A pixel,
+weighted by A's opacity. Match in WORLD coordinates with bottom
+registration for stage/moon and centered, horizontally wrapping
+coordinates for cloud tiles; preserve B's alpha and all original source
+files. Then gently restore B's unmodified authored RGB over the same
+64 ordered-dither steps, reaching fully original B when A is gone.
+Precompute the match once during texture loading and update the B
+streaming texture only when the dither step changes, avoiding expensive
+per-frame recoloring. Native fighter/FX and stun HUD remain above all
+paired scenery layers.
 
 **Transition is time-based, not KO-based.** Start the clock at first native
 combat phase 08. Keep A entirely visible for the first **600 emulated
