@@ -530,12 +530,12 @@ static void xm8657BeginNativeGrade(){
     xm8657PaletteActive=false;
     if(!xm8657Eligible())return;
     const unsigned frame=(unsigned)GetCurrentFrame();
-    // XM87.57: the selected custom Wily stage owns its scenery and grading.
+    // XM87.316: every custom stage (IDs 1-4) owns its scenery/lighting.
     // Native scroll/background palettes are never presented on that stage,
     // except during ROM-native full-screen effects. Keep their original white
     // for the flash classifier in BOTH normal and Double Feature modes.
     // Fighter-specific monochrome, HUD and FX palette arrays remain unchanged.
-    const bool wilyNativeUnmodifiedBg=((xm77StageResolved==1 || xm77StageResolved==2 || xm77StageResolved==3) &&
+    const bool wilyNativeUnmodifiedBg=((xm77StageResolved>=1 && xm77StageResolved<=4) &&
              xm8649Visual.sceneActive && xm8649Visual.stage==5);
     static bool reportedWilyNativeBg=false;
     if(wilyNativeUnmodifiedBg && !reportedWilyNativeBg){
@@ -897,9 +897,9 @@ static std::vector<UINT8> xm77Pixels;
 const UINT8* xm77SpritePixels(){return xm77SpriteValid?xm77Pixels.data():NULL;}
 static void xm77CaptureSprites(){
     xm77SpriteValid=0;
-    // Wily, Final Destination and Guile each need the native fighter/FX layer.
+    // All custom stages (Wily 1, FD 2, Guile 3, Sigma 4) need native fighter/FX capture.
     // Double Feature remains an independent palette/lighting switch.
-    if((xm77StageResolved!=1 && xm77StageResolved!=2 && xm77StageResolved!=3) || !xm8649Visual.sceneActive || Cps!=2 || !pBurnDraw ||
+    if((xm77StageResolved<1 || xm77StageResolved>4) || !xm8649Visual.sceneActive || Cps!=2 || !pBurnDraw ||
        nBurnBpp!=4 || nCpsScreenWidth!=384 || nCpsScreenHeight!=224 || nBurnPitch<384*4)
         return;
     const int w=384,h=224;

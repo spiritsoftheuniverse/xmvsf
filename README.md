@@ -88,6 +88,20 @@ renderer and music code have been committed.** Before reporting success:
    the menu. Do not infer display success from static source checks or
    from a GitHub commit. Use only the existing local build/test scripts.
 
+**Confirmed Sigma native culling root cause (TEST 87.316):** the CPS2 draw
+path in `dev/stable/buildtree/src/burn/drv/capcom/cps_draw.cpp` still
+whitelisted ONLY IDs 1=Wily, 2=Final Destination, and 3=Guile for
+`xm77CaptureSprites()`. Sigma is ID 4, so `xm77SpriteValid` was
+unconditionally cleared to zero and `XMSigma::paint()` refused to draw
+even when `_art/sigmastage/sigmastage.png` existed and loaded correctly.
+The same missing ID in `xm8657BeginNativeGrade()` omitted Sigma from
+the background palette preservation exception. **When adding a custom
+stage, update the CPS2 native capture whitelist AND native palette
+exception, alongside the stage picker, early stage05 selector,
+camera observer, WASAPI preload and SDL painter.** A loader-only fix
+cannot overcome missing fighter/FX capture. Verify a running TEST build
+before calling either stage visible.
+
 **Historical failure:** Guile Stage and then Sigma Stage were selectable
 while their authored scenery did not display. The policy is to first
 verify the committed asset, runtime lookup path, and native sprite/camera
