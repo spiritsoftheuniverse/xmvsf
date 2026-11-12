@@ -522,6 +522,13 @@ struct Actor {
                 d.outcome="FS_HIT_CONVERSION_CANCELLED";
             }else if(d.substate==2u && nativePair){
                 d.candidate=true; // also log native-steep preservation
+                // Log the exact HP/HK from the originally confirmed hit.
+                // Current-frame buttons have naturally been released by
+                // the time native substate 2 resolves; zero here obscured
+                // the actual source of prior FS velocity writes.
+                d.taggedButton=fsPendingButton;
+                d.buttonEvidence=true;
+                d.stormHeavyButton=true;
                 // Report the preceding hit from the originating substate-0
                 // snapshot, not the now-updated lastConnectedButton ledger.
                 d.previousHitButton=fsPendingPreviousHitButton;
