@@ -56,6 +56,22 @@ struct Tracker {
             nextScript>rootScript && s.script<nextScript &&
             originalSuperController(s);
     }
+
+    // 87.310 experimental universal DHC: accept only an original-ROM,
+    // bounded 2E continuation belonging to this exact actor/controller.
+    // Terminal table tails have no successor script and remain observer-only.
+    // This is NOT used by Version 3 or the legacy Ryu/Ken DHC executor.
+    bool boundedContinuationAt(unsigned now,const XM87184Life::Sample& s)const{
+        return live && lastFrame==now && phase==CONTINUATION &&
+            s.fighter==fighter && s.action==stageAction &&
+            s.d6==originalD6 && s.step>=4u && (s.step&1u)==0u &&
+            stageScript!=0u && stageEnd>stageScript &&
+            s.script>=stageScript && s.script<stageEnd &&
+            s.script==lastObservedScript && originalSuperController(s);
+    }
+    bool unifiedDhcWindowAt(unsigned now,const XM87184Life::Sample& s)const{
+        return activeAt(now,s) || boundedContinuationAt(now,s);
+    }
     bool recognizes()const {
         return live && (phase==STARTUP || phase==ATTACK ||
                         phase==RECOVERY || phase==CONTINUATION);

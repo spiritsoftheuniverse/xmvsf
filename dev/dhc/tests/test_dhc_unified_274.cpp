@@ -80,6 +80,29 @@ int main(){
     s.frame(ram,rom,sizeof(rom),53u);
     s.frame(ram,rom,sizeof(rom),54u);
     assert(p.phase==XM87274Unified::IDLE);
+    // 87.310: reproduce the captured continuation-only DHC window.
+    // A ROM-bounded 2E22 stage is eligible only for the EXPERIMENTAL
+    // unified path; a terminal tail or mismatched script is not.
+    XM87189Family::Tracker tracker;
+    tracker.live=true;tracker.lastFrame=2579u;
+    tracker.phase=XM87189Family::CONTINUATION;
+    tracker.fighter=0x0Eu;tracker.rootAction=0x2E20u;
+    tracker.stageAction=0x2E22u;
+    tracker.stageScript=0x0CDA3Eu;tracker.stageEnd=0x0CDB00u;
+    tracker.lastObservedScript=0x0CDA3Eu;
+    tracker.originalD6=0x0Cu;
+    const XM87184Life::Sample continuation={
+        0x0Eu,0x2E22u,0x2A28u,4u,0x0CDA3Eu,0x0Cu};
+    assert(!tracker.activeAt(2579u,continuation)); // legacy root only
+    assert(tracker.boundedContinuationAt(2579u,continuation));
+    assert(tracker.unifiedDhcWindowAt(2579u,continuation));
+    tracker.stageEnd=0u; // terminal 2E table tail is NOT writable
+    assert(!tracker.unifiedDhcWindowAt(2579u,continuation));
+    tracker.stageEnd=0x0CDB00u;
+    tracker.lastObservedScript=0x0CDA4Eu;
+    assert(!tracker.unifiedDhcWindowAt(2579u,continuation));
+    tracker.lastObservedScript=0x0CDA3Eu;
+    assert(!tracker.unifiedDhcWindowAt(2580u,continuation)); // stale frame
     envSet("XM8755_GAME_VERSION","3");
     assert(!s.enabled()); // Version 3 never uses this path
     std::puts("XMVSF 87.274: two-sided native DHC policy PASS");

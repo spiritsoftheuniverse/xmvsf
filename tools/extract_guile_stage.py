@@ -561,6 +561,8 @@ def main() -> int:
     ap.add_argument("--actor",metavar="NAME",
                     help="re-extract only this actor's layers (e.g. Joe); "
                          "requires the existing full manifest")
+    ap.add_argument("--force",action="store_true",
+                    help="explicitly replace protected exports from the selected PSD")
     args=ap.parse_args()
     if not args.source.is_file():
         print(f"GUILE PSD missing: {args.source}",file=sys.stderr)
@@ -571,7 +573,33 @@ def main() -> int:
     extractor_digest=hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
     if manifest.is_file():
         cached = manifest.read_text(encoding="utf-8")
-        if (not args.actor and "PARTIAL_ACTOR\t" not in cached and
+
+        # Joe's corrected exported frames may be newer than the PSD that
+        # actually made it into Git. Never silently undo authored PNG frames
+        # from a stale PSD during a normal game build or launch.
+        rows = cached.splitlines()
+        source_rows = [row.split("\t",1)[1] for row in rows
+                       if row.startswith("SOURCE_SHA256\t")]
+        protected_rows = [row.split("\t",1)[1] for row in rows
+                          if row.startswith("PROTECT_EXPORTED_JOE_SOURCE_SHA256\t")]
+        if (not args.force and len(source_rows)==1 and
+                len(protected_rows)==1 and
+                source_rows[0]==protected_rows[0] and
+                digest != source_rows[0]):
+            exports = [args.output / fields[8] for row in rows
+                       if (fields := row.split("\t")) and
+                          len(fields)>=9 and fields[0]=="LAYER"]
+            if not exports or not all(path.is_file() and path.stat().st_size > 0
+                                      for path in exports):
+                print("GUILE PROTECTED EXPORT INCOMPLETE: refusing to overwrite Joe "
+                      "from a mismatched PSD. Restore the current exported PNGs.",
+                      file=sys.stderr)
+                return 2
+            print("GUILE JOE EXPORT PRESERVED: source PSD does not match corrected "
+                  "manifest; native build will use the authored PNGs. "
+                  "Commit the matching PSD when ready (or explicitly --force).")
+            return 0
+        if (not args.force and not args.actor and "PARTIAL_ACTOR\t" not in cached and
                 f"SOURCE_SHA256\t{digest}" in cached and
                 f"EXTRACTOR_SHA256\t{extractor_digest}" in cached and
                 "FORMAT\t3" in cached):

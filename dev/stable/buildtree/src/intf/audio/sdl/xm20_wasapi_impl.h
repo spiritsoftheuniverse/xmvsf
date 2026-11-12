@@ -140,7 +140,12 @@ static bool clipLoadOggRepo(Clip& dst,const char* filename){
     if(!slash)slash=std::strrchr(base,'/');
     if(!slash)return false;
     *(slash+1)=0;
-    const char* roots[]={"../../audio/","../audio/","audio/"};
+    // OST Normalization Studio groups music under audio/music/. Keep legacy
+    // audio/ as fallback for existing installs; sound effects remain in audio/.
+    const char* roots[]={
+        "../../audio/music/","../audio/music/","audio/music/",
+        "../../audio/","../audio/","audio/"
+    };
     for(const char* root:roots){
         char path[4096]={};
         const int written=std::snprintf(path,sizeof(path),"%s%s%s",base,root,filename);
@@ -185,7 +190,7 @@ static bool clipLoadOggRepo(Clip& dst,const char* filename){
                      path,channels,hz,unsigned(target));
         return true;
     }
-    std::fprintf(stderr,"XM87.288 FD_OGG_MISSING_OR_UNSUPPORTED %s (expected audio/ Vorbis)\n",filename);
+    std::fprintf(stderr,"XM87.288 FD_OGG_MISSING_OR_UNSUPPORTED %s (expected audio/music/ or legacy audio/ Vorbis)\n",filename);
     return false;
 }
 static DWORD WINAPI fdLoadWorker(LPVOID){

@@ -413,9 +413,20 @@ struct State {
                         "XM87192_TEST_RESERVE_OWNERSHIP");
                     const bool ownedMode=(ownedSetting &&
                         std::strcmp(ownedSetting,"1")==0) || unifiedDhc;
+                    // Chord can arrive while direction is still DF/DB;
+                    // permit completion of that same held chord within four
+                    // original frames, but never re-propose it twice.
+                    const bool completedBufferedChord=directionEdge &&
+                        lastAttackFrame[side]!=~0u &&
+                        frame>=lastAttackFrame[side] &&
+                        frame-lastAttackFrame[side]<=4u &&
+                        lastMoveFrame[side]!=lastAttackFrame[side];
+                    const bool freshOwnedChord=(pressed ||
+                        completedBufferedChord) &&
+                        lastMoveFrame[side]!=lastAttackFrame[side];
                     const bool ownedReady=ownedMode &&
                         (playableRyuKen || unifiedDhc) &&
-                        nativeWindow && pressed &&
+                        nativeWindow && freshOwnedChord &&
                         XM87192Owner::state().propose(
                             side,bench,frame,
                             XM87192Owner::parse(

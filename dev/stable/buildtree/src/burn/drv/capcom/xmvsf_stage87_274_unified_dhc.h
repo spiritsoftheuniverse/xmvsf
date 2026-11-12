@@ -113,6 +113,10 @@ struct State {
             XM87142::ramL(ram,p+0x34u),XM87142::ramB(ram,p+0xD6u)};
         const auto& super=XM87189Family::state().side[side];
         if(!super.preCpuActive(now,native))return out;
+        // Unbounded terminal 2E tails remain read-only, including at the
+        // pre-CPU physical input boundary. Do not shield their 3P chords.
+        if(super.phase==XM87189Family::CONTINUATION &&
+           !(super.stageScript && super.stageEnd>super.stageScript))return out;
         const XM87193Exit::PreCpu plan=XM87193Exit::beforeCpu(
             true,true,true,physicalButtons);
         if(plan.active){
@@ -140,8 +144,15 @@ struct State {
             const unsigned point=XM87142::ramW(ram,p+0x52u);
             const unsigned reserve=XM87142::ramW(ram,r+0x52u);
             if(s.phase==IDLE){
-                if(!validPair(point,reserve) ||
-                   !XM87192Owner::state().fresh(side,reserve,now))continue;
+                // Physical DHC proposals arrive AFTER the current CPU frame.
+                // Log why one cannot enter the real native tag path instead of
+                // remaining silently IDLE (87.309 capture, frames 2579-2651).
+                if(!XM87192Owner::state().fresh(side,reserve,now))continue;
+                if(!validPair(point,reserve)){
+                    event(now,side,"REJECT_INVALID_ACTOR_RESERVE_PAIR");
+                    XM87192Owner::state().clear(side);
+                    continue;
+                }
                 const XM87184Life::Sample native={
                     point,XM87142::ramW(ram,p+0x60u),
                     XM87142::ramW(ram,p+0xA0u),
@@ -149,9 +160,22 @@ struct State {
                     XM87142::ramL(ram,p+0x34u),
                     XM87142::ramB(ram,p+0xD6u)};
                 const auto& super=XM87189Family::state().side[side];
-                // Only an actual current-frame ROM super attack root, a
-                // fresh reserve input, and available stock may arm a tag.
-                if(!super.activeAt(now,native))continue;
+                // The 87.309 trace proved proposals during genuine 2E
+                // continuation (e.g. action 2E22), not only root ATTACK.
+                // Permit ONLY the exact ROM-bounded current stage; a terminal
+                // tail or an unmatched actor/script still cannot arm tag 8.
+                if(!super.unifiedDhcWindowAt(now,native)){
+                    char reason[160];
+                    std::snprintf(reason,sizeof(reason),
+                        "REJECT_ROM_SUPER_WINDOW phase=%u action=%04X step=%u script=%06X root=%04X stage=%04X end=%06X",
+                        unsigned(super.phase),native.action,native.step,native.script,
+                        super.rootAction,super.stageAction,super.stageEnd);
+                    event(now,side,reason);
+                    XM87192Owner::state().clear(side);
+                    continue;
+                }
+                if(super.phase==XM87189Family::CONTINUATION)
+                    event(now,side,"ROM_BOUNDED_2E_CONTINUATION_WINDOW_ACCEPTED");
                 if(!XM87142::ramB(ram,p+0x214u)){
                     event(now,side,"REJECT_NO_ADDITIONAL_STOCK");
                     XM87192Owner::state().clear(side);continue;
