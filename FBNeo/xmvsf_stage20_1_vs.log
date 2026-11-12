@@ -1,2 +1,6 @@
 frame=1 reason=PHASE_OBSERVED status=00 p1ptr=00FF5180 training=1 selectPhase=1 selected=0 armed=0
+<<<<<<< Updated upstream
 frame=822 reason=PRECOMBAT_ACTOR_VS_CANDIDATE status=00 p1ptr=00FF4000 training=1 selectPhase=3 selected=0 armed=1
+=======
+frame=1761 reason=PRECOMBAT_ACTOR_VS_CANDIDATE status=00 p1ptr=00FF4000 training=1 selectPhase=3 selected=0 armed=1
+>>>>>>> Stashed changes
