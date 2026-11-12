@@ -82,10 +82,17 @@ struct ObjFrame {
 	UINT8* Obj;
 	INT32 nCount;
 	XM8717::Source xm8717Sources[0x400]; // metadata parallel to compressed OBJ list
+	// 87.306: native camera sampled along with THIS sprite-buffer list.
+	bool xmStage05CameraValid=false;
+	int xmStage05CameraX=0,xmStage05CameraY=256;
 };
 
 static INT32 nFrameCount = 0;
 static struct ObjFrame of[3];
+// Published only from the actual native OAM buffer drawn by Cps2ObjDraw.
+bool xm8649BufferedObjCameraValid=false;
+int xm8649BufferedObjCameraX=0,xm8649BufferedObjCameraY=256;
+unsigned xm8649BufferedObjCameraFrame=0u;
 
 static UINT8 *blendtable;
 
@@ -181,12 +188,15 @@ INT32 CpsObjInit()
 
 	// Set up the frame buffers
 	for (INT32 i = 0; i < nFrameCount; i++) {
+		of[i].xmStage05CameraValid=false;
 		of[i].Obj = ObjMem + (nMax << 3) * i;
 		of[i].nCount = 0;
 		if (CpsXmvSixEnabled) of[i].nShiftX = of[i].nShiftY = 0;
 	}
 
 	nGetNext=0;
+	xm8649BufferedObjCameraValid=false;
+	xm8649BufferedObjCameraFrame=0u;
 
 	if (Cps == 2) {
 		memset(ZBuf, 0, nCpsScreenWidth * nCpsScreenHeight * 2);
@@ -235,6 +245,18 @@ INT32 CpsObjGet()
 	pof = of + nGetNext;
 
 	pof->nCount = 0;
+	pof->xmStage05CameraValid=false;
+	// The CPS2 native stage scroll belonging to THIS sprite list.
+	if(Cps==2 && CpsRamFF &&
+	   (CpsRamFF[0x5113u^1u]&15u)==5u){
+		const unsigned rawX=(unsigned(CpsRamFF[0x524cu^1u])<<8)|
+		                     unsigned(CpsRamFF[0x524du^1u]);
+		const unsigned rawY=(unsigned(CpsRamFF[0x5250u^1u])<<8)|
+		                     unsigned(CpsRamFF[0x5251u^1u]);
+		pof->xmStage05CameraX=int((short)rawX)+64;
+		pof->xmStage05CameraY=int((short)rawY);
+		pof->xmStage05CameraValid=true;
+	}
 
 	po = pof->Obj;
 	pof->nShiftX = -0x40;
@@ -679,6 +701,15 @@ INT32 Cps2ObjDraw(INT32 nLevelFrom, INT32 nLevelTo)
 
 	// Draw the earliest frame we have in history
 	pof = of + nGetNext;
+	// The exact camera sample from the OAM buffer this draw consumes.
+	if(!xm8651SpriteCaptureActive){
+		xm8649BufferedObjCameraValid=pof->xmStage05CameraValid;
+		if(pof->xmStage05CameraValid){
+			xm8649BufferedObjCameraX=pof->xmStage05CameraX;
+			xm8649BufferedObjCameraY=pof->xmStage05CameraY;
+			xm8649BufferedObjCameraFrame=(unsigned)GetCurrentFrame();
+		}
+	}
 	// XM87.60: export the ORIGINAL buffered CPS2 object list, before any
     // custom Wily/Double Feature filtering. A stable OAM tile is not a
     // verified projectile or super: correlate with original ROM states.
