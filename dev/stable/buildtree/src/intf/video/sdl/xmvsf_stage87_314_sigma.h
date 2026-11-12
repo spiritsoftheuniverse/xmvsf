@@ -8,10 +8,17 @@
 #include <SDL_image.h>
 #include <algorithm>
 #include <cmath>
+#include <cctype>
 #include <cstdint>
 #include <cstdio>
 #include <string>
 #include <vector>
+#if defined(_WIN32)
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
+#endif
 
 namespace XMSigma {
 static const int W=384,H=224,WORLD_W=768,GROUND_CAMERA_Y=256;
@@ -21,6 +28,7 @@ struct Scene {
  SDL_Texture *fighters=nullptr,*flash=nullptr;
  int imageW=0,imageH=0;
  bool failed=false;
+ unsigned failedGeneration=~0u;
  void close(){
   if(base)SDL_DestroyTexture(base);
   if(orange)SDL_DestroyTexture(orange);
@@ -29,14 +37,18 @@ struct Scene {
   if(fighters)SDL_DestroyTexture(fighters);
   if(flash)SDL_DestroyTexture(flash);
   base=orange=white=warm=fighters=flash=nullptr;
-  imageW=imageH=0;failed=false;
+  imageW=imageH=0;failed=false;failedGeneration=~0u;
  }
  static bool roots(SDL_Renderer* renderer,SDL_Surface*& source,std::string&found){
   (void)renderer;
   const char* names[]={
    "sigmastage.png","sigma.png","sigma_stage.png",
-   "Sigma Stage.png","SigmaStage.png","sigmastage/sigmastage.png",
-   "sigma/sigma.png","sigmastage/Sigma Stage.png"
+   "Sigma Stage.png","SigmaStage.png","sigma-stage.png",
+   "sigmastage/sigmastage.png","sigmastage/sigma.png",
+   "sigma/sigma.png","sigmastage/Sigma Stage.png",
+   "sigma stage/sigma stage.png","sigma stage/stage.png",
+   "Sigma Stage/Sigma Stage.png","Sigma Stage/stage.png",
+   "assets/sigmastage.png","assets/sigma.png"
   };
   std::vector<std::string> dirs={"_art/","../_art/","../../_art/"};
   char* basePath=SDL_GetBasePath();
@@ -51,34 +63,79 @@ struct Scene {
    source=IMG_Load(path.c_str());
    if(source){found=path;return true;}
   }
+#if defined(_WIN32)
+  // Guile's original failure showed why hard-coded filenames are fragile:
+  // inspect local _art/ for an unmistakably Sigma-named PNG or one PNG
+  // inside a Sigma-named directory. Do NOT choose arbitrary level art.
+  // The result is sorted for deterministic selection on Windows filesystems.
+  for(const std::string& dir:dirs){
+   std::vector<std::string> candidates;
+   WIN32_FIND_DATAA entry={};
+   HANDLE h=FindFirstFileA((dir+"*").c_str(),&entry);
+   if(h==INVALID_HANDLE_VALUE)continue;
+   do{
+    const std::string name=entry.cFileName;
+    if(name=="."||name=="..")continue;
+    std::string lowered=name;
+    std::transform(lowered.begin(),lowered.end(),lowered.begin(),
+                   [](unsigned char c){return (char)std::tolower(c);});
+    if(lowered.find("sigma")==std::string::npos)continue;
+    if(entry.dwFileAttributes&FILE_ATTRIBUTE_DIRECTORY){
+     WIN32_FIND_DATAA inside={};
+     const std::string nested=dir+name+"/";
+     HANDLE inner=FindFirstFileA((nested+"*.png").c_str(),&inside);
+     if(inner!=INVALID_HANDLE_VALUE){
+      do{
+       if(!(inside.dwFileAttributes&FILE_ATTRIBUTE_DIRECTORY))
+        candidates.push_back(nested+inside.cFileName);
+      }while(FindNextFileA(inner,&inside));
+      FindClose(inner);
+     }
+    }else if(lowered.size()>4 &&
+             lowered.compare(lowered.size()-4,4,".png")==0)
+     candidates.push_back(dir+name);
+   }while(FindNextFileA(h,&entry));
+   FindClose(h);
+   std::sort(candidates.begin(),candidates.end());
+   for(const std::string& candidate:candidates){
+    source=IMG_Load(candidate.c_str());
+    if(source){found=candidate;return true;}
+   }
+  }
+#endif
   return false;
  }
  bool load(SDL_Renderer* renderer){
-  if(failed)return false;
+  if(failed){
+   // Allow a new stage session to retry after assets are added, rather
+   // than permanently poisoning the SDL renderer until application exit.
+   if(failedGeneration==xm77StageRollGeneration())return false;
+   failed=false;
+  }
   if(base&&orange&&white&&warm&&fighters&&flash)return true;
   if(!renderer)return false;
   SDL_Surface* original=nullptr;std::string found;
   if(!roots(renderer,original,found)){
    std::fprintf(stderr,
-    "XM87.314 SIGMA_ART_MISSING expected=_art/sigmastage.png or _art/sigma.png; native art fallback\n");
-   failed=true;return false;
+    "XM87.315 SIGMA_ART_MISSING stage=4 expected=_art/sigmastage.png, _art/sigma.png, or Sigma-named PNG/folder under _art; native art fallback; verify git ls-files _art\n");
+   failed=true;failedGeneration=xm77StageRollGeneration();return false;
   }
   imageW=original->w;imageH=original->h;
   // The image must remain a full image, never cropped or pixel-stripped.
   if(imageW<384||imageH<128||imageW>4096||imageH>4096 ||
      (uint64_t)imageW*imageH>8000000u){
    std::fprintf(stderr,"XM87.314 SIGMA_ART_SIZE_INVALID size=%dx%d\n",imageW,imageH);
-   SDL_FreeSurface(original);failed=true;return false;
+   SDL_FreeSurface(original);failed=true;failedGeneration=xm77StageRollGeneration();return false;
   }
   SDL_Surface* image=SDL_ConvertSurfaceFormat(original,SDL_PIXELFORMAT_RGBA32,0);
   SDL_FreeSurface(original);
-  if(!image){failed=true;return false;}
+  if(!image){failed=true;failedGeneration=xm77StageRollGeneration();return false;}
   SDL_Surface* o=SDL_CreateRGBSurfaceWithFormat(0,imageW,imageH,32,SDL_PIXELFORMAT_RGBA32);
   SDL_Surface* w=SDL_CreateRGBSurfaceWithFormat(0,imageW,imageH,32,SDL_PIXELFORMAT_RGBA32);
   SDL_Surface* b=SDL_CreateRGBSurfaceWithFormat(0,imageW,imageH,32,SDL_PIXELFORMAT_RGBA32);
   if(!o||!w||!b){
    if(o)SDL_FreeSurface(o);if(w)SDL_FreeSurface(w);if(b)SDL_FreeSurface(b);
-   SDL_FreeSurface(image);failed=true;return false;
+   SDL_FreeSurface(image);failed=true;failedGeneration=xm77StageRollGeneration();return false;
   }
   SDL_FillRect(o,nullptr,SDL_MapRGBA(o->format,0,0,0,0));
   SDL_FillRect(w,nullptr,SDL_MapRGBA(w->format,0,0,0,0));
@@ -123,7 +180,7 @@ struct Scene {
                          SDL_TEXTUREACCESS_STREAMING,W,H);
   if(!base||!orange||!white||!warm||!fighters||!flash){
    std::fprintf(stderr,"XM87.314 SIGMA_TEXTURE_FAILED %s\n",SDL_GetError());
-   close();failed=true;return false;
+   close();failed=true;failedGeneration=xm77StageRollGeneration();return false;
   }
   SDL_Texture* all[]={base,orange,white,warm,fighters,flash};
   for(SDL_Texture* t:all){
@@ -140,10 +197,26 @@ struct Scene {
 static inline Scene& scene(){static Scene s;return s;}
 static inline void cleanup(){scene().close();}
 static inline bool paint(SDL_Renderer* render,const SDL_Rect& view){
- if(xm77StageResolved!=4 || !xm8649Visual.sceneActive ||
-    xm8649Visual.stage!=5)return false;
- if(!xm77SpriteValid || xm77SpriteWidth!=W || xm77SpriteHeight!=H ||
-    !xm77SpritePixels())return false;
+ if(xm77StageResolved!=4)return false;
+ // Once per stage-session diagnostic pinpoints a missing native camera
+ // gate, sprite capture or disk art without flooding the render loop.
+ static unsigned loggedGeneration=~0u;
+ static bool oldNativeGate=false,oldSpriteGate=false;
+ const unsigned generation=xm77StageRollGeneration();
+ const bool nativeGate=xm8649Visual.sceneActive&&xm8649Visual.stage==5;
+ const bool spriteGate=xm77SpriteValid&&xm77SpriteWidth==W&&
+                      xm77SpriteHeight==H&&xm77SpritePixels()!=nullptr;
+ if(loggedGeneration!=generation || nativeGate!=oldNativeGate ||
+    spriteGate!=oldSpriteGate){
+  loggedGeneration=generation;
+  oldNativeGate=nativeGate;oldSpriteGate=spriteGate;
+  std::fprintf(stderr,
+    "XM87.315 SIGMA_GATE generation=%u choice=%d resolved=%d nativeActive=%d nativeStage=%d status=%u sprites=%d spriteSize=%dx%d\n",
+    generation,xm77StageChoice,xm77StageResolved,(int)nativeGate,
+    xm8649Visual.stage,xm8649Visual.status,(int)spriteGate,
+    xm77SpriteWidth,xm77SpriteHeight);
+ }
+ if(!nativeGate||!spriteGate)return false;
  Scene& s=scene();
  if(!s.load(render))return false;
  if(SDL_UpdateTexture(s.fighters,nullptr,xm77SpritePixels(),W*4)!=0)
