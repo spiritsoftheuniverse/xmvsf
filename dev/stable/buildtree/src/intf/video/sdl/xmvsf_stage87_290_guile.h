@@ -54,8 +54,7 @@ struct Scene {
  int canvasW=0,canvasH=0;
  int groundX=0,groundY=0,groundW=0,groundH=0;
  int bgTopY=0; // PSD source top of BG: sky's fixed-in-world bottom seam
- int cameraBaseX=0,cropStartX=0;
- bool cameraBaseSet=false;
+ int cropStartX=0;
  bool failed=false;
  bool active=false;
  unsigned long long lastFrame=~0ull;
@@ -68,12 +67,12 @@ struct Scene {
   if(flash)SDL_DestroyTexture(flash);
   fighters=flash=nullptr;
   canvasW=canvasH=0;groundX=groundY=groundW=groundH=bgTopY=0;
-  cameraBaseX=0;cropStartX=0;cameraBaseSet=false;
+  cropStartX=0;
   failed=false;active=false;lastFrame=~0ull;
   root.clear();
  }
  void resetMotion(){
-  active=false;lastFrame=~0ull;cameraBaseSet=false;
+  active=false;lastFrame=~0ull;
   for(Actor& a:actors){a.current=0;a.hold=6+(int)(rand32(a.rng)%7u);}
  }
  static std::vector<std::string> split(const std::string& line){
@@ -277,17 +276,16 @@ struct Scene {
    }
   }
  }
- // The 768x471 authored window is the stage WORLD, not 384 game pixels.
- // The native 384x224 viewport sees a one-to-one pixel crop inside it.
- // Start at the center of that authored window; pan left/right with the
- // native ROM camera, never resample/recenter individual PSD layers.
+ // A native camera of X=0 sees the LEFT edge of the 768px PSD stage
+ // window; X=192 sees its center; X=384 sees the RIGHT edge. Follow the
+ // native 1:1 world sweep directly. Do NOT latch a "first camera" during
+ // pre-fight stage loading: it can precede the first valid fighter pointer,
+ // causing an opening shift and a permanent camera origin error.
  int centerCrop()const{
   return cropStartX+(AUTHORED_W-VIEW_W)/2;
  }
- int groundCrop(int nativeCameraX){
-  if(!cameraBaseSet){cameraBaseX=nativeCameraX;cameraBaseSet=true;}
-  return clamp(centerCrop()+(nativeCameraX-cameraBaseX),
-               cropStartX,cropStartX+AUTHORED_W-VIEW_W);
+ int groundCrop(int nativeCameraX)const{
+  return cropStartX+clamp(nativeCameraX,0,AUTHORED_W-VIEW_W);
  }
  bool drawTexture(SDL_Renderer* render,SDL_Texture* tex,
                   const Layer& l,double sourceCropX,int cameraY,
