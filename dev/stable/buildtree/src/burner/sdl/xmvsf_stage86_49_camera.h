@@ -10,6 +10,20 @@
 extern int xm14TrainingMode;
 extern int xm24VersusMode;
 extern bool bRunPause;
+// CPS2 Cps2ObjDraw uses the PREVIOUS frame's buffered OAM (cps_obj.cpp).
+// The custom scenery must use the camera sample belonging to that OAM,
+// not the already-advanced gameplay camera from this real frame.
+struct XM8649CameraHistory {
+ bool valid=false;
+ int rawX=0,rawY=256;
+ unsigned rawFrame=0,stage=0;
+};
+static inline XM8649CameraHistory& xm8649CameraHistory(){
+ static XM8649CameraHistory h;return h;
+}
+static inline void xm8649ForgetCameraHistory(){
+ xm8649CameraHistory()=XM8649CameraHistory{};
+}
 static inline int xm8649SignedWord(cpu_core_config* c, unsigned a){
  const unsigned u=((c->read(a)&255u)<<8)|(c->read(a+1)&255u);
  return (u&0x8000u)?int(u)-65536:int(u);
@@ -26,7 +40,7 @@ static inline void xm8649ObserveCamera(bool gameReady){
  const bool guileStage=((xm77StageChoice==0||xm77StageChoice==3) && xm77StageResolved==3 &&
                         (xm14TrainingMode==1 || xm24VersusMode==1));
  if(!gameReady || bBurnRunAheadFrame || (!wily&&!finalDestination&&!guileStage)){
-  xm8649Visual.sceneActive=false;return;
+  xm8649Visual.sceneActive=false;xm8649ForgetCameraHistory();return;
  }
  const char* name=BurnDrvGetTextA(DRV_NAME);
  if(!name || std::strncmp(name,"xmvsf",5)!=0){xm8649Visual.sceneActive=false;return;}
@@ -46,14 +60,21 @@ static inline void xm8649ObserveCamera(bool gameReady){
  const bool active=(stage==5u && XM87108::StagePhase(status));
  // XMVSF USA stage 05: $FF8000-0x2DC0 = $FF5240; native camera
  // is s16(+0C)+64 horizontally, s16(+10) vertically.
- // This scroll object remains the native camera even when the point
- // pointer changes during startup, tag or entry. The previous code
- // HELD the last-frame camera whenever actor != FF4000, visibly making
- // custom scenery lag behind fighters and then snap back on reacquisition.
- // Read the actual scroll coordinates every frame instead; no virtual
- // camera, interpolation, smoothing or extra frame of delay.
- const int x=active?xm8649SignedWord(c,0xFF524Cu)+64:0;
- const int y=active?xm8649SignedWord(c,0xFF5250u):256;
+ // Read the real ROM camera unconditionally during stage05 startup/tag.
+ // CPS2 hardware OAM used for this frame was buffered one native frame
+ // earlier. Match that one-frame sprite pipeline exactly: NO smoothing,
+ // weighted follow camera, interpolation, or character midpoint.
+ const int rawX=active?xm8649SignedWord(c,0xFF524Cu)+64:0;
+ const int rawY=active?xm8649SignedWord(c,0xFF5250u):256;
+ XM8649CameraHistory& h=xm8649CameraHistory();
+ const unsigned currentFrame=(unsigned)GetCurrentFrame();
+ const bool matchingBufferedOAM=active && h.valid && h.stage==stage &&
+     currentFrame==h.rawFrame+1u;
+ const int x=matchingBufferedOAM?h.rawX:rawX;
+ const int y=matchingBufferedOAM?h.rawY:rawY;
+ if(active){h.valid=true;h.rawX=rawX;h.rawY=rawY;
+            h.rawFrame=currentFrame;h.stage=stage;}
+ else xm8649ForgetCameraHistory();
  c->close();
  xm8649Visual.stage=stage; xm8649Visual.status=status;
  xm8649Visual.pointer=actor; xm8649Visual.sceneActive=active;
