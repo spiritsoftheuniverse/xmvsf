@@ -269,6 +269,10 @@ def extract(data: bytes, out: Path) -> list[str]:
           f"Characters_members={char_count(paths)}")
     ground = None
     actors: dict[str,list[dict]] = {}
+    # Photoshop animation names are case-insensitive. ladyL1 and LadyL2,
+    # for example, are frames of one actor, not two static characters.
+    # Preserve the first seen spelling in the manifest for readability.
+    actor_aliases: dict[str,str] = {}
     for i,layer in enumerate(layers):
         if layer["section"] in (1,2,3):
             layer["role"] = "folder"
@@ -282,7 +286,8 @@ def extract(data: bytes, out: Path) -> list[str]:
             if ground is None:
                 ground = layer
         if layer["role"] == "actor":
-            layer["actor"] = actor_name(parts)
+            spelled_name = actor_name(parts)
+            layer["actor"] = actor_aliases.setdefault(spelled_name.casefold(), spelled_name)
             actors.setdefault(layer["actor"],[]).append(layer)
     if ground is None:
         raise ValueError("Guile PSD has no pixel layer named ground; stage needs its exact bounds")
