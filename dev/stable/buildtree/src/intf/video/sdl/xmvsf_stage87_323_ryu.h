@@ -95,7 +95,7 @@ struct Scene {
   SDL_SetTextureBlendMode(ground,SDL_BLENDMODE_BLEND);
   SDL_SetTextureScaleMode(ground,SDL_ScaleModeNearest);
   std::ifstream manifest((root+"manifest.tsv").c_str());
-  if(!manifest){failed=true;return false;}
+  if(!manifest){close();failed=true;return false;}
   bool header=false,hasRoof=false,hasRoof2=false,
        hasRoof3=false,hasTop=false,hasBottom=false;
   std::string line;
@@ -117,12 +117,12 @@ struct Scene {
    l.w=std::atoi(w.c_str());l.h=std::atoi(h.c_str());l.name=name;
    if(l.w<1||l.h<1||l.w>4096||l.h>4096){close();failed=true;return false;}
    SDL_Surface* surface=IMG_Load((root+file).c_str());
-   if(!surface){std::fprintf(stderr,"XM87.323 RYU_PNG_MISSING %s%s\n",
+   if(!surface){std::fprintf(stderr,"XM87.325 RYU_PNG_MISSING %s%s\n",
                             root.c_str(),file.c_str());
     close();failed=true;return false;
    }
    if(surface->w!=l.w||surface->h!=l.h){
-    std::fprintf(stderr,"XM87.323 RYU_PNG_BOUNDS_MISMATCH %s\n",name.c_str());
+    std::fprintf(stderr,"XM87.325 RYU_PNG_BOUNDS_MISMATCH %s\n",name.c_str());
     SDL_FreeSurface(surface);close();failed=true;return false;
    }
    l.tex=SDL_CreateTextureFromSurface(render,surface);SDL_FreeSurface(surface);
@@ -295,7 +295,7 @@ static inline bool paint(SDL_Renderer* r,const SDL_Rect& view){
  const int gate=(stageReady?1:0)|(nativeReady?2:0);
  if(gate!=lastGate){
   std::fprintf(stderr,
-   "XM87.324 RYU_GATE resolved=%d native_stage=%u phase=%02X camera_active=%d sprite_valid=%d sprite=%dx%d\n",
+   "XM87.325 RYU_GATE resolved=%d native_stage=%u phase=%02X camera_active=%d sprite_valid=%d sprite=%dx%d\n",
    xm77StageResolved,xm8649Visual.stage,xm8649Visual.status,
    (int)stageReady,(int)nativeReady,xm77SpriteWidth,xm77SpriteHeight);
   lastGate=gate;
