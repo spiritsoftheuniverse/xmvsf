@@ -13,6 +13,7 @@
 // Types match declarations in src/burn/drv/capcom/cps.h.
 extern INT32 Cps;
 extern UINT8 *CpsSavePal;
+extern UINT8 *CpsRamFF; // CPS2 live fighter records (avoids cps.h / eeprom macro collision)
 extern UINT32 *CpsPal;
 extern UINT8 CpsRecalcPal;
 #include <cstdio>
