@@ -232,6 +232,7 @@ static int xmvsfBootSelector(bool returningFromGame=false) {
             if(xm77StageResolved==3)xm20GuilePrepare();
             if(xm77StageResolved==4)xm20SigmaPrepare();
             if(xm77StageResolved==5)xm20AkumaPrepare();
+            if(xm77StageResolved==6)xm20RyuPrepare();
             ++xm77StageRollGeneration(); // same new-session stage latch
         }
         std::fprintf(stderr,
@@ -483,7 +484,7 @@ static int xmvsfBootSelector(bool returningFromGame=false) {
                 xm249SelectSessionPad(0,ev.jbutton.which);
             if(screen==5) { // Stage selection, before loading the character select save-state.
                 if(back){screen=returnScreen;menuGate.begin();continue;}
-                if(direction){stageRow=(stageRow+6+(direction>0?1:5))%6;xm25MenuSound(false);}
+                if(direction){stageRow=(stageRow+7+(direction>0?1:6))%7;xm25MenuSound(false);}
                 if(accept){
                     if(pendingMode==1)xm20MenuFight(); // Training: cue at stage confirmation
                     else xm25MenuSound(true);
@@ -494,7 +495,8 @@ static int xmvsfBootSelector(bool returningFromGame=false) {
                     if(xm77StageResolved==3)xm20GuilePrepare();
             if(xm77StageResolved==4)xm20SigmaPrepare();
             if(xm77StageResolved==5)xm20AkumaPrepare();
-                    preloadRequested=(xm77StageResolved>=2&&xm77StageResolved<=5)?xm77StageResolved:0;
+            if(xm77StageResolved==6)xm20RyuPrepare();
+                    preloadRequested=(xm77StageResolved>=2&&xm77StageResolved<=6)?xm77StageResolved:0;
                     std::fprintf(stderr,"XM86.32 STAGE MENU CONFIRM mode=%d selected=%d resolved=%d\n",pendingMode,xm77StageChoice,xm77StageResolved);std::fflush(stderr);
                     xm25BeginInputHandoff();
                     outcome=pendingMode;running=0;
@@ -609,13 +611,14 @@ static int xmvsfBootSelector(bool returningFromGame=false) {
         }
         // Begin low-priority preload when FD is highlighted; pause when leaving.
         // Do not override the final resolved choice while exiting selection.
-        const int wantStage=(screen==5 && stageRow>=2 && stageRow<=5)?stageRow:0;
+        const int wantStage=(screen==5 && stageRow>=2 && stageRow<=6)?stageRow:0;
         if(running && wantStage!=preloadRequested){
             xmFDPreloadSetActive(wantStage==2);
             if(wantStage==2)xm20FDPrepare();
             if(wantStage==3)xm20GuilePrepare();
             if(wantStage==4)xm20SigmaPrepare();
             if(wantStage==5)xm20AkumaPrepare();
+            if(wantStage==6)xm20RyuPrepare();
             preloadRequested=wantStage;
         }
         const float backgroundStrength=introEnabled?
@@ -673,9 +676,9 @@ static int xmvsfBootSelector(bool returningFromGame=false) {
             }
         } else if(screen==5) {
             xmvsfPixelText(render,"SELECT STAGE",480,90,5,108,193,255);
-            const char* stages[6]={"RANDOM","WILY FACTORY","FINAL DESTINATION","GUILE STAGE","SIGMA STAGE","AKUMA STAGE"};
-            for(int i=0;i<6;++i){
-                const int y=139+i*50;
+            const char* stages[7]={"RANDOM","WILY FACTORY","FINAL DESTINATION","GUILE STAGE","SIGMA STAGE","AKUMA STAGE","RYU STAGE"};
+            for(int i=0;i<7;++i){
+                const int y=128+i*42;
                 const Uint8 bright=(i==stageRow)?255:80;
                 xmvsfPixelText(render,stages[i],480,y,4,bright,bright,bright);
             }
