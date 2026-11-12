@@ -285,10 +285,11 @@ F10 creates three **numbered, matching** files in `test/87.328/`:
   row per captured native CPU frame, plus `INSTRUCTION_CHANGE` rows
   when the ORIGINAL guest 68000 changes `FF5000` (phase),
   `FF5104` (big-endian 16-bit selection/match step), `FF5180`
-  (P1 chooser state), or `FF51A0` (P2 chooser state). Each transition
-  captures the **executed PPC**, next PC, A6/D0/D1, before/after values,
-  current stage/timer and native actor pointer `FFA014`. The change
-  mask 01/02/04/08 identifies which RAM values changed. This does not
+  (P1 chooser state), `FF51A0` (P2 chooser state), or
+  `FFA014` (native actor pointer). Each transition captures the
+  **executed PPC**, next PC, A6/D0/D1, before/after values, and
+  current stage/timer. The change mask 01/02/04/08/10 identifies
+  which RAM values changed. This does not
   infer the handoff from wall-clock timing or a F9 save-state checkpoint.
   A bounded 20,000-row cap prevents an accidentally left-on capture
   from growing indefinitely.
