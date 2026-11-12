@@ -5,7 +5,6 @@
 // Raw OAM + Z80 sound RAM + PCM samples permit source-based correlation.
 #include "xmvsf_stage14_mode.h"
 #include "burnint.h"
-#include "xmvsf_stage87_135_roster_snapshot.h"
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -152,7 +151,6 @@ struct Capture {
             tried=true;
             const int rc=BurnStateSave((TCHAR*)SNAPSHOT,1);
             saved=(rc==0);
-            if(saved)XM87135::cacheFirstFrame(SNAPSHOT); // same-team first-live-frame archive
             std::fprintf(stderr,"XM87.102 TRAINING_MATCH_START_STATE frame=%u save=%s path=%s\n",
                 frame,saved?"OK":"FAILED",SNAPSHOT);
         }
