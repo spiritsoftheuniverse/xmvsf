@@ -56,16 +56,6 @@ struct Context {
     unsigned noticeFrames=0;
     bool lastSaved=false;
     bool sealed=false,unsealedPrefix=false;
-    // Before F9: keep one native checkpoint at the first pre-combat VS
-    // frame and up to two seconds of subsequent inputs (not save states
-    // each frame). F9 can then start slightly late but replay from VS entry.
-    bool preActive=false,preExpired=false,preAttempted=false;
-    int preLastStatus=-1;
-    unsigned preInputWidth=0;
-    Host preHost;
-    std::string preStatePath;
-    std::vector<unsigned> preSlotLayout;
-    std::vector<std::vector<UINT8>> preFrames;
     ~Context(){if(stream)std::fclose(stream);if(journal)std::fclose(journal);}
 };
 inline Context& context(){static Context x;return x;}
@@ -513,24 +503,7 @@ inline bool openRecord(const Host& host){
     const std::string state=std::string(stem)+"_start.fs";
     if(!collect())return fail("V2_NO_EMULATED_INPUT_SLOTS");
     const std::string statePath=c.folder+"/"+state;
-    bool usePreroll=c.segment==0u&&c.preActive&&!c.preExpired&&
-        !c.preFrames.empty()&&c.preHost.training==host.training&&
-        c.preHost.versus==host.versus&&c.preHost.stageResolved==host.stageResolved;
-    unsigned inputWidth=0;
-    std::vector<unsigned> layout;
-    for(const Slot& slot:c.slots){
-        inputWidth+=slot.width;
-        layout.push_back((slot.type<<8)|slot.width);
-    }
-    usePreroll=usePreroll&&c.preInputWidth==inputWidth&&
-               c.preSlotLayout==layout;
-    if(usePreroll){
-        std::ifstream source(c.preStatePath.c_str(),std::ios::binary);
-        std::ofstream dest(statePath.c_str(),std::ios::binary|std::ios::trunc);
-        if(source&&dest){dest<<source.rdbuf();usePreroll=bool(dest);}
-        else usePreroll=false;
-    }
-    if(!usePreroll&&BurnStateSave(const_cast<char*>(statePath.c_str()),1)!=0)
+    if(BurnStateSave(const_cast<char*>(statePath.c_str()),1)!=0)
         return fail("V2_CHECKPOINT_SAVE_FAILED");
     const std::string inputPath=c.folder+"/"+input;
     c.stream=std::fopen(inputPath.c_str(),"wb");
@@ -547,26 +520,10 @@ inline bool openRecord(const Host& host){
         if(std::fwrite(info,1,2,c.stream)!=2u)
             return fail("V2_INPUT_LAYOUT_WRITE_FAILED");
     }
-    if(usePreroll){
-        // Identical binary input format and frame indices as normal v2,
-        // but start at the earlier saved native VS-entry boundary.
-        for(const auto& bytes:c.preFrames){
-            if(bytes.size()!=inputWidth || !write32(c.stream,c.frames) ||
-               std::fwrite(bytes.data(),1,inputWidth,c.stream)!=inputWidth)
-                return fail("V2_PREROLL_INPUT_WRITE_FAILED");
-            ++c.frames;++c.allFrames;
-        }
-    }
     std::fprintf(c.journal,"SEG\t%u\t%u\t%d\t%s\t%s\t%s\t",
         c.session,c.segment,host.versus?2:host.training?1:0,
-        usePreroll?"PRECOMBAT_VS_ENTRY":c.reason.c_str(),
-        input.c_str(),state.c_str());
-    hostWrite(c.journal,usePreroll?c.preHost:host);
-    if(usePreroll){
-        status("VERSUS_PREROLL_APPLIED frames="+std::to_string(c.frames)+
-               " checkpoint="+state);
-        c.preActive=false;
-    }
+        c.reason.c_str(),input.c_str(),state.c_str());
+    hostWrite(c.journal,host);
     std::fputc('\n',c.journal);std::fflush(c.journal);
     c.split=false;
     status("CHECKPOINT_SAVED session="+std::to_string(c.session)+
@@ -616,68 +573,10 @@ inline bool openPlay(){
         " frames="+std::to_string(s.count)+" reason="+s.reason);
     return true;
 }
-// These frames are sampled AFTER InputMake but BEFORE BurnDrvFrame.
-// Only one native state is saved on the ROM's first pre-combat transition.
-// Never roll the native machine backwards or generate synthetic inputs.
-inline void captureVersusPreroll(const Host& host){
-    Context& c=context();
-    if(c.mode!=OFF || c.root.empty() || (!host.training&&!host.versus))
-        return;
-    const char* name=BurnDrvGetTextA(DRV_NAME);
-    if(!name||std::strncmp(name,"xmvsf",5)!=0)return;
-    cpu_core_config* cpu=GetCpuCoreConfig(0);
-    if(!cpu||!cpu->open||!cpu->read||!cpu->close)return;
-    cpu->open(0);
-    const int nativeStatus=cpu->read(0xFF5000u)&255u;
-    cpu->close();
-    // Selection is 00; an advancing pre-combat status (02,04,06)
-    // starts the native VS screen. 08 is live combat.
-    if(nativeStatus==0 && c.preLastStatus!=0){
-        c.preAttempted=false;c.preExpired=false;c.preActive=false;
-        c.preFrames.clear();c.preSlotLayout.clear();
-    }
-    const int previous=c.preLastStatus;
-    c.preLastStatus=nativeStatus;
-    if(nativeStatus>=8 || (status==0 && c.preActive)){
-        c.preActive=false;c.preFrames.clear();
-        return;
-    }
-    if(!c.preActive&&!c.preAttempted&&nativeStatus>0&&nativeStatus<8&&
-       previous==0&&host.selectPhase>=3){
-        c.preAttempted=true;
-        if(!collect())return;
-        c.preHost=host;
-        c.preSlotLayout.clear();c.preInputWidth=0;
-        for(const Slot& slot:c.slots){
-            c.preInputWidth+=slot.width;
-            c.preSlotLayout.push_back((slot.type<<8)|slot.width);
-        }
-        c.preStatePath=c.root+"/.versus_preroll_start.fs";
-        if(BurnStateSave(const_cast<char*>(c.preStatePath.c_str()),1)!=0){
-            status("VERSUS_PREROLL_STATE_FAILED");return;
-        }
-        c.preActive=true;c.preExpired=false;c.preFrames.clear();
-        status("VERSUS_PREROLL_ARMED status="+std::to_string(nativeStatus));
-    }
-    if(!c.preActive)return;
-    if(c.preFrames.size()>=120u){
-        c.preActive=false;c.preExpired=true;c.preFrames.clear();
-        status("VERSUS_PREROLL_EXPIRED 120 frames");
-        return;
-    }
-    std::vector<UINT8> bytes;
-    bytes.reserve(c.preInputWidth);
-    for(const Slot& slot:c.slots)
-        for(unsigned i=0;i<slot.width;++i)bytes.push_back(slot.address[i]);
-    c.preFrames.push_back(bytes);
-}
 enum FrameResult { NO_REPLAY=0, FRAME_READY=1, END_GAME=2, DIVERGED=3 };
 inline FrameResult beforeFrame(const Host& host){
     Context& c=context();initialize();
-    if(c.mode!=RECORD && c.mode!=PLAY){
-        if(c.mode==OFF)captureVersusPreroll(host);
-        return NO_REPLAY;
-    }
+    if(c.mode!=RECORD && c.mode!=PLAY)return NO_REPLAY;
     if(!c.insideGame)gameBegin(host.versus?2:host.training?1:0);
     if(c.mode==FAILED)return DIVERGED;
     if(c.mode==RECORD){
