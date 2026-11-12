@@ -224,10 +224,22 @@ struct Scene {
 static inline Scene& scene(){static Scene s;return s;}
 static inline void cleanup(){scene().close();}
 static inline bool paint(SDL_Renderer* r,const SDL_Rect& view){
- if(xm77StageResolved!=6||!xm8649Visual.sceneActive||xm8649Visual.stage!=5)
-  return false;
- if(!xm77SpriteValid||xm77SpriteWidth!=W||xm77SpriteHeight!=H||
-    !xm77SpritePixels())return false;
+ if(xm77StageResolved!=6)return false;
+ // Verify the SAME three read-only native gates required by README.
+ // Report only on a gate transition, not once per rendered frame.
+ const bool stageReady=xm8649Visual.sceneActive&&xm8649Visual.stage==5;
+ const bool nativeReady=xm77SpriteValid&&xm77SpriteWidth==W&&
+                        xm77SpriteHeight==H&&xm77SpritePixels()!=nullptr;
+ static int lastGate=-1;
+ const int gate=(stageReady?1:0)|(nativeReady?2:0);
+ if(gate!=lastGate){
+  std::fprintf(stderr,
+   "XM87.324 RYU_GATE resolved=%d native_stage=%u phase=%02X camera_active=%d sprite_valid=%d sprite=%dx%d\n",
+   xm77StageResolved,xm8649Visual.stage,xm8649Visual.status,
+   (int)stageReady,(int)nativeReady,xm77SpriteWidth,xm77SpriteHeight);
+  lastGate=gate;
+ }
+ if(!stageReady||!nativeReady)return false;
  return scene().paint(r,view);
 }
 } // namespace XMRyu

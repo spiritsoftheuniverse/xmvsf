@@ -765,6 +765,7 @@ int RunMessageLoop()
     // XM86.55: the VS detector and the selection-music suppressor are session-scoped.
     // An earlier match must never keep the next character select in combat mode.
     if(xm20Vs.log){std::fclose(xm20Vs.log);xm20Vs.log=nullptr;}
+    xm20VsClose(); // Flush any prior native VS/M68K replay trace before resetting.
     xm20Vs=XM20VsTracker{};
     xm22::diagnosticWritten=false;
     xm22::writes=0;

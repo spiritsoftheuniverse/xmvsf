@@ -1,12 +1,14 @@
 #ifndef XMVSF_STAGE20_1_VS_TRANSITION_H
 #define XMVSF_STAGE20_1_VS_TRANSITION_H
-// 87.322: cue the song when the native versus presentation STARTS,
-// not when final character selection finishes or the match opens.
-// FF5104 leaving chooser step 04 for intermediate precombat step 05/06/07
-// is the primary event. FF5000=02 is too late for a fallback.
-// This observer reads original 68000 state only; no game-state writes.
+// 87.324 replay-grounded correction: FF5104 is big-endian WORD 0004,
+// not an 8-bit register. Uploaded 87.320 checkpoint: FF5104=00 FF5105=04,
+// FF5180=07 FF51A0=03. Previous byte-only read made VS detection impossible.
+// Trigger on the actual native selection->precombat step edge, log M68K
+// PCs per replay frame; do not invent an FF5000 timing window.
 #include <cstdio>
 #include <cstdint>
+#include <cstdlib>
+#include "../../cpu/m68000_intf.h"
 #include "xm20_vs_early_phase.h"
 
 struct XM20VsTracker {
@@ -16,6 +18,8 @@ struct XM20VsTracker {
     XM20VsEarly::Gate gate{};
     bool triggered=false,combatNotified=false,missedLogged=false;
     FILE* log=nullptr;
+    FILE* trace=nullptr;
+    unsigned traceCount=0;
 };
 static XM20VsTracker xm20Vs;
 
@@ -23,7 +27,7 @@ static inline void xm20VsLog(const char* why,unsigned status,unsigned p1ptr) {
     if(!xm20Vs.log)xm20Vs.log=std::fopen("xmvsf_stage20_1_vs.log","w");
     if(xm20Vs.log){
         std::fprintf(xm20Vs.log,
-            "frame=%u reason=%s status=%02X p1ptr=%08X gameStep=%02X chooserP1=%02X chooserP2=%02X selecting=%u owned=%u\n",
+            "frame=%u reason=%s status=%02X p1ptr=%08X gameStep=%04X chooserP1=%02X chooserP2=%02X selecting=%u owned=%u\n",
             xm20Vs.polls,why,status,p1ptr,
             xm20Vs.gameStep,xm20Vs.p1Choice,xm20Vs.p2Choice,
             (unsigned)xm20Vs.gate.sawActiveChooser,(unsigned)xm20Vs.triggered);
@@ -31,6 +35,32 @@ static inline void xm20VsLog(const char* why,unsigned status,unsigned p1ptr) {
     }
 }
 
+// Read-only exact replay/M68K diagnostic. No new save states or CPU writes.
+static inline void xm20VsTrace(unsigned status,unsigned step,unsigned p1,
+                              unsigned p2,unsigned p1ptr,unsigned pc,
+                              unsigned ppc,unsigned opcode,unsigned stage,
+                              unsigned timer){
+    const char* target=std::getenv("XMVSF_VS_M68K_TRACE_LOG");
+    if(!target||!*target||xm20Vs.traceCount>=1200u)return;
+    if(!xm20Vs.trace){
+        xm20Vs.trace=std::fopen(target,"wb");
+        if(!xm20Vs.trace)return;
+        std::fprintf(xm20Vs.trace,
+            "movie_frame\tnative_frame\tpc\tppc\topcode\tstatus_FF5000\tstep_FF5104_WORD\tP1_FF5180\tP2_FF51A0\tstage_FF5113\ttimer_FF5008\tactor_ptr\ttrigger\n");
+    }
+    const XM8764::Context& replay=XM8764::context();
+    const unsigned movieFrame=replay.allFrames?replay.allFrames-1u:0u;
+    std::fprintf(xm20Vs.trace,
+        "%u\t%u\t%06X\t%06X\t%04X\t%02X\t%04X\t%02X\t%02X\t%02X\t%02X\t%08X\t%d\n",
+        movieFrame,(unsigned)GetCurrentFrame(),pc,ppc,opcode,status,step,
+        p1,p2,stage,timer,p1ptr,(int)xm20Vs.triggered);
+    std::fflush(xm20Vs.trace);
+    ++xm20Vs.traceCount;
+}
+static inline void xm20VsClose(){
+    if(xm20Vs.trace){std::fclose(xm20Vs.trace);xm20Vs.trace=nullptr;}
+    if(xm20Vs.log){std::fclose(xm20Vs.log);xm20Vs.log=nullptr;}
+}
 static inline void xm20VsCheck(int ready,int paused) {
     if(!ready || paused || bBurnRunAheadFrame || xm20Vs.combatNotified)return;
     cpu_core_config* cpu=GetCpuCoreConfig(0);
@@ -43,9 +73,19 @@ static inline void xm20VsCheck(int ready,int paused) {
     // Original game: FF5104 step 04 choosing, 08 match setup.
     // FF5180 and FF51A0 are separate 0x20-byte chooser records.
     // Byte zero reaches 07 after each player's full team and speed picks.
-    const unsigned gameStep=cpu->read(0xFF5104u)&255u;
+    const unsigned gameStep=((cpu->read(0xFF5104u)&255u)<<8)|
+                            (cpu->read(0xFF5105u)&255u); // 68000 big-endian WORD
     const unsigned p1Choice=cpu->read(0xFF5180u)&255u;
     const unsigned p2Choice=cpu->read(0xFF51A0u)&255u;
+    // Exact M68K PC/PPC after this native frame; ROM opcode read only.
+    const char* tracePath=std::getenv("XMVSF_VS_M68K_TRACE_LOG");
+    const bool traceEnabled=tracePath&&*tracePath;
+    const unsigned pc=traceEnabled?SekGetPC(-1):0u;
+    const unsigned ppc=traceEnabled?SekGetPPC(-1):0u;
+    const unsigned opcode=traceEnabled&&pc<0x400000u?
+        ((cpu->read(pc)&255u)<<8)|(cpu->read(pc+1u)&255u):0u;
+    const unsigned stage=traceEnabled?(cpu->read(0xFF5113u)&255u):0u;
+    const unsigned timer=traceEnabled?(cpu->read(0xFF5008u)&255u):0u;
     cpu->close();
     ++xm20Vs.polls;
     const unsigned oldStep=xm20Vs.gameStep;
@@ -54,6 +94,7 @@ static inline void xm20VsCheck(int ready,int paused) {
     xm20Vs.p2Choice=p2Choice;
 
     if(status==0x08u){
+        xm20VsTrace(status,gameStep,p1Choice,p2Choice,p1ptr,pc,ppc,opcode,stage,timer);
         xm20VsLog(xm20Vs.triggered?"VS_TO_COMBAT":
                                      "COMBAT_WITHOUT_VS_PHASE",status,p1ptr);
         xm20Vs.triggered=true;
@@ -63,28 +104,24 @@ static inline void xm20VsCheck(int ready,int paused) {
     }
     const XM20VsEarly::Event entrance=
         xm20Vs.gate.observe(gameStep,p1Choice,p2Choice);
-    // ROM variants that do not expose intermediate step 06 may jump
-    // directly 04->08. Honor that only while still in status 00/01,
-    // never at the stage-load/actual combat boundary.
-    const bool screenEntry=status<0x02u &&
+    // Use only the observed 16-bit M68K chooser->match handoff,
+    // not the old guessed FF5000 threshold or late status fallback.
+    const bool screenEntry=status<0x08u &&
         (entrance==XM20VsEarly::VS_SCREEN_EDGE ||
-         entrance==XM20VsEarly::MATCH_SETUP_EDGE ||
-         (status==0x01u && xm20Vs.previousStatus==0x00u &&
-          xm20Vs.gate.sawChoosing));
+         entrance==XM20VsEarly::MATCH_SETUP_EDGE);
     if(!xm20Vs.triggered && screenEntry){
         xm20VsLog(entrance==XM20VsEarly::VS_SCREEN_EDGE?
-            "VS_SCREEN_FIRST_NATIVE_FRAME":
-            entrance==XM20VsEarly::MATCH_SETUP_EDGE?
-            "VS_SCREEN_DIRECT_04_08":"VS_SCREEN_STATUS_00_01",
-            status,p1ptr);
+            "VS_M68K_HANDOFF_0004_TO_INTERMEDIATE":
+            "VS_M68K_HANDOFF_0004_TO_0008",status,p1ptr);
         xm20Vs.triggered=true;
         xmvsfHost::enterVs(); // reset and start versus music here ONLY
     }
-    // Never start the VS song on a late FF5000=02..07 fallback. This
-    // used to fire as the match opened, which is exactly the wrong screen.
-    if(!xm20Vs.triggered && !xm20Vs.missedLogged && status>=0x02u){
+    // Trigger column marks the SAME replay frame that actually armed audio.
+    xm20VsTrace(status,gameStep,p1Choice,p2Choice,p1ptr,pc,ppc,opcode,stage,timer);
+    // No status-only fallback. A missing ROM handoff remains a logged miss.
+    if(!xm20Vs.triggered && !xm20Vs.missedLogged && status>=0x08u){
         xm20Vs.missedLogged=true;
-        xm20VsLog("VS_ENTRY_MISSED_NO_LATE_MUSIC",status,p1ptr);
+        xm20VsLog("VS_M68K_EDGE_MISSING",status,p1ptr);
     }
     if(!xm20Vs.triggered &&
        (status!=xm20Vs.previousStatus ||
