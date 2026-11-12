@@ -76,6 +76,8 @@ if not exist "%OBSROOT%" (
   echo ERROR: Cannot create current TEST observer log directory.
   goto :fail
 )
+REM Read-only Morphus EURO 68000 opcode signature audit; opt-in only.
+if "%XM87329_DHC_HOOK_PROBE%"=="1" if not defined XM87329_DHC_HOOK_PROBE_LOG set "XM87329_DHC_HOOK_PROBE_LOG=%OBSROOT%\morphus_opcode_sites_329.tsv"
 echo TEST log folder: "%XMVSF_TEST_LOG_ROOT%"
 REM XM87.235 restore previously successful 87.121 Cyclops air-throw recovery.
 REM Exact pre-throw airborne state after victim lands; no forced new jump.
