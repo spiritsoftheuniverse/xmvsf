@@ -138,7 +138,7 @@ the warm build cache. Keeping history as-is means older Git objects remain
 reachable; this is **not** a destructive rewrite of branches, Git history,
 the Stable build, or past replay recordings.
 
-## Akuma Stage A/B visual contract (TEST 87.318)
+## Akuma Stage A/B visual contract (TEST 87.319)
 
 **Six original raster assets**, all under `_art/sf3akuma/`, are used directly:
 
@@ -158,27 +158,47 @@ gap when native camera Y reaches zero. The updated moon A2/B2 source is
 **768×471** for both textures, and also aligns by its bottom edge; the
 renderer accepts old moon dimensions without stretching. The cloud
 A3/B3 images keep their independent original dimensions and vertical
-center relative to the baseline 768×471 world. Render clouds behind
-the moon and ground, repeating them horizontally with a steady
-**rightward 2px per 3 emulated frames (40px/sec)**, source pixel tiles
-edge-to-edge and a 30% native horizontal camera parallax. The moon
-uses 55% horizontal parallax; the ground uses 100%. All layers retain
-the same native vertical camera translation. Never change source image
-padding, remap sprites, or use the stage art as a camera origin.
+center relative to the baseline 768×471 world. The moon uses
+55% horizontal parallax with an additional **280-pixel LEFT** world
+offset, placing its disc at the left side of the viewport when
+fighters/camera are centered. The ground stays at 100% native camera
+speed. Both A/B moon phases retain the same displacement.
 
-During the 2700-frame A→B ordered-dither interval, draw B behind the
-corresponding A texture at the same layer depth. **Do NOT darken B to
-60% or apply global brightness modulation.** On the first reveal,
-color-match each B pixel halfway (50%) toward its corresponding A pixel,
-weighted by A's opacity. Match in WORLD coordinates with bottom
-registration for stage/moon and centered, horizontally wrapping
-coordinates for cloud tiles; preserve B's alpha and all original source
-files. Then gently restore B's unmodified authored RGB over the same
-64 ordered-dither steps, reaching fully original B when A is gone.
-Precompute the match once during texture loading and update the B
-streaming texture only when the dither step changes, avoiding expensive
-per-frame recoloring. Native fighter/FX and stun HUD remain above all
-paired scenery layers.
+Render A3/B3 clouds behind the moon and ground at **50% presentation
+scale**, centered within the 768×471 world and translated **down by
+30% of 471 pixels**. The original source PNGs remain untouched.
+Repeat them horizontally with a steady **rightward 2px per 3 emulated
+frames (40px/sec)** and 30% native horizontal camera parallax.
+Apply the same slow 2% sinusoidal size breathing to both cloud phases,
+with seamless tiles recalculated at their current display widths.
+Both phases retain the native camera's vertical motion. Never change
+source padding, remap fighters or use stage art as camera origin.
+
+Add a subtle 1-native-pixel horizontal foliage wiggle using narrow
+24-pixel source strips with staggered sine phases. Precompute separate
+alpha masks for green leaves (upper canopy) and green grass (bottom
+rows). Overlay the animated masks only for the ground A/B pairs; do
+not move rocks, trunks, floor geometry, camera, or character placement.
+Rebuild the foliage mask pixels only on dither-step changes, not each
+rendered frame.
+
+During the 2700-frame A→B ordered-dither interval, draw B underneath
+the corresponding A image at the same depth. **B starts VERY GREEN**
+at first reveal, then returns gradually to its **normal original
+red/orange authored colors** as A disappears. Do not darken B to 60%
+or apply global texture brightness modulation.
+
+Compute a strongly green-shifted RGB image at load, blending B's
+luminance-derived green grade with the corresponding A pixels in
+WORLD coordinates. For ground/moon, align world positions by their
+bottom pixel; for differing cloud sizes, wrap horizontal pixel sampling.
+When A is transparent, still derive a strong green tone from B itself:
+otherwise red sky or foliage pops through the first dither holes.
+Never recolor source PNGs or alter B's original alpha. Interpolate from
+this green grade to unmodified B RGB across the same 64 ordered-dither
+steps, reaching the true authored B at completion. Update streaming
+textures only when steps change; keep native fighter/FX and stun HUD
+above all scenery layers.
 
 **Transition is time-based, not KO-based.** Start the clock at first native
 combat phase 08. Keep A entirely visible for the first **600 emulated
