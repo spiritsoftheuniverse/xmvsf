@@ -867,6 +867,13 @@ INT32 Cps2Frame()
             (unsigned)GetCurrentFrame(),dhcGameMatches,
             XM87262Game::tournamentKnockdowns(),false,
             CpsCode,(unsigned)nCpsCodeLen);
+    // 87.328: only while F10 is ON and native XMVSF is PRE-combat,
+    // capture the exact executed 68000 PPC that changes the native
+    // chooser/versus transition RAM. Install AFTER existing CPU hooks
+    // to preserve strict LIFO restoration and other observers.
+    if(!bBurnRunAheadFrame)
+        XM87139Probe::state().nativeBegin(CpsRamFF,
+            (unsigned)GetCurrentFrame(),dhcGameMatches,false);
 
 	SekIdle(nCpsCyclesExtra);
 	nCpsCyclesExtra = 0;
@@ -941,6 +948,9 @@ INT32 Cps2Frame()
 	SekRun(nCpsCycles - SekTotalCycles());
     xm8634Mark("AFTER CPU VBLANK RUN");
     xm87180Sample("AFTER_VBLANK_CPU");
+    // F10 native transition logger stops first, without altering CPU cycles.
+    // Includes a final summary when the same 68000 frame enters combat.
+    XM87139Probe::state().nativeEnd();
     // Unwind the nested Charlie callback BEFORE the DHC observer restores
     // its own prior Musashi callback; neither remains armed after SekClose.
     XM87224CharliePC::state().end();
