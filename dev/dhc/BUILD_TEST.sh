@@ -5,7 +5,7 @@
 set -euo pipefail
 BUILD_WALL_START=$SECONDS
 # Batch sets the version once at launch, before native compilation begins.
-XMVSF_BUILD_VERSION="${XMVSF_TEST_VERSION:-87.322}"
+XMVSF_BUILD_VERSION="${XMVSF_TEST_VERSION:-87.323}"
 XMVSF_BUILD_TAG="${XMVSF_BUILD_VERSION//./_}"
 PROJECT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
@@ -64,6 +64,23 @@ if [[ -s "$GUILE_PSD" ]]; then
     py -3 "$PROJECT/tools/extract_guile_stage.py" "${GUILE_EXTRACT_ARGS[@]}"
   else
     echo "ERROR: Python 3 required for Guile PSD layer extraction." >&2
+    exit 2
+  fi
+fi
+
+
+# Ryu PSD extraction is source-hash cached (no rebuild or clean when
+# the PSD did not change). Layer rectangles outside 768x471 survive verbatim.
+RYU_PSD="$PROJECT/_art/ryustage/ryustage.psd"
+if [[ -s "$RYU_PSD" ]]; then
+  if command -v python3 >/dev/null 2>&1; then
+    python3 "$PROJECT/tools/extract_ryu_stage.py"
+  elif command -v python >/dev/null 2>&1; then
+    python "$PROJECT/tools/extract_ryu_stage.py"
+  elif command -v py >/dev/null 2>&1; then
+    py -3 "$PROJECT/tools/extract_ryu_stage.py"
+  else
+    echo "ERROR: Python 3 required for Ryu PSD extraction." >&2
     exit 2
   fi
 fi
@@ -565,7 +582,7 @@ if [[ "${XMVSF_WARM_MENU_SINGLE_PASS:-1}" == 1 &&
       WARM_MENU_PASS=1
       while IFS= read -r changed; do
         case "$changed" in
-          _art/*|audio/*|tools/extract_guile_stage.py|FBNeo/config/games/*|FBNeo/*.log|runtime/stable/XMVSF_Test_*.exe|runtime/stable/xmvsfu_hit*|dev/stable/buildtree/fbneo.exe|dev/dhc/tests/*|dev/dhc/MENU_INTRO_AUDIO_REVEAL_87_235.md|dev/stable/buildtree/src/burner/sdl/xmvsf_menu_*|dev/stable/buildtree/src/burner/sdl/xmvsf_stage14_boot.h|dev/stable/buildtree/src/burner/sdl/xmvsf_stage87_195_menu_gif.h|dev/stable/buildtree/src/burner/sdl/xmvsf_stage87_235_*|dev/stable/buildtree/src/burner/sdl/xmvsf_stage20_api.h|dev/stable/buildtree/src/intf/video/sdl/xmvsf_stage87_290_guile.h|dev/stable/buildtree/src/intf/audio/sdl/xm20_wasapi_impl.h|dev/dhc/BUILD_TEST.sh|dev/dhc/FAST_MENU_LINK_INPUTS_235.sh|dev/dhc/*.md|BUILD_TEST.bat|RUN_TEST.bat|RUN_REPLAY.bat)
+          _art/*|audio/*|tools/extract_guile_stage.py|tools/extract_ryu_stage.py|FBNeo/config/games/*|FBNeo/*.log|runtime/stable/XMVSF_Test_*.exe|runtime/stable/xmvsfu_hit*|dev/stable/buildtree/fbneo.exe|dev/dhc/tests/*|dev/dhc/MENU_INTRO_AUDIO_REVEAL_87_235.md|dev/stable/buildtree/src/burner/sdl/xmvsf_menu_*|dev/stable/buildtree/src/burner/sdl/xmvsf_stage14_boot.h|dev/stable/buildtree/src/burner/sdl/xmvsf_stage87_195_menu_gif.h|dev/stable/buildtree/src/burner/sdl/xmvsf_stage87_235_*|dev/stable/buildtree/src/burner/sdl/xmvsf_stage20_api.h|dev/stable/buildtree/src/intf/video/sdl/xmvsf_stage87_290_guile.h|dev/stable/buildtree/src/intf/audio/sdl/xm20_wasapi_impl.h|dev/dhc/BUILD_TEST.sh|dev/dhc/FAST_MENU_LINK_INPUTS_235.sh|dev/dhc/*.md|BUILD_TEST.bat|RUN_TEST.bat|RUN_REPLAY.bat)
             ;;
           *) WARM_MENU_PASS=0; break ;;
         esac
