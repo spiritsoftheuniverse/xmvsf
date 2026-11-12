@@ -27,7 +27,7 @@ static inline void xm20VsLog(const char* why,unsigned status,unsigned p1ptr) {
     if(!xm20Vs.log)xm20Vs.log=std::fopen("xmvsf_stage20_1_vs.log","w");
     if(xm20Vs.log){
         std::fprintf(xm20Vs.log,
-            "frame=%u reason=%s status=%02X p1ptr=%08X gameStep=%02X chooserP1=%02X chooserP2=%02X selecting=%u owned=%u\n",
+            "frame=%u reason=%s status=%02X p1ptr=%08X gameStep=%04X chooserP1=%02X chooserP2=%02X selecting=%u owned=%u\n",
             xm20Vs.polls,why,status,p1ptr,
             xm20Vs.gameStep,xm20Vs.p1Choice,xm20Vs.p2Choice,
             (unsigned)xm20Vs.gate.sawActiveChooser,(unsigned)xm20Vs.triggered);
@@ -92,9 +92,9 @@ static inline void xm20VsCheck(int ready,int paused) {
     xm20Vs.gameStep=gameStep;
     xm20Vs.p1Choice=p1Choice;
     xm20Vs.p2Choice=p2Choice;
-    xm20VsTrace(status,gameStep,p1Choice,p2Choice,p1ptr,pc,ppc,opcode,stage,timer);
 
     if(status==0x08u){
+        xm20VsTrace(status,gameStep,p1Choice,p2Choice,p1ptr,pc,ppc,opcode,stage,timer);
         xm20VsLog(xm20Vs.triggered?"VS_TO_COMBAT":
                                      "COMBAT_WITHOUT_VS_PHASE",status,p1ptr);
         xm20Vs.triggered=true;
@@ -116,6 +116,8 @@ static inline void xm20VsCheck(int ready,int paused) {
         xm20Vs.triggered=true;
         xmvsfHost::enterVs(); // reset and start versus music here ONLY
     }
+    // Trigger column marks the SAME replay frame that actually armed audio.
+    xm20VsTrace(status,gameStep,p1Choice,p2Choice,p1ptr,pc,ppc,opcode,stage,timer);
     // No status-only fallback. A missing ROM handoff remains a logged miss.
     if(!xm20Vs.triggered && !xm20Vs.missedLogged && status>=0x08u){
         xm20Vs.missedLogged=true;
