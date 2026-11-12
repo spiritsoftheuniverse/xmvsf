@@ -78,11 +78,14 @@ static inline void xm20VsCheck(int ready,int paused) {
     const unsigned p1Choice=cpu->read(0xFF5180u)&255u;
     const unsigned p2Choice=cpu->read(0xFF51A0u)&255u;
     // Exact M68K PC/PPC after this native frame; ROM opcode read only.
-    const unsigned pc=SekGetPC(-1),ppc=SekGetPPC(-1);
-    const unsigned opcode=pc<0x400000u?
+    const char* tracePath=std::getenv("XMVSF_VS_M68K_TRACE_LOG");
+    const bool traceEnabled=tracePath&&*tracePath;
+    const unsigned pc=traceEnabled?SekGetPC(-1):0u;
+    const unsigned ppc=traceEnabled?SekGetPPC(-1):0u;
+    const unsigned opcode=traceEnabled&&pc<0x400000u?
         ((cpu->read(pc)&255u)<<8)|(cpu->read(pc+1u)&255u):0u;
-    const unsigned stage=cpu->read(0xFF5113u)&255u;
-    const unsigned timer=cpu->read(0xFF5008u)&255u;
+    const unsigned stage=traceEnabled?(cpu->read(0xFF5113u)&255u):0u;
+    const unsigned timer=traceEnabled?(cpu->read(0xFF5008u)&255u):0u;
     cpu->close();
     ++xm20Vs.polls;
     const unsigned oldStep=xm20Vs.gameStep;
