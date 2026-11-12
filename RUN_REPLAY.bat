@@ -87,9 +87,9 @@ set "XM87180_EXPERIMENTAL_DELAYED_PRIME=0"
 REM Dedicated replay channel. Existing BUILD_TEST/RUN_TEST names are unchanged.
 REM Replay the original 87.161 F9 full-state + exact CPS2 inputs without
 REM creating replacement ROM scripts, patching native input, or touching Stable.
-set "EXE=%PROJECT%\runtime\stable\XMVSF_Test_87_266.exe"
+set "EXE=%PROJECT%\runtime\stable\XMVSF_Test_87_324.exe"
 if not exist "%EXE%" (
-  echo ERROR: Need XMVSF_Test_87_266.exe. Run BUILD_TEST.bat (no old TEST fallback).
+  echo ERROR: Need XMVSF_Test_87_324.exe. Run BUILD_TEST.bat (no old TEST fallback).
   goto :fail
 )
 if not exist "%PROJECT%\FBNeo" (
@@ -369,6 +369,14 @@ set "TRACE=%PROJECT%\test\87.235\replay_results"
 if not exist "%TRACE%" mkdir "%TRACE%"
 if not exist "%TRACE%" goto :fail
 REM Keep all replay-time host diagnostics outside the original F9 session.
+REM The native FF5104 WORD handoff trace belongs to this TEST, never
+REM inside the original user recording. It is read-only and bounded.
+set "XMVSF_VS_M68K_TRACE_DIR=%PROJECT%\test\87.324\replay_results"
+if not exist "%XMVSF_VS_M68K_TRACE_DIR%" mkdir "%XMVSF_VS_M68K_TRACE_DIR%"
+if not exist "%XMVSF_VS_M68K_TRACE_DIR%" goto :fail
+set "XMVSF_VS_M68K_TRACE_LOG=%XMVSF_VS_M68K_TRACE_DIR%\versus_m68k_handoff.tsv"
+if exist "%XMVSF_VS_M68K_TRACE_LOG%" del /q "%XMVSF_VS_M68K_TRACE_LOG%"
+echo Native 68000 versus-screen trace: "%XMVSF_VS_M68K_TRACE_LOG%"
 set "XM8764_REPLAY_STATUS_FILE=%TRACE%\replay_v2_status.log"
 >>"%XM8764_REPLAY_STATUS_FILE%" echo ===== 87.180 HOST REPLAY START %DATE% %TIME% =====
 set "XM87140_CHAT_DIR=%TRACE%"
@@ -383,7 +391,7 @@ set "XM87160_DISCOVER=1"
 set "XM87160_CATALOG_LOG=%TRACE%\rom_super_catalog.tsv"
 set "XM87160_OBSERVED_LOG=%TRACE%\rom_super_observed.tsv"
 echo.
-echo XMVSF HOST-AWARE F9 REPLAY V2 - CURRENT TEST 87.266
+echo XMVSF HOST-AWARE F9 REPLAY V2 - CURRENT TEST 87.324
 echo Manifest: "%V2_SESSION%\manifest.tsv"
 echo Application menu, game resets, native savestate reloads and inputs
 echo will follow the recorded session/checkpoint timeline.
