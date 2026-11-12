@@ -106,9 +106,8 @@ if not "%~1"=="" (
 )
 REM Current v2 recordings live alongside the current version's replay
 REM files so they are included in ordinary versioned test ZIPs.
-if not defined V2_SESSION if exist "%PROJECT%\test\87.235\replays\latest.txt" (
-  for /f "usebackq delims=" %%S in ("%PROJECT%\test\87.235\replays\latest.txt") do set "V2_SESSION=%%S"
-)
+REM Never prefer an old hard-coded 87.235 movie ahead of the user's
+REM latest 87.320/87.324 recording. Search versions newest-first below.
 REM Keep replays available even AFTER a version bump: find the latest
 REM completed session in older numbered TEST directories, newest first.
 REM This never deletes or migrates the original recording/checkpoints.
