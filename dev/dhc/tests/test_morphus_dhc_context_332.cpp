@@ -28,7 +28,7 @@ int main(){
     char snippet[161]={};
     context80(code.data(),unsigned(code.size()),relocated,snippet);
     assert(std::strlen(snippet)==160u);
-    assert(std::strncmp(snippet+32u,commit->hex,12u)==0);
+    assert(std::strncmp(snippet+32u,"302E0052D040",12u)==0);
     assert(!plausible(code.data(),unsigned(code.size()),commit,12));
     code[relocated+2u]^=0xffu;
     assert(!plausible(code.data(),unsigned(code.size()),commit,14));
