@@ -83,5 +83,34 @@ static inline bool isImage(const std::uint8_t* page,unsigned pageBytes,
            page && pageBytes>=offset+kExpectedBytes &&
            std::memcmp(page+offset,compare+offset,kExpectedBytes)==0;
 }
+// 87.348: aggressive ORIGINAL ROM action 2E execution when the native
+// fighter's D6 state-dispatcher opcode shape is unknown. This is a real
+// fighter-owned 2E script, not a guessed 68000 subroutine or tag handler.
+// Keep the original +D6 byte, native position, ground and register stack;
+// set D0/D1 to the ORIGINAL action/ROM selector before JSR $01038E.
+// The selected script might differ from the requested Hyper: diagnostic
+// experiment only. DO NOT enable for Version 3 or ordinary tag-ins.
+static inline bool emitOriginal2E(std::uint8_t* page,unsigned pageBytes,
+                                  unsigned offset,unsigned d6,unsigned x,
+                                  unsigned selector){
+    if(selector>0x4Eu || (selector&1u) ||
+       !emit(page,pageBytes,offset,d6,x,0x01038Eu))return false;
+    // Original source bytes [58..61] = MOVEQ #0,D0; MOVEQ #0,D1.
+    // The emulator's fetch buffer is word-swapped, so the immediate is
+    // physically at +58 and +60 respectively.
+    page[offset+58u]=0x2Eu; // MOVEQ #$2E,D0
+    page[offset+60u]=std::uint8_t(selector); // MOVEQ #selector,D1
+    return true;
+}
+static inline bool isOriginal2EImage(const std::uint8_t* page,
+                                    unsigned pageBytes,unsigned offset,
+                                    unsigned d6,unsigned x,
+                                    unsigned selector){
+    std::uint8_t compare[kPageBytes]={};
+    return emitOriginal2E(compare,sizeof(compare),offset,d6,x,
+                          selector) && page &&
+           pageBytes>=offset+kExpectedBytes &&
+           std::memcmp(page+offset,compare+offset,kExpectedBytes)==0;
+}
 } // namespace XM87335Guest
 #endif
