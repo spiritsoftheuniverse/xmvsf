@@ -696,6 +696,39 @@ INT32 Cps2Frame()
                         st.reserve,st.d6,side+1u,regions.indexers,
                         lo,hi,headings,goodTargets,phases,example);
                     XM87274Unified::state().event(now,side,diagnostic);
+                    // Also inspect EXACT original fighter-indexer pointers
+                    // outside the naive contiguous character code range.
+                    // An alternate dispatcher may have its own source
+                    // layout; do not assign an address from a nearby actor.
+                    unsigned indexedStates=0u,indexedPhases=0u;
+                    for(unsigned i=0u;i<regions.nativeCount[idx];++i){
+                        const unsigned entry=regions.nativeEntry[idx][i];
+                        if(entry>=lo && entry<hi)continue;
+                        if(!XM87336Dispatch::originalIndexedOwner(
+                            regions,st.reserve,entry))continue;
+                        if(!XM87336Dispatch::bytes(
+                            CpsCode,(unsigned)nCpsCodeLen,
+                            entry,d6Header,sizeof(d6Header)))continue;
+                        ++indexedStates;
+                        const unsigned target=XM87336Dispatch::relTarget(
+                            CpsCode,(unsigned)nCpsCodeLen,
+                            entry+sizeof(d6Header),st.d6);
+                        if(target!=XM87336Dispatch::kNotFound &&
+                           XM87336Dispatch::phase(
+                              CpsCode,(unsigned)nCpsCodeLen,target)!=
+                              XM87336Dispatch::kNotFound)++indexedPhases;
+                    }
+                    const bool matcher=regions.ready &&
+                        lo!=XM87336Dispatch::kNotFound && hi>lo &&
+                        hi<=(unsigned)nCpsCodeLen &&
+                        XM87336Dispatch::sourceMatcher(CpsCode,
+                            (unsigned)nCpsCodeLen,lo,hi,st.d6);
+                    char extra[176];
+                    std::snprintf(extra,sizeof(extra),
+                        "NATIVE_345_INDEXER_EVIDENCE incoming=%02X d6=%02X ownedEntries=%u indirectD6Sites=%u indirectPhase=%u nativeInputSetter=%u",
+                        st.reserve,st.d6,regions.nativeCount[idx],
+                        indexedStates,indexedPhases,matcher?1u:0u);
+                    XM87274Unified::state().event(now,side,extra);
                     st.phase=XM87340Donor::IDLE;
                     st.hidden=0u;
                     st.selected=7u;
