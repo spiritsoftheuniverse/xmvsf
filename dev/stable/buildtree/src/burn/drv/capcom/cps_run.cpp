@@ -628,6 +628,32 @@ INT32 Cps2Frame()
                     "MORPHUS_340_ORIGINAL_NATIVE_SWAP_NOT_CONFIRMED");
                 st.phase=XM87340Donor::IDLE;++st.refusals;
             }
+            if(st.phase==XM87340Donor::COMMITTED){
+                // Independent observation of the ACTUAL next original
+                // fighter update; redirecting the PC is not success.
+                if(!st.confirmed && who==st.reserve &&
+                   bench==st.point && hyper && sample.d6==st.d6){
+                    st.confirmed=true;
+                    char detail[144];
+                    std::snprintf(detail,sizeof(detail),
+                        "MORPHUS_340_ACTUAL_US_2E_HYPER d6=%02X stock_before=%u stock_now=%u",
+                        st.d6,st.stock,
+                        XM87142::ramB(CpsRamFF,p+0x214u));
+                    XM87274Unified::state().event(now,side,detail);
+                }
+                if(!st.confirmed && now>st.committedAt+16u){
+                    XM87274Unified::state().event(now,side,
+                        "MORPHUS_340_INCOMING_GUEST_NO_ORIGINAL_2E");
+                    ++st.refusals;
+                    st.phase=XM87340Donor::IDLE;
+                }
+                // Donor single-use participation lasts through the
+                // incoming Hyper. Only the real neutral state re-arms it.
+                if(st.confirmed && !hyper &&
+                   !XM87142::ramB(CpsRamFF,p+0x256u) &&
+                   !XM87142::ramB(CpsRamFF,p+0x259u))
+                    st.reset();
+            }
         }
     }
     // 87.181: observer log files must be initialized when the XMVSF
