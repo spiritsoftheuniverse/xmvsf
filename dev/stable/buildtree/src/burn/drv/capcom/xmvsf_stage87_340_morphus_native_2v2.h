@@ -40,6 +40,15 @@ static inline unsigned nearOpponentX(unsigned outgoingX,
                        0xFFFFu:target+separation;
  return old<=right?old:right;
 }
+// 87.346: +$210 is the ORIGINAL resident partner's life field.
+// There is no "empty fighter ID": 00 means Wolverine. Refuse the DHC
+// only when the stock partner really has no life/identity; never
+// interfere with 1v1 ordinary Hyper inputs or a dead teammate's slot.
+static inline bool genuineReserve(unsigned who,unsigned bench,
+                                  unsigned reserveLife){
+ return reserveLife!=0u && who<=0x24u && bench<=0x24u &&
+        !(who&1u) && !(bench&1u) && who!=bench;
+}
 static inline unsigned facingDir(unsigned dirs,bool faceRight){
  unsigned v=(dirs&4u)?4u:0u;
  if(dirs&8u)v|=8u;
