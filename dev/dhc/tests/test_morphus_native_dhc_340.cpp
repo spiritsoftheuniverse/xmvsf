@@ -270,11 +270,11 @@ int main(){
                       true,true,220u,1u);
         notHcb.sample(601u,0x12u,0x0Au,forward,0u,right,0x0Au,
                       true,true,220u,1u);
-        notHcb.sample(602u,0x12u,0x0Au,4u,0u,right,0x0Au,
+        notHcb.sample(615u,0x12u,0x0Au,4u,0u,right,0x0Au,
                       true,true,220u,1u);
-        notHcb.sample(603u,0x12u,0x0Au,back,0x18u,right,0x0Au,
+        notHcb.sample(616u,0x12u,0x0Au,back,0x18u,right,0x0Au,
                       true,true,220u,1u);
-        assert(notHcb.phase==IDLE); // F,D,B cannot fake an HCB.
+        assert(notHcb.phase==IDLE); // Slow F,D,B cannot fake an HCB.
     }
     // 87.352: genuine short sampled reverse inputs, not motion aliases.
     // The identical native D6 is selected on both physical facings.
