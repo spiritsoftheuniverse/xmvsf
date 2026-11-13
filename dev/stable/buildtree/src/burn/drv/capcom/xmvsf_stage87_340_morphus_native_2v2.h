@@ -18,7 +18,7 @@ static inline const Motion* motions(){
  static const Motion m[]={
  {3,{4,6,2,0,0}}, {3,{4,5,1,0,0}}, {3,{2,4,6,0,0}},
  {3,{1,4,5,0,0}}, {5,{1,5,4,6,2}}, {5,{2,6,4,5,1}},
- {3,{4,0x80,4,0,0}}};return m;
+ {3,{4,0x80,4,0,0}}, {3,{2,6,4,0,0}}};return m; // motion 8: F,DF,D
 }
 // 87.343: close-range original WORLD X for the incoming native Hyper.
 // Both sides read the SAME live opponent actor +$0C from original RAM.
@@ -50,16 +50,17 @@ static inline unsigned facingDir(unsigned dirs,bool faceRight){
 struct Slot {
  Phase phase=IDLE;
  unsigned owner=~0u,point=0u,reserve=0u,d6=0u,x=0u,outgoingD6=0u;
- unsigned lastFrame=~0u,prev=0u,hidden=0u,selected=7u,stock=0u;
+ unsigned lastFrame=~0u,prev=0u,hidden=0u,selected=8u,stock=0u;
  unsigned claimedAt=0u,enteredAt=0u,committedAt=0u;
  bool confirmed=false;
- std::uint8_t step[7]={},timer[7]={};
+ std::uint8_t step[8]={},timer[8]={};
  unsigned claims=0u,refusals=0u,commits=0u;
  void reset(){*this=Slot();}
  void clearSteps(){std::memset(step,0,sizeof(step));
                    std::memset(timer,0,sizeof(timer));}
- // Donor's seven trackers, 14 original input samples, and priority:
- // HCF,HCB,DP,RDP,QCF,QCB,DD. Most recent completion timer wins.
+ // Donor's seven motions plus original Cyclops F,DF,D+PP.
+ // All step timers are 14 core input samples. The eighth motion
+ // has priority only when its exact terminal down input is completed.
  unsigned sample(unsigned frame,unsigned who,unsigned bench,unsigned dir,
     unsigned buttons,bool faceRight,unsigned actorD6,bool inHyper,
     bool eligible,unsigned originalX,unsigned stockBefore){
@@ -77,10 +78,12 @@ struct Slot {
   prev=mask;
   if(hidden && !(mask&hidden))hidden=0u;
   if(phase!=IDLE)return hidden;
-  if(!inHyper){clearSteps();return hidden;}
+  // Always track native motions (as the original command parser does).
+  // Consuming input or claiming DHC STILL requires an eligible outgoing
+  // Hyper; native 1v1 and solo controls are never intercepted.
   const unsigned d=facingDir(dir,faceRight);
   const Motion* m=motions();
-  for(unsigned i=0u;i<7u;++i){
+  for(unsigned i=0u;i<8u;++i){
    unsigned n=step[i];
    if(n && timer[i] && !--timer[i]){step[i]=0u;n=0u;}
    if(n>=m[i].len)continue;
@@ -92,14 +95,16 @@ struct Slot {
   }
   // The same authentic command that ordinarily starts the incoming
   // fighter's Hyper now selects the DHC. PP and KK are NOT interchangeable.
+  // Cyclops native Super Optic Blast is F,DF,D + PP or PPP;
+  // Mega Optic Blast remains QCF+PP. Do not substitute QCB.
   // The donor MP+MK assist-style chord is not a DHC trigger.
   if(!pressed || !XM87334Native::qualifiedChord(mask) ||
-     !eligible || !stockBefore || who==bench ||
+     !inHyper || !eligible || !stockBefore || who==bench ||
      bench>0x24u || (bench&1u))return hidden;
-  static const unsigned priority[]={4u,5u,2u,3u,0u,1u,6u};
-  unsigned best=0u,col=7u;
+  static const unsigned priority[]={7u,4u,5u,2u,3u,0u,1u,6u};
+  unsigned best=0u,col=8u;
   XM87334Native::Decision chosen;
-  for(unsigned i=0u;i<7u;++i){
+  for(unsigned i=0u;i<8u;++i){
    const unsigned j=priority[i];
    if(step[j]<m[j].len || timer[j]<=best)continue;
    const auto candidate=XM87334Native::resolveNativeOnly(
@@ -107,7 +112,7 @@ struct Slot {
    if(!candidate.ok())continue; // no alternate donor input substitution
    best=timer[j];col=j;chosen=candidate;
   }
-  if(col==7u)return hidden;
+  if(col==8u)return hidden;
   selected=col;
   d6=chosen.hyperD6; // the ONLY Hyper selection consumed by the M68K guest
   outgoingD6=actorD6;
