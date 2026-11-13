@@ -84,7 +84,13 @@ static inline Regions identify(const std::uint8_t* c,unsigned n){
     if(out.indexers<10u)return out; // identical to the established 87.170 gate
     for(unsigned i=0u;i<kFighterSlots;++i){
         if(i==8u)continue;
-        if(out.begin[i]==kNotFound)return out;
+        // 87.170's validated playable region catalog stops at Cammy 0x22.
+        // Alt Chun-Li $24 may alias the regular fighter or be absent in a
+        // revision: never fail ALL fighter mappings because of that alias.
+        if(out.begin[i]==kNotFound){
+            if(i==18u)continue;
+            return out;
+        }
         unsigned upper=kMaxCode;
         for(unsigned j=0u;j<kFighterSlots;++j)
             if(j!=i && out.begin[j]>out.begin[i] && out.begin[j]<upper)
