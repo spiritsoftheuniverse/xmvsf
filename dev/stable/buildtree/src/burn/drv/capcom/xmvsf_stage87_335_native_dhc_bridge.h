@@ -40,6 +40,8 @@ struct State {
     bool active=false,ready=false,attempted=false;
     bool armed[2]={false,false};
     bool donorArmed[2]={false,false};
+    bool donorOriginal2E[2]={false,false};
+    unsigned donorSelector[2]={0u,0u};
     unsigned nativeDispatch[2]={0u,0u};
     const std::uint8_t* ram=nullptr;
     int (*prior)(int)=nullptr;
@@ -51,6 +53,8 @@ struct State {
                  unsigned frame,bool runahead){
         ready=false;armed[0]=armed[1]=false;
         donorArmed[0]=donorArmed[1]=false;
+        donorOriginal2E[0]=donorOriginal2E[1]=false;
+        donorSelector[0]=donorSelector[1]=0u;
         nativeDispatch[0]=nativeDispatch[1]=0u;
         if(!enabled() || runahead || !code || !rom || !currentRam ||
            !driver || std::strcmp(driver,"xmvsfu")!=0)return false;
@@ -76,36 +80,53 @@ struct State {
                 auto& claim=XM87340Donor::state().side[side];
                 if(claim.phase!=XM87340Donor::CLAIMED &&
                    claim.phase!=XM87340Donor::CHAIN_ENTERED)continue;
-                const auto hyper=XM87336Dispatch::resolve(
+                // 87.348 aggressive trial: this experimental Version-4
+                // handoff NO LONGER requires a Ryu/Ken-style 2E launch
+                // certificate before the real fighter gets to act.
+                // A real D6 table dispatch is tried first. If no D6
+                // opcode shape was found, call a bounded original 2E
+                // ROM script for the incoming fighter, using the same
+                // native M68K guest and its true selected D6 value.
+                const auto trial=XM87336Dispatch::resolveTrial(
                     code,codeLength,rom,romLength,claim.reserve,claim.d6);
-                if(!hyper.valid()){
-                    // 87.344: $011DBE is the ORIGINAL tag-in selector,
-                    // not a fighter-specific D6-to-Hyper dispatcher.
-                    // The 87.343 fallback called the tag routine twice,
-                    // causing all seven tagged-without-Super outcomes.
-                    // Fail closed here: leave the stock original ROM input
-                    // and outgoing active Hyper untouched. A true original
-                    // D6 dispatcher is mandatory before native swap.
-                    if(claim.phase==XM87340Donor::CLAIMED){
+                if(!trial.valid()){
+                    // No executable native D6 site AND no legitimate
+                    // original 2E ROM script. Never call a junk PC.
+                    if(claim.phase==XM87340Donor::CLAIMED)
                         XM87274Unified::state().event(frame,side,
-                            "NATIVE_344_UNVERIFIED_D6_NO_TAG");
-                        claim.phase=XM87340Donor::IDLE;
-                        ++claim.refusals;
-                    }
+                            "NATIVE_348_NO_ROM_ACTION_TO_EXECUTE");
                     continue;
                 }
+                const bool direct2E=trial.kind==
+                    XM87336Dispatch::Trial::ORIGINAL_ROM_2E;
                 const unsigned offset=side?0x100u:0u;
                 const unsigned exitOffset=side?
                     XM87340Donor::kExitOffsetP2:
                     XM87340Donor::kExitOffsetP1;
-                if(!XM87335Guest::emit(nativeFetch,sizeof(nativeFetch),
-                                       offset,claim.d6,claim.x,
-                                       hyper.nativeDispatcher) ||
+                const bool built=direct2E?
+                    XM87335Guest::emitOriginal2E(
+                        nativeFetch,sizeof(nativeFetch),offset,
+                        claim.d6,claim.x,trial.selector):
+                    XM87335Guest::emit(
+                        nativeFetch,sizeof(nativeFetch),offset,
+                        claim.d6,claim.x,trial.dispatcher);
+                if(!built ||
                    !XM87340Donor::emitExit(
-                                       nativeFetch,sizeof(nativeFetch),
-                                       exitOffset))continue;
-                nativeDispatch[side]=hyper.nativeDispatcher;
+                        nativeFetch,sizeof(nativeFetch),
+                        exitOffset))continue;
+                nativeDispatch[side]=trial.dispatcher;
+                donorOriginal2E[side]=direct2E;
+                donorSelector[side]=trial.selector;
                 donorArmed[side]=true;
+                if(claim.phase==XM87340Donor::CLAIMED){
+                    char message[195];
+                    std::snprintf(message,sizeof(message),
+                        "NATIVE_348_ARMED_TRIAL side=%u fighter=%02X d6=%02X kind=%u pc=%06X nativeTarget=%06X selector=%02X ROM=%06X",
+                        side+1u,claim.reserve,claim.d6,
+                        unsigned(trial.kind),trial.dispatcher,
+                        trial.handler,trial.selector,trial.script);
+                    XM87274Unified::state().event(frame,side,message);
+                }
             }
         }else for(unsigned side=0u;side<2u;++side){
             const auto& s=XM87274Unified::state().slot[side];
@@ -212,12 +233,21 @@ struct State {
                     claim.x=XM87340Donor::nearOpponentX(
                         previousX,opponentX);
                 const unsigned guestOffset=side?0x100u:0u;
-                if(!XM87335Guest::emit(nativeFetch,sizeof(nativeFetch),
-                        guestOffset,claim.d6,claim.x,
-                        nativeDispatch[side]) ||
-                   !XM87335Guest::isImage(nativeFetch,
+                const bool emitted=donorOriginal2E[side]?
+                    XM87335Guest::emitOriginal2E(nativeFetch,
                         sizeof(nativeFetch),guestOffset,claim.d6,claim.x,
-                        nativeDispatch[side])){
+                        donorSelector[side]):
+                    XM87335Guest::emit(nativeFetch,
+                        sizeof(nativeFetch),guestOffset,claim.d6,claim.x,
+                        nativeDispatch[side]);
+                const bool validImage=donorOriginal2E[side]?
+                    XM87335Guest::isOriginal2EImage(nativeFetch,
+                        sizeof(nativeFetch),guestOffset,claim.d6,claim.x,
+                        donorSelector[side]):
+                    XM87335Guest::isImage(nativeFetch,
+                        sizeof(nativeFetch),guestOffset,claim.d6,claim.x,
+                        nativeDispatch[side]);
+                if(!emitted || !validImage){
                     ++refusals;return;
                 }
                 char placement[198];
@@ -225,7 +255,7 @@ struct State {
                     "NATIVE_343_ENTRY_POSITION side=%u incoming=%02X enemy=%02X oldX=%u enemyX=%u entryX=%u d6=%02X route=%s",
                     side+1u,who,enemy,previousX,opponentX,claim.x,
                     claim.d6,
-                    "VERIFIED_D6");
+                    donorOriginal2E[side]?"TRIAL_ORIGINAL_ROM_2E":"TRIAL_NATIVE_D6");
                 XM87274Unified::state().event(installedAt,side,placement);
                 m68k_set_reg(M68K_REG_PC,side?
                     XM87335Guest::kP2Entry:XM87335Guest::kP1Entry);
@@ -298,6 +328,8 @@ struct State {
         ready=false;ram=nullptr;
         armed[0]=armed[1]=false;
         donorArmed[0]=donorArmed[1]=false;
+        donorOriginal2E[0]=donorOriginal2E[1]=false;
+        donorSelector[0]=donorSelector[1]=0u;
         nativeDispatch[0]=nativeDispatch[1]=0u;
     }
     ~State(){end();}
