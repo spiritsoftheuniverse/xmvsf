@@ -1,6 +1,8 @@
 // 87.341 standalone C++11 test: actual incoming controls select real D6.
 // Local only. Never a BUILD_TEST gate or GitHub Action.
 #include "../../stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_340_morphus_native_2v2.h"
+#include "../../stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_335_native_dhc_guest.h"
+#include "../../stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_333_morphus_native_dhc_abi.h"
 #include <cassert>
 #include <cstdint>
 #include <cstdio>
@@ -74,6 +76,27 @@ int main(){
     Slot cyclops;
     assert(runMotion(cyclops,0x02u,60u,0x03u,0x0Au)==0x03u);
     assert(cyclops.d6==0x04u);
+    // 87.343: position against ACTUAL opponent X, for P1 or P2.
+    assert(nearOpponentX(80u,220u)==204u);  // P1 approaches from left
+    assert(nearOpponentX(360u,220u)==236u); // P2 approaches from right
+    assert(nearOpponentX(210u,220u)==210u); // already close: do not move
+    assert(nearOpponentX(228u,220u)==228u);
+    assert(nearOpponentX(0u,8u)==0u);       // safe stage-left clamp
+    assert(nearOpponentX(65530u,65520u)==65530u);
+    assert(nearOpponentX(65535u,65500u)==65516u);
+    // All fighter IDs use the same stock original US actor dispatcher.
+    // A genuine native 2E ROM table and an actual incoming PP/KK
+    // selection are required by the bridge before selecting this route.
+    std::uint8_t stockGuest[4096]={};
+    assert(XM87335Guest::emit(stockGuest,sizeof(stockGuest),0u,
+        0x28u,nearOpponentX(80u,220u),
+        XM87333NativeDHC::kUSIncoming)); // P2 Rogue D6=28
+    assert(XM87335Guest::isImage(stockGuest,sizeof(stockGuest),0u,
+        0x28u,204u,XM87333NativeDHC::kUSIncoming));
+    assert(!XM87335Guest::isImage(stockGuest,sizeof(stockGuest),0u,
+        0x28u,204u,0x035356u)); // not Ken's per-fighter handler
+    // Host-swapped immediate X is now 204, not the outgoing X=80.
+    assert(word(stockGuest,0x20u)==0x00CCu);
     std::uint8_t guest[4096]={};
     assert(!emitExit(nullptr,sizeof(guest),0x200u));
     assert(emitExit(guest,sizeof(guest),kExitOffsetP1));
@@ -102,5 +125,5 @@ int main(){
     assert(validateExit(original.data(),unsigned(original.size())));
     original[0xD590u]^=1u;
     assert(!validateExit(original.data(),unsigned(original.size())));
-    std::puts("XMVSF 87.341 original fighter PP/KK -> D6 + native exit emitter PASS");
+    std::puts("XMVSF 87.343 both-side opponent X and original US fighter dispatcher PASS");
 }
