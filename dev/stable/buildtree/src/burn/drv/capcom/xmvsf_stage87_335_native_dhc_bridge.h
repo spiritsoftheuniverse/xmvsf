@@ -40,7 +40,6 @@ struct State {
     bool active=false,ready=false,attempted=false;
     bool armed[2]={false,false};
     bool donorArmed[2]={false,false};
-    bool donorStockRouter[2]={false,false};
     unsigned nativeDispatch[2]={0u,0u};
     const std::uint8_t* ram=nullptr;
     int (*prior)(int)=nullptr;
@@ -52,7 +51,6 @@ struct State {
                  unsigned frame,bool runahead){
         ready=false;armed[0]=armed[1]=false;
         donorArmed[0]=donorArmed[1]=false;
-        donorStockRouter[0]=donorStockRouter[1]=false;
         nativeDispatch[0]=nativeDispatch[1]=0u;
         if(!enabled() || runahead || !code || !rom || !currentRam ||
            !driver || std::strcmp(driver,"xmvsfu")!=0)return false;
@@ -80,35 +78,21 @@ struct State {
                    claim.phase!=XM87340Donor::CHAIN_ENTERED)continue;
                 const auto hyper=XM87336Dispatch::resolve(
                     code,codeLength,rom,romLength,claim.reserve,claim.d6);
-                unsigned nativeRouter=hyper.nativeDispatcher;
-                bool stockRouter=false;
                 if(!hyper.valid()){
-                    // 87.343: original US $011DBE itself dispatches to
-                    // the native fighter through the original character
-                    // table. Reuse it for an actual roster reserve selected
-                    // by its genuine PP/KK Hyper input, rather than guessing
-                    // a different fighter-specific D6 routine address.
-                    // Require at least one bounded 2E script in the
-                    // incoming fighter's real ROM table before execution.
-                    bool native2E=false;
-                    for(unsigned selector=0u;selector<=0x4Eu;
-                        selector+=2u){
-                        if(XM87142::resolve(rom,romLength,
-                            claim.reserve,0x2Eu,selector).valid){
-                            native2E=true;break;
-                        }
+                    // 87.344: $011DBE is the ORIGINAL tag-in selector,
+                    // not a fighter-specific D6-to-Hyper dispatcher.
+                    // The 87.343 fallback called the tag routine twice,
+                    // causing all seven tagged-without-Super outcomes.
+                    // Fail closed here: leave the stock original ROM input
+                    // and outgoing active Hyper untouched. A true original
+                    // D6 dispatcher is mandatory before native swap.
+                    if(claim.phase==XM87340Donor::CLAIMED){
+                        XM87274Unified::state().event(frame,side,
+                            "NATIVE_344_UNVERIFIED_D6_NO_TAG");
+                        claim.phase=XM87340Donor::IDLE;
+                        ++claim.refusals;
                     }
-                    if(!native2E){
-                        if(claim.phase==XM87340Donor::CLAIMED){
-                            XM87274Unified::state().event(frame,side,
-                                "NATIVE_343_NO_ORIGINAL_2E_FIGHTER_SCRIPT");
-                            claim.phase=XM87340Donor::IDLE;
-                            ++claim.refusals;
-                        }
-                        continue;
-                    }
-                    nativeRouter=XM87333NativeDHC::kUSIncoming;
-                    stockRouter=true;
+                    continue;
                 }
                 const unsigned offset=side?0x100u:0u;
                 const unsigned exitOffset=side?
@@ -116,20 +100,12 @@ struct State {
                     XM87340Donor::kExitOffsetP1;
                 if(!XM87335Guest::emit(nativeFetch,sizeof(nativeFetch),
                                        offset,claim.d6,claim.x,
-                                       nativeRouter) ||
+                                       hyper.nativeDispatcher) ||
                    !XM87340Donor::emitExit(
                                        nativeFetch,sizeof(nativeFetch),
                                        exitOffset))continue;
-                nativeDispatch[side]=nativeRouter;
-                donorStockRouter[side]=stockRouter;
+                nativeDispatch[side]=hyper.nativeDispatcher;
                 donorArmed[side]=true;
-                if(stockRouter && claim.phase==XM87340Donor::CLAIMED){
-                    char message[160];
-                    std::snprintf(message,sizeof(message),
-                        "NATIVE_343_STOCK_FIGHTER_ROUTER side=%u reserve=%02X d6=%02X entry=%06X",
-                        side+1u,claim.reserve,claim.d6,nativeRouter);
-                    XM87274Unified::state().event(frame,side,message);
-                }
             }
         }else for(unsigned side=0u;side<2u;++side){
             const auto& s=XM87274Unified::state().slot[side];
@@ -158,8 +134,7 @@ struct State {
                         MAP_RAM)!=0) {
             armed[0]=armed[1]=false;
             donorArmed[0]=donorArmed[1]=false;
-            donorStockRouter[0]=donorStockRouter[1]=false;
-            ++refusals;
+                ++refusals;
             return false;
         }
         ram=currentRam;ready=true;installedAt=frame;
@@ -250,7 +225,7 @@ struct State {
                     "NATIVE_343_ENTRY_POSITION side=%u incoming=%02X enemy=%02X oldX=%u enemyX=%u entryX=%u d6=%02X route=%s",
                     side+1u,who,enemy,previousX,opponentX,claim.x,
                     claim.d6,
-                    donorStockRouter[side]?"ORIGINAL_US_TABLE":"VERIFIED_D6");
+                    "VERIFIED_D6");
                 XM87274Unified::state().event(installedAt,side,placement);
                 m68k_set_reg(M68K_REG_PC,side?
                     XM87335Guest::kP2Entry:XM87335Guest::kP1Entry);
@@ -323,7 +298,6 @@ struct State {
         ready=false;ram=nullptr;
         armed[0]=armed[1]=false;
         donorArmed[0]=donorArmed[1]=false;
-        donorStockRouter[0]=donorStockRouter[1]=false;
         nativeDispatch[0]=nativeDispatch[1]=0u;
     }
     ~State(){end();}
