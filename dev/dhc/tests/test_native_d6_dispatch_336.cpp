@@ -2,6 +2,7 @@
 // Synthetic ROM-free structures for seven different character sections.
 // Standalone C++11; NOT a new gate in BUILD_TEST.bat.
 #include "../../stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_336_native_d6_dispatch.h"
+#include "../../stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_335_native_dhc_guest.h"
 #include <cassert>
 #include <cstdio>
 #include <vector>
@@ -236,5 +237,57 @@ int main(){
     assert(!resolveGeneric(indexed.data(),unsigned(indexed.size()),
               wrongRom.data(),unsigned(wrongRom.size()),0x20u,0x04u).valid());
 
-    std::puts("XMVSF 87.345 original indexed fighter D6 phase route PASS");
+    // 87.348 aggressive mode: the ordinary original-D6 certificate
+    // rejects an actor whose phase/2E startup encoding differs from
+    // Ryu/Ken, but this is NOT grounds to suppress his genuine input.
+    // A real 68000 D6-table handler with matching native fighter owner
+    // may run even without a recognizable original 2E launch opcode.
+    const auto stateTrial=resolveTrial(indexed.data(),
+        unsigned(indexed.size()),wrongRom.data(),
+        unsigned(wrongRom.size()),0x20u,0x04u);
+    assert(stateTrial.kind==Trial::NATIVE_D6_STATE);
+    assert(stateTrial.dispatcher==charlieStatePC);
+    assert(stateTrial.handler==charlieHandler);
+
+    // No original D6 header at Wolverine (00) is no longer a hard stop.
+    // Use an ORIGINAL, bounded Wolverine 2E script via the real 1038E
+    // script dispatcher, not the broken original tag-in $011DBE.
+    auto missingHeader=code;
+    const unsigned wolverineState=0x20400u;
+    missingHeader[wolverineState+1u]^=0x01u;
+    const auto wolverineTrial=resolveTrial(missingHeader.data(),
+        unsigned(missingHeader.size()),rom.data(),
+        unsigned(rom.size()),0x00u,0x08u);
+    assert(wolverineTrial.kind==Trial::ORIGINAL_ROM_2E);
+    assert(wolverineTrial.dispatcher==0x01038Eu);
+    assert(wolverineTrial.selector==0x00u);
+    assert(wolverineTrial.script!=0u);
+
+    std::uint8_t originalGuest[XM87335Guest::kPageBytes]={};
+    assert(XM87335Guest::emitOriginal2E(originalGuest,
+        sizeof(originalGuest),0u,0x08u,220u,
+        wolverineTrial.selector));
+    assert(XM87335Guest::isOriginal2EImage(originalGuest,
+        sizeof(originalGuest),0u,0x08u,220u,
+        wolverineTrial.selector));
+    const auto readGuest=[](const std::uint8_t* p,unsigned at){
+        return (unsigned(p[at+1u])<<8u)|p[at];
+    };
+    assert(readGuest(originalGuest,18u)==0x0008u); // selected D6
+    assert(readGuest(originalGuest,32u)==0x00DCu); // native X
+    assert(readGuest(originalGuest,58u)==0x702Eu); // ORIGINAL action 2E
+    assert(readGuest(originalGuest,60u)==0x7200u); // ROM selector 0
+    assert(readGuest(originalGuest,62u)==0x4EB9u);
+    assert(readGuest(originalGuest,64u)==0x0001u);
+    assert(readGuest(originalGuest,66u)==0x038Eu); // ORIGINAL US 1038E
+    assert(!XM87335Guest::isImage(originalGuest,
+        sizeof(originalGuest),0u,0x08u,220u,0x01038Eu));
+    assert(XM87335Guest::emitOriginal2E(originalGuest,
+        sizeof(originalGuest),0x100u,0x02u,236u,0x02u));
+    assert(readGuest(originalGuest,0x100u+58u)==0x702Eu);
+    assert(readGuest(originalGuest,0x100u+60u)==0x7202u);
+    assert(!XM87335Guest::emitOriginal2E(originalGuest,
+        sizeof(originalGuest),0x100u,0x02u,236u,0x03u));
+
+    std::puts("XMVSF 87.348 active trial D6 table + real ROM 2E guest PASS");
 }
