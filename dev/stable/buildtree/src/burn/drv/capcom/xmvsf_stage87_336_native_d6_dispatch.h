@@ -81,16 +81,16 @@ static inline Regions identify(const std::uint8_t* c,unsigned n){
                pcStart<out.begin[j])out.begin[j]=pcStart;
         }
     }
-    if(out.indexers<10u)return out; // identical to the established 87.170 gate
+    // This is a *partial roster* index: some native fighter indexers do
+    // not enumerate every playable slot on every build. The 87.337 gate
+    // required at least ten tables AND every one of 17 fighters, so one
+    // absent ID vetoed every genuine DHC (before controller 8).
+    // At least one original 15-of-18 native indexer is enough to establish
+    // a specific fighter's region. The selected D6 and 2E ROM path still
+    // require exact independent opcode/table verification below.
+    if(!out.indexers)return out;
     for(unsigned i=0u;i<kFighterSlots;++i){
-        if(i==8u)continue;
-        // 87.170's validated playable region catalog stops at Cammy 0x22.
-        // Alt Chun-Li $24 may alias the regular fighter or be absent in a
-        // revision: never fail ALL fighter mappings because of that alias.
-        if(out.begin[i]==kNotFound){
-            if(i==18u)continue;
-            return out;
-        }
+        if(i==8u || out.begin[i]==kNotFound)continue;
         unsigned upper=kMaxCode;
         for(unsigned j=0u;j<kFighterSlots;++j)
             if(j!=i && out.begin[j]>out.begin[i] && out.begin[j]<upper)
