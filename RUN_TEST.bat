@@ -127,6 +127,7 @@ if not defined XM87274_UNIFIED_DHC set "XM87274_UNIFIED_DHC=0"
 if not defined XM87274_UNIFIED_DHC_LOG set "XM87274_UNIFIED_DHC_LOG=%OBSROOT%\dhc_unified_274.tsv"
 echo UNIVERSAL M68K DHC requested: %XM87274_UNIFIED_DHC%  (1=experimental Version 4, 0=legacy)
 echo DHC input/decision trace: %XM87274_UNIFIED_DHC_LOG%
+echo DHC opts: unified=%XM87274_UNIFIED_DHC% precommit=%XM87334_MORPHUS_PRECOMMIT% native=%XM87335_NATIVE_DHC% donor=%XM87340_MORPHUS_NATIVE%
 set "XM87175_DHC_OBSERVER=1"
 set "XM87175_DHC_OBSERVER_LOG=%OBSROOT%\dhc_acceptance_test.tsv"
 REM 87.185: subframe 68000 trace; delayed priming is unsafe by default.
