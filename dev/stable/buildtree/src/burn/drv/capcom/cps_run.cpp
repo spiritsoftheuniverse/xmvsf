@@ -629,9 +629,20 @@ INT32 Cps2Frame()
                 XM87142::ramL(CpsRamFF,p+0x34u),
                 XM87142::ramB(CpsRamFF,p+0xD6u)};
             const auto& super=XM87189Family::state().side[side];
-            const bool currentWindow=super.lastFrame!=~0u &&
+            const bool exactOldWindow=super.lastFrame!=~0u &&
                 now>0u && super.lastFrame==now-1u &&
                 super.unifiedDhcWindowAt(super.lastFrame,sample);
+            // 87.355: OPEN Charlie QCB+KKK / Sabretooth HCB+KKK
+            // during the verified original native Hyper startup and
+            // continuation, not just the narrower attack sub-window.
+            // preCpuActive demands the exact actor, current action,
+            // D6 and observed original 68000 script from last frame.
+            // It NEVER accepts an ordinary neutral/Flash Kick input.
+            const bool requestedReverseHyper=
+                bench==0x20u || bench==0x0Au;
+            const bool currentWindow=exactOldWindow ||
+                (requestedReverseHyper &&
+                 super.preCpuActive(now,sample));
             // 87.349: original M68K Hyper activity is NOT only 2E.
             // Storm/Sabretooth/Bison/Charlie execute real 2C actions
             // under the same 2A controller+D6. The native ROM lifecycle
@@ -685,7 +696,9 @@ INT32 Cps2Frame()
                     continue;
                 }
                 if(!st.windowReady){
-                    st.openWindow(now,who,buttons[side]);
+                    st.openWindow(now,who,buttons[side],bench,
+                        dirs[side],
+                        (XM87142::ramB(CpsRamFF,p+0x4Bu)&1u)!=0u);
                     continue;
                 }
             }

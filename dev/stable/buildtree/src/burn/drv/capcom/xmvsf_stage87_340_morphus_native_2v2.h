@@ -173,9 +173,21 @@ struct Slot {
  }
  // First eligible native Hyper frame arms input, but does NOT use any
  // attack held before that moment. A new DHC command must start here.
- void openWindow(unsigned frame,unsigned who,unsigned buttons){
+ void openWindow(unsigned frame,unsigned who,unsigned buttons,
+                 unsigned incoming=~0u,unsigned physicalDir=0u,
+                 bool faceRight=true){
   if(phase!=IDLE)return;
   quiet(frame,who,buttons);windowReady=true;
+  // 87.355: The FIRST verified native Hyper frame is already a
+  // legitimate input frame. Retain just its initial ORIGINAL direction
+  // for the two requested 3K supers. Never retain normal-play history,
+  // a pre-existing KKK press or any other pre-Hyper button.
+  const unsigned d=facingDir(physicalDir,faceRight);
+  if(incoming==0x20u && d==4u){
+   step[1]=1u;timer[1]=18u;firstFrame[1]=frame; // Charlie D,DB,B
+  }else if(incoming==0x0Au && d==2u){
+   step[5]=1u;timer[5]=24u;firstFrame[5]=frame; // Sabretooth F,DF,D,DB,B
+  }
  }
  // Previously claimed DHC continues the authentic M68K handoff.
  // Update button release only; no new directions/gestures are parsed.

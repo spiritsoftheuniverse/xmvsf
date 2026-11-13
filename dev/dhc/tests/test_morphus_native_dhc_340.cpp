@@ -420,6 +420,60 @@ int main(){
     assert(!normal.windowReady && normal.kkkEdgeAt==~0u);
     for(unsigned i=0u;i<8u;++i)
         assert(normal.step[i]==0u && normal.timer[i]==0u);
+    // 87.355: open Charlie QCB+KKK and Sabretooth HCB+KKK
+    // from the very FIRST native Hyper cancel frame, both facings.
+    for(unsigned facing=0u;facing<2u;++facing){
+        const bool right=facing==0u;
+        const unsigned f=right?1u:2u;
+        const unsigned df=right?5u:6u;
+        const unsigned db=right?6u:5u;
+        const unsigned back=right?2u:1u;
+        // Normal play never samples the QCB motion before arming.
+        Slot charlie;
+        charlie.quiet(5000u,0x16u,0u);
+        charlie.openWindow(5001u,0x16u,0u,0x20u,4u,right);
+        assert(charlie.windowReady && charlie.step[1]==1u);
+        charlie.sample(5002u,0x16u,0x20u,db,0u,right,
+                       0x0Au,true,true,220u,1u);
+        assert(charlie.sample(5003u,0x16u,0x20u,back,0x38u,right,
+                       0x0Au,true,true,220u,1u)==0x38u);
+        assert(charlie.phase==CLAIMED && charlie.selected==1u &&
+               charlie.d6==0x06u);
+        // Sabretooth original full HCB uses all five native sectors.
+        Slot sabre;
+        sabre.quiet(5100u,0x16u,0u);
+        sabre.openWindow(5101u,0x16u,0u,0x0Au,f,right);
+        assert(sabre.windowReady && sabre.step[5]==1u);
+        sabre.sample(5102u,0x16u,0x0Au,df,0u,right,
+                     0x0Au,true,true,220u,1u);
+        sabre.sample(5103u,0x16u,0x0Au,4u,0u,right,
+                     0x0Au,true,true,220u,1u);
+        sabre.sample(5104u,0x16u,0x0Au,db,0u,right,
+                     0x0Au,true,true,220u,1u);
+        assert(sabre.sample(5105u,0x16u,0x0Au,back,0x38u,right,
+                     0x0Au,true,true,220u,1u)==0x38u);
+        assert(sabre.phase==CLAIMED && sabre.selected==5u &&
+               sabre.d6==0x08u);
+        // KKK held before this Hyper cannot silently start a tag.
+        Slot heldBefore;
+        heldBefore.quiet(5200u,0x16u,0x38u);
+        heldBefore.openWindow(5201u,0x16u,0x38u,0x20u,4u,right);
+        heldBefore.sample(5202u,0x16u,0x20u,db,0x38u,right,
+                          0x0Au,true,true,220u,1u);
+        heldBefore.sample(5203u,0x16u,0x20u,back,0x38u,right,
+                          0x0Au,true,true,220u,1u);
+        assert(heldBefore.phase==IDLE && heldBefore.hidden==0u);
+        heldBefore.quiet(5204u,0x16u,0x38u);
+        assert(!heldBefore.windowReady && heldBefore.step[1]==0u);
+        // No normal-play sniff: a supposed HCB without a verified
+        // Hyper window must never enter the native command parser.
+        Slot dormant;
+        dormant.quiet(5300u,0x16u,0u);
+        dormant.quiet(5301u,0x16u,0u);
+        dormant.quiet(5302u,0x16u,0x38u);
+        assert(!dormant.windowReady && dormant.phase==IDLE &&
+               dormant.step[5]==0u && dormant.kkkEdgeAt==~0u);
+    }
     // 87.343: position against ACTUAL opponent X, for P1 or P2.
     assert(nearOpponentX(80u,220u)==204u);  // P1 approaches from left
     assert(nearOpponentX(360u,220u)==236u); // P2 approaches from right
@@ -537,5 +591,5 @@ int main(){
     assert(XM87189Family::Tracker::originalSuperController(
          XM87184Life::Sample(0x12u,0x2E08u,0x2A00u,2u,
                               0x0D3070u,0x0Au))); // 2E unmodified
-    std::puts("XMVSF 87.354 native DHC stays dormant in normal play PASS");
+    std::puts("XMVSF 87.355 Charlie QCB+KKK and Sabretooth HCB+KKK input opening PASS");
 }
