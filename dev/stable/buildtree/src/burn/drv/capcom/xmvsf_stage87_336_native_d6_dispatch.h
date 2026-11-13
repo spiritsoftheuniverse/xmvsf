@@ -1,109 +1,231 @@
 #ifndef XMVSF_STAGE87_336_NATIVE_D6_DISPATCH_H
 #define XMVSF_STAGE87_336_NATIVE_D6_DISPATCH_H
-// Stage 87.336: ORIGINAL US XMVSFU D6->phase-zero->action 2E dispatch.
-// Unlike 87.335's incorrect JSR $1038E with D0=D1=0 (which selects
-// idle/ordinary action), this invokes the stock CHARACTER STATE dispatcher.
-// Source: in-repo 87.174 ROM-proven tables and original M68K signatures.
-// No guessed US address translation. Refuse any fighter/command without
-// a fully ROM-confirmed native command handler, phase and script.
-//
-// This starts with the four US-verified Ryu/Ken D6 states. Expansion must
-// be by verifying ORIGINAL dispatch signatures, not inventing animations.
+// XMVSF 87.337 — universal native fighter-owned 68000 D6 Hyper resolver.
+// Generalized from the repository's VERIFIED 87.170 fighter_regions()
+// and 87.174 D6->phase0->action2E original US program analysis.
+// No fighter-ID-specific gameplay entrypoints or synthetic 2E selectors.
+// A character is accepted only when the actual original executable code
+// uniquely proves OWNERSHIP, source D6 matcher, D6 handler, phase 0,
+// the original 2E launch and a valid ROM script. Otherwise no tag.
+// Preserve original Version 3 and original non-DHC tags untouched.
 #include "xmvsf_stage87_142_rom_dispatch.h"
 #include <cstdint>
 #include <cstring>
 
 namespace XM87336Dispatch {
-struct Case {
-    unsigned fighter,d6,state,handler,phaseZero,launch,selector,script;
-};
-static inline const Case* cases(unsigned* count=nullptr) {
-    static const Case a[]={
-        {0x12u,0x0Au,0x0337BAu,0x033D92u,0x033DA6u,0x033E0Cu,0x08u,0x0D3070u},
-        {0x12u,0x0Cu,0x0337BAu,0x033F0Eu,0x033F28u,0x033F80u,0x00u,0x0D2CFCu},
-        {0x14u,0x0Cu,0x035356u,0x0359F6u,0x035A10u,0x035A4Eu,0x00u,0x0D6722u},
-        {0x14u,0x0Eu,0x035356u,0x035C42u,0x035C5Au,0x035CB0u,0x02u,0x0D6976u}
-    };
-    if(count)*count=unsigned(sizeof(a)/sizeof(a[0]));
-    return a;
+static const unsigned kMaxFighter=0x24u;
+static const unsigned kFighterSlots=19u;
+static const unsigned kMinCode=0x1E000u;
+static const unsigned kMaxCode=0x48000u;
+static const unsigned kNotFound=~0u;
+static inline unsigned word(const std::uint8_t* c,unsigned p){
+    return (unsigned(c[p+1u])<<8u)|c[p];
 }
-static inline bool at(const std::uint8_t* code,unsigned len,
-                      unsigned where,const std::uint8_t* expected,unsigned n){
-    if(!code||!expected||!n||(n&1u)||(where&1u)||
-       where>len||len-where<n)return false;
-    for(unsigned i=0u;i<n;++i)
-        if(code[where+(i^1u)]!=expected[i])return false;
+static inline unsigned longWord(const std::uint8_t* c,unsigned p){
+    return (word(c,p)<<16u)|word(c,p+2u);
+}
+static inline int signedWord(unsigned value){
+    return (value&0x8000u)?int(value)-65536:int(value);
+}
+static inline bool bytes(const std::uint8_t* c,unsigned n,unsigned p,
+                         const std::uint8_t* b,unsigned k){
+    if(!c||!b||!k||(p&1u)||p>n||k>n-p)return false;
+    for(unsigned i=0;i<k;++i)
+        if(c[p+(i^1u)]!=b[i])return false;
     return true;
 }
-static inline unsigned w16(const std::uint8_t* code,unsigned at) {
-    return (unsigned(code[at+1u])<<8u)|unsigned(code[at]);
+static inline unsigned relTarget(const std::uint8_t* c,unsigned n,
+                                 unsigned table,unsigned offset){
+    if(!c||(table&1u)||(offset&1u)||table>n||offset>n-table||
+       n-table-offset<2u)return kNotFound;
+    const long target=long(table)+signedWord(word(c,table+offset));
+    return target>=0 && target<long(n) && !(target&1l)?
+        unsigned(target):kNotFound;
 }
-static inline unsigned relTarget(const std::uint8_t* code,unsigned len,
-                                 unsigned table,unsigned index) {
-    if(!code || (table&1u) || (index&1u) || table>len ||
-       len-table<index+2u)return ~0u;
-    const unsigned word=w16(code,table+index);
-    const int displacement=word&0x8000u?int(word)-0x10000:int(word);
-    const long result=long(table)+long(displacement);
-    if(result<0 || result>=long(len) || (result&1l))return ~0u;
-    return unsigned(result);
+// Original 87.170 native instruction sequence:
+// MOVE.W $52(A6),D0 / ADD.W D0,D0 / MOVEA.L (PC,D0.W),A0
+// followed by PC-relative displacement to a 19-entry fighter code table,
+// then JSR(A0) or JMP(A0). These are ORIGINAL executable control tables.
+struct Regions {
+    unsigned begin[kFighterSlots]={};
+    unsigned end[kFighterSlots]={};
+    unsigned indexers=0u;
+    bool ready=false;
+};
+static inline Regions identify(const std::uint8_t* c,unsigned n){
+    Regions out;
+    if(!c||n<kMaxCode)return out;
+    for(unsigned i=0;i<kFighterSlots;++i)out.begin[i]=kNotFound;
+    const std::uint8_t indexer[8]={
+        0x30,0x2E,0x00,0x52,0xD0,0x40,0x20,0x7B
+    };
+    for(unsigned pc=0u;pc+12u<=n;pc+=2u){
+        if(!bytes(c,n,pc,indexer,sizeof(indexer)))continue;
+        const unsigned call=word(c,pc+10u);
+        if(call!=0x4E90u && call!=0x4ED0u)continue;
+        const long table=long(pc)+8l+signedWord(word(c,pc+8u));
+        if(table<0||table+76l>long(n)|| (table&1l))continue;
+        unsigned valid=0u;
+        unsigned pointers[kFighterSlots]={};
+        for(unsigned j=0u;j<kFighterSlots;++j){
+            pointers[j]=longWord(c,unsigned(table)+j*4u);
+            if(j<18u && pointers[j]>=kMinCode && pointers[j]<kMaxCode &&
+               !(pointers[j]&1u))++valid;
+        }
+        if(valid<15u)continue;
+        ++out.indexers;
+        for(unsigned j=0u;j<kFighterSlots;++j){
+            if(j==8u)continue; // Apocalypse is nonplayable
+            const unsigned pcStart=pointers[j];
+            if(pcStart>=kMinCode && pcStart<kMaxCode && !(pcStart&1u) &&
+               pcStart<out.begin[j])out.begin[j]=pcStart;
+        }
+    }
+    if(out.indexers<10u)return out; // identical to the established 87.170 gate
+    for(unsigned i=0u;i<kFighterSlots;++i){
+        if(i==8u)continue;
+        if(out.begin[i]==kNotFound)return out;
+        unsigned upper=kMaxCode;
+        for(unsigned j=0u;j<kFighterSlots;++j)
+            if(j!=i && out.begin[j]>out.begin[i] && out.begin[j]<upper)
+                upper=out.begin[j];
+        out.end[i]=upper;
+    }
+    out.ready=true;
+    return out;
+}
+// Cached *boundary evidence* for the active decrypted program. Individual
+// opcodes/ROM scripts are STILL checked on each claim: a stale pointer alone
+// cannot authorize a different fighter or a changed program.
+static inline const Regions& regionFor(const std::uint8_t* c,unsigned n){
+    struct Cache {
+        const std::uint8_t* ptr=nullptr;
+        unsigned length=0u,marker=0u;
+        Regions regions;
+    };
+    static Cache cache;
+    unsigned marker=0u;
+    if(c && n>0x35364u)
+        marker=longWord(c,0x0337BAu)^longWord(c,0x035356u)^
+               longWord(c,0x013C30u);
+    if(cache.ptr!=c || cache.length!=n || cache.marker!=marker){
+        cache.ptr=c;cache.length=n;cache.marker=marker;
+        cache.regions=identify(c,n);
+    }
+    return cache.regions;
+}
+static inline bool sourceMatcher(const std::uint8_t* c,unsigned n,
+                                 unsigned lo,unsigned hi,unsigned d6){
+    // Source from 87.174/87.170: an original fighter-owned matcher
+    // JSR followed by a BEQ refusal, then a literal D6 write and the
+    // native mode 2A write. Refuses unrelated D6 table slots.
+    if(!c || d6>255u)return false;
+    for(unsigned p=lo;p+12u<hi;p+=2u){
+        if(word(c,p)!=0x4EB9u)continue;
+        const unsigned target=longWord(c,p+2u);
+        if(target!=0x013C30u && target!=0x013F76u &&
+           target!=0x014096u && target!=0x014392u &&
+           target!=0x01458Eu)continue;
+        if((word(c,p+6u)&0xFF00u)!=0x6700u)continue;
+        const unsigned stop=(p+126u<hi)?p+126u:hi;
+        for(unsigned q=p+8u;q+6u<=stop;q+=2u){
+            if(word(c,q)!=0x1D7Cu || word(c,q+2u)!=d6 ||
+               word(c,q+4u)!=0x00D6u)continue;
+            const unsigned upper=(q+54u<stop)?q+54u:stop;
+            for(unsigned r=q+6u;r+6u<=upper;r+=2u)
+                if(word(c,r)==0x1D7Cu && word(c,r+2u)==0x002Au &&
+                   word(c,r+4u)==0x00A0u)return true;
+        }
+    }
+    return false;
+}
+static inline unsigned phase(const std::uint8_t* c,unsigned n,unsigned p){
+    static const std::uint8_t d0[]={
+        0x30,0x2E,0x00,0x08,0x30,0x3B,0x00,0x06,0x4E,0xFB,0x00,0x02
+    };
+    static const std::uint8_t d1[]={
+        0x30,0x2E,0x00,0x08,0x32,0x3B,0x00,0x06,0x4E,0xFB,0x10,0x02
+    };
+    if(!bytes(c,n,p,d0,sizeof(d0)) && !bytes(c,n,p,d1,sizeof(d1)))
+        return kNotFound;
+    return relTarget(c,n,p+sizeof(d0),0u);
 }
 struct Result {
     unsigned nativeDispatcher=0u,phaseZero=0u,script=0u,selector=0u;
-    bool valid()const{return nativeDispatcher!=0u && phaseZero!=0u;}
+    unsigned alternativeSelector=kNotFound;
+    unsigned ownerStart=0u,ownerEnd=0u,launch=0u;
+    unsigned matchingHandlers=0u;
+    bool valid()const{return nativeDispatcher && phaseZero &&
+                              matchingHandlers==1u;}
 };
 static inline Result resolve(const std::uint8_t* code,unsigned nCode,
                              const std::uint8_t* rom,unsigned nRom,
-                             unsigned fighter,unsigned d6) {
+                             unsigned fighter,unsigned d6){
     Result result;
-    static const std::uint8_t d6Sig[]={
-        0x70,0x00,0x10,0x2E,0x00,0xD6,0x30,0x3B,0x00,0x06,0x4E,0xFB,0x00,0x02
+    if(!code || !rom || fighter>kMaxFighter || (fighter&1u) ||
+       fighter==0x10u || !d6 || (d6&1u) || d6>0x7Eu)return result;
+    const Regions& regions=regionFor(code,nCode);
+    if(!regions.ready)return result;
+    const unsigned lo=regions.begin[fighter/2u];
+    const unsigned hi=regions.end[fighter/2u];
+    if(lo==kNotFound || hi<=lo || hi>nCode)return result;
+    if(!sourceMatcher(code,nCode,lo,hi,d6))return result;
+    static const std::uint8_t d6Header[]={
+        0x70,0x00,0x10,0x2E,0x00,0xD6,0x30,0x3B,0x00,0x06,
+        0x4E,0xFB,0x00,0x02
     };
-    static const std::uint8_t phaseD0[]={
-        0x30,0x2E,0x00,0x08,0x30,0x3B,0x00,0x06,0x4E,0xFB,0x00,0x02
-    };
-    static const std::uint8_t phaseD1[]={
-        0x30,0x2E,0x00,0x08,0x32,0x3B,0x00,0x06,0x4E,0xFB,0x10,0x02
-    };
-    unsigned n=0u;
-    const Case* table=cases(&n);
-    for(unsigned i=0u;i<n;++i) {
-        const Case& item=table[i];
-        if(item.fighter!=fighter||item.d6!=d6)continue;
-        if(!at(code,nCode,item.state,d6Sig,unsigned(sizeof(d6Sig))))return result;
-        const unsigned handler=relTarget(code,nCode,item.state+sizeof(d6Sig),d6);
-        if(handler!=item.handler)return result;
-        if(!at(code,nCode,handler,phaseD0,unsigned(sizeof(phaseD0))) &&
-           !at(code,nCode,handler,phaseD1,unsigned(sizeof(phaseD1))))
-            return result;
-        const unsigned phase=relTarget(code,nCode,handler+sizeof(phaseD0),0u);
-        if(phase!=item.phaseZero || item.launch<phase ||
-           item.launch-phase>=240u)return result;
-        // Verify that the character's original phase-zero code really
-        // launches the requested stock 2E selector via the stock dispatcher.
-        if(fighter==0x12u && d6==0x0Au) {
-            static const std::uint8_t conditional[]={
-                0x70,0x2E,0x72,0x08,0x0C,0x2E,0x00,0x04,0x00,0xA4,
-                0x66,0x02,0x72,0x0C,0x4E,0xF9,0x00,0x01,0x03,0x8E
-            };
-            if(!at(code,nCode,item.launch,conditional,unsigned(sizeof(conditional))))
-                return result;
-        }else{
-            const std::uint8_t launch[]={
-                0x70,0x2E,0x72,std::uint8_t(item.selector),
-                0x4E,0xF9,0x00,0x01,0x03,0x8E
-            };
-            if(!at(code,nCode,item.launch,launch,unsigned(sizeof(launch))))
-                return result;
+    result.ownerStart=lo;result.ownerEnd=hi;
+    for(unsigned pc=lo;pc+sizeof(d6Header)<hi;pc+=2u){
+        if(!bytes(code,nCode,pc,d6Header,sizeof(d6Header)))continue;
+        const unsigned handler=relTarget(code,nCode,pc+sizeof(d6Header),d6);
+        if(handler==kNotFound || handler<lo || handler>=hi)continue;
+        const unsigned start=phase(code,nCode,handler);
+        if(start==kNotFound || start<lo || start>=hi)continue;
+        const unsigned stop=(start+240u<hi)?start+240u:hi;
+        unsigned launches=0u,primary=0u,alternate=kNotFound,
+                 launchAt=0u,scriptAt=0u;
+        for(unsigned pos=start;pos+10u<=stop;pos+=2u){
+            // Native MOVEQ #$2E,D0 ; MOVEQ #selector,D1 ;
+            // JMP $01038E. No invented actor action or animation.
+            if(word(code,pos)!=0x702Eu ||
+               (word(code,pos+2u)&0xFF00u)!=0x7200u)continue;
+            const unsigned sel=word(code,pos+2u)&0xFFu;
+            bool ordinary=word(code,pos+4u)==0x4EF9u &&
+                          longWord(code,pos+6u)==0x01038Eu;
+            bool conditional=false;
+            if(pos+20u<=stop && sel==8u){
+                static const std::uint8_t ryu[]={
+                    0x70,0x2E,0x72,0x08,0x0C,0x2E,0x00,0x04,
+                    0x00,0xA4,0x66,0x02,0x72,0x0C,
+                    0x4E,0xF9,0x00,0x01,0x03,0x8E
+                };
+                conditional=bytes(code,nCode,pos,ryu,sizeof(ryu));
+            }
+            if(!ordinary && !conditional)continue;
+            const auto entry=XM87142::resolve(rom,nRom,fighter,0x2Eu,sel);
+            if(!entry.valid)continue;
+            if(conditional){
+                const auto other=XM87142::resolve(rom,nRom,fighter,0x2Eu,12u);
+                if(!other.valid)continue;
+                alternate=12u;
+            }
+            ++launches;
+            primary=sel;scriptAt=entry.script;launchAt=pos;
         }
-        const auto script=XM87142::resolve(rom,nRom,fighter,0x2Eu,item.selector);
-        if(!script.valid || script.script!=item.script)return result;
-        result.nativeDispatcher=item.state;
-        result.phaseZero=phase;
-        result.selector=item.selector;
-        result.script=item.script;
-        return result;
+        // A conditional two-selector native path counts as ONE launch.
+        if(launches!=1u)continue;
+        ++result.matchingHandlers;
+        if(result.matchingHandlers==1u){
+            result.nativeDispatcher=pc;
+            result.phaseZero=start;
+            result.launch=launchAt;
+            result.selector=primary;
+            result.alternativeSelector=alternate;
+            result.script=scriptAt;
+        }
     }
+    if(result.matchingHandlers!=1u)
+        return Result(); // never select an ambiguous native control path
     return result;
 }
 } // namespace XM87336Dispatch
