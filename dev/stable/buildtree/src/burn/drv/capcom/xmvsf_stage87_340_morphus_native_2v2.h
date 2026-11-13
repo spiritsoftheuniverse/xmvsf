@@ -56,6 +56,93 @@ static inline unsigned facingDir(unsigned dirs,bool faceRight){
  if(dirs&(faceRight?2u:1u))v|=1u;
  return v;
 }
+// 87.350: original character-specific Super commands which CANNOT
+// be represented as ordinary QCF/DP + PP/KK. Input is sampled from
+// actual P1/P2 physical edges, relative to the outgoing facing.
+// No artificial DHC shortcut, no rewriting ROM input, no fake attack.
+struct SpecialHistory {
+ unsigned demon=0u,demonTime=0u,lastDir=0u;
+ unsigned spinLast=8u,spinTurn=0u,spinSweep=0u;
+ unsigned spinTime=0u,spinReady=0u;
+ bool spinUp=false,spinDown=false;
+ void reset(){*this=SpecialHistory();}
+ static unsigned sector(unsigned dir){
+  // Clockwise order around the original 8-way joystick.
+  switch(dir){
+  case 2u:return 0u;  // F
+  case 6u:return 1u;  // DF
+  case 4u:return 2u;  // D
+  case 5u:return 3u;  // DB
+  case 1u:return 4u;  // B
+  case 9u:return 5u;  // UB
+  case 8u:return 6u;  // U
+  case 10u:return 7u; // UF
+  default:return 8u;
+  }
+ }
+ void beginSpin(unsigned pos,unsigned dir){
+  spinLast=pos;spinTurn=0u;spinSweep=0u;
+  spinUp=(dir&8u)!=0u;spinDown=(dir&4u)!=0u;
+  spinTime=36u;spinReady=0u;
+ }
+ unsigned sample(unsigned dir,unsigned pressed,unsigned held){
+  // Shun Goku Satsu: LP, release LP, LP, F, LK, HP.
+  // Each new button requires a real rising edge. Pressing an LP+MP
+  // chord does not create the two distinct LP taps.
+  if(demonTime && !--demonTime)demon=0u;
+  bool demonDone=false;
+  if(demon==0u && (pressed&1u) && held==1u){
+   demon=1u;demonTime=20u;
+  }else if(demon==1u && (pressed&1u) && held==1u){
+   demon=2u;demonTime=20u;
+  }else if(demon==2u && dir==2u && lastDir!=2u){
+   demon=3u;demonTime=20u;
+  }else if(demon==3u && (pressed&8u)){
+   demon=4u;demonTime=20u;
+  }else if(demon==4u && (pressed&4u)){
+   demonDone=true;demon=0u;demonTime=0u;
+  }
+  lastDir=dir;
+  // Final Atomic Buster (XMvsSF donor source: 360+PP, not an
+  // arbitrary QCF DHC alias). Accept a continuous 270+ degrees
+  // through BOTH the upper and lower hemispheres, either turning
+  // direction, with short adjacent-sector skips for fast pads.
+  if(spinTime && !--spinTime)beginSpin(8u,0u);
+  if(spinReady)--spinReady;
+  const unsigned pos=sector(dir);
+  if(pos!=8u){
+   if(spinLast==8u){
+    beginSpin(pos,dir);
+   }else if(pos!=spinLast){
+    const unsigned cw=(pos+8u-spinLast)&7u;
+    const unsigned ccw=(spinLast+8u-pos)&7u;
+    unsigned turn=spinTurn,delta=0u;
+    if(!turn){
+     if(cw<=2u){turn=1u;delta=cw;}
+     else if(ccw<=2u){turn=2u;delta=ccw;}
+    }else{
+     delta=turn==1u?cw:ccw;
+     if(delta>2u)delta=0u;
+    }
+    if(!delta){
+     beginSpin(pos,dir);
+    }else{
+     spinLast=pos;spinTurn=turn;
+     spinSweep=(spinSweep+delta>8u)?8u:spinSweep+delta;
+     spinUp=spinUp||((dir&8u)!=0u);
+     spinDown=spinDown||((dir&4u)!=0u);
+     spinTime=36u;
+     if(spinSweep>=6u && spinUp && spinDown)
+      spinReady=12u;
+    }
+   }
+  }
+  if(demonDone)return 10u; // LP LP F LK HP; actual final HP
+  if(spinReady && (pressed&7u) &&
+     XM87334Native::qualifiedChord(held))return 9u;
+  return 0u;
+ }
+};
 struct Slot {
  Phase phase=IDLE;
  unsigned owner=~0u,point=0u,reserve=0u,d6=0u,x=0u,outgoingD6=0u;
@@ -63,10 +150,12 @@ struct Slot {
  unsigned claimedAt=0u,enteredAt=0u,committedAt=0u;
  bool confirmed=false;
  std::uint8_t step[8]={},timer[8]={};
+ SpecialHistory special;
  unsigned claims=0u,refusals=0u,commits=0u;
  void reset(){*this=Slot();}
  void clearSteps(){std::memset(step,0,sizeof(step));
-                   std::memset(timer,0,sizeof(timer));}
+                   std::memset(timer,0,sizeof(timer));
+                   special.reset();}
  // Donor's seven motions plus original Cyclops F,DF,D+PP.
  // All step timers are 14 core input samples. The eighth motion
  // has priority only when its exact terminal down input is completed.
@@ -91,6 +180,7 @@ struct Slot {
   // Consuming input or claiming DHC STILL requires an eligible outgoing
   // Hyper; native 1v1 and solo controls are never intercepted.
   const unsigned d=facingDir(dir,faceRight);
+  const unsigned specialMotion=special.sample(d,pressed,mask);
   const Motion* m=motions();
   for(unsigned i=0u;i<8u;++i){
    unsigned n=step[i];
@@ -107,27 +197,39 @@ struct Slot {
   // Cyclops native Super Optic Blast is F,DF,D + PP or PPP;
   // Mega Optic Blast remains QCF+PP. Do not substitute QCB.
   // The donor MP+MK assist-style chord is not a DHC trigger.
-  if(!pressed || !XM87334Native::qualifiedChord(mask) ||
-     !inHyper || !eligible || !stockBefore || who==bench ||
-     bench>0x24u || (bench&1u))return hidden;
+  if(!pressed || !inHyper || !eligible || !stockBefore ||
+     who==bench || bench>0x24u || (bench&1u))return hidden;
   static const unsigned priority[]={7u,4u,5u,2u,3u,0u,1u,6u};
   unsigned best=0u,col=8u;
   XM87334Native::Decision chosen;
-  for(unsigned i=0u;i<8u;++i){
-   const unsigned j=priority[i];
-   if(step[j]<m[j].len || timer[j]<=best)continue;
-   const auto candidate=XM87334Native::resolveNativeOnly(
-       bench,j+1u,mask);
-   if(!candidate.ok())continue; // no alternate donor input substitution
-   best=timer[j];col=j;chosen=candidate;
+  // Special native Hyper sequences have distinct final buttons.
+  // Akuma SGS ends on a SINGLE HP; a generic PP filter must never
+  // discard this real command. Zangief FAB ends on real PP/PPP.
+  if(bench==0x1Eu && specialMotion==10u){
+   chosen=XM87334Native::resolveNativeOnly(bench,10u,0x04u);
+   if(chosen.ok())col=9u;
+  }else if(bench==0x1Au && specialMotion==9u){
+   chosen=XM87334Native::resolveNativeOnly(bench,9u,mask);
+   if(chosen.ok())col=8u;
   }
-  if(col==8u)return hidden;
+  if(!chosen.ok()){
+   if(!XM87334Native::qualifiedChord(mask))return hidden;
+   for(unsigned i=0u;i<8u;++i){
+    const unsigned j=priority[i];
+    if(step[j]<m[j].len || timer[j]<=best)continue;
+    const auto candidate=XM87334Native::resolveNativeOnly(
+        bench,j+1u,mask);
+    if(!candidate.ok())continue; // real native motion only
+    best=timer[j];col=j;chosen=candidate;
+   }
+  }
+  if(!chosen.ok())return hidden;
   selected=col;
   d6=chosen.hyperD6; // the ONLY Hyper selection consumed by the M68K guest
   outgoingD6=actorD6;
   point=who;reserve=bench;
   x=originalX;stock=stockBefore;claimedAt=frame;phase=CLAIMED;
-  hidden=mask; // mask only the physical PP/KK command being consumed
+  hidden=mask; // suppress only the physical final Hyper input
   ++claims;
   return hidden;
  }
