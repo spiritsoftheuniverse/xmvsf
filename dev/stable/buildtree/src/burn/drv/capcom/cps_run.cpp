@@ -762,7 +762,7 @@ INT32 Cps2Frame()
                     XM87274Unified::state().event(now,side,extra);
                     st.phase=XM87340Donor::IDLE;
                     st.hidden=0u;
-                    st.selected=7u;
+                    st.selected=8u;
                     st.d6=0u;
                     st.clearSteps();
                     ++st.refusals;
