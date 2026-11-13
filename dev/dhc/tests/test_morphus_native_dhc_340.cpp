@@ -184,7 +184,7 @@ int main(){
               0x0Au,true,true,220u,1u)==0u);
     // FAB native 360: F,DF,D,DB,B,UB,U,UF (or reverse).
     // P1 right and P2 left both use the same RELATIVE original motion.
-    const auto atomicBuster=[](Slot& actor,bool right,
+    const auto atomicBuster=[](Slot actor,bool right,
                                 unsigned start,bool reverse){
         const unsigned clockwiseRight[]={
             1u,5u,4u,6u,2u,10u,8u,9u};
