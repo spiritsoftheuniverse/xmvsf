@@ -32,7 +32,8 @@
 #include "xmvsf_stage87_186_opening_observer.h" // 87.186 original entry, first attack, and input boundary audit
 #include "xmvsf_stage87_144_native_handoff.h" // legacy Ryu/Ken native test
 #include "xmvsf_stage87_274_unified_dhc.h" // ROM-owned two-sided DHC test
-#include "xmvsf_stage87_335_native_dhc_bridge.h" // 87.335 direct original-ROM tag-in -> real 68000 guest
+#include "xmvsf_stage87_335_native_dhc_bridge.h" // original-ROM native M68K guest bridge
+#include "xmvsf_stage87_340_morphus_native_2v2.h" // Morphus dhc.s motions/chord/2v2 chain
 #include "xmvsf_stage87_329_morphus_hook_probe.h" // read-only EURO opcode signature audit
 #include "xmvsf_stage87_330_morphus_locator.h" // read-only cross-revision M68K signature locator
 #include "xmvsf_stage87_331_morphus_endian_locator.h" // correct word-swapped CPS2 opcode mapping
@@ -538,6 +539,11 @@ INT32 Cps2Frame()
             CpsCode,(unsigned)nCpsCodeLen,dhcGame);
     const bool xm262V4=dhcGameMatches && XM87262Game::version4();
     const bool xm274Unified=xm262V4 && XM87274Unified::state().enabled();
+    const bool xm340Native=xm274Unified && XM87340Donor::enabled();
+    static bool xm340WasActive=false;
+    if(xm340WasActive!=xm340Native)
+        XM87340Donor::state().reset();
+    xm340WasActive=xm340Native;
     static bool xm274WasUnified=false;
     if(xm274WasUnified!=xm274Unified){
         XM87144::state().reset();
@@ -552,6 +558,78 @@ INT32 Cps2Frame()
         XM87220Dash::state().reset();
     }
     xm262WasV4=xm262V4;
+    // 87.340: source/engine/dhc.s claims DHC during the original native
+    // input sample, before it reaches the stock M68K attack parser.
+    // Never translate donor MP+MK into a fabricated controller-8 tag.
+    // Select the SOLE 2v2 reserve through the imported dhc_table row,
+    // then the $013AB6 native hook runs Morphus' original exit protocol.
+    if(xm340Native && !bBurnRunAheadFrame && CpsRamFF &&
+       XM87142::ramB(CpsRamFF,0x5000u)==8u){
+        const unsigned now=(unsigned)GetCurrentFrame();
+        const unsigned dirs[2]={
+            (CpsInp001[0]&1u)|((CpsInp001[1]&1u)<<1u)|
+            ((CpsInp001[2]&1u)<<2u)|((CpsInp001[3]&1u)<<3u),
+            (CpsInp000[0]&1u)|((CpsInp000[1]&1u)<<1u)|
+            ((CpsInp000[2]&1u)<<2u)|((CpsInp000[3]&1u)<<3u)
+        };
+        const unsigned buttons[2]={
+            (CpsInp001[4]&1u)|((CpsInp001[5]&1u)<<1u)|
+            ((CpsInp001[6]&1u)<<2u)|((CpsInp011[0]&1u)<<3u)|
+            ((CpsInp011[1]&1u)<<4u)|((CpsInp011[2]&1u)<<5u),
+            (CpsInp000[4]&1u)|((CpsInp000[5]&1u)<<1u)|
+            ((CpsInp000[6]&1u)<<2u)|((CpsInp011[4]&1u)<<3u)|
+            ((CpsInp011[5]&1u)<<4u)|((CpsInp020[6]&1u)<<5u)
+        };
+        for(unsigned side=0u;side<2u;++side){
+            const unsigned p=XM87193Exit::actorBase(side);
+            const unsigned r=XM87193Exit::reserveBase(side);
+            const unsigned who=XM87142::ramW(CpsRamFF,p+0x52u);
+            const unsigned bench=XM87142::ramW(CpsRamFF,r+0x52u);
+            const XM87184Life::Sample sample={
+                who,XM87142::ramW(CpsRamFF,p+0x60u),
+                XM87142::ramW(CpsRamFF,p+0xA0u),
+                XM87142::ramW(CpsRamFF,p+0x08u),
+                XM87142::ramL(CpsRamFF,p+0x34u),
+                XM87142::ramB(CpsRamFF,p+0xD6u)};
+            const auto& super=XM87189Family::state().side[side];
+            const bool currentWindow=super.lastFrame!=~0u &&
+                now>0u && super.lastFrame==now-1u &&
+                super.unifiedDhcWindowAt(super.lastFrame,sample);
+            const bool hyper=(sample.mode&0xFF00u)==0x2A00u &&
+                sample.d6 && (sample.action&0xFF00u)==0x2E00u;
+            const bool eligible=currentWindow && hyper &&
+                XM87142::ramB(CpsRamFF,p+0x03u) &&
+                !XM87142::ramB(CpsRamFF,p+0x221u) &&
+                !XM87142::ramB(CpsRamFF,p+0x257u) &&
+                !XM87142::ramB(CpsRamFF,0x500Au);
+            auto& st=XM87340Donor::state().side[side];
+            const auto before=st.phase;
+            st.sample(now,who,bench,dirs[side],buttons[side],
+                (XM87142::ramB(CpsRamFF,p+0x4Bu)&1u)!=0u,
+                sample.d6,hyper,eligible,
+                XM87142::ramW(CpsRamFF,p+0x0Cu),
+                XM87142::ramB(CpsRamFF,p+0x214u));
+            if(before!=st.phase && st.phase==XM87340Donor::CLAIMED){
+                char detail[144];
+                std::snprintf(detail,sizeof(detail),
+                    "MORPHUS_340_NATIVE_INPUT_CLAIM point=%02X reserve=%02X motion=%u d6=%02X",
+                    st.point,st.reserve,st.selected,st.d6);
+                XM87274Unified::state().event(now,side,detail);
+            }
+            if(st.phase==XM87340Donor::CLAIMED &&
+               now>st.claimedAt+12u){
+                XM87274Unified::state().event(now,side,
+                    "MORPHUS_340_ORIGINAL_TAG_HOOK_NOT_REACHED");
+                st.phase=XM87340Donor::IDLE;++st.refusals;
+            }
+            if(st.phase==XM87340Donor::CHAIN_ENTERED &&
+               now>st.enteredAt+90u){
+                XM87274Unified::state().event(now,side,
+                    "MORPHUS_340_ORIGINAL_NATIVE_SWAP_NOT_CONFIRMED");
+                st.phase=XM87340Donor::IDLE;++st.refusals;
+            }
+        }
+    }
     // 87.181: observer log files must be initialized when the XMVSF
     // CPS2 driver starts, NOT only from the late post-CPU DHC hook.
     // Otherwise an early game/menu exit silently creates no TSV at all.
@@ -699,11 +777,21 @@ INT32 Cps2Frame()
             ((CpsInp000[6]&1u)<<2u)|((CpsInp011[4]&1u)<<3u)|
             ((CpsInp011[5]&1u)<<4u)|((CpsInp020[6]&1u)<<5u)
         };
-        for(unsigned side=0u;side<2u;++side)
-            unifiedInput[side]=XM87274Unified::state().inputForFrame(
-                CpsRamFF,side,(unsigned)GetCurrentFrame(),
-                dirs[side],buttons[side],
-                XM87140Chat::state().candidate[side]);
+        for(unsigned side=0u;side<2u;++side){
+            if(xm340Native){
+                // Morphus input filter hides ONLY the claimed MP/MK/HK
+                // chord until released; never feeds a replacement 2P tag.
+                const unsigned h=XM87340Donor::state().side[side].hidden;
+                unifiedInput[side].active=(h!=0u);
+                unifiedInput[side].directions=dirs[side];
+                unifiedInput[side].attacks=buttons[side]&~h;
+            }else{
+                unifiedInput[side]=XM87274Unified::state().inputForFrame(
+                    CpsRamFF,side,(unsigned)GetCurrentFrame(),
+                    dirs[side],buttons[side],
+                    XM87140Chat::state().candidate[side]);
+            }
+        }
     }
     UINT8 uSavedP1Dir[4]={},uSavedP1P[3]={},uSavedP1K[3]={};
     UINT8 uSavedP2Dir[4]={},uSavedP2P[3]={},uSavedP2K[3]={};
@@ -1189,7 +1277,7 @@ INT32 Cps2Frame()
         if(xm262V4 && !xm274Unified)
             XM87144::state().frame(CpsRamFF,CpsRom,(unsigned)nCpsRomLen,
                 (unsigned)GetCurrentFrame(),dhcWindow);
-        if(xm274Unified)
+        if(xm274Unified && !xm340Native)
             XM87274Unified::state().frame(CpsRamFF,CpsRom,(unsigned)nCpsRomLen,
                 (unsigned)GetCurrentFrame(),
                 CpsCode,(unsigned)nCpsCodeLen);
