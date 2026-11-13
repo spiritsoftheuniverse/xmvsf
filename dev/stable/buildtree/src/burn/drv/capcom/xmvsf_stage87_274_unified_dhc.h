@@ -10,6 +10,7 @@
 // landing: other fighters' native tag-entry scripts need captured ROM evidence.
 #include "xmvsf_stage87_192_reserve_super_ownership.h"
 #include "xmvsf_stage87_329_morphus_dhc_catalog.h"
+#include "xmvsf_stage87_334_morphus_2v2_precommit.h"
 #include "xmvsf_stage87_193_deterministic_exit_protocol.h"
 #include "xmvsf_stage87_262_game_version.h"
 #include <cstdint>
@@ -42,6 +43,7 @@ struct Slot {
     unsigned originalAction=0u,originalMode=0u,originalD6=0u;
     XM87193Exit::Snapshot snapshot;
     XM87192Owner::Proposal request;
+    XM87334Native::Pending nativePrecommit; // opt-in, host-side only
     void reset(){*this=Slot();}
 };
 struct State {
@@ -198,6 +200,28 @@ struct State {
                         continue; // original outgoing Hyper continues; no swap
                     }
                 }
+                if(XM87334Native::enabled()){
+                    const auto& pending=XM87192Owner::state().pending[side];
+                    const auto chosen=XM87334Native::resolve(
+                        reserve,unsigned(pending.motion),pending.buttonMask);
+                    if(!chosen.ok()){
+                        event(now,side,XM87334Native::reasonName(chosen.reason));
+                        XM87192Owner::state().clear(side);
+                        continue; // no original tag or meter debit
+                    }
+                    if(!s.nativePrecommit.stage(
+                            side,point,reserve,now,chosen)){
+                        event(now,side,"MORPHUS_D6_PRECOMMIT_REJECTED");
+                        XM87192Owner::state().clear(side);
+                        continue;
+                    }
+                    char detail[112];
+                    std::snprintf(detail,sizeof(detail),
+                        "MORPHUS_D6_PREQUALIFIED_ONLY target=%02X d6=%02X throw=%u",
+                        reserve,unsigned(chosen.hyperD6),
+                        chosen.terminalThrow?1u:0u);
+                    event(now,side,detail);
+                }
                 s.request=XM87192Owner::state().pending[side];
                 s.point=point;s.reserve=reserve;s.started=now;
                 const auto tx=XM87193Exit::beginNativeExit(ram,side);
@@ -243,6 +267,14 @@ struct State {
             }
             if(s.phase==AWAIT_SWAP){
                 if(point==s.reserve && reserve==s.point){
+                    if(XM87334Native::enabled() &&
+                       !s.nativePrecommit.matchesAfterOriginalSwap(
+                           side,point,reserve)){
+                        fail(side,now,"MORPHUS_D6_WRONG_OR_EXPIRED_SWAP");
+                        continue;
+                    }
+                    if(XM87334Native::enabled())
+                        event(now,side,"MORPHUS_D6_ORIGINAL_SWAP_CONFIRMED_DIRECT_COMMIT_NOT_INSTALLED");
                     s.phase=AWAIT_NEUTRAL;s.neutralSince=0u;
                     event(now,side,"ORIGINAL_ROM_POINT_RESERVE_SWAPPED");
                 }else if((point!=s.point||reserve!=s.reserve) ||
@@ -281,6 +313,17 @@ struct State {
                        side,now,s.request,native,rom,romSize)){
                     s.phase=INCOMING_SUPER;s.superAt=now;
                     s.neutralSince=0u;
+                    if(s.nativePrecommit.armed){
+                        const unsigned executedD6=XM87142::ramB(ram,p+0xD6u);
+                        char message[128];
+                        std::snprintf(message,sizeof(message),
+                            "MORPHUS_D6_POST_SWAP_ROM_ACCEPT expected=%02X actual=%02X %s",
+                            unsigned(s.nativePrecommit.d6),executedD6,
+                            executedD6==s.nativePrecommit.d6?
+                            "MATCH":"MISMATCH_REVISION_OR_COMMAND");
+                        event(now,side,message);
+                        s.nativePrecommit.markConsumed();
+                    }
                     event(now,side,"INCOMING_ORIGINAL_ROM_2E_SUPER_ACCEPTED");
                 }else if(now>s.inputStart+s.request.duration()+12u){
                     XM87192Owner::state().rejected(side,now,s.request,native);
