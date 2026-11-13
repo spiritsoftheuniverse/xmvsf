@@ -702,6 +702,21 @@ INT32 Cps2Frame()
                     st.d6=0u;
                     st.clearSteps();
                     ++st.refusals;
+                }else{
+                    // 87.345: the input has selected exactly one real
+                    // fighter+Hyper D6, and the original program's own
+                    // D6-indexed M68K state/phase table has now resolved.
+                    // proof 2 deliberately does not invent a 2E action
+                    // selector: the original fighter state machine owns it.
+                    char selected[204];
+                    std::snprintf(selected,sizeof(selected),
+                        "NATIVE_345_D6_TABLE_ROUTE incoming=%02X d6=%02X side=%u pc=%06X phase=%06X proof=%u source=%u script=%06X",
+                        st.reserve,st.d6,side+1u,
+                        verified.nativeDispatcher,verified.phaseZero,
+                        verified.proof,
+                        verified.hasNativeMatcherSource?1u:0u,
+                        verified.script);
+                    XM87274Unified::state().event(now,side,selected);
                 }
             }
             if(newChord && before==XM87340Donor::IDLE &&
