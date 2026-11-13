@@ -310,7 +310,14 @@ struct State {
                 }else if(action!=s.originalAction){
                     // Native 68000 selected a different action: do not
                     // overwrite it with a fabricated 3200 tag animation.
-                    fail(side,now,"ABORT_WRONG_NATIVE_ACTION_NO_SCRIPT_WRITE");
+                    char reason[166];
+                    std::snprintf(reason,sizeof(reason),
+                        "ABORT_WRONG_NATIVE_ACTION=%04X mode=%04X prev=%04X input=%02X c256=%02X c259=%02X",
+                        action,mode,s.originalAction,
+                        s.request.buttonMask,
+                        XM87142::ramB(ram,p+0x256u),
+                        XM87142::ramB(ram,p+0x259u));
+                    fail(side,now,reason);
                 }else if(now-s.started>12u){
                     // Restore a request ONLY when 68000 never consumed it.
                     if(XM87142::ramB(ram,p+0x256u)==8u &&
@@ -323,7 +330,12 @@ struct State {
                         XM87193Exit::wput(ram,p+0x08u,s.snapshot.step08);
                         XM87193Exit::wput(ram,p+0x0Au,s.snapshot.step0A);
                     }
-                    fail(side,now,"ABORT_NATIVE_TAG_NOT_ACCEPTED_12F");
+                    char reason[162];
+                    std::snprintf(reason,sizeof(reason),
+                        "ABORT_NATIVE_TAG_NOT_ACCEPTED_12F action=%04X mode=%04X c256=%02X c259=%02X",
+                        action,mode,XM87142::ramB(ram,p+0x256u),
+                        XM87142::ramB(ram,p+0x259u));
+                    fail(side,now,reason);
                 }
                 continue;
             }
