@@ -564,6 +564,11 @@ INT32 Cps2Frame()
     // Select the SOLE 2v2 reserve through the imported dhc_table row,
     // then the $013AB6 native hook runs Morphus' original exit protocol.
     if(xm340Native && !bBurnRunAheadFrame && CpsRamFF &&
+       dhcGame && std::strcmp(dhcGame,"xmvsfu")==0 &&
+       CpsCode && XM87333NativeDHC::verify(
+           CpsCode,(unsigned)nCpsCodeLen).all() &&
+       XM87340Donor::validateExit(
+           CpsCode,(unsigned)nCpsCodeLen) &&
        XM87142::ramB(CpsRamFF,0x5000u)==8u){
         const unsigned now=(unsigned)GetCurrentFrame();
         const unsigned dirs[2]={
