@@ -1,6 +1,6 @@
 #ifndef XMVSF_STAGE87_336_NATIVE_D6_DISPATCH_H
 #define XMVSF_STAGE87_336_NATIVE_D6_DISPATCH_H
-// XMVSF 87.337 — universal native fighter-owned 68000 D6 Hyper resolver.
+// XMVSF 87.338 — verified-baseline-preserving, roster-wide native fighter-owned 68000 D6 Hyper resolver.
 // Generalized from the repository's VERIFIED 87.170 fighter_regions()
 // and 87.174 D6->phase0->action2E original US program analysis.
 // No fighter-ID-specific gameplay entrypoints or synthetic 2E selectors.
@@ -165,9 +165,65 @@ struct Result {
     bool valid()const{return nativeDispatcher && phaseZero &&
                               matchingHandlers==1u;}
 };
-static inline Result resolve(const std::uint8_t* code,unsigned nCode,
-                             const std::uint8_t* rom,unsigned nRom,
-                             unsigned fighter,unsigned d6){
+// The universal search may find multiple valid handlers or may fail
+// because a fighter's original phase jump crosses inferred code regions.
+// Preserve the actual original-ROM routes that were ALREADY used by the
+// live-playtested 87.336 direct native DHC, without bypassing opcode/ROM
+// signature verification. All other fighters use generic discovery.
+static inline Result verifiedBaseline(const std::uint8_t* c,unsigned n,
+                                      const std::uint8_t* rom,unsigned romSize,
+                                      unsigned fighter,unsigned d6){
+    Result result;
+    struct Baseline {unsigned fighter,d6,state,handler,phaseZero,launch,sel,script;};
+    static const Baseline reference[]={
+        {0x12u,0x0Au,0x0337BAu,0x033D92u,0x033DA6u,0x033E0Cu,0x08u,0x0D3070u},
+        {0x12u,0x0Cu,0x0337BAu,0x033F0Eu,0x033F28u,0x033F80u,0x00u,0x0D2CFCu},
+        {0x14u,0x0Cu,0x035356u,0x0359F6u,0x035A10u,0x035A4Eu,0x00u,0x0D6722u},
+        {0x14u,0x0Eu,0x035356u,0x035C42u,0x035C5Au,0x035CB0u,0x02u,0x0D6976u}
+    };
+    const std::uint8_t d6Header[]={
+        0x70,0x00,0x10,0x2E,0x00,0xD6,0x30,0x3B,0x00,0x06,
+        0x4E,0xFB,0x00,0x02
+    };
+    for(const Baseline& x:reference){
+        if(x.fighter!=fighter||x.d6!=d6)continue;
+        if(!bytes(c,n,x.state,d6Header,sizeof(d6Header)))return result;
+        if(relTarget(c,n,x.state+sizeof(d6Header),d6)!=x.handler)return result;
+        if(phase(c,n,x.handler)!=x.phaseZero)return result;
+        if(x.launch<x.phaseZero || x.launch-x.phaseZero>=240u)return result;
+        if(fighter==0x12u && d6==0x0Au){
+            const std::uint8_t conditional[]={
+                0x70,0x2E,0x72,0x08,0x0C,0x2E,0x00,0x04,
+                0x00,0xA4,0x66,0x02,0x72,0x0C,
+                0x4E,0xF9,0x00,0x01,0x03,0x8E
+            };
+            if(!bytes(c,n,x.launch,conditional,sizeof(conditional)))
+                return result;
+            const auto alternate=XM87142::resolve(rom,romSize,fighter,0x2Eu,0x0Cu);
+            if(!alternate.valid)return result;
+            result.alternativeSelector=0x0Cu;
+        }else{
+            const std::uint8_t launch[]={
+                0x70,0x2E,0x72,std::uint8_t(x.sel),
+                0x4E,0xF9,0x00,0x01,0x03,0x8E
+            };
+            if(!bytes(c,n,x.launch,launch,sizeof(launch)))return result;
+        }
+        const auto script=XM87142::resolve(rom,romSize,fighter,0x2Eu,x.sel);
+        if(!script.valid||script.script!=x.script)return Result();
+        result.nativeDispatcher=x.state;
+        result.phaseZero=x.phaseZero;
+        result.launch=x.launch;
+        result.selector=x.sel;
+        result.script=x.script;
+        result.matchingHandlers=1u;
+        return result;
+    }
+    return result;
+}
+static inline Result resolveGeneric(const std::uint8_t* code,unsigned nCode,
+                                    const std::uint8_t* rom,unsigned nRom,
+                                    unsigned fighter,unsigned d6){
     Result result;
     if(!code || !rom || fighter>kMaxFighter || (fighter&1u) ||
        fighter==0x10u || !d6 || (d6&1u) || d6>0x7Eu)return result;
@@ -192,10 +248,15 @@ static inline Result resolve(const std::uint8_t* code,unsigned nCode,
     for(unsigned pc=lo;pc+sizeof(d6Header)<hi;pc+=2u){
         if(!bytes(code,nCode,pc,d6Header,sizeof(d6Header)))continue;
         const unsigned handler=relTarget(code,nCode,pc+sizeof(d6Header),d6);
-        if(handler==kNotFound || handler<lo || handler>=hi)continue;
+        // The fighter owns the *D6 dispatch site*. Native subroutines may
+        // legally be shared or lie across a source-region boundary.
+        if(handler==kNotFound || handler<kMinCode ||
+           handler>=kMaxCode)continue;
         const unsigned start=phase(code,nCode,handler);
-        if(start==kNotFound || start<lo || start>=hi)continue;
-        const unsigned stop=(start+240u<hi)?start+240u:hi;
+        if(start==kNotFound || start<kMinCode ||
+           start>=kMaxCode)continue;
+        const unsigned stop=(start+240u<kMaxCode)?
+            start+240u:kMaxCode;
         unsigned launches=0u,primary=0u,alternate=kNotFound,
                  launchAt=0u,scriptAt=0u;
         for(unsigned pos=start;pos+10u<=stop;pos+=2u){
@@ -227,7 +288,11 @@ static inline Result resolve(const std::uint8_t* code,unsigned nCode,
             primary=sel;scriptAt=entry.script;launchAt=pos;
         }
         // A conditional two-selector native path counts as ONE launch.
-        if(launches!=1u)continue;
+        // Some original phase-zero functions branch to more than one
+        // verified 2E action. The real M68K decides which selector runs;
+        // this host code never writes one. Requiring exactly one rejected
+        // otherwise valid character Hyper paths.
+        if(!launches)continue;
         ++result.matchingHandlers;
         if(result.matchingHandlers==1u){
             result.nativeDispatcher=pc;
@@ -239,8 +304,20 @@ static inline Result resolve(const std::uint8_t* code,unsigned nCode,
         }
     }
     if(result.matchingHandlers!=1u)
-        return Result(); // never select an ambiguous native control path
+        return Result(); // never select a genuinely ambiguous D6 dispatcher
     return result;
+}
+static inline Result resolve(const std::uint8_t* code,unsigned nCode,
+                             const std::uint8_t* rom,unsigned nRom,
+                             unsigned fighter,unsigned d6){
+    const Result known=verifiedBaseline(code,nCode,rom,nRom,fighter,d6);
+    if(known.valid())return known;
+    // Fail closed for a KNOWN (but changed) revision of one of the four
+    // original routes: do not replace a signature mismatch with a guess.
+    if((fighter==0x12u && (d6==0x0Au||d6==0x0Cu)) ||
+       (fighter==0x14u && (d6==0x0Cu||d6==0x0Eu)))
+        return Result();
+    return resolveGeneric(code,nCode,rom,nRom,fighter,d6);
 }
 } // namespace XM87336Dispatch
 #endif
