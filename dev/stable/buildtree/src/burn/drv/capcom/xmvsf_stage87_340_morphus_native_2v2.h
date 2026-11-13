@@ -54,7 +54,8 @@ struct Slot {
   const unsigned mask=buttons&0x3Fu;
   if(owner!=who){
    owner=who;prev=mask;hidden=mask&0x32u;clearSteps();
-   if(phase==COMMITTED)phase=IDLE;
+   // Source XH_USED: a chain stays single-use across the native swap.
+   // The incoming fighter must not immediately DHC back to the outgoing.
    return hidden;
   }
   const unsigned pressed=mask&~prev;prev=mask;
