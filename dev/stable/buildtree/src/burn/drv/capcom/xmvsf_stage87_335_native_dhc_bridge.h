@@ -161,7 +161,8 @@ struct State {
             const unsigned bench=XM87142::ramW(ram,r+0x52u);
             if(pc==XM87340Donor::kChainPC){
                 // Literal donor xm3_hook_tag / xm3_dhc_chain:
-                // consume the MP+MK claim in the native tag function,
+                // consume the incoming fighter's ORIGINAL PP/KK Hyper
+                // command (already decoded to one real D6 byte),
                 // invoke verified original exit helper, set +256/259=2,
                 // return D0=-1. No controller-8 handoff is written.
                 if(claim.phase!=XM87340Donor::CLAIMED ||
@@ -171,8 +172,11 @@ struct State {
                    XM87142::ramB(ram,p+0x256u) ||
                    XM87142::ramB(ram,p+0x259u) ||
                    !XM87142::ramB(ram,p+0x214u) ||
-                   !XM87340Donor::sourceHyper(
-                       who,XM87142::ramB(ram,p+0xD6u),true))
+                   // Compare the EXACT outgoing native Hyper ID captured
+                   // when its original-ROM cancel window was eligible.
+                   // The donor's character DHC table must not veto an
+                   // otherwise genuine original Super at the tag hook.
+                   XM87142::ramB(ram,p+0xD6u)!=claim.outgoingD6)
                     return;
                 m68k_set_reg(M68K_REG_PC,
                     XM87335Guest::kGuestBase+
@@ -181,7 +185,7 @@ struct State {
                 claim.phase=XM87340Donor::CHAIN_ENTERED;
                 claim.enteredAt=installedAt;
                 XM87274Unified::state().event(installedAt,side,
-                    "MORPHUS_340_NATIVE_13AB6_TAG_TAIL_EXECUTED");
+                    "NATIVE_341_ORIGINAL_13AB6_TAG_TAIL_EXECUTED");
                 return;
             }
             // Donor xm3_hook_dhc_commit: the original ROM MUST have
