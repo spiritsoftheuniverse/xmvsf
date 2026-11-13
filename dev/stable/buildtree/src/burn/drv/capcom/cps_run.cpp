@@ -1335,7 +1335,7 @@ INT32 Cps2Frame()
                     XM87142::ramB(CpsRamFF,p+0xD6u)};
                 XM87189Family::state().side[side].update(
                     (unsigned)GetCurrentFrame(),observed,
-                    CpsRom,(unsigned)nCpsRomLen);
+                    CpsRom,(unsigned)nCpsRomLen,true); // 87.349 2C opt-in
             }
         }
         // Exact post-CPU boundary, before host-side command matching
