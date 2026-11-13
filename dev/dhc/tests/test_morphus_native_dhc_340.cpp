@@ -1,4 +1,4 @@
-// 87.340 standalone C++11 test: Morphus56k/dhc.s TWO-MEMBER port.
+// 87.341 standalone C++11 test: actual incoming controls select real D6.
 // Local only. Never a BUILD_TEST gate or GitHub Action.
 #include "../../stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_340_morphus_native_2v2.h"
 #include <cassert>
@@ -14,52 +14,66 @@ static void be(std::vector<std::uint8_t>& p,unsigned at,
     for(unsigned i=0;i<n;++i)p[at+(i^1u)]=src[i];
 }
 int main(){
-    // Source/engine/dhc_table.inc; not a per-character guessed 2E selector.
-    assert(sourceHyper(0x12u,0x0Au,true));
-    assert(sourceHyper(0x14u,0x0Eu,true));
-    assert(!sourceHyper(0x1Au,0x0Au,true)); // Zangief throw ends chain
-    assert(XM87329Morphus::rows()[0x14u/2u].hyper[0]==0x0Cu);
-    assert(XM87329Morphus::rows()[0x14u/2u].hyper[1]==0x0Eu);
-    assert(XM87329Morphus::rows()[0x02u/2u].hyper[0]==0x04u);
-    assert(XM87329Morphus::rows()[0x02u/2u].hyper[1]==0x02u);
+    // Real native controls, not Morphus-assigned DHC gestures.
+    // One selected incoming command -> one exact +D6 byte.
+    using XM87334Native::resolveNativeOnly;
+    assert(resolveNativeOnly(0x14u,1u,0x03u).hyperD6==0x0Cu); // Ken QCF+PP
+    assert(resolveNativeOnly(0x14u,1u,0x18u).hyperD6==0x0Eu); // Ken QCF+KK
+    assert(!resolveNativeOnly(0x14u,2u,0x18u).ok());  // no invented QCB Shinryuken
+    assert(!resolveNativeOnly(0x14u,1u,0x12u).ok());  // MP+MK is not a Hyper chord
+    assert(resolveNativeOnly(0x02u,1u,0x03u).hyperD6==0x04u); // Cyclops
+    assert(resolveNativeOnly(0x04u,1u,0x03u).hyperD6==0x02u); // Storm
+    assert(resolveNativeOnly(0x0Eu,1u,0x18u).hyperD6==0x06u); // Magneto
+    assert(resolveNativeOnly(0x22u,1u,0x18u).hyperD6==0x0Eu); // Cammy
+    assert(!resolveNativeOnly(0x1Au,1u,0x03u).ok()); // no fake QCF for Zangief 360
+    assert(!resolveNativeOnly(0x1Eu,3u,0x03u).ok()); // no fake DP for Akuma SGS
     assert(facingDir(1u,true)==2u && facingDir(2u,true)==1u);
     assert(facingDir(5u,true)==6u && facingDir(6u,true)==5u);
-    Slot claim;
-    claim.sample(1u,0x12u,0x14u,0u,0u,true,0x0Au,true,
-                 true,0x1234u,1u);
-    claim.sample(2u,0x12u,0x14u,4u,0u,true,0x0Au,true,
-                 true,0x1234u,1u);
-    claim.sample(3u,0x12u,0x14u,5u,0u,true,0x0Au,true,
-                 true,0x1234u,1u);
-    assert(claim.sample(4u,0x12u,0x14u,1u,0x12u,true,0x0Au,
-                        true,true,0x1234u,1u)==0x32u);
-    assert(claim.phase==CLAIMED && claim.d6==0x0Cu &&
-           claim.selected==0u && claim.x==0x1234u);
-    assert(claim.claimedAt==4u);
-    // Native MP+MK is reserve A. Native MP+HK is *absent reserve B*,
-    // not a made-up alternate kick super selector.
-    Slot unavailable;
-    unavailable.sample(1u,0x12u,0x14u,0u,0u,true,0x0Au,
-                       true,true,0u,1u);
-    unavailable.sample(2u,0x12u,0x14u,4u,0u,true,0x0Au,
-                       true,true,0u,1u);
-    unavailable.sample(3u,0x12u,0x14u,5u,0u,true,0x0Au,
-                       true,true,0u,1u);
-    unavailable.sample(4u,0x12u,0x14u,1u,0x22u,true,0x0Au,
-                       true,true,0u,1u);
-    assert(unavailable.phase==IDLE && unavailable.refusals==1u);
-    // Ken's donor-assigned QCB DHC names Shinryuken (D6 0E).
+
+    const auto runMotion=[](Slot& slot,unsigned target,
+        unsigned start,unsigned b,unsigned fD6){
+        // Initial neutral sample owns the tracked side. Real QCF:
+        // D, DF, F, then the native PP/KK chord at the terminal F.
+        slot.sample(start,0x12u,target,0u,0u,true,fD6,true,true,0x1234u,1u);
+        slot.sample(start+1u,0x12u,target,4u,0u,true,fD6,true,true,0x1234u,1u);
+        slot.sample(start+2u,0x12u,target,5u,0u,true,fD6,true,true,0x1234u,1u);
+        return slot.sample(start+3u,0x12u,target,1u,b,true,
+                           fD6,true,true,0x1234u,1u);
+    };
+    Slot shoryu;
+    assert(runMotion(shoryu,0x14u,1u,0x03u,0x0Au)==0x03u);
+    assert(shoryu.phase==CLAIMED && shoryu.d6==0x0Cu &&
+           shoryu.selected==0u && shoryu.outgoingD6==0x0Au &&
+           shoryu.x==0x1234u && shoryu.stock==1u);
+    assert(shoryu.sample(5u,0x12u,0x14u,1u,0x03u,true,
+                         0x0Au,true,true,0x1234u,1u)==0x03u);
+    assert(shoryu.sample(6u,0x12u,0x14u,0u,0u,true,
+                         0x0Au,true,true,0x1234u,1u)==0u);
     Slot shinryu;
-    shinryu.sample(1u,0x12u,0x14u,0u,0u,true,0x0Au,
-                   true,true,0u,1u);
-    shinryu.sample(2u,0x12u,0x14u,4u,0u,true,0x0Au,
-                   true,true,0u,1u);
-    shinryu.sample(3u,0x12u,0x14u,6u,0u,true,0x0Au,
-                   true,true,0u,1u);
-    shinryu.sample(4u,0x12u,0x14u,2u,0x12u,true,0x0Au,
-                   true,true,0u,1u);
+    assert(runMotion(shinryu,0x14u,10u,0x18u,0x0Au)==0x18u);
     assert(shinryu.phase==CLAIMED && shinryu.d6==0x0Eu &&
-           shinryu.selected==1u);
+           shinryu.selected==0u && shinryu.claimedAt==13u);
+    // A DHC-style MP+MK chord is never a trigger, even with QCF complete.
+    Slot assist;
+    assert(runMotion(assist,0x14u,20u,0x12u,0x0Au)==0u);
+    assert(assist.phase==IDLE && assist.d6==0u && assist.hidden==0u);
+    // The old donor-assigned QCB+MP+MK was not Ken's actual Shinryuken.
+    Slot falseQcb;
+    falseQcb.sample(30u,0x12u,0x14u,0u,0u,true,0x0Au,true,true,0u,1u);
+    falseQcb.sample(31u,0x12u,0x14u,4u,0u,true,0x0Au,true,true,0u,1u);
+    falseQcb.sample(32u,0x12u,0x14u,6u,0u,true,0x0Au,true,true,0u,1u);
+    assert(falseQcb.sample(33u,0x12u,0x14u,2u,0x12u,true,
+                           0x0Au,true,true,0u,1u)==0u);
+    assert(falseQcb.phase==IDLE);
+    Slot storm;
+    assert(runMotion(storm,0x04u,40u,0x03u,0x0Au)==0x03u);
+    assert(storm.d6==0x02u);
+    Slot magneto;
+    assert(runMotion(magneto,0x0Eu,50u,0x18u,0x0Au)==0x18u);
+    assert(magneto.d6==0x06u);
+    Slot cyclops;
+    assert(runMotion(cyclops,0x02u,60u,0x03u,0x0Au)==0x03u);
+    assert(cyclops.d6==0x04u);
     std::uint8_t guest[4096]={};
     assert(!emitExit(nullptr,sizeof(guest),0x200u));
     assert(emitExit(guest,sizeof(guest),kExitOffsetP1));
@@ -88,5 +102,5 @@ int main(){
     assert(validateExit(original.data(),unsigned(original.size())));
     original[0xD590u]^=1u;
     assert(!validateExit(original.data(),unsigned(original.size())));
-    std::puts("XMVSF 87.340 Morphus source motion/native 2v2 exit PASS");
+    std::puts("XMVSF 87.341 original fighter PP/KK -> D6 + native exit emitter PASS");
 }
