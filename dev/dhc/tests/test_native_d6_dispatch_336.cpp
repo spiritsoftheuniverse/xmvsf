@@ -80,17 +80,20 @@ int main(){
     static const std::uint8_t idx[]={
         0x30,0x2E,0x00,0x52,0xD0,0x40,0x20,0x7B
     };
-    // Ten independently structured ORIGINAL-style fighter indexers,
-    // each with 19 point slots. The native 87.170 scanner requires ten.
-    for(unsigned j=0u;j<10u;++j){
-        const unsigned pc=0x1000u+j*0x80u;
-        const unsigned table=0x3000u+j*0x80u;
-        be(code,pc,idx,sizeof(idx));
-        w(code,pc+8u,table-(pc+8u));
-        w(code,pc+10u,0x4E90u);
-        for(unsigned f=0u;f<19u;++f)
-            l(code,table+f*4u,0x20000u+f*0x1000u);
-    }
+    // 87.337's all-or-nothing gate refused EVERY incoming fighter
+    // unless ten full native dispatcher maps included every character.
+    // A genuine fighter-owned original indexer can omit unrelated IDs.
+    // Construct one 15/18 original-layout indexer with three absent IDs
+    // (none of them the target fighters below). All target moves must
+    // remain independently checked by their real D6/phase-zero/2E bytes.
+    const unsigned pc=0x1000u;
+    const unsigned table=0x3000u;
+    be(code,pc,idx,sizeof(idx));
+    w(code,pc+8u,table-(pc+8u));
+    w(code,pc+10u,0x4E90u);
+    for(unsigned f=0u;f<19u;++f)
+        l(code,table+f*4u,(f==4u||f==5u||f==6u)?0u:
+          0x20000u+f*0x1000u);
     static const struct {unsigned fighter,d6,selector,index;} cases[]={
         {0x00u,0x08u,0x00u,0u}, // Wolverine
         {0x02u,0x04u,0x00u,0u}, // Cyclops
@@ -106,7 +109,10 @@ int main(){
         makeNative(code,rom,cases[i].fighter,cases[i].d6,
                    cases[i].selector,cases[i].index);
     const auto bounds=identify(code.data(),unsigned(code.size()));
-    assert(bounds.ready && bounds.indexers==10u);
+    assert(bounds.ready && bounds.indexers==1u);
+    assert(bounds.begin[4u]==kNotFound);
+    assert(bounds.begin[5u]==kNotFound);
+    assert(bounds.begin[6u]==kNotFound);
     for(unsigned i=0u;i<sizeof(cases)/sizeof(cases[0]);++i){
         const auto& p=cases[i];
         const auto result=resolve(code.data(),unsigned(code.size()),
@@ -139,5 +145,5 @@ int main(){
     assert(!resolve(code.data(),unsigned(code.size()),
                     rom.data(),unsigned(rom.size()),
                     0x02u,0x04u).valid());
-    std::puts("XMVSF 87.337 universal native fighter-owned D6 test PASS");
+    std::puts("XMVSF 87.338 partial-roster original D6 gating PASS");
 }
