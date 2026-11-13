@@ -390,6 +390,36 @@ int main(){
                         0x0Au,true,true,220u,1u);
         assert(released.phase==IDLE);
     }
+    // 87.354: Charlie's normal Flash Kick must not seed a DHC.
+    Slot normal;
+    normal.quiet(100u,0x20u,0x38u);
+    normal.quiet(101u,0x20u,0x38u);
+    normal.quiet(102u,0x20u,0u);
+    assert(normal.phase==IDLE && !normal.windowReady &&
+           normal.hidden==0u && normal.kkkEdgeAt==~0u);
+    for(unsigned i=0u;i<8u;++i)
+        assert(normal.step[i]==0u && normal.timer[i]==0u);
+    normal.openWindow(103u,0x20u,0x38u);
+    assert(normal.windowReady && normal.prev==0x38u);
+    assert(normal.sample(104u,0x20u,0x16u,0u,0x38u,
+           true,0x06u,true,true,220u,1u)==0u);
+    assert(normal.phase==IDLE && normal.kkkEdgeAt==~0u);
+    normal.sample(105u,0x20u,0x16u,0u,0u,
+                  true,0x06u,true,true,220u,1u);
+    normal.sample(106u,0x20u,0x16u,4u,0u,
+                  true,0x06u,true,true,220u,1u);
+    normal.sample(107u,0x20u,0x16u,5u,0u,
+                  true,0x06u,true,true,220u,1u);
+    assert(normal.sample(108u,0x20u,0x16u,1u,0x38u,
+           true,0x06u,true,true,220u,1u)==0x38u);
+    assert(normal.phase==CLAIMED && normal.d6==0x08u);
+    normal.pendingInput(109u,0u);
+    assert(normal.phase==CLAIMED && normal.hidden==0u);
+    normal.phase=IDLE;
+    normal.quiet(110u,0x20u,0x38u);
+    assert(!normal.windowReady && normal.kkkEdgeAt==~0u);
+    for(unsigned i=0u;i<8u;++i)
+        assert(normal.step[i]==0u && normal.timer[i]==0u);
     // 87.343: position against ACTUAL opponent X, for P1 or P2.
     assert(nearOpponentX(80u,220u)==204u);  // P1 approaches from left
     assert(nearOpponentX(360u,220u)==236u); // P2 approaches from right
@@ -507,5 +537,5 @@ int main(){
     assert(XM87189Family::Tracker::originalSuperController(
          XM87184Life::Sample(0x12u,0x2E08u,0x2A00u,2u,
                               0x0D3070u,0x0Au))); // 2E unmodified
-    std::puts("XMVSF 87.353 original three-kick native DHC edge buffer PASS");
+    std::puts("XMVSF 87.354 native DHC stays dormant in normal play PASS");
 }

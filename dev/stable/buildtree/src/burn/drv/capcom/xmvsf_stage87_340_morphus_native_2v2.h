@@ -155,6 +155,7 @@ struct Slot {
  // direction of a native motion is still crossing a sampled frame.
  unsigned kkkEdgeAt=~0u;
  bool claimedBufferedKKK=false;
+ bool windowReady=false; // DHC input recognition is not active in normal play
  SpecialHistory special;
  unsigned claims=0u,refusals=0u,commits=0u;
  void reset(){*this=Slot();}
@@ -164,6 +165,25 @@ struct Slot {
                    std::memset(firstFrame,0,sizeof(firstFrame));
                    kkkEdgeAt=~0u;claimedBufferedKKK=false;
                    special.reset();}
+ // 87.354: Never sample DHC motion history during normal play.
+ void quiet(unsigned frame,unsigned who,unsigned buttons){
+  if(phase!=IDLE)return;
+  clearSteps();windowReady=false;owner=who;lastFrame=frame;
+  prev=buttons&0x3Fu;hidden=0u;
+ }
+ // First eligible native Hyper frame arms input, but does NOT use any
+ // attack held before that moment. A new DHC command must start here.
+ void openWindow(unsigned frame,unsigned who,unsigned buttons){
+  if(phase!=IDLE)return;
+  quiet(frame,who,buttons);windowReady=true;
+ }
+ // Previously claimed DHC continues the authentic M68K handoff.
+ // Update button release only; no new directions/gestures are parsed.
+ void pendingInput(unsigned frame,unsigned buttons){
+  if(phase==IDLE || lastFrame==frame)return;
+  lastFrame=frame;const unsigned mask=buttons&0x3Fu;
+  prev=mask;if(hidden && !(mask&hidden))hidden=0u;
+ }
  // Donor's seven motions plus original Cyclops F,DF,D+PP.
  // Original forward motions keep 14 input samples; QCB/HCB use 18/24.
  // Cyclops' eighth motion still requires terminal down.
@@ -175,7 +195,7 @@ struct Slot {
   lastFrame=frame;
   const unsigned mask=buttons&0x3Fu;
   if(owner!=who){
-   owner=who;prev=mask;hidden=0u;clearSteps();
+   owner=who;prev=mask;hidden=0u;clearSteps();windowReady=false;
    // A genuine original swap resets motion history, but the incoming
    // Hyper remains one-shot until its ROM-owned neutral return.
    return hidden;
@@ -191,9 +211,8 @@ struct Slot {
   const bool heldFreshKKK=mask==0x38u &&
       kkkEdgeAt!=~0u && frame>=kkkEdgeAt &&
       frame-kkkEdgeAt<=10u;
-  // Always track native motions (as the original command parser does).
-  // Consuming input or claiming DHC STILL requires an eligible outgoing
-  // Hyper; native 1v1 and solo controls are never intercepted.
+  // Called exclusively from an eligible original-ROM Hyper DHC window.
+  // Normal play never invokes this directional/KKK/spin parser.
   const unsigned d=facingDir(dir,faceRight);
   const unsigned specialMotion=special.sample(d,pressed,mask);
   const Motion* m=motions();

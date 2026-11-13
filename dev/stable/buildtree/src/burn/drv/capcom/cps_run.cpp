@@ -673,7 +673,23 @@ INT32 Cps2Frame()
             // as a character ID means Wolverine, NOT an empty slot.
             // Never intercept the genuine P1/P2 Hyper inputs in 1v1.
             const unsigned reserveLife=XM87142::ramW(CpsRamFF,r+0x210u);
-            if(!XM87340Donor::genuineReserve(who,bench,reserveLife) &&
+            const bool livingReserve=
+                XM87340Donor::genuineReserve(who,bench,reserveLife);
+            // 87.354: hard normal-play boundary. Never sniff fighter
+            // motions, KKK edges or spin inputs outside an eligible
+            // outgoing native 2C/2E Hyper. No retained Flash Kick cue.
+            if(st.phase==XM87340Donor::IDLE){
+                if(!eligible || !livingReserve ||
+                   !XM87142::ramB(CpsRamFF,p+0x214u)){
+                    st.quiet(now,who,buttons[side]);
+                    continue;
+                }
+                if(!st.windowReady){
+                    st.openWindow(now,who,buttons[side]);
+                    continue;
+                }
+            }
+            if(!livingReserve &&
                st.phase!=XM87340Donor::CHAIN_ENTERED &&
                st.phase!=XM87340Donor::COMMITTED){
                 if(st.phase!=XM87340Donor::IDLE || st.hidden)
@@ -690,11 +706,15 @@ INT32 Cps2Frame()
                 st.lastFrame=now;
                 continue;
             }
-            st.sample(now,who,bench,dirs[side],buttons[side],
-                (XM87142::ramB(CpsRamFF,p+0x4Bu)&1u)!=0u,
-                sample.d6,hyper,eligible,
-                XM87142::ramW(CpsRamFF,p+0x0Cu),
-                XM87142::ramB(CpsRamFF,p+0x214u));
+            if(st.phase==XM87340Donor::IDLE){
+                st.sample(now,who,bench,dirs[side],buttons[side],
+                    (XM87142::ramB(CpsRamFF,p+0x4Bu)&1u)!=0u,
+                    sample.d6,hyper,eligible,
+                    XM87142::ramW(CpsRamFF,p+0x0Cu),
+                    XM87142::ramB(CpsRamFF,p+0x214u));
+            }else{
+                st.pendingInput(now,buttons[side]);
+            }
             if(before!=XM87340Donor::CLAIMED &&
                st.phase==XM87340Donor::CLAIMED &&
                who==0x02u && sample.d6==0x02u &&
@@ -1413,7 +1433,9 @@ INT32 Cps2Frame()
             static unsigned lastPhysical[2]={0u,0u};
             static bool watching=false;
             static unsigned lastWatchFrame=~0u;
-            const bool active=xm274Unified &&
+            // Disable the full-round physical-button DHC monitor when
+            // native DHC is enabled. Only the window-gated parser may act.
+            const bool active=xm274Unified && !xm340Native &&
                 XM87142::ramB(CpsRamFF,0x5000u)==8u;
             const unsigned now=(unsigned)GetCurrentFrame();
             if(!active || (watching && now<lastWatchFrame)){
