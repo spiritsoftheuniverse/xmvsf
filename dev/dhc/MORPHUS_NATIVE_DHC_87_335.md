@@ -10,7 +10,7 @@ This is an **actual new execution path**, not another address locator or catalog
 1. The opt-in Version-4 2v2 DHC still requires the original outgoing fighter's native 2E Hyper window, a prequalified incoming Hyper and sufficient meter. The native ROM must accept controller 8 and perform the actual point/reserve swap.
 2. The 87.335 bridge installs an instruction-completion callback only during an eligible pending swap. It checks **the next original M68K PC is $011DBE**, A6 names the real incoming point slot for the correct side, and the original ROM has actually exchanged the two character IDs. It verifies five exact US opcode windows before enabling anything.
 3. Rather than rewriting on-disk ROM or guessing a code cave, a private 4KB guest M68K fetch/RAM page is mapped at otherwise-unmapped **$500000**. The callback redirects the next original 68000 instruction fetch to the P1 or P2 guest entry at `$500000`/`$500100`. Normal tags execute the unmodified original `$011DBE`.
-4. The **74-byte real 68000 routine** saves D0-D7/A0-A4, leaves A5 as the native `$FF8000` base, sets +A0=2A and the chosen native +D6 Hyper ID, removes stale tag-in fields, places the incoming fighter at the outgoing native X and actual ground, clears stale velocities, calls the **verified US original dispatcher $1038E** and original routine **$9E90**, restores registers and returns to the native tag-in caller. There is no host-created 2E action, fake cut-in, host meter debit or delayed input replay.
+4. The **80-byte real 68000 routine** saves D0-D7/A0-A4, leaves A5 as the native `$FF8000` base, preserves the previous +A0 in +A1, then sets +A0=2A and the chosen native +D6 Hyper ID, removes stale tag-in fields, places the incoming fighter at the outgoing native X and actual ground, clears stale velocities, calls the **verified US original dispatcher $1038E** and original routine **$9E90**, restores registers and returns to the native tag-in caller. There is no host-created 2E action, fake cut-in, host meter debit or delayed input replay.
 5. Host state is tagged as a **direct native guest commit**, not legacy completion; after CPU execution the existing ROM observer verifies the real fighter entered an original ROM 2E super with the expected +D6. It logs stock before/after. Missing native 2E within 16 frames fails bookkeeping only, never rolls back a genuine native swap or invents an action.
 6. The prior 87.274 neutral-wait-and-input-replay route remains available when 87.335 direct mode is disabled. **When direct mode is explicitly requested, a missed native hook does not silently fall back to that old path.**
 
@@ -41,7 +41,7 @@ No GitHub Actions, extra build-time regression gates, Stable overwrites or warm-
 ## Validation actually performed
 
 - Pushed source to the same branch; verified source includes, bridge begin/end placement, and version-script references on GitHub.
-- Checked the exact 74-byte Motorola instruction sequence in the committed header, including swapped guest code layout, P1/P2 D6+X operands, saved/restored registers, JSR `$1038E`/`$9E90`, and RTS.
+- Checked the exact 80-byte Motorola instruction sequence in the committed header, including swapped guest code layout, P1/P2 D6+X operands, saved/restored registers, JSR `$1038E`/`$9E90`, and RTS.
 - Standalone test is in `dev/dhc/tests/test_native_dhc_guest_335.cpp`, **not added to BUILD_TEST**.
 - A complete local Windows build, live native execution and gameplay/F9 acceptance are **not yet available from the connected GitHub environment**.
 
