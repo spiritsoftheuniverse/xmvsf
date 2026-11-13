@@ -32,6 +32,7 @@
 #include "xmvsf_stage87_186_opening_observer.h" // 87.186 original entry, first attack, and input boundary audit
 #include "xmvsf_stage87_144_native_handoff.h" // legacy Ryu/Ken native test
 #include "xmvsf_stage87_274_unified_dhc.h" // ROM-owned two-sided DHC test
+#include "xmvsf_stage87_335_native_dhc_bridge.h" // 87.335 direct original-ROM tag-in -> real 68000 guest
 #include "xmvsf_stage87_329_morphus_hook_probe.h" // read-only EURO opcode signature audit
 #include "xmvsf_stage87_330_morphus_locator.h" // read-only cross-revision M68K signature locator
 #include "xmvsf_stage87_331_morphus_endian_locator.h" // correct word-swapped CPS2 opcode mapping
@@ -898,6 +899,15 @@ INT32 Cps2Frame()
     if(!bBurnRunAheadFrame)
         XM87139Probe::state().nativeBegin(CpsRamFF,
             (unsigned)GetCurrentFrame(),dhcGameMatches,false);
+    // 87.335: installed LAST, before the CPU advances. A real 68000
+    // swap and the exact incoming US PC are required to redirect fetch.
+    // No original ROM patch, host-created tag or guessed Hyper action.
+    if(!bBurnRunAheadFrame){
+        XM87335Native::state().prepare(
+            CpsCode,(unsigned)nCpsCodeLen,CpsRamFF,dhcGame,
+            (unsigned)GetCurrentFrame(),false);
+        XM87335Native::state().begin(false);
+    }
 
 	SekIdle(nCpsCyclesExtra);
 	nCpsCyclesExtra = 0;
@@ -972,6 +982,9 @@ INT32 Cps2Frame()
 	SekRun(nCpsCycles - SekTotalCycles());
     xm8634Mark("AFTER CPU VBLANK RUN");
     xm87180Sample("AFTER_VBLANK_CPU");
+    // Unwind the 87.335 direct native DHC callback FIRST (reverse install
+    // order). F10/Charlie/87.182 callbacks remain in the previous order.
+    XM87335Native::state().end();
     // F10 native transition logger stops first, without altering CPU cycles.
     // Includes a final summary when the same 68000 frame enters combat.
     XM87139Probe::state().nativeEnd();
