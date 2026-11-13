@@ -61,7 +61,11 @@ static void makeNative(std::vector<std::uint8_t>& code,
     };
     const unsigned state=base+0x400u;
     const unsigned table=state+sizeof(d6Sig);
-    const unsigned handler=base+0x500u+index*0x100u;
+    // Cammy's original D6 dispatch is fighter-owned, but the native
+    // phase helper may be in a shared code region (outside the inferred
+    // source boundary); a strict local-bounds test is a false veto.
+    const unsigned handler=fighter==0x22u?
+        0x47000u:base+0x500u+index*0x100u;
     const unsigned entry=handler+0x70u;
     be(code,state,d6Sig,sizeof(d6Sig));
     w(code,table+d6,handler-table);
