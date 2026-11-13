@@ -71,11 +71,22 @@ static void makeNative(std::vector<std::uint8_t>& code,
     w(code,table+d6,handler-table);
     be(code,handler,phaseSig,sizeof(phaseSig));
     w(code,handler+sizeof(phaseSig),entry-(handler+sizeof(phaseSig)));
-    const std::uint8_t action[]={
-        0x70,0x2E,0x72,std::uint8_t(selector),
-        0x4E,0xF9,0x00,0x01,0x03,0x8E
-    };
-    be(code,entry+0x20u,action,sizeof(action));
+    // Three legitimate original-68000 actor action-2E launch encodings:
+    // MOVEQ/JMP (Ken), MOVEQ/JSR (Cyclops), MOVE.W/JSR (Storm).
+    if(fighter==0x04u){
+        const std::uint8_t action[]={
+            0x30,0x3C,0x00,0x2E,0x32,0x3C,0x00,std::uint8_t(selector),
+            0x4E,0xB9,0x00,0x01,0x03,0x8E
+        };
+        be(code,entry+0x20u,action,sizeof(action));
+    }else{
+        const std::uint8_t action[]={
+            0x70,0x2E,0x72,std::uint8_t(selector),
+            0x4E,std::uint8_t(fighter==0x02u?0xB9u:0xF9u),
+            0x00,0x01,0x03,0x8E
+        };
+        be(code,entry+0x20u,action,sizeof(action));
+    }
     makeRom(rom,fighter,selector);
 }
 int main(){
