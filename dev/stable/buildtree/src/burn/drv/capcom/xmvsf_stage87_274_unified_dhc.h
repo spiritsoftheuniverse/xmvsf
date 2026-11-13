@@ -221,10 +221,20 @@ struct State {
                             code,codeSize,rom,romSize,
                             reserve,unsigned(chosen.hyperD6));
                         if(!handler.valid()){
-                            event(now,side,"NATIVE_336_NO_VERIFIED_D6_HANDLER_BEFORE_TAG");
+                            char why[150];
+                            std::snprintf(why,sizeof(why),
+                                "NATIVE_337_REFUSED_UNVERIFIED_FIGHTER_D6 fighter=%02X d6=%02X",
+                                reserve,unsigned(chosen.hyperD6));
+                            event(now,side,why);
                             XM87192Owner::state().clear(side);
                             continue;
                         }
+                        char ownership[158];
+                        std::snprintf(ownership,sizeof(ownership),
+                            "NATIVE_337_FIGHTER_DISPATCH_VERIFIED fighter=%02X d6=%02X state=%06X launch=%06X",
+                            reserve,unsigned(chosen.hyperD6),
+                            handler.nativeDispatcher,handler.launch);
+                        event(now,side,ownership);
                     }
                     if(!s.nativePrecommit.stage(
                             side,point,reserve,now,chosen)){
@@ -234,9 +244,10 @@ struct State {
                     }
                     char detail[112];
                     std::snprintf(detail,sizeof(detail),
-                        "MORPHUS_D6_PREQUALIFIED_ONLY target=%02X d6=%02X throw=%u",
+                        "MORPHUS_D6_PREQUALIFIED_ONLY target=%02X d6=%02X throw=%u input=%s",
                         reserve,unsigned(chosen.hyperD6),
-                        chosen.terminalThrow?1u:0u);
+                        chosen.terminalThrow?1u:0u,
+                        chosen.dhcAssignedMotion?"DHC_ASSIGNED":"NATIVE");
                     event(now,side,detail);
                     // Capture the current original outgoing point, not a
                     // guessed camera/ground coordinate for the native entry.
