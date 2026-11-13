@@ -3,6 +3,7 @@
 #include "../../stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_340_morphus_native_2v2.h"
 #include "../../stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_335_native_dhc_guest.h"
 #include "../../stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_333_morphus_native_dhc_abi.h"
+#include "../../stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_189_native_super_family.h"
 #include <cassert>
 #include <cstdint>
 #include <cstdio>
@@ -176,5 +177,64 @@ int main(){
     assert(validateExit(original.data(),unsigned(original.size())));
     original[0xD590u]^=1u;
     assert(!validateExit(original.data(),unsigned(original.size())));
-    std::puts("XMVSF 87.346 native Cyclops F-DF-D PP/PPP P1/P2 and solo untouched PASS");
+    // 87.349: real original actor action 2C is a native Hyper too,
+    // even if its M68K phase remains 0/2 (Storm, Sabretooth, Bison,
+    // Charlie). Create genuine ROM action2C script tables, not 2E data.
+    std::vector<std::uint8_t> rom2C(0x160000u,0u);
+    const auto put16=[&](unsigned at,unsigned v){
+        rom2C[at]=std::uint8_t(v);
+        rom2C[at+1u]=std::uint8_t(v>>8u);
+    };
+    const auto put32=[&](unsigned at,unsigned v){
+        put16(at,v);put16(at+2u,v>>16u);
+    };
+    const unsigned stormTable=0x104000u;
+    const unsigned stormSec=stormTable+0x80u;
+    const unsigned stormRoot=stormSec+0x100u;
+    const unsigned stormNext=stormSec+0x200u;
+    put32(0x8A946u+0x04u*2u,stormTable);
+    put16(stormTable+0x2Cu,0x80u);
+    put16(stormSec+0x08u,0x100u);
+    put16(stormSec+0x0Au,0x200u);
+    XM87189Family::Tracker flight;
+    XM87184Life::Sample s2c(0x04u,0x2C08u,0x2A00u,2u,
+                             stormRoot,0x02u);
+    assert(XM87189Family::Tracker::originalSuperController(s2c));
+    assert(flight.update(100u,s2c,rom2C.data(),
+                         unsigned(rom2C.size()))==XM87189Family::ENTER);
+    assert(flight.native2CWindowAt(100u,s2c));
+    s2c.script+=16u;
+    assert(flight.update(101u,s2c,rom2C.data(),
+                         unsigned(rom2C.size()))==
+           XM87189Family::ATTACK_BEGIN);
+    assert(flight.unifiedDhcWindowAt(101u,s2c));
+    s2c.action=0x2C0Au;s2c.script=stormNext;
+    assert(flight.update(102u,s2c,rom2C.data(),
+                         unsigned(rom2C.size()))==
+           XM87189Family::CONTINUATION_BEGIN);
+    assert(flight.native2CWindowAt(102u,s2c));
+    s2c.d6=0x0Au;
+    assert(!flight.native2CWindowAt(102u,s2c)); // wrong real Super
+    s2c.mode=0u;
+    assert(flight.update(103u,s2c,rom2C.data(),
+                         unsigned(rom2C.size()))==
+           XM87189Family::ACTION_EXIT);
+    // 2C startup with original step 0 is accepted; only exact ROM
+    // action/script may arm this route; fake D6/mode never qualifies.
+    XM87189Family::Tracker bison;
+    put32(0x8A946u+0x1Cu*2u,0x11C000u);
+    put16(0x11C000u+0x2Cu,0x80u);
+    put16(0x11C080u+0x2Au,0x100u);
+    XM87184Life::Sample s0(0x1Cu,0x2C2Au,0x2A00u,0u,
+                            0x11C180u,0x0Cu);
+    assert(bison.update(200u,s0,rom2C.data(),
+                        unsigned(rom2C.size()))==XM87189Family::ENTER);
+    assert(bison.unifiedDhcWindowAt(200u,s0));
+    assert(!XM87189Family::Tracker::originalSuperController(
+         XM87184Life::Sample(0x1Cu,0x2C2Au,0u,0u,
+                              0x11C180u,0x0Cu)));
+    assert(XM87189Family::Tracker::originalSuperController(
+         XM87184Life::Sample(0x12u,0x2E08u,0x2A00u,2u,
+                              0x0D3070u,0x0Au))); // 2E unmodified
+    std::puts("XMVSF 87.349 original ROM action 2C/2E Super lifetime PASS");
 }
