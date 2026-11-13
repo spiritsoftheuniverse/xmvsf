@@ -261,15 +261,29 @@ static inline Result resolveGeneric(const std::uint8_t* code,unsigned nCode,
                  launchAt=0u,scriptAt=0u;
         bool conflictingLaunches=false;
         for(unsigned pos=start;pos+10u<=stop;pos+=2u){
-            // Native MOVEQ #$2E,D0 ; MOVEQ #selector,D1 ;
-            // JMP $01038E. No invented actor action or animation.
-            if(word(code,pos)!=0x702Eu ||
-               (word(code,pos+2u)&0xFF00u)!=0x7200u)continue;
-            const unsigned sel=word(code,pos+2u)&0xFFu;
-            bool ordinary=word(code,pos+4u)==0x4EF9u &&
-                          longWord(code,pos+6u)==0x01038Eu;
+            // Native original action + selector setup. Other fighters
+            // legitimately use MOVE.W #imm,Dx or JSR (rather than JMP)
+            // to the SAME proven original dispatcher $01038E.
+            // Resolve these ORIGINAL opcodes only; never write actions.
+            unsigned prefix=0u,sel=0u;
+            if(word(code,pos)==0x702Eu &&
+               (word(code,pos+2u)&0xFF00u)==0x7200u){
+                prefix=4u;
+                sel=word(code,pos+2u)&0xFFu;
+            }else if(pos+14u<=stop &&
+                     word(code,pos)==0x303Cu &&
+                     word(code,pos+2u)==0x002Eu &&
+                     word(code,pos+4u)==0x323Cu){
+                prefix=8u;
+                sel=word(code,pos+6u);
+            }
+            if(!prefix || sel>0x4Eu || (sel&1u) ||
+               pos+prefix+6u>stop)continue;
+            const unsigned call=word(code,pos+prefix);
+            const bool ordinary=(call==0x4EF9u || call==0x4EB9u) &&
+                      longWord(code,pos+prefix+2u)==0x01038Eu;
             bool conditional=false;
-            if(pos+20u<=stop && sel==8u){
+            if(prefix==4u && pos+20u<=stop && sel==8u){
                 static const std::uint8_t ryu[]={
                     0x70,0x2E,0x72,0x08,0x0C,0x2E,0x00,0x04,
                     0x00,0xA4,0x66,0x02,0x72,0x0C,
