@@ -119,6 +119,7 @@ struct State {
         s.superAt=installedAt;
         s.neutralSince=0u;
         s.nativePrecommit.markConsumed();
+        s.nativePrecommit.directUsed=true;
         armed[side]=false;
         ++entries;
         XM87274Unified::state().event(installedAt,side,
