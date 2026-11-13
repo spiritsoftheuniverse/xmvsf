@@ -4,7 +4,7 @@ for %%I in ("%~dp0.") do set "PROJECT=%%~fI"
 set "MSYSTEM=UCRT64"
 set "PATH=C:\msys64\ucrt64\bin;C:\msys64\usr\bin;%PATH%"
 set "XMVSF_PROJECT=%PROJECT%"
-set "XMVSF_TEST_VERSION=87.331"
+set "XMVSF_TEST_VERSION=87.332"
 REM Derived from version: 87.329 -> 87_328. Must match BUILD_TEST.bat.
 set "XMVSF_TEST_TAG=%XMVSF_TEST_VERSION:.=_%"
 REM All TEST diagnostics track the same version as the launched executable.
@@ -82,6 +82,8 @@ REM 87.330 exact EURO opcode signature search; disabled unless requested.
 if "%XM87330_MORPHUS_LOCATOR%"=="1" if not defined XM87330_MORPHUS_LOCATOR_LOG set "XM87330_MORPHUS_LOCATOR_LOG=%OBSROOT%\morphus_opcode_locator_330.tsv"
 REM 87.331 real CPS2 opcode word-order search. Opt-in only.
 if "%XM87331_MORPHUS_LOCATOR%"=="1" if not defined XM87331_MORPHUS_LOCATOR_LOG set "XM87331_MORPHUS_LOCATOR_LOG=%OBSROOT%\morphus_opcode_locator_331.tsv"
+REM 87.332 read-only Motorola opcode context, opt in for DHC relocation.
+if "%XM87332_DHC_CONTEXT%"=="1" if not defined XM87332_DHC_CONTEXT_LOG set "XM87332_DHC_CONTEXT_LOG=%OBSROOT%\morphus_dhc_context_332.tsv"
 echo TEST log folder: "%XMVSF_TEST_LOG_ROOT%"
 REM XM87.235 restore previously successful 87.121 Cyclops air-throw recovery.
 REM Exact pre-throw airborne state after victim lands; no forced new jump.
