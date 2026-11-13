@@ -124,6 +124,110 @@ int main(){
     assert(solo.sample(93u,0x12u,0u,4u,0x07u,true,0x0Au,
                        false,false,100u,1u)==0u);
     assert(solo.phase==IDLE && solo.hidden==0u);
+    // 87.350: original donor dhc_commands.json native_command entries:
+    // Akuma LP,LP,F,LK,HP D6=10; Zangief 360+PP D6=0A.
+    assert(resolveNativeOnly(0x1Eu,10u,0x04u).hyperD6==0x10u);
+    assert(!resolveNativeOnly(0x1Eu,10u,0x03u).ok());
+    assert(!resolveNativeOnly(0x14u,10u,0x04u).ok());
+    assert(resolveNativeOnly(0x1Au,9u,0x03u).hyperD6==0x0Au);
+    assert(resolveNativeOnly(0x1Au,9u,0x07u).hyperD6==0x0Au);
+    assert(!resolveNativeOnly(0x1Au,9u,0x38u).ok());
+    assert(!resolveNativeOnly(0x14u,9u,0x07u).ok());
+    // A single HP, LP/MP or ordinary QCF must NEVER impersonate
+    // Raging Demon. Only both LP rising edges and F, LK, HP do.
+    const auto ragingDemon=[](Slot& actor,bool right,
+                              unsigned start,bool active){
+        const unsigned f=right?1u:2u;
+        actor.sample(start,0x12u,0x1Eu,0u,0u,right,0x0Au,
+                     active,active,220u,1u);
+        actor.sample(start+1u,0x12u,0x1Eu,0u,1u,right,0x0Au,
+                     active,active,220u,1u); // LP
+        actor.sample(start+2u,0x12u,0x1Eu,0u,0u,right,0x0Au,
+                     active,active,220u,1u); // release LP
+        actor.sample(start+3u,0x12u,0x1Eu,0u,1u,right,0x0Au,
+                     active,active,220u,1u); // LP again
+        actor.sample(start+4u,0x12u,0x1Eu,f,0u,right,0x0Au,
+                     active,active,220u,1u); // F
+        actor.sample(start+5u,0x12u,0x1Eu,f,8u,right,0x0Au,
+                     active,active,220u,1u); // LK
+        actor.sample(start+6u,0x12u,0x1Eu,f,0u,right,0x0Au,
+                     active,active,220u,1u);
+        return actor.sample(start+7u,0x12u,0x1Eu,f,4u,right,
+                     0x0Au,active,active,220u,1u); // SINGLE HP
+    };
+    Slot demonP1;
+    assert(ragingDemon(demonP1,true,300u,true)==0x04u);
+    assert(demonP1.phase==CLAIMED && demonP1.selected==9u &&
+           demonP1.d6==0x10u && demonP1.hidden==4u);
+    Slot demonP2;
+    assert(ragingDemon(demonP2,false,310u,true)==0x04u);
+    assert(demonP2.phase==CLAIMED && demonP2.d6==0x10u);
+    Slot demonDuringNormal;
+    assert(ragingDemon(demonDuringNormal,true,320u,false)==0u);
+    assert(demonDuringNormal.phase==IDLE &&
+           demonDuringNormal.hidden==0u);
+    Slot onlyHp;
+    onlyHp.sample(330u,0x12u,0x1Eu,0u,0u,true,0x0Au,
+                  true,true,220u,1u);
+    assert(onlyHp.sample(331u,0x12u,0x1Eu,1u,4u,true,0x0Au,
+                         true,true,220u,1u)==0u);
+    Slot noSecondLP;
+    noSecondLP.sample(335u,0x12u,0x1Eu,0u,0u,true,0x0Au,
+                      true,true,220u,1u);
+    noSecondLP.sample(336u,0x12u,0x1Eu,0u,1u,true,0x0Au,
+                      true,true,220u,1u);
+    noSecondLP.sample(337u,0x12u,0x1Eu,1u,0u,true,0x0Au,
+                      true,true,220u,1u);
+    noSecondLP.sample(338u,0x12u,0x1Eu,1u,8u,true,0x0Au,
+                      true,true,220u,1u);
+    assert(noSecondLP.sample(339u,0x12u,0x1Eu,1u,4u,true,
+              0x0Au,true,true,220u,1u)==0u);
+    // FAB native 360: F,DF,D,DB,B,UB,U,UF (or reverse).
+    // P1 right and P2 left both use the same RELATIVE original motion.
+    const auto atomicBuster=[](Slot& actor,bool right,
+                                unsigned start,bool reverse){
+        const unsigned clockwiseRight[]={
+            1u,5u,4u,6u,2u,10u,8u,9u};
+        const unsigned clockwiseLeft[]={
+            2u,6u,4u,5u,1u,9u,8u,10u};
+        const unsigned reverseRight[]={
+            2u,6u,4u,5u,1u,9u,8u,10u};
+        const unsigned reverseLeft[]={
+            1u,5u,4u,6u,2u,10u,8u,9u};
+        // Opposite rotation begins B, then DB,D,DF,F,UF,U,UB.
+        const unsigned* sequence=right?
+            (reverse?reverseRight:clockwiseRight):
+            (reverse?reverseLeft:clockwiseLeft);
+        actor.sample(start,0x12u,0x1Au,0u,0u,right,0x0Au,
+                     true,true,220u,1u);
+        for(unsigned i=0u;i<8u;++i){
+            const unsigned mask=i==7u?0x07u:0u;
+            actor.sample(start+i+1u,0x12u,0x1Au,
+                         sequence[i],mask,right,0x0Au,
+                         true,true,220u,1u);
+        }
+        return actor;
+    };
+    Slot fabP1=atomicBuster(Slot(),true,350u,false);
+    assert(fabP1.phase==CLAIMED && fabP1.selected==8u &&
+           fabP1.d6==0x0Au && fabP1.hidden==0x07u);
+    Slot fabP2=atomicBuster(Slot(),false,370u,false);
+    assert(fabP2.phase==CLAIMED && fabP2.d6==0x0Au);
+    Slot fabReverse=atomicBuster(Slot(),true,390u,true);
+    assert(fabReverse.phase==CLAIMED && fabReverse.d6==0x0Au);
+    Slot fabP2Reverse=atomicBuster(Slot(),false,410u,true);
+    assert(fabP2Reverse.phase==CLAIMED && fabP2Reverse.d6==0x0Au);
+    Slot notAFAB;
+    notAFAB.sample(430u,0x12u,0x1Au,0u,0u,true,0x0Au,
+                   true,true,220u,1u);
+    // QCF+PPP cannot turn into Zangief's 360 command.
+    notAFAB.sample(431u,0x12u,0x1Au,4u,0u,true,0x0Au,
+                   true,true,220u,1u);
+    notAFAB.sample(432u,0x12u,0x1Au,5u,0u,true,0x0Au,
+                   true,true,220u,1u);
+    assert(notAFAB.sample(433u,0x12u,0x1Au,1u,7u,true,
+           0x0Au,true,true,220u,1u)==0u);
+    assert(notAFAB.phase==IDLE);
     // 87.343: position against ACTUAL opponent X, for P1 or P2.
     assert(nearOpponentX(80u,220u)==204u);  // P1 approaches from left
     assert(nearOpponentX(360u,220u)==236u); // P2 approaches from right
@@ -241,5 +345,5 @@ int main(){
     assert(XM87189Family::Tracker::originalSuperController(
          XM87184Life::Sample(0x12u,0x2E08u,0x2A00u,2u,
                               0x0D3070u,0x0Au))); // 2E unmodified
-    std::puts("XMVSF 87.349 original ROM action 2C/2E Super lifetime PASS");
+    std::puts("XMVSF 87.350 native Raging Demon and Final Atomic Buster inputs PASS");
 }
