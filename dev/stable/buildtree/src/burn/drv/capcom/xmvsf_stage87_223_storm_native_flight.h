@@ -121,14 +121,18 @@ struct Tracker {
     }
     void frame(unsigned tick,const std::uint8_t*ram,const std::uint8_t*code,
                unsigned codeSize,bool xmvsf,bool tournament,
-               unsigned p1Buttons,unsigned p2Buttons){
+               unsigned p1Buttons,unsigned p2Buttons,
+               bool suppressObservations=false){
         if(lastFrame==tick)return;
         if(lastFrame!=~0u && tick<lastFrame)reset();
         lastFrame=tick;
         if(!xmvsf||!ram||b(ram,0x5000u)!=8u){reset();return;}
-        init();
-        // Run the static 68000 source audit only if explicitly enabled.
-        scanOpcodeCandidates(code,codeSize);
+        // 87.347: preserve native Storm flight learning/physics, but no
+        // diagnostic file or static 68000 opcode scan during DHC test.
+        if(!suppressObservations){
+            init();
+            scanOpcodeCandidates(code,codeSize);
+        }
         const unsigned buttons[2]={p1Buttons,p2Buttons};
         for(unsigned side=0;side<2u;++side){
             const unsigned a=side?0x4400u:0x4000u,v=side?0x4000u:0x4400u;
@@ -171,7 +175,8 @@ struct Tracker {
                 if(!observed.valid || !sameMotion(observed,native))
                     observed=native;
             }
-            if(log && (onset || (genuine && ((tick-s.hpFrame)%4u==0u)))){
+            if(!suppressObservations && log &&
+               (onset || (genuine && ((tick-s.hpFrame)%4u==0u)))){
                 std::fprintf(log,
                     "%u\t%u\t%s\t%04X\t%04X\t%u\t%04X\t%04X\t%04X\t%04X"
                     "\t%04X\t%04X\t%02X\t%02X\t%04X\t%08X\t%u\t%u"
