@@ -4,7 +4,6 @@
 // fighter's REAL original Super command (motion + PP or KK).
 // No donor-assigned MP+MK/MP+HK chords or substitute motion mappings.
 #include "xmvsf_stage87_142_rom_dispatch.h"
-#include "xmvsf_stage87_329_morphus_dhc_catalog.h"
 #include "xmvsf_stage87_334_morphus_2v2_precommit.h"
 #include <cstdint>
 #include <cstring>
@@ -20,13 +19,6 @@ static inline const Motion* motions(){
  {3,{4,6,2,0,0}}, {3,{4,5,1,0,0}}, {3,{2,4,6,0,0}},
  {3,{1,4,5,0,0}}, {5,{1,5,4,6,2}}, {5,{2,6,4,5,1}},
  {3,{4,0x80,4,0,0}}};return m;
-}
-static inline bool sourceHyper(unsigned fighter,unsigned d6,bool noThrow){
- if(fighter>0x24u||(fighter&1u)||!d6)return false;
- const auto& r=XM87329Morphus::rows()[fighter/2u];
- for(unsigned i=0;i<7u;++i)if(r.hyper[i]==d6 &&
-     (!noThrow || !(r.throwing&(1u<<i))))return true;
- return false;
 }
 static inline unsigned facingDir(unsigned dirs,bool faceRight){
  unsigned v=(dirs&4u)?4u:0u;
