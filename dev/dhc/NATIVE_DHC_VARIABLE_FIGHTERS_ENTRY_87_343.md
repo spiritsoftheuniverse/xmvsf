@@ -1,3 +1,5 @@
+**SUPERSEDED FOR THE GENERIC FIGHTER ROUTE BY TEST 87.344.** Actual 87.343 gameplay showed 7/7 attempts through the $011DBE fallback tagged in but did NOT execute the incoming native Hyper. Original US $011DBE is a tag-in character indexer (MOVE.W $52(A6),D0), not a D6 super dispatcher. The generic path was removed, and nonverified moves must not tag until their original per-character D6->phase-zero->2E path is established. The 87.343 near-opponent X placement remains in use for verified Hypers.
+
 # XMVSF TEST 87.343 — P1/P2 variable native DHC and opponent-adjacent entry
 
 Same development branch: feature/dhc-morphus-precommit-87-334. TEST 87.343 with the visibly updated RUN_TEST.bat header, BUILD_TEST.bat and warm BUILD_TEST.sh. Original Version 3 and Stable are untouched; no Actions or new mandatory gates.
