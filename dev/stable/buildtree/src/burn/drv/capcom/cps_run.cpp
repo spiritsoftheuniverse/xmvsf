@@ -653,7 +653,7 @@ INT32 Cps2Frame()
             const unsigned retired=oldCyclopsFx.update(
                 CpsRamFF,now,swappedCyclops,
                 st.phase==XM87340Donor::IDLE && !oldCyclopsFx.committed,
-                oldCyclopsFx.armed && now>oldCyclopsFx.at && who==0x02u);
+                oldCyclopsFx.committed && now>oldCyclopsFx.at && who==0x02u);
             if(retired){
                 char detail[128];
                 std::snprintf(detail,sizeof(detail),
