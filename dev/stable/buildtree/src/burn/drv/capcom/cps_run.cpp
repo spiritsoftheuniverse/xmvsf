@@ -646,6 +646,64 @@ INT32 Cps2Frame()
                 sample.d6,hyper,eligible,
                 XM87142::ramW(CpsRamFF,p+0x0Cu),
                 XM87142::ramB(CpsRamFF,p+0x214u));
+            // 87.344: reject an unsupported incoming original-ROM D6
+            // BEFORE hiding physical PP/KK or arming the outgoing tag.
+            // 87.343 accepted seven actor swaps whose fallback target was
+            // $011DBE (the *tag-in* fighter indexer, not a Hyper router).
+            // Keep a real PP/KK input and the outgoing Hyper untouched
+            // unless the character-specific original D6 -> phase-zero ->
+            // 2E dispatcher is proven by actual US opcodes and ROM.
+            if(before!=XM87340Donor::CLAIMED &&
+               st.phase==XM87340Donor::CLAIMED){
+                const auto verified=XM87336Dispatch::resolve(
+                    CpsCode,(unsigned)nCpsCodeLen,
+                    CpsRom,(unsigned)nCpsRomLen,st.reserve,st.d6);
+                if(!verified.valid()){
+                    const auto& regions=XM87336Dispatch::regionFor(
+                        CpsCode,(unsigned)nCpsCodeLen);
+                    const unsigned idx=st.reserve/2u;
+                    const unsigned lo=regions.begin[idx];
+                    const unsigned hi=regions.end[idx];
+                    static const std::uint8_t d6Header[]={
+                        0x70,0x00,0x10,0x2E,0x00,0xD6,
+                        0x30,0x3B,0x00,0x06,0x4E,0xFB,
+                        0x00,0x02
+                    };
+                    unsigned headings=0u,goodTargets=0u,
+                             phases=0u,example=0u;
+                    if(regions.ready && lo!=XM87336Dispatch::kNotFound &&
+                       hi>lo && hi<=(unsigned)nCpsCodeLen){
+                        for(unsigned pc=lo;
+                            pc+sizeof(d6Header)<=hi;pc+=2u){
+                            if(!XM87336Dispatch::bytes(
+                                CpsCode,(unsigned)nCpsCodeLen,
+                                pc,d6Header,sizeof(d6Header)))continue;
+                            ++headings;
+                            const unsigned dst=XM87336Dispatch::relTarget(
+                                CpsCode,(unsigned)nCpsCodeLen,
+                                pc+sizeof(d6Header),st.d6);
+                            if(dst==XM87336Dispatch::kNotFound)continue;
+                            ++goodTargets;
+                            if(!example)example=dst;
+                            if(XM87336Dispatch::phase(
+                                CpsCode,(unsigned)nCpsCodeLen,dst)!=
+                                XM87336Dispatch::kNotFound)++phases;
+                        }
+                    }
+                    char diagnostic[210];
+                    std::snprintf(diagnostic,sizeof(diagnostic),
+                        "NATIVE_344_REFUSED_BEFORE_TAG incoming=%02X d6=%02X side=%u indexers=%u region=%06X-%06X d6Sites=%u d6Targets=%u phaseEntries=%u firstTarget=%06X",
+                        st.reserve,st.d6,side+1u,regions.indexers,
+                        lo,hi,headings,goodTargets,phases,example);
+                    XM87274Unified::state().event(now,side,diagnostic);
+                    st.phase=XM87340Donor::IDLE;
+                    st.hidden=0u;
+                    st.selected=7u;
+                    st.d6=0u;
+                    st.clearSteps();
+                    ++st.refusals;
+                }
+            }
             if(newChord && before==XM87340Donor::IDLE &&
                st.phase!=XM87340Donor::CLAIMED){
                 char reject[208];
