@@ -35,6 +35,7 @@
 #include "xmvsf_stage87_329_morphus_hook_probe.h" // read-only EURO opcode signature audit
 #include "xmvsf_stage87_330_morphus_locator.h" // read-only cross-revision M68K signature locator
 #include "xmvsf_stage87_331_morphus_endian_locator.h" // correct word-swapped CPS2 opcode mapping
+#include "xmvsf_stage87_332_morphus_dhc_context.h" // read-only immediate DHC opcode context
 #include "xmvsf_stage87_160_super_discovery.h" // read-only roster-wide native 2E ROM/script and input discovery
 #include "../../../burner/sdl/xmvsf_stage87_162_replay_sync.h" // exact F9 movie-frame index for native action logs
 #include "xmvsf_stage87_119_cyclops_recovery_probe.h" // XM87.119 read-only recovery state trace
@@ -528,6 +529,11 @@ INT32 Cps2Frame()
     // big-endian M68K source guard strings. Scan normalized words ONLY.
     if(dhcGameMatches && !bBurnRunAheadFrame)
         XM87331Endian::state().frame(
+            CpsCode,(unsigned)nCpsCodeLen,dhcGame);
+    // 87.332: dump only small Motorola-endian opcode windows around
+    // the DHC chain and incoming Hyper hypotheses; do not write code.
+    if(dhcGameMatches && !bBurnRunAheadFrame)
+        XM87332Context::state().frame(
             CpsCode,(unsigned)nCpsCodeLen,dhcGame);
     const bool xm262V4=dhcGameMatches && XM87262Game::version4();
     const bool xm274Unified=xm262V4 && XM87274Unified::state().enabled();
