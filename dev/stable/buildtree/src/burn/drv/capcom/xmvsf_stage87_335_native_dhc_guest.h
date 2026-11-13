@@ -15,7 +15,7 @@ namespace XM87335Guest {
 enum : unsigned {
     kGuestBase=0x500000u, kPageBytes=4096u,
     kP1Entry=kGuestBase, kP2Entry=kGuestBase+0x100u,
-    kExpectedBytes=68u
+    kExpectedBytes=74u
 };
 // M68K big-endian instructions; register-preserving, A5 never assigned.
 // MOVEM.L D0-D7/A0-A4,-(SP); save native caller state.
