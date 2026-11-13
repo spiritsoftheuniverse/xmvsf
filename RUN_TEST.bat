@@ -1,11 +1,12 @@
 @echo off
+REM XMVSF TEST 87.336 - local native Windows DHC build (no Stable overwrite)
 setlocal EnableExtensions DisableDelayedExpansion
 for %%I in ("%~dp0.") do set "PROJECT=%%~fI"
 set "MSYSTEM=UCRT64"
 set "PATH=C:\msys64\ucrt64\bin;C:\msys64\usr\bin;%PATH%"
 set "XMVSF_PROJECT=%PROJECT%"
-set "XMVSF_TEST_VERSION=87.335"
-REM Derived from version: 87.329 -> 87_328. Must match BUILD_TEST.bat.
+set "XMVSF_TEST_VERSION=87.336"
+REM Derived from XMVSF_TEST_VERSION; must match BUILD_TEST.bat.
 set "XMVSF_TEST_TAG=%XMVSF_TEST_VERSION:.=_%"
 REM All TEST diagnostics track the same version as the launched executable.
 set "XMVSF_TEST_LOG_ROOT=%PROJECT%\test\%XMVSF_TEST_VERSION%"
@@ -64,7 +65,7 @@ if "%XM87203_STAGE_CAPTURE_ENABLE%"=="1" (
 ) else (
   set "XM87203_STAGE_CAPTURE_DIR="
 )
-echo Stage 87.329 TEST executable, source ROM: %SOURCE_ROM%
+echo Stage %XMVSF_TEST_VERSION% TEST executable, source ROM: %SOURCE_ROM%
 echo Stage capture: %XM87203_STAGE_CAPTURE_ENABLE%
 echo Existing MSYS live console: bash dev/stage_capture/WATCH_CAPTURE.sh
 echo F9 = replay, F10 = native probe, F11 = MVC1 level capture ON/OFF.
