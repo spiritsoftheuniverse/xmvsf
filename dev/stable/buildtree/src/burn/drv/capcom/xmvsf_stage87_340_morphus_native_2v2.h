@@ -20,6 +20,26 @@ static inline const Motion* motions(){
  {3,{1,4,5,0,0}}, {5,{1,5,4,6,2}}, {5,{2,6,4,5,1}},
  {3,{4,0x80,4,0,0}}};return m;
 }
+// 87.343: close-range original WORLD X for the incoming native Hyper.
+// Both sides read the SAME live opponent actor +$0C from original RAM.
+// The outgoing fighter's saved X chooses which side of the opponent the
+// incoming fighter occupies. Retain an already-closer placement instead
+// of teleporting through the opponent. All coordinates stay in original
+// 16-bit CPS2 world units; no screen/camera proxy or hard-coded fighter.
+static inline unsigned nearOpponentX(unsigned outgoingX,
+                                     unsigned opponentX,
+                                     unsigned gap=16u){
+ const unsigned old=outgoingX&0xFFFFu;
+ const unsigned target=opponentX&0xFFFFu;
+ const unsigned separation=gap>0xFFFFu?0xFFFFu:gap;
+ if(old<=target){
+  const unsigned left=target>separation?target-separation:0u;
+  return old>=left?old:left;
+ }
+ const unsigned right=target>0xFFFFu-separation?
+                       0xFFFFu:target+separation;
+ return old<=right?old:right;
+}
 static inline unsigned facingDir(unsigned dirs,bool faceRight){
  unsigned v=(dirs&4u)?4u:0u;
  if(dirs&8u)v|=8u;
