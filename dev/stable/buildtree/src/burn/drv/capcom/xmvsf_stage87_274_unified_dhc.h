@@ -193,7 +193,12 @@ struct State {
                 // Morphus 87.329 EURO roster catalog: experimental
                 // pre-tag refusal only. Do not infer an incoming super or
                 // write an unverified +D6/action into the US ROM from it.
-                if(XM87329Morphus::enabled()){
+                // 87.337: the 87.329 motion-only screen has no button
+                // family and incorrectly rejects valid native supers in
+                // characters whose DHC-assigned motion differs. The full
+                // D6 + ROM-native resolver supersedes it when selected.
+                if(XM87329Morphus::enabled() &&
+                   !XM87334Native::enabled()){
                     const auto decision=XM87329Morphus::review(
                         reserve,unsigned(XM87192Owner::state().pending[side].motion));
                     event(now,side,XM87329Morphus::reason(decision));
