@@ -37,6 +37,7 @@ struct Slot {
  Phase phase=IDLE;
  unsigned owner=~0u,point=0u,reserve=0u,d6=0u,x=0u;
  unsigned lastFrame=~0u,prev=0u,hidden=0u,selected=7u,stock=0u;
+ unsigned claimedAt=0u,enteredAt=0u;
  std::uint8_t step[7]={},timer[7]={};
  unsigned claims=0u,refusals=0u,commits=0u;
  void reset(){*this=Slot();}
@@ -88,7 +89,7 @@ struct Slot {
   }
   if(col==7u){++refusals;return hidden;}
   selected=col;d6=row.hyper[col];point=who;reserve=bench;
-  x=originalX;stock=stockBefore;phase=CLAIMED;
+  x=originalX;stock=stockBefore;claimedAt=frame;phase=CLAIMED;
   return hidden;
  }
 };
