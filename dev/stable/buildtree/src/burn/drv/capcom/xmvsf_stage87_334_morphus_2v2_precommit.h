@@ -19,7 +19,7 @@ enum Reason {
 struct Decision {
     Reason reason=BAD_FIGHTER;
     std::uint8_t character=0, hyperD6=0, motionColumn=0;
-    bool terminalThrow=false;
+    bool terminalThrow=false,dhcAssignedMotion=false;
     bool ok()const{return reason==ACCEPTED && hyperD6!=0u;}
 };
 static inline unsigned bits(unsigned n) {
@@ -103,6 +103,7 @@ static inline Decision resolve(unsigned incoming,unsigned ownerMotion,
         d.motionColumn=std::uint8_t(ownerMotion-1u);
         d.hyperD6=cmd.hyperD6;
         d.terminalThrow=cmd.terminalThrow;
+        d.dhcAssignedMotion=false;
         d.reason=ACCEPTED;
         return d;
     }
@@ -128,6 +129,7 @@ static inline Decision resolve(unsigned incoming,unsigned ownerMotion,
             d.motionColumn=std::uint8_t(column);
             d.hyperD6=std::uint8_t(selected);
             d.terminalThrow=(row.throwing&(1u<<unsigned(column)))!=0u;
+            d.dhcAssignedMotion=true;
             d.reason=ACCEPTED;
             return d;
         }
