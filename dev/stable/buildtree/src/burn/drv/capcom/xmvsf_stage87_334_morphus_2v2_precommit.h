@@ -1,6 +1,6 @@
 #ifndef XMVSF_STAGE87_334_MORPHUS_2V2_PRECOMMIT_H
 #define XMVSF_STAGE87_334_MORPHUS_2V2_PRECOMMIT_H
-// Native +D6 Hyper selection for a *two-member* team, adapted from
+// Native-input-backed +D6 Hyper preselection for a *two-member* team, adapted from
 // Morphus56k / Daniel Plas Rivera, XMvsSF-3v3-DHC-v1.1.1.
 // This module is a PRECOMMIT VALIDATOR. It does not fabricate a 2E action,
 // deduct meter, start an animation, or replace the original 68000 handoff.
@@ -29,28 +29,87 @@ static inline bool qualifiedChord(unsigned attacks){
     const unsigned p=attacks&0x07u,k=attacks&0x38u;
     return (p && !k && bits(p)>=2u) || (k && !p && bits(k)>=2u);
 }
-// The owner parser supplies its own Motion enum (1=QCF, 2=QCB, ...);
-// this is not a new/guessed ROM 2E selector. Two-quarter-circles and the
-// double-down pattern in Morphus' source are *not* interchangeable.
+// Unlike the *assigned* DHC input directions in dhc_table.inc, the
+// native inputs below come from Morphus' dhc_commands.json native_command
+// field. They are the ORIGINAL fighter commands with PP / KK button
+// families. This prevents QCF+KK for Ken from being mistaken for the
+// artificial DHC QCF assignment (Shoryureppa instead of Shinryuken).
+// Only commands expressible by the current owner motion parser are listed.
+// F,DF,D / 360 / SGS / air-only / custom sequences require a separate
+// original-ROM input decoder and are intentionally NOT guessed.
+struct Command {
+    std::uint8_t fighter, motion, family, hyperD6;
+    bool terminalThrow;
+};
+static inline const Command* commands(unsigned* count=nullptr) {
+    static const Command a[]={
+        {0x00u,1u,1u,0x08u,false}, // Wolverine QCF+PP
+        {0x00u,3u,1u,0x06u,false}, // Wolverine DP+PP
+        {0x02u,1u,1u,0x04u,false}, // Cyclops QCF+PP
+        {0x04u,1u,1u,0x02u,false}, // Storm QCF+PP
+        {0x04u,2u,1u,0x0Au,false}, // Storm QCB+PP
+        {0x06u,1u,1u,0x28u,false}, // Rogue QCF+PP
+        {0x08u,1u,1u,0x0Au,false}, // Gambit QCF+PP
+        {0x0Au,1u,1u,0x16u,false}, // Sabretooth QCF+PP
+        {0x0Au,3u,1u,0x0Eu,false}, // Sabretooth DP+PP
+        {0x0Au,6u,2u,0x08u,false}, // Sabretooth HCB+KK
+        {0x0Cu,1u,1u,0x02u,false}, // Juggernaut QCF+PP
+        {0x0Eu,1u,1u,0x04u,false}, // Magneto QCF+PP
+        {0x0Eu,1u,2u,0x06u,false}, // Magneto QCF+KK
+        {0x12u,1u,1u,0x0Au,false}, // Ryu QCF+PP
+        {0x12u,2u,2u,0x0Cu,false}, // Ryu QCB+KK
+        {0x14u,1u,1u,0x0Cu,false}, // Ken QCF+PP
+        {0x14u,1u,2u,0x0Eu,false}, // Ken QCF+KK
+        {0x16u,1u,1u,0x06u,false}, // Chun-Li QCF+PP
+        {0x16u,2u,2u,0x0Au,false}, // Chun-Li QCB+KK
+        {0x16u,1u,2u,0x08u,false}, // Chun-Li QCF+KK
+        {0x18u,1u,1u,0x0Au,false}, // Dhalsim QCF+PP
+        {0x18u,1u,2u,0x0Cu,false}, // Dhalsim QCF+KK
+        {0x1Cu,1u,1u,0x0Cu,false}, // M. Bison QCF+PP
+        {0x1Cu,1u,2u,0x0Au,false}, // M. Bison QCF+KK
+        {0x1Eu,2u,1u,0x1Au,false}, // Akuma QCB+PP
+        {0x1Eu,1u,1u,0x16u,false}, // Akuma ground QCF+PP
+        {0x20u,1u,1u,0x04u,false}, // Charlie QCF+PP
+        {0x20u,2u,2u,0x06u,false}, // Charlie QCB+KK
+        {0x20u,1u,2u,0x08u,false}, // Charlie QCF+KK
+        {0x22u,1u,2u,0x0Eu,false}, // Cammy QCF+KK
+        {0x22u,2u,2u,0x16u,false}, // Cammy QCB+KK
+        {0x24u,1u,1u,0x06u,false}, // Alt Chun-Li QCF+PP
+        {0x24u,2u,2u,0x0Au,false}, // Alt Chun-Li QCB+KK
+        {0x24u,1u,2u,0x08u,false}  // Alt Chun-Li QCF+KK
+    };
+    if(count)*count=unsigned(sizeof(a)/sizeof(a[0]));
+    return a;
+}
 static inline Decision resolve(unsigned incoming,unsigned ownerMotion,
                                unsigned attacks){
     Decision d;
     if(incoming>0x24u || (incoming&1u))return d;
     d.character=std::uint8_t(incoming);
-    const int column=XM87329Morphus::columnFromOwnerMotion(ownerMotion);
-    if(column<0){d.reason=MOTION_NOT_MAPPED;return d;}
-    d.motionColumn=std::uint8_t(column);
-    const XM87329Morphus::Row& row=XM87329Morphus::rows()[incoming>>1u];
-    const unsigned hyper=row.hyper[column];
-    if(!hyper){d.reason=NO_HYPER;return d;}
-    if(row.air&(1u<<unsigned(column))){d.reason=AIR_ONLY;return d;}
-    if(row.conditional&(1u<<unsigned(column))){
-        d.reason=CONDITIONAL;return d;
+    if(ownerMotion<1u || ownerMotion>8u){
+        d.reason=MOTION_NOT_MAPPED;return d;
+    }
+    if(ownerMotion==7u || ownerMotion==8u){
+        d.reason=MOTION_NOT_MAPPED;return d; // 2QCF/2QCB not mapped
     }
     if(!qualifiedChord(attacks)){d.reason=BAD_BUTTONS;return d;}
-    d.hyperD6=std::uint8_t(hyper);
-    d.terminalThrow=(row.throwing&(1u<<unsigned(column)))!=0u;
-    d.reason=ACCEPTED;
+    const unsigned family=(attacks&0x07u)?1u:2u;
+    unsigned n=0u;
+    const Command* table=commands(&n);
+    for(unsigned i=0u;i<n;++i) {
+        const Command& cmd=table[i];
+        if(cmd.fighter!=incoming || cmd.motion!=ownerMotion ||
+           cmd.family!=family)continue;
+        d.motionColumn=std::uint8_t(ownerMotion-1u);
+        d.hyperD6=cmd.hyperD6;
+        d.terminalThrow=cmd.terminalThrow;
+        d.reason=ACCEPTED;
+        return d;
+    }
+    // A real command unknown to this restricted table is NOT interpreted
+    // as a different Hyper. In particular the 3v3 artificial motion
+    // assignment must never cause a 2v2 misfire.
+    d.reason=NO_HYPER;
     return d;
 }
 static inline const char* reasonName(Reason reason){
