@@ -227,9 +227,13 @@ struct State {
                             reserve,unsigned(chosen.hyperD6));
                         if(!handler.valid()){
                             char why[150];
+                            const auto& regions=XM87336Dispatch::regionFor(
+                                code,codeSize);
+                            const unsigned id=reserve/2u;
                             std::snprintf(why,sizeof(why),
-                                "NATIVE_337_REFUSED_UNVERIFIED_FIGHTER_D6 fighter=%02X d6=%02X",
-                                reserve,unsigned(chosen.hyperD6));
+                                "NATIVE_338_REFUSED_D6 fighter=%02X d6=%02X indexers=%u region=%06X-%06X",
+                                reserve,unsigned(chosen.hyperD6),
+                                regions.indexers,regions.begin[id],regions.end[id]);
                             event(now,side,why);
                             XM87192Owner::state().clear(side);
                             continue;
