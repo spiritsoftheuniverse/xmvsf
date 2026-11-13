@@ -81,6 +81,39 @@ static inline const Command* commands(unsigned* count=nullptr) {
     if(count)*count=unsigned(sizeof(a)/sizeof(a[0]));
     return a;
 }
+// 87.341: exact ORIGINAL incoming command -> +D6 lookup.
+// Unlike the earlier experimental resolve(), this NEVER falls back to
+// Morphus' DHC-assigned alternate motions. The button family is part of
+// the native command identity (Ken QCF+PP != Ken QCF+KK).
+// Do not assign substitute inputs for 360, charge, SGS or air commands.
+static inline Decision resolveNativeOnly(unsigned incoming,
+                                         unsigned motion,unsigned attacks){
+    Decision d;
+    if(incoming>0x24u || (incoming&1u))return d;
+    d.character=std::uint8_t(incoming);
+    if(motion<1u || motion>6u){
+        d.reason=MOTION_NOT_MAPPED;return d;
+    }
+    if(!qualifiedChord(attacks)){
+        d.reason=BAD_BUTTONS;return d;
+    }
+    const unsigned family=(attacks&0x07u)?1u:2u;
+    unsigned count=0u;
+    const Command* table=commands(&count);
+    for(unsigned i=0u;i<count;++i){
+        const Command& cmd=table[i];
+        if(cmd.fighter!=incoming || cmd.motion!=motion ||
+           cmd.family!=family)continue;
+        d.reason=ACCEPTED;
+        d.motionColumn=std::uint8_t(motion-1u);
+        d.hyperD6=cmd.hyperD6;
+        d.terminalThrow=cmd.terminalThrow;
+        d.dhcAssignedMotion=false;
+        return d;
+    }
+    d.reason=NO_HYPER;
+    return d;
+}
 static inline Decision resolve(unsigned incoming,unsigned ownerMotion,
                                unsigned attacks){
     Decision d;
