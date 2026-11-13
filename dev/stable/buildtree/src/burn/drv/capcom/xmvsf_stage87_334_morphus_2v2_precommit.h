@@ -130,7 +130,8 @@ static inline bool enabled(){
 }
 struct Pending {
     std::uint8_t point=0,reserve=0,d6=0;
-    unsigned side=0,epoch=0;
+    unsigned side=0,epoch=0,x=0,stockBefore=0;
+    bool romSeen=false;
     bool throwHyper=false, armed=false, consumed=false;
     void clear(){*this=Pending();}
     bool stage(unsigned which,unsigned source,unsigned target,
@@ -141,6 +142,7 @@ struct Pending {
         reserve=std::uint8_t(target);
         d6=selected.hyperD6;
         side=which;epoch=now;throwHyper=selected.terminalThrow;
+        romSeen=false;
         armed=true;consumed=false;
         return true;
     }
