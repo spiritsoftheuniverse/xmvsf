@@ -13,6 +13,7 @@
 #include "xmvsf_stage87_333_morphus_native_dhc_abi.h"
 #include "xmvsf_stage87_335_native_dhc_guest.h"
 #include "xmvsf_stage87_336_native_d6_dispatch.h"
+#include "xmvsf_stage87_340_morphus_native_2v2.h"
 #include "../../../cpu/m68k/m68k.h"
 #include <cstdint>
 #include <cstdio>
@@ -22,8 +23,12 @@
 namespace XM87335Native {
 static inline bool enabled(){
     const char* setting=std::getenv("XM87335_NATIVE_DHC");
-    return setting && std::strcmp(setting,"1")==0 &&
+    const bool original=setting && std::strcmp(setting,"1")==0 &&
            XM87334Native::enabled() && XM87274Unified::state().enabled();
+    // Exact Morphus tag hook and native exit are a separate opt-in
+    // transaction, not an extension of host controller 8.
+    return original || (XM87340Donor::enabled() &&
+                        XM87274Unified::state().enabled());
 }
 struct State;
 inline State& state();
@@ -34,6 +39,7 @@ struct State {
     std::uint8_t nativeFetch[XM87335Guest::kPageBytes]={};
     bool active=false,ready=false,attempted=false;
     bool armed[2]={false,false};
+    bool donorArmed[2]={false,false};
     unsigned nativeDispatch[2]={0u,0u};
     const std::uint8_t* ram=nullptr;
     int (*prior)(int)=nullptr;
@@ -44,6 +50,7 @@ struct State {
                  const std::uint8_t* currentRam,const char* driver,
                  unsigned frame,bool runahead){
         ready=false;armed[0]=armed[1]=false;
+        donorArmed[0]=donorArmed[1]=false;
         nativeDispatch[0]=nativeDispatch[1]=0u;
         if(!enabled() || runahead || !code || !rom || !currentRam ||
            !driver || std::strcmp(driver,"xmvsfu")!=0)return false;
@@ -57,7 +64,45 @@ struct State {
             ++refusals;
             return false;
         }
-        for(unsigned side=0u;side<2u;++side){
+        if(XM87340Donor::enabled()){
+            // The donor's code must execute ORIGINAL M68K tag-out tail
+            // $4BF54 (verified original US callsite $4BF66), NOT the
+            // legacy forced controller 8 with a synthetic 3200 wait.
+            if(!XM87340Donor::validateExit(code,codeLength)){
+                ++refusals;
+                return false;
+            }
+            for(unsigned side=0u;side<2u;++side){
+                auto& claim=XM87340Donor::state().side[side];
+                if(claim.phase!=XM87340Donor::CLAIMED &&
+                   claim.phase!=XM87340Donor::CHAIN_ENTERED)continue;
+                const auto hyper=XM87336Dispatch::resolve(
+                    code,codeLength,rom,romLength,claim.reserve,claim.d6);
+                if(!hyper.valid()){
+                    // Source mapping exists, but this original US D6
+                    // handler is not verified: do not call random ROM.
+                    if(claim.phase==XM87340Donor::CLAIMED){
+                        XM87274Unified::state().event(frame,side,
+                            "MORPHUS_340_US_INCOMING_D6_HANDLER_UNVERIFIED");
+                        claim.phase=XM87340Donor::IDLE;
+                        ++claim.refusals;
+                    }
+                    continue;
+                }
+                const unsigned offset=side?0x100u:0u;
+                const unsigned exitOffset=side?
+                    XM87340Donor::kExitOffsetP2:
+                    XM87340Donor::kExitOffsetP1;
+                if(!XM87335Guest::emit(nativeFetch,sizeof(nativeFetch),
+                                       offset,claim.d6,claim.x,
+                                       hyper.nativeDispatcher) ||
+                   !XM87340Donor::emitExit(
+                                       nativeFetch,sizeof(nativeFetch),
+                                       exitOffset))continue;
+                nativeDispatch[side]=hyper.nativeDispatcher;
+                donorArmed[side]=true;
+            }
+        }else for(unsigned side=0u;side<2u;++side){
             const auto& s=XM87274Unified::state().slot[side];
             if(s.phase!=XM87274Unified::AWAIT_SWAP ||
                !s.nativePrecommit.armed || s.nativePrecommit.consumed ||
@@ -75,13 +120,15 @@ struct State {
             nativeDispatch[side]=native.nativeDispatcher;
             armed[side]=true;
         }
-        if(!armed[0] && !armed[1])return false;
+        if(!armed[0] && !armed[1] && !donorArmed[0] &&
+           !donorArmed[1])return false;
         // This range is unmapped in cps_mem.cpp for this native driver;
         // map a private M68K fetch/read/write page, not a guessed ROM cave.
         if(SekMapMemory(nativeFetch,XM87335Guest::kGuestBase,
                         XM87335Guest::kGuestBase+XM87335Guest::kPageBytes-1u,
                         MAP_RAM)!=0) {
             armed[0]=armed[1]=false;
+            donorArmed[0]=donorArmed[1]=false;
             ++refusals;
             return false;
         }
@@ -98,6 +145,64 @@ struct State {
         if(!active || !ram || !ready)return;
         // Musashi's callback runs *after* the last instruction; PC is the
         // address of the NEXT opcode to execute. This is not SekGetPPC.
+        if(XM87340Donor::enabled()){
+            const unsigned pc=(unsigned)m68k_get_reg(nullptr,M68K_REG_PC);
+            if(pc!=XM87340Donor::kChainPC &&
+               pc!=XM87340Donor::kIncomingPC)return;
+            const unsigned a6=(unsigned)m68k_get_reg(nullptr,M68K_REG_A6);
+            const unsigned side=a6==0xFF4000u?0u:
+                                a6==0xFF4400u?1u:2u;
+            if(side>=2u || !donorArmed[side])return;
+            auto& claim=XM87340Donor::state().side[side];
+            const unsigned p=XM87193Exit::actorBase(side);
+            const unsigned r=XM87193Exit::reserveBase(side);
+            if(XM87142::ramB(ram,0x5000u)!=8u)return;
+            const unsigned who=XM87142::ramW(ram,p+0x52u);
+            const unsigned bench=XM87142::ramW(ram,r+0x52u);
+            if(pc==XM87340Donor::kChainPC){
+                // Literal donor xm3_hook_tag / xm3_dhc_chain:
+                // consume the MP+MK claim in the native tag function,
+                // invoke verified original exit helper, set +256/259=2,
+                // return D0=-1. No controller-8 handoff is written.
+                if(claim.phase!=XM87340Donor::CLAIMED ||
+                   who!=claim.point || bench!=claim.reserve ||
+                   XM87142::ramB(ram,p+0x221u) ||
+                   XM87142::ramB(ram,p+0x257u) ||
+                   XM87142::ramB(ram,p+0x256u) ||
+                   XM87142::ramB(ram,p+0x259u) ||
+                   !XM87142::ramB(ram,p+0x214u) ||
+                   !XM87340Donor::sourceHyper(
+                       who,XM87142::ramB(ram,p+0xD6u),true))
+                    return;
+                m68k_set_reg(M68K_REG_PC,
+                    XM87335Guest::kGuestBase+
+                    (side?XM87340Donor::kExitOffsetP2:
+                          XM87340Donor::kExitOffsetP1));
+                claim.phase=XM87340Donor::CHAIN_ENTERED;
+                claim.enteredAt=installedAt;
+                XM87274Unified::state().event(installedAt,side,
+                    "MORPHUS_340_NATIVE_13AB6_TAG_TAIL_EXECUTED");
+                return;
+            }
+            // Donor xm3_hook_dhc_commit: the original ROM MUST have
+            // swapped fighter identities before the incoming M68K
+            // guest can commit its chosen +D6.
+            if(pc==XM87340Donor::kIncomingPC &&
+               claim.phase==XM87340Donor::CHAIN_ENTERED &&
+               who==claim.reserve && bench==claim.point &&
+               XM87142::ramW(ram,p+0x08u)==0u &&
+               XM87335Guest::isImage(nativeFetch,sizeof(nativeFetch),
+                   side?0x100u:0u,claim.d6,claim.x,nativeDispatch[side])){
+                m68k_set_reg(M68K_REG_PC,side?
+                    XM87335Guest::kP2Entry:XM87335Guest::kP1Entry);
+                claim.phase=XM87340Donor::COMMITTED;
+                ++claim.commits;
+                donorArmed[side]=false;
+                XM87274Unified::state().event(installedAt,side,
+                    "MORPHUS_340_NATIVE_11DBE_AFTER_ORIGINAL_SWAP_COMMIT");
+            }
+            return;
+        }
         if((unsigned)m68k_get_reg(nullptr,M68K_REG_PC)!=
            XM87333NativeDHC::kUSIncoming)return;
         const unsigned a6=(unsigned)m68k_get_reg(nullptr,M68K_REG_A6);
@@ -156,6 +261,7 @@ struct State {
         }
         ready=false;ram=nullptr;
         armed[0]=armed[1]=false;
+        donorArmed[0]=donorArmed[1]=false;
         nativeDispatch[0]=nativeDispatch[1]=0u;
     }
     ~State(){end();}
