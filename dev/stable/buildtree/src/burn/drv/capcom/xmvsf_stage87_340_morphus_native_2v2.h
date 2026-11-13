@@ -1,9 +1,11 @@
 #ifndef XMVSF_STAGE87_340_MORPHUS_NATIVE_2V2_H
 #define XMVSF_STAGE87_340_MORPHUS_NATIVE_2V2_H
-// Morphus56k/Daniel Plas Rivera dhc.s 7-motion input & native exit port.
-// Target two-member teams: MP+MK selects reserve A; MP+HK (B) is unavailable.
+// 87.341: Morphus native M68K exit port, controlled by the INCOMING
+// fighter's REAL original Super command (motion + PP or KK).
+// No donor-assigned MP+MK/MP+HK chords or substitute motion mappings.
 #include "xmvsf_stage87_142_rom_dispatch.h"
 #include "xmvsf_stage87_329_morphus_dhc_catalog.h"
+#include "xmvsf_stage87_334_morphus_2v2_precommit.h"
 #include <cstdint>
 #include <cstring>
 #include <cstdlib>
@@ -35,7 +37,7 @@ static inline unsigned facingDir(unsigned dirs,bool faceRight){
 }
 struct Slot {
  Phase phase=IDLE;
- unsigned owner=~0u,point=0u,reserve=0u,d6=0u,x=0u;
+ unsigned owner=~0u,point=0u,reserve=0u,d6=0u,x=0u,outgoingD6=0u;
  unsigned lastFrame=~0u,prev=0u,hidden=0u,selected=7u,stock=0u;
  unsigned claimedAt=0u,enteredAt=0u,committedAt=0u;
  bool confirmed=false;
@@ -54,46 +56,56 @@ struct Slot {
   lastFrame=frame;
   const unsigned mask=buttons&0x3Fu;
   if(owner!=who){
-   owner=who;prev=mask;hidden=mask&0x32u;clearSteps();
-   // Source XH_USED: a chain stays single-use across the native swap.
-   // The incoming fighter must not immediately DHC back to the outgoing.
+   owner=who;prev=mask;hidden=0u;clearSteps();
+   // A genuine original swap resets motion history, but the incoming
+   // Hyper remains one-shot until its ROM-owned neutral return.
    return hidden;
   }
-  const unsigned pressed=mask&~prev;prev=mask;
-  if(!(mask&0x32u))hidden=0u;
+  const unsigned pressed=mask&~prev;
+  prev=mask;
+  if(hidden && !(mask&hidden))hidden=0u;
   if(phase!=IDLE)return hidden;
   if(!inHyper){clearSteps();return hidden;}
   const unsigned d=facingDir(dir,faceRight);
   const Motion* m=motions();
-  for(unsigned i=0;i<7u;++i){
+  for(unsigned i=0u;i<7u;++i){
    unsigned n=step[i];
    if(n && timer[i] && !--timer[i]){step[i]=0u;n=0u;}
    if(n>=m[i].len)continue;
    const unsigned expect=m[i].seq[n];
-   const bool match=(expect==0x80u)?!(d&4u):(d==expect);
-   if(match){step[i]=std::uint8_t(n+1u);timer[i]=14u;}
+   if((expect==0x80u)?!(d&4u):(d==expect)){
+    step[i]=std::uint8_t(n+1u);
+    timer[i]=14u;
+   }
   }
-  if(hidden || !(pressed&0x32u) || !sourceHyper(who,actorD6,true))
-    return hidden;
-  // Native donor MP+MK is reserve A; MP+HK and both selects B/ambiguous.
-  if(mask!=0x12u && mask!=0x22u && mask!=0x32u)return hidden;
-  hidden=0x32u;++claims;
-  if(mask!=0x12u || !eligible || !stockBefore || who==bench ||
-     bench>0x24u || (bench&1u)){++refusals;return hidden;}
-  const auto& row=XM87329Morphus::rows()[bench/2u];
+  // The same authentic command that ordinarily starts the incoming
+  // fighter's Hyper now selects the DHC. PP and KK are NOT interchangeable.
+  // The donor MP+MK assist-style chord is not a DHC trigger.
+  if(!pressed || !XM87334Native::qualifiedChord(mask) ||
+     !eligible || !stockBefore || who==bench ||
+     bench>0x24u || (bench&1u))return hidden;
   static const unsigned priority[]={4u,5u,2u,3u,0u,1u,6u};
   unsigned best=0u,col=7u;
-  for(unsigned i=0;i<7u;++i){
+  XM87334Native::Decision chosen;
+  for(unsigned i=0u;i<7u;++i){
    const unsigned j=priority[i];
-   if(!row.hyper[j] || (row.air|row.conditional)&(1u<<j) ||
-      step[j]<m[j].len || timer[j]<=best)continue;
-   best=timer[j];col=j;
+   if(step[j]<m[j].len || timer[j]<=best)continue;
+   const auto candidate=XM87334Native::resolveNativeOnly(
+       bench,j+1u,mask);
+   if(!candidate.ok())continue; // no alternate donor input substitution
+   best=timer[j];col=j;chosen=candidate;
   }
-  if(col==7u){++refusals;return hidden;}
-  selected=col;d6=row.hyper[col];point=who;reserve=bench;
+  if(col==7u)return hidden;
+  selected=col;
+  d6=chosen.hyperD6; // the ONLY Hyper selection consumed by the M68K guest
+  outgoingD6=actorD6;
+  point=who;reserve=bench;
   x=originalX;stock=stockBefore;claimedAt=frame;phase=CLAIMED;
+  hidden=mask; // mask only the physical PP/KK command being consumed
+  ++claims;
   return hidden;
  }
+
 };
 struct State {Slot side[2];void reset(){side[0].reset();side[1].reset();}};
 static inline State& state(){static State s;return s;}
