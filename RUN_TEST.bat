@@ -1,11 +1,11 @@
 @echo off
-REM XMVSF TEST 87.343 - variable P1/P2 native DHC fighter and opponent-adjacent entry - local native Windows DHC build (no Stable overwrite)
+REM XMVSF TEST 87.344 - reject unverified incoming D6 before native tag - local native Windows DHC build (no Stable overwrite)
 setlocal EnableExtensions DisableDelayedExpansion
 for %%I in ("%~dp0.") do set "PROJECT=%%~fI"
 set "MSYSTEM=UCRT64"
 set "PATH=C:\msys64\ucrt64\bin;C:\msys64\usr\bin;%PATH%"
 set "XMVSF_PROJECT=%PROJECT%"
-set "XMVSF_TEST_VERSION=87.343"
+set "XMVSF_TEST_VERSION=87.344"
 REM Derived from XMVSF_TEST_VERSION; must match BUILD_TEST.bat.
 set "XMVSF_TEST_TAG=%XMVSF_TEST_VERSION:.=_%"
 REM All TEST diagnostics track the same version as the launched executable.
