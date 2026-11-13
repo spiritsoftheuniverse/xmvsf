@@ -23,8 +23,10 @@ enum : unsigned {
 // MOVEM.L D0-D7/A0-A4,-(SP); save native caller state.
 // Preserve native +A0 -> +A1 before setting +A0 Hyper mode and +D6 ID.
 // Clear stale tag-in fields; set outgoing X and native ground; clear motion.
-// Call original US action dispatcher $1038E and stock routine $9E90;
-// restore exactly the saved registers then RTS to original fighter caller.
+// Call the ROM-verified ORIGINAL US per-fighter D6 state dispatcher.
+// Its own phase-zero code selects the genuine native 2E action and jumps
+// to $1038E with real D0/D1 selectors; then call stock $9E90, restore
+// exactly the saved registers and RTS to the original fighter caller.
 static inline const std::uint8_t* source(unsigned* length=nullptr) {
     static const std::uint8_t be[]={
         0x48,0xE7,0xFF,0xF8,
