@@ -1,6 +1,9 @@
 #ifndef XMVSF_STAGE87_336_NATIVE_D6_DISPATCH_H
 #define XMVSF_STAGE87_336_NATIVE_D6_DISPATCH_H
-// XMVSF 87.338 — verified-baseline-preserving, roster-wide native fighter-owned 68000 D6 Hyper resolver.
+// XMVSF 87.345 — original input matcher -> fighter-owned D6 state
+// table -> indexed phase zero. Preserve explicitly ROM-verified 2E
+// launch paths, but do not require every character to encode action 2E
+// in Ryu/Ken's compact phase-zero pattern.
 // Generalized from the repository's VERIFIED 87.170 fighter_regions()
 // and 87.174 D6->phase0->action2E original US program analysis.
 // No fighter-ID-specific gameplay entrypoints or synthetic 2E selectors.
@@ -162,8 +165,15 @@ struct Result {
     unsigned ownerStart=0u,ownerEnd=0u,launch=0u;
     unsigned matchingHandlers=0u;
     bool hasNativeMatcherSource=false;
+    // proof=1: 68000 D6/phase + literal original 2E launch verified.
+    // proof=2: 68000 incoming fighter's native command matcher writes
+    // exact D6 and mode 2A; unique original D6 table and phase zero
+    // verified, original fighter owns a bounded 2E ROM script. The 68000
+    // routine selects its action; no host-supplied 2E selector.
+    // proof=3: unchanged exact 87.336 original Ryu/Ken signatures.
+    unsigned proof=0u;
     bool valid()const{return nativeDispatcher && phaseZero &&
-                              matchingHandlers==1u;}
+                              proof!=0u && matchingHandlers==1u;}
 };
 // The universal search may find multiple valid handlers or may fail
 // because a fighter's original phase jump crosses inferred code regions.
@@ -217,6 +227,7 @@ static inline Result verifiedBaseline(const std::uint8_t* c,unsigned n,
         result.selector=x.sel;
         result.script=x.script;
         result.matchingHandlers=1u;
+        result.proof=3u;
         return result;
     }
     return result;
@@ -240,6 +251,16 @@ static inline Result resolveGeneric(const std::uint8_t* code,unsigned nCode,
     // original 360/charge/SGS Hyper handlers merely because their source
     // matcher has a different shape from canonical $13C30.
     result.hasNativeMatcherSource=sourceMatcher(code,nCode,lo,hi,d6);
+    // The ROM's 2E table is NOT the input matcher: it only establishes
+    // that this actual incoming fighter has a bounded native 2E action.
+    // The exact D6 assignment comes from its OWN original 68000 matcher.
+    // Scan once for a per-fighter native script, never manufacture the
+    // script selector by comparing different characters' tables.
+    unsigned original2EScripts=0u;
+    for(unsigned sel=0u;sel<=0x4Eu;sel+=2u){
+        if(XM87142::resolve(rom,nRom,fighter,0x2Eu,sel).valid)
+            ++original2EScripts;
+    }
     static const std::uint8_t d6Header[]={
         0x70,0x00,0x10,0x2E,0x00,0xD6,0x30,0x3B,0x00,0x06,
         0x4E,0xFB,0x00,0x02
@@ -312,7 +333,16 @@ static inline Result resolveGeneric(const std::uint8_t* code,unsigned nCode,
         // verified 2E action. The real M68K decides which selector runs;
         // this host code never writes one. Requiring exactly one rejected
         // otherwise valid character Hyper paths.
-        if(!launches || conflictingLaunches)continue;
+        if(conflictingLaunches)continue;
+        // This ORIGINAL fighter-owned D6 table and indexed phase entry
+        // are the executable path. Some fighters enter 2E through
+        // subroutines or a later state, so the Ryu/Ken MOVEQ 2E + JMP
+        // pattern need not be in the first 240 bytes. Only allow that
+        // narrower proof if the ORIGINAL input matcher for THIS fighter
+        // assigns the chosen D6 and mode 2A, with a genuine 2E ROM row.
+        const bool indirectNative=(launches==0u &&
+            result.hasNativeMatcherSource && original2EScripts!=0u);
+        if(!launches && !indirectNative)continue;
         // A few native state-entry aliases are equivalent in the real
         // ROM: same phase-zero code and same proven 2E selector/script.
         // Count the equivalence class once instead of rejecting all DHC.
@@ -324,14 +354,26 @@ static inline Result resolveGeneric(const std::uint8_t* code,unsigned nCode,
             result.selector=primary;
             result.alternativeSelector=alternate;
             result.script=scriptAt;
-        }else if(result.phaseZero!=start || result.selector!=primary ||
-                 result.alternativeSelector!=alternate ||
-                 result.script!=scriptAt){
-            return Result(); // real ambiguity: do not guess a Hyper
+            result.proof=launches?1u:2u;
+        }else if(result.nativeDispatcher!=pc){
+            // Two distinct state-indexed native entrypoints can execute
+            // different code for the SAME fighter/D6. Do not guess.
+            // Keep a directly proven 2E launch over an indirect candidate.
+            if(result.proof==2u && launches){
+                result.nativeDispatcher=pc;
+                result.phaseZero=start;
+                result.launch=launchAt;
+                result.selector=primary;
+                result.alternativeSelector=alternate;
+                result.script=scriptAt;
+                result.proof=1u;
+            }else if(!(result.proof==1u && indirectNative)){
+                return Result();
+            }
         }
     }
-    if(result.matchingHandlers!=1u)
-        return Result(); // never select a genuinely ambiguous D6 dispatcher
+    if(result.matchingHandlers!=1u || !result.proof)
+        return Result(); // no original/native proof, no outgoing tag
     return result;
 }
 static inline Result resolve(const std::uint8_t* code,unsigned nCode,
