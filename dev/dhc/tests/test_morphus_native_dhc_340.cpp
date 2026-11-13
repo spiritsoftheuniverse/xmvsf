@@ -228,6 +228,54 @@ int main(){
     assert(notAFAB.sample(433u,0x12u,0x1Au,1u,7u,true,
            0x0Au,true,true,220u,1u)==0u);
     assert(notAFAB.phase==IDLE);
+    // 87.351: original reverse commands, both facings and fast sweeps.
+    const auto backward=[](unsigned fighter,bool right,bool half,
+                           unsigned skip)->Slot{
+        Slot s;
+        const unsigned f=right?1u:2u,df=right?5u:6u;
+        const unsigned db=right?6u:5u,b=right?2u:1u;
+        const unsigned qcb[3]={4u,db,b},hcb[5]={f,df,4u,db,b};
+        const unsigned n=half?5u:3u;
+        s.sample(500u,0x12u,fighter,0u,0u,right,0x0Au,
+                 true,true,220u,1u);
+        for(unsigned i=0u;i<n;++i){
+            if(i==skip)continue;
+            const unsigned attacks=i==n-1u?
+                ((fighter==0x04u||fighter==0x1Eu)?0x03u:0x18u):0u;
+            s.sample(501u+i,0x12u,fighter,half?hcb[i]:qcb[i],
+                     attacks,right,0x0Au,true,true,220u,1u);
+        }
+        return s;
+    };
+    for(unsigned facing=0u;facing<2u;++facing){
+        const bool right=facing==0u;
+        const unsigned f[]={0x04u,0x12u,0x16u,0x20u,0x22u,0x1Eu};
+        const unsigned d6[]={0x0Au,0x0Cu,0x0Au,0x06u,0x16u,0x1Au};
+        for(unsigned i=0u;i<6u;++i){
+            const Slot exact=backward(f[i],right,false,~0u);
+            const Slot skipped=backward(f[i],right,false,1u);
+            assert(exact.phase==CLAIMED && exact.selected==1u &&
+                   exact.d6==d6[i]);
+            assert(skipped.phase==CLAIMED && skipped.d6==d6[i]);
+        }
+        const Slot hcb=backward(0x0Au,right,true,~0u);
+        const Slot skipDF=backward(0x0Au,right,true,1u);
+        const Slot skipDB=backward(0x0Au,right,true,3u);
+        assert(hcb.phase==CLAIMED && hcb.selected==5u && hcb.d6==0x08u);
+        assert(skipDF.phase==CLAIMED && skipDF.d6==0x08u);
+        assert(skipDB.phase==CLAIMED && skipDB.d6==0x08u);
+        Slot notHcb;
+        const unsigned forward=right?1u:2u,back=right?2u:1u;
+        notHcb.sample(600u,0x12u,0x0Au,0u,0u,right,0x0Au,
+                      true,true,220u,1u);
+        notHcb.sample(601u,0x12u,0x0Au,forward,0u,right,0x0Au,
+                      true,true,220u,1u);
+        notHcb.sample(602u,0x12u,0x0Au,4u,0u,right,0x0Au,
+                      true,true,220u,1u);
+        notHcb.sample(603u,0x12u,0x0Au,back,0x18u,right,0x0Au,
+                      true,true,220u,1u);
+        assert(notHcb.phase==IDLE); // F,D,B cannot fake an HCB.
+    }
     // 87.343: position against ACTUAL opponent X, for P1 or P2.
     assert(nearOpponentX(80u,220u)==204u);  // P1 approaches from left
     assert(nearOpponentX(360u,220u)==236u); // P2 approaches from right
@@ -345,5 +393,5 @@ int main(){
     assert(XM87189Family::Tracker::originalSuperController(
          XM87184Life::Sample(0x12u,0x2E08u,0x2A00u,2u,
                               0x0D3070u,0x0Au))); // 2E unmodified
-    std::puts("XMVSF 87.350 native Raging Demon and Final Atomic Buster inputs PASS");
+    std::puts("XMVSF 87.351 backward QCB/HCB original inputs PASS");
 }

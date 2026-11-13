@@ -149,16 +149,17 @@ struct Slot {
  unsigned lastFrame=~0u,prev=0u,hidden=0u,selected=8u,stock=0u;
  unsigned claimedAt=0u,enteredAt=0u,committedAt=0u;
  bool confirmed=false;
- std::uint8_t step[8]={},timer[8]={};
+ std::uint8_t step[8]={},timer[8]={},missedDiagonal[8]={};
  SpecialHistory special;
  unsigned claims=0u,refusals=0u,commits=0u;
  void reset(){*this=Slot();}
  void clearSteps(){std::memset(step,0,sizeof(step));
                    std::memset(timer,0,sizeof(timer));
+                   std::memset(missedDiagonal,0,sizeof(missedDiagonal));
                    special.reset();}
  // Donor's seven motions plus original Cyclops F,DF,D+PP.
- // All step timers are 14 core input samples. The eighth motion
- // has priority only when its exact terminal down input is completed.
+ // Original forward motions keep 14 input samples; QCB/HCB use 18/24.
+ // Cyclops' eighth motion still requires terminal down.
  unsigned sample(unsigned frame,unsigned who,unsigned bench,unsigned dir,
     unsigned buttons,bool faceRight,unsigned actorD6,bool inHyper,
     bool eligible,unsigned originalX,unsigned stockBefore){
@@ -184,12 +185,23 @@ struct Slot {
   const Motion* m=motions();
   for(unsigned i=0u;i<8u;++i){
    unsigned n=step[i];
-   if(n && timer[i] && !--timer[i]){step[i]=0u;n=0u;}
+   if(n && timer[i] && !--timer[i]){
+    step[i]=0u;missedDiagonal[i]=0u;n=0u;
+   }
    if(n>=m[i].len)continue;
    const unsigned expect=m[i].seq[n];
+   // 87.351: fast QCB/HCB may cross ONE diagonal between samples.
+   // Require another observed diagonal for HCB; F,D,B is insufficient.
+   const unsigned window=i==5u?24u:(i==1u?18u:14u);
    if((expect==0x80u)?!(d&4u):(d==expect)){
     step[i]=std::uint8_t(n+1u);
-    timer[i]=14u;
+    timer[i]=std::uint8_t(window);
+   }else if((i==1u||i==5u) && n>0u && !missedDiagonal[i] &&
+            n+1u<m[i].len && (expect==5u||expect==6u) &&
+            d==m[i].seq[n+1u]){
+    step[i]=std::uint8_t(n+2u);
+    timer[i]=std::uint8_t(window);
+    missedDiagonal[i]=1u;
    }
   }
   // The same authentic command that ordinarily starts the incoming
