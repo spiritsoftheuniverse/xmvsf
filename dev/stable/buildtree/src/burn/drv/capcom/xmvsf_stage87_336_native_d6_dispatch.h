@@ -304,11 +304,21 @@ static inline Result resolveGeneric(const std::uint8_t* code,unsigned nCode,
     // not every original actor's D6 dispatcher is between the minimum
     // code pointers of successive fighter IDs. Never use $011DBE here,
     // which indexes TAG-IN actors and never dispatches actor D6.
-    for(unsigned pc=kMinCode;pc+sizeof(d6Header)<kMaxCode;pc+=2u){
-        const bool local=(pc>=lo && pc<hi);
+    // Do not rescan the entire 1MB decrypted CPU image on every frame
+    // of a pending tag. Check only the original fighter's private range
+    // and its exact original indexed function-pointer entries.
+    const unsigned localCount=(hi-lo)/2u;
+    const unsigned owner=fighter/2u;
+    const unsigned allSites=localCount+regions.nativeCount[owner];
+    for(unsigned i=0u;i<allSites;++i){
+        const bool local=i<localCount;
+        const unsigned pc=local?lo+i*2u:
+              regions.nativeEntry[owner][i-localCount];
+        if(!local && pc>=lo && pc<hi)continue; // already checked
+        if(pc<kMinCode || pc+sizeof(d6Header)>kMaxCode ||
+           !bytes(code,nCode,pc,d6Header,sizeof(d6Header)))continue;
         const bool indexed=originalIndexedOwner(regions,fighter,pc);
         if(!local && !indexed)continue;
-        if(!bytes(code,nCode,pc,d6Header,sizeof(d6Header)))continue;
         const unsigned handler=relTarget(code,nCode,pc+sizeof(d6Header),d6);
         // The fighter owns the *D6 dispatch site*. Native subroutines may
         // legally be shared or lie across a source-region boundary.
