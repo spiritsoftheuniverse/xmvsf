@@ -103,6 +103,45 @@ int main(){
     assert(!tracker.unifiedDhcWindowAt(2579u,continuation));
     tracker.lastObservedScript=0x0CDA3Eu;
     assert(!tracker.unifiedDhcWindowAt(2580u,continuation)); // stale frame
+    // 87.339: the uploaded original-ROM session showed controller 8
+    // armed but NEVER accepted: outgoing punches were being forced to
+    // zero, not to a fresh native tag edge. Verify the ACTUAL outgoing
+    // port while preserving the incoming fighter's stored Hyper chord.
+    s.reset();
+    player(ram,0,0x12u,0x14u);
+    player(ram,1,0x22u,0x20u);
+    XM87193Exit::wput(ram,0x4060u,0x2E08u);
+    XM87193Exit::wput(ram,0x40A0u,0x2A00u);
+    XM87193Exit::wput(ram,0x4460u,0x2E00u);
+    XM87193Exit::wput(ram,0x44A0u,0x2A00u);
+    XM87274Unified::Slot& p1=s.slot[0];
+    p1.phase=XM87274Unified::TAG_REQUESTED;
+    p1.point=0x12u;p1.reserve=0x14u;p1.started=100u;
+    p1.request.valid=true;p1.request.reserve=0x14u;
+    p1.request.motion=XM87192Owner::QCF;
+    p1.request.buttonMask=0x18u; // incoming Ken Shinryuken QCF+KK
+    auto release=s.inputForFrame(ram,0u,100u,0u,0x18u,true);
+    assert(release.active && release.attacks==0u);
+    const auto p1edge=s.inputForFrame(ram,0u,101u,0u,0x18u,true);
+    assert(p1edge.active && p1edge.attacks==0x03u);
+    assert(s.inputForFrame(ram,0u,102u,0u,0x18u,true).attacks==0x03u);
+    assert(s.inputForFrame(ram,0u,103u,0u,0x18u,true).attacks==0u);
+    assert(p1.request.buttonMask==0x18u); // reserve KK NOT replaced by PP
+    XM87274Unified::Slot& p2slot=s.slot[1];
+    p2slot.phase=XM87274Unified::TAG_REQUESTED;
+    p2slot.point=0x22u;p2slot.reserve=0x20u;p2slot.started=200u;
+    p2slot.request.valid=true;p2slot.request.reserve=0x20u;
+    p2slot.request.motion=XM87192Owner::QCF;
+    p2slot.request.buttonMask=0x07u; // full 3P, must release then edge
+    assert(s.inputForFrame(ram,1u,201u,0u,0x07u,true).attacks==0u);
+    const auto p2edge=s.inputForFrame(ram,1u,202u,0u,0x07u,true);
+    assert(p2edge.active && p2edge.attacks==0x03u);
+    assert(s.inputForFrame(ram,1u,203u,0u,0x07u,true).attacks==0x03u);
+    assert(s.inputForFrame(ram,1u,204u,0u,0x07u,true).attacks==0u);
+    p2slot.phase=XM87274Unified::AWAIT_SWAP;
+    assert(s.inputForFrame(ram,1u,205u,0u,0x07u,true).attacks==0u);
+    // No synthetic edge on the opposite actor in the same input frame.
+    assert(s.inputForFrame(ram,0u,104u,0u,0u,true).attacks==0u);
     envSet("XM8755_GAME_VERSION","3");
     assert(!s.enabled()); // Version 3 never uses this path
     std::puts("XMVSF 87.274: two-sided native DHC policy PASS");
