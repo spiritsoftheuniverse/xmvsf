@@ -34,9 +34,11 @@ static inline bool qualifiedChord(unsigned attacks){
 // field. They are the ORIGINAL fighter commands with PP / KK button
 // families. This prevents QCF+KK for Ken from being mistaken for the
 // artificial DHC QCF assignment (Shoryureppa instead of Shinryuken).
-// Only commands expressible by the current owner motion parser are listed.
-// 87.346 adds the real Cyclops F,DF,D + PP (incl PPP) input. 360 / SGS /
-// air-only / other custom sequences still require original-native parsing.
+// 87.350: the original commands for Akuma's SGS and Zangief's FAB
+// now have actual dedicated sequence recognizers in the donor slot:
+// LP,LP,F,LK,HP and 360+PP/PPP respectively. Never translate either to
+// an unrelated donor DHC gesture. Other air/charge custom moves remain
+// native inputs only.
 struct Command {
     std::uint8_t fighter, motion, family, hyperD6;
     bool terminalThrow;
@@ -66,10 +68,12 @@ static inline const Command* commands(unsigned* count=nullptr) {
         {0x16u,1u,2u,0x08u,false}, // Chun-Li QCF+KK
         {0x18u,1u,1u,0x0Au,false}, // Dhalsim QCF+PP
         {0x18u,1u,2u,0x0Cu,false}, // Dhalsim QCF+KK
+        {0x1Au,9u,1u,0x0Au,true},  // Zangief native 360+PP/PPP Final Atomic Buster
         {0x1Cu,1u,1u,0x0Cu,false}, // M. Bison QCF+PP
         {0x1Cu,1u,2u,0x0Au,false}, // M. Bison QCF+KK
         {0x1Eu,2u,1u,0x1Au,false}, // Akuma QCB+PP
         {0x1Eu,1u,1u,0x16u,false}, // Akuma ground QCF+PP
+        {0x1Eu,10u,0u,0x10u,true}, // Akuma native LP,LP,F,LK,HP Raging Demon
         {0x20u,1u,1u,0x04u,false}, // Charlie QCF+PP
         {0x20u,2u,2u,0x06u,false}, // Charlie QCB+KK
         {0x20u,1u,2u,0x08u,false}, // Charlie QCF+KK
@@ -86,21 +90,26 @@ static inline const Command* commands(unsigned* count=nullptr) {
 // Unlike the earlier experimental resolve(), this NEVER falls back to
 // Morphus' DHC-assigned alternate motions. The button family is part of
 // the native command identity (Ken QCF+PP != Ken QCF+KK).
-// Original Super Optic Blast F,DF,D is native motion 8. Never turn
-// Cyclops' real input into the donor's arbitrary QCB DHC assignment.
-// Do not assign substitute inputs for 360, charge, SGS or air commands.
+// Original Super Optic Blast F,DF,D is motion 8; FAB 360 is 9;
+// Raging Demon LP,LP,F,LK,HP is 10. No QCF/DP alias is substituted,
+// and no HP-only normal may reach this matcher without all Demon stages.
+// Original air-only/charge motions are still separate unsupported inputs.
 static inline Decision resolveNativeOnly(unsigned incoming,
                                          unsigned motion,unsigned attacks){
     Decision d;
     if(incoming>0x24u || (incoming&1u))return d;
     d.character=std::uint8_t(incoming);
-    if(motion<1u || motion>8u){
+    if(motion<1u || motion>10u){
         d.reason=MOTION_NOT_MAPPED;return d;
     }
-    if(!qualifiedChord(attacks)){
+    // The SGS final input is a single HP, NOT a PP/KK chord.
+    // Only motion 10, already fully recognized by its independent
+    // edge-and-forward sequence, may use this original button form.
+    const bool demon=motion==10u;
+    if(demon ? attacks!=0x04u : !qualifiedChord(attacks)){
         d.reason=BAD_BUTTONS;return d;
     }
-    const unsigned family=(attacks&0x07u)?1u:2u;
+    const unsigned family=demon?0u:((attacks&0x07u)?1u:2u);
     unsigned count=0u;
     const Command* table=commands(&count);
     for(unsigned i=0u;i<count;++i){
