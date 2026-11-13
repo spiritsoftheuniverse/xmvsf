@@ -677,111 +677,26 @@ INT32 Cps2Frame()
                     st.reserve,st.d6,side+1u,st.hidden);
                 XM87274Unified::state().event(now,side,input);
             }
-            // 87.344: reject an unsupported incoming original-ROM D6
-            // BEFORE hiding physical PP/KK or arming the outgoing tag.
-            // 87.343 accepted seven actor swaps whose fallback target was
-            // $011DBE (the *tag-in* fighter indexer, not a Hyper router).
-            // Keep a real PP/KK input and the outgoing Hyper untouched
-            // unless the character-specific original D6 -> phase-zero ->
-            // 2E dispatcher is proven by actual US opcodes and ROM.
+            // 87.348: The physical input and its actual incoming D6
+            // ARE the authorization. The old 87.344/345 read-only proof
+            // checker denied eleven genuine commands in the last match
+            // before ANY M68K tag could run. Never wipe a valid claim
+            // merely because the fighter uses different native phase
+            // opcodes. The bridge itself will try the real ROM route.
             if(before!=XM87340Donor::CLAIMED &&
                st.phase==XM87340Donor::CLAIMED){
-                const auto verified=XM87336Dispatch::resolve(
+                const auto trial=XM87336Dispatch::resolveTrial(
                     CpsCode,(unsigned)nCpsCodeLen,
                     CpsRom,(unsigned)nCpsRomLen,st.reserve,st.d6);
-                if(!verified.valid()){
-                    const auto& regions=XM87336Dispatch::regionFor(
-                        CpsCode,(unsigned)nCpsCodeLen);
-                    const unsigned idx=st.reserve/2u;
-                    const unsigned lo=regions.begin[idx];
-                    const unsigned hi=regions.end[idx];
-                    static const std::uint8_t d6Header[]={
-                        0x70,0x00,0x10,0x2E,0x00,0xD6,
-                        0x30,0x3B,0x00,0x06,0x4E,0xFB,
-                        0x00,0x02
-                    };
-                    unsigned headings=0u,goodTargets=0u,
-                             phases=0u,example=0u;
-                    if(regions.ready && lo!=XM87336Dispatch::kNotFound &&
-                       hi>lo && hi<=(unsigned)nCpsCodeLen){
-                        for(unsigned pc=lo;
-                            pc+sizeof(d6Header)<=hi;pc+=2u){
-                            if(!XM87336Dispatch::bytes(
-                                CpsCode,(unsigned)nCpsCodeLen,
-                                pc,d6Header,sizeof(d6Header)))continue;
-                            ++headings;
-                            const unsigned dst=XM87336Dispatch::relTarget(
-                                CpsCode,(unsigned)nCpsCodeLen,
-                                pc+sizeof(d6Header),st.d6);
-                            if(dst==XM87336Dispatch::kNotFound)continue;
-                            ++goodTargets;
-                            if(!example)example=dst;
-                            if(XM87336Dispatch::phase(
-                                CpsCode,(unsigned)nCpsCodeLen,dst)!=
-                                XM87336Dispatch::kNotFound)++phases;
-                        }
-                    }
-                    char diagnostic[210];
-                    std::snprintf(diagnostic,sizeof(diagnostic),
-                        "NATIVE_344_REFUSED_BEFORE_TAG incoming=%02X d6=%02X side=%u indexers=%u region=%06X-%06X d6Sites=%u d6Targets=%u phaseEntries=%u firstTarget=%06X",
-                        st.reserve,st.d6,side+1u,regions.indexers,
-                        lo,hi,headings,goodTargets,phases,example);
-                    XM87274Unified::state().event(now,side,diagnostic);
-                    // Also inspect EXACT original fighter-indexer pointers
-                    // outside the naive contiguous character code range.
-                    // An alternate dispatcher may have its own source
-                    // layout; do not assign an address from a nearby actor.
-                    unsigned indexedStates=0u,indexedPhases=0u;
-                    for(unsigned i=0u;i<regions.nativeCount[idx];++i){
-                        const unsigned entry=regions.nativeEntry[idx][i];
-                        if(entry>=lo && entry<hi)continue;
-                        if(!XM87336Dispatch::originalIndexedOwner(
-                            regions,st.reserve,entry))continue;
-                        if(!XM87336Dispatch::bytes(
-                            CpsCode,(unsigned)nCpsCodeLen,
-                            entry,d6Header,sizeof(d6Header)))continue;
-                        ++indexedStates;
-                        const unsigned target=XM87336Dispatch::relTarget(
-                            CpsCode,(unsigned)nCpsCodeLen,
-                            entry+sizeof(d6Header),st.d6);
-                        if(target!=XM87336Dispatch::kNotFound &&
-                           XM87336Dispatch::phase(
-                              CpsCode,(unsigned)nCpsCodeLen,target)!=
-                              XM87336Dispatch::kNotFound)++indexedPhases;
-                    }
-                    const bool matcher=regions.ready &&
-                        lo!=XM87336Dispatch::kNotFound && hi>lo &&
-                        hi<=(unsigned)nCpsCodeLen &&
-                        XM87336Dispatch::sourceMatcher(CpsCode,
-                            (unsigned)nCpsCodeLen,lo,hi,st.d6);
-                    char extra[176];
-                    std::snprintf(extra,sizeof(extra),
-                        "NATIVE_345_INDEXER_EVIDENCE incoming=%02X d6=%02X ownedEntries=%u indirectD6Sites=%u indirectPhase=%u nativeInputSetter=%u",
-                        st.reserve,st.d6,regions.nativeCount[idx],
-                        indexedStates,indexedPhases,matcher?1u:0u);
-                    XM87274Unified::state().event(now,side,extra);
-                    st.phase=XM87340Donor::IDLE;
-                    st.hidden=0u;
-                    st.selected=8u;
-                    st.d6=0u;
-                    st.clearSteps();
-                    ++st.refusals;
-                }else{
-                    // 87.345: the input has selected exactly one real
-                    // fighter+Hyper D6, and the original program's own
-                    // D6-indexed M68K state/phase table has now resolved.
-                    // proof 2 deliberately does not invent a 2E action
-                    // selector: the original fighter state machine owns it.
-                    char selected[204];
-                    std::snprintf(selected,sizeof(selected),
-                        "NATIVE_345_D6_TABLE_ROUTE incoming=%02X d6=%02X side=%u pc=%06X phase=%06X proof=%u source=%u script=%06X",
-                        st.reserve,st.d6,side+1u,
-                        verified.nativeDispatcher,verified.phaseZero,
-                        verified.proof,
-                        verified.hasNativeMatcherSource?1u:0u,
-                        verified.script);
-                    XM87274Unified::state().event(now,side,selected);
-                }
+                char route[192];
+                std::snprintf(route,sizeof(route),
+                    "NATIVE_348_INPUT_ALLOWED fighter=%02X d6=%02X side=%u kind=%u pc=%06X handler=%06X selector=%02X script=%06X",
+                    st.reserve,st.d6,side+1u,unsigned(trial.kind),
+                    trial.dispatcher,trial.handler,trial.selector,
+                    trial.script);
+                XM87274Unified::state().event(now,side,route);
+                // NO pre-tag cancellation: keep D6, button ownership,
+                // and the REAL original 68000 outgoing state intact.
             }
             if(newChord && before==XM87340Donor::IDLE &&
                st.phase!=XM87340Donor::CLAIMED){
