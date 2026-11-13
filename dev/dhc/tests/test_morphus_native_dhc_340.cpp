@@ -76,6 +76,53 @@ int main(){
     Slot cyclops;
     assert(runMotion(cyclops,0x02u,60u,0x03u,0x0Au)==0x03u);
     assert(cyclops.d6==0x04u);
+    // 87.346: imported ORIGINAL Cyclops native Super command, not the
+    // donor's QCB-assigned DHC gesture. F -> DF -> D + PP or PPP.
+    assert(resolveNativeOnly(0x02u,8u,0x03u).hyperD6==0x02u);
+    assert(resolveNativeOnly(0x02u,8u,0x07u).hyperD6==0x02u);
+    assert(resolveNativeOnly(0x02u,1u,0x07u).hyperD6==0x04u);
+    assert(!resolveNativeOnly(0x14u,8u,0x07u).ok());
+    assert(!resolveNativeOnly(0x02u,8u,0x38u).ok());
+    Slot cyclopsAlternative;
+    cyclopsAlternative.sample(70u,0x12u,0x02u,0u,0u,true,0x0Au,
+                              true,true,100u,1u);
+    cyclopsAlternative.sample(71u,0x12u,0x02u,1u,0u,true,0x0Au,
+                              true,true,100u,1u); // F
+    cyclopsAlternative.sample(72u,0x12u,0x02u,5u,0u,true,0x0Au,
+                              true,true,100u,1u); // DF
+    assert(cyclopsAlternative.sample(73u,0x12u,0x02u,4u,0x07u,
+              true,0x0Au,true,true,100u,1u)==0x07u); // D+PPP
+    assert(cyclopsAlternative.phase==CLAIMED &&
+           cyclopsAlternative.selected==7u &&
+           cyclopsAlternative.d6==0x02u);
+
+    Slot cyclopsP2;
+    cyclopsP2.sample(80u,0x12u,0x02u,0u,0u,false,0x0Au,
+                     true,true,100u,1u);
+    cyclopsP2.sample(81u,0x12u,0x02u,2u,0u,false,0x0Au,
+                     true,true,100u,1u);
+    cyclopsP2.sample(82u,0x12u,0x02u,6u,0u,false,0x0Au,
+                     true,true,100u,1u);
+    assert(cyclopsP2.sample(83u,0x12u,0x02u,4u,0x03u,
+            false,0x0Au,true,true,100u,1u)==0x03u);
+    assert(cyclopsP2.d6==0x02u && cyclopsP2.selected==7u);
+
+    // Original +$210 is real reserve life. Fighter ID 00 is Wolverine:
+    // a living Wolverine may be a valid bench, an empty/dead 00 is not.
+    assert(!genuineReserve(0x12u,0x00u,0u));
+    assert(genuineReserve(0x12u,0x00u,100u));
+    assert(!genuineReserve(0x02u,0x02u,100u));
+    assert(!genuineReserve(0x12u,0x03u,100u));
+    Slot solo;
+    solo.sample(90u,0x12u,0u,0u,0u,true,0x0Au,
+                false,false,100u,1u);
+    solo.sample(91u,0x12u,0u,1u,0u,true,0x0Au,
+                false,false,100u,1u);
+    solo.sample(92u,0x12u,0u,5u,0u,true,0x0Au,
+                false,false,100u,1u);
+    assert(solo.sample(93u,0x12u,0u,4u,0x07u,true,0x0Au,
+                       false,false,100u,1u)==0u);
+    assert(solo.phase==IDLE && solo.hidden==0u);
     // 87.343: position against ACTUAL opponent X, for P1 or P2.
     assert(nearOpponentX(80u,220u)==204u);  // P1 approaches from left
     assert(nearOpponentX(360u,220u)==236u); // P2 approaches from right
@@ -129,5 +176,5 @@ int main(){
     assert(validateExit(original.data(),unsigned(original.size())));
     original[0xD590u]^=1u;
     assert(!validateExit(original.data(),unsigned(original.size())));
-    std::puts("XMVSF 87.344 real D6 only, never original US tag-in selector as Hyper PASS");
+    std::puts("XMVSF 87.346 native Cyclops F-DF-D PP/PPP P1/P2 and solo untouched PASS");
 }
