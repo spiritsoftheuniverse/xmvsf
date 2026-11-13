@@ -558,11 +558,10 @@ INT32 Cps2Frame()
         XM87220Dash::state().reset();
     }
     xm262WasV4=xm262V4;
-    // 87.340: source/engine/dhc.s claims DHC during the original native
-    // input sample, before it reaches the stock M68K attack parser.
-    // Never translate donor MP+MK into a fabricated controller-8 tag.
-    // Select the SOLE 2v2 reserve through the imported dhc_table row,
-    // then the $013AB6 native hook runs Morphus' original exit protocol.
+    // 87.341: leave Morphus' original M68K tag handoff intact.
+    // Only selection changes: the incoming fighter's actual motion+PP/KK
+    // is resolved to its ORIGINAL +D6 Hyper byte before the CPU input.
+    // No donor-assigned MP+MK assist chord, no synthetic controller 8.
     if(xm340Native && !bBurnRunAheadFrame && CpsRamFF &&
        dhcGame && std::strcmp(dhcGame,"xmvsfu")==0 &&
        CpsCode && XM87333NativeDHC::verify(
@@ -617,8 +616,8 @@ INT32 Cps2Frame()
             if(before!=st.phase && st.phase==XM87340Donor::CLAIMED){
                 char detail[144];
                 std::snprintf(detail,sizeof(detail),
-                    "MORPHUS_340_NATIVE_INPUT_CLAIM point=%02X reserve=%02X motion=%u d6=%02X",
-                    st.point,st.reserve,st.selected,st.d6);
+                    "NATIVE_341_REAL_SUPER_INPUT point=%02X reserve=%02X motion=%u chord=%02X d6=%02X",
+                    st.point,st.reserve,st.selected+1u,st.hidden,st.d6);
                 XM87274Unified::state().event(now,side,detail);
             }
             if(st.phase==XM87340Donor::CLAIMED &&
@@ -810,8 +809,8 @@ INT32 Cps2Frame()
         };
         for(unsigned side=0u;side<2u;++side){
             if(xm340Native){
-                // Morphus input filter hides ONLY the claimed MP/MK/HK
-                // chord until released; never feeds a replacement 2P tag.
+                // Hide ONLY the actually selected original PP/KK
+                // Hyper command once claimed; preserve every other input.
                 const unsigned h=XM87340Donor::state().side[side].hidden;
                 unifiedInput[side].active=(h!=0u);
                 unifiedInput[side].directions=dirs[side];
