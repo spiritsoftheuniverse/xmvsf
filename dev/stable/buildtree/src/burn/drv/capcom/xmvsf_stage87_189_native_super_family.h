@@ -115,12 +115,17 @@ struct Tracker {
             s.script==lastObservedScript;
     }
     Event update(unsigned now,const XM87184Life::Sample& s,
-                 const std::uint8_t*rom,unsigned romSize){
+                 const std::uint8_t*rom,unsigned romSize,
+                 bool experimental2C=false){
         if(lastFrame==now)return NOTHING;
         if(lastFrame!=~0u && now<lastFrame)reset();
         lastFrame=now;
-        const bool inFamily=originalSuperController(s);
-        const bool is2C=native2C(s);
+        // Only the explicitly opted-in Morphus native DHC path
+        // expands lifetime tracking to 2C. All older/legacy callers
+        // (and untouched Version 3) retain exact previous 2E semantics.
+        const bool is2C=experimental2C && native2C(s);
+        const bool inFamily=originalSuperController(s) &&
+                            (experimental2C || !native2C(s));
         const bool rootStep=is2C?(s.step<=2u):s.step==2u;
         XM87142::Lookup root;
         if(inFamily && rootStep)
