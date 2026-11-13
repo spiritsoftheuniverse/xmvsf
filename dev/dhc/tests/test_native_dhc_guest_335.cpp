@@ -21,8 +21,8 @@ int main() {
     assert(isImage(mem,sizeof(mem),0x100u,0x0Eu,0x5678u));
     assert(!isImage(mem,sizeof(mem),0u,0x0Eu,0x1234u));
     assert(word(mem,0u)==0x48E7u);       // native register save
-    assert(word(mem,2u)==0xFFF8u);
-    assert(word(mem,4u)==0x1D6Eu); // original +A0 saved in +A1       // D0-D7/A0-A4 predecrement mask
+    assert(word(mem,2u)==0xFFF8u);       // D0-D7/A0-A4 save mask
+    assert(word(mem,4u)==0x1D6Eu);       // original +A0 copied to +A1
     assert(word(mem,18u)==0x000Cu);      // P1 Ken D6 Hyper selector
     assert(word(mem,32u)==0x1234u);      // outgoing native X
     assert(word(mem,0x100u+18u)==0x000Eu); // independent P2 D6
