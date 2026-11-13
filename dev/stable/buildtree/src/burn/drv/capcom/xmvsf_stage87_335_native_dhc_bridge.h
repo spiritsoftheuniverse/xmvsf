@@ -196,6 +196,8 @@ struct State {
                 m68k_set_reg(M68K_REG_PC,side?
                     XM87335Guest::kP2Entry:XM87335Guest::kP1Entry);
                 claim.phase=XM87340Donor::COMMITTED;
+                claim.committedAt=installedAt;
+                claim.confirmed=false;
                 ++claim.commits;
                 donorArmed[side]=false;
                 XM87274Unified::state().event(installedAt,side,
