@@ -200,24 +200,29 @@ int main(){
     XM87184Life::Sample s2c(0x04u,0x2C08u,0x2A00u,2u,
                              stormRoot,0x02u);
     assert(XM87189Family::Tracker::originalSuperController(s2c));
+    XM87189Family::Tracker unchanged;
+    assert(unchanged.update(100u,s2c,rom2C.data(),
+                            unsigned(rom2C.size()))==
+           XM87189Family::NOTHING); // legacy 2E-only semantics intact
+    assert(!unchanged.live);
     assert(flight.update(100u,s2c,rom2C.data(),
-                         unsigned(rom2C.size()))==XM87189Family::ENTER);
+                         unsigned(rom2C.size()),true)==XM87189Family::ENTER);
     assert(flight.native2CWindowAt(100u,s2c));
     s2c.script+=16u;
     assert(flight.update(101u,s2c,rom2C.data(),
-                         unsigned(rom2C.size()))==
+                         unsigned(rom2C.size()),true)==
            XM87189Family::ATTACK_BEGIN);
     assert(flight.unifiedDhcWindowAt(101u,s2c));
     s2c.action=0x2C0Au;s2c.script=stormNext;
     assert(flight.update(102u,s2c,rom2C.data(),
-                         unsigned(rom2C.size()))==
+                         unsigned(rom2C.size()),true)==
            XM87189Family::CONTINUATION_BEGIN);
     assert(flight.native2CWindowAt(102u,s2c));
     s2c.d6=0x0Au;
     assert(!flight.native2CWindowAt(102u,s2c)); // wrong real Super
     s2c.mode=0u;
     assert(flight.update(103u,s2c,rom2C.data(),
-                         unsigned(rom2C.size()))==
+                         unsigned(rom2C.size()),true)==
            XM87189Family::ACTION_EXIT);
     // 2C startup with original step 0 is accepted; only exact ROM
     // action/script may arm this route; fake D6/mode never qualifies.
@@ -228,7 +233,7 @@ int main(){
     XM87184Life::Sample s0(0x1Cu,0x2C2Au,0x2A00u,0u,
                             0x11C180u,0x0Cu);
     assert(bison.update(200u,s0,rom2C.data(),
-                        unsigned(rom2C.size()))==XM87189Family::ENTER);
+                        unsigned(rom2C.size()),true)==XM87189Family::ENTER);
     assert(bison.unifiedDhcWindowAt(200u,s0));
     assert(!XM87189Family::Tracker::originalSuperController(
          XM87184Life::Sample(0x1Cu,0x2C2Au,0u,0u,
