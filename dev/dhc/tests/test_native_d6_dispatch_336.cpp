@@ -115,7 +115,8 @@ int main(){
     assert(bounds.begin[6u]==kNotFound);
     for(unsigned i=0u;i<sizeof(cases)/sizeof(cases[0]);++i){
         const auto& p=cases[i];
-        const auto result=resolve(code.data(),unsigned(code.size()),
+        const auto result=resolveGeneric(
+                                  code.data(),unsigned(code.size()),
                                   rom.data(),unsigned(rom.size()),
                                   p.fighter,p.d6);
         assert(result.valid());
@@ -131,19 +132,19 @@ int main(){
     assert(!resolve(code.data(),unsigned(code.size()),
                     rom.data(),unsigned(rom.size()),
                     0x04u,0x0Au).valid()); // wrong D6 for Storm
-    assert(!resolve(code.data(),unsigned(code.size()),
-                    rom.data(),unsigned(rom.size()),
-                    0x14u,0x04u).valid()); // unowned Ken D6
+    assert(!resolveGeneric(code.data(),unsigned(code.size()),
+                           rom.data(),unsigned(rom.size()),
+                           0x14u,0x04u).valid()); // unowned Ken D6
     const unsigned cyclops=0x20000u+0x1000u+0x100u;
     code[cyclops+1u]^=1u; // alter canonical source matcher
-    const auto unusual=resolve(code.data(),unsigned(code.size()),
-                               rom.data(),unsigned(rom.size()),0x02u,0x04u);
+    const auto unusual=resolveGeneric(code.data(),unsigned(code.size()),
+                                      rom.data(),unsigned(rom.size()),0x02u,0x04u);
     assert(unusual.valid() && !unusual.hasNativeMatcherSource);
     // A fighter's D6 handler and original 2E launch must still be proven.
     const unsigned launch=0x20000u+0x1000u+0x500u+0x70u+0x20u;
     code[launch+1u]^=0x10u; // mutate original 2E action bytes
-    assert(!resolve(code.data(),unsigned(code.size()),
-                    rom.data(),unsigned(rom.size()),
-                    0x02u,0x04u).valid());
+    assert(!resolveGeneric(code.data(),unsigned(code.size()),
+                           rom.data(),unsigned(rom.size()),
+                           0x02u,0x04u).valid());
     std::puts("XMVSF 87.338 partial-roster original D6 gating PASS");
 }
