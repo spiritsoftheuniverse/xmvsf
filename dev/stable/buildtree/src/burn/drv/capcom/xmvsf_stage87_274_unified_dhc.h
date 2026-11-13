@@ -11,6 +11,7 @@
 #include "xmvsf_stage87_192_reserve_super_ownership.h"
 #include "xmvsf_stage87_329_morphus_dhc_catalog.h"
 #include "xmvsf_stage87_334_morphus_2v2_precommit.h"
+#include "xmvsf_stage87_336_native_d6_dispatch.h"
 #include "xmvsf_stage87_193_deterministic_exit_protocol.h"
 #include "xmvsf_stage87_262_game_version.h"
 #include <cstdint>
@@ -134,7 +135,8 @@ struct State {
         XM87192Owner::state().clear(side);
     }
     void frame(std::uint8_t*ram,const std::uint8_t*rom,unsigned romSize,
-               unsigned now){
+               unsigned now,const std::uint8_t* code=nullptr,
+               unsigned codeSize=0u){
         if(!enabled()||!ram||!rom)return;
         if(lastFrame!=~0u && now<lastFrame)reset();
         if(lastFrame==now)return;
@@ -208,6 +210,21 @@ struct State {
                         event(now,side,XM87334Native::reasonName(chosen.reason));
                         XM87192Owner::state().clear(side);
                         continue; // no original tag or meter debit
+                    }
+                    const char* nativeMode=std::getenv("XM87335_NATIVE_DHC");
+                    if(nativeMode && std::strcmp(nativeMode,"1")==0){
+                        // Before any original tag request, ensure that the
+                        // incoming original US ROM has a verified D6 handler,
+                        // phase-zero jump and actual ROM 2E script. Other
+                        // characters remain unaffected (no bad swap).
+                        const auto handler=XM87336Dispatch::resolve(
+                            code,codeSize,rom,romSize,
+                            reserve,unsigned(chosen.hyperD6));
+                        if(!handler.valid()){
+                            event(now,side,"NATIVE_336_NO_VERIFIED_D6_HANDLER_BEFORE_TAG");
+                            XM87192Owner::state().clear(side);
+                            continue;
+                        }
                     }
                     if(!s.nativePrecommit.stage(
                             side,point,reserve,now,chosen)){

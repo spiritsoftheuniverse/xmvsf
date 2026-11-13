@@ -12,6 +12,7 @@
 #include "xmvsf_stage87_274_unified_dhc.h"
 #include "xmvsf_stage87_333_morphus_native_dhc_abi.h"
 #include "xmvsf_stage87_335_native_dhc_guest.h"
+#include "xmvsf_stage87_336_native_d6_dispatch.h"
 #include "../../../cpu/m68k/m68k.h"
 #include <cstdint>
 #include <cstdio>
@@ -33,15 +34,18 @@ struct State {
     std::uint8_t nativeFetch[XM87335Guest::kPageBytes]={};
     bool active=false,ready=false,attempted=false;
     bool armed[2]={false,false};
+    unsigned nativeDispatch[2]={0u,0u};
     const std::uint8_t* ram=nullptr;
     int (*prior)(int)=nullptr;
     unsigned installedAt=0,entries=0,refusals=0;
 
     bool prepare(const std::uint8_t* code,unsigned codeLength,
+                 const std::uint8_t* rom,unsigned romLength,
                  const std::uint8_t* currentRam,const char* driver,
                  unsigned frame,bool runahead){
         ready=false;armed[0]=armed[1]=false;
-        if(!enabled() || runahead || !code || !currentRam ||
+        nativeDispatch[0]=nativeDispatch[1]=0u;
+        if(!enabled() || runahead || !code || !rom || !currentRam ||
            !driver || std::strcmp(driver,"xmvsfu")!=0)return false;
         // These are the exact original US instructions, compared with
         // word-swapped CpsCode. No patching on an unknown ROM revision.
@@ -59,10 +63,16 @@ struct State {
                !s.nativePrecommit.armed || s.nativePrecommit.consumed ||
                s.nativePrecommit.side!=side ||
                !s.nativePrecommit.d6)continue;
+            const auto native=XM87336Dispatch::resolve(
+                code,codeLength,rom,romLength,
+                s.nativePrecommit.reserve,s.nativePrecommit.d6);
+            if(!native.valid())continue; // never call an unverified handler
             const unsigned offset=side?0x100u:0u;
             if(!XM87335Guest::emit(nativeFetch,sizeof(nativeFetch),offset,
-                                   s.nativePrecommit.d6,s.nativePrecommit.x))
+                                   s.nativePrecommit.d6,s.nativePrecommit.x,
+                                   native.nativeDispatcher))
                 continue;
+            nativeDispatch[side]=native.nativeDispatcher;
             armed[side]=true;
         }
         if(!armed[0] && !armed[1])return false;
@@ -105,9 +115,13 @@ struct State {
                side,XM87142::ramW(ram,p+0x52u),
                     XM87142::ramW(ram,r+0x52u)))return;
         if(XM87142::ramB(ram,0x5000u)!=8u)return;
+        // The original 68000 D6 state dispatcher must enter phase zero,
+        // as shown in the US 87.174 static native-control-flow proof.
+        if(XM87142::ramW(ram,p+0x08u)!=0u)return;
         if(!XM87335Guest::isImage(nativeFetch,sizeof(nativeFetch),
                                  side?0x100u:0u,
-                                 s.nativePrecommit.d6,s.nativePrecommit.x)){
+                                 s.nativePrecommit.d6,s.nativePrecommit.x,
+                                 nativeDispatch[side])){
             ++refusals;return;
         }
         // All native guest instructions run through the original Musashi
@@ -122,8 +136,11 @@ struct State {
         s.nativePrecommit.directUsed=true;
         armed[side]=false;
         ++entries;
-        XM87274Unified::state().event(installedAt,side,
-            "NATIVE_335_US_11DBE_DIRECT_M68K_COMMIT_ENTERED");
+        char detail[144];
+        std::snprintf(detail,sizeof(detail),
+            "NATIVE_336_ORIGINAL_D6_DISPATCH_ENTERED handler=%06X D6=%02X",
+            nativeDispatch[side],unsigned(s.nativePrecommit.d6));
+        XM87274Unified::state().event(installedAt,side,detail);
     }
     static int bridge(int cycles){
         State& s=state();
@@ -139,6 +156,7 @@ struct State {
         }
         ready=false;ram=nullptr;
         armed[0]=armed[1]=false;
+        nativeDispatch[0]=nativeDispatch[1]=0u;
     }
     ~State(){end();}
 };
