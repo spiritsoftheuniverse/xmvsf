@@ -151,6 +151,10 @@ struct Slot {
  bool confirmed=false;
  std::uint8_t step[8]={},timer[8]={},missedDiagonal[8]={};
  unsigned firstFrame[8]={};
+ // 87.353: remember an actual physical 3K edge while the last
+ // direction of a native motion is still crossing a sampled frame.
+ unsigned kkkEdgeAt=~0u;
+ bool claimedBufferedKKK=false;
  SpecialHistory special;
  unsigned claims=0u,refusals=0u,commits=0u;
  void reset(){*this=Slot();}
@@ -158,6 +162,7 @@ struct Slot {
                    std::memset(timer,0,sizeof(timer));
                    std::memset(missedDiagonal,0,sizeof(missedDiagonal));
                    std::memset(firstFrame,0,sizeof(firstFrame));
+                   kkkEdgeAt=~0u;claimedBufferedKKK=false;
                    special.reset();}
  // Donor's seven motions plus original Cyclops F,DF,D+PP.
  // Original forward motions keep 14 input samples; QCB/HCB use 18/24.
@@ -179,6 +184,13 @@ struct Slot {
   prev=mask;
   if(hidden && !(mask&hidden))hidden=0u;
   if(phase!=IDLE)return hidden;
+  // No guessed three-kick input: only a physically observed KKK rising
+  // edge, and only while all THREE kicks remain continuously held.
+  if(mask!=0x38u)kkkEdgeAt=~0u;
+  else if(pressed&0x38u)kkkEdgeAt=frame;
+  const bool heldFreshKKK=mask==0x38u &&
+      kkkEdgeAt!=~0u && frame>=kkkEdgeAt &&
+      frame-kkkEdgeAt<=10u;
   // Always track native motions (as the original command parser does).
   // Consuming input or claiming DHC STILL requires an eligible outgoing
   // Hyper; native 1v1 and solo controls are never intercepted.
@@ -217,8 +229,9 @@ struct Slot {
   // Cyclops native Super Optic Blast is F,DF,D + PP or PPP;
   // Mega Optic Blast remains QCF+PP. Do not substitute QCB.
   // The donor MP+MK assist-style chord is not a DHC trigger.
-  if(!pressed || !inHyper || !eligible || !stockBefore ||
-     who==bench || bench>0x24u || (bench&1u))return hidden;
+  if((!pressed && !heldFreshKKK) || !inHyper || !eligible ||
+     !stockBefore || who==bench || bench>0x24u ||
+     (bench&1u))return hidden;
   static const unsigned priority[]={7u,4u,5u,2u,3u,0u,1u,6u};
   unsigned best=0u,col=8u;
   XM87334Native::Decision chosen;
@@ -248,6 +261,8 @@ struct Slot {
    }
   }
   if(!chosen.ok())return hidden;
+  claimedBufferedKKK=!pressed && heldFreshKKK;
+  kkkEdgeAt=~0u; // never reuse the edge for a second DHC
   selected=col;
   d6=chosen.hyperD6; // the ONLY Hyper selection consumed by the M68K guest
   outgoingD6=actorD6;

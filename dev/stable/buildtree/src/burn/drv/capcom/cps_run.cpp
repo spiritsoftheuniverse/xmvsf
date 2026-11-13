@@ -708,6 +708,15 @@ INT32 Cps2Frame()
             }
             if(before!=XM87340Donor::CLAIMED &&
                st.phase==XM87340Donor::CLAIMED &&
+               st.claimedBufferedKKK){
+                char event[144];
+                std::snprintf(event,sizeof(event),
+                    "NATIVE_353_BUFFERED_KKK_CLAIM incoming=%02X d6=%02X side=%u motion=%u",
+                    st.reserve,st.d6,side+1u,st.selected+1u);
+                XM87274Unified::state().event(now,side,event);
+            }
+            if(before!=XM87340Donor::CLAIMED &&
+               st.phase==XM87340Donor::CLAIMED &&
                (st.selected==7u || st.selected==8u ||
                 st.selected==9u)){
                 char input[176];

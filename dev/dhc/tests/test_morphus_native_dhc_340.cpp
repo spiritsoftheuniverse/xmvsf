@@ -313,6 +313,83 @@ int main(){
         assert(opticFast.phase==CLAIMED && opticFast.selected==7u &&
                opticFast.d6==0x02u);
     }
+    // 87.353: KKK may be pressed just BEFORE a final sampled direction.
+    // The true QCF/QCB/HCB must still complete; D6 never changes.
+    assert(resolveNativeOnly(0x0Au,6u,0x38u).hyperD6==0x08u); // Sabretooth
+    assert(resolveNativeOnly(0x16u,1u,0x38u).hyperD6==0x08u); // Chun-Li
+    assert(resolveNativeOnly(0x20u,2u,0x38u).hyperD6==0x06u); // Charlie
+    const auto earlyKicks=[](unsigned reserve,bool right,unsigned start,
+                            unsigned motion,bool early)->Slot{
+        Slot s;
+        const unsigned f=right?1u:2u,df=right?5u:6u;
+        const unsigned b=right?2u:1u,db=right?6u:5u;
+        const unsigned qcf[]={4u,df,f};
+        const unsigned qcb[]={4u,db,b};
+        const unsigned hcb[]={f,df,4u,db,b};
+        const unsigned* d=motion==1u?qcf:(motion==2u?qcb:hcb);
+        const unsigned n=motion==6u?5u:3u;
+        s.sample(start,0x12u,reserve,0u,0u,right,
+                 0x0Au,true,true,220u,1u);
+        for(unsigned i=0u;i<n;++i){
+            const unsigned btn=i==n-1u|| (early && i==n-2u)?
+                               0x38u:0u;
+            s.sample(start+i+1u,0x12u,reserve,d[i],btn,right,
+                     0x0Au,true,true,220u,1u);
+        }
+        return s;
+    };
+    for(unsigned facing=0u;facing<2u;++facing){
+        const bool right=facing==0u;
+        const unsigned targets[]={0x0Au,0x16u,0x20u};
+        const unsigned motions[]={6u,1u,2u};
+        const unsigned nativeD6[]={0x08u,0x08u,0x06u};
+        for(unsigned j=0u;j<3u;++j){
+            const unsigned at=2600u+facing*120u+j*25u;
+            const Slot exact=earlyKicks(targets[j],right,at,
+                                        motions[j],false);
+            const Slot buffered=earlyKicks(targets[j],right,at+400u,
+                                           motions[j],true);
+            assert(exact.phase==CLAIMED && exact.d6==nativeD6[j] &&
+                   !exact.claimedBufferedKKK);
+            assert(buffered.phase==CLAIMED &&
+                   buffered.d6==nativeD6[j] &&
+                   buffered.claimedBufferedKKK);
+        }
+        // A held KKK without a completed direction cannot pick D6.
+        Slot noMotion;
+        noMotion.sample(3500u,0x12u,0x20u,0u,0u,right,
+                        0x0Au,true,true,220u,1u);
+        noMotion.sample(3501u,0x12u,0x20u,0u,0x38u,right,
+                        0x0Au,true,true,220u,1u);
+        noMotion.sample(3502u,0x12u,0x20u,0u,0x38u,right,
+                        0x0Au,true,true,220u,1u);
+        assert(noMotion.phase==IDLE);
+        // Expired KKK may NOT create a DHC after a delayed QCF.
+        Slot expired;
+        const unsigned df=right?5u:6u,forward=right?1u:2u;
+        expired.sample(3600u,0x12u,0x16u,0u,0u,right,
+                       0x0Au,true,true,220u,1u);
+        expired.sample(3601u,0x12u,0x16u,0u,0x38u,right,
+                       0x0Au,true,true,220u,1u);
+        expired.sample(3612u,0x12u,0x16u,4u,0x38u,right,
+                       0x0Au,true,true,220u,1u);
+        expired.sample(3613u,0x12u,0x16u,df,0x38u,right,
+                       0x0Au,true,true,220u,1u);
+        expired.sample(3614u,0x12u,0x16u,forward,0x38u,right,
+                       0x0Au,true,true,220u,1u);
+        assert(expired.phase==IDLE);
+        // A newly released KKK must also lose the buffered edge.
+        Slot released;
+        released.sample(3700u,0x12u,0x20u,0u,0u,right,
+                        0x0Au,true,true,220u,1u);
+        released.sample(3701u,0x12u,0x20u,4u,0x38u,right,
+                        0x0Au,true,true,220u,1u);
+        released.sample(3702u,0x12u,0x20u,right?6u:5u,0u,right,
+                        0x0Au,true,true,220u,1u);
+        released.sample(3703u,0x12u,0x20u,right?2u:1u,0u,right,
+                        0x0Au,true,true,220u,1u);
+        assert(released.phase==IDLE);
+    }
     // 87.343: position against ACTUAL opponent X, for P1 or P2.
     assert(nearOpponentX(80u,220u)==204u);  // P1 approaches from left
     assert(nearOpponentX(360u,220u)==236u); // P2 approaches from right
@@ -430,5 +507,5 @@ int main(){
     assert(XM87189Family::Tracker::originalSuperController(
          XM87184Life::Sample(0x12u,0x2E08u,0x2A00u,2u,
                               0x0D3070u,0x0Au))); // 2E unmodified
-    std::puts("XMVSF 87.351 backward QCB/HCB original inputs PASS");
+    std::puts("XMVSF 87.353 original three-kick native DHC edge buffer PASS");
 }
