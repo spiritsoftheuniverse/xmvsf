@@ -114,6 +114,7 @@ int main(){
                                   p.fighter,p.d6);
         assert(result.valid());
         assert(result.matchingHandlers==1u);
+        assert(result.hasNativeMatcherSource);
         assert(result.selector==p.selector);
         assert(result.nativeDispatcher==
                0x20000u+(p.fighter/2u)*0x1000u+0x400u);
@@ -128,7 +129,13 @@ int main(){
                     rom.data(),unsigned(rom.size()),
                     0x14u,0x04u).valid()); // unowned Ken D6
     const unsigned cyclops=0x20000u+0x1000u+0x100u;
-    code[cyclops+1u]^=1u; // damage original matcher JSR
+    code[cyclops+1u]^=1u; // alter canonical source matcher
+    const auto unusual=resolve(code.data(),unsigned(code.size()),
+                               rom.data(),unsigned(rom.size()),0x02u,0x04u);
+    assert(unusual.valid() && !unusual.hasNativeMatcherSource);
+    // A fighter's D6 handler and original 2E launch must still be proven.
+    const unsigned launch=0x20000u+0x1000u+0x500u+0x70u+0x20u;
+    code[launch+1u]^=0x10u; // mutate original 2E action bytes
     assert(!resolve(code.data(),unsigned(code.size()),
                     rom.data(),unsigned(rom.size()),
                     0x02u,0x04u).valid());
