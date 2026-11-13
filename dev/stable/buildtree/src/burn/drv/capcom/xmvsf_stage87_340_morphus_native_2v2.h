@@ -6,6 +6,7 @@
 #include "xmvsf_stage87_329_morphus_dhc_catalog.h"
 #include <cstdint>
 #include <cstring>
+#include <cstdlib>
 namespace XM87340Donor {
 enum Phase {IDLE, CLAIMED, CHAIN_ENTERED, COMMITTED};
 enum : unsigned { kExitHelperUS=0x04BF66u,kExitOffsetP1=0x200u,
@@ -92,6 +93,11 @@ struct Slot {
  }
 };
 struct State {Slot side[2];void reset(){side[0].reset();side[1].reset();}};
+static inline State& state(){static State s;return s;}
+static inline bool enabled(){
+ const char* s=std::getenv("XM87340_MORPHUS_NATIVE");
+ return s && std::strcmp(s,"1")==0;
+}
 // US source opcode evidence at $00D59A, original call to $04BF66.
 // Never derive every native function from a global Euro->US offset.
 static inline bool validateExit(const std::uint8_t* c,unsigned n){
