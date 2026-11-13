@@ -544,6 +544,33 @@ INT32 Cps2Frame()
     if(xm340WasActive!=xm340Native)
         XM87340Donor::state().reset();
     xm340WasActive=xm340Native;
+    // 87.342: CREATE the existing DHC TSV on startup, not only after a
+    // successful motion/Hyper claim. Silence used to mean both "no
+    // command" and "an unexecuted/disabled native port".
+    static bool xm342DhcBootLogged=false;
+    static unsigned xm342DhcLastFrame=~0u;
+    const unsigned xm342Now=(unsigned)GetCurrentFrame();
+    if(xm342DhcLastFrame!=~0u && xm342Now<xm342DhcLastFrame)
+        xm342DhcBootLogged=false;
+    xm342DhcLastFrame=xm342Now;
+    if(!bBurnRunAheadFrame && dhcGameMatches &&
+       (std::getenv("XM87274_UNIFIED_DHC") ||
+        std::getenv("XM87340_MORPHUS_NATIVE")) &&
+       !xm342DhcBootLogged){
+        const bool hook=XM87333NativeDHC::verify(
+            CpsCode,(unsigned)nCpsCodeLen).all();
+        const bool exit=XM87340Donor::validateExit(
+            CpsCode,(unsigned)nCpsCodeLen);
+        char boot[210];
+        std::snprintf(boot,sizeof(boot),
+            "NATIVE_342_BOOT version4=%u unified=%u donor=%u driver=%s US_hooks=%u exit_site=%u ROM=%u RAM=%u",
+            xm262V4?1u:0u,xm274Unified?1u:0u,
+            xm340Native?1u:0u,dhcGame?dhcGame:"unknown",
+            hook?1u:0u,exit?1u:0u,
+            CpsRom?1u:0u,CpsRamFF?1u:0u);
+        XM87274Unified::state().event(xm342Now,0u,boot);
+        xm342DhcBootLogged=true;
+    }
     static bool xm274WasUnified=false;
     if(xm274WasUnified!=xm274Unified){
         XM87144::state().reset();
@@ -608,11 +635,28 @@ INT32 Cps2Frame()
                 !XM87142::ramB(CpsRamFF,0x500Au);
             auto& st=XM87340Donor::state().side[side];
             const auto before=st.phase;
+            const unsigned freshButtons=buttons[side]&~st.prev;
+            const unsigned chord=buttons[side]&0x3Fu;
+            const bool nativeChord=
+                XM87334Native::qualifiedChord(chord);
+            const bool newChord=nativeChord && (freshButtons&chord);
+            const unsigned oldHidden=st.hidden;
             st.sample(now,who,bench,dirs[side],buttons[side],
                 (XM87142::ramB(CpsRamFF,p+0x4Bu)&1u)!=0u,
                 sample.d6,hyper,eligible,
                 XM87142::ramW(CpsRamFF,p+0x0Cu),
                 XM87142::ramB(CpsRamFF,p+0x214u));
+            if(newChord && before==XM87340Donor::IDLE &&
+               st.phase!=XM87340Donor::CLAIMED){
+                char reject[208];
+                std::snprintf(reject,sizeof(reject),
+                    "NATIVE_342_COMMAND_NOT_CLAIMED actor=%02X reserve=%02X buttons=%02X fresh=%02X dir=%X active2E=%u window=%u eligible=%u stock=%u phase=%u hidden=%02X",
+                    who,bench,chord,freshButtons,dirs[side],
+                    hyper?1u:0u,currentWindow?1u:0u,eligible?1u:0u,
+                    XM87142::ramB(CpsRamFF,p+0x214u),
+                    unsigned(super.phase),oldHidden);
+                XM87274Unified::state().event(now,side,reject);
+            }
             if(before!=st.phase && st.phase==XM87340Donor::CLAIMED){
                 char detail[144];
                 std::snprintf(detail,sizeof(detail),
@@ -1194,6 +1238,26 @@ INT32 Cps2Frame()
         const XM87142::Report romReport=XM87142::state().frame(
             CpsRamFF,CpsRom,(unsigned)nCpsRomLen,
             (unsigned)GetCurrentFrame(),false);
+        if(xm340Native){
+            // The older XM87144 gameplay frame is intentionally bypassed
+            // in this mode. Keep its ORIGINAL, read-only M68K 2E lifecycle
+            // tracker current for next frame's pre-CPU DHC window. Without
+            // this update the input selector reads a permanently stale
+            // phase and silently refuses all real PP/KK Hyper commands.
+            for(unsigned side=0u;side<2u;++side){
+                const unsigned p=XM87193Exit::actorBase(side);
+                const XM87184Life::Sample observed={
+                    XM87142::ramW(CpsRamFF,p+0x52u),
+                    XM87142::ramW(CpsRamFF,p+0x60u),
+                    XM87142::ramW(CpsRamFF,p+0xA0u),
+                    XM87142::ramW(CpsRamFF,p+0x08u),
+                    XM87142::ramL(CpsRamFF,p+0x34u),
+                    XM87142::ramB(CpsRamFF,p+0xD6u)};
+                XM87189Family::state().side[side].update(
+                    (unsigned)GetCurrentFrame(),observed,
+                    CpsRom,(unsigned)nCpsRomLen);
+            }
+        }
         // Exact post-CPU boundary, before host-side command matching
         // and before a possible DHC controller-8 write.
         XM87186Opening::state().sample(CpsRamFF,
