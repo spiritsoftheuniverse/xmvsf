@@ -161,6 +161,7 @@ struct Result {
     unsigned alternativeSelector=kNotFound;
     unsigned ownerStart=0u,ownerEnd=0u,launch=0u;
     unsigned matchingHandlers=0u;
+    bool hasNativeMatcherSource=false;
     bool valid()const{return nativeDispatcher && phaseZero &&
                               matchingHandlers==1u;}
 };
@@ -175,7 +176,14 @@ static inline Result resolve(const std::uint8_t* code,unsigned nCode,
     const unsigned lo=regions.begin[fighter/2u];
     const unsigned hi=regions.end[fighter/2u];
     if(lo==kNotFound || hi<=lo || hi>nCode)return result;
-    if(!sourceMatcher(code,nCode,lo,hi,d6))return result;
+    // Input-acceptance bytecode is not uniform across the cast: the
+    // 87.170 archive establishes five distinct matcher implementations.
+    // The original fighter-owned D6 table + its own phase-zero 2E launch
+    // + valid fighter ROM script form the execution proof. Record the
+    // matching input-source evidence when present, but do not reject
+    // original 360/charge/SGS Hyper handlers merely because their source
+    // matcher has a different shape from canonical $13C30.
+    result.hasNativeMatcherSource=sourceMatcher(code,nCode,lo,hi,d6);
     static const std::uint8_t d6Header[]={
         0x70,0x00,0x10,0x2E,0x00,0xD6,0x30,0x3B,0x00,0x06,
         0x4E,0xFB,0x00,0x02
