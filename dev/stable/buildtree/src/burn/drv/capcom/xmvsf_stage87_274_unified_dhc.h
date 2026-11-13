@@ -221,6 +221,11 @@ struct State {
                         reserve,unsigned(chosen.hyperD6),
                         chosen.terminalThrow?1u:0u);
                     event(now,side,detail);
+                    // Capture the current original outgoing point, not a
+                    // guessed camera/ground coordinate for the native entry.
+                    s.nativePrecommit.x=XM87142::ramW(ram,p+0x0Cu);
+                    s.nativePrecommit.stockBefore=
+                        XM87142::ramB(ram,p+0x214u);
                 }
                 s.request=XM87192Owner::state().pending[side];
                 s.point=point;s.reserve=reserve;s.started=now;
@@ -273,8 +278,18 @@ struct State {
                         fail(side,now,"MORPHUS_D6_WRONG_OR_EXPIRED_SWAP");
                         continue;
                     }
+                    const char* direct=std::getenv("XM87335_NATIVE_DHC");
+                    if(direct && std::strcmp(direct,"1")==0 &&
+                       XM87334Native::enabled()){
+                        // We requested a direct native commit. If the actual
+                        // 68000 instruction hook did not run, do not silently
+                        // pretend that a neutral-wait replay is DHC. Leave
+                        // the original tag alone and fail only bookkeeping.
+                        fail(side,now,"NATIVE_335_NO_ORIGINAL_INCOMING_HOOK_NO_INPUT_REPLAY");
+                        continue;
+                    }
                     if(XM87334Native::enabled())
-                        event(now,side,"MORPHUS_D6_ORIGINAL_SWAP_CONFIRMED_DIRECT_COMMIT_NOT_INSTALLED");
+                        event(now,side,"MORPHUS_D6_ORIGINAL_SWAP_CONFIRMED_LEGACY_INPUT_PATH");
                     s.phase=AWAIT_NEUTRAL;s.neutralSince=0u;
                     event(now,side,"ORIGINAL_ROM_POINT_RESERVE_SWAPPED");
                 }else if((point!=s.point||reserve!=s.reserve) ||
@@ -332,6 +347,35 @@ struct State {
                 continue;
             }
             if(s.phase==INCOMING_SUPER){
+                // Direct 87.335 guest must still PROVE a real original-ROM
+                // 2E action. Guest entry is not proof of a successful Hyper.
+                // All checks are read-only post-CPU, after native helpers.
+                if(s.nativePrecommit.directUsed && !s.nativePrecommit.romSeen){
+                    const XM87184Life::Sample native={
+                        point,XM87142::ramW(ram,p+0x60u),
+                        XM87142::ramW(ram,p+0xA0u),
+                        XM87142::ramW(ram,p+0x08u),
+                        XM87142::ramL(ram,p+0x34u),
+                        XM87142::ramB(ram,p+0xD6u)};
+                    const bool accepted=XM87192Owner::State::nativeSuper(
+                        rom,romSize,native);
+                    if(accepted && native.d6==s.nativePrecommit.d6){
+                        s.nativePrecommit.romSeen=true;
+                        const unsigned stockNow=XM87142::ramB(ram,p+0x214u);
+                        char detail[156];
+                        std::snprintf(detail,sizeof(detail),
+                            "NATIVE_335_68000_ROM_2E_CONFIRMED d6=%02X stock_before=%u stock_now=%u",
+                            unsigned(native.d6),s.nativePrecommit.stockBefore,stockNow);
+                        event(now,side,detail);
+                    }else if(now>s.superAt+16u){
+                        // Native entry failed: never fabricate a super or
+                        // roll back a genuine fighter swap.
+                        fail(side,now,"NATIVE_335_GUEST_NO_ORIGINAL_ROM_SUPER");
+                        continue;
+                    }else{
+                        continue; // no false successful re-arm during startup
+                    }
+                }
                 // No second DHC during the incoming hyper. Re-arm only
                 // after its original ROM action returns to neutral.
                 if(neutral(ram,p)){
