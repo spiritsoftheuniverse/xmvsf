@@ -646,7 +646,7 @@ INT32 Cps2Frame()
             // as a character ID means Wolverine, NOT an empty slot.
             // Never intercept the genuine P1/P2 Hyper inputs in 1v1.
             const unsigned reserveLife=XM87142::ramW(CpsRamFF,r+0x210u);
-            if(!reserveLife &&
+            if(!XM87340Donor::genuineReserve(who,bench,reserveLife) &&
                st.phase!=XM87340Donor::CHAIN_ENTERED &&
                st.phase!=XM87340Donor::COMMITTED){
                 if(st.phase!=XM87340Donor::IDLE || st.hidden)
