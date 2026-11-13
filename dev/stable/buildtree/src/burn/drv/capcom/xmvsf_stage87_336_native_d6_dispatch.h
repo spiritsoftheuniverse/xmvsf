@@ -52,6 +52,12 @@ static inline unsigned relTarget(const std::uint8_t* c,unsigned n,
 struct Regions {
     unsigned begin[kFighterSlots]={};
     unsigned end[kFighterSlots]={};
+    // Exact original 68000 character-indexed function pointers, from
+    // each valid original 19-entry native table, NOT guessed fighter
+    // address bands. Every entry retains its real character ownership.
+    static const unsigned kMaxOwnerEntries=48u;
+    unsigned nativeEntry[kFighterSlots][kMaxOwnerEntries]={};
+    unsigned nativeCount[kFighterSlots]={};
     unsigned indexers=0u;
     bool ready=false;
 };
@@ -80,8 +86,16 @@ static inline Regions identify(const std::uint8_t* c,unsigned n){
         for(unsigned j=0u;j<kFighterSlots;++j){
             if(j==8u)continue; // Apocalypse is nonplayable
             const unsigned pcStart=pointers[j];
-            if(pcStart>=kMinCode && pcStart<kMaxCode && !(pcStart&1u) &&
-               pcStart<out.begin[j])out.begin[j]=pcStart;
+            if(pcStart>=kMinCode && pcStart<kMaxCode && !(pcStart&1u)){
+                if(pcStart<out.begin[j])out.begin[j]=pcStart;
+                unsigned k=0u;
+                for(;k<out.nativeCount[j];++k)
+                    if(out.nativeEntry[j][k]==pcStart)break;
+                if(k==out.nativeCount[j] &&
+                   out.nativeCount[j]<Regions::kMaxOwnerEntries){
+                    out.nativeEntry[j][out.nativeCount[j]++]=pcStart;
+                }
+            }
         }
     }
     // This is a *partial roster* index: some native fighter indexers do
@@ -102,6 +116,26 @@ static inline Regions identify(const std::uint8_t* c,unsigned n){
     }
     out.ready=true;
     return out;
+}
+// The same original 68000 indexer can enter actor-specific dispatch
+// functions that live outside a simple min/max "fighter region". One of
+// these exact table pointers is stronger ownership evidence than inferred
+// proximity. Reject a pointer shared by a different playable fighter.
+static inline bool originalIndexedOwner(const Regions& regions,
+                                        unsigned fighter,unsigned pc){
+    if(!regions.ready || fighter>kMaxFighter || (fighter&1u) ||
+       fighter==0x10u)return false;
+    const unsigned owner=fighter/2u;
+    bool found=false;
+    for(unsigned i=0;i<regions.nativeCount[owner];++i)
+        if(regions.nativeEntry[owner][i]==pc){found=true;break;}
+    if(!found)return false;
+    for(unsigned other=0u;other<kFighterSlots;++other){
+        if(other==owner || other==8u)continue;
+        for(unsigned i=0u;i<regions.nativeCount[other];++i)
+            if(regions.nativeEntry[other][i]==pc)return false;
+    }
+    return true;
 }
 // Cached *boundary evidence* for the active decrypted program. Individual
 // opcodes/ROM scripts are STILL checked on each claim: a stale pointer alone
@@ -166,10 +200,10 @@ struct Result {
     unsigned matchingHandlers=0u;
     bool hasNativeMatcherSource=false;
     // proof=1: 68000 D6/phase + literal original 2E launch verified.
-    // proof=2: 68000 incoming fighter's native command matcher writes
-    // exact D6 and mode 2A; unique original D6 table and phase zero
-    // verified, original fighter owns a bounded 2E ROM script. The 68000
-    // routine selects its action; no host-supplied 2E selector.
+    // proof=2: real actor-owned original D6/phase dispatch found through
+    // original 68000 fighter indexer or exact native source matcher,
+    // with a real bounded actor 2E ROM row. The 68000 routine chooses
+    // its own action; no host-supplied 2E selector.
     // proof=3: unchanged exact 87.336 original Ryu/Ken signatures.
     unsigned proof=0u;
     bool valid()const{return nativeDispatcher && phaseZero &&
@@ -266,7 +300,14 @@ static inline Result resolveGeneric(const std::uint8_t* code,unsigned nCode,
         0x4E,0xFB,0x00,0x02
     };
     result.ownerStart=lo;result.ownerEnd=hi;
-    for(unsigned pc=lo;pc+sizeof(d6Header)<hi;pc+=2u){
+    // Search exact verified original indexer-owned entrypoints too:
+    // not every original actor's D6 dispatcher is between the minimum
+    // code pointers of successive fighter IDs. Never use $011DBE here,
+    // which indexes TAG-IN actors and never dispatches actor D6.
+    for(unsigned pc=kMinCode;pc+sizeof(d6Header)<kMaxCode;pc+=2u){
+        const bool local=(pc>=lo && pc<hi);
+        const bool indexed=originalIndexedOwner(regions,fighter,pc);
+        if(!local && !indexed)continue;
         if(!bytes(code,nCode,pc,d6Header,sizeof(d6Header)))continue;
         const unsigned handler=relTarget(code,nCode,pc+sizeof(d6Header),d6);
         // The fighter owns the *D6 dispatch site*. Native subroutines may
@@ -341,7 +382,8 @@ static inline Result resolveGeneric(const std::uint8_t* code,unsigned nCode,
         // narrower proof if the ORIGINAL input matcher for THIS fighter
         // assigns the chosen D6 and mode 2A, with a genuine 2E ROM row.
         const bool indirectNative=(launches==0u &&
-            result.hasNativeMatcherSource && original2EScripts!=0u);
+            (result.hasNativeMatcherSource || indexed) &&
+            original2EScripts!=0u);
         if(!launches && !indirectNative)continue;
         // A few native state-entry aliases are equivalent in the real
         // ROM: same phase-zero code and same proven 2E selector/script.
