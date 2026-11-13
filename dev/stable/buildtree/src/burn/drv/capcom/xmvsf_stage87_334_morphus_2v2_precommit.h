@@ -106,9 +106,32 @@ static inline Decision resolve(unsigned incoming,unsigned ownerMotion,
         d.reason=ACCEPTED;
         return d;
     }
-    // A real command unknown to this restricted table is NOT interpreted
-    // as a different Hyper. In particular the 3v3 artificial motion
-    // assignment must never cause a 2v2 misfire.
+    // 87.337: A *DHC-specific* command may select an original Hyper
+    // whose ordinary native gesture is not supported by the 87.192
+    // input parser (Cyclops F,DF,D; Zangief 360; Akuma SGS), OR the
+    // source assigns a unique non-native motion for another Hyper.
+    // Morphus' reviewed 2P DHC table is a game-specific routing table,
+    // NOT a claim that those gestures are the fighter's native inputs.
+    // Use these aliases ONLY after no exact native motion+PP/KK entry
+    // matched; preserve Ken QCF+KK => Shinryuken, QCF+PP => Shoryureppa.
+    const int column=XM87329Morphus::columnFromOwnerMotion(ownerMotion);
+    if(column>=0){
+        const auto& row=XM87329Morphus::rows()[incoming/2u];
+        const unsigned selected=row.hyper[unsigned(column)];
+        if(selected){
+            if(row.air&(1u<<unsigned(column))){
+                d.reason=AIR_ONLY;return d;
+            }
+            if(row.conditional&(1u<<unsigned(column))){
+                d.reason=CONDITIONAL;return d;
+            }
+            d.motionColumn=std::uint8_t(column);
+            d.hyperD6=std::uint8_t(selected);
+            d.terminalThrow=(row.throwing&(1u<<unsigned(column)))!=0u;
+            d.reason=ACCEPTED;
+            return d;
+        }
+    }
     d.reason=NO_HYPER;
     return d;
 }
