@@ -676,11 +676,17 @@ INT32 Cps2Frame()
                 XM87142::ramB(CpsRamFF,p+0x214u));
             if(before!=XM87340Donor::CLAIMED &&
                st.phase==XM87340Donor::CLAIMED &&
-               st.selected==7u){
-                char input[160];
+               (st.selected==7u || st.selected==8u ||
+                st.selected==9u)){
+                char input[176];
+                const char* tag=st.selected==7u?
+                    "NATIVE_346_ORIGINAL_F_DF_D_PUNCH":
+                    st.selected==8u?
+                    "NATIVE_350_FINAL_ATOMIC_BUSTER_360":
+                    "NATIVE_350_RAGING_DEMON_LP_LP_F_LK_HP";
                 std::snprintf(input,sizeof(input),
-                    "NATIVE_346_ORIGINAL_F_DF_D_PUNCH incoming=%02X d6=%02X side=%u physical=%02X",
-                    st.reserve,st.d6,side+1u,st.hidden);
+                    "%s incoming=%02X d6=%02X side=%u physical=%02X",
+                    tag,st.reserve,st.d6,side+1u,st.hidden);
                 XM87274Unified::state().event(now,side,input);
             }
             // 87.348: The physical input and its actual incoming D6
