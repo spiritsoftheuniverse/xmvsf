@@ -84,19 +84,23 @@ int main(){
     assert(nearOpponentX(0u,8u)==0u);       // safe stage-left clamp
     assert(nearOpponentX(65530u,65520u)==65530u);
     assert(nearOpponentX(65535u,65500u)==65516u);
-    // All fighter IDs use the same stock original US actor dispatcher.
-    // A genuine native 2E ROM table and an actual incoming PP/KK
-    // selection are required by the bridge before selecting this route.
-    std::uint8_t stockGuest[4096]={};
-    assert(XM87335Guest::emit(stockGuest,sizeof(stockGuest),0u,
-        0x28u,nearOpponentX(80u,220u),
-        XM87333NativeDHC::kUSIncoming)); // P2 Rogue D6=28
-    assert(XM87335Guest::isImage(stockGuest,sizeof(stockGuest),0u,
-        0x28u,204u,XM87333NativeDHC::kUSIncoming));
-    assert(!XM87335Guest::isImage(stockGuest,sizeof(stockGuest),0u,
-        0x28u,204u,0x035356u)); // not Ken's per-fighter handler
-    // Host-swapped immediate X is now 204, not the outgoing X=80.
-    assert(word(stockGuest,0x20u)==0x00CCu);
+    // 87.344 regression: original US $011DBE is a FIGHTER TAG-IN
+    // INDEXER, not a D6 Hyper dispatcher. Its documented opcodes begin
+    // MOVE.W $0052(A6),D0 / ADD.W D0,D0; it must NEVER be
+    // substituted for a character-specific D6-to-phase-zero routine.
+    const auto* usSites=XM87333NativeDHC::sites();
+    assert(usSites[0].address==XM87333NativeDHC::kUSIncoming);
+    assert(usSites[0].bytesBE[0]==0x30u &&
+           usSites[0].bytesBE[1]==0x2Eu &&
+           usSites[0].bytesBE[2]==0x00u &&
+           usSites[0].bytesBE[3]==0x52u);
+    // Only an original opcode-verified per-fighter Hyper route is valid.
+    std::uint8_t ryuGuest[4096]={};
+    assert(XM87335Guest::emit(ryuGuest,sizeof(ryuGuest),0u,
+         0x0Au,nearOpponentX(80u,220u),0x0337BAu));
+    assert(XM87335Guest::isImage(ryuGuest,sizeof(ryuGuest),0u,
+         0x0Au,204u,0x0337BAu));
+    assert(word(ryuGuest,0x20u)==0x00CCu);
     std::uint8_t guest[4096]={};
     assert(!emitExit(nullptr,sizeof(guest),0x200u));
     assert(emitExit(guest,sizeof(guest),kExitOffsetP1));
@@ -125,5 +129,5 @@ int main(){
     assert(validateExit(original.data(),unsigned(original.size())));
     original[0xD590u]^=1u;
     assert(!validateExit(original.data(),unsigned(original.size())));
-    std::puts("XMVSF 87.343 both-side opponent X and original US fighter dispatcher PASS");
+    std::puts("XMVSF 87.344 real D6 only, never original US tag-in selector as Hyper PASS");
 }
