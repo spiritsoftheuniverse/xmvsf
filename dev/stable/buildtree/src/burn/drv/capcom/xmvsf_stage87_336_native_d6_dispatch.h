@@ -440,5 +440,91 @@ static inline Result resolve(const std::uint8_t* code,unsigned nCode,
         return Result();
     return resolveGeneric(code,nCode,rom,nRom,fighter,d6);
 }
+// 87.348 experimental execution: stop treating a diagnostic confidence
+// test as permission for the original input to tag. The ordinary resolver
+// stays intact for previously working Ryu/Ken paths; this route is ONLY
+// used when the Version-4 Morphus-native handoff has already accepted a
+// real incoming Hyper command and a genuine original fighter/reserve pair.
+// All addresses originate from executable source opcodes or a valid ROM 2E
+// script: nothing is read from a guessed empty ROM location.
+struct Trial {
+    enum Kind { NONE=0, NATIVE_D6_STATE=1, ORIGINAL_ROM_2E=2,
+                VERIFIED=3 };
+    Kind kind=NONE;
+    unsigned dispatcher=0u,handler=0u,selector=0u,script=0u;
+    bool valid()const{return kind!=NONE;}
+};
+static inline Trial resolveTrial(const std::uint8_t* c,unsigned nc,
+                                 const std::uint8_t* rom,unsigned nr,
+                                 unsigned fighter,unsigned d6){
+    Trial t;
+    if(!c||!rom||fighter>kMaxFighter || fighter==0x10u ||
+       (fighter&1u)||!d6||(d6&1u)||d6>0x7Eu)return t;
+    const Result proven=resolve(c,nc,rom,nr,fighter,d6);
+    if(proven.valid()){
+        t.kind=Trial::VERIFIED;
+        t.dispatcher=proven.nativeDispatcher;
+        t.handler=proven.phaseZero;
+        t.selector=proven.selector;
+        t.script=proven.script;
+        return t;
+    }
+    // Actual 68000 D6-indexed table + bounded native handler. The
+    // old policy also required a particular phase-zero 2E instruction
+    // sequence and vetoed even Cyclops' REAL table at $0236FC/$02390E.
+    // Here the CPU itself executes the native handler and can determine
+    // the correct 2E action or any intermediate phase.
+    const Regions& regions=regionFor(c,nc);
+    if(regions.ready){
+        const unsigned owner=fighter/2u;
+        const unsigned lo=regions.begin[owner],hi=regions.end[owner];
+        static const std::uint8_t header[]={
+            0x70,0x00,0x10,0x2E,0x00,0xD6,
+            0x30,0x3B,0x00,0x06,0x4E,0xFB,0x00,0x02
+        };
+        if(lo!=kNotFound && lo<hi && hi<=nc){
+            const unsigned local=(hi-lo)/2u;
+            for(unsigned i=0;i<local+regions.nativeCount[owner];++i){
+                const unsigned pc=i<local?lo+i*2u:
+                    regions.nativeEntry[owner][i-local];
+                if(pc<kMinCode || pc+sizeof(header)>kMaxCode ||
+                   (i>=local && pc>=lo && pc<hi))continue;
+                if(i>=local && !originalIndexedOwner(
+                    regions,fighter,pc))continue;
+                if(!bytes(c,nc,pc,header,sizeof(header)))continue;
+                const unsigned handler=relTarget(c,nc,
+                    pc+sizeof(header),d6);
+                if(handler==kNotFound||handler<kMinCode||
+                   handler>=kMaxCode)continue;
+                // One actual code destination is sufficient for an
+                // experimental attempt; do not insist it matches an
+                // imagined uniform 2E startup across the roster.
+                t.kind=Trial::NATIVE_D6_STATE;
+                t.dispatcher=pc;t.handler=handler;
+                return t;
+            }
+        }
+    }
+    // Fighter's D6 dispatcher is not indexed in the expected 68000
+    // shape (e.g. Wolverine D6=08). Do SOMETHING usable: use a genuine
+    // native 2E script owned by that very fighter and call the existing
+    // original ROM script dispatcher $01038E. Selection is deliberately
+    // experimental: the D6 command remains exact, but the first usable
+    // ROM 2E subaction is NOT guaranteed to be that Hyper.
+    unsigned first=0xFFFFFFFFu,preferred=0xFFFFFFFFu;
+    unsigned firstScript=0u,preferredScript=0u;
+    for(unsigned sel=0u;sel<=0x4Eu;sel+=2u){
+        const auto entry=XM87142::resolve(rom,nr,fighter,0x2Eu,sel);
+        if(!entry.valid)continue;
+        if(first==0xFFFFFFFFu){first=sel;firstScript=entry.script;}
+        if(sel==d6){preferred=sel;preferredScript=entry.script;}
+    }
+    if(first==0xFFFFFFFFu)return t;
+    t.kind=Trial::ORIGINAL_ROM_2E;
+    t.dispatcher=0x01038Eu;
+    t.selector=preferred!=0xFFFFFFFFu?preferred:first;
+    t.script=preferred!=0xFFFFFFFFu?preferredScript:firstScript;
+    return t;
+}
 } // namespace XM87336Dispatch
 #endif
