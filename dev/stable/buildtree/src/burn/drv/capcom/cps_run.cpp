@@ -641,6 +641,28 @@ INT32 Cps2Frame()
                 XM87334Native::qualifiedChord(chord);
             const bool newChord=nativeChord && (freshButtons&chord);
             const unsigned oldHidden=st.hidden;
+            // +$210 is the ORIGINAL actor life. A one-character team
+            // or a defeated sole reserve has no living partner. Zero
+            // as a character ID means Wolverine, NOT an empty slot.
+            // Never intercept the genuine P1/P2 Hyper inputs in 1v1.
+            const unsigned reserveLife=XM87142::ramW(CpsRamFF,r+0x210u);
+            if(!reserveLife &&
+               st.phase!=XM87340Donor::CHAIN_ENTERED &&
+               st.phase!=XM87340Donor::COMMITTED){
+                if(st.phase!=XM87340Donor::IDLE || st.hidden)
+                    st.reset();
+                st.hidden=0u;
+                if(newChord){
+                    char solo[184];
+                    std::snprintf(solo,sizeof(solo),
+                        "NATIVE_346_SOLO_NATIVE_INPUT_UNTOUCHED side=%u point=%02X reserveId=%02X reserveLife=%u buttons=%02X dir=%X",
+                        side+1u,who,bench,reserveLife,chord,dirs[side]);
+                    XM87274Unified::state().event(now,side,solo);
+                }
+                st.prev=chord;
+                st.lastFrame=now;
+                continue;
+            }
             st.sample(now,who,bench,dirs[side],buttons[side],
                 (XM87142::ramB(CpsRamFF,p+0x4Bu)&1u)!=0u,
                 sample.d6,hyper,eligible,
