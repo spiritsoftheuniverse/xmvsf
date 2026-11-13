@@ -668,6 +668,15 @@ INT32 Cps2Frame()
                 sample.d6,hyper,eligible,
                 XM87142::ramW(CpsRamFF,p+0x0Cu),
                 XM87142::ramB(CpsRamFF,p+0x214u));
+            if(before!=XM87340Donor::CLAIMED &&
+               st.phase==XM87340Donor::CLAIMED &&
+               st.selected==7u){
+                char input[160];
+                std::snprintf(input,sizeof(input),
+                    "NATIVE_346_ORIGINAL_F_DF_D_PUNCH incoming=%02X d6=%02X side=%u physical=%02X",
+                    st.reserve,st.d6,side+1u,st.hidden);
+                XM87274Unified::state().event(now,side,input);
+            }
             // 87.344: reject an unsupported incoming original-ROM D6
             // BEFORE hiding physical PP/KK or arming the outgoing tag.
             // 87.343 accepted seven actor swaps whose fallback target was
