@@ -67,6 +67,11 @@ struct State {
             if(p && *p){
                 log=std::fopen(p,"wb");
                 if(log)std::fputs("frame\tside\tphase\tpoint\treserve\tdecision\n",log);
+                else std::fprintf(stderr,
+                    "XMVSF DHC observer file could not open: %s\n",p);
+            }else{
+                std::fputs("XMVSF DHC observer path is not configured\n",
+                    stderr);
             }
         }
         if(log && side<2u){
