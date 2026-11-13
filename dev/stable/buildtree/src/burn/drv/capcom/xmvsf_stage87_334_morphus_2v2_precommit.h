@@ -35,8 +35,8 @@ static inline bool qualifiedChord(unsigned attacks){
 // families. This prevents QCF+KK for Ken from being mistaken for the
 // artificial DHC QCF assignment (Shoryureppa instead of Shinryuken).
 // Only commands expressible by the current owner motion parser are listed.
-// F,DF,D / 360 / SGS / air-only / custom sequences require a separate
-// original-ROM input decoder and are intentionally NOT guessed.
+// 87.346 adds the real Cyclops F,DF,D + PP (incl PPP) input. 360 / SGS /
+// air-only / other custom sequences still require original-native parsing.
 struct Command {
     std::uint8_t fighter, motion, family, hyperD6;
     bool terminalThrow;
@@ -45,7 +45,8 @@ static inline const Command* commands(unsigned* count=nullptr) {
     static const Command a[]={
         {0x00u,1u,1u,0x08u,false}, // Wolverine QCF+PP
         {0x00u,3u,1u,0x06u,false}, // Wolverine DP+PP
-        {0x02u,1u,1u,0x04u,false}, // Cyclops QCF+PP
+        {0x02u,1u,1u,0x04u,false}, // Cyclops Mega Optic Blast QCF+PP
+        {0x02u,8u,1u,0x02u,false}, // Cyclops Super Optic Blast F,DF,D+PP/PPP
         {0x04u,1u,1u,0x02u,false}, // Storm QCF+PP
         {0x04u,2u,1u,0x0Au,false}, // Storm QCB+PP
         {0x06u,1u,1u,0x28u,false}, // Rogue QCF+PP
@@ -85,13 +86,15 @@ static inline const Command* commands(unsigned* count=nullptr) {
 // Unlike the earlier experimental resolve(), this NEVER falls back to
 // Morphus' DHC-assigned alternate motions. The button family is part of
 // the native command identity (Ken QCF+PP != Ken QCF+KK).
+// Original Super Optic Blast F,DF,D is native motion 8. Never turn
+// Cyclops' real input into the donor's arbitrary QCB DHC assignment.
 // Do not assign substitute inputs for 360, charge, SGS or air commands.
 static inline Decision resolveNativeOnly(unsigned incoming,
                                          unsigned motion,unsigned attacks){
     Decision d;
     if(incoming>0x24u || (incoming&1u))return d;
     d.character=std::uint8_t(incoming);
-    if(motion<1u || motion>6u){
+    if(motion<1u || motion>8u){
         d.reason=MOTION_NOT_MAPPED;return d;
     }
     if(!qualifiedChord(attacks)){
