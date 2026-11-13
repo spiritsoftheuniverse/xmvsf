@@ -34,6 +34,7 @@
 #include "xmvsf_stage87_274_unified_dhc.h" // ROM-owned two-sided DHC test
 #include "xmvsf_stage87_335_native_dhc_bridge.h" // original-ROM native M68K guest bridge
 #include "xmvsf_stage87_340_morphus_native_2v2.h" // Morphus dhc.s motions/chord/2v2 chain
+#include "xmvsf_stage87_352_cyclops_sob_cleanup.h" // native Hyper-only orphan helper cleanup
 #include "xmvsf_stage87_329_morphus_hook_probe.h" // read-only EURO opcode signature audit
 #include "xmvsf_stage87_330_morphus_locator.h" // read-only cross-revision M68K signature locator
 #include "xmvsf_stage87_331_morphus_endian_locator.h" // correct word-swapped CPS2 opcode mapping
@@ -541,9 +542,14 @@ INT32 Cps2Frame()
     const bool xm274Unified=xm262V4 && XM87274Unified::state().enabled();
     const bool xm340Native=xm274Unified && XM87340Donor::enabled();
     static bool xm340WasActive=false;
-    if(xm340WasActive!=xm340Native)
+    if(xm340WasActive!=xm340Native){
         XM87340Donor::state().reset();
+        XM87352CyclopsFx::state().reset();
+    }
     xm340WasActive=xm340Native;
+    if(!xm340Native || !CpsRamFF ||
+       XM87142::ramB(CpsRamFF,0x5000u)!=8u)
+        XM87352CyclopsFx::state().reset();
     // 87.342: CREATE the existing DHC TSV on startup, not only after a
     // successful motion/Hyper claim. Silence used to mean both "no
     // command" and "an unexecuted/disabled native port".
@@ -640,6 +646,21 @@ INT32 Cps2Frame()
                 !XM87142::ramB(CpsRamFF,p+0x257u) &&
                 !XM87142::ramB(CpsRamFF,0x500Au);
             auto& st=XM87340Donor::state().side[side];
+            auto& oldCyclopsFx=XM87352CyclopsFx::state().side[side];
+            const bool swappedCyclops=
+                st.phase==XM87340Donor::COMMITTED &&
+                st.point==0x02u && who==st.reserve && bench==0x02u;
+            const unsigned retired=oldCyclopsFx.update(
+                CpsRamFF,now,swappedCyclops,
+                st.phase==XM87340Donor::IDLE && !oldCyclopsFx.committed,
+                oldCyclopsFx.armed && now>oldCyclopsFx.at && who==0x02u);
+            if(retired){
+                char detail[128];
+                std::snprintf(detail,sizeof(detail),
+                    "NATIVE_352_CYCLOPS_SOB_ORPHAN_HELPERS_RETIRED side=%u count=%u",
+                    side+1u,retired);
+                XM87274Unified::state().event(now,side,detail);
+            }
             const auto before=st.phase;
             const unsigned freshButtons=buttons[side]&~st.prev;
             const unsigned chord=buttons[side]&0x3Fu;
@@ -674,6 +695,17 @@ INT32 Cps2Frame()
                 sample.d6,hyper,eligible,
                 XM87142::ramW(CpsRamFF,p+0x0Cu),
                 XM87142::ramB(CpsRamFF,p+0x214u));
+            if(before!=XM87340Donor::CLAIMED &&
+               st.phase==XM87340Donor::CLAIMED &&
+               who==0x02u && sample.d6==0x02u &&
+               superAction==0x2C00u){
+                oldCyclopsFx.begin(CpsRamFF,now,p,r);
+                char fx[128];
+                std::snprintf(fx,sizeof(fx),
+                    "NATIVE_352_CYCLOPS_SOB_HELPERS_TRACKED side=%u count=%u",
+                    side+1u,oldCyclopsFx.n);
+                XM87274Unified::state().event(now,side,fx);
+            }
             if(before!=XM87340Donor::CLAIMED &&
                st.phase==XM87340Donor::CLAIMED &&
                (st.selected==7u || st.selected==8u ||
@@ -724,11 +756,20 @@ INT32 Cps2Frame()
                     if(st.step[i]>=motions[i].len)complete|=1u<<i;
                     else if(st.step[i]>=2u)partial|=1u<<i;
                 }
-                char reject[248];
+                char reject[352];
+                const bool faceRight=
+                    (XM87142::ramB(CpsRamFF,p+0x4Bu)&1u)!=0u;
+                const unsigned relativeDir=
+                    XM87340Donor::facingDir(dirs[side],faceRight);
                 std::snprintf(reject,sizeof(reject),
-                    "NATIVE_342_COMMAND_NOT_CLAIMED actor=%02X reserve=%02X buttons=%02X fresh=%02X dir=%X activeHyper=%u window=%u eligible=%u stock=%u phase=%u hidden=%02X complete=%02X partial=%02X",
-                    who,bench,chord,freshButtons,dirs[side],
-                    hyper?1u:0u,currentWindow?1u:0u,eligible?1u:0u,
+                    "NATIVE_352_COMMAND_NOT_CLAIMED actor=%02X reserve=%02X buttons=%02X fresh=%02X dir=%X rel=%X right=%u activeHyper=%u window=%u eligible=%u alive=%u gate221=%u gate257=%u gate500A=%u stock=%u phase=%u hidden=%02X complete=%02X partial=%02X",
+                    who,bench,chord,freshButtons,dirs[side],relativeDir,
+                    faceRight?1u:0u,hyper?1u:0u,currentWindow?1u:0u,
+                    eligible?1u:0u,
+                    XM87142::ramB(CpsRamFF,p+0x03u)?1u:0u,
+                    XM87142::ramB(CpsRamFF,p+0x221u)?1u:0u,
+                    XM87142::ramB(CpsRamFF,p+0x257u)?1u:0u,
+                    XM87142::ramB(CpsRamFF,0x500Au)?1u:0u,
                     XM87142::ramB(CpsRamFF,p+0x214u),
                     unsigned(super.phase),oldHidden,complete,partial);
                 XM87274Unified::state().event(now,side,reject);
