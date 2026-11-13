@@ -904,7 +904,8 @@ INT32 Cps2Frame()
     // No original ROM patch, host-created tag or guessed Hyper action.
     if(!bBurnRunAheadFrame){
         XM87335Native::state().prepare(
-            CpsCode,(unsigned)nCpsCodeLen,CpsRamFF,dhcGame,
+            CpsCode,(unsigned)nCpsCodeLen,
+            CpsRom,(unsigned)nCpsRomLen,CpsRamFF,dhcGame,
             (unsigned)GetCurrentFrame(),false);
         XM87335Native::state().begin(false);
     }
@@ -1190,7 +1191,8 @@ INT32 Cps2Frame()
                 (unsigned)GetCurrentFrame(),dhcWindow);
         if(xm274Unified)
             XM87274Unified::state().frame(CpsRamFF,CpsRom,(unsigned)nCpsRomLen,
-                (unsigned)GetCurrentFrame());
+                (unsigned)GetCurrentFrame(),
+                CpsCode,(unsigned)nCpsCodeLen);
         XM87186Opening::state().sample(CpsRamFF,
             (unsigned)GetCurrentFrame(),"POST_DHC_HOST",
             (unsigned)XM87144::state().phase[0],
