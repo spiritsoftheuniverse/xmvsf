@@ -1186,7 +1186,9 @@ INT32 Cps2Frame()
     // 87.224: executed 68000 PC / victim reaction+velocity deltas while
     // Charlie's actual 1804/1A04 is running. Read-only and bounded to
     // 32 CPU frames per move; wrap (never replace) the older DHC callback.
-    if(!bBurnRunAheadFrame)
+    // 87.347: this Charlie M68K PC observer is diagnostic only.
+    // Do not install its nested instruction callback during native DHC.
+    if(!bBurnRunAheadFrame && !xm340Native)
         XM87224CharliePC::state().begin(CpsRamFF,
             (unsigned)GetCurrentFrame(),dhcGameMatches,
             XM87262Game::tournamentKnockdowns(),false,
@@ -1288,8 +1290,9 @@ INT32 Cps2Frame()
     // F10 native transition logger stops first, without altering CPU cycles.
     // Includes a final summary when the same 68000 frame enters combat.
     XM87139Probe::state().nativeEnd();
-    // Unwind the nested Charlie callback BEFORE the DHC observer restores
-    // its own prior Musashi callback; neither remains armed after SekClose.
+    // Charlie's trace was never installed for native DHC; end() is a
+    // harmless no-op for that mode. Preserve the original callback LIFO
+    // when the observer is used by non-DHC Tournament tests.
     XM87224CharliePC::state().end();
 
 	nCpsCyclesExtra = SekTotalCycles() - nCpsCycles;
@@ -1320,7 +1323,8 @@ INT32 Cps2Frame()
             CpsCode,(unsigned)nCpsCodeLen,
             nativeDriver && std::strncmp(nativeDriver,"xmvsf",5)==0,
             XM87262Game::tournamentKnockdowns(),
-            xm8786_p1_buttons,xm8786_p2_buttons);
+            xm8786_p1_buttons,xm8786_p2_buttons,
+            xm340Native); // silence diagnostic capture, keep flight physics
     }
     // TEST 87.223: track Storm's original attack action independently of
     // Classic/Tournament. The Z80/QSound sample can arrive after this pose.
