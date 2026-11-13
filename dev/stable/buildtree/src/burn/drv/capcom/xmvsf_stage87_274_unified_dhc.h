@@ -105,9 +105,29 @@ struct State {
             out.attacks=m.attacks;return out;
         }
         if(s.phase==TAG_REQUESTED || s.phase==AWAIT_SWAP){
-            // The outgoing fighter must not consume the same chord twice.
             if(XM87142::ramW(ram,p+0x52u)==s.point){
-                out.active=true;return out;
+                // 87.339: after the original 68000 controller-8 tag request,
+                // the OLD path suppressed all attacks. The outgoing native
+                // input parser therefore never received a fresh LP+MP tag
+                // edge: 87.338 log P1 3894->3907 timed out, P2 3163->3164
+                // changed action. Feed only the original native tag chord.
+                // A reserve 2K command must be translated to a 2P outgoing
+                // edge; a reserve 2P command first releases to guarantee
+                // a fresh edge if those punches were held last sample.
+                // DHC source command and its real D6 remain untouched.
+                out.active=true;
+                if(s.phase==TAG_REQUESTED && now>s.started &&
+                   s.request.valid && s.request.reserve==s.reserve){
+                    const unsigned dt=now-s.started;
+                    const bool fromKicks=(s.request.buttonMask&0x07u)==0u &&
+                                         (s.request.buttonMask&0x38u)!=0u;
+                    if((fromKicks && dt<=2u) ||
+                       (!fromKicks && dt>=2u && dt<=3u)){
+                        out.attacks=XM87193Exit::route(
+                            s.request.buttonMask).nativeOutgoing;
+                    }
+                }
+                return out;
             }
         }
         if(s.phase!=IDLE||!superCandidate)return out;
