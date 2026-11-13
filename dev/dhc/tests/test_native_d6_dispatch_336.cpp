@@ -161,5 +161,80 @@ int main(){
     assert(!resolveGeneric(code.data(),unsigned(code.size()),
                            rom.data(),unsigned(rom.size()),
                            0x02u,0x04u).valid());
-    std::puts("XMVSF 87.338 partial-roster original D6 gating PASS");
+    // 87.345: a genuine native input source writes D6/A0, and an
+    // ORIGINAL indexed D6 + phase-zero state may launch 2E through
+    // an indirect path that is NOT Ryu's immediate MOVEQ/JMP bytes.
+    // Restore Cyclops' original matcher after mutating his compact
+    // action launch above: native-state path, not a synthetic 2E setter.
+    code[cyclops+1u]^=1u;
+    const auto cyclopsState=resolveGeneric(
+        code.data(),unsigned(code.size()),
+        rom.data(),unsigned(rom.size()),0x02u,0x04u);
+    assert(cyclopsState.valid() && cyclopsState.proof==2u);
+    assert(cyclopsState.hasNativeMatcherSource);
+    assert(cyclopsState.nativeDispatcher==0x21400u);
+
+    // Verify exact character-pointer ownership from a SECOND actual
+    // 19-entry original dispatcher table. Charlie's D6 dispatcher is
+    // at a code address OUTSIDE the inferred Charlie private region,
+    // and its phase zero deliberately has no recognized 2E launch.
+    // The original indexer entry for Charlie itself supplies ownership.
+    auto indexed=code; // new backing pointer refreshes the region cache
+    const unsigned alternatePC=0x1200u,alternateTable=0x3200u;
+    be(indexed,alternatePC,idx,sizeof(idx));
+    w(indexed,alternatePC+8u,alternateTable-(alternatePC+8u));
+    w(indexed,alternatePC+10u,0x4E90u);
+    for(unsigned i=0u;i<19u;++i)
+        l(indexed,alternateTable+i*4u,
+          (i==4u||i==5u||i==6u)?0u:
+          (i==16u?0x46000u:0x20000u+i*0x1000u));
+    static const std::uint8_t originalD6[]={
+        0x70,0x00,0x10,0x2E,0x00,0xD6,0x30,0x3B,
+        0x00,0x06,0x4E,0xFB,0x00,0x02
+    };
+    static const std::uint8_t originalPhase[]={
+        0x30,0x2E,0x00,0x08,0x30,0x3B,0x00,0x06,
+        0x4E,0xFB,0x00,0x02
+    };
+    const unsigned charlieStatePC=0x46000u;
+    const unsigned charlieHandler=0x46500u;
+    const unsigned charliePhase=0x46700u;
+    be(indexed,charlieStatePC,originalD6,sizeof(originalD6));
+    w(indexed,charlieStatePC+sizeof(originalD6)+0x04u,
+      charlieHandler-(charlieStatePC+sizeof(originalD6)));
+    be(indexed,charlieHandler,originalPhase,sizeof(originalPhase));
+    w(indexed,charlieHandler+sizeof(originalPhase),
+      charliePhase-(charlieHandler+sizeof(originalPhase)));
+    // No action-2E call is invented at charliePhase.
+    makeRom(rom,0x20u,0u);
+    const auto indexedRegions=identify(indexed.data(),unsigned(indexed.size()));
+    assert(indexedRegions.ready && indexedRegions.indexers==2u);
+    assert(indexedRegions.begin[16u]<charlieStatePC);
+    assert(indexedRegions.end[16u]<charlieStatePC);
+    assert(originalIndexedOwner(indexedRegions,0x20u,charlieStatePC));
+    assert(!originalIndexedOwner(indexedRegions,0x02u,charlieStatePC));
+    const auto dynamic=resolveGeneric(
+        indexed.data(),unsigned(indexed.size()),
+        rom.data(),unsigned(rom.size()),0x20u,0x04u);
+    assert(dynamic.valid() && dynamic.proof==2u);
+    assert(dynamic.nativeDispatcher==charlieStatePC);
+    assert(dynamic.phaseZero==charliePhase);
+    assert(!dynamic.launch && !dynamic.script);
+    assert(!resolveGeneric(indexed.data(),unsigned(indexed.size()),
+              rom.data(),unsigned(rom.size()),0x20u,0x06u).valid());
+
+    // Changing the exact original indexed owner MUST invalidate the
+    // proof. A reserve fighter with a generic ROM 2E table alone is not
+    // eligible; the original M68K fighter->D6 edge must exist.
+    auto wrongOwner=indexed;
+    l(wrongOwner,alternateTable+16u*4u,0x47000u);
+    assert(!resolveGeneric(wrongOwner.data(),unsigned(wrongOwner.size()),
+              rom.data(),unsigned(rom.size()),0x20u,0x04u).valid());
+    auto wrongRom=rom;
+    const unsigned charlieRomTable=0x100000u+0x20u*0x1000u;
+    romW(wrongRom,charlieRomTable+0x2Eu,0u);
+    assert(!resolveGeneric(indexed.data(),unsigned(indexed.size()),
+              wrongRom.data(),unsigned(wrongRom.size()),0x20u,0x04u).valid());
+
+    std::puts("XMVSF 87.345 original indexed fighter D6 phase route PASS");
 }
