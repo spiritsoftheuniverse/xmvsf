@@ -1,4 +1,4 @@
-// Stage 87.334: standalone C++11 native PP/KK-to-D6 regressions.
+// 87.337: native PP/KK D6 selection PLUS Morphus DHC-only aliases.
 // Not added to the normal Windows BUILD_TEST pipeline.
 #include "../../stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_334_morphus_2v2_precommit.h"
 #include <cassert>
@@ -21,11 +21,15 @@ int main(){
     assert(r.ok() && r.hyperD6==0x16u);
     r=resolve(0x22u,1u,0x18u); // Cammy QCF+KK
     assert(r.ok() && r.hyperD6==0x0Eu);
-    assert(resolve(0x1Eu,3u,0x03u).reason==NO_HYPER); // SGS needs sequence
-    assert(resolve(0x06u,2u,0x18u).reason==NO_HYPER); // conditional SGS
-    assert(resolve(0x1Au,1u,0x03u).reason==NO_HYPER); // 360 not QCF
-    assert(resolve(0x02u,2u,0x03u).reason==NO_HYPER); // F,DF,D not QCB
+    assert(resolve(0x1Eu,3u,0x03u).ok()); // SGS via reviewed DHC DP alias
+    assert(resolve(0x1Eu,3u,0x03u).hyperD6==0x10u);
+    assert(resolve(0x1Eu,3u,0x03u).terminalThrow);
+    assert(resolve(0x06u,2u,0x18u).reason==CONDITIONAL); // Rogue absorbed SGS still refused
+    assert(resolve(0x1Au,1u,0x03u).hyperD6==0x0Au); // Zangief 360 Hyper via original DHC QCF alias
+    assert(resolve(0x1Au,1u,0x03u).terminalThrow);
+    assert(resolve(0x02u,2u,0x03u).hyperD6==0x02u); // Cyclops F,DF,D Hyper via DHC QCB alias
     assert(resolve(0x14u,5u,0x03u).reason==NO_HYPER);
+    assert(resolve(0x14u,2u,0x03u).hyperD6==0x0Eu); // Ken QCB DHC alias: Shinryuken
     assert(resolve(0x14u,7u,0x03u).reason==MOTION_NOT_MAPPED);
     assert(resolve(0x14u,1u,0x01u).reason==BAD_BUTTONS);
     assert(resolve(0x14u,1u,0x1Bu).reason==BAD_BUTTONS);
@@ -40,5 +44,5 @@ int main(){
     p.markConsumed();
     assert(!p.matchesAfterOriginalSwap(1u,0x14u,0x12u));
     p.clear();assert(!p.armed);
-    std::puts("XMVSF 87.334 native-input D6 precommit policy PASS");
+    std::puts("XMVSF 87.337 native-input and reviewed DHC-motion D6 policy PASS");
 }
