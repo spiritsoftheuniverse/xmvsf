@@ -21,3 +21,8 @@ Standalone C++11 -Wall -Wextra -Werror lifecycle regression passes both active-h
 ## Test
 
 With the four native flags enabled, run BUILD_TEST.bat and RUN_TEST.bat xmvsfu, choose Version 4, DHC out of Cyclops original Super Optic Blast into Sabretooth. Observe whether stray ricochet effects disappear after the native DHC. Retry the previously missed PP/KK inputs; inspect test/87.352/observer/dhc_unified_274.tsv. If an effect still remains and tracked=0, the native object collection needs a new live capture before a different object is modified.
+
+
+## Follow-up original-motion sampling tolerance (same 87.352)
+
+The 87.351 parser still rejected fast native HCB sweeps when BOTH diagonals fell between host input samples, and Cyclops' original F,DF,D+PP when its single DF was missed. This is sampling rather than a new fighter input mapping. For an HCB intended for the exact original Sabretooth HCB+KK Hyper, F,D,B with both diagonals skipped is now permitted only within 12 frames of first F; the existing PP/KK, active outgoing Hyper, reserve, meter, and native D6 checks remain. A long F,D,B is rejected. The original Cyclops motion 8 (F,DF,D) can skip DF once but still requires F then D and PP/PPP. Both facings and the short/long negatives are covered in the existing standalone DHC C++ fixture. Actual in-game execution remains unverified.

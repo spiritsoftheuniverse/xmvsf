@@ -276,6 +276,43 @@ int main(){
                       true,true,220u,1u);
         assert(notHcb.phase==IDLE); // F,D,B cannot fake an HCB.
     }
+    // 87.352: genuine short sampled reverse inputs, not motion aliases.
+    // The identical native D6 is selected on both physical facings.
+    for(unsigned side=0u;side<2u;++side){
+        const bool right=side==0u;
+        const unsigned forward=right?1u:2u,back=right?2u:1u;
+        const unsigned start=2200u+side*100u;
+        Slot hcbFast;
+        hcbFast.sample(start,0x12u,0x0Au,0u,0u,right,
+                       0x0Au,true,true,220u,1u);
+        hcbFast.sample(start+1u,0x12u,0x0Au,forward,0u,right,
+                       0x0Au,true,true,220u,1u);
+        hcbFast.sample(start+2u,0x12u,0x0Au,4u,0u,right,
+                       0x0Au,true,true,220u,1u);
+        assert(hcbFast.sample(start+3u,0x12u,0x0Au,back,0x18u,
+                       right,0x0Au,true,true,220u,1u)==0x18u);
+        assert(hcbFast.phase==CLAIMED && hcbFast.selected==5u &&
+               hcbFast.d6==0x08u);
+        Slot hcbLate;
+        hcbLate.sample(start,0x12u,0x0Au,0u,0u,right,
+                       0x0Au,true,true,220u,1u);
+        hcbLate.sample(start+1u,0x12u,0x0Au,forward,0u,right,
+                       0x0Au,true,true,220u,1u);
+        hcbLate.sample(start+12u,0x12u,0x0Au,4u,0u,right,
+                       0x0Au,true,true,220u,1u);
+        assert(hcbLate.sample(start+15u,0x12u,0x0Au,back,0x18u,
+                       right,0x0Au,true,true,220u,1u)==0u);
+        assert(hcbLate.phase==IDLE);
+        Slot opticFast;
+        opticFast.sample(start,0x12u,0x02u,0u,0u,right,
+                         0x0Au,true,true,220u,1u);
+        opticFast.sample(start+1u,0x12u,0x02u,forward,0u,right,
+                         0x0Au,true,true,220u,1u);
+        assert(opticFast.sample(start+2u,0x12u,0x02u,4u,0x03u,
+                         right,0x0Au,true,true,220u,1u)==0x03u);
+        assert(opticFast.phase==CLAIMED && opticFast.selected==7u &&
+               opticFast.d6==0x02u);
+    }
     // 87.343: position against ACTUAL opponent X, for P1 or P2.
     assert(nearOpponentX(80u,220u)==204u);  // P1 approaches from left
     assert(nearOpponentX(360u,220u)==236u); // P2 approaches from right

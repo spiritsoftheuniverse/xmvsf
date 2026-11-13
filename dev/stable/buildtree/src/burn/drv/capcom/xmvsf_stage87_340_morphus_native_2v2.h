@@ -150,12 +150,14 @@ struct Slot {
  unsigned claimedAt=0u,enteredAt=0u,committedAt=0u;
  bool confirmed=false;
  std::uint8_t step[8]={},timer[8]={},missedDiagonal[8]={};
+ unsigned firstFrame[8]={};
  SpecialHistory special;
  unsigned claims=0u,refusals=0u,commits=0u;
  void reset(){*this=Slot();}
  void clearSteps(){std::memset(step,0,sizeof(step));
                    std::memset(timer,0,sizeof(timer));
                    std::memset(missedDiagonal,0,sizeof(missedDiagonal));
+                   std::memset(firstFrame,0,sizeof(firstFrame));
                    special.reset();}
  // Donor's seven motions plus original Cyclops F,DF,D+PP.
  // Original forward motions keep 14 input samples; QCB/HCB use 18/24.
@@ -186,22 +188,28 @@ struct Slot {
   for(unsigned i=0u;i<8u;++i){
    unsigned n=step[i];
    if(n && timer[i] && !--timer[i]){
-    step[i]=0u;missedDiagonal[i]=0u;n=0u;
+    step[i]=0u;missedDiagonal[i]=0u;firstFrame[i]=0u;n=0u;
    }
    if(n>=m[i].len)continue;
    const unsigned expect=m[i].seq[n];
-   // 87.351: fast QCB/HCB may cross ONE diagonal between samples.
-   // Require another observed diagonal for HCB; F,D,B is insufficient.
+   // 87.352: consecutive real cardinal samples can straddle joystick
+   // diagonals. QCB may miss DB; Cyclops F,DF,D may miss DF.
+   // An HCB may miss BOTH diagonals only for a fast F,D,B sweep
+   // completed within 12 frames of its first native cardinal sample.
    const unsigned window=i==5u?24u:(i==1u?18u:14u);
    if((expect==0x80u)?!(d&4u):(d==expect)){
+    if(!n)firstFrame[i]=frame;
     step[i]=std::uint8_t(n+1u);
     timer[i]=std::uint8_t(window);
-   }else if((i==1u||i==5u) && n>0u && !missedDiagonal[i] &&
+   }else if((i==1u||i==5u||i==7u) && n>0u &&
             n+1u<m[i].len && (expect==5u||expect==6u) &&
-            d==m[i].seq[n+1u]){
+            d==m[i].seq[n+1u] &&
+            missedDiagonal[i]<(i==5u?2u:1u) &&
+            (i!=5u || missedDiagonal[i]!=1u ||
+             frame-firstFrame[i]<=12u)){
     step[i]=std::uint8_t(n+2u);
     timer[i]=std::uint8_t(window);
-    missedDiagonal[i]=1u;
+    ++missedDiagonal[i];
    }
   }
   // The same authentic command that ordinarily starts the incoming
@@ -229,6 +237,10 @@ struct Slot {
    for(unsigned i=0u;i<8u;++i){
     const unsigned j=priority[i];
     if(step[j]<m[j].len || timer[j]<=best)continue;
+    // A two-diagonal HCB shortcut expires sooner than an explicitly
+    // sampled five-sector rotation. No stale F,D,B can fake a Hyper.
+    if(j==5u && missedDiagonal[j]==2u &&
+       frame-firstFrame[j]>12u)continue;
     const auto candidate=XM87334Native::resolveNativeOnly(
         bench,j+1u,mask);
     if(!candidate.ok())continue; // real native motion only
