@@ -259,6 +259,7 @@ static inline Result resolveGeneric(const std::uint8_t* code,unsigned nCode,
             start+240u:kMaxCode;
         unsigned launches=0u,primary=0u,alternate=kNotFound,
                  launchAt=0u,scriptAt=0u;
+        bool conflictingLaunches=false;
         for(unsigned pos=start;pos+10u<=stop;pos+=2u){
             // Native MOVEQ #$2E,D0 ; MOVEQ #selector,D1 ;
             // JMP $01038E. No invented actor action or animation.
@@ -284,23 +285,35 @@ static inline Result resolveGeneric(const std::uint8_t* code,unsigned nCode,
                 if(!other.valid)continue;
                 alternate=12u;
             }
+            if(launches && (primary!=sel || scriptAt!=entry.script ||
+                             alternate!=(conditional?12u:kNotFound)))
+                conflictingLaunches=true;
+            if(!launches){
+                primary=sel;scriptAt=entry.script;launchAt=pos;
+            }
             ++launches;
-            primary=sel;scriptAt=entry.script;launchAt=pos;
         }
         // A conditional two-selector native path counts as ONE launch.
         // Some original phase-zero functions branch to more than one
         // verified 2E action. The real M68K decides which selector runs;
         // this host code never writes one. Requiring exactly one rejected
         // otherwise valid character Hyper paths.
-        if(!launches)continue;
-        ++result.matchingHandlers;
-        if(result.matchingHandlers==1u){
+        if(!launches || conflictingLaunches)continue;
+        // A few native state-entry aliases are equivalent in the real
+        // ROM: same phase-zero code and same proven 2E selector/script.
+        // Count the equivalence class once instead of rejecting all DHC.
+        if(result.matchingHandlers==0u){
+            result.matchingHandlers=1u;
             result.nativeDispatcher=pc;
             result.phaseZero=start;
             result.launch=launchAt;
             result.selector=primary;
             result.alternativeSelector=alternate;
             result.script=scriptAt;
+        }else if(result.phaseZero!=start || result.selector!=primary ||
+                 result.alternativeSelector!=alternate ||
+                 result.script!=scriptAt){
+            return Result(); // real ambiguity: do not guess a Hyper
         }
     }
     if(result.matchingHandlers!=1u)
