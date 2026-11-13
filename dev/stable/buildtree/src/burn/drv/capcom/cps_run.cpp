@@ -706,13 +706,25 @@ INT32 Cps2Frame()
             }
             if(newChord && before==XM87340Donor::IDLE &&
                st.phase!=XM87340Donor::CLAIMED){
-                char reject[208];
+                // 87.349: 18 inputs in the 87.348 capture had a
+                // genuine active Super, valid DHC window and meter,
+                // but the exact incoming motion was not completed.
+                // Report the eight ORIGINAL motion trackers instead
+                // of guessing new buttons or blaming native 2C code.
+                unsigned complete=0u,partial=0u;
+                const auto* motions=XM87340Donor::motions();
+                for(unsigned i=0u;i<8u;++i){
+                    if(!st.timer[i] || !st.step[i])continue;
+                    if(st.step[i]>=motions[i].len)complete|=1u<<i;
+                    else if(st.step[i]>=2u)partial|=1u<<i;
+                }
+                char reject[248];
                 std::snprintf(reject,sizeof(reject),
-                    "NATIVE_342_COMMAND_NOT_CLAIMED actor=%02X reserve=%02X buttons=%02X fresh=%02X dir=%X active2E=%u window=%u eligible=%u stock=%u phase=%u hidden=%02X",
+                    "NATIVE_342_COMMAND_NOT_CLAIMED actor=%02X reserve=%02X buttons=%02X fresh=%02X dir=%X activeHyper=%u window=%u eligible=%u stock=%u phase=%u hidden=%02X complete=%02X partial=%02X",
                     who,bench,chord,freshButtons,dirs[side],
                     hyper?1u:0u,currentWindow?1u:0u,eligible?1u:0u,
                     XM87142::ramB(CpsRamFF,p+0x214u),
-                    unsigned(super.phase),oldHidden);
+                    unsigned(super.phase),oldHidden,complete,partial);
                 XM87274Unified::state().event(now,side,reject);
             }
             if(before!=st.phase && st.phase==XM87340Donor::CLAIMED){
