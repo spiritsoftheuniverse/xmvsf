@@ -626,8 +626,14 @@ INT32 Cps2Frame()
             const bool currentWindow=super.lastFrame!=~0u &&
                 now>0u && super.lastFrame==now-1u &&
                 super.unifiedDhcWindowAt(super.lastFrame,sample);
+            // 87.349: original M68K Hyper activity is NOT only 2E.
+            // Storm/Sabretooth/Bison/Charlie execute real 2C actions
+            // under the same 2A controller+D6. The native ROM lifecycle
+            // tracker separately verifies the outgoing 2C script window.
+            const unsigned superAction=sample.action&0xFF00u;
             const bool hyper=(sample.mode&0xFF00u)==0x2A00u &&
-                sample.d6 && (sample.action&0xFF00u)==0x2E00u;
+                sample.d6 &&
+                (superAction==0x2C00u || superAction==0x2E00u);
             const bool eligible=currentWindow && hyper &&
                 XM87142::ramB(CpsRamFF,p+0x03u) &&
                 !XM87142::ramB(CpsRamFF,p+0x221u) &&
@@ -734,16 +740,22 @@ INT32 Cps2Frame()
                 if(!st.confirmed && who==st.reserve &&
                    bench==st.point && hyper && sample.d6==st.d6){
                     st.confirmed=true;
-                    char detail[144];
-                    std::snprintf(detail,sizeof(detail),
-                        "MORPHUS_340_ACTUAL_US_2E_HYPER d6=%02X stock_before=%u stock_now=%u",
-                        st.d6,st.stock,
-                        XM87142::ramB(CpsRamFF,p+0x214u));
+                    char detail[194];
+                    if(superAction==0x2C00u)
+                        std::snprintf(detail,sizeof(detail),
+                            "MORPHUS_349_ACTUAL_US_2C_HYPER d6=%02X action=%04X script=%06X stock_before=%u stock_now=%u",
+                            st.d6,sample.action,sample.script,st.stock,
+                            XM87142::ramB(CpsRamFF,p+0x214u));
+                    else
+                        std::snprintf(detail,sizeof(detail),
+                            "MORPHUS_340_ACTUAL_US_2E_HYPER d6=%02X stock_before=%u stock_now=%u",
+                            st.d6,st.stock,
+                            XM87142::ramB(CpsRamFF,p+0x214u));
                     XM87274Unified::state().event(now,side,detail);
                 }
                 if(!st.confirmed && now>st.committedAt+16u){
                     XM87274Unified::state().event(now,side,
-                        "MORPHUS_340_INCOMING_GUEST_NO_ORIGINAL_2E");
+                        "MORPHUS_349_INCOMING_GUEST_NO_ORIGINAL_2C_OR_2E");
                     ++st.refusals;
                     st.phase=XM87340Donor::IDLE;
                 }
