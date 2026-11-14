@@ -8,7 +8,7 @@
 // $011DBE to a mapped 68000 guest routine only for the genuine reserve
 // identity and an armed Version-4 DHC. Ordinary tags execute the original
 // bytes verbatim. No original CpsCode or on-disk ROM patch is made.
-// Requires explicitly enabled experimental flags; not a tested universal DHC.
+// Integrated Version-4 native DHC; original US ROM guards retained.
 #include "xmvsf_stage87_274_unified_dhc.h"
 #include "xmvsf_stage87_333_morphus_native_dhc_abi.h"
 #include "xmvsf_stage87_335_native_dhc_guest.h"
@@ -22,13 +22,11 @@
 
 namespace XM87335Native {
 static inline bool enabled(){
-    const char* setting=std::getenv("XM87335_NATIVE_DHC");
-    const bool original=setting && std::strcmp(setting,"1")==0 &&
-           XM87334Native::enabled() && XM87274Unified::state().enabled();
-    // Exact Morphus tag hook and native exit are a separate opt-in
-    // transaction, not an extension of host controller 8.
-    return original || (XM87340Donor::enabled() &&
-                        XM87274Unified::state().enabled());
+    // 87.361: original M68K DHC is the Version-4 native path.
+    // No opt-in, synthetic controller 8 or legacy precommit.
+    return XM87262Game::version4() &&
+           XM87274Unified::state().enabled() &&
+           XM87340Donor::enabled();
 }
 struct State;
 inline State& state();

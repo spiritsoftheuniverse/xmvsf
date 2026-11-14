@@ -54,8 +54,8 @@ struct State {
     bool logChecked=false;
     ~State(){if(log){std::fflush(log);std::fclose(log);}}
     bool enabled()const{
-        const char* v=std::getenv("XM87274_UNIFIED_DHC");
-        return XM87262Game::version4() && v && std::strcmp(v,"1")==0;
+        // 87.361: built-in native DHC for Version 4, no opt-in.
+        return XM87262Game::version4();
     }
     void reset(){
         slot[0].reset();slot[1].reset();lastFrame=~0u;

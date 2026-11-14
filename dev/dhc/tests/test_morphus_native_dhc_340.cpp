@@ -783,5 +783,8 @@ int main(){
     assert(XM87189Family::Tracker::originalSuperController(
          XM87184Life::Sample(0x12u,0x2E08u,0x2A00u,2u,
                               0x0D3070u,0x0Au))); // 2E unmodified
-    std::puts("XMVSF 87.360 native 2C/2E full Hyper lifespan for Charlie and Chun-Li PASS");
+    // Default enablement must follow the in-game Version 4 selection.
+    assert(XM87340Donor::enabled()==XM87262Game::version4());
+    assert(XM87334Native::enabled()==XM87262Game::version4());
+    std::puts("XMVSF 87.361 original M68K DHC built into Version 4 PASS");
 }

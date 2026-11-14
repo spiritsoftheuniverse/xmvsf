@@ -7,6 +7,7 @@
 // Use only with the experimental Version-4 unified DHC; revision equivalence
 // of the European per-character +D6 table still requires US gameplay proof.
 #include "xmvsf_stage87_329_morphus_dhc_catalog.h"
+#include "xmvsf_stage87_262_game_version.h"
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
@@ -195,8 +196,8 @@ static inline const char* reasonName(Reason reason){
     return "MORPHUS_D6_UNKNOWN";
 }
 static inline bool enabled(){
-    const char* value=std::getenv("XM87334_MORPHUS_PRECOMMIT");
-    return value && std::strcmp(value,"1")==0;
+    // 87.361: native Hyper D6 selection is part of Version 4.
+    return XM87262Game::version4();
 }
 struct Pending {
     std::uint8_t point=0,reserve=0,d6=0;

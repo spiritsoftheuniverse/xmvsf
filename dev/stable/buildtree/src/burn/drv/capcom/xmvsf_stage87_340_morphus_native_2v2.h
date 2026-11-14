@@ -5,6 +5,7 @@
 // No donor-assigned MP+MK/MP+HK chords or substitute motion mappings.
 #include "xmvsf_stage87_142_rom_dispatch.h"
 #include "xmvsf_stage87_334_morphus_2v2_precommit.h"
+#include "xmvsf_stage87_262_game_version.h"
 #include <cstdint>
 #include <cstring>
 #include <cstdlib>
@@ -386,8 +387,8 @@ struct Slot {
 struct State {Slot side[2];void reset(){side[0].reset();side[1].reset();}};
 static inline State& state(){static State s;return s;}
 static inline bool enabled(){
- const char* s=std::getenv("XM87340_MORPHUS_NATIVE");
- return s && std::strcmp(s,"1")==0;
+ // 87.361: native 68000 DHC is built into Version 4.
+ return XM87262Game::version4();
 }
 // US source opcode evidence at $00D59A, original call to $04BF66.
 // Never derive every native function from a global Euro->US offset.

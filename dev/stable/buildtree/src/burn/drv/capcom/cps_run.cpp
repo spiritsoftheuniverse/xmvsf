@@ -539,7 +539,12 @@ INT32 Cps2Frame()
         XM87332Context::state().frame(
             CpsCode,(unsigned)nCpsCodeLen,dhcGame);
     const bool xm262V4=dhcGameMatches && XM87262Game::version4();
-    const bool xm274Unified=xm262V4 && XM87274Unified::state().enabled();
+    // 87.361: Version-4 original US xmvsfu automatically uses native
+    // DHC. Never activate the old experiment on other ROMs or Version 3.
+    const bool nativeUsGame=dhcGame &&
+        std::strcmp(dhcGame,"xmvsfu")==0;
+    const bool xm274Unified=xm262V4 && nativeUsGame &&
+        XM87274Unified::state().enabled();
     const bool xm340Native=xm274Unified && XM87340Donor::enabled();
     static bool xm340WasActive=false;
     if(xm340WasActive!=xm340Native){
@@ -559,9 +564,7 @@ INT32 Cps2Frame()
     if(xm342DhcLastFrame!=~0u && xm342Now<xm342DhcLastFrame)
         xm342DhcBootLogged=false;
     xm342DhcLastFrame=xm342Now;
-    if(!bBurnRunAheadFrame && dhcGameMatches &&
-       (std::getenv("XM87274_UNIFIED_DHC") ||
-        std::getenv("XM87340_MORPHUS_NATIVE")) &&
+    if(!bBurnRunAheadFrame && xm340Native &&
        !xm342DhcBootLogged){
         const bool hook=XM87333NativeDHC::verify(
             CpsCode,(unsigned)nCpsCodeLen).all();

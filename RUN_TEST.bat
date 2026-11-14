@@ -1,11 +1,11 @@
 @echo off
-REM XMVSF TEST 87.360 - native Hyper full-lifetime DHC for Charlie and Chun-Li - local native Windows DHC build (no Stable overwrite)
+REM XMVSF TEST 87.361 - final native DHC built into Version 4 - local native Windows DHC build (no Stable overwrite)
 setlocal EnableExtensions DisableDelayedExpansion
 for %%I in ("%~dp0.") do set "PROJECT=%%~fI"
 set "MSYSTEM=UCRT64"
 set "PATH=C:\msys64\ucrt64\bin;C:\msys64\usr\bin;%PATH%"
 set "XMVSF_PROJECT=%PROJECT%"
-set "XMVSF_TEST_VERSION=87.360"
+set "XMVSF_TEST_VERSION=87.361"
 REM Derived from XMVSF_TEST_VERSION; must match BUILD_TEST.bat.
 set "XMVSF_TEST_TAG=%XMVSF_TEST_VERSION:.=_%"
 REM All TEST diagnostics track the same version as the launched executable.
@@ -121,13 +121,12 @@ REM Charlie air HP stays ROM native; confirmed HK gets Cyclops severe.
 REM 87.235 fixed Storm native baseline x1.5. Charlie conversions label
 REM CHARLIE_STORM_FIXED_BASE_XY_150PCT and the old Y-velocity
 REM carry-over is disabled only for Charlie air HP/HK.
-REM 87.319: retain experimental universal M68K DHC from 87.274.
-REM Default OFF; game version 3 stays native.
-if not defined XM87274_UNIFIED_DHC set "XM87274_UNIFIED_DHC=0"
+REM 87.361: native original 68000 DHC is built into Version 4 of xmvsfu.
+REM No activation flags. Version 3 remains the original native game.
 if not defined XM87274_UNIFIED_DHC_LOG set "XM87274_UNIFIED_DHC_LOG=%OBSROOT%\dhc_unified_274.tsv"
-echo UNIVERSAL M68K DHC requested: %XM87274_UNIFIED_DHC%  (1=experimental Version 4, 0=legacy)
+echo Native M68K DHC: built into Version 4; no flags needed.
+echo Version 3: original game, without DHC.
 echo DHC input/decision trace: %XM87274_UNIFIED_DHC_LOG%
-echo DHC opts: unified=%XM87274_UNIFIED_DHC% precommit=%XM87334_MORPHUS_PRECOMMIT% native=%XM87335_NATIVE_DHC% donor=%XM87340_MORPHUS_NATIVE%
 set "XM87175_DHC_OBSERVER=1"
 set "XM87175_DHC_OBSERVER_LOG=%OBSROOT%\dhc_acceptance_test.tsv"
 REM 87.185: subframe 68000 trace; delayed priming is unsafe by default.
