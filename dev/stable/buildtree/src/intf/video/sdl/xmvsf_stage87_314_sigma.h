@@ -134,7 +134,9 @@ struct Scene {
   SDL_Surface* w=SDL_CreateRGBSurfaceWithFormat(0,imageW,imageH,32,SDL_PIXELFORMAT_RGBA32);
   SDL_Surface* b=SDL_CreateRGBSurfaceWithFormat(0,imageW,imageH,32,SDL_PIXELFORMAT_RGBA32);
   if(!o||!w||!b){
-   if(o)SDL_FreeSurface(o);if(w)SDL_FreeSurface(w);if(b)SDL_FreeSurface(b);
+   if(o)SDL_FreeSurface(o);
+   if(w)SDL_FreeSurface(w);
+   if(b)SDL_FreeSurface(b);
    SDL_FreeSurface(image);failed=true;failedGeneration=xm77StageRollGeneration();return false;
   }
   SDL_FillRect(o,nullptr,SDL_MapRGBA(o->format,0,0,0,0));

@@ -17,6 +17,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <string>
 #include "xmvsf_stage77_selection.h" // XM86.31 safe-host menu-only stage selection
 int xm77StageChoice=0, xm77StageResolved=0;
 #include "xmvsf_stage87_164_host_replay.h" // shared app/menu/session replay journal
@@ -369,7 +370,7 @@ TCHAR* AdaptiveEncodingReads(const TCHAR* pszFileName)
 	return NULL;
 }
 
-static int __cdecl AppDebugPrintf(int nStatus, TCHAR* pszFormat, ...)
+[[maybe_unused]] static int __cdecl AppDebugPrintf(int nStatus, TCHAR* pszFormat, ...)
 {
 
 	va_list args;
@@ -502,10 +503,14 @@ int main(int argc, char* argv[])
 		{_T("savestates")},
 		{_T("screenshots")},
 	};
-	TCHAR currentPath[MAX_PATH];
-	for(int x = 0; x < DIRCNT; x++) {
-		snprintf(currentPath, MAX_PATH, "%s%s", base_path, szDirs[x]);
-		CreateDirectory(currentPath, NULL);
+	// SDL_GetBasePath can exceed MAX_PATH. Construct directory paths
+	// dynamically; never create directories from truncated names.
+	if(base_path) {
+		for(int x = 0; x < DIRCNT; x++) {
+			const std::string currentPath = std::string(base_path) + szDirs[x];
+			CreateDirectoryA(currentPath.c_str(), NULL);
+		}
+		SDL_free(base_path);
 	}
 #undef DIRCNT
 

@@ -31,7 +31,8 @@ struct Layer {
  // Only moon textures use these visible-alpha vertical centers.
  int visibleCenterYA=0,visibleCenterYB=0;
  void close(){
-  if(a)SDL_DestroyTexture(a);if(b)SDL_DestroyTexture(b);
+  if(a)SDL_DestroyTexture(a);
+  if(b)SDL_DestroyTexture(b);
   a=b=nullptr;source.clear();originalB.clear();greenMatchedB.clear();pixelsB.clear();
   w=h=bw=bh=0;lastTint=-1;visibleCenterYA=visibleCenterYB=0;
  }
