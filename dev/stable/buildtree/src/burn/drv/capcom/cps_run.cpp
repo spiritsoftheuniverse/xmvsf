@@ -686,11 +686,22 @@ INT32 Cps2Frame()
             const unsigned reserveLife=XM87142::ramW(CpsRamFF,r+0x210u);
             const bool livingReserve=
                 XM87340Donor::genuineReserve(who,bench,reserveLife);
-            // 87.354: hard normal-play boundary. Never sniff fighter
-            // motions, KKK edges or spin inputs outside an eligible
-            // outgoing native 2C/2E Hyper. No retained Flash Kick cue.
+            // 87.356: Charlie's QCB+KKK was locked out when its D,DB,B
+            // was entered during the outgoing original 2C/2E Hyper,
+            // BEFORE the ROM's final cancel gates became eligible.
+            // Observe those directions ONLY when the verified native
+            // Super tracker still owns the SAME actor and D6. Never
+            // sniff during normal gameplay or claim a DHC before the
+            // original cancel authorization is satisfied.
+            const bool charlieNativeSuper =
+                bench==0x20u && hyper &&
+                super.lastFrame!=~0u && now>0u &&
+                super.lastFrame==now-1u &&
+                super.live && super.recognizes() &&
+                super.fighter==who && super.originalD6==sample.d6;
             if(st.phase==XM87340Donor::IDLE){
-                if(!eligible || !livingReserve ||
+                if((!eligible && !charlieNativeSuper) ||
+                   !livingReserve ||
                    !XM87142::ramB(CpsRamFF,p+0x214u)){
                     st.quiet(now,who,buttons[side]);
                     continue;

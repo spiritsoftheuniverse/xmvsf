@@ -474,6 +474,52 @@ int main(){
         assert(!dormant.windowReady && dormant.phase==IDLE &&
                dormant.step[5]==0u && dormant.kkkEdgeAt==~0u);
     }
+    // 87.356: Charlie's genuine QCB+KKK may start while the actor is
+    // already in a verified native Hyper but the final native cancel
+    // controller is not yet eligible. It must not claim until eligible.
+    for(unsigned facing=0u;facing<2u;++facing){
+        const bool right=facing==0u;
+        const unsigned db=right?6u:5u,back=right?2u:1u;
+        Slot delayedCharlie;
+        delayedCharlie.quiet(6000u,0x16u,0u);
+        delayedCharlie.openWindow(6001u,0x16u,0u,0x20u,4u,right);
+        assert(delayedCharlie.windowReady &&
+               delayedCharlie.step[1]==1u);
+        assert(delayedCharlie.sample(6002u,0x16u,0x20u,db,0u,right,
+                 0x0Au,true,false,220u,1u)==0u);
+        assert(delayedCharlie.step[1]==2u &&
+               delayedCharlie.phase==IDLE);
+        // The final KKK is physical but still cannot swap while the
+        // original M68K Hyper is not DHC-cancellable.
+        assert(delayedCharlie.sample(6003u,0x16u,0x20u,back,
+                 0x38u,right,0x0Au,true,false,220u,1u)==0u);
+        assert(delayedCharlie.step[1]==3u &&
+               delayedCharlie.phase==IDLE &&
+               delayedCharlie.hidden==0u);
+        // Same held KKK edge is still fresh when the original cancel
+        // gate opens one frame later: select only Charlie's D6=06.
+        assert(delayedCharlie.sample(6004u,0x16u,0x20u,back,
+                 0x38u,right,0x0Au,true,true,220u,1u)==0x38u);
+        assert(delayedCharlie.phase==CLAIMED &&
+               delayedCharlie.selected==1u &&
+               delayedCharlie.d6==0x06u &&
+               delayedCharlie.claimedBufferedKKK);
+        // Physical KKK held before any native Super cannot produce a
+        // fresh claim when the native window first becomes available.
+        Slot heldCharlie;
+        heldCharlie.quiet(6100u,0x16u,0x38u);
+        heldCharlie.openWindow(6101u,0x16u,0x38u,
+                               0x20u,4u,right);
+        heldCharlie.sample(6102u,0x16u,0x20u,db,
+                           0x38u,right,0x0Au,true,false,220u,1u);
+        heldCharlie.sample(6103u,0x16u,0x20u,back,
+                           0x38u,right,0x0Au,true,true,220u,1u);
+        assert(heldCharlie.phase==IDLE && heldCharlie.hidden==0u &&
+               heldCharlie.kkkEdgeAt==~0u);
+        // A real exit to normal combat clears the entire cue.
+        heldCharlie.quiet(6104u,0x16u,0u);
+        assert(!heldCharlie.windowReady && heldCharlie.step[1]==0u);
+    }
     // 87.343: position against ACTUAL opponent X, for P1 or P2.
     assert(nearOpponentX(80u,220u)==204u);  // P1 approaches from left
     assert(nearOpponentX(360u,220u)==236u); // P2 approaches from right
@@ -591,5 +637,5 @@ int main(){
     assert(XM87189Family::Tracker::originalSuperController(
          XM87184Life::Sample(0x12u,0x2E08u,0x2A00u,2u,
                               0x0D3070u,0x0Au))); // 2E unmodified
-    std::puts("XMVSF 87.355 Charlie QCB+KKK and Sabretooth HCB+KKK input opening PASS");
+    std::puts("XMVSF 87.356 Charlie QCB+KKK pre-cancel native Hyper cue PASS");
 }
