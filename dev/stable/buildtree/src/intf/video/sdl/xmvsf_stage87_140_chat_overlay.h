@@ -56,7 +56,6 @@ static inline void xm87140ChatOverlay(SDL_Renderer* render){
     for(unsigned j=0;j<shown;++j){
         const unsigned ago=shown-1u-j;
         const XM87140Chat::Line& line=st.lines[(st.write+capacity-1u-ago)%capacity];
-        const unsigned age=(now>=line.frame)?now-line.frame:180u;
         const Uint8 alpha=245; // Visible only after explicit toggle.
         Uint8 cr=220,cg=225,cb=226;
         if(line.kind==XM87140Chat::ALERT){cr=255;cg=196;cb=92;}

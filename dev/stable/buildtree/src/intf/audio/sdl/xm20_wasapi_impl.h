@@ -146,38 +146,7 @@ static bool clipLoadRepoAudio(Clip& dst,const char* filename){
     return false;
 }
 
-// Dedicated music WAV path: the Akuma source is
-// audio/music/sf3akumastage.wav (not an OGG). Decode once on the
-// existing low-priority audio worker and feed the same WASAPI mixer.
-// The portable WAV loader accepts 48k stereo and 16-bit mono/stereo
-// sources (resamples other supported rates to 48k).
-static bool clipLoadWavRepoMusic(Clip& dst,const char* filename){
-    char base[4096]={};
-    const DWORD n=GetModuleFileNameA(nullptr,base,static_cast<DWORD>(sizeof(base)));
-    if(!n||n>=sizeof(base))return false;
-    char* slash=std::strrchr(base,'\\');
-    if(!slash)slash=std::strrchr(base,'/');
-    if(!slash)return false;
-    *(slash+1)=0;
-    const char* dirs[]={
-        "../../audio/music/","../audio/music/","audio/music/"
-    };
-    for(const char* dir:dirs){
-        char path[4096]={};
-        const int w=std::snprintf(path,sizeof(path),"%s%s%s",base,dir,filename);
-        if(w<=0||size_t(w)>=sizeof(path))continue;
-        unsigned char* pcm=nullptr;uint32_t frames=0;
-        if(xmvsfPcm::load48kStereo16(path,&pcm,&frames) ||
-           xmvsfPcm::loadEffectStereo16(path,&pcm,&frames)){
-            dst.pcm=pcm;dst.frames=frames;dst.pos=0.0;
-            std::fprintf(stderr,"XM87.317 AKUMA_WAV_LOADED path=%s frames48k=%u\n",
-                         path,unsigned(frames));
-            return true;
-        }
-    }
-    std::fprintf(stderr,"XM87.317 AKUMA_WAV_MISSING_OR_UNSUPPORTED name=%s expected=audio/music/\n",filename);
-    return false;
-}
+// Akuma stage uses the Vorbis worker below; obsolete WAV path removed.
 // Decode on a separate low-priority worker, never in fillFrames().
 static bool clipLoadOggRepo(Clip& dst,const char* filename){
     char base[4096]={};
@@ -647,7 +616,10 @@ static DWORD WINAPI audioThread(LPVOID) {
     } while(false);
     if(FAILED(hr))fprintf(stderr,"XM20 WASAPI error: 0x%08lx\n",static_cast<unsigned long>(hr));
     InterlockedExchange(&m.threadStatus,-1);
-    if(render)render->Release();if(client)client->Release();if(endpoint)endpoint->Release();if(en)en->Release();
+    if(render)render->Release();
+    if(client)client->Release();
+    if(endpoint)endpoint->Release();
+    if(en)en->Release();
     if(fmt)CoTaskMemFree(fmt);
     CoUninitialize();return 0;
 }
