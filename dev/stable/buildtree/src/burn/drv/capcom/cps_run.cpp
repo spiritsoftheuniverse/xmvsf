@@ -44,6 +44,7 @@
 #include "xmvsf_stage87_119_cyclops_recovery_probe.h" // XM87.119 read-only recovery state trace
 #include "xmvsf_stage87_121_cyclops_release.h" // XM87.121 restore recorded airborne state after throw
 #include "xmvsf_stage87_220_zero_dash_startup.h" // TEST 87.220 native dash startup countdown
+#include "xmvsf_stage87_370_akuma_air_super_startup.h" // 87.370 Akuma original-ROM airborne super startup trim
 extern int xm14TrainingMode; // native SDL Training mode selection
 extern int xm87102DamageMode; // XM87.102 Training damage option
 #include <cstdio> // XM86.34 first native CPS2 frame tracing
@@ -1263,6 +1264,12 @@ INT32 Cps2Frame()
                 (unsigned)Cpi01A,(unsigned)Cpi01C,(unsigned)Cpi01E);
     };
     xm87180Sample("BEFORE_CPU");
+    // 87.370: shorten only the recorded Akuma air-super animation prelude.
+    // The 68000 still executes the native 2E06->2E08->2E0A transitions.
+    if(!bBurnRunAheadFrame && CpsRamFF)
+        XM87370Akuma::beforeCpu(CpsRamFF,CpsRom,(unsigned)nCpsRomLen,
+            (unsigned)GetCurrentFrame(),BurnDrvGetTextA(DRV_NAME),
+            xm262V4,false);
     // 87.224: executed 68000 PC / victim reaction+velocity deltas while
     // Charlie's actual 1804/1A04 is running. Read-only and bounded to
     // 32 CPU frames per move; wrap (never replace) the older DHC callback.
