@@ -20,6 +20,17 @@ static inline const Motion* motions(){
  {3,{1,4,5,0,0}}, {5,{1,5,4,6,2}}, {5,{2,6,4,5,1}},
  {3,{4,0x80,4,0,0}}, {3,{2,6,4,0,0}}};return m; // motion 8: F,DF,D
 }
+// 87.360: native DHC follows the ORIGINAL ROM Hyper lifecycle instead
+// of an animation-script substage or a fabricated frame allowance.
+// A native Super is still running while its controller is 2A and its
+// native action is 2C/2E with an actual nonzero original D6. These
+// exact engine-owned fields naturally end on the original super exit.
+static inline bool nativeHyperActive(unsigned mode,unsigned action,
+                                      unsigned originalD6){
+ const unsigned a=action&0xFF00u;
+ return (mode&0xFF00u)==0x2A00u && originalD6!=0u &&
+        (a==0x2C00u || a==0x2E00u);
+}
 // 87.343: close-range original WORLD X for the incoming native Hyper.
 // Both sides read the SAME live opponent actor +$0C from original RAM.
 // The outgoing fighter's saved X chooses which side of the opponent the

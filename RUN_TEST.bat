@@ -1,11 +1,11 @@
 @echo off
-REM XMVSF TEST 87.359 - Charlie native QCB lock facing at initial Down input - local native Windows DHC build (no Stable overwrite)
+REM XMVSF TEST 87.360 - native Hyper full-lifetime DHC for Charlie and Chun-Li - local native Windows DHC build (no Stable overwrite)
 setlocal EnableExtensions DisableDelayedExpansion
 for %%I in ("%~dp0.") do set "PROJECT=%%~fI"
 set "MSYSTEM=UCRT64"
 set "PATH=C:\msys64\ucrt64\bin;C:\msys64\usr\bin;%PATH%"
 set "XMVSF_PROJECT=%PROJECT%"
-set "XMVSF_TEST_VERSION=87.359"
+set "XMVSF_TEST_VERSION=87.360"
 REM Derived from XMVSF_TEST_VERSION; must match BUILD_TEST.bat.
 set "XMVSF_TEST_TAG=%XMVSF_TEST_VERSION:.=_%"
 REM All TEST diagnostics track the same version as the launched executable.

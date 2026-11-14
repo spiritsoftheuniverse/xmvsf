@@ -632,26 +632,22 @@ INT32 Cps2Frame()
             const bool exactOldWindow=super.lastFrame!=~0u &&
                 now>0u && super.lastFrame==now-1u &&
                 super.unifiedDhcWindowAt(super.lastFrame,sample);
-            // 87.355: OPEN Charlie QCB+KKK / Sabretooth HCB+KKK
-            // during the verified original native Hyper startup and
-            // continuation, not just the narrower attack sub-window.
-            // preCpuActive demands the exact actor, current action,
-            // D6 and observed original 68000 script from last frame.
-            // It NEVER accepts an ordinary neutral/Flash Kick input.
-            const bool requestedReverseHyper=
-                bench==0x20u || bench==0x0Au;
-            const bool currentWindow=exactOldWindow ||
-                (requestedReverseHyper &&
-                 super.preCpuActive(now,sample));
-            // 87.349: original M68K Hyper activity is NOT only 2E.
-            // Storm/Sabretooth/Bison/Charlie execute real 2C actions
-            // under the same 2A controller+D6. The native ROM lifecycle
-            // tracker separately verifies the outgoing 2C script window.
+            // 87.360: original native 2C/2E Hyper lifetime is the
+            // cancel window. A long move can progress through many
+            // animation-script records without ever leaving its 2A
+            // controller, its native action family, or its original D6.
+            // The old bounded stage/script tracker loses e.g. Chun-Li
+            // Senretsukyaku at 2E0A/2E0E/2E10 after ~one second.
+            // No frame count, stage-script bounds, or required next
+            // selector may prematurely end input recognition.
+            // Normal play is still excluded by the exact native state;
+            // meter, living reserve, tag gates and the ROM-owned
+            // 68000 handoff are checked independently before swapping.
             const unsigned superAction=sample.action&0xFF00u;
-            const bool hyper=(sample.mode&0xFF00u)==0x2A00u &&
-                sample.d6 &&
-                (superAction==0x2C00u || superAction==0x2E00u);
-            const bool eligible=currentWindow && hyper &&
+            const bool hyper=XM87340Donor::nativeHyperActive(
+                sample.mode,sample.action,sample.d6);
+            const bool currentWindow=hyper;
+            const bool eligible=currentWindow &&
                 XM87142::ramB(CpsRamFF,p+0x03u) &&
                 !XM87142::ramB(CpsRamFF,p+0x221u) &&
                 !XM87142::ramB(CpsRamFF,p+0x257u) &&
@@ -679,6 +675,24 @@ INT32 Cps2Frame()
                 XM87334Native::qualifiedChord(chord);
             const bool newChord=nativeChord && (freshButtons&chord);
             const unsigned oldHidden=st.hidden;
+            // 87.360: bounded diagnostics for late Hyper button edges.
+            // This reports why a native cue can/cannot DHC, without
+            // scanning directions or interfering with normal play.
+            if(newChord && hyper &&
+               (who==0x16u || who==0x24u || who==0x20u ||
+                bench==0x16u || bench==0x24u || bench==0x20u)){
+                char detail[320];
+                std::snprintf(detail,sizeof(detail),
+                    "NATIVE_360_HYPER_INPUT point=%02X reserve=%02X action=%04X mode=%04X d6=%02X chord=%02X oldScriptWindow=%u fullHyperWindow=%u eligible=%u phase=%u stock=%u gate221=%u gate257=%u gate500A=%u",
+                    who,bench,sample.action,sample.mode,sample.d6,
+                    chord,exactOldWindow?1u:0u,currentWindow?1u:0u,
+                    eligible?1u:0u,unsigned(super.phase),
+                    XM87142::ramB(CpsRamFF,p+0x214u),
+                    XM87142::ramB(CpsRamFF,p+0x221u),
+                    XM87142::ramB(CpsRamFF,p+0x257u),
+                    XM87142::ramB(CpsRamFF,0x500Au));
+                XM87274Unified::state().event(now,side,detail);
+            }
             // +$210 is the ORIGINAL actor life. A one-character team
             // or a defeated sole reserve has no living partner. Zero
             // as a character ID means Wolverine, NOT an empty slot.

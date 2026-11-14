@@ -616,6 +616,56 @@ int main(){
         noReverse.quiet(8504u,0x02u,0u);
         assert(!noReverse.charlieSweep.complete());
     }
+    // 87.360: original 2A + native 2C/2E + real D6 alone define
+    // the continuous ROM-owned Hyper lifespan, not 2E script windows.
+    // Old 87.359 ROM tracker could lose long Senretsukyaku while the
+    // original 2E0A / 2E0E / 2E10 and D6=08 still owned the actor.
+    const unsigned chunStages[]={0x2E0Au,0x2E0Eu,0x2E10u};
+    for(unsigned frame=1u;frame<=536u;++frame){
+        const unsigned stage=chunStages[(frame-1u)/179u];
+        assert(nativeHyperActive(0x2A02u,stage,0x08u));
+        assert(nativeHyperActive(0x2A28u,stage,0x08u));
+    }
+    const unsigned charlieStages[]={0x2C24u,0x2C26u,0x2C28u};
+    for(unsigned i=0u;i<3u;++i)
+        assert(nativeHyperActive(0x2A00u,charlieStages[i],0x06u));
+    assert(!nativeHyperActive(0x0000u,0x2E0Au,0x08u));
+    assert(!nativeHyperActive(0x0002u,0x2E0Au,0x08u));
+    assert(!nativeHyperActive(0x2A02u,0x0200u,0x08u));
+    assert(!nativeHyperActive(0x2A02u,0x2A00u,0x08u));
+    assert(!nativeHyperActive(0x2A02u,0x2E0Au,0x00u));
+    // Actual native QCF+KKK for incoming Chun-Li, begun hundreds
+    // of frames into an outgoing Charlie super, still chooses D6=08.
+    Slot lateChun;
+    lateChun.quiet(0u,0x20u,0u);
+    lateChun.openWindow(1u,0x20u,0u,0x16u,0u,true);
+    for(unsigned n=2u;n<536u;++n){
+        assert(lateChun.sample(n,0x20u,0x16u,0u,0u,
+                true,0x06u,true,true,220u,3u)==0u);
+        assert(lateChun.phase==IDLE);
+    }
+    lateChun.sample(536u,0x20u,0x16u,4u,0u,
+                    true,0x06u,true,true,220u,3u);
+    lateChun.sample(537u,0x20u,0x16u,5u,0u,
+                    true,0x06u,true,true,220u,3u);
+    assert(lateChun.sample(538u,0x20u,0x16u,1u,0x38u,
+                true,0x06u,true,true,220u,3u)==0x38u);
+    assert(lateChun.phase==CLAIMED && lateChun.d6==0x08u);
+    // Actual native QCB+KKK for incoming Charlie, likewise entered
+    // late in a continuing Chun-Li native Hyper, chooses D6=06.
+    Slot lateCharlie;
+    lateCharlie.quiet(0u,0x16u,0u);
+    lateCharlie.openWindow(1u,0x16u,0u,0x20u,0u,true);
+    for(unsigned n=2u;n<536u;++n)
+        lateCharlie.sample(n,0x16u,0x20u,0u,0u,
+                           true,0x08u,true,true,220u,3u);
+    lateCharlie.sample(536u,0x16u,0x20u,4u,0u,
+                       true,0x08u,true,true,220u,3u);
+    lateCharlie.sample(537u,0x16u,0x20u,6u,0u,
+                       true,0x08u,true,true,220u,3u);
+    assert(lateCharlie.sample(538u,0x16u,0x20u,2u,0x38u,
+                true,0x08u,true,true,220u,3u)==0x38u);
+    assert(lateCharlie.phase==CLAIMED && lateCharlie.d6==0x06u);
     // 87.343: position against ACTUAL opponent X, for P1 or P2.
     assert(nearOpponentX(80u,220u)==204u);  // P1 approaches from left
     assert(nearOpponentX(360u,220u)==236u); // P2 approaches from right
@@ -733,5 +783,5 @@ int main(){
     assert(XM87189Family::Tracker::originalSuperController(
          XM87184Life::Sample(0x12u,0x2E08u,0x2A00u,2u,
                               0x0D3070u,0x0Au))); // 2E unmodified
-    std::puts("XMVSF 87.359 Charlie QCB+KKK facing-locked original motion PASS");
+    std::puts("XMVSF 87.360 native 2C/2E full Hyper lifespan for Charlie and Chun-Li PASS");
 }
