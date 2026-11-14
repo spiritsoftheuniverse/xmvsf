@@ -686,23 +686,17 @@ INT32 Cps2Frame()
             const unsigned reserveLife=XM87142::ramW(CpsRamFF,r+0x210u);
             const bool livingReserve=
                 XM87340Donor::genuineReserve(who,bench,reserveLife);
-            // 87.356: Charlie's QCB+KKK was locked out when its D,DB,B
-            // was entered during the outgoing original 2C/2E Hyper,
-            // BEFORE the ROM's final cancel gates became eligible.
-            // Observe those directions ONLY when the verified native
-            // Super tracker still owns the SAME actor and D6. Never
-            // sniff during normal gameplay or claim a DHC before the
-            // original cancel authorization is satisfied.
-            const bool charlieNativeSuper =
-                bench==0x20u && hyper &&
-                super.lastFrame!=~0u && now>0u &&
-                super.lastFrame==now-1u &&
-                super.live && super.recognizes() &&
-                super.fighter==who && super.originalD6==sample.d6;
+            // 87.357: no Charlie-only native tracker/previous-frame
+            // veto while READING his QCB+KKK. In a genuine native
+            // 2A/2C or 2A/2E Hyper, track the physical input regardless
+            // of the final DHC cancel flags and stock. The actual tag
+            // STILL needs eligible, living reserve and meter.
+            const bool charlieNativeSuper=bench==0x20u && hyper;
             if(st.phase==XM87340Donor::IDLE){
                 if((!eligible && !charlieNativeSuper) ||
                    !livingReserve ||
-                   !XM87142::ramB(CpsRamFF,p+0x214u)){
+                   (!XM87142::ramB(CpsRamFF,p+0x214u) &&
+                    !charlieNativeSuper)){
                     st.quiet(now,who,buttons[side]);
                     continue;
                 }
@@ -731,11 +725,19 @@ INT32 Cps2Frame()
                 continue;
             }
             if(st.phase==XM87340Donor::IDLE){
+                const bool cueBefore=st.charlieQueued;
                 st.sample(now,who,bench,dirs[side],buttons[side],
                     (XM87142::ramB(CpsRamFF,p+0x4Bu)&1u)!=0u,
                     sample.d6,hyper,eligible,
                     XM87142::ramW(CpsRamFF,p+0x0Cu),
                     XM87142::ramB(CpsRamFF,p+0x214u));
+                if(!cueBefore && st.charlieQueued){
+                    char event[140];
+                    std::snprintf(event,sizeof(event),
+                        "NATIVE_357_CHARLIE_QCB_KKK_CUE_HELD actor=%02X reserve=%02X outgoingD6=%02X",
+                        who,bench,sample.d6);
+                    XM87274Unified::state().event(now,side,event);
+                }
             }else{
                 st.pendingInput(now,buttons[side]);
             }
@@ -749,6 +751,15 @@ INT32 Cps2Frame()
                     "NATIVE_352_CYCLOPS_SOB_HELPERS_TRACKED side=%u count=%u",
                     side+1u,oldCyclopsFx.n);
                 XM87274Unified::state().event(now,side,fx);
+            }
+            if(before!=XM87340Donor::CLAIMED &&
+               st.phase==XM87340Donor::CLAIMED &&
+               st.claimedQueuedCharlie){
+                char event[144];
+                std::snprintf(event,sizeof(event),
+                    "NATIVE_357_CHARLIE_QCB_KKK_DEFERRED_CLAIM incoming=%02X d6=%02X side=%u originalInput=38",
+                    st.reserve,st.d6,side+1u);
+                XM87274Unified::state().event(now,side,event);
             }
             if(before!=XM87340Donor::CLAIMED &&
                st.phase==XM87340Donor::CLAIMED &&

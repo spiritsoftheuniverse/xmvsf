@@ -156,6 +156,10 @@ struct Slot {
  unsigned kkkEdgeAt=~0u;
  bool claimedBufferedKKK=false;
  bool windowReady=false; // DHC input recognition is not active in normal play
+ // 87.357: exact Charlie QCB+KKK entered during a native Hyper is
+ // remembered until the original M68K cancel gate can authorize it.
+ bool charlieQueued=false,claimedQueuedCharlie=false;
+ unsigned charlieQueuedD6=0u;
  SpecialHistory special;
  unsigned claims=0u,refusals=0u,commits=0u;
  void reset(){*this=Slot();}
@@ -164,7 +168,8 @@ struct Slot {
                    std::memset(missedDiagonal,0,sizeof(missedDiagonal));
                    std::memset(firstFrame,0,sizeof(firstFrame));
                    kkkEdgeAt=~0u;claimedBufferedKKK=false;
-                   special.reset();}
+                   charlieQueued=false;claimedQueuedCharlie=false;
+                   charlieQueuedD6=0u;special.reset();}
  // 87.354: Never sample DHC motion history during normal play.
  void quiet(unsigned frame,unsigned who,unsigned buttons){
   if(phase!=IDLE)return;
@@ -260,12 +265,29 @@ struct Slot {
   // Cyclops native Super Optic Blast is F,DF,D + PP or PPP;
   // Mega Optic Blast remains QCF+PP. Do not substitute QCB.
   // The donor MP+MK assist-style chord is not a DHC trigger.
-  if((!pressed && !heldFreshKKK) || !inHyper || !eligible ||
-     !stockBefore || who==bench || bench>0x24u ||
-     (bench&1u))return hidden;
+  // Input recognition and native DHC authorization are separate.
+  // Only a real outgoing 2A/2C-or-2E Hyper can reach this parser.
+  // A completed Charlie original QCB + actual KKK before native
+  // cancel eligibility is queued for this SAME outgoing Hyper.
+  // No synthetic input or arbitrary time-based deadline is used.
+  if(charlieQueued && charlieQueuedD6!=actorD6)charlieQueued=false;
+  if(bench==0x20u && inHyper && !eligible &&
+     step[1]>=m[1].len && timer[1] && mask==0x38u &&
+     ((pressed&0x38u)!=0u || heldFreshKKK)){
+    charlieQueued=true;charlieQueuedD6=actorD6;
+  }
+  const bool queuedCharlie=charlieQueued && bench==0x20u &&
+      inHyper && eligible && charlieQueuedD6==actorD6;
+  if((!pressed && !heldFreshKKK && !queuedCharlie) ||
+     !inHyper || !eligible || !stockBefore || who==bench ||
+     bench>0x24u || (bench&1u))return hidden;
   static const unsigned priority[]={7u,4u,5u,2u,3u,0u,1u,6u};
   unsigned best=0u,col=8u;
   XM87334Native::Decision chosen;
+  if(queuedCharlie){
+    chosen=XM87334Native::resolveNativeOnly(bench,2u,0x38u);
+    if(chosen.ok())col=1u;
+  }
   // Special native Hyper sequences have distinct final buttons.
   // Akuma SGS ends on a SINGLE HP; a generic PP filter must never
   // discard this real command. Zangief FAB ends on real PP/PPP.
@@ -292,14 +314,15 @@ struct Slot {
    }
   }
   if(!chosen.ok())return hidden;
-  claimedBufferedKKK=!pressed && heldFreshKKK;
-  kkkEdgeAt=~0u; // never reuse the edge for a second DHC
+  claimedQueuedCharlie=queuedCharlie;
+  claimedBufferedKKK=!queuedCharlie && !pressed && heldFreshKKK;
+  kkkEdgeAt=~0u;charlieQueued=false; // one cue, one ROM handoff
   selected=col;
   d6=chosen.hyperD6; // the ONLY Hyper selection consumed by the M68K guest
   outgoingD6=actorD6;
   point=who;reserve=bench;
   x=originalX;stock=stockBefore;claimedAt=frame;phase=CLAIMED;
-  hidden=mask; // suppress only the physical final Hyper input
+  hidden=queuedCharlie?0u:mask; // no interception after key release
   ++claims;
   return hidden;
  }

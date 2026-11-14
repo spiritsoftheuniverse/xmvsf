@@ -520,6 +520,56 @@ int main(){
         heldCharlie.quiet(6104u,0x16u,0u);
         assert(!heldCharlie.windowReady && heldCharlie.step[1]==0u);
     }
+    // 87.357: original Charlie QCB+KKK is recognized during Hyper,
+    // not delayed until the final native DHC window. Both facings;
+    // no input held or DHC written during normal play.
+    for(unsigned facing=0u;facing<2u;++facing){
+        const bool right=facing==0u;
+        const unsigned db=right?6u:5u,back=right?2u:1u;
+        Slot q;
+        q.quiet(7000u,0x0Eu,0u);
+        q.openWindow(7001u,0x0Eu,0u,0x20u,4u,right);
+        q.sample(7002u,0x0Eu,0x20u,db,0u,right,
+                 0x06u,true,false,220u,0u);
+        assert(q.sample(7003u,0x0Eu,0x20u,back,0x38u,
+                 right,0x06u,true,false,220u,0u)==0u);
+        assert(q.charlieQueued && q.phase==IDLE &&
+               q.charlieQueuedD6==0x06u && !q.hidden);
+        // Let KKK go; original cancel gate has not opened yet.
+        for(unsigned n=7004u;n<7059u;++n){
+            assert(q.sample(n,0x0Eu,0x20u,back,0u,
+                   right,0x06u,true,false,220u,0u)==0u);
+            assert(q.phase==IDLE && q.charlieQueued);
+        }
+        // Only actual stock+native ROM cancellation authorizes tag.
+        assert(q.sample(7059u,0x0Eu,0x20u,back,0u,
+                right,0x06u,true,true,220u,1u)==0u);
+        assert(q.phase==CLAIMED && q.d6==0x06u &&
+               q.selected==1u && q.claimedQueuedCharlie &&
+               q.hidden==0u && !q.charlieQueued);
+        Slot wrongHyper;
+        wrongHyper.quiet(7100u,0x0Eu,0u);
+        wrongHyper.openWindow(7101u,0x0Eu,0u,0x20u,4u,right);
+        wrongHyper.sample(7102u,0x0Eu,0x20u,db,0u,right,
+                          0x06u,true,false,220u,1u);
+        wrongHyper.sample(7103u,0x0Eu,0x20u,back,0x38u,right,
+                          0x06u,true,false,220u,1u);
+        assert(wrongHyper.charlieQueued);
+        wrongHyper.sample(7104u,0x0Eu,0x20u,back,0u,right,
+                          0x04u,true,true,220u,1u);
+        assert(!wrongHyper.charlieQueued &&
+               wrongHyper.phase==IDLE);
+        Slot normalPlay;
+        normalPlay.quiet(7200u,0x0Eu,0u);
+        normalPlay.openWindow(7201u,0x0Eu,0u,0x20u,4u,right);
+        normalPlay.sample(7202u,0x0Eu,0x20u,db,0u,right,
+                          0x06u,true,false,220u,1u);
+        normalPlay.sample(7203u,0x0Eu,0x20u,back,0x38u,right,
+                          0x06u,true,false,220u,1u);
+        assert(normalPlay.charlieQueued);
+        normalPlay.quiet(7204u,0x0Eu,0u);
+        assert(!normalPlay.charlieQueued && !normalPlay.windowReady);
+    }
     // 87.343: position against ACTUAL opponent X, for P1 or P2.
     assert(nearOpponentX(80u,220u)==204u);  // P1 approaches from left
     assert(nearOpponentX(360u,220u)==236u); // P2 approaches from right
@@ -637,5 +687,5 @@ int main(){
     assert(XM87189Family::Tracker::originalSuperController(
          XM87184Life::Sample(0x12u,0x2E08u,0x2A00u,2u,
                               0x0D3070u,0x0Au))); // 2E unmodified
-    std::puts("XMVSF 87.356 Charlie QCB+KKK pre-cancel native Hyper cue PASS");
+    std::puts("XMVSF 87.357 Charlie QCB+KKK original Hyper input and deferred native DHC PASS");
 }
