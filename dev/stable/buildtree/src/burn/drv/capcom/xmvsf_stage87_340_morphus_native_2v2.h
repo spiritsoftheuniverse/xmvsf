@@ -143,6 +143,31 @@ struct SpecialHistory {
   return 0u;
  }
 };
+
+ // 87.358: QCB orientation is captured on the initial Down sector.
+ // Live facing may change while the fighter's Super is active.
+ // The move must STILL be actual Down, Down-Back, Back (+new KKK),
+ // not QCF, neutral KKK or a normal-play motion.
+struct CharlieQcbSweep {
+ unsigned step=0u,ttl=0u,startedAt=0u;
+ bool facingAtDown=true;
+ void reset(){*this=CharlieQcbSweep();}
+ void observe(unsigned frame,unsigned rawDir,bool currentFacing){
+  if(ttl && !--ttl)step=0u;
+  if(rawDir==4u && (step==0u || step==3u)){
+   step=1u;ttl=24u;startedAt=frame;facingAtDown=currentFacing;
+   return;
+  }
+  if(!step)return;
+  const unsigned d=facingDir(rawDir,facingAtDown);
+  if(step==1u){
+   if(d==5u){step=2u;ttl=24u;}
+   else if(d==1u && frame>=startedAt &&
+           frame-startedAt<=12u){step=3u;ttl=24u;}
+  }else if(step==2u && d==1u){step=3u;ttl=24u;}
+ }
+ bool complete()const{return step==3u && ttl!=0u;}
+};
 struct Slot {
  Phase phase=IDLE;
  unsigned owner=~0u,point=0u,reserve=0u,d6=0u,x=0u,outgoingD6=0u;
@@ -158,8 +183,9 @@ struct Slot {
  bool windowReady=false; // DHC input recognition is not active in normal play
  // 87.357: exact Charlie QCB+KKK entered during a native Hyper is
  // remembered until the original M68K cancel gate can authorize it.
- bool charlieQueued=false,claimedQueuedCharlie=false;
+ bool charlieQueued=false,claimedQueuedCharlie=false,charlieDeferred=false;
  unsigned charlieQueuedD6=0u;
+ CharlieQcbSweep charlieSweep;
  SpecialHistory special;
  unsigned claims=0u,refusals=0u,commits=0u;
  void reset(){*this=Slot();}
@@ -169,7 +195,8 @@ struct Slot {
                    std::memset(firstFrame,0,sizeof(firstFrame));
                    kkkEdgeAt=~0u;claimedBufferedKKK=false;
                    charlieQueued=false;claimedQueuedCharlie=false;
-                   charlieQueuedD6=0u;special.reset();}
+                   charlieQueuedD6=0u;charlieDeferred=false;
+                   charlieSweep.reset();special.reset();}
  // 87.354: Never sample DHC motion history during normal play.
  void quiet(unsigned frame,unsigned who,unsigned buttons){
   if(phase!=IDLE)return;
@@ -188,6 +215,8 @@ struct Slot {
   // for the two requested 3K supers. Never retain normal-play history,
   // a pre-existing KKK press or any other pre-Hyper button.
   const unsigned d=facingDir(physicalDir,faceRight);
+  if(incoming==0x20u)
+   charlieSweep.observe(frame,physicalDir,faceRight);
   if(incoming==0x20u && d==4u){
    step[1]=1u;timer[1]=18u;firstFrame[1]=frame; // Charlie D,DB,B
   }else if(incoming==0x0Au && d==2u){
@@ -231,6 +260,8 @@ struct Slot {
   // Called exclusively from an eligible original-ROM Hyper DHC window.
   // Normal play never invokes this directional/KKK/spin parser.
   const unsigned d=facingDir(dir,faceRight);
+  if(bench==0x20u && inHyper)
+   charlieSweep.observe(frame,dir,faceRight);
   const unsigned specialMotion=special.sample(d,pressed,mask);
   const Motion* m=motions();
   for(unsigned i=0u;i<8u;++i){
@@ -270,11 +301,18 @@ struct Slot {
   // A completed Charlie original QCB + actual KKK before native
   // cancel eligibility is queued for this SAME outgoing Hyper.
   // No synthetic input or arbitrary time-based deadline is used.
-  if(charlieQueued && charlieQueuedD6!=actorD6)charlieQueued=false;
-  if(bench==0x20u && inHyper && !eligible &&
-     step[1]>=m[1].len && timer[1] && mask==0x38u &&
-     ((pressed&0x38u)!=0u || heldFreshKKK)){
+  if(charlieQueued && charlieQueuedD6!=actorD6){
+    charlieQueued=false;charlieDeferred=false;
+  }
+  // An ORIGINAL physical 3K press after an actual QCB, in the
+  // currently running native Hyper, is the complete Charlie command.
+  // No dependence on changing live facing or cancel-gate timing.
+  if(bench==0x20u && inHyper && charlieSweep.complete() &&
+     mask==0x38u &&
+     ((pressed&0x38u)!=0u || heldFreshKKK) &&
+     !charlieQueued){
     charlieQueued=true;charlieQueuedD6=actorD6;
+    charlieDeferred=!eligible;
   }
   const bool queuedCharlie=charlieQueued && bench==0x20u &&
       inHyper && eligible && charlieQueuedD6==actorD6;
@@ -314,9 +352,10 @@ struct Slot {
    }
   }
   if(!chosen.ok())return hidden;
-  claimedQueuedCharlie=queuedCharlie;
-  claimedBufferedKKK=!queuedCharlie && !pressed && heldFreshKKK;
-  kkkEdgeAt=~0u;charlieQueued=false; // one cue, one ROM handoff
+  claimedQueuedCharlie=queuedCharlie && charlieDeferred;
+  claimedBufferedKKK=!pressed && heldFreshKKK;
+  kkkEdgeAt=~0u;charlieQueued=false;charlieDeferred=false;
+  // one cue, one ROM handoff
   selected=col;
   d6=chosen.hyperD6; // the ONLY Hyper selection consumed by the M68K guest
   outgoingD6=actorD6;

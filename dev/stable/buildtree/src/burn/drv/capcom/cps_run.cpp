@@ -731,6 +731,19 @@ INT32 Cps2Frame()
                     sample.d6,hyper,eligible,
                     XM87142::ramW(CpsRamFF,p+0x0Cu),
                     XM87142::ramB(CpsRamFF,p+0x214u));
+                if(charlieNativeSuper && chord==0x38u &&
+                   (freshButtons&0x38u)!=0u){
+                    char diagnostic[240];
+                    std::snprintf(diagnostic,sizeof(diagnostic),
+                        "NATIVE_358_CHARLIE_3K_SECTOR raw=%X facing=%u lockedFacing=%u qcbStep=%u qcbTTL=%u queued=%u eligible=%u stock=%u",
+                        dirs[side],
+                        (XM87142::ramB(CpsRamFF,p+0x4Bu)&1u)?1u:0u,
+                        st.charlieSweep.facingAtDown?1u:0u,
+                        st.charlieSweep.step,st.charlieSweep.ttl,
+                        st.charlieQueued?1u:0u,eligible?1u:0u,
+                        XM87142::ramB(CpsRamFF,p+0x214u));
+                    XM87274Unified::state().event(now,side,diagnostic);
+                }
                 if(!cueBefore && st.charlieQueued){
                     char event[140];
                     std::snprintf(event,sizeof(event),

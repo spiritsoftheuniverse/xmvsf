@@ -570,6 +570,52 @@ int main(){
         normalPlay.quiet(7204u,0x0Eu,0u);
         assert(!normalPlay.charlieQueued && !normalPlay.windowReady);
     }
+    // 87.358: exact original Charlie QCB, even if the 68000 facing
+    // flag flips between the initial Down and the terminal Back.
+    // A mirrored QCF must NOT falsely turn into Charlie QCB.
+    for(unsigned facing=0u;facing<2u;++facing){
+        const bool right=facing==0u;
+        const unsigned db=right?6u:5u,back=right?2u:1u;
+        const unsigned df=right?5u:6u,forward=right?1u:2u;
+        CharlieQcbSweep exact;
+        exact.observe(8100u,4u,right);
+        exact.observe(8101u,db,!right);
+        exact.observe(8102u,back,!right);
+        assert(exact.complete() && exact.facingAtDown==right);
+        CharlieQcbSweep fast;
+        fast.observe(8200u,4u,right);
+        fast.observe(8201u,back,!right);
+        assert(fast.complete());
+        CharlieQcbSweep wrong;
+        wrong.observe(8300u,4u,right);
+        wrong.observe(8301u,df,!right);
+        wrong.observe(8302u,forward,!right);
+        assert(!wrong.complete());
+        Slot charlieFlip;
+        charlieFlip.quiet(8400u,0x02u,0u);
+        charlieFlip.openWindow(8401u,0x02u,0u,0x20u,4u,right);
+        charlieFlip.sample(8402u,0x02u,0x20u,db,0u,!right,
+                           0x04u,true,false,220u,1u);
+        assert(charlieFlip.sample(8403u,0x02u,0x20u,back,
+                           0x38u,!right,0x04u,true,false,
+                           220u,1u)==0u);
+        assert(charlieFlip.charlieQueued && charlieFlip.phase==IDLE);
+        charlieFlip.sample(8404u,0x02u,0x20u,0u,0u,
+                           !right,0x04u,true,true,220u,1u);
+        assert(charlieFlip.phase==CLAIMED &&
+               charlieFlip.d6==0x06u &&
+               charlieFlip.claimedQueuedCharlie);
+        Slot noReverse;
+        noReverse.quiet(8500u,0x02u,0u);
+        noReverse.openWindow(8501u,0x02u,0u,0x20u,4u,right);
+        noReverse.sample(8502u,0x02u,0x20u,df,0u,!right,
+                         0x04u,true,true,220u,1u);
+        noReverse.sample(8503u,0x02u,0x20u,forward,0x38u,
+                         !right,0x04u,true,true,220u,1u);
+        assert(noReverse.phase==IDLE && !noReverse.charlieQueued);
+        noReverse.quiet(8504u,0x02u,0u);
+        assert(!noReverse.charlieSweep.complete());
+    }
     // 87.343: position against ACTUAL opponent X, for P1 or P2.
     assert(nearOpponentX(80u,220u)==204u);  // P1 approaches from left
     assert(nearOpponentX(360u,220u)==236u); // P2 approaches from right
@@ -687,5 +733,5 @@ int main(){
     assert(XM87189Family::Tracker::originalSuperController(
          XM87184Life::Sample(0x12u,0x2E08u,0x2A00u,2u,
                               0x0D3070u,0x0Au))); // 2E unmodified
-    std::puts("XMVSF 87.357 Charlie QCB+KKK original Hyper input and deferred native DHC PASS");
+    std::puts("XMVSF 87.358 Charlie QCB+KKK facing-locked original motion PASS");
 }
