@@ -2,6 +2,7 @@
 #define XMVSF_STAGE77_SELECTION_H
 #include <SDL.h>
 #include <cstdlib>
+#include "../../burn/drv/capcom/xmvsf_stage87_custom_stage_ids.h" // shared menu and CPS2 capture limit
 // Implemented in the SDL video TU; no new link target or render-thread decoder.
 void xmFDPreloadSetActive(bool enabled);
 void xmFDPreloadRelease();
@@ -23,8 +24,9 @@ static inline void xm77RollStage() {
     else if(xm77StageChoice==6)xm77StageResolved=6;
     else if(xm77StageChoice==7)xm77StageResolved=7;
     else {
-        const int roll=std::rand()%19; // 12 original stages, plus seven custom
-        xm77StageResolved=(roll>=0&&roll<=6)?roll+1:0;
+        const int roll=std::rand()%(XM87CustomStage::kNativeStageCount+
+                                   XM87CustomStage::kLast);
+        xm77StageResolved=(roll<XM87CustomStage::kLast)?roll+1:0;
     }
     ++xm77StageRollGeneration();
 }

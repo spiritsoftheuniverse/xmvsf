@@ -1,4 +1,5 @@
 #include "cps.h"
+#include "xmvsf_stage87_custom_stage_ids.h" // single shared capture limit
 #include "xmvsf_stage87_25_direct_outline.h" // Existing fighter outline enable gate
 #include "xmvsf_stage87_26_seamless_bloom.h" // Stage87.26 exterior-only fighter glow
 #include "xmvsf_stage87_28_interior_mask.h" // ROM-derived fighter opacity stencil
@@ -530,12 +531,12 @@ static void xm8657BeginNativeGrade(){
     xm8657PaletteActive=false;
     if(!xm8657Eligible())return;
     const unsigned frame=(unsigned)GetCurrentFrame();
-    // XM87.316: every custom stage (IDs 1-6) owns its scenery/lighting.
+    // XM87.364: every custom stage (IDs 1-7) owns its scenery/lighting.
     // Native scroll/background palettes are never presented on that stage,
     // except during ROM-native full-screen effects. Keep their original white
     // for the flash classifier in BOTH normal and Double Feature modes.
     // Fighter-specific monochrome, HUD and FX palette arrays remain unchanged.
-    const bool wilyNativeUnmodifiedBg=((xm77StageResolved>=1 && xm77StageResolved<=6) &&
+    const bool wilyNativeUnmodifiedBg=(XM87CustomStage::ownsNativeSprites(xm77StageResolved) &&
              xm8649Visual.sceneActive && xm8649Visual.stage==5);
     static bool reportedWilyNativeBg=false;
     if(wilyNativeUnmodifiedBg && !reportedWilyNativeBg){
@@ -897,9 +898,12 @@ static std::vector<UINT8> xm77Pixels;
 const UINT8* xm77SpritePixels(){return xm77SpriteValid?xm77Pixels.data():NULL;}
 static void xm77CaptureSprites(){
     xm77SpriteValid=0;
-    // All custom stages (Wily 1, FD 2, Guile 3, Sigma 4, Akuma 5, Ryu 6) need native fighter/FX capture.
+    // All custom stages (Wily 1, FD 2, Guile 3, Sigma 4, Akuma 5, Ryu 6, Boomer 7) need native fighter/FX capture.
+// This is the mandatory graphics gate: if the selected ID is omitted,
+// its painter has no alpha sprites and the original forest is displayed.
+// New custom stage IDs must be added HERE, not only to the SDL menu.
     // Double Feature remains an independent palette/lighting switch.
-    if((xm77StageResolved<1 || xm77StageResolved>6) || !xm8649Visual.sceneActive || Cps!=2 || !pBurnDraw ||
+    if(!XM87CustomStage::ownsNativeSprites(xm77StageResolved) || !xm8649Visual.sceneActive || Cps!=2 || !pBurnDraw ||
        nBurnBpp!=4 || nCpsScreenWidth!=384 || nCpsScreenHeight!=224 || nBurnPitch<384*4)
         return;
     const int w=384,h=224;
