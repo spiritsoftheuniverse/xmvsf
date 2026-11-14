@@ -144,7 +144,7 @@ struct SpecialHistory {
  }
 };
 
- // 87.358: QCB orientation is captured on the initial Down sector.
+ // 87.359: QCB orientation is captured on the initial Down sector.
  // Live facing may change while the fighter's Super is active.
  // The move must STILL be actual Down, Down-Back, Back (+new KKK),
  // not QCF, neutral KKK or a normal-play motion.
@@ -340,6 +340,11 @@ struct Slot {
    if(!XM87334Native::qualifiedChord(mask))return hidden;
    for(unsigned i=0u;i<8u;++i){
     const unsigned j=priority[i];
+    // 87.359: Charlie's QCB+KKK is owned EXCLUSIVELY by the
+    // facing-locked physical QCB detector above. The generic
+    // frame-by-frame facing tracker can misread QCF as QCB if the
+    // actor reverses facing during a Super.
+    if(bench==0x20u && j==1u)continue;
     if(step[j]<m[j].len || timer[j]<=best)continue;
     // A two-diagonal HCB shortcut expires sooner than an explicitly
     // sampled five-sector rotation. No stale F,D,B can fake a Hyper.

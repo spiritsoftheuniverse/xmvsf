@@ -570,7 +570,7 @@ int main(){
         normalPlay.quiet(7204u,0x0Eu,0u);
         assert(!normalPlay.charlieQueued && !normalPlay.windowReady);
     }
-    // 87.358: exact original Charlie QCB, even if the 68000 facing
+    // 87.359: exact original Charlie QCB, even if the 68000 facing
     // flag flips between the initial Down and the terminal Back.
     // A mirrored QCF must NOT falsely turn into Charlie QCB.
     for(unsigned facing=0u;facing<2u;++facing){
@@ -733,5 +733,5 @@ int main(){
     assert(XM87189Family::Tracker::originalSuperController(
          XM87184Life::Sample(0x12u,0x2E08u,0x2A00u,2u,
                               0x0D3070u,0x0Au))); // 2E unmodified
-    std::puts("XMVSF 87.358 Charlie QCB+KKK facing-locked original motion PASS");
+    std::puts("XMVSF 87.359 Charlie QCB+KKK facing-locked original motion PASS");
 }
