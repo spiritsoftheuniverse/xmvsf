@@ -5,7 +5,7 @@
 set -euo pipefail
 BUILD_WALL_START=$SECONDS
 # Batch sets the version once at launch, before native compilation begins.
-XMVSF_BUILD_VERSION="${XMVSF_TEST_VERSION:-87.364}"
+XMVSF_BUILD_VERSION="${XMVSF_TEST_VERSION:-87.365}"
 XMVSF_BUILD_TAG="${XMVSF_BUILD_VERSION//./_}"
 PROJECT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
@@ -593,7 +593,24 @@ if [[ "${XMVSF_WARM_MENU_SINGLE_PASS:-1}" == 1 &&
     fi
   fi
 fi
-if (( WARM_MENU_PASS )); then
+# 87.365: skip the huge two-pass dependency generation only when the
+# cached FULL native graph is complete. Still run GNU Make pass-2 which
+# remakes stale GCC .d files and recompiles changed C/C++ translation units.
+FAST_NATIVE_GRAPH=0
+if [[ -s "$PROJECT/dev/dhc/FAST_NATIVE_DEPENDS_365.sh" ]]; then
+  source "$PROJECT/dev/dhc/FAST_NATIVE_DEPENDS_365.sh"
+  if xm365_fast_native_dep_eligible "$PROJECT" "$TREE" "$CACHE_DIR" \
+       "$SUCCESS_STATE" "$compiler_identity" "$CACHE_SIGNATURE_UNCHANGED" \
+       "${#REPAIR_NATIVE[@]}"; then
+    FAST_NATIVE_GRAPH=1
+  fi
+fi
+if (( FAST_NATIVE_GRAPH )); then
+  echo "BUILD MODE: cached native graph, one full dependency-aware Make pass."
+  MAKELEVEL=2 make -f makefile.sdl2 LSB_FIRST=1 INCLUDE_7Z_SUPPORT=1 DEPEND=1 \
+    "XMVSF_BUILD_SIGNATURE=../../../test/build_cache/compiler.signature" \
+    "${MAKE_COMPILER[@]}" -j"${XMVSF_BUILD_JOBS:-12}" all
+elif (( WARM_MENU_PASS )); then
   # The ordinary pass-2 still constructs FBNeo's full Make wildcard/vpath
   # graph. Reuse the linker-map object's EXACT ordered list instead, and
   # include only the four SDL .d files affected by menu/boot/audio edits.
@@ -733,6 +750,13 @@ echo "BUILD CACHE SUMMARY: rebuilt $rebuilt of $object_count local objects; reus
 echo "BUILD CACHE INVENTORY: $OBJECT_INVENTORY"
 echo "BUILD CACHE REBUILT FILES: $REBUILT_LIST"
 echo "BUILD CACHE LAST SUCCESS: $SUCCESS_STATE"
+# Only snapshot the native .d inventory AFTER a successful native
+# compile, executable hash verification and TEST-only publication.
+if declare -F xm365_record_native_dep_graph >/dev/null 2>&1; then
+  if ! xm365_record_native_dep_graph "$TREE" "$CACHE_DIR"; then
+    echo "BUILD CACHE: optional dependency inventory write failed; TEST remains successful."
+  fi
+fi
 if (( ${#REPAIR_NATIVE[@]} )); then
   # Only seal the repair after native build, link and TEST publication.
   printf 'repaired_source_revision=%s\n' "$(git -C "$PROJECT" rev-parse HEAD 2>/dev/null || true)" > "$REPAIR_MARK"
