@@ -54,6 +54,7 @@ struct Machine {
     Clip akumaLoop; // Akuma Stage looping Vorbis
     Clip ryuLoop; // Ryu Stage looping Vorbis
     Clip boomerStart,boomerLoop; // Boomer Kuwanger: 01 intro then looping 02
+    Clip selection; // looping character-select BGM
     Clip versus; // native pre-fight versus screen, separate from stage BGM
     double meterPos[2] = {0.0,0.0};
     bool meterOn[2] = {false,false};
@@ -64,7 +65,10 @@ struct Machine {
     bool moveOn = false, confirmOn = false, fight = false, gameStarted = false;
     bool crashOn=false,welcomeOn=false,fightVoiceOn=false;
     bool musicEnabled=false; // no music before explicit menu start/reveal
-    HANDLE fdLoadThread=nullptr,guileLoadThread=nullptr,versusLoadThread=nullptr,sigmaLoadThread=nullptr,akumaLoadThread=nullptr,ryuLoadThread=nullptr,boomerLoadThread=nullptr;
+    HANDLE fdLoadThread=nullptr,guileLoadThread=nullptr,versusLoadThread=nullptr,sigmaLoadThread=nullptr,akumaLoadThread=nullptr,ryuLoadThread=nullptr,boomerLoadThread=nullptr,selectionLoadThread=nullptr;
+    int selectionLoadState=0; // 0=idle,1=loading,2=ready,3=failed
+    bool selectionPending=false,selectionPlaying=false;
+    unsigned selectionMutePackets=0; // first six emulated frame packets
     int versusLoadState=0; // 0=idle, 1=loading, 2=ready, 3=missing/failed
     bool versusPending=false,versusPlaying=false;
     int guileLoadState=0; // same 0/1/2/3 convention as FD
@@ -344,6 +348,19 @@ static DWORD WINAPI boomerLoadWorker(LPVOID){
       first&&second?"READY":"MISSING");
     return 0;
 }
+// Decode selection BGM once during the boot menu, never on an audio callback.
+static DWORD WINAPI selectionLoadWorker(LPVOID){
+    SetThreadPriority(GetCurrentThread(),THREAD_PRIORITY_BELOW_NORMAL);
+    Clip music;
+    const bool ok=clipLoadOggRepo(music,"characterselect.ogg");
+    EnterCriticalSection(&m.lock);
+    if(ok){m.selection=music;music.pcm=nullptr;m.selectionLoadState=2;}
+    else m.selectionLoadState=3;
+    LeaveCriticalSection(&m.lock);
+    music.release();
+    std::fprintf(stderr,"XM87.367 SELECT_OGG_PRELOAD %s (audio/music/characterselect.ogg)\n",ok?"READY":"FAILED");
+    return 0;
+}
 // Asynchronous decode shares the same WASAPI device as menu/game/stage audio.
 static DWORD WINAPI versusLoadWorker(LPVOID){
     SetThreadPriority(GetCurrentThread(),THREAD_PRIORITY_BELOW_NORMAL);
@@ -431,6 +448,14 @@ static void fillFrames(BYTE* output, UINT32 count, const WAVEFORMATEX* fmt) {
                 m.musicGain=m.musicTarget;m.fadeSeconds=0.f;
             }
         }else m.musicGain=m.musicTarget;
+        if(m.selectionPending && m.selectionLoadState==2){
+            m.selectionPending=false;m.selectionPlaying=true;
+            m.selection.pos=0.0;
+            std::fprintf(stderr,"XM87.367 SELECT_OGG_PLAY frames=%u\n",unsigned(m.selection.frames));
+        }else if(m.selectionPending && m.selectionLoadState==3){
+            m.selectionPending=false;
+            std::fprintf(stderr,"XM87.367 SELECT_OGG_UNAVAILABLE\n");
+        }
         if(m.versusPending && m.versusLoadState==2){
             m.versusPending=false;
             m.versusPlaying=true;
@@ -520,15 +545,18 @@ static void fillFrames(BYTE* output, UINT32 count, const WAVEFORMATEX* fmt) {
             }
             // Use the revised OGG's authored level; no hidden 70% attenuation.
             fd*=m.fdGain;
-            // Versus music replaces menu music on the pre-fight screen only.
+            const float selectionSound=m.selectionPlaying?
+                linearClip(m.selection,m.selection.pos,ch):0.f;
+            // Versus music replaces selection music on the pre-fight screen.
             const float versusSound=m.versusPlaying?
                 linearClip(m.versus,m.versus.pos,ch):0.f;
             // Stage22 controls QSound BGM only; native QSound effects stay mixed.
-            channelsOut[ch]=clamp(game+m.musicGain*0.70f*0.70f*music*musicDuck /* 49% base, duck for authored voices */+fd+versusSound+movement+confirmation+meterSound+crashSfx+welcomeVoice+fightVoice); /* XMVSF_STAGE22_SELECTION_SFX: native game SFX always audible; sound CPU suppresses BGM */
+            channelsOut[ch]=clamp(game+m.musicGain*0.70f*0.70f*music*musicDuck /* 49% base, duck for authored voices */+fd+selectionSound+versusSound+movement+confirmation+meterSound+crashSfx+welcomeVoice+fightVoice); /* XMVSF_STAGE22_SELECTION_SFX: native game SFX always audible; sound CPU suppresses BGM */
         }
         BYTE* dest=output+static_cast<size_t>(i)*fmt->nBlockAlign;
         for(unsigned ch=0;ch<channels;ch++)putSample(dest,ch,bits,floats,ch<2?channelsOut[ch]:0.f);
         if(m.musicEnabled)advanceClip(m.music,musicStep,true);
+        if(m.selectionPlaying)advanceClip(m.selection,musicStep,true);
         if(m.versusPlaying){
             // VS theme is authored as a one-shot, never a loop.
             advanceClip(m.versus,musicStep,false);
@@ -625,6 +653,10 @@ static DWORD WINAPI audioThread(LPVOID) {
 }
 static void shutdown() {
     if(!m.begun)return;
+    if(m.selectionLoadThread){
+        WaitForSingleObject(m.selectionLoadThread,INFINITE);
+        CloseHandle(m.selectionLoadThread);m.selectionLoadThread=nullptr;
+    }
     if(m.boomerLoadThread){
         WaitForSingleObject(m.boomerLoadThread,INFINITE);
         CloseHandle(m.boomerLoadThread);m.boomerLoadThread=nullptr;
@@ -662,6 +694,8 @@ static void shutdown() {
     m.crash.release();m.welcome.release();m.fightVoice.release();
     m.fdStart.release();m.fdLoop.release();m.guileLoop.release();m.sigmaLoop.release();m.akumaLoop.release();m.ryuLoop.release();
     m.boomerStart.release();m.boomerLoop.release();
+    m.selection.release();m.selectionLoadState=0;
+    m.selectionPending=m.selectionPlaying=false;m.selectionMutePackets=0;
     m.versus.release();
     m.versusLoadState=0;m.versusPending=m.versusPlaying=false;
     m.fdLoadState=0;m.guileLoadState=0;m.sigmaLoadState=0;m.akumaLoadState=0;m.ryuLoadState=0;m.boomerLoadState=0;m.activeStageMusic=0;
@@ -683,6 +717,12 @@ static bool start() {
     clipLoadRepoAudio(m.crash,"crash.wav");
     clipLoadRepoAudio(m.welcome,"xmvsf_welcome.wav");
     clipLoadRepoAudio(m.fightVoice,"fight!.wav");
+    m.selectionLoadState=1;
+    m.selectionLoadThread=CreateThread(nullptr,0,selectionLoadWorker,nullptr,0,nullptr);
+    if(!m.selectionLoadThread){
+        m.selectionLoadState=3;
+        std::fprintf(stderr,"XM87.367 SELECT_OGG_THREAD_FAILED\n");
+    }
     m.thread=CreateThread(nullptr,0,audioThread,nullptr,0,nullptr);
     if(!m.thread){shutdown();return false;}
     atexit(shutdown);
@@ -693,9 +733,14 @@ static void queue(const int16_t* samples,unsigned frames,unsigned hz) {
     EnterCriticalSection(&m.lock);
     m.gameHz=hz;
     if(!m.gameStarted) {m.gameStarted=true;m.produced=0;m.consumed=0;}
+    // Suppress the six-frame native QSound startup artifact without
+    // changing emulation or muting later character-select SFX.
+    const bool muteSelectorPacket=m.selectionMutePackets>0;
+    if(muteSelectorPacket)--m.selectionMutePackets;
     for(unsigned i=0;i<frames;i++) {
         const uint64_t w=m.produced++;
-        m.game[(w%kGameCapacity)*2]=samples[i*2];m.game[(w%kGameCapacity)*2+1]=samples[i*2+1];
+        m.game[(w%kGameCapacity)*2]=muteSelectorPacket?0:samples[i*2];
+        m.game[(w%kGameCapacity)*2+1]=muteSelectorPacket?0:samples[i*2+1];
     }
     if(m.produced>static_cast<uint64_t>(m.consumed)+kGameCapacity-2) {
         m.consumed=static_cast<double>(m.produced-m.gameHz/8u);++m.dropped;
@@ -854,6 +899,8 @@ void xm20MenuStart(){
     EnterCriticalSection(&xm20::m.lock);
     xm20::m.versusPending=xm20::m.versusPlaying=false;
     xm20::m.versus.pos=0.0;
+    xm20::m.selectionPending=xm20::m.selectionPlaying=false;
+    xm20::m.selection.pos=0.0;xm20::m.selectionMutePackets=0;
     xm20::m.musicEnabled=true; // regular return/replay starts normally
     xm20::m.fdPending=xm20::m.fdStarted=xm20::m.fdKo=false;
     xm20::m.fdPhase=0u;xm20::m.fdGain=1.f;xm20::m.activeStageMusic=0;
@@ -926,11 +973,16 @@ void xm20MenuEnterGame(){
     xm20VersusPrepare(); // decode concurrently with the native character selector
     if(!xm20::m.csReady)return;
     EnterCriticalSection(&xm20::m.lock);
-    xm20::m.fadeFrom=xm20::m.musicGain;
-    xm20::m.musicTarget=1.f;
-    xm20::m.fadeElapsed=0.f;
-    xm20::m.fadeSeconds=0.15f; // ordinary start/upward gain stays quick
+    // Character select owns music from its first frame, not the menu.
+    xm20::m.musicEnabled=false;
+    xm20::m.musicGain=xm20::m.musicTarget=0.f;
+    xm20::m.fadeFrom=xm20::m.fadeElapsed=xm20::m.fadeSeconds=0.f;
+    xm20::m.selection.pos=0.0;
+    xm20::m.selectionPlaying=false;xm20::m.selectionPending=true;
+    xm20::m.selectionMutePackets=6;
+    xm20::m.gameStarted=false;xm20::m.produced=0;xm20::m.consumed=0;
     xm20::m.fight=false;
+    std::fprintf(stderr,"XM87.367 CHARACTER_SELECT_ENTER muted_packets=6 preload_state=%d\n",xm20::m.selectionLoadState);
     xm20::m.versusPending=xm20::m.versusPlaying=false;
     xm20::m.versus.pos=0.0;
     LeaveCriticalSection(&xm20::m.lock);
@@ -939,8 +991,9 @@ void xm20OnCombat(){
     if(!xm20::m.csReady)return;
     EnterCriticalSection(&xm20::m.lock);
     if(!xm20::m.fight){
-        // At the native PRECOMBAT VS transition, replace the menu song
-        // immediately. No 500ms menu overlap; the versus clip shares WASAPI.
+        // Native selector->VS handoff: no overlapping authored songs.
+        xm20::m.selectionPending=xm20::m.selectionPlaying=false;
+        xm20::m.selection.pos=0.0;xm20::m.selectionMutePackets=0;
         xm20::m.musicEnabled=false;
         xm20::m.musicGain=xm20::m.musicTarget=0.f;
         xm20::m.fadeFrom=xm20::m.fadeSeconds=xm20::m.fadeElapsed=0.f;
@@ -959,7 +1012,10 @@ void xm20CombatMusicHandoff(){
     if(!xm20::m.csReady)return;
     EnterCriticalSection(&xm20::m.lock);
     const bool changed=xm20::m.musicEnabled || xm20::m.versusPending ||
-                       xm20::m.versusPlaying || !xm20::m.fight;
+                       xm20::m.versusPlaying || xm20::m.selectionPending ||
+                       xm20::m.selectionPlaying || !xm20::m.fight;
+    xm20::m.selectionPending=xm20::m.selectionPlaying=false;
+    xm20::m.selection.pos=0.0;xm20::m.selectionMutePackets=0;
     xm20::m.musicEnabled=false;
     xm20::m.musicGain=xm20::m.musicTarget=0.f;
     xm20::m.fadeFrom=xm20::m.fadeSeconds=xm20::m.fadeElapsed=0.f;

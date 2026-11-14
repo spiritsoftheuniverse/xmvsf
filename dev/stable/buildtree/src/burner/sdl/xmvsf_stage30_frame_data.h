@@ -796,6 +796,27 @@ struct XM30FrameData {
              actors[0].health<previousHealth[0]) ||
             (actors[1].valid && healthSeeded[1] &&
              actors[1].health<previousHealth[1]);
+        // Verified ROM standing neutral terminates all fighter-owned
+        // attack cards even if another fighter's cinematic freezes both
+        // native clocks before their normal exit logic executes. A linked
+        // projectile may continue independently until its true despawn.
+        for(int p=0;p<2;++p){
+            const XM41ActorSample& a=actors[p];
+            if(!a.valid || a.nativeAction!=0u ||
+               xm30NativeAttackFamily(a)!=0u || a.hitStop!=0u ||
+               samples[p].melee.active)continue;
+            for(int i=0;i<count;++i){
+                XM30Event& e=history[i];
+                if(e.player!=p || !e.attackObserved || e.attackEnded)continue;
+                e.attackEnded=true;
+                e.attackEndFrame=e.attackLastFrame;
+                if(e.source==0 && !e.closed){
+                    e.closed=true;
+                    e.endFrame=e.hitboxLastFrame?
+                        e.hitboxLastFrame:e.attackLastFrame;
+                }
+            }
+        }
         // ROM portrait phase 81 is not guaranteed to remain at stage 02
         // across fighters. Also recognize frozen stage-02 startup when
         // phase 80 is used (even if an old projectile still exists).
