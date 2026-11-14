@@ -1,11 +1,11 @@
 @echo off
-REM XMVSF TEST 87.361 - final native DHC built into Version 4 - local native Windows DHC build (no Stable overwrite)
+REM XMVSF TEST 87.362 - final native DHC built into Version 4 - local native Windows DHC build (no Stable overwrite)
 setlocal EnableExtensions DisableDelayedExpansion
 for %%I in ("%~dp0.") do set "PROJECT=%%~fI"
 set "MSYSTEM=UCRT64"
 set "PATH=C:\msys64\ucrt64\bin;C:\msys64\usr\bin;%PATH%"
 set "XMVSF_PROJECT=%PROJECT%"
-set "XMVSF_TEST_VERSION=87.361"
+set "XMVSF_TEST_VERSION=87.362"
 REM Derived from XMVSF_TEST_VERSION; must match BUILD_TEST.bat.
 set "XMVSF_TEST_TAG=%XMVSF_TEST_VERSION:.=_%"
 REM All TEST diagnostics track the same version as the launched executable.
@@ -90,15 +90,15 @@ REM XM87.235 restore previously successful 87.121 Cyclops air-throw recovery.
 REM Exact pre-throw airborne state after victim lands; no forced new jump.
 REM Inherited XM87121_CYCLOPS_RELEASE=0 remains an explicit A/B opt-out.
 if not defined XM87121_CYCLOPS_RELEASE set "XM87121_CYCLOPS_RELEASE=1"
-if not defined XM87121_CYCLOPS_LOG_FILE set "XM87121_CYCLOPS_LOG_FILE=%OBSROOT%\cyclops_air_throw_release.tsv"
+set "XM87121_CYCLOPS_LOG_FILE="
 REM 87.235 native accepted-dash startup evidence; tiny event-only TSV.
 if not defined XM87220_DASH_LOG_FILE set "XM87220_DASH_LOG_FILE=%OBSROOT%\dash_startup.tsv"
 REM TEST 87.319: native Storm HP 68000 reaction/index/velocity and candidate writers.
-set "XM87223_STORM_FLIGHT_LOG_FILE=%OBSROOT%\storm_hp_native_fs.tsv"
-set "XM87223_M68K_CANDIDATES_FILE=%OBSROOT%\storm_fs_68000_opcode_candidates.tsv"
+set "XM87223_STORM_FLIGHT_LOG_FILE="
+set "XM87223_M68K_CANDIDATES_FILE="
 set "XM87127_STORM_VOICE_MUTE=1"
-set "XM87127_STORM_VOICE_LOG_FILE=%OBSROOT%\storm_voice_all_modes.tsv"
-set "XM8786_STORM_BUTTON_LOG_FILE=%OBSROOT%\storm_like_flight_events.tsv"
+set "XM87127_STORM_VOICE_LOG_FILE="
+set "XM8786_STORM_BUTTON_LOG_FILE="
 REM TEST 87.319: compare native hit order + current button tag.
 REM FS_HP_THEN_HK_CYCLOPS_SEVERE = previous connected HP, current HK in FS.
 REM FS_GROUNDED_HEAVY_CYCLOPS_SEVERE = grounded non-SJ HP/HK during FS.
@@ -121,22 +121,22 @@ REM Charlie air HP stays ROM native; confirmed HK gets Cyclops severe.
 REM 87.235 fixed Storm native baseline x1.5. Charlie conversions label
 REM CHARLIE_STORM_FIXED_BASE_XY_150PCT and the old Y-velocity
 REM carry-over is disabled only for Charlie air HP/HK.
-REM 87.361: native original 68000 DHC is built into Version 4 of xmvsfu.
+REM 87.362: native original 68000 DHC is built into Version 4 of xmvsfu.
 REM No activation flags. Version 3 remains the original native game.
-if not defined XM87274_UNIFIED_DHC_LOG set "XM87274_UNIFIED_DHC_LOG=%OBSROOT%\dhc_unified_274.tsv"
+set "XM87274_UNIFIED_DHC_LOG="
 echo Native M68K DHC: built into Version 4; no flags needed.
 echo Version 3: original game, without DHC.
-echo DHC input/decision trace: %XM87274_UNIFIED_DHC_LOG%
-set "XM87175_DHC_OBSERVER=1"
-set "XM87175_DHC_OBSERVER_LOG=%OBSROOT%\dhc_acceptance_test.tsv"
+echo DHC observer output disabled; original native DHC remains active in Version 4.
+set "XM87175_DHC_OBSERVER=0"
+set "XM87175_DHC_OBSERVER_LOG="
 REM 87.185: subframe 68000 trace; delayed priming is unsafe by default.
-set "XM87180_NATIVE_SUBFRAME_LOG=%OBSROOT%\native_subframe_test.tsv"
+set "XM87180_NATIVE_SUBFRAME_LOG="
 REM 87.186 opening gate: original ROM action entry/attack, read-only.
-set "XM87186_OPENING_OBSERVER=1"
-set "XM87186_OPENING_OBSERVER_LOG=%OBSROOT%\native_opening_test.tsv"
+set "XM87186_OPENING_OBSERVER=0"
+set "XM87186_OPENING_OBSERVER_LOG="
 REM 87.185: exact 68000 executed-PC trace is opt-in during interactive gameplay.
 REM 87.185: trace only during active native Ryu-Ken handoff.
-set "XM87182_NATIVE_PC_TRACE=1"
+set "XM87182_NATIVE_PC_TRACE=0"
 REM Safety gate ON for interactive play; no consumed ROM punch edge tags.
 set "XM87183_REPLAY_UNSAFE_CONSUMED_EDGE=0"
 REM 87.186 TEST-only nonterminal native 2E0A recovery handoff experiment.
@@ -186,21 +186,9 @@ REM To isolate stable 87.185 behavior, set this to 0 in parent CMD.
 if not defined XM87186_TEST_FIRST_FOUR_ATTACK set "XM87186_TEST_FIRST_FOUR_ATTACK=1"
 REM 87.203: only native PC010392 air 2E0E->2E0C rebound; 0 for A/B.
 if not defined XM87202_TEST_AIR_FOLLOWUP_REBOUND set "XM87202_TEST_AIR_FOLLOWUP_REBOUND=1"
-set "XM87182_NATIVE_PC_TRACE_LOG=%OBSROOT%\native_pc_trace_test.tsv"
-REM 87.181 append-only launch health. This marker is created even if
-REM the menu closes without entering a CPS2 driver.
-set "XM87181_DIAGNOSTIC_STATUS=%OBSROOT%\observer_health_test.log"
-REM 'choice' returns ERRORLEVEL 1/2/3, which CMD echo redirection does
-REM NOT clear on success. Do not mistake a successful log write for failure.
-REM Explicit TYPE sets a fresh exit status and verifies append access.
-type nul >>"%XM87181_DIAGNOSTIC_STATUS%" 2>nul
-if errorlevel 1 (
-  echo ERROR: Observer health log directory/file cannot be opened for append:
-  echo   "%XM87181_DIAGNOSTIC_STATUS%"
-  echo Check permissions, read-only attributes, and available disk space.
-  goto :fail
-)
->>"%XM87181_DIAGNOSTIC_STATUS%" echo RUN_TEST_START version=%XMVSF_TEST_VERSION% date=%DATE% time=%TIME%
+set "XM87182_NATIVE_PC_TRACE_LOG="
+REM 87.362: health observer disabled; no append/create or mandatory check.
+set "XM87181_DIAGNOSTIC_STATUS="
 if not defined XM87180_EXPERIMENTAL_DELAYED_PRIME set "XM87180_EXPERIMENTAL_DELAYED_PRIME=0"
 set "EXE=%PROJECT%\runtime\stable\XMVSF_Test_%XMVSF_TEST_TAG%.exe"
 if not exist "%EXE%" (
@@ -303,7 +291,7 @@ REM 87.175 returns to 87.151 Ryu to Ken transition at super timer 28.
 REM Ken arrival and his first attack cancellation are from that trace.
 REM The destination is a single Ken hyper move, not a team hyper move.
 set "XM87157_EARLY_CANCEL=1"
-set "XM87144_DHC_LOG=%XM87140_CHAT_DIR%\dhc_native_handoff.tsv"
+set "XM87144_DHC_LOG="
 set "XM87192_RESERVE_SUPER_LOG=%OBSROOT%\reserve_owned_supers.tsv"
 REM DHC-only: outgoing Ryu projectiles remain visible but cannot keep
 REM offensive collision after the native Ryu-to-Ken tag. Track identities
@@ -312,7 +300,7 @@ set "XM87159_PROJECTILE_LOG=%XM87140_CHAT_DIR%\p1_old_projectile_hitboxes.tsv"
 REM 87.175: catalog every candidate native 2E script from original CPS2
 REM ROM tables; log *observed* action/physical-input correlation separately.
 REM Neither file enables an unverified super for gameplay DHC.
-set "XM87160_DISCOVER=1"
+set "XM87160_DISCOVER=0"
 set "XM87160_CATALOG_LOG=%XM87140_CHAT_DIR%\rom_super_catalog.tsv"
 set "XM87160_OBSERVED_LOG=%XM87140_CHAT_DIR%\rom_super_observed.tsv"
 REM Keep raw decrypted opcode/data snapshots out of Git and handoff ZIPs.
@@ -333,9 +321,9 @@ set "XM8799_GROUND_DEFENSE_TEST=1"
 set "XM87149_TOURNAMENT_AUDIT=%XM87140_CHAT_DIR%\tournament_rules.tsv"
 REM Marvel vs. Capcom capture should not print XMVSF DHC instructions.
 if /I "%SOURCE_ROM:~0,4%"=="mvsc" goto :mvc_source_banner
-echo Cyclops air-throw 87.121 recovery: %XM87121_CYCLOPS_RELEASE%  log: %XM87121_CYCLOPS_LOG_FILE%
-echo 87.186 STARTUP HEALTH: %XM87181_DIAGNOSTIC_STATUS%
-echo 87.175 NATIVE OBSERVER: %XM87175_DHC_OBSERVER_LOG%
+echo Cyclops air-throw recovery remains active; observer disabled.
+echo Health observer disabled; no observer summary generated.
+echo DHC, Cyclops, Storm and health observers suppressed; dash log retained.
 echo Native actor rows require a running XMVSF combat session; menu exit writes health only.
 echo 87.185: QCF+any 2P/3P recognizes DHC during real super; native tag still needs ROM acceptance.
 echo 87.185: Ken native QCF+2P and instant, no-charge arrival preserved.
@@ -493,7 +481,7 @@ if /I "%SOURCE_ROM%"=="xmvsfu" (
 )
 set "RC=%ERRORLEVEL%"
 popd
->>"%XM87181_DIAGNOSTIC_STATUS%" echo RUN_TEST_EXIT version=%XMVSF_TEST_VERSION% code=%RC%
+REM Health observer disabled; preserve EXE return code.
 REM Include the actual FBNeo-to-physical controller mapping alongside the
 REM controller and ordinary Training side-switch traces for local diagnosis.
 if /I "%SOURCE_ROM%"=="xmvsfu" (
@@ -569,51 +557,7 @@ if exist "%XM87160_PRIVATE_ROM_DIR%\xmvsfu_program_data_host_swapped.bin" (
   )
 )
 echo.
-REM After closing the game, derive compact observer results WITHOUT changing the run return code.
-if exist "%XM87175_DHC_OBSERVER_LOG%" (
-  where python.exe >nul 2>nul
-  if not errorlevel 1 (
-    python.exe "%PROJECT%\dev\dhc\tools\ANALYZE_DHC_NATIVE_OBSERVER_175.py" --input "%XM87175_DHC_OBSERVER_LOG%" --out "%OBSROOT%\dhc_acceptance_test_summary.json"
-    if errorlevel 1 echo WARNING: Observer summary failed; original TSV and gameplay result preserved.
-  ) else (
-    echo INFO: Python missing. Observer TSV remains available for upload.
-  )
-) else (
-  echo WARNING: Native actor TSV missing. See the 87.181 health report for the exact reason.
-)
-REM 87.180 native subframe diagnostics: read-only and preserves EXE result.
-if exist "%XM87180_NATIVE_SUBFRAME_LOG%" (
-  where python.exe >nul 2>nul
-  if not errorlevel 1 (
-    python.exe "%PROJECT%\dev\dhc\tools\ANALYZE_DHC_SUBFRAME_180.py" --input "%XM87180_NATIVE_SUBFRAME_LOG%" --out "%OBSROOT%\native_subframe_test_summary.json"
-    if errorlevel 1 echo WARNING: 87.180 subframe summary failed, raw TSV retained.
-  )
-)
-REM 87.185: report why old/new observer files are absent or empty.
-REM Diagnostic report cannot alter %RC% or overwrite previous traces.
-where python.exe >nul 2>nul
-if not errorlevel 1 (
-  python.exe "%PROJECT%\dev\dhc\tools\ANALYZE_OBSERVER_HEALTH_181.py" --health "%XM87181_DIAGNOSTIC_STATUS%" --native "%XM87175_DHC_OBSERVER_LOG%" --subframe "%XM87180_NATIVE_SUBFRAME_LOG%" --out "%OBSROOT%\observer_health_summary.json"
-  if errorlevel 1 echo WARNING: Health summary unavailable; raw observer_health_test.log retained.
-) else (
-  echo WARNING: Python unavailable. Observer health raw log: "%XM87181_DIAGNOSTIC_STATUS%"
-)
-REM Exact native executed-PC analysis (only when explicitly enabled).
-if exist "%XM87182_NATIVE_PC_TRACE_LOG%" (
-  where python.exe >nul 2>nul
-  if not errorlevel 1 (
-    python.exe "%PROJECT%\dev\dhc\tools\ANALYZE_NATIVE_PC_ARBITRATION_182.py" --input "%XM87182_NATIVE_PC_TRACE_LOG%" --out "%OBSROOT%\native_pc_trace_test_summary.json"
-    if errorlevel 1 echo WARNING: Native PC summary failed, source TSV preserved.
-  )
-)
-REM 87.186 original action entry/beginning DHC trace summary.
-if exist "%XM87186_OPENING_OBSERVER_LOG%" (
-  where python.exe >nul 2>nul
-  if not errorlevel 1 (
-    python.exe "%PROJECT%\dev\dhc\tools\ANALYZE_NATIVE_OPENING_TRACE_186.py" --input "%XM87186_OPENING_OBSERVER_LOG%" --out "%OBSROOT%\native_opening_test_summary.json"
-    if errorlevel 1 echo WARNING: opening trace analyzer failed; raw TSV retained.
-  )
-)
+REM 87.362: no DHC/health observer postprocessors; dash log remains.
 :mvc_donor_post
 echo Stage %XMVSF_TEST_VERSION% TEST exit code: %RC%
 echo F10 native PPC/chooser capture directory: %XM87139_PROBE_DIR%

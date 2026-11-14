@@ -64,8 +64,12 @@ struct Actor {
     // dash. The scripted entry needs its original frame staging, but an
     // ordinary player dash retains the 87.220 zero-wait modification.
     bool autoReturn=false,returnAnchorValid=false;
+    // 87.362: native return is complete after actually reaching the
+    // opponent view; a later corrupt 68k X is a NEW erroneous reentry.
+    bool returnReachedView=false,returnLoopGuard=false;
+    unsigned inViewFrames=0u,guardHits=0u;
     unsigned failedReturnFrames=0,advancingReturnFrames=0,returnMode=0;
-    std::uint32_t returnAnchor=0;
+    std::uint32_t returnAnchor=0,returnGoodX=0;
     unsigned mode=0,identity=~0u,entryFrame=0,dashAge=0;
     // 87.232: old unconditional 36f watchdog killed an actually moving
     // native dash at capture frame 6570.
@@ -160,6 +164,8 @@ struct Controller {
         a.returnAnchor=anchor;a.returnAnchorValid=true;
         a.returnMode=word(r,p+0xa0u);
         a.autoReturn=true;
+        a.returnReachedView=false;a.returnLoopGuard=false;
+        a.inViewFrames=0u;a.guardHits=0u;a.returnGoodX=0u;
         a.ready=false;a.tracking=false;a.dashAge=0u;
         a.stalledFrames=0u;a.scriptLoopsAtOrigin=0u;a.lastScript=0u;
         return true;
@@ -273,6 +279,8 @@ struct Controller {
                 if(bad)setLong(r,p+0x0cu,anchored);
                 a.autoReturn=true;a.returnAnchorValid=true;
                 a.returnAnchor=anchored;a.returnMode=mode;
+                a.returnReachedView=false;a.returnLoopGuard=false;
+                a.inViewFrames=0u;a.guardHits=0u;a.returnGoodX=0u;
                 a.failedReturnFrames=0u;a.advancingReturnFrames=0u;
                 a.ready=false;a.tracking=false;a.dashAge=0u;
                 a.stalledFrames=0u;a.scriptLoopsAtOrigin=0u;a.lastScript=0u;
@@ -306,6 +314,77 @@ struct Controller {
                         "FS_AIR_RETURN_CANCELLED");
                 std::fflush(log);
             }
+        }
+        // 87.362: Once a genuine return REACHED the fight, do not let
+        // the original 68k's recurring corrupt-X writer start an
+        // identical 448px-offscreen entry. No ordinary sane-X dash
+        // is intercepted. Clear only after a real new combat action.
+        if(a.returnLoopGuard){
+            if(control || word(r,p+0x60u)>=0x1000u){
+                a.returnLoopGuard=false;
+                a.returnReachedView=false;
+            }else if(ground(mode) && brokenX && canRecover &&
+                     a.returnGoodX){
+                restoreNeutral(r,p,a,false);
+                settleReturnOnNativeFloor(r,p);
+                setLong(r,p+0x0cu,a.returnGoodX);
+                a.safeValid=true;a.safeX=a.returnGoodX;
+                a.safeFrame=frame;
+                ++a.guardHits;
+                if(log && (a.guardHits==1u ||
+                           a.guardHits%64u==0u)){
+                    std::fprintf(log,
+                        "%u\t%u\t%04X\t%04X\t0\t%08X\t%08X\t%08X\t%u\t%u\tFS_RETURN_CORRUPT_RESTART_BLOCKED\n",
+                        frame,side+1u,identity,mode,x,0u,
+                        a.neutral.script,a.neutral.timer,a.neutral.timer);
+                    std::fflush(log);
+                }
+                return e;
+            }
+        }
+        // Keep the LAST legitimate in-view world coordinate while
+        // the original native return is progressing. Unlike 87.232,
+        // the recovery anchor must not remain its offscreen spawn X.
+        if(a.autoReturn && ground(mode) && !control &&
+           saneX && a.returnAnchorValid &&
+           plausibleWorldX(longword(r,other+0x0cu))){
+            const std::int64_t px=std::int64_t(std::int32_t(x));
+            const std::int64_t start=std::int64_t(
+                std::int32_t(a.returnAnchor));
+            const std::int64_t enemy=std::int64_t(
+                std::int32_t(longword(r,other+0x0cu)));
+            const std::int64_t travel=px>start?px-start:start-px;
+            const std::int64_t gap=px>enemy?px-enemy:enemy-px;
+            if(travel>=0x00300000LL && gap<=0x01800000LL){
+                if(a.inViewFrames<3u)++a.inViewFrames;
+                if(a.inViewFrames>=2u){
+                    a.returnReachedView=true;a.returnGoodX=x;
+                }
+            }else if(!a.returnReachedView)a.inViewFrames=0u;
+        }
+        if(a.autoReturn && a.returnReachedView && brokenX &&
+           a.returnAnchorValid && a.returnGoodX && canRecover &&
+           ground(mode) && !control){
+            // Observed Charlie: 0339DB00 -> valid in-view dash ->
+            // 70FADB00 every ~30f. Neutralize the reentry at the
+            // last REAL coordinate, not the old offscreen anchor.
+            const std::uint32_t good=a.returnGoodX;
+            a.autoReturn=false;a.returnAnchorValid=false;
+            a.returnLoopGuard=true;a.recoveryActive=true;
+            a.suppressedFrames=0u;a.quietFrames=0u;
+            a.lastRecoveryFrame=frame;
+            a.safeValid=true;a.safeX=good;a.safeFrame=frame;
+            restoreNeutral(r,p,a,false);
+            settleReturnOnNativeFloor(r,p);
+            setLong(r,p+0x0cu,good);
+            if(log){
+                std::fprintf(log,
+                    "%u\t%u\t%04X\t%04X\t0\t%08X\t%08X\t%08X\t%u\t%u\tFS_RETURN_REACHED_VIEW_REENTRY_STOPPED\n",
+                    frame,side+1u,identity,mode,x,0u,
+                    a.neutral.script,a.neutral.timer,a.neutral.timer);
+                std::fflush(log);
+            }
+            return e;
         }
         // Recover CPU-scripted offscreen entry BEFORE generic native-neutral
         // watchdog recovery. The 87.231 original-CPU trace observed PPC
@@ -345,7 +424,8 @@ struct Controller {
                 a.failedReturnFrames=0u;
             }
         }
-        if(!a.autoReturn && !a.recoveryActive && ground(mode) && !control &&
+        if(!a.autoReturn && !a.recoveryActive &&
+           !a.returnLoopGuard && ground(mode) && !control &&
            saneX && outsideOpponentView(r,p,x) &&
            word(r,p+0x254u)>0u && word(r,p+0x254u)<2048u &&
            (word(r,p+0x10u)!=word(r,p+0x254u) ||
@@ -355,6 +435,8 @@ struct Controller {
             // Do not rewrite it or substitute an invented native script.
             a.autoReturn=true;a.returnAnchorValid=true;
             a.returnAnchor=x;a.returnMode=mode;
+            a.returnReachedView=false;a.returnLoopGuard=false;
+            a.inViewFrames=0u;a.guardHits=0u;a.returnGoodX=0u;
             a.failedReturnFrames=0u;a.advancingReturnFrames=0u;
             a.ready=false;a.tracking=false;a.dashAge=0u;
             a.stalledFrames=0u;a.scriptLoopsAtOrigin=0u;a.lastScript=0u;
@@ -379,7 +461,7 @@ struct Controller {
                     a.snapshotRestores=0u;
                     a.returnAnchorValid=false;
                 }
-            }else if(!control && canRecover){
+            }else if(!control && canRecover && !a.returnLoopGuard){
                 ++a.suppressedFrames;
                 // Escalate only AFTER several consecutive reentries and
                 // only after confirming that we have the actual ROM-native
@@ -441,7 +523,8 @@ struct Controller {
         // A second ROM-ground dash immediately after watchdog recovery is
         // the characteristic FS loop, not a fresh independently queued dash.
         if(ground(mode) && !control && canRecover &&
-           a.lastRecoveryFrame!=~0u && frame>=a.lastRecoveryFrame &&
+           !a.returnLoopGuard && a.lastRecoveryFrame!=~0u &&
+           frame>=a.lastRecoveryFrame &&
            frame-a.lastRecoveryFrame<=5u){
             a.recoveryActive=true;a.quietFrames=0u;
             a.suppressedFrames=0u;
@@ -456,8 +539,14 @@ struct Controller {
             return e;
         }
         // Retain ROM-owned neutral animation and action from this character.
-        if(!control && (mode&0xff00u)==0u &&
-           (word(r,p+0xaau)>>8u)==0u && longword(r,p+0x14u)==0u){
+        // A one-frame HOST-restored neutral during a broken native
+        // return is not an authentic snapshot. 87.226 repeatedly
+        // replaced its neutral baseline with this synthetic frame.
+        if(!a.recoveryActive && !a.autoReturn &&
+           !a.returnLoopGuard && !control &&
+           (mode&0xff00u)==0u &&
+           (word(r,p+0xaau)>>8u)==0u &&
+           longword(r,p+0x14u)==0u){
             Neutral& n=a.neutral;
             n.valid=true;n.identity=identity;n.frame=frame;
             n.step06=word(r,p+0x06u);n.step08=word(r,p+0x08u);

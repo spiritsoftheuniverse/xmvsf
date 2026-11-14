@@ -70,8 +70,8 @@ struct State {
                 else std::fprintf(stderr,
                     "XMVSF DHC observer file could not open: %s\n",p);
             }else{
-                std::fputs("XMVSF DHC observer path is not configured\n",
-                    stderr);
+                // 87.362: observer intentionally disabled. DHC gameplay
+                // stays enabled independently of diagnostic file output.
             }
         }
         if(log && side<2u){

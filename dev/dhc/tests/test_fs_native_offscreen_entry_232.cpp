@@ -158,6 +158,52 @@ int main(){
     assert(rl(P+0x0cu)==0x02b90000u);
     assert(rw(P+0x10u)==472u);
 
+    // 87.362: Charlie's actual 87.361 capture begins an original
+    // off-screen native entry, genuinely travels back into the fight
+    // view, then sees the SAME corrupt 68k X every ~30f. Completing
+    // the native return must supersede the old 448px staging anchor.
+    base();Controller finished;
+    finished.frame(1u,ram,true); // authentic native neutral snapshot
+    dash(0x70fadb00u,6u,0u);
+    finished.frame(2u,ram,true);
+    assert(finished.actor[0].autoReturn);
+    assert(rl(P+0x0cu)==0x01600000u);
+    // More than 48px from anchor and now inside 384px of the real
+    // opponent for two consecutive ORIGINAL committed frames.
+    dash(0x01c00000u,4u,0x00080000u);
+    finished.frame(3u,ram,true);
+    dash(0x01e00000u,4u,0x00080000u);
+    finished.frame(4u,ram,true);
+    assert(finished.actor[0].returnReachedView);
+    assert(finished.actor[0].returnGoodX==0x01e00000u);
+    // Reassertion after the return is already in the fight: no second
+    // offscreen warp, no fresh 4-tries at 448px, restore native idle.
+    dash(0x70fadb00u,4u,0u);
+    finished.frame(5u,ram,true);
+    assert(!finished.actor[0].autoReturn);
+    assert(finished.actor[0].returnLoopGuard);
+    assert(rl(P+0x0cu)==0x01e00000u);
+    assert(rw(P+0xa0u)==0u);
+    for(unsigned frame=6u;frame<=10u;++frame){
+        dash(0x70fadb00u,4u,0u);
+        finished.frame(frame,ram,true);
+        assert(rl(P+0x0cu)==0x01e00000u);
+        assert(rw(P+0xa0u)==0u);
+        assert(finished.actor[0].returnLoopGuard);
+    }
+    assert(finished.actor[0].guardHits==5u);
+    // A real sane-X voluntary dash remains permitted even while the
+    // corrupt-entry guard is protecting the same actor.
+    dash(0x02100000u,6u,0u);
+    finished.frame(11u,ram,true);
+    assert(rw(P+0xa0u)==0x1400u);
+    // Clear guard on a real new normal attack / native control.
+    w(P+0xa0u,0x1000u);w(P+0x60u,0x1000u);
+    finished.frame(12u,ram,true);
+    assert(!finished.actor[0].returnLoopGuard);
+    // The older four-frame CPU-corrupt-X retry case above remains
+    // protected if the fighter never actually reaches the view.
+
     // Read 68k opcodes using actual decrypted host-word-swapped layout.
     const std::uint8_t fakeCode[8]={0x34,0x12,0x78,0x56,
                                      0xbcu,0x9au,0xf0u,0xdeu};
@@ -165,5 +211,5 @@ int main(){
     assert(XM87232NativePC::opcodeWord(fakeCode,8u,2u)==0x5678u);
     assert(XM87232NativePC::opcodeWord(fakeCode,8u,4u)==0x9abcu);
     assert(XM87232NativePC::opcodeWord(fakeCode,8u,7u)==0u);
-    std::puts("87.232 native 68k FS ground-entry / moving dash / opcode trace: PASS");
+    std::puts("87.362 native FS return completion and reentry guard: PASS");
 }
