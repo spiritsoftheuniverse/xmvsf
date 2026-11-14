@@ -1,11 +1,12 @@
 @echo off
+REM XMVSF TEST 87.361 - final native DHC built into Version 4 - local native Windows DHC build (no Stable overwrite)
 setlocal EnableExtensions DisableDelayedExpansion
 for %%I in ("%~dp0.") do set "PROJECT=%%~fI"
 set "MSYSTEM=UCRT64"
 set "PATH=C:\msys64\ucrt64\bin;C:\msys64\usr\bin;%PATH%"
 set "XMVSF_PROJECT=%PROJECT%"
-set "XMVSF_TEST_VERSION=87.328"
-REM Derived from version: 87.328 -> 87_328. Must match BUILD_TEST.bat.
+set "XMVSF_TEST_VERSION=87.361"
+REM Derived from XMVSF_TEST_VERSION; must match BUILD_TEST.bat.
 set "XMVSF_TEST_TAG=%XMVSF_TEST_VERSION:.=_%"
 REM All TEST diagnostics track the same version as the launched executable.
 set "XMVSF_TEST_LOG_ROOT=%PROJECT%\test\%XMVSF_TEST_VERSION%"
@@ -64,7 +65,7 @@ if "%XM87203_STAGE_CAPTURE_ENABLE%"=="1" (
 ) else (
   set "XM87203_STAGE_CAPTURE_DIR="
 )
-echo Stage 87.328 TEST executable, source ROM: %SOURCE_ROM%
+echo Stage %XMVSF_TEST_VERSION% TEST executable, source ROM: %SOURCE_ROM%
 echo Stage capture: %XM87203_STAGE_CAPTURE_ENABLE%
 echo Existing MSYS live console: bash dev/stage_capture/WATCH_CAPTURE.sh
 echo F9 = replay, F10 = native probe, F11 = MVC1 level capture ON/OFF.
@@ -76,6 +77,14 @@ if not exist "%OBSROOT%" (
   echo ERROR: Cannot create current TEST observer log directory.
   goto :fail
 )
+REM Read-only Morphus EURO 68000 opcode signature audit; opt-in only.
+if "%XM87329_DHC_HOOK_PROBE%"=="1" if not defined XM87329_DHC_HOOK_PROBE_LOG set "XM87329_DHC_HOOK_PROBE_LOG=%OBSROOT%\morphus_opcode_sites_329.tsv"
+REM 87.330 exact EURO opcode signature search; disabled unless requested.
+if "%XM87330_MORPHUS_LOCATOR%"=="1" if not defined XM87330_MORPHUS_LOCATOR_LOG set "XM87330_MORPHUS_LOCATOR_LOG=%OBSROOT%\morphus_opcode_locator_330.tsv"
+REM 87.331 real CPS2 opcode word-order search. Opt-in only.
+if "%XM87331_MORPHUS_LOCATOR%"=="1" if not defined XM87331_MORPHUS_LOCATOR_LOG set "XM87331_MORPHUS_LOCATOR_LOG=%OBSROOT%\morphus_opcode_locator_331.tsv"
+REM 87.332 read-only Motorola opcode context, opt in for DHC relocation.
+if "%XM87332_DHC_CONTEXT%"=="1" if not defined XM87332_DHC_CONTEXT_LOG set "XM87332_DHC_CONTEXT_LOG=%OBSROOT%\morphus_dhc_context_332.tsv"
 echo TEST log folder: "%XMVSF_TEST_LOG_ROOT%"
 REM XM87.235 restore previously successful 87.121 Cyclops air-throw recovery.
 REM Exact pre-throw airborne state after victim lands; no forced new jump.
@@ -112,11 +121,11 @@ REM Charlie air HP stays ROM native; confirmed HK gets Cyclops severe.
 REM 87.235 fixed Storm native baseline x1.5. Charlie conversions label
 REM CHARLIE_STORM_FIXED_BASE_XY_150PCT and the old Y-velocity
 REM carry-over is disabled only for Charlie air HP/HK.
-REM 87.319: retain experimental universal M68K DHC from 87.274.
-REM Default OFF; game version 3 stays native.
-if not defined XM87274_UNIFIED_DHC set "XM87274_UNIFIED_DHC=0"
+REM 87.361: native original 68000 DHC is built into Version 4 of xmvsfu.
+REM No activation flags. Version 3 remains the original native game.
 if not defined XM87274_UNIFIED_DHC_LOG set "XM87274_UNIFIED_DHC_LOG=%OBSROOT%\dhc_unified_274.tsv"
-echo UNIVERSAL M68K DHC requested: %XM87274_UNIFIED_DHC%  (1=experimental Version 4, 0=legacy)
+echo Native M68K DHC: built into Version 4; no flags needed.
+echo Version 3: original game, without DHC.
 echo DHC input/decision trace: %XM87274_UNIFIED_DHC_LOG%
 set "XM87175_DHC_OBSERVER=1"
 set "XM87175_DHC_OBSERVER_LOG=%OBSROOT%\dhc_acceptance_test.tsv"
@@ -195,7 +204,7 @@ if errorlevel 1 (
 if not defined XM87180_EXPERIMENTAL_DELAYED_PRIME set "XM87180_EXPERIMENTAL_DELAYED_PRIME=0"
 set "EXE=%PROJECT%\runtime\stable\XMVSF_Test_%XMVSF_TEST_TAG%.exe"
 if not exist "%EXE%" (
-  echo ERROR: Stage 87.328 TEST executable is missing; no fallback to older builds.
+  echo ERROR: Stage 87.329 TEST executable is missing; no fallback to older builds.
   echo Run BUILD_TEST.bat first. Will NOT fall back to 87.132.4 or Stable.
   goto :fail
 )
@@ -218,7 +227,7 @@ if /I "%SOURCE_ROM%"=="xmvsfu" if exist "%PROJECT%\_art\guilestage\guilestage.ps
     goto :fail
   )
 )
-REM 87.328: validate Ryu's exact-coordinate PNGs, without changing binary cache.
+REM 87.329: validate Ryu's exact-coordinate PNGs, without changing binary cache.
 if /I "%SOURCE_ROM%"=="xmvsfu" if exist "%PROJECT%\_art\ryustage\ryustage.psd" (
   where python.exe >nul 2>nul
   if errorlevel 1 (
@@ -336,7 +345,7 @@ echo 87.185: delayed DHC input priming disabled by default, preserves original R
 echo 87.184 native Shinkuu action lifetime: 2E08 startup/attack, 2E0A recovery, exact exit.
 echo 87.235 ROM super start-to-real-exit DHC: %XM87191_TEST_OPEN_SUPER_LIFETIME%  (no phase/timer/air-mode availability veto)
 echo Native 2E family: %XM87189_TEST_NATIVE_SUPER_FAMILY% full original attack: %XM87188_TEST_FULL_ATTACK% recovery: %XM87185_TEST_RECOVERY_REBOUND%
-echo XMVSF Stage 87.328 TEST - KEEP KEN SHORYUREPPA; CUT OUTGOING RYU PROJECTILE HITS
+echo XMVSF Stage 87.329 TEST - KEEP KEN SHORYUREPPA; CUT OUTGOING RYU PROJECTILE HITS
 echo Executable: %EXE%
 echo SAME BUILD, TWO DHC CHOICES:
 echo   During Ryu Shinkuu Hadoken, QCF+ANY TWO PUNCHES or QCF+3P queues Ken SHORYUREPPA.
@@ -476,7 +485,7 @@ REM Stage 87.235: start the exact TEST executable without ROM argument.
 REM Restore the pre-merge zero-argument native TEST launch for XMVSF.
 REM MVC1 remains an explicit source-ROM invocation for capture option 3.
 if /I "%SOURCE_ROM%"=="xmvsfu" (
-  echo Launching native XMVSF TEST 87.328: Arcade / Training / Versus.
+  echo Launching native XMVSF TEST 87.329: Arcade / Training / Versus.
   "%EXE%"
 ) else (
   echo Launching original CPS2 donor ROM %SOURCE_ROM% with controller support.
@@ -937,9 +946,9 @@ REM ROM and advanced capture/analysis commands remain backward compatible.
 :suite_menu
 echo.
 echo ============================================================
-echo   XMVSF - TEST 87.328 / ASSET / CAPTURE SUITE
+echo   XMVSF - TEST 87.329 / ASSET / CAPTURE SUITE
 echo ============================================================
-echo   [1] Test game - XMVSF native TEST 87.328
+echo   [1] Test game - XMVSF native TEST 87.329
 echo   [2] Asset Organizer - build and open local editor
 echo   [3] Capture Level - select original donor game
 echo.

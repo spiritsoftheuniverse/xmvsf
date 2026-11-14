@@ -34,19 +34,38 @@ struct Tracker {
     // Bound each stage by the NEXT GREATER original-ROM 2E script
     // address, not by arbitrary frames or sprite-script widths.
     static unsigned nextRomScript(const std::uint8_t*rom,unsigned size,
-                                  unsigned fighter,unsigned from){
+                                  unsigned fighter,unsigned from,
+                                  unsigned action=0x2Eu){
         unsigned next=0u;
         for(unsigned selector=0u;selector<=0x4Eu;selector+=2u){
             const auto x=XM87142::resolve(
-                rom,size,fighter,0x2Eu,selector);
+                rom,size,fighter,action,selector);
             if(x.valid && x.script>from &&
                (!next || x.script<next))next=x.script;
         }
         return next;
     }
+    // The original 68000 has genuine 2C-family Hypers as well as 2E.
+    // Observed: Storm, Sabretooth, M. Bison and Charlie, with mode 2A
+    // and their actual D6. Do not mistake these for failed native tags.
+    static bool native2C(const XM87184Life::Sample& s){
+        return (s.action&0xFF00u)==0x2C00u &&
+               (s.mode&0xFF00u)==0x2A00u && s.d6!=0u;
+    }
     static bool originalSuperController(const XM87184Life::Sample& s){
-        return (s.action&0xFF00u)==0x2E00u &&
-            (s.mode&0xFF00u)==0x2A00u && s.d6!=0u;
+        return ((s.action&0xFF00u)==0x2E00u || native2C(s)) &&
+               (s.mode&0xFF00u)==0x2A00u && s.d6!=0u;
+    }
+    bool native2CWindowAt(unsigned now,const XM87184Life::Sample& s)const{
+        // 2C retains original phase 0 or 2 during its attack: 2E's
+        // step >= 4 requirement cannot be generalized. Only accept a
+        // stage already identified by the original ROM action/script,
+        // actual D6, exact actor, and previous-CPU-frame continuity.
+        return live && lastFrame==now && native2C(s) &&
+               s.fighter==fighter && s.d6==originalD6 &&
+               s.action==stageAction && s.script==lastObservedScript &&
+               stageScript!=0u && s.script>=stageScript &&
+               (stageEnd<=stageScript || s.script<stageEnd);
     }
     bool activeAt(unsigned now,const XM87184Life::Sample& s)const{
         return live && lastFrame==now && phase==ATTACK &&
@@ -70,7 +89,8 @@ struct Tracker {
             s.script==lastObservedScript && originalSuperController(s);
     }
     bool unifiedDhcWindowAt(unsigned now,const XM87184Life::Sample& s)const{
-        return activeAt(now,s) || boundedContinuationAt(now,s);
+        return activeAt(now,s) || boundedContinuationAt(now,s) ||
+               native2CWindowAt(now,s);
     }
     bool recognizes()const {
         return live && (phase==STARTUP || phase==ATTACK ||
@@ -95,23 +115,36 @@ struct Tracker {
             s.script==lastObservedScript;
     }
     Event update(unsigned now,const XM87184Life::Sample& s,
-                 const std::uint8_t*rom,unsigned romSize){
+                 const std::uint8_t*rom,unsigned romSize,
+                 bool experimental2C=false){
         if(lastFrame==now)return NOTHING;
         if(lastFrame!=~0u && now<lastFrame)reset();
         lastFrame=now;
-        const bool inFamily=originalSuperController(s);
+        // Only the explicitly opted-in Morphus native DHC path
+        // expands lifetime tracking to 2C. All older/legacy callers
+        // (and untouched Version 3) retain exact previous 2E semantics.
+        const bool is2C=experimental2C && native2C(s);
+        const bool inFamily=originalSuperController(s) &&
+                            (experimental2C || !native2C(s));
+        const bool rootStep=is2C?(s.step<=2u):s.step==2u;
         XM87142::Lookup root;
-        if(inFamily && s.step==2u)
-            root=XM87142::resolve(rom,romSize,s.fighter,0x2Eu,s.action&0xFFu);
-        const bool originalRoot=inFamily && s.step==2u &&
+        if(inFamily && rootStep)
+            root=XM87142::resolve(rom,romSize,s.fighter,
+                is2C?0x2Cu:0x2Eu,s.action&0xFFu);
+        const bool originalRoot=inFamily && rootStep &&
             root.valid && root.script==s.script;
-        if(originalRoot && (!live || s.fighter!=fighter ||
-            s.action!=rootAction || phase!=STARTUP)){
+        const bool newNative2CRoot=is2C && (!live ||
+            s.fighter!=fighter || s.d6!=originalD6 ||
+            (rootAction&0xFF00u)!=0x2C00u);
+        if(originalRoot && (is2C?newNative2CRoot:
+            (!live || s.fighter!=fighter ||
+             s.action!=rootAction || phase!=STARTUP))){
             // Without an ordered, original NEXT script, a root is
             // observable but never executable. No arbitrary +N window.
             live=true;fighter=s.fighter;rootAction=s.action;
             rootScript=s.script;
-            nextScript=nextRomScript(rom,romSize,s.fighter,root.script);
+            nextScript=nextRomScript(rom,romSize,s.fighter,root.script,
+                                    is2C?0x2Cu:0x2Eu);
             stageAction=s.action;stageScript=s.script;
             stageEnd=nextScript;lastObservedScript=s.script;
             originalD6=s.d6;phase=STARTUP;beginFrame=now;
@@ -120,6 +153,36 @@ struct Tracker {
         }
         if(!live)return NOTHING;
         if(!inFamily || s.fighter!=fighter || s.d6!=originalD6){
+            live=false;phase=OUTSIDE;exitFrame=now;return ACTION_EXIT;
+        }
+        // Original 2C Hypers remain in phase 0 or 2 and progress ROM
+        // script records. Track the REAL actor-owned action and bounded
+        // native stage without demanding a Ryu/Ken 2E phase transition.
+        if(is2C){
+            if(s.action==rootAction && s.script>=rootScript &&
+               (nextScript<=rootScript || s.script<nextScript)){
+                const bool begun=phase==STARTUP && now>beginFrame;
+                stageAction=rootAction;stageScript=rootScript;
+                stageEnd=nextScript;lastObservedScript=s.script;
+                if(begun)phase=ATTACK;
+                return begun?ATTACK_BEGIN:NOTHING;
+            }
+            if(s.action!=stageAction){
+                const auto stage=XM87142::resolve(
+                    rom,romSize,fighter,0x2Cu,s.action&0xFFu);
+                if(stage.valid && s.script>=stage.script){
+                    stageAction=s.action;stageScript=stage.script;
+                    stageEnd=nextRomScript(
+                        rom,romSize,fighter,stage.script,0x2Cu);
+                }
+            }
+            if(s.action==stageAction && stageScript!=0u &&
+               s.script>=stageScript &&
+               (stageEnd<=stageScript || s.script<stageEnd)){
+                const bool changed=phase!=CONTINUATION;
+                lastObservedScript=s.script;phase=CONTINUATION;
+                return changed?CONTINUATION_BEGIN:NOTHING;
+            }
             live=false;phase=OUTSIDE;exitFrame=now;return ACTION_EXIT;
         }
         // Step04 may rewind to the native root script while the same

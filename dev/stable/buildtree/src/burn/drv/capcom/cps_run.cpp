@@ -32,6 +32,13 @@
 #include "xmvsf_stage87_186_opening_observer.h" // 87.186 original entry, first attack, and input boundary audit
 #include "xmvsf_stage87_144_native_handoff.h" // legacy Ryu/Ken native test
 #include "xmvsf_stage87_274_unified_dhc.h" // ROM-owned two-sided DHC test
+#include "xmvsf_stage87_335_native_dhc_bridge.h" // original-ROM native M68K guest bridge
+#include "xmvsf_stage87_340_morphus_native_2v2.h" // Morphus dhc.s motions/chord/2v2 chain
+#include "xmvsf_stage87_352_cyclops_sob_cleanup.h" // native Hyper-only orphan helper cleanup
+#include "xmvsf_stage87_329_morphus_hook_probe.h" // read-only EURO opcode signature audit
+#include "xmvsf_stage87_330_morphus_locator.h" // read-only cross-revision M68K signature locator
+#include "xmvsf_stage87_331_morphus_endian_locator.h" // correct word-swapped CPS2 opcode mapping
+#include "xmvsf_stage87_332_morphus_dhc_context.h" // read-only immediate DHC opcode context
 #include "xmvsf_stage87_160_super_discovery.h" // read-only roster-wide native 2E ROM/script and input discovery
 #include "../../../burner/sdl/xmvsf_stage87_162_replay_sync.h" // exact F9 movie-frame index for native action logs
 #include "xmvsf_stage87_119_cyclops_recovery_probe.h" // XM87.119 read-only recovery state trace
@@ -511,8 +518,68 @@ INT32 Cps2Frame()
     const char* dhcGame=BurnDrvGetTextA(DRV_NAME);
     const bool dhcGameMatches=dhcGame &&
          std::strncmp(dhcGame,"xmvsf",5)==0;
+    // Once per process, compare the ACTUAL decrypted 68000 opcode view
+    // against Morphus' guarded EURO hook bytes. No ROM/RAM writes.
+    if(dhcGameMatches && !bBurnRunAheadFrame)
+        XM87329HookProbe::state().frame(
+            CpsCode,(unsigned)nCpsCodeLen,dhcGame);
+    // 87.330 optional one-pass even-aligned signature search across CpsCode.
+    // Never redirects 68000 execution or assumes a EURO address is valid.
+    if(dhcGameMatches && !bBurnRunAheadFrame)
+        XM87330Locator::state().frame(
+            CpsCode,(unsigned)nCpsCodeLen,dhcGame);
+    // 87.331: CpsCode's opcode words have opposite byte order from
+    // big-endian M68K source guard strings. Scan normalized words ONLY.
+    if(dhcGameMatches && !bBurnRunAheadFrame)
+        XM87331Endian::state().frame(
+            CpsCode,(unsigned)nCpsCodeLen,dhcGame);
+    // 87.332: dump only small Motorola-endian opcode windows around
+    // the DHC chain and incoming Hyper hypotheses; do not write code.
+    if(dhcGameMatches && !bBurnRunAheadFrame)
+        XM87332Context::state().frame(
+            CpsCode,(unsigned)nCpsCodeLen,dhcGame);
     const bool xm262V4=dhcGameMatches && XM87262Game::version4();
-    const bool xm274Unified=xm262V4 && XM87274Unified::state().enabled();
+    // 87.361: Version-4 original US xmvsfu automatically uses native
+    // DHC. Never activate the old experiment on other ROMs or Version 3.
+    const bool nativeUsGame=dhcGame &&
+        std::strcmp(dhcGame,"xmvsfu")==0;
+    const bool xm274Unified=xm262V4 && nativeUsGame &&
+        XM87274Unified::state().enabled();
+    const bool xm340Native=xm274Unified && XM87340Donor::enabled();
+    static bool xm340WasActive=false;
+    if(xm340WasActive!=xm340Native){
+        XM87340Donor::state().reset();
+        XM87352CyclopsFx::state().reset();
+    }
+    xm340WasActive=xm340Native;
+    if(!xm340Native || !CpsRamFF ||
+       XM87142::ramB(CpsRamFF,0x5000u)!=8u)
+        XM87352CyclopsFx::state().reset();
+    // 87.342: CREATE the existing DHC TSV on startup, not only after a
+    // successful motion/Hyper claim. Silence used to mean both "no
+    // command" and "an unexecuted/disabled native port".
+    static bool xm342DhcBootLogged=false;
+    static unsigned xm342DhcLastFrame=~0u;
+    const unsigned xm342Now=(unsigned)GetCurrentFrame();
+    if(xm342DhcLastFrame!=~0u && xm342Now<xm342DhcLastFrame)
+        xm342DhcBootLogged=false;
+    xm342DhcLastFrame=xm342Now;
+    if(!bBurnRunAheadFrame && xm340Native &&
+       !xm342DhcBootLogged){
+        const bool hook=XM87333NativeDHC::verify(
+            CpsCode,(unsigned)nCpsCodeLen).all();
+        const bool exit=XM87340Donor::validateExit(
+            CpsCode,(unsigned)nCpsCodeLen);
+        char boot[210];
+        std::snprintf(boot,sizeof(boot),
+            "NATIVE_342_BOOT version4=%u unified=%u donor=%u driver=%s US_hooks=%u exit_site=%u ROM=%u RAM=%u",
+            xm262V4?1u:0u,xm274Unified?1u:0u,
+            xm340Native?1u:0u,dhcGame?dhcGame:"unknown",
+            hook?1u:0u,exit?1u:0u,
+            CpsRom?1u:0u,CpsRamFF?1u:0u);
+        XM87274Unified::state().event(xm342Now,0u,boot);
+        xm342DhcBootLogged=true;
+    }
     static bool xm274WasUnified=false;
     if(xm274WasUnified!=xm274Unified){
         XM87144::state().reset();
@@ -527,6 +594,333 @@ INT32 Cps2Frame()
         XM87220Dash::state().reset();
     }
     xm262WasV4=xm262V4;
+    // 87.341: leave Morphus' original M68K tag handoff intact.
+    // Only selection changes: the incoming fighter's actual motion+PP/KK
+    // is resolved to its ORIGINAL +D6 Hyper byte before the CPU input.
+    // No donor-assigned MP+MK assist chord, no synthetic controller 8.
+    if(xm340Native && !bBurnRunAheadFrame && CpsRamFF &&
+       dhcGame && std::strcmp(dhcGame,"xmvsfu")==0 &&
+       CpsCode && XM87333NativeDHC::verify(
+           CpsCode,(unsigned)nCpsCodeLen).all() &&
+       XM87340Donor::validateExit(
+           CpsCode,(unsigned)nCpsCodeLen) &&
+       XM87142::ramB(CpsRamFF,0x5000u)==8u){
+        const unsigned now=(unsigned)GetCurrentFrame();
+        const unsigned dirs[2]={
+            (CpsInp001[0]&1u)|((CpsInp001[1]&1u)<<1u)|
+            ((CpsInp001[2]&1u)<<2u)|((CpsInp001[3]&1u)<<3u),
+            (CpsInp000[0]&1u)|((CpsInp000[1]&1u)<<1u)|
+            ((CpsInp000[2]&1u)<<2u)|((CpsInp000[3]&1u)<<3u)
+        };
+        const unsigned buttons[2]={
+            (CpsInp001[4]&1u)|((CpsInp001[5]&1u)<<1u)|
+            ((CpsInp001[6]&1u)<<2u)|((CpsInp011[0]&1u)<<3u)|
+            ((CpsInp011[1]&1u)<<4u)|((CpsInp011[2]&1u)<<5u),
+            (CpsInp000[4]&1u)|((CpsInp000[5]&1u)<<1u)|
+            ((CpsInp000[6]&1u)<<2u)|((CpsInp011[4]&1u)<<3u)|
+            ((CpsInp011[5]&1u)<<4u)|((CpsInp020[6]&1u)<<5u)
+        };
+        for(unsigned side=0u;side<2u;++side){
+            const unsigned p=XM87193Exit::actorBase(side);
+            const unsigned r=XM87193Exit::reserveBase(side);
+            const unsigned who=XM87142::ramW(CpsRamFF,p+0x52u);
+            const unsigned bench=XM87142::ramW(CpsRamFF,r+0x52u);
+            const XM87184Life::Sample sample={
+                who,XM87142::ramW(CpsRamFF,p+0x60u),
+                XM87142::ramW(CpsRamFF,p+0xA0u),
+                XM87142::ramW(CpsRamFF,p+0x08u),
+                XM87142::ramL(CpsRamFF,p+0x34u),
+                XM87142::ramB(CpsRamFF,p+0xD6u)};
+            const auto& super=XM87189Family::state().side[side];
+            const bool exactOldWindow=super.lastFrame!=~0u &&
+                now>0u && super.lastFrame==now-1u &&
+                super.unifiedDhcWindowAt(super.lastFrame,sample);
+            // 87.360: original native 2C/2E Hyper lifetime is the
+            // cancel window. A long move can progress through many
+            // animation-script records without ever leaving its 2A
+            // controller, its native action family, or its original D6.
+            // The old bounded stage/script tracker loses e.g. Chun-Li
+            // Senretsukyaku at 2E0A/2E0E/2E10 after ~one second.
+            // No frame count, stage-script bounds, or required next
+            // selector may prematurely end input recognition.
+            // Normal play is still excluded by the exact native state;
+            // meter, living reserve, tag gates and the ROM-owned
+            // 68000 handoff are checked independently before swapping.
+            const unsigned superAction=sample.action&0xFF00u;
+            const bool hyper=XM87340Donor::nativeHyperActive(
+                sample.mode,sample.action,sample.d6);
+            const bool currentWindow=hyper;
+            const bool eligible=currentWindow &&
+                XM87142::ramB(CpsRamFF,p+0x03u) &&
+                !XM87142::ramB(CpsRamFF,p+0x221u) &&
+                !XM87142::ramB(CpsRamFF,p+0x257u) &&
+                !XM87142::ramB(CpsRamFF,0x500Au);
+            auto& st=XM87340Donor::state().side[side];
+            auto& oldCyclopsFx=XM87352CyclopsFx::state().side[side];
+            const bool swappedCyclops=
+                st.phase==XM87340Donor::COMMITTED &&
+                st.point==0x02u && who==st.reserve && bench==0x02u;
+            const unsigned retired=oldCyclopsFx.update(
+                CpsRamFF,now,swappedCyclops,
+                st.phase==XM87340Donor::IDLE && !oldCyclopsFx.committed,
+                oldCyclopsFx.committed && now>oldCyclopsFx.at && who==0x02u);
+            if(retired){
+                char detail[128];
+                std::snprintf(detail,sizeof(detail),
+                    "NATIVE_352_CYCLOPS_SOB_ORPHAN_HELPERS_RETIRED side=%u count=%u",
+                    side+1u,retired);
+                XM87274Unified::state().event(now,side,detail);
+            }
+            const auto before=st.phase;
+            const unsigned freshButtons=buttons[side]&~st.prev;
+            const unsigned chord=buttons[side]&0x3Fu;
+            const bool nativeChord=
+                XM87334Native::qualifiedChord(chord);
+            const bool newChord=nativeChord && (freshButtons&chord);
+            const unsigned oldHidden=st.hidden;
+            // 87.360: bounded diagnostics for late Hyper button edges.
+            // This reports why a native cue can/cannot DHC, without
+            // scanning directions or interfering with normal play.
+            if(newChord && hyper &&
+               (who==0x16u || who==0x24u || who==0x20u ||
+                bench==0x16u || bench==0x24u || bench==0x20u)){
+                char detail[320];
+                std::snprintf(detail,sizeof(detail),
+                    "NATIVE_360_HYPER_INPUT point=%02X reserve=%02X action=%04X mode=%04X d6=%02X chord=%02X oldScriptWindow=%u fullHyperWindow=%u eligible=%u phase=%u stock=%u gate221=%u gate257=%u gate500A=%u",
+                    who,bench,sample.action,sample.mode,sample.d6,
+                    chord,exactOldWindow?1u:0u,currentWindow?1u:0u,
+                    eligible?1u:0u,unsigned(super.phase),
+                    XM87142::ramB(CpsRamFF,p+0x214u),
+                    XM87142::ramB(CpsRamFF,p+0x221u),
+                    XM87142::ramB(CpsRamFF,p+0x257u),
+                    XM87142::ramB(CpsRamFF,0x500Au));
+                XM87274Unified::state().event(now,side,detail);
+            }
+            // +$210 is the ORIGINAL actor life. A one-character team
+            // or a defeated sole reserve has no living partner. Zero
+            // as a character ID means Wolverine, NOT an empty slot.
+            // Never intercept the genuine P1/P2 Hyper inputs in 1v1.
+            const unsigned reserveLife=XM87142::ramW(CpsRamFF,r+0x210u);
+            const bool livingReserve=
+                XM87340Donor::genuineReserve(who,bench,reserveLife);
+            // 87.357: no Charlie-only native tracker/previous-frame
+            // veto while READING his QCB+KKK. In a genuine native
+            // 2A/2C or 2A/2E Hyper, track the physical input regardless
+            // of the final DHC cancel flags and stock. The actual tag
+            // STILL needs eligible, living reserve and meter.
+            const bool charlieNativeSuper=bench==0x20u && hyper;
+            if(st.phase==XM87340Donor::IDLE){
+                if((!eligible && !charlieNativeSuper) ||
+                   !livingReserve ||
+                   (!XM87142::ramB(CpsRamFF,p+0x214u) &&
+                    !charlieNativeSuper)){
+                    st.quiet(now,who,buttons[side]);
+                    continue;
+                }
+                if(!st.windowReady){
+                    st.openWindow(now,who,buttons[side],bench,
+                        dirs[side],
+                        (XM87142::ramB(CpsRamFF,p+0x4Bu)&1u)!=0u);
+                    continue;
+                }
+            }
+            if(!livingReserve &&
+               st.phase!=XM87340Donor::CHAIN_ENTERED &&
+               st.phase!=XM87340Donor::COMMITTED){
+                if(st.phase!=XM87340Donor::IDLE || st.hidden)
+                    st.reset();
+                st.hidden=0u;
+                if(newChord){
+                    char solo[184];
+                    std::snprintf(solo,sizeof(solo),
+                        "NATIVE_346_SOLO_NATIVE_INPUT_UNTOUCHED side=%u point=%02X reserveId=%02X reserveLife=%u buttons=%02X dir=%X",
+                        side+1u,who,bench,reserveLife,chord,dirs[side]);
+                    XM87274Unified::state().event(now,side,solo);
+                }
+                st.prev=chord;
+                st.lastFrame=now;
+                continue;
+            }
+            if(st.phase==XM87340Donor::IDLE){
+                const bool cueBefore=st.charlieQueued;
+                st.sample(now,who,bench,dirs[side],buttons[side],
+                    (XM87142::ramB(CpsRamFF,p+0x4Bu)&1u)!=0u,
+                    sample.d6,hyper,eligible,
+                    XM87142::ramW(CpsRamFF,p+0x0Cu),
+                    XM87142::ramB(CpsRamFF,p+0x214u));
+                if(charlieNativeSuper && chord==0x38u &&
+                   (freshButtons&0x38u)!=0u){
+                    char diagnostic[240];
+                    std::snprintf(diagnostic,sizeof(diagnostic),
+                        "NATIVE_358_CHARLIE_3K_SECTOR raw=%X facing=%u lockedFacing=%u qcbStep=%u qcbTTL=%u queued=%u eligible=%u stock=%u",
+                        dirs[side],
+                        (XM87142::ramB(CpsRamFF,p+0x4Bu)&1u)?1u:0u,
+                        st.charlieSweep.facingAtDown?1u:0u,
+                        st.charlieSweep.step,st.charlieSweep.ttl,
+                        st.charlieQueued?1u:0u,eligible?1u:0u,
+                        XM87142::ramB(CpsRamFF,p+0x214u));
+                    XM87274Unified::state().event(now,side,diagnostic);
+                }
+                if(!cueBefore && st.charlieQueued){
+                    char event[140];
+                    std::snprintf(event,sizeof(event),
+                        "NATIVE_357_CHARLIE_QCB_KKK_CUE_HELD actor=%02X reserve=%02X outgoingD6=%02X",
+                        who,bench,sample.d6);
+                    XM87274Unified::state().event(now,side,event);
+                }
+            }else{
+                st.pendingInput(now,buttons[side]);
+            }
+            if(before!=XM87340Donor::CLAIMED &&
+               st.phase==XM87340Donor::CLAIMED &&
+               who==0x02u && sample.d6==0x02u &&
+               superAction==0x2C00u){
+                oldCyclopsFx.begin(CpsRamFF,now,p,r);
+                char fx[128];
+                std::snprintf(fx,sizeof(fx),
+                    "NATIVE_352_CYCLOPS_SOB_HELPERS_TRACKED side=%u count=%u",
+                    side+1u,oldCyclopsFx.n);
+                XM87274Unified::state().event(now,side,fx);
+            }
+            if(before!=XM87340Donor::CLAIMED &&
+               st.phase==XM87340Donor::CLAIMED &&
+               st.claimedQueuedCharlie){
+                char event[144];
+                std::snprintf(event,sizeof(event),
+                    "NATIVE_357_CHARLIE_QCB_KKK_DEFERRED_CLAIM incoming=%02X d6=%02X side=%u originalInput=38",
+                    st.reserve,st.d6,side+1u);
+                XM87274Unified::state().event(now,side,event);
+            }
+            if(before!=XM87340Donor::CLAIMED &&
+               st.phase==XM87340Donor::CLAIMED &&
+               st.claimedBufferedKKK){
+                char event[144];
+                std::snprintf(event,sizeof(event),
+                    "NATIVE_353_BUFFERED_KKK_CLAIM incoming=%02X d6=%02X side=%u motion=%u",
+                    st.reserve,st.d6,side+1u,st.selected+1u);
+                XM87274Unified::state().event(now,side,event);
+            }
+            if(before!=XM87340Donor::CLAIMED &&
+               st.phase==XM87340Donor::CLAIMED &&
+               (st.selected==7u || st.selected==8u ||
+                st.selected==9u)){
+                char input[176];
+                const char* tag=st.selected==7u?
+                    "NATIVE_346_ORIGINAL_F_DF_D_PUNCH":
+                    st.selected==8u?
+                    "NATIVE_350_FINAL_ATOMIC_BUSTER_360":
+                    "NATIVE_350_RAGING_DEMON_LP_LP_F_LK_HP";
+                std::snprintf(input,sizeof(input),
+                    "%s incoming=%02X d6=%02X side=%u physical=%02X",
+                    tag,st.reserve,st.d6,side+1u,st.hidden);
+                XM87274Unified::state().event(now,side,input);
+            }
+            // 87.348: The physical input and its actual incoming D6
+            // ARE the authorization. The old 87.344/345 read-only proof
+            // checker denied eleven genuine commands in the last match
+            // before ANY M68K tag could run. Never wipe a valid claim
+            // merely because the fighter uses different native phase
+            // opcodes. The bridge itself will try the real ROM route.
+            if(before!=XM87340Donor::CLAIMED &&
+               st.phase==XM87340Donor::CLAIMED){
+                const auto trial=XM87336Dispatch::resolveTrial(
+                    CpsCode,(unsigned)nCpsCodeLen,
+                    CpsRom,(unsigned)nCpsRomLen,st.reserve,st.d6);
+                char route[192];
+                std::snprintf(route,sizeof(route),
+                    "NATIVE_348_INPUT_ALLOWED fighter=%02X d6=%02X side=%u kind=%u pc=%06X handler=%06X selector=%02X script=%06X",
+                    st.reserve,st.d6,side+1u,unsigned(trial.kind),
+                    trial.dispatcher,trial.handler,trial.selector,
+                    trial.script);
+                XM87274Unified::state().event(now,side,route);
+                // NO pre-tag cancellation: keep D6, button ownership,
+                // and the REAL original 68000 outgoing state intact.
+            }
+            if(newChord && before==XM87340Donor::IDLE &&
+               st.phase!=XM87340Donor::CLAIMED){
+                // 87.349: 18 inputs in the 87.348 capture had a
+                // genuine active Super, valid DHC window and meter,
+                // but the exact incoming motion was not completed.
+                // Report the eight ORIGINAL motion trackers instead
+                // of guessing new buttons or blaming native 2C code.
+                unsigned complete=0u,partial=0u;
+                const auto* motions=XM87340Donor::motions();
+                for(unsigned i=0u;i<8u;++i){
+                    if(!st.timer[i] || !st.step[i])continue;
+                    if(st.step[i]>=motions[i].len)complete|=1u<<i;
+                    else if(st.step[i]>=2u)partial|=1u<<i;
+                }
+                char reject[352];
+                const bool faceRight=
+                    (XM87142::ramB(CpsRamFF,p+0x4Bu)&1u)!=0u;
+                const unsigned relativeDir=
+                    XM87340Donor::facingDir(dirs[side],faceRight);
+                std::snprintf(reject,sizeof(reject),
+                    "NATIVE_352_COMMAND_NOT_CLAIMED actor=%02X reserve=%02X buttons=%02X fresh=%02X dir=%X rel=%X right=%u activeHyper=%u window=%u eligible=%u alive=%u gate221=%u gate257=%u gate500A=%u stock=%u phase=%u hidden=%02X complete=%02X partial=%02X",
+                    who,bench,chord,freshButtons,dirs[side],relativeDir,
+                    faceRight?1u:0u,hyper?1u:0u,currentWindow?1u:0u,
+                    eligible?1u:0u,
+                    XM87142::ramB(CpsRamFF,p+0x03u)?1u:0u,
+                    XM87142::ramB(CpsRamFF,p+0x221u)?1u:0u,
+                    XM87142::ramB(CpsRamFF,p+0x257u)?1u:0u,
+                    XM87142::ramB(CpsRamFF,0x500Au)?1u:0u,
+                    XM87142::ramB(CpsRamFF,p+0x214u),
+                    unsigned(super.phase),oldHidden,complete,partial);
+                XM87274Unified::state().event(now,side,reject);
+            }
+            if(before!=st.phase && st.phase==XM87340Donor::CLAIMED){
+                char detail[144];
+                std::snprintf(detail,sizeof(detail),
+                    "NATIVE_341_REAL_SUPER_INPUT point=%02X reserve=%02X motion=%u chord=%02X d6=%02X",
+                    st.point,st.reserve,st.selected+1u,st.hidden,st.d6);
+                XM87274Unified::state().event(now,side,detail);
+            }
+            if(st.phase==XM87340Donor::CLAIMED &&
+               now>st.claimedAt+12u){
+                XM87274Unified::state().event(now,side,
+                    "MORPHUS_340_ORIGINAL_TAG_HOOK_NOT_REACHED");
+                st.phase=XM87340Donor::IDLE;++st.refusals;
+            }
+            if(st.phase==XM87340Donor::CHAIN_ENTERED &&
+               now>st.enteredAt+90u){
+                XM87274Unified::state().event(now,side,
+                    "MORPHUS_340_ORIGINAL_NATIVE_SWAP_NOT_CONFIRMED");
+                st.phase=XM87340Donor::IDLE;++st.refusals;
+            }
+            if(st.phase==XM87340Donor::COMMITTED){
+                // Independent observation of the ACTUAL next original
+                // fighter update; redirecting the PC is not success.
+                if(!st.confirmed && who==st.reserve &&
+                   bench==st.point && hyper && sample.d6==st.d6){
+                    st.confirmed=true;
+                    char detail[194];
+                    if(superAction==0x2C00u)
+                        std::snprintf(detail,sizeof(detail),
+                            "MORPHUS_349_ACTUAL_US_2C_HYPER d6=%02X action=%04X script=%06X stock_before=%u stock_now=%u",
+                            st.d6,sample.action,sample.script,st.stock,
+                            XM87142::ramB(CpsRamFF,p+0x214u));
+                    else
+                        std::snprintf(detail,sizeof(detail),
+                            "MORPHUS_340_ACTUAL_US_2E_HYPER d6=%02X stock_before=%u stock_now=%u",
+                            st.d6,st.stock,
+                            XM87142::ramB(CpsRamFF,p+0x214u));
+                    XM87274Unified::state().event(now,side,detail);
+                }
+                if(!st.confirmed && now>st.committedAt+16u){
+                    XM87274Unified::state().event(now,side,
+                        "MORPHUS_349_INCOMING_GUEST_NO_ORIGINAL_2C_OR_2E");
+                    ++st.refusals;
+                    st.phase=XM87340Donor::IDLE;
+                }
+                // Donor single-use participation lasts through the
+                // incoming Hyper. Only the real neutral state re-arms it.
+                if(st.confirmed && !hyper &&
+                   !XM87142::ramB(CpsRamFF,p+0x256u) &&
+                   !XM87142::ramB(CpsRamFF,p+0x259u))
+                    st.reset();
+            }
+        }
+    }
     // 87.181: observer log files must be initialized when the XMVSF
     // CPS2 driver starts, NOT only from the late post-CPU DHC hook.
     // Otherwise an early game/menu exit silently creates no TSV at all.
@@ -674,11 +1068,21 @@ INT32 Cps2Frame()
             ((CpsInp000[6]&1u)<<2u)|((CpsInp011[4]&1u)<<3u)|
             ((CpsInp011[5]&1u)<<4u)|((CpsInp020[6]&1u)<<5u)
         };
-        for(unsigned side=0u;side<2u;++side)
-            unifiedInput[side]=XM87274Unified::state().inputForFrame(
-                CpsRamFF,side,(unsigned)GetCurrentFrame(),
-                dirs[side],buttons[side],
-                XM87140Chat::state().candidate[side]);
+        for(unsigned side=0u;side<2u;++side){
+            if(xm340Native){
+                // Hide ONLY the actually selected original PP/KK
+                // Hyper command once claimed; preserve every other input.
+                const unsigned h=XM87340Donor::state().side[side].hidden;
+                unifiedInput[side].active=(h!=0u);
+                unifiedInput[side].directions=dirs[side];
+                unifiedInput[side].attacks=buttons[side]&~h;
+            }else{
+                unifiedInput[side]=XM87274Unified::state().inputForFrame(
+                    CpsRamFF,side,(unsigned)GetCurrentFrame(),
+                    dirs[side],buttons[side],
+                    XM87140Chat::state().candidate[side]);
+            }
+        }
     }
     UINT8 uSavedP1Dir[4]={},uSavedP1P[3]={},uSavedP1K[3]={};
     UINT8 uSavedP2Dir[4]={},uSavedP2P[3]={},uSavedP2K[3]={};
@@ -862,7 +1266,9 @@ INT32 Cps2Frame()
     // 87.224: executed 68000 PC / victim reaction+velocity deltas while
     // Charlie's actual 1804/1A04 is running. Read-only and bounded to
     // 32 CPU frames per move; wrap (never replace) the older DHC callback.
-    if(!bBurnRunAheadFrame)
+    // 87.347: this Charlie M68K PC observer is diagnostic only.
+    // Do not install its nested instruction callback during native DHC.
+    if(!bBurnRunAheadFrame && !xm340Native)
         XM87224CharliePC::state().begin(CpsRamFF,
             (unsigned)GetCurrentFrame(),dhcGameMatches,
             XM87262Game::tournamentKnockdowns(),false,
@@ -874,6 +1280,16 @@ INT32 Cps2Frame()
     if(!bBurnRunAheadFrame)
         XM87139Probe::state().nativeBegin(CpsRamFF,
             (unsigned)GetCurrentFrame(),dhcGameMatches,false);
+    // 87.335: installed LAST, before the CPU advances. A real 68000
+    // swap and the exact incoming US PC are required to redirect fetch.
+    // No original ROM patch, host-created tag or guessed Hyper action.
+    if(!bBurnRunAheadFrame){
+        XM87335Native::state().prepare(
+            CpsCode,(unsigned)nCpsCodeLen,
+            CpsRom,(unsigned)nCpsRomLen,CpsRamFF,dhcGame,
+            (unsigned)GetCurrentFrame(),false);
+        XM87335Native::state().begin(false);
+    }
 
 	SekIdle(nCpsCyclesExtra);
 	nCpsCyclesExtra = 0;
@@ -948,11 +1364,15 @@ INT32 Cps2Frame()
 	SekRun(nCpsCycles - SekTotalCycles());
     xm8634Mark("AFTER CPU VBLANK RUN");
     xm87180Sample("AFTER_VBLANK_CPU");
+    // Unwind the 87.335 direct native DHC callback FIRST (reverse install
+    // order). F10/Charlie/87.182 callbacks remain in the previous order.
+    XM87335Native::state().end();
     // F10 native transition logger stops first, without altering CPU cycles.
     // Includes a final summary when the same 68000 frame enters combat.
     XM87139Probe::state().nativeEnd();
-    // Unwind the nested Charlie callback BEFORE the DHC observer restores
-    // its own prior Musashi callback; neither remains armed after SekClose.
+    // Charlie's trace was never installed for native DHC; end() is a
+    // harmless no-op for that mode. Preserve the original callback LIFO
+    // when the observer is used by non-DHC Tournament tests.
     XM87224CharliePC::state().end();
 
 	nCpsCyclesExtra = SekTotalCycles() - nCpsCycles;
@@ -983,7 +1403,8 @@ INT32 Cps2Frame()
             CpsCode,(unsigned)nCpsCodeLen,
             nativeDriver && std::strncmp(nativeDriver,"xmvsf",5)==0,
             XM87262Game::tournamentKnockdowns(),
-            xm8786_p1_buttons,xm8786_p2_buttons);
+            xm8786_p1_buttons,xm8786_p2_buttons,
+            xm340Native); // silence diagnostic capture, keep flight physics
     }
     // TEST 87.223: track Storm's original attack action independently of
     // Classic/Tournament. The Z80/QSound sample can arrive after this pose.
@@ -1038,6 +1459,26 @@ INT32 Cps2Frame()
         const XM87142::Report romReport=XM87142::state().frame(
             CpsRamFF,CpsRom,(unsigned)nCpsRomLen,
             (unsigned)GetCurrentFrame(),false);
+        if(xm340Native){
+            // The older XM87144 gameplay frame is intentionally bypassed
+            // in this mode. Keep its ORIGINAL, read-only M68K 2E lifecycle
+            // tracker current for next frame's pre-CPU DHC window. Without
+            // this update the input selector reads a permanently stale
+            // phase and silently refuses all real PP/KK Hyper commands.
+            for(unsigned side=0u;side<2u;++side){
+                const unsigned p=XM87193Exit::actorBase(side);
+                const XM87184Life::Sample observed={
+                    XM87142::ramW(CpsRamFF,p+0x52u),
+                    XM87142::ramW(CpsRamFF,p+0x60u),
+                    XM87142::ramW(CpsRamFF,p+0xA0u),
+                    XM87142::ramW(CpsRamFF,p+0x08u),
+                    XM87142::ramL(CpsRamFF,p+0x34u),
+                    XM87142::ramB(CpsRamFF,p+0xD6u)};
+                XM87189Family::state().side[side].update(
+                    (unsigned)GetCurrentFrame(),observed,
+                    CpsRom,(unsigned)nCpsRomLen,true); // 87.349 2C opt-in
+            }
+        }
         // Exact post-CPU boundary, before host-side command matching
         // and before a possible DHC controller-8 write.
         XM87186Opening::state().sample(CpsRamFF,
@@ -1057,7 +1498,9 @@ INT32 Cps2Frame()
             static unsigned lastPhysical[2]={0u,0u};
             static bool watching=false;
             static unsigned lastWatchFrame=~0u;
-            const bool active=xm274Unified &&
+            // Disable the full-round physical-button DHC monitor when
+            // native DHC is enabled. Only the window-gated parser may act.
+            const bool active=xm274Unified && !xm340Native &&
                 XM87142::ramB(CpsRamFF,0x5000u)==8u;
             const unsigned now=(unsigned)GetCurrentFrame();
             if(!active || (watching && now<lastWatchFrame)){
@@ -1151,9 +1594,10 @@ INT32 Cps2Frame()
         if(xm262V4 && !xm274Unified)
             XM87144::state().frame(CpsRamFF,CpsRom,(unsigned)nCpsRomLen,
                 (unsigned)GetCurrentFrame(),dhcWindow);
-        if(xm274Unified)
+        if(xm274Unified && !xm340Native)
             XM87274Unified::state().frame(CpsRamFF,CpsRom,(unsigned)nCpsRomLen,
-                (unsigned)GetCurrentFrame());
+                (unsigned)GetCurrentFrame(),
+                CpsCode,(unsigned)nCpsCodeLen);
         XM87186Opening::state().sample(CpsRamFF,
             (unsigned)GetCurrentFrame(),"POST_DHC_HOST",
             (unsigned)XM87144::state().phase[0],

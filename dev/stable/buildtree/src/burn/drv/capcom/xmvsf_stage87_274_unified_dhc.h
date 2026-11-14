@@ -9,6 +9,9 @@
 // The initial universal path intentionally DOES NOT force an incoming kickless
 // landing: other fighters' native tag-entry scripts need captured ROM evidence.
 #include "xmvsf_stage87_192_reserve_super_ownership.h"
+#include "xmvsf_stage87_329_morphus_dhc_catalog.h"
+#include "xmvsf_stage87_334_morphus_2v2_precommit.h"
+#include "xmvsf_stage87_336_native_d6_dispatch.h"
 #include "xmvsf_stage87_193_deterministic_exit_protocol.h"
 #include "xmvsf_stage87_262_game_version.h"
 #include <cstdint>
@@ -41,6 +44,7 @@ struct Slot {
     unsigned originalAction=0u,originalMode=0u,originalD6=0u;
     XM87193Exit::Snapshot snapshot;
     XM87192Owner::Proposal request;
+    XM87334Native::Pending nativePrecommit; // opt-in, host-side only
     void reset(){*this=Slot();}
 };
 struct State {
@@ -50,8 +54,8 @@ struct State {
     bool logChecked=false;
     ~State(){if(log){std::fflush(log);std::fclose(log);}}
     bool enabled()const{
-        const char* v=std::getenv("XM87274_UNIFIED_DHC");
-        return XM87262Game::version4() && v && std::strcmp(v,"1")==0;
+        // 87.361: built-in native DHC for Version 4, no opt-in.
+        return XM87262Game::version4();
     }
     void reset(){
         slot[0].reset();slot[1].reset();lastFrame=~0u;
@@ -63,6 +67,11 @@ struct State {
             if(p && *p){
                 log=std::fopen(p,"wb");
                 if(log)std::fputs("frame\tside\tphase\tpoint\treserve\tdecision\n",log);
+                else std::fprintf(stderr,
+                    "XMVSF DHC observer file could not open: %s\n",p);
+            }else{
+                std::fputs("XMVSF DHC observer path is not configured\n",
+                    stderr);
             }
         }
         if(log && side<2u){
@@ -101,9 +110,29 @@ struct State {
             out.attacks=m.attacks;return out;
         }
         if(s.phase==TAG_REQUESTED || s.phase==AWAIT_SWAP){
-            // The outgoing fighter must not consume the same chord twice.
             if(XM87142::ramW(ram,p+0x52u)==s.point){
-                out.active=true;return out;
+                // 87.339: after the original 68000 controller-8 tag request,
+                // the OLD path suppressed all attacks. The outgoing native
+                // input parser therefore never received a fresh LP+MP tag
+                // edge: 87.338 log P1 3894->3907 timed out, P2 3163->3164
+                // changed action. Feed only the original native tag chord.
+                // A reserve 2K command must be translated to a 2P outgoing
+                // edge; a reserve 2P command first releases to guarantee
+                // a fresh edge if those punches were held last sample.
+                // DHC source command and its real D6 remain untouched.
+                out.active=true;
+                if(s.phase==TAG_REQUESTED && now>s.started &&
+                   s.request.valid && s.request.reserve==s.reserve){
+                    const unsigned dt=now-s.started;
+                    const bool fromKicks=(s.request.buttonMask&0x07u)==0u &&
+                                         (s.request.buttonMask&0x38u)!=0u;
+                    if((fromKicks && dt<=2u) ||
+                       (!fromKicks && dt>=2u && dt<=3u)){
+                        out.attacks=XM87193Exit::route(
+                            s.request.buttonMask).nativeOutgoing;
+                    }
+                }
+                return out;
             }
         }
         if(s.phase!=IDLE||!superCandidate)return out;
@@ -131,7 +160,8 @@ struct State {
         XM87192Owner::state().clear(side);
     }
     void frame(std::uint8_t*ram,const std::uint8_t*rom,unsigned romSize,
-               unsigned now){
+               unsigned now,const std::uint8_t* code=nullptr,
+               unsigned codeSize=0u){
         if(!enabled()||!ram||!rom)return;
         if(lastFrame!=~0u && now<lastFrame)reset();
         if(lastFrame==now)return;
@@ -185,6 +215,80 @@ struct State {
                     event(now,side,"REJECT_NO_ORIGINAL_32_00_TAG_SCRIPT");
                     XM87192Owner::state().clear(side);continue;
                 }
+                // Morphus 87.329 EURO roster catalog: experimental
+                // pre-tag refusal only. Do not infer an incoming super or
+                // write an unverified +D6/action into the US ROM from it.
+                // 87.337: the 87.329 motion-only screen has no button
+                // family and incorrectly rejects valid native supers in
+                // characters whose DHC-assigned motion differs. The full
+                // D6 + ROM-native resolver supersedes it when selected.
+                if(XM87329Morphus::enabled() &&
+                   !XM87334Native::enabled()){
+                    const auto decision=XM87329Morphus::review(
+                        reserve,unsigned(XM87192Owner::state().pending[side].motion));
+                    event(now,side,XM87329Morphus::reason(decision));
+                    if(XM87329Morphus::rejectBeforeTag(decision)){
+                        XM87192Owner::state().clear(side);
+                        continue; // original outgoing Hyper continues; no swap
+                    }
+                }
+                if(XM87334Native::enabled()){
+                    const auto& pending=XM87192Owner::state().pending[side];
+                    const auto chosen=XM87334Native::resolve(
+                        reserve,unsigned(pending.motion),pending.buttonMask);
+                    if(!chosen.ok()){
+                        event(now,side,XM87334Native::reasonName(chosen.reason));
+                        XM87192Owner::state().clear(side);
+                        continue; // no original tag or meter debit
+                    }
+                    const char* nativeMode=std::getenv("XM87335_NATIVE_DHC");
+                    if(nativeMode && std::strcmp(nativeMode,"1")==0){
+                        // Before any original tag request, ensure that the
+                        // incoming original US ROM has a verified D6 handler,
+                        // phase-zero jump and actual ROM 2E script. Other
+                        // characters remain unaffected (no bad swap).
+                        const auto handler=XM87336Dispatch::resolve(
+                            code,codeSize,rom,romSize,
+                            reserve,unsigned(chosen.hyperD6));
+                        if(!handler.valid()){
+                            char why[150];
+                            const auto& regions=XM87336Dispatch::regionFor(
+                                code,codeSize);
+                            const unsigned id=reserve/2u;
+                            std::snprintf(why,sizeof(why),
+                                "NATIVE_338_REFUSED_D6 fighter=%02X d6=%02X indexers=%u region=%06X-%06X",
+                                reserve,unsigned(chosen.hyperD6),
+                                regions.indexers,regions.begin[id],regions.end[id]);
+                            event(now,side,why);
+                            XM87192Owner::state().clear(side);
+                            continue;
+                        }
+                        char ownership[158];
+                        std::snprintf(ownership,sizeof(ownership),
+                            "NATIVE_337_FIGHTER_DISPATCH_VERIFIED fighter=%02X d6=%02X state=%06X launch=%06X",
+                            reserve,unsigned(chosen.hyperD6),
+                            handler.nativeDispatcher,handler.launch);
+                        event(now,side,ownership);
+                    }
+                    if(!s.nativePrecommit.stage(
+                            side,point,reserve,now,chosen)){
+                        event(now,side,"MORPHUS_D6_PRECOMMIT_REJECTED");
+                        XM87192Owner::state().clear(side);
+                        continue;
+                    }
+                    char detail[112];
+                    std::snprintf(detail,sizeof(detail),
+                        "MORPHUS_D6_PREQUALIFIED_ONLY target=%02X d6=%02X throw=%u input=%s",
+                        reserve,unsigned(chosen.hyperD6),
+                        chosen.terminalThrow?1u:0u,
+                        chosen.dhcAssignedMotion?"DHC_ASSIGNED":"NATIVE");
+                    event(now,side,detail);
+                    // Capture the current original outgoing point, not a
+                    // guessed camera/ground coordinate for the native entry.
+                    s.nativePrecommit.x=XM87142::ramW(ram,p+0x0Cu);
+                    s.nativePrecommit.stockBefore=
+                        XM87142::ramB(ram,p+0x214u);
+                }
                 s.request=XM87192Owner::state().pending[side];
                 s.point=point;s.reserve=reserve;s.started=now;
                 const auto tx=XM87193Exit::beginNativeExit(ram,side);
@@ -211,7 +315,14 @@ struct State {
                 }else if(action!=s.originalAction){
                     // Native 68000 selected a different action: do not
                     // overwrite it with a fabricated 3200 tag animation.
-                    fail(side,now,"ABORT_WRONG_NATIVE_ACTION_NO_SCRIPT_WRITE");
+                    char reason[166];
+                    std::snprintf(reason,sizeof(reason),
+                        "ABORT_WRONG_NATIVE_ACTION=%04X mode=%04X prev=%04X input=%02X c256=%02X c259=%02X",
+                        action,mode,s.originalAction,
+                        s.request.buttonMask,
+                        XM87142::ramB(ram,p+0x256u),
+                        XM87142::ramB(ram,p+0x259u));
+                    fail(side,now,reason);
                 }else if(now-s.started>12u){
                     // Restore a request ONLY when 68000 never consumed it.
                     if(XM87142::ramB(ram,p+0x256u)==8u &&
@@ -224,12 +335,35 @@ struct State {
                         XM87193Exit::wput(ram,p+0x08u,s.snapshot.step08);
                         XM87193Exit::wput(ram,p+0x0Au,s.snapshot.step0A);
                     }
-                    fail(side,now,"ABORT_NATIVE_TAG_NOT_ACCEPTED_12F");
+                    char reason[162];
+                    std::snprintf(reason,sizeof(reason),
+                        "ABORT_NATIVE_TAG_NOT_ACCEPTED_12F action=%04X mode=%04X c256=%02X c259=%02X",
+                        action,mode,XM87142::ramB(ram,p+0x256u),
+                        XM87142::ramB(ram,p+0x259u));
+                    fail(side,now,reason);
                 }
                 continue;
             }
             if(s.phase==AWAIT_SWAP){
                 if(point==s.reserve && reserve==s.point){
+                    if(XM87334Native::enabled() &&
+                       !s.nativePrecommit.matchesAfterOriginalSwap(
+                           side,point,reserve)){
+                        fail(side,now,"MORPHUS_D6_WRONG_OR_EXPIRED_SWAP");
+                        continue;
+                    }
+                    const char* direct=std::getenv("XM87335_NATIVE_DHC");
+                    if(direct && std::strcmp(direct,"1")==0 &&
+                       XM87334Native::enabled()){
+                        // We requested a direct native commit. If the actual
+                        // 68000 instruction hook did not run, do not silently
+                        // pretend that a neutral-wait replay is DHC. Leave
+                        // the original tag alone and fail only bookkeeping.
+                        fail(side,now,"NATIVE_335_NO_ORIGINAL_INCOMING_HOOK_NO_INPUT_REPLAY");
+                        continue;
+                    }
+                    if(XM87334Native::enabled())
+                        event(now,side,"MORPHUS_D6_ORIGINAL_SWAP_CONFIRMED_LEGACY_INPUT_PATH");
                     s.phase=AWAIT_NEUTRAL;s.neutralSince=0u;
                     event(now,side,"ORIGINAL_ROM_POINT_RESERVE_SWAPPED");
                 }else if((point!=s.point||reserve!=s.reserve) ||
@@ -268,6 +402,17 @@ struct State {
                        side,now,s.request,native,rom,romSize)){
                     s.phase=INCOMING_SUPER;s.superAt=now;
                     s.neutralSince=0u;
+                    if(s.nativePrecommit.armed){
+                        const unsigned executedD6=XM87142::ramB(ram,p+0xD6u);
+                        char message[128];
+                        std::snprintf(message,sizeof(message),
+                            "MORPHUS_D6_POST_SWAP_ROM_ACCEPT expected=%02X actual=%02X %s",
+                            unsigned(s.nativePrecommit.d6),executedD6,
+                            executedD6==s.nativePrecommit.d6?
+                            "MATCH":"MISMATCH_REVISION_OR_COMMAND");
+                        event(now,side,message);
+                        s.nativePrecommit.markConsumed();
+                    }
                     event(now,side,"INCOMING_ORIGINAL_ROM_2E_SUPER_ACCEPTED");
                 }else if(now>s.inputStart+s.request.duration()+12u){
                     XM87192Owner::state().rejected(side,now,s.request,native);
@@ -276,6 +421,35 @@ struct State {
                 continue;
             }
             if(s.phase==INCOMING_SUPER){
+                // Direct 87.335 guest must still PROVE a real original-ROM
+                // 2E action. Guest entry is not proof of a successful Hyper.
+                // All checks are read-only post-CPU, after native helpers.
+                if(s.nativePrecommit.directUsed && !s.nativePrecommit.romSeen){
+                    const XM87184Life::Sample native={
+                        point,XM87142::ramW(ram,p+0x60u),
+                        XM87142::ramW(ram,p+0xA0u),
+                        XM87142::ramW(ram,p+0x08u),
+                        XM87142::ramL(ram,p+0x34u),
+                        XM87142::ramB(ram,p+0xD6u)};
+                    const bool accepted=XM87192Owner::State::nativeSuper(
+                        rom,romSize,native);
+                    if(accepted && native.d6==s.nativePrecommit.d6){
+                        s.nativePrecommit.romSeen=true;
+                        const unsigned stockNow=XM87142::ramB(ram,p+0x214u);
+                        char detail[156];
+                        std::snprintf(detail,sizeof(detail),
+                            "NATIVE_335_68000_ROM_2E_CONFIRMED d6=%02X stock_before=%u stock_now=%u",
+                            unsigned(native.d6),s.nativePrecommit.stockBefore,stockNow);
+                        event(now,side,detail);
+                    }else if(now>s.superAt+16u){
+                        // Native entry failed: never fabricate a super or
+                        // roll back a genuine fighter swap.
+                        fail(side,now,"NATIVE_335_GUEST_NO_ORIGINAL_ROM_SUPER");
+                        continue;
+                    }else{
+                        continue; // no false successful re-arm during startup
+                    }
+                }
                 // No second DHC during the incoming hyper. Re-arm only
                 // after its original ROM action returns to neutral.
                 if(neutral(ram,p)){

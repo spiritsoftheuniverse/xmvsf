@@ -1,0 +1,230 @@
+#ifndef XMVSF_STAGE87_334_MORPHUS_2V2_PRECOMMIT_H
+#define XMVSF_STAGE87_334_MORPHUS_2V2_PRECOMMIT_H
+// Native-input-backed +D6 Hyper preselection for a *two-member* team, adapted from
+// Morphus56k / Daniel Plas Rivera, XMvsSF-3v3-DHC-v1.1.1.
+// This module is a PRECOMMIT VALIDATOR. It does not fabricate a 2E action,
+// deduct meter, start an animation, or replace the original 68000 handoff.
+// Use only with the experimental Version-4 unified DHC; revision equivalence
+// of the European per-character +D6 table still requires US gameplay proof.
+#include "xmvsf_stage87_329_morphus_dhc_catalog.h"
+#include "xmvsf_stage87_262_game_version.h"
+#include <cstdint>
+#include <cstdlib>
+#include <cstring>
+
+namespace XM87334Native {
+enum Reason {
+    ACCEPTED=0, BAD_FIGHTER=1, MOTION_NOT_MAPPED=2, NO_HYPER=3,
+    AIR_ONLY=4, CONDITIONAL=5, BAD_BUTTONS=6
+};
+struct Decision {
+    Reason reason=BAD_FIGHTER;
+    std::uint8_t character=0, hyperD6=0, motionColumn=0;
+    bool terminalThrow=false,dhcAssignedMotion=false;
+    bool ok()const{return reason==ACCEPTED && hyperD6!=0u;}
+};
+static inline unsigned bits(unsigned n) {
+    unsigned sum=0u;for(;n;n>>=1u)sum+=n&1u;return sum;
+}
+static inline bool qualifiedChord(unsigned attacks){
+    const unsigned p=attacks&0x07u,k=attacks&0x38u;
+    return (p && !k && bits(p)>=2u) || (k && !p && bits(k)>=2u);
+}
+// Unlike the *assigned* DHC input directions in dhc_table.inc, the
+// native inputs below come from Morphus' dhc_commands.json native_command
+// field. They are the ORIGINAL fighter commands with PP / KK button
+// families. This prevents QCF+KK for Ken from being mistaken for the
+// artificial DHC QCF assignment (Shoryureppa instead of Shinryuken).
+// 87.350: the original commands for Akuma's SGS and Zangief's FAB
+// now have actual dedicated sequence recognizers in the donor slot:
+// LP,LP,F,LK,HP and 360+PP/PPP respectively. Never translate either to
+// an unrelated donor DHC gesture. Other air/charge custom moves remain
+// native inputs only.
+struct Command {
+    std::uint8_t fighter, motion, family, hyperD6;
+    bool terminalThrow;
+};
+static inline const Command* commands(unsigned* count=nullptr) {
+    static const Command a[]={
+        {0x00u,1u,1u,0x08u,false}, // Wolverine QCF+PP
+        {0x00u,3u,1u,0x06u,false}, // Wolverine DP+PP
+        {0x02u,1u,1u,0x04u,false}, // Cyclops Mega Optic Blast QCF+PP
+        {0x02u,8u,1u,0x02u,false}, // Cyclops Super Optic Blast F,DF,D+PP/PPP
+        {0x04u,1u,1u,0x02u,false}, // Storm QCF+PP
+        {0x04u,2u,1u,0x0Au,false}, // Storm QCB+PP
+        {0x06u,1u,1u,0x28u,false}, // Rogue QCF+PP
+        {0x08u,1u,1u,0x0Au,false}, // Gambit QCF+PP
+        {0x0Au,1u,1u,0x16u,false}, // Sabretooth QCF+PP
+        {0x0Au,3u,1u,0x0Eu,false}, // Sabretooth DP+PP
+        {0x0Au,6u,2u,0x08u,false}, // Sabretooth HCB+KK
+        {0x0Cu,1u,1u,0x02u,false}, // Juggernaut QCF+PP
+        {0x0Eu,1u,1u,0x04u,false}, // Magneto QCF+PP
+        {0x0Eu,1u,2u,0x06u,false}, // Magneto QCF+KK
+        {0x12u,1u,1u,0x0Au,false}, // Ryu QCF+PP
+        {0x12u,2u,2u,0x0Cu,false}, // Ryu QCB+KK
+        {0x14u,1u,1u,0x0Cu,false}, // Ken QCF+PP
+        {0x14u,1u,2u,0x0Eu,false}, // Ken QCF+KK
+        {0x16u,1u,1u,0x06u,false}, // Chun-Li QCF+PP
+        {0x16u,2u,2u,0x0Au,false}, // Chun-Li QCB+KK
+        {0x16u,1u,2u,0x08u,false}, // Chun-Li QCF+KK
+        {0x18u,1u,1u,0x0Au,false}, // Dhalsim QCF+PP
+        {0x18u,1u,2u,0x0Cu,false}, // Dhalsim QCF+KK
+        {0x1Au,9u,1u,0x0Au,true},  // Zangief native 360+PP/PPP Final Atomic Buster
+        {0x1Cu,1u,1u,0x0Cu,false}, // M. Bison QCF+PP
+        {0x1Cu,1u,2u,0x0Au,false}, // M. Bison QCF+KK
+        {0x1Eu,2u,1u,0x1Au,false}, // Akuma QCB+PP
+        {0x1Eu,1u,1u,0x16u,false}, // Akuma ground QCF+PP
+        {0x1Eu,10u,0u,0x10u,true}, // Akuma native LP,LP,F,LK,HP Raging Demon
+        {0x20u,1u,1u,0x04u,false}, // Charlie QCF+PP
+        {0x20u,2u,2u,0x06u,false}, // Charlie QCB+KK
+        {0x20u,1u,2u,0x08u,false}, // Charlie QCF+KK
+        {0x22u,1u,2u,0x0Eu,false}, // Cammy QCF+KK
+        {0x22u,2u,2u,0x16u,false}, // Cammy QCB+KK
+        {0x24u,1u,1u,0x06u,false}, // Alt Chun-Li QCF+PP
+        {0x24u,2u,2u,0x0Au,false}, // Alt Chun-Li QCB+KK
+        {0x24u,1u,2u,0x08u,false}  // Alt Chun-Li QCF+KK
+    };
+    if(count)*count=unsigned(sizeof(a)/sizeof(a[0]));
+    return a;
+}
+// 87.341: exact ORIGINAL incoming command -> +D6 lookup.
+// Unlike the earlier experimental resolve(), this NEVER falls back to
+// Morphus' DHC-assigned alternate motions. The button family is part of
+// the native command identity (Ken QCF+PP != Ken QCF+KK).
+// Original Super Optic Blast F,DF,D is motion 8; FAB 360 is 9;
+// Raging Demon LP,LP,F,LK,HP is 10. No QCF/DP alias is substituted,
+// and no HP-only normal may reach this matcher without all Demon stages.
+// Original air-only/charge motions are still separate unsupported inputs.
+static inline Decision resolveNativeOnly(unsigned incoming,
+                                         unsigned motion,unsigned attacks){
+    Decision d;
+    if(incoming>0x24u || (incoming&1u))return d;
+    d.character=std::uint8_t(incoming);
+    if(motion<1u || motion>10u){
+        d.reason=MOTION_NOT_MAPPED;return d;
+    }
+    // The SGS final input is a single HP, NOT a PP/KK chord.
+    // Only motion 10, already fully recognized by its independent
+    // edge-and-forward sequence, may use this original button form.
+    const bool demon=motion==10u;
+    if(demon ? attacks!=0x04u : !qualifiedChord(attacks)){
+        d.reason=BAD_BUTTONS;return d;
+    }
+    const unsigned family=demon?0u:((attacks&0x07u)?1u:2u);
+    unsigned count=0u;
+    const Command* table=commands(&count);
+    for(unsigned i=0u;i<count;++i){
+        const Command& cmd=table[i];
+        if(cmd.fighter!=incoming || cmd.motion!=motion ||
+           cmd.family!=family)continue;
+        d.reason=ACCEPTED;
+        d.motionColumn=std::uint8_t(motion-1u);
+        d.hyperD6=cmd.hyperD6;
+        d.terminalThrow=cmd.terminalThrow;
+        d.dhcAssignedMotion=false;
+        return d;
+    }
+    d.reason=NO_HYPER;
+    return d;
+}
+static inline Decision resolve(unsigned incoming,unsigned ownerMotion,
+                               unsigned attacks){
+    Decision d;
+    if(incoming>0x24u || (incoming&1u))return d;
+    d.character=std::uint8_t(incoming);
+    if(ownerMotion<1u || ownerMotion>8u){
+        d.reason=MOTION_NOT_MAPPED;return d;
+    }
+    if(ownerMotion==7u || ownerMotion==8u){
+        d.reason=MOTION_NOT_MAPPED;return d; // 2QCF/2QCB not mapped
+    }
+    if(!qualifiedChord(attacks)){d.reason=BAD_BUTTONS;return d;}
+    const unsigned family=(attacks&0x07u)?1u:2u;
+    unsigned n=0u;
+    const Command* table=commands(&n);
+    for(unsigned i=0u;i<n;++i) {
+        const Command& cmd=table[i];
+        if(cmd.fighter!=incoming || cmd.motion!=ownerMotion ||
+           cmd.family!=family)continue;
+        d.motionColumn=std::uint8_t(ownerMotion-1u);
+        d.hyperD6=cmd.hyperD6;
+        d.terminalThrow=cmd.terminalThrow;
+        d.dhcAssignedMotion=false;
+        d.reason=ACCEPTED;
+        return d;
+    }
+    // 87.337: A *DHC-specific* command may select an original Hyper
+    // whose ordinary native gesture is not supported by the 87.192
+    // input parser (Cyclops F,DF,D; Zangief 360; Akuma SGS), OR the
+    // source assigns a unique non-native motion for another Hyper.
+    // Morphus' reviewed 2P DHC table is a game-specific routing table,
+    // NOT a claim that those gestures are the fighter's native inputs.
+    // Use these aliases ONLY after no exact native motion+PP/KK entry
+    // matched; preserve Ken QCF+KK => Shinryuken, QCF+PP => Shoryureppa.
+    const int column=XM87329Morphus::columnFromOwnerMotion(ownerMotion);
+    if(column>=0){
+        const auto& row=XM87329Morphus::rows()[incoming/2u];
+        const unsigned selected=row.hyper[unsigned(column)];
+        if(selected){
+            if(row.air&(1u<<unsigned(column))){
+                d.reason=AIR_ONLY;return d;
+            }
+            if(row.conditional&(1u<<unsigned(column))){
+                d.reason=CONDITIONAL;return d;
+            }
+            d.motionColumn=std::uint8_t(column);
+            d.hyperD6=std::uint8_t(selected);
+            d.terminalThrow=(row.throwing&(1u<<unsigned(column)))!=0u;
+            d.dhcAssignedMotion=true;
+            d.reason=ACCEPTED;
+            return d;
+        }
+    }
+    d.reason=NO_HYPER;
+    return d;
+}
+static inline const char* reasonName(Reason reason){
+    switch(reason){
+    case ACCEPTED:return "MORPHUS_D6_PREQUALIFIED";
+    case BAD_FIGHTER:return "MORPHUS_D6_INVALID_RESERVE";
+    case MOTION_NOT_MAPPED:return "MORPHUS_D6_UNSUPPORTED_MOTION";
+    case NO_HYPER:return "MORPHUS_D6_NO_HYPER_FOR_MOTION";
+    case AIR_ONLY:return "MORPHUS_D6_AIR_ONLY_REJECTED";
+    case CONDITIONAL:return "MORPHUS_D6_CONDITIONAL_REJECTED";
+    case BAD_BUTTONS:return "MORPHUS_D6_INCOMPATIBLE_BUTTONS";
+    }
+    return "MORPHUS_D6_UNKNOWN";
+}
+static inline bool enabled(){
+    // 87.361: native Hyper D6 selection is part of Version 4.
+    return XM87262Game::version4();
+}
+struct Pending {
+    std::uint8_t point=0,reserve=0,d6=0;
+    unsigned side=0,epoch=0,x=0,stockBefore=0;
+    bool romSeen=false,directUsed=false;
+    bool throwHyper=false, armed=false, consumed=false;
+    void clear(){*this=Pending();}
+    bool stage(unsigned which,unsigned source,unsigned target,
+               unsigned now,const Decision& selected){
+        if(which>1u||source>0x24u||(source&1u)||source==target||
+           !selected.ok()||target!=selected.character||armed)return false;
+        point=std::uint8_t(source);
+        reserve=std::uint8_t(target);
+        d6=selected.hyperD6;
+        side=which;epoch=now;throwHyper=selected.terminalThrow;
+        romSeen=false;directUsed=false;
+        armed=true;consumed=false;
+        return true;
+    }
+    // This is ONLY a side/identity guard; it does not mutate the actor,
+    // claim a native hook was executed or consume any level of super meter.
+    bool matchesAfterOriginalSwap(unsigned which,unsigned actualPoint,
+                                  unsigned actualReserve)const{
+        return armed&&!consumed && which==side && actualPoint==reserve &&
+               actualReserve==point;
+    }
+    void markConsumed(){consumed=true;armed=false;}
+};
+} // namespace XM87334Native
+#endif
