@@ -1,9 +1,10 @@
 #ifndef XMVSF_STAGE87_57_NATIVE_FLASH_OVERLAY_H
 #define XMVSF_STAGE87_57_NATIVE_FLASH_OVERLAY_H
-// Stage87.57: restore ROM-authored native white wipe above custom Wily stage.
+// Stage87.366: restore ROM-authored native white wipes over every custom stage.
 // Captured from final native raster BEFORE the two-fill OBJ isolation.
 // Gameplay and ROM states are not modified. No synthetic flash timer.
 #include "xmvsf_stage87_57_flash_rules.h"
+#include "xmvsf_stage87_custom_stage_ids.h"
 static std::vector<UINT8> xm8757NativeFlashBgr;
 static std::vector<UINT8> xm8757NativeFlashRgba;
 static bool xm8757NativeFlashActive=false;
@@ -11,7 +12,10 @@ static bool xm8757NativeFlashPreviously=false;
 static unsigned xm8757NativeFlashFrame=0;
 static void xm8757CaptureNativeFlash(){
  xm8757NativeFlashActive=false;
- if(xm77StageResolved!=1 || !xm8649Visual.sceneActive ||
+ // Every custom-stage painter consumes the same native flash texture.
+ // Share the sprite-ownership gate so new stages cannot silently lose it.
+ if(!XM87CustomStage::ownsNativeSprites(xm77StageResolved) ||
+    !xm8649Visual.sceneActive ||
     xm8649Visual.stage!=5 || Cps!=2 || !pBurnDraw || nBurnBpp!=4 ||
     nCpsScreenWidth!=384 || nCpsScreenHeight!=224 || nBurnPitch<384*4)return;
  const auto coverage=xm8757flash::classify(pBurnDraw,384,224,nBurnPitch);
@@ -26,8 +30,8 @@ static void xm8757CaptureNativeFlash(){
   }
  }
  if(xm8757NativeFlashActive!=xm8757NativeFlashPreviously){
-  std::fprintf(stderr,"XM87.57 NATIVE_FLASH frame=%u active=%d white=%u near=%u rows=%u\n",
-    xm8757NativeFlashFrame,int(xm8757NativeFlashActive),coverage.white,
+  std::fprintf(stderr,"XM87.366 NATIVE_FLASH stage=%d frame=%u active=%d white=%u near=%u rows=%u\n",
+    xm77StageResolved,xm8757NativeFlashFrame,int(xm8757NativeFlashActive),coverage.white,
     coverage.nearWhite,coverage.rows);
   xm8757NativeFlashPreviously=xm8757NativeFlashActive;
  }

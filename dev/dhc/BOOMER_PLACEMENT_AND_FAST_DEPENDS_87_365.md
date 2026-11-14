@@ -1,3 +1,8 @@
+> **87.366 update:** Placement is complete. Arrow-key editors for Boomer and Akuma are
+> disabled. The existing SDL Stages preference files are still read once to
+> preserve final offsets. The controls below document the 87.365 authoring phase,
+> not current gameplay controls.
+
 # XMVSF 87.365 — Boomer stage placement debugger and cached native dependency graph
 
 ## Runtime placement controls

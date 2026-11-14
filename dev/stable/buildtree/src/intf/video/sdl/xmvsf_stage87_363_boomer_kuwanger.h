@@ -48,17 +48,15 @@ struct Scene {
  SDL_Texture *fighters=nullptr,*flash=nullptr;
  bool failed=false;
  unsigned failedGeneration=~0u;
- // Stage-only placement editor. Native game floor and fighter physics stay unchanged.
+ // Final authored offsets are loaded read-only; no arrow key adjustment.
  int stageOffsetY=0,wallSpread=0;
- bool placementLoaded=false,placementDirty=false,arrowsHeld=false;
- unsigned long long lastArrowFrame=~0ull;
- std::string placementPath;
+ bool placementLoaded=false;
  void loadPlacement(){
   if(placementLoaded)return;
   placementLoaded=true;
   char* pref=SDL_GetPrefPath("XMVSF","Stages");
   if(pref){
-   placementPath=std::string(pref)+"boomer_placement.txt";
+   const std::string placementPath=std::string(pref)+"boomer_placement.txt";
    SDL_free(pref);
    std::ifstream in(placementPath.c_str());
    int y=0,spread=0;
@@ -67,56 +65,15 @@ struct Scene {
     wallSpread=clamp(spread,-384,384);
    }
   }
-  std::fprintf(stderr,"XM87.365 BOOMER_TARGET_LOADED a_y=%d wall_spread=%d path=%s\n",
-               stageOffsetY,wallSpread,placementPath.c_str());
- }
- void savePlacement(){
-  if(!placementDirty||placementPath.empty())return;
-  std::ofstream out(placementPath.c_str(),std::ios::trunc);
-  if(!out){
-   std::fprintf(stderr,"XM87.365 BOOMER_TARGET_SAVE_FAILED path=%s\n",
-                placementPath.c_str());
-   return;
-  }
-  out<<stageOffsetY<<" "<<wallSpread<<"\n";
-  out.flush();
-  if(out.good()){
-   placementDirty=false;
-   std::fprintf(stderr,"XM87.365 BOOMER_TARGET_SAVED a_y=%d wall_spread=%d path=%s\n",
-                stageOffsetY,wallSpread,placementPath.c_str());
-  }
- }
- void adjustPlacement(unsigned long long frame){
-  const Uint8* keys=SDL_GetKeyboardState(nullptr);
-  if(!keys)return;
-  const bool up=keys[SDL_SCANCODE_UP]!=0;
-  const bool down=keys[SDL_SCANCODE_DOWN]!=0;
-  const bool left=keys[SDL_SCANCODE_LEFT]!=0;
-  const bool right=keys[SDL_SCANCODE_RIGHT]!=0;
-  // Held arrows change placement once per original committed game frame.
-  if(lastArrowFrame!=frame){
-   if(up!=down){
-    const int next=clamp(stageOffsetY+(down?1:-1),-256,256);
-    if(next!=stageOffsetY){stageOffsetY=next;placementDirty=true;}
-   }
-   if(left!=right){
-    const int next=clamp(wallSpread+(right?1:-1),-384,384);
-    if(next!=wallSpread){wallSpread=next;placementDirty=true;}
-   }
-  }
-  lastArrowFrame=frame;
-  const bool held=up||down||left||right;
-  if(arrowsHeld&&!held)savePlacement();
-  arrowsHeld=held;
+  std::fprintf(stderr,"XM87.366 BOOMER_TARGET_LOCKED a_y=%d wall_spread=%d\n",
+               stageOffsetY,wallSpread);
  }
  void close(){
-  savePlacement();
   a.close();b.close();c.close();
   if(fighters)SDL_DestroyTexture(fighters);
   if(flash)SDL_DestroyTexture(flash);
   fighters=flash=nullptr;
   failed=false;failedGeneration=~0u;
-  arrowsHeld=false;lastArrowFrame=~0ull;
  }
  static bool exists(const std::string& p){
   std::ifstream f(p.c_str(),std::ios::binary);return f.good();
@@ -216,7 +173,7 @@ struct Scene {
   }
   return true;
  }
- // B is split at runtime using two SDL source rectangles. Every
+ // B remains split at runtime using two SDL source rectangles. Every
  // half tiles vertically and outward only, keeping a real central gap.
  // No PNG rewriting, per-frame decode or duplicate GPU textures.
  static bool drawWallHalf(SDL_Renderer* r,const SDL_Rect& view,
@@ -260,7 +217,6 @@ struct Scene {
   const int camY=clamp(xm8649Visual.nativeCameraY,-14,GROUND_CAMERA_Y);
   const int stageTop=VIEW_H-WORLD_H+GROUND_CAMERA_Y-camY;
   const unsigned long long frame=xm8649Visual.frames;
-  adjustPlacement(frame);
   const bool oldClip=SDL_RenderIsClipEnabled(r)==SDL_TRUE;
   SDL_Rect old={0,0,0,0};
   if(oldClip)SDL_RenderGetClipRect(r,&old);

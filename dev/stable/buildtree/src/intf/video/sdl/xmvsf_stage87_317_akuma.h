@@ -174,48 +174,22 @@ struct Scene {
  unsigned previousStatus=0;
  bool loaded=false,failed=false;
  int lastProgress=-1;
- // Saved and retained across rematches/renderer restarts.
+ // Load authored moon position read-only across renderer restarts.
  int moonOffset=240;
- bool moonSettingsLoaded=false,moonDirty=false,arrowWasHeld=false;
- unsigned long long lastArrowFrame=~0ull;
- std::string moonSettingsPath;
- void saveMoon(){
-  if(!moonDirty||moonSettingsPath.empty())return;
-  std::ofstream out(moonSettingsPath.c_str(),std::ios::trunc);
-  if(!out){std::fprintf(stderr,"XM87.321 AKUMA_MOON_SAVE_FAILED path=%s\n",moonSettingsPath.c_str());return;}
-  out<<moonOffset<<"\n";
-  if(out.good()){moonDirty=false;
-   std::fprintf(stderr,"XM87.321 AKUMA_MOON_SAVED offset=%d\n",moonOffset);
-  }
- }
+ bool moonSettingsLoaded=false;
  void loadMoon(){
   if(moonSettingsLoaded)return;
   moonSettingsLoaded=true;
   char* pref=SDL_GetPrefPath("XMVSF","Stages");
   if(pref){
-   moonSettingsPath=std::string(pref)+"akuma_moon_offset.txt";
+   const std::string moonSettingsPath=std::string(pref)+"akuma_moon_offset.txt";
    SDL_free(pref);
    std::ifstream in(moonSettingsPath.c_str());
    int v=0;if(in>>v)moonOffset=clampi(v,-768,768);
   }
   std::fprintf(stderr,"XM87.321 AKUMA_MOON_POSITION offset=%d\n",moonOffset);
  }
- void adjustMoon(unsigned long long frame){
-  const Uint8* keys=SDL_GetKeyboardState(nullptr);
-  if(!keys)return;
-  const bool left=keys[SDL_SCANCODE_LEFT]!=0;
-  const bool right=keys[SDL_SCANCODE_RIGHT]!=0;
-  if(frame!=lastArrowFrame&&left!=right){
-   const int next=clampi(moonOffset+(right?1:-1),-768,768);
-   if(next!=moonOffset){moonOffset=next;moonDirty=true;}
-  }
-  lastArrowFrame=frame;
-  if(arrowWasHeld&&!left&&!right)saveMoon();
-  arrowWasHeld=left||right;
- }
-
  void close(){
-  saveMoon();
   for(Layer& layer:layers)layer.close();
   if(fighters)SDL_DestroyTexture(fighters);
   if(flash)SDL_DestroyTexture(flash);
@@ -359,7 +333,6 @@ struct Scene {
   const int camera=clampi(xm8649Visual.nativeCameraX,0,STAGE_W-VIEW_W);
   const int camY=clampi(xm8649Visual.nativeCameraY,-14,256);
   const unsigned long long frame=xm8649Visual.frames;
-  adjustMoon(frame);
   const int elapsed=progress(frame,xm8649Visual.status,
                              xm77StageRollGeneration());
   const Uint8 aAlpha=(Uint8)(255-elapsed*255/TRANSITION_FRAMES);
@@ -415,7 +388,7 @@ static inline Scene& scene(){static Scene s;return s;}
 static inline void cleanup(){scene().close();}
 static inline bool paint(SDL_Renderer* renderer,const SDL_Rect& view){
  if(xm77StageResolved!=5||!xm8649Visual.sceneActive||xm8649Visual.stage!=5){
-  scene().saveMoon();return false;
+  return false;
  }
  if(!xm77SpriteValid||xm77SpriteWidth!=VIEW_W||xm77SpriteHeight!=VIEW_H||
     !xm77SpritePixels())return false;
