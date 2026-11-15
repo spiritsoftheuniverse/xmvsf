@@ -1,7 +1,8 @@
 #ifndef XMVSF_STAGE87_386_AKUMA_AIR_FIREBALL_ARC_H
 #define XMVSF_STAGE87_386_AKUMA_AIR_FIREBALL_ARC_H
-// XMVSF 87.387: correct neutral/backward normal-jump signatures and
-// release native air fireball on actual floor contact.
+// XMVSF 87.388: all three Akuma airborne fireball strengths and both
+// fighter sides, independent of screen-facing jump velocity sign.
+// Release each verified native move on real floor contact.
 // Native F10 87.385 / 001: the 0200/0202/0204 regular jump uses Y gravity
 // +0x00006C00 and X drag 0x00000600 per game frame. At 2C24 (2A06),
 // the original ROM reduces both velocities to about 1/8 and reduces
@@ -9,11 +10,14 @@
 // Restore normal-jump velocity without changing the ROM actor X/Y
 // position integrator or projectile. On exact floor contact, advance
 // the original animation record so the ROM can perform landing.
-// 87.386 F10: Akuma reaches y=floor=472 while still in 2C24/2A06
-// (e.g. frame 2961), then stays in the special for 16 more frames.
-// End the source ROM animation on contact through the verified final
-// 0EA96A script record; let the guest transition to its normal
-// 0212/0214/0216 then 0206 landing. No position or action writes.
+// 87.387 F10: LP/MP/HP use 2C24/2C26/2C28, all with native
+// 2A06/D6=08 and original 16-byte script records. Strength-specific
+// roots: EA8AA, EA97E, EAA52; terminals: EA96A, EAA3E, EAB12.
+// The ROM's normal jump script and absolute horizontal launch speed
+// distinguish ordinary jumps regardless of P1/P2 orientation.
+// When y crosses native floor, advance to THAT strength's terminal
+// script and let native 0212/0214/0216 and 0206 landing execute.
+// Do not change actor position or force the controller action.
 // Superjump/unrecognized launch retains original hover in mid-air.
 // Version 3 unaffected. Opt out: XM87386_AKUMA_AIR_ARC=0.
 #include "xmvsf_stage87_142_rom_dispatch.h"
@@ -33,27 +37,53 @@ static inline bool enabled(){
 static inline bool normalJumpAction(unsigned action){
  return action==0x0200u || action==0x0202u || action==0x0204u;
 }
+struct Fireball {
+ unsigned action,first,last;
+ Fireball(unsigned a=0u,unsigned f=0u,unsigned l=0u)
+   :action(a),first(f),last(l){}
+};
+// The three original US ROM scripts have equal 13-record lengths.
+// Do not alias MP/HP to the LP terminal or initial record.
+static inline Fireball fireballFor(unsigned action){
+ switch(action){
+ case 0x2C24u:return {action,0x0EA8AAu,0x0EA96Au}; // LP
+ case 0x2C26u:return {action,0x0EA97Eu,0x0EAA3Eu}; // MP
+ case 0x2C28u:return {action,0x0EAA52u,0x0EAB12u}; // HP
+ default:return {};
+ }
+}
 static inline bool fireballAction(unsigned action){
- return action==0x2C24u || action==0x2C26u || action==0x2C28u;
+ return fireballFor(action).action!=0u;
+}
+static inline bool nativeScript(const std::uint8_t* rom,unsigned size,
+                                const Fireball& move,unsigned script){
+ if(!move.action || !rom || size<move.last+16u ||
+    script<move.first || script>move.last ||
+    (script-move.first)%16u!=0u)return false;
+ // All three source variants begin/end at native animation 59FA.
+ return XM87142::romW(rom,size,move.first+6u)==0x59FAu &&
+        XM87142::romW(rom,size,move.last+6u)==0x59FAu;
 }
 static inline bool normalLaunch(unsigned action,unsigned mode,unsigned step,
                                 unsigned y,unsigned floor,unsigned script,
                                 unsigned anim,unsigned d6,
                                 std::int64_t vx,std::int64_t vy){
- // F10 87.386: native normal starts in 0400 / 0402 / 0408.
- // 87.386 only accepted 0402, silently excluding straight-up and
- // many backward takeoffs. Verify exact ROM script and 16.16 launch
- // velocities to exclude running/superjump states (e.g. 0414 dash).
+ // F10 87.387: regular jump native scripts are stable on either
+ // player side, but the X velocity SIGN reverses with facing.
+ // 87.387 incorrectly required P1-facing +/- exact signed speeds.
+ // Compare horizontal magnitude, not its world-space direction;
+ // never infer ordinary jump from 0414 dash or superjump states.
  if(step!=0u || d6!=8u || anim!=0x4FAEu ||
     (mode!=0x0400u && mode!=0x0402u && mode!=0x0408u) ||
     y+4u<floor || y>floor+4u)return false;
+ const std::int64_t speed=vx<0?-vx:vx;
  switch(action){
  case 0x0200u:return script==0x0E81CEu &&
-                vx==0 && vy==-0x00098000LL;
+                speed==0 && vy==-0x00098000LL;
  case 0x0202u:return script==0x0E8242u &&
-                vx==0x0003C000LL && vy==-0x0009A000LL;
+                speed==0x0003C000LL && vy==-0x0009A000LL;
  case 0x0204u:return script==0x0E82D6u &&
-                vx==-0x00042000LL && vy==-0x000A0000LL;
+                speed==0x00042000LL && vy==-0x000A0000LL;
  default:return false;
  }
 }
@@ -89,7 +119,7 @@ static inline void logEvent(unsigned frame,unsigned side,
                             std::int64_t nativeVx,std::int64_t nativeVy,
                             std::int64_t vx,std::int64_t vy){
  std::fprintf(stderr,
-  "XM87.387 AKUMA_AIR_ARC_%s frame=%u side=%u action=%04X "
+  "XM87.388 AKUMA_AIR_ARC_%s frame=%u side=%u action=%04X "
   "y=%u floor=%u velocity=%lld,%lld -> %lld,%lld\n",
   event,frame,side+1u,action,y,floor,
   (long long)nativeVx,(long long)nativeVy,
@@ -123,15 +153,9 @@ struct State {
      XM87142::ramB(ram,0x5000u)!=8u){
    reset();return;
   }
-  // Source US ROM: first 2C24 script 0EA8AA (anim 59FA),
-  // terminal record 0EA96A (anim 59FA), looping next pointer
-  // 0EA8AA. All three are present in captured native F10 frames.
-  // Do not bypass original animation on any unverified ROM.
-  if(romSize<0x0EA972u ||
-     XM87142::romW(rom,romSize,0x0EA8B0u)!=0x59FAu ||
-     XM87142::romW(rom,romSize,0x0EA970u)!=0x59FAu){
-   reset();return;
-  }
+  // Source US ROM is validated separately for LP, MP and HP.
+  // The caller is symmetrical for 4000 (P1) and 4400 (P2).
+  if(romSize<0x0EAB22u){reset();return;}
   for(unsigned i=0u;i<2u;++i){
    Side& s=side[i];
    if(s.lastFrame==frame)continue;
@@ -151,17 +175,23 @@ struct State {
    const std::int64_t nativeVY=signedFixed(ram,p+0x1Cu);
    const bool actor=id==0x001Eu && floor>=32u && floor<2048u;
    const bool jump=actor && normalJumpAction(action);
-   const bool fireballPose=actor && action==0x2C24u &&
+   const Fireball move=fireballFor(action);
+   // Entry evidence for either fighter slot, even if the subsequent
+   // ROM-script or jump-history qualification rejects this move.
+   // Ensures P2 and MP/HP failures never disappear from the log.
+   if(actor && move.action!=0u &&
+      (s.lastAction!=action || s.lastId!=id))
+    logEvent(frame,i,"FIREBALL_ENTRY",action,y,floor,
+             nativeVX,nativeVY,s.lastJumpVX,s.lastJumpVY);
+   const bool fireballPose=actor && move.action!=0u &&
        mode==0x2A06u && d6==8u && step>=2u &&
-       (script==0x0EA8AAu ||
-        (script>=0x0EA8BAu && script<=0x0EA96Au &&
-         ((script-0x0EA8BAu)&15u)==0u));
+       nativeScript(rom,romSize,move,script);
    const bool fireball=fireballPose && y<floor;
    const bool launch=jump && normalLaunch(action,mode,step,y,floor,
                                            script,anim,d6,nativeVX,nativeVY);
    if(launch && !s.ordinaryJump)s.ordinaryJump=true;
    // Native Y has reached the EXACT fighter floor while action is
-   // still 2C24 / mode 2A06. Its hit/position integrator clamps Y
+   // still 2C24/2C26/2C28 / mode 2A06. Native movement clamps Y
    // but animation continues for 2-16f. That is floor contact, not
    // the guest's landing-action transition.
    const bool floorContact=fireballPose && y>=floor &&
@@ -181,12 +211,11 @@ struct State {
     }
    }
    if(floorContact && !s.landingArmed){
-    // Advance the existing 68000 sprite-script runner to its genuine
-    // final 16-byte record with a one-tick positive countdown.
-    // The ROM, not C++, will choose 0212/0214/0216 and 0206.
-    // 0 is the native runner's sentinel and must never be written.
-    setLong(ram,p+0x34u,0x0EA96Au);
-    setLong(ram,p+0x38u,0x0EA8AAu);
+    // Native 68000 script runner: finish the CURRENT strength's
+    // original terminal 16-byte record, then let ROM choose its own
+    // landing step. 0 is the sentinel; use one positive frame.
+    setLong(ram,p+0x34u,move.last);
+    setLong(ram,p+0x38u,move.first);
     setWord(ram,p+0x3Eu,1u);
     setWord(ram,p+0x42u,0x59FAu);
     s.landingArmed=true;s.landingWaitReported=false;
