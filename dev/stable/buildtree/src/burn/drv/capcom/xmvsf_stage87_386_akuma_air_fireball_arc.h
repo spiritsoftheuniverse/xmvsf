@@ -1,11 +1,13 @@
 #ifndef XMVSF_STAGE87_386_AKUMA_AIR_FIREBALL_ARC_H
 #define XMVSF_STAGE87_386_AKUMA_AIR_FIREBALL_ARC_H
-// XMVSF 87.389: preserve 87.388 LP/MP/HP landing, but recognize every
-// native ordinary jump launch regardless of previous move's D6 byte,
-// including mode 042A after grounded special recovery.
-// Original jump-action, ROM script, animation, signed 16.16 speed
-// magnitude and floor all remain mandatory; canceled air normals
-// retain their native hover instead of gaining artificial jump arcs.
+// XMVSF 87.390: preserve 87.389 normal-jump/LP-MP-HP landing, and
+// include Akuma's native dash-jumps: 0202/0414 and 0204/0416.
+// F10 87.389: all 10 NATIVE_HOVER after dash-jump came from these
+// otherwise genuine normal-jump takeoffs. Their 16.16 vertical launch
+// and native animation are identical to normal jumping; forward
+// dash-jump retains larger horizontal launch speed (10.875..13.125).
+// Exact ROM action/script/animation, launch Y/floor and signed velocity
+// still gate the fix; superjumps and air-normal cancels retain hover.
 // Native F10 87.385 / 001: the 0200/0202/0204 regular jump uses Y gravity
 // +0x00006C00 and X drag 0x00000600 per game frame. At 2C24 (2A06),
 // the original ROM reduces both velocities to about 1/8 and reduces
@@ -67,21 +69,44 @@ static inline bool nativeScript(const std::uint8_t* rom,unsigned size,
  return XM87142::romW(rom,size,move.first+6u)==0x59FAu &&
         XM87142::romW(rom,size,move.last+6u)==0x59FAu;
 }
+static inline bool dashJumpLaunch(unsigned action,unsigned mode,
+                                  unsigned script,
+                                  std::int64_t horizontalSpeed,
+                                  std::int64_t vy){
+ // These are distinct ORIGINAL jump launch modes after 0400/0402
+ // dashes, not a generic high-speed normal or a superjump.
+ // 0202/0414 is forward dash-jump: original F10 launch vx
+ // +10.875/-12/-13.125, vy=-9.625 (16.16 fixed).
+ if(action==0x0202u && mode==0x0414u)
+  return script==0x0E8242u &&
+         horizontalSpeed>=(8LL<<16) &&
+         horizontalSpeed<=(14LL<<16) &&
+         vy==-0x0009A000LL;
+ // 0204/0416 is backward dash-jump: original F10 launch
+ // vx +/-4.125, vy=-10.0. Do not inherit the dash's
+ // preceding speed; use the actual jump's native VX.
+ if(action==0x0204u && mode==0x0416u)
+  return script==0x0E82D6u &&
+         horizontalSpeed==0x00042000LL &&
+         vy==-0x000A0000LL;
+ return false;
+}
 static inline bool normalLaunch(unsigned action,unsigned mode,unsigned step,
                                 unsigned y,unsigned floor,unsigned script,
                                 unsigned anim,
                                 std::int64_t vx,std::int64_t vy){
- // 87.388 F10: 65 native ordinary takeoffs (0200/0202/0204).
- // The previous move's D6 byte can be 00, 06, 08, 0A, or 16;
- // it is NOT an authoritative indicator of jump type. Excluding
- // D6!=08 or 042A caused ordinary jump fireballs to hover.
- // Exact ROM entry script + sprite + launch velocity distinguish
- // a real normal jump from a superjump/cancel/dash.
- if(step!=0u || anim!=0x4FAEu ||
-    (mode!=0x0400u && mode!=0x0402u &&
-     mode!=0x0408u && mode!=0x042Au) ||
-    y+4u<floor || y>floor+4u)return false;
+ // F10 87.389: original 0200/0202/0204 launch and exact native
+ // 16.16 vertical velocity protect superjump and canceled attacks.
+ // 0414/0416 are exceptional dash-jump takeoffs; qualify those
+ // through native action/ROM script and launch speed separately.
+ if(step!=0u || anim!=0x4FAEu || y+4u<floor || y>floor+4u)
+  return false;
  const std::int64_t speed=vx<0?-vx:vx;
+ if(mode==0x0414u || mode==0x0416u)
+  return dashJumpLaunch(action,mode,script,speed,vy);
+ if(mode!=0x0400u && mode!=0x0402u &&
+    mode!=0x0408u && mode!=0x042Au)
+  return false;
  switch(action){
  case 0x0200u:return script==0x0E81CEu &&
                 speed==0 && vy==-0x00098000LL;
@@ -124,7 +149,7 @@ static inline void logEvent(unsigned frame,unsigned side,
                             std::int64_t nativeVx,std::int64_t nativeVy,
                             std::int64_t vx,std::int64_t vy){
  std::fprintf(stderr,
-  "XM87.389 AKUMA_AIR_ARC_%s frame=%u side=%u action=%04X "
+  "XM87.390 AKUMA_AIR_ARC_%s frame=%u side=%u action=%04X "
   "y=%u floor=%u velocity=%lld,%lld -> %lld,%lld\n",
   event,frame,side+1u,action,y,floor,
   (long long)nativeVx,(long long)nativeVy,
@@ -144,7 +169,7 @@ struct Side {
  unsigned lastY=~0u,landingFrame=~0u;
  std::int64_t lastJumpVX=0,lastJumpVY=0;
  std::int64_t arcVX=0,arcVY=0;
- bool ordinaryJump=false,arcActive=false;
+ bool ordinaryJump=false,arcActive=false,dashJump=false;
  bool landingArmed=false,landingWaitReported=false;
 };
 struct State {
@@ -194,7 +219,13 @@ struct State {
    const bool fireball=fireballPose && y<floor;
    const bool launch=jump && normalLaunch(action,mode,step,y,floor,
                                            script,anim,nativeVX,nativeVY);
-   if(launch && !s.ordinaryJump)s.ordinaryJump=true;
+   if(launch && !s.ordinaryJump){
+    s.ordinaryJump=true;
+    s.dashJump=(mode==0x0414u || mode==0x0416u);
+    if(s.dashJump)
+     logEvent(frame,i,"DASH_JUMP_LAUNCH",action,y,floor,
+              nativeVX,nativeVY,nativeVX,nativeVY);
+   }
    // Native Y has reached the EXACT fighter floor while action is
    // still 2C24/2C26/2C28 / mode 2A06. Native movement clamps Y
    // but animation continues for 2-16f. That is floor contact, not
@@ -225,7 +256,7 @@ struct State {
     setWord(ram,p+0x42u,0x59FAu);
     s.landingArmed=true;s.landingWaitReported=false;
     s.landingFrame=frame;
-    s.arcActive=false;s.ordinaryJump=false;
+    s.arcActive=false;s.ordinaryJump=false;s.dashJump=false;
     logEvent(frame,i,"LAND_SCRIPT_FINISH",action,y,floor,
              nativeVX,nativeVY,nativeVX,nativeVY);
    }
@@ -244,8 +275,8 @@ struct State {
     s.arcActive=true;
     s.arcVX=s.lastJumpVX;
     s.arcVY=s.lastJumpVY;
-    logEvent(frame,i,"NORMAL_BEGIN",action,y,floor,
-             nativeVX,nativeVY,s.arcVX,s.arcVY);
+    logEvent(frame,i,s.dashJump?"DASH_BEGIN":"NORMAL_BEGIN",
+             action,y,floor,nativeVX,nativeVY,s.arcVX,s.arcVY);
    }else if(atFireballEntry && !s.arcActive){
     // Preserve the native hover for superjumps or unrecognized moves.
     logEvent(frame,i,"NATIVE_HOVER",action,y,floor,
@@ -274,7 +305,9 @@ struct State {
     s.lastJumpVX=nativeVX;
     s.lastJumpVY=nativeVY;
    }
-   if(!jump && !fireball)s.ordinaryJump=false;
+   if(!jump && !fireball){
+    s.ordinaryJump=false;s.dashJump=false;
+   }
    s.lastFrame=frame;s.lastAction=action;s.lastMode=mode;
    s.lastId=id;s.lastY=y;
   }
