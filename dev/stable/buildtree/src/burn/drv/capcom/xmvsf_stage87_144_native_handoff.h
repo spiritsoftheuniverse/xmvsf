@@ -395,7 +395,6 @@ struct State {
     // Called after choosing either Ken super, never for ordinary tags.
     void armOutgoingTag(std::uint8_t*ram,unsigned now,unsigned side,
                         unsigned selectedAt){
-        const unsigned p=0x4000u+side*0x400u;
         // A new native controller transaction must not inherit the
         // previous partner's landing/lock state. This was otherwise a
         // persistent active=true after the first successful 87.194 jump.

@@ -105,7 +105,7 @@ static inline bool registeredHyperD6(unsigned fighter,unsigned d6){
     }
     const XM87329Morphus::Row& row=XM87329Morphus::rows()[fighter/2u];
     for(unsigned slot=0u;slot<7u;++slot){
-        if(row.hyper[slot]==d6)return true;
+        if(row.hyperD6[slot]==d6)return true;
     }
     return false;
 }
@@ -186,7 +186,7 @@ static inline Decision resolve(unsigned incoming,unsigned ownerMotion,
     const int column=XM87329Morphus::columnFromOwnerMotion(ownerMotion);
     if(column>=0){
         const auto& row=XM87329Morphus::rows()[incoming/2u];
-        const unsigned selected=row.hyper[unsigned(column)];
+        const unsigned selected=row.hyperD6[unsigned(column)];
         if(selected){
             if(row.air&(1u<<unsigned(column))){
                 d.reason=AIR_ONLY;return d;
