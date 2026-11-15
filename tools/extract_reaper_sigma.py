@@ -45,12 +45,19 @@ def frame_role(parts: list[str]) -> str | None:
             leaf = "idle" + leaf
         elif "ball" in parent:
             leaf = "ball" + leaf
-    if leaf.startswith("slashrunframe"):
-        leaf = "slashrun" + leaf[13:]
-    if leaf.startswith("slashrun"):
-        pass
-    elif leaf.startswith("slash") and leaf[5:].isdigit():
-        leaf = "slashrun" + leaf[5:]
+    # Actual reapersigma.psd authoring names (87.378 layer inventory):
+    # slash1..slash4 are the four wind-up poses (code calls these smash);
+    # slash5run/slash6run/slash7run are the repeating slash-travel poses.
+    # Match the exact source names rather than requiring the artist to
+    # rename Photoshop layers to implementation terminology.
+    startup = re.fullmatch(r"slash([1-4])", leaf)
+    travel = re.fullmatch(r"slash([5-7])run", leaf)
+    if startup:
+        leaf = "smash" + startup.group(1)
+    elif travel:
+        leaf = "slashrun" + travel.group(1)
+    elif leaf.startswith("slashrunframe"):
+        leaf = "slashrun" + leaf[len("slashrunframe"):]
     elif leaf.startswith("run") and leaf[3:].isdigit():
         leaf = "slashrun" + leaf[3:]
     if leaf in REQUIRED:
@@ -176,6 +183,7 @@ def extract(raw: bytes, src_sha: str, code_sha: str):
     # Each role may contain several alpha-bearing sublayers within a PSD
     # folder. Preserve their original canvas-space bounds for composition.
     fragments: dict[str,list[tuple[int,int,int,int,bytes,str]]] = {}
+    source_roles: set[str] = set()
     for i,layer in enumerate(layers):
         x,y,right,bottom=layer["bounds"]
         w,h=right-x,bottom-y
@@ -184,6 +192,8 @@ def extract(raw: bytes, src_sha: str, code_sha: str):
         # descendant raster layers contain the art.
         role=(role_for_raster(paths.get(i,[layer["name"]]))
               if layer["section"] not in (1,2,3) else None)
+        if role:
+            source_roles.add(role)
         # Channel payload is sequential in the PSD, including folders,
         # invisible source frames, and unrelated/guide layers.
         planes={}
@@ -257,6 +267,15 @@ def extract(raw: bytes, src_sha: str, code_sha: str):
         fragments.setdefault(role,[]).append(
             (x+left0,y+top0,tw,th,trimmed,layer["name"]))
     absent=[role for role in REQUIRED if role not in fragments]
+    # ball2 is present in the PSD inventory but contains no visible
+    # alpha pixels. It is an intentional blank overlay frame: export a
+    # fully transparent 1x1 PNG, preserve its timing, and keep ball1body
+    # visible underneath. Do NOT invent ball art or accept missing roles.
+    blank_ball2="ball2" in absent and "ball2" in source_roles
+    if blank_ball2:
+        absent.remove("ball2")
+        print("REAPER_SIGMA_BLANK_FRAME ball2 source=PSD transparent "
+              "output=1x1 transparent overlay")
     if absent:
         print("REAPER_SIGMA_PSD_LAYER_INVENTORY "+
               repr([(layer["index"],layer["name"],layer["section"],
@@ -267,6 +286,12 @@ def extract(raw: bytes, src_sha: str, code_sha: str):
     # correctly accounting for each layer's per-pixel alpha and position.
     # Photoshop stores layers top-first; draw them in reverse order.
     for role in REQUIRED:
+        if role=="ball2" and blank_ball2:
+            # No image exists for this authored cel; transparency is
+            # faithful to its actual alpha, not a substituted effect.
+            pending["ball2.png"]=png_rgba(1,1,b"\x00\x00\x00\x00")
+            records.append("FRAME\tball2\tball2.png\t0\t0\t1\t1")
+            continue
         parts=fragments[role]
         left=min(p[0] for p in parts)
         top=min(p[1] for p in parts)
