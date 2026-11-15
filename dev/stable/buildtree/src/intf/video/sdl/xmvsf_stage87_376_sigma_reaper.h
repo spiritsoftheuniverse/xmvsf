@@ -1,6 +1,7 @@
 #ifndef XMVSF_STAGE87_376_SIGMA_REAPER_H
 #define XMVSF_STAGE87_376_SIGMA_REAPER_H
-// 87.376: Reaper Sigma, independent stage-only actor (not a ROM fighter).
+// 87.377: Reaper Sigma, independent stage-only actor (not a ROM fighter).
+// Manifest integers accept CRLF/whitespace on Windows; junk suffixes fail.
 // Animations are extracted losslessly from reapersigma.psd by the local
 // build. Coordinates are in the 768x471 Sigma world, bottom anchored.
 // Tick exactly once per original game frame, NOT per SDL paint call.
@@ -219,10 +220,10 @@ struct Actor {
     // A malformed/stale manifest simply disables this stage actor.
     int x=0,y=0,w=0,h=0;
     char tail=0;
-    if(std::sscanf(px.c_str(),"%d%c",&x,&tail)!=1 ||
-       std::sscanf(py.c_str(),"%d%c",&y,&tail)!=1 ||
-       std::sscanf(pw.c_str(),"%d%c",&w,&tail)!=1 ||
-       std::sscanf(ph.c_str(),"%d%c",&h,&tail)!=1){
+    if(std::sscanf(px.c_str(),"%d %c",&x,&tail)!=1 ||
+       std::sscanf(py.c_str(),"%d %c",&y,&tail)!=1 ||
+       std::sscanf(pw.c_str(),"%d %c",&w,&tail)!=1 ||
+       std::sscanf(ph.c_str(),"%d %c",&h,&tail)!=1){
       success=false;break;
     }
     if(w<=0||h<=0||w>2048||h>2048){success=false;break;}
