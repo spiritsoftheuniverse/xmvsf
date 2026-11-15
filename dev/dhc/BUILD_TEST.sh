@@ -5,7 +5,7 @@
 set -euo pipefail
 BUILD_WALL_START=$SECONDS
 # Batch sets the version once at launch, before native compilation begins.
-XMVSF_BUILD_VERSION="${XMVSF_TEST_VERSION:-87.375}"
+XMVSF_BUILD_VERSION="${XMVSF_TEST_VERSION:-87.376}"
 XMVSF_BUILD_TAG="${XMVSF_BUILD_VERSION//./_}"
 PROJECT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
@@ -68,6 +68,24 @@ if [[ -s "$GUILE_PSD" ]]; then
   fi
 fi
 
+
+# Reaper Sigma's authored PSD contains 19 literal animation layers.
+# Extract lossless PNGs with the same stdlib PSD decoder used by Guile,
+# without Photoshop, external packages or touching the warm object cache.
+# Only the Sigma stage loads these assets. Extraction itself is SHA-cached.
+REAPER_SIGMA_PSD="$PROJECT/_art/sigmastage/reapersigma.psd"
+if [[ -s "$REAPER_SIGMA_PSD" ]]; then
+  if command -v python3 >/dev/null 2>&1; then
+    python3 "$PROJECT/tools/extract_reaper_sigma.py"
+  elif command -v python >/dev/null 2>&1; then
+    python "$PROJECT/tools/extract_reaper_sigma.py"
+  elif command -v py >/dev/null 2>&1; then
+    py -3 "$PROJECT/tools/extract_reaper_sigma.py"
+  else
+    echo "ERROR: Python 3 required for Reaper Sigma PSD extraction." >&2
+    exit 1
+  fi
+fi
 
 # Ryu PSD extraction is source-hash cached (no rebuild or clean when
 # the PSD did not change). Layer rectangles outside 768x471 survive verbatim.
@@ -593,7 +611,7 @@ if [[ "${XMVSF_WARM_MENU_SINGLE_PASS:-1}" == 1 &&
     fi
   fi
 fi
-# 87.375: skip the huge two-pass dependency generation only when the
+# 87.376: skip the huge two-pass dependency generation only when the
 # cached FULL native graph is complete. Still run GNU Make pass-2 which
 # remakes stale GCC .d files and recompiles changed C/C++ translation units.
 FAST_NATIVE_GRAPH=0

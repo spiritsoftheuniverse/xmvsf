@@ -4,6 +4,7 @@
 // Original native stage 05 still owns the camera, collision and sprites.
 // Three masks are created ONCE per renderer: no video decoding, per-frame
 // texture uploads, palette writes, extra audio output, or per-pixel CPU work.
+#include "xmvsf_stage87_376_sigma_reaper.h" // PSD Reaper Sigma stage actor
 #include <SDL.h>
 #include <SDL_image.h>
 #include <algorithm>
@@ -242,7 +243,10 @@ struct Scene {
  }
 };
 static inline Scene& scene(){static Scene s;return s;}
-static inline void cleanup(){scene().close();}
+static inline void cleanup(){
+ XM87376Reaper::cleanup();
+ scene().close();
+}
 static inline bool paint(SDL_Renderer* render,const SDL_Rect& view){
  if(xm77StageResolved!=4)return false;
  // Once per stage-session diagnostic pinpoints a missing native camera
@@ -306,6 +310,12 @@ static inline bool paint(SDL_Renderer* render,const SDL_Rect& view){
  if(good)good=SDL_RenderCopy(render,s.white,nullptr,&dst)==0;
  if(good)good=SDL_RenderCopy(render,s.warm,nullptr,&dst)==0;
  if(good){
+  // 87.376: independent art actor between background effects and native
+  // fighters. Missing PSD exports do not obscure original Sigma stage.
+  // This painter ticks only when game frame advances; SDL redraws are
+  // presentation-only and do not advance his animation or random choices.
+  XM87376Reaper::actor().paint(render,view,generation,
+      (unsigned)xm8649Visual.frames,camera,cameraY);
   xm8733Overlay(render,view); // existing native stun bar depth
   good=SDL_RenderCopy(render,s.fighters,nullptr,&view)==0;
   if(nativeFlash)good=SDL_RenderCopy(render,s.flash,nullptr,&view)==0 && good;
