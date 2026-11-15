@@ -5,7 +5,7 @@
 set -euo pipefail
 BUILD_WALL_START=$SECONDS
 # Batch sets the version once at launch, before native compilation begins.
-XMVSF_BUILD_VERSION="${XMVSF_TEST_VERSION:-87.384}"
+XMVSF_BUILD_VERSION="${XMVSF_TEST_VERSION:-87.385}"
 XMVSF_BUILD_TAG="${XMVSF_BUILD_VERSION//./_}"
 PROJECT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
@@ -611,7 +611,7 @@ if [[ "${XMVSF_WARM_MENU_SINGLE_PASS:-1}" == 1 &&
     fi
   fi
 fi
-# 87.384: skip the huge two-pass dependency generation only when the
+# 87.385: skip the huge two-pass dependency generation only when the
 # cached FULL native graph is complete. Still run GNU Make pass-2 which
 # remakes stale GCC .d files and recompiles changed C/C++ translation units.
 FAST_NATIVE_GRAPH=0

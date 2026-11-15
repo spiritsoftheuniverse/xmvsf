@@ -1,11 +1,11 @@
 @echo off
-REM XMVSF TEST 87.384 - Boomer Kuwanger Stage / final native DHC built into Version 4 - local native Windows DHC build (no Stable overwrite)
+REM XMVSF TEST 87.385 - Boomer Kuwanger Stage / final native DHC built into Version 4 - local native Windows DHC build (no Stable overwrite)
 setlocal EnableExtensions DisableDelayedExpansion
 for %%I in ("%~dp0.") do set "PROJECT=%%~fI"
 set "MSYSTEM=UCRT64"
 set "PATH=C:\msys64\ucrt64\bin;C:\msys64\usr\bin;%PATH%"
 set "XMVSF_PROJECT=%PROJECT%"
-set "XMVSF_TEST_VERSION=87.384"
+set "XMVSF_TEST_VERSION=87.385"
 REM Derived from XMVSF_TEST_VERSION; must match BUILD_TEST.bat.
 set "XMVSF_TEST_TAG=%XMVSF_TEST_VERSION:.=_%"
 REM All TEST diagnostics track the same version as the launched executable.
@@ -77,16 +77,23 @@ if not exist "%OBSROOT%" (
   echo ERROR: Cannot create current TEST observer log directory.
   goto :fail
 )
-REM 87.384: dedicated, persistent Reaper Sigma graphics/clock diagnostics.
+REM 87.385: dedicated, persistent Reaper Sigma graphics/clock diagnostics.
 REM The game is normally launched from FBNeo below; writing this file
 REM avoids relying on redirected stderr from an incorrectly started EXE.
 set "XM87382_REAPER_LOG=%OBSROOT%\reaper_sigma.log"
-> "%XM87382_REAPER_LOG%" echo XM87.384 RUN_TEST_LAUNCH version=%XMVSF_TEST_VERSION% source=%SOURCE_ROM% exe=%PROJECT%\runtime\stable\XMVSF_Test_%XMVSF_TEST_TAG%.exe
+> "%XM87382_REAPER_LOG%" echo XM87.385 RUN_TEST_LAUNCH version=%XMVSF_TEST_VERSION% source=%SOURCE_ROM% exe=%PROJECT%\runtime\stable\XMVSF_Test_%XMVSF_TEST_TAG%.exe
 if not exist "%XM87382_REAPER_LOG%" (
   echo ERROR: Reaper diagnostic file could not be initialized: %XM87382_REAPER_LOG%
   goto :fail
 )
 echo Reaper Sigma diagnostics: "%XM87382_REAPER_LOG%"
+REM 87.385: event-only QCF+K victim impulse and ground recovery log.
+REM No per-frame file I/O; the C++ hook appends only on native hit/tail.
+if /I "%SOURCE_ROM%"=="xmvsfu" (
+  set "XM87385_AKUMA_TATSU_LOG=%OBSROOT%\akuma_tatsu.tsv"
+  > "%OBSROOT%\akuma_tatsu.tsv" echo frame	side	event	action	attacker_y	victim_y	old_value	new_value
+  echo Akuma QCF+K diagnostics: "%OBSROOT%\akuma_tatsu.tsv"
+)
 REM Read-only Morphus EURO 68000 opcode signature audit; opt-in only.
 if "%XM87329_DHC_HOOK_PROBE%"=="1" if not defined XM87329_DHC_HOOK_PROBE_LOG set "XM87329_DHC_HOOK_PROBE_LOG=%OBSROOT%\morphus_opcode_sites_329.tsv"
 REM 87.330 exact EURO opcode signature search; disabled unless requested.
@@ -131,7 +138,7 @@ REM Charlie air HP stays ROM native; confirmed HK gets Cyclops severe.
 REM 87.235 fixed Storm native baseline x1.5. Charlie conversions label
 REM CHARLIE_STORM_FIXED_BASE_XY_150PCT and the old Y-velocity
 REM carry-over is disabled only for Charlie air HP/HK.
-REM 87.384: native original 68000 DHC is built into Version 4 of xmvsfu.
+REM 87.385: native original 68000 DHC is built into Version 4 of xmvsfu.
 REM No activation flags. Version 3 remains the original native game.
 set "XM87274_UNIFIED_DHC_LOG="
 echo Native M68K DHC: built into Version 4; no flags needed.
@@ -197,7 +204,7 @@ if not defined XM87186_TEST_FIRST_FOUR_ATTACK set "XM87186_TEST_FIRST_FOUR_ATTAC
 REM 87.203: only native PC010392 air 2E0E->2E0C rebound; 0 for A/B.
 if not defined XM87202_TEST_AIR_FOLLOWUP_REBOUND set "XM87202_TEST_AIR_FOLLOWUP_REBOUND=1"
 set "XM87182_NATIVE_PC_TRACE_LOG="
-REM 87.384: health observer disabled; no append/create or mandatory check.
+REM 87.385: health observer disabled; no append/create or mandatory check.
 set "XM87181_DIAGNOSTIC_STATUS="
 if not defined XM87180_EXPERIMENTAL_DELAYED_PRIME set "XM87180_EXPERIMENTAL_DELAYED_PRIME=0"
 set "EXE=%PROJECT%\runtime\stable\XMVSF_Test_%XMVSF_TEST_TAG%.exe"
@@ -567,7 +574,7 @@ if exist "%XM87160_PRIVATE_ROM_DIR%\xmvsfu_program_data_host_swapped.bin" (
   )
 )
 echo.
-REM 87.384: no DHC/health observer postprocessors; dash log remains.
+REM 87.385: no DHC/health observer postprocessors; dash log remains.
 :mvc_donor_post
 echo Stage %XMVSF_TEST_VERSION% TEST exit code: %RC%
 echo F10 native PPC/chooser capture directory: %XM87139_PROBE_DIR%
