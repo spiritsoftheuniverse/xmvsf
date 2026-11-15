@@ -1,8 +1,11 @@
 #ifndef XMVSF_STAGE87_386_AKUMA_AIR_FIREBALL_ARC_H
 #define XMVSF_STAGE87_386_AKUMA_AIR_FIREBALL_ARC_H
-// XMVSF 87.388: all three Akuma airborne fireball strengths and both
-// fighter sides, independent of screen-facing jump velocity sign.
-// Release each verified native move on real floor contact.
+// XMVSF 87.389: preserve 87.388 LP/MP/HP landing, but recognize every
+// native ordinary jump launch regardless of previous move's D6 byte,
+// including mode 042A after grounded special recovery.
+// Original jump-action, ROM script, animation, signed 16.16 speed
+// magnitude and floor all remain mandatory; canceled air normals
+// retain their native hover instead of gaining artificial jump arcs.
 // Native F10 87.385 / 001: the 0200/0202/0204 regular jump uses Y gravity
 // +0x00006C00 and X drag 0x00000600 per game frame. At 2C24 (2A06),
 // the original ROM reduces both velocities to about 1/8 and reduces
@@ -66,15 +69,17 @@ static inline bool nativeScript(const std::uint8_t* rom,unsigned size,
 }
 static inline bool normalLaunch(unsigned action,unsigned mode,unsigned step,
                                 unsigned y,unsigned floor,unsigned script,
-                                unsigned anim,unsigned d6,
+                                unsigned anim,
                                 std::int64_t vx,std::int64_t vy){
- // F10 87.387: regular jump native scripts are stable on either
- // player side, but the X velocity SIGN reverses with facing.
- // 87.387 incorrectly required P1-facing +/- exact signed speeds.
- // Compare horizontal magnitude, not its world-space direction;
- // never infer ordinary jump from 0414 dash or superjump states.
- if(step!=0u || d6!=8u || anim!=0x4FAEu ||
-    (mode!=0x0400u && mode!=0x0402u && mode!=0x0408u) ||
+ // 87.388 F10: 65 native ordinary takeoffs (0200/0202/0204).
+ // The previous move's D6 byte can be 00, 06, 08, 0A, or 16;
+ // it is NOT an authoritative indicator of jump type. Excluding
+ // D6!=08 or 042A caused ordinary jump fireballs to hover.
+ // Exact ROM entry script + sprite + launch velocity distinguish
+ // a real normal jump from a superjump/cancel/dash.
+ if(step!=0u || anim!=0x4FAEu ||
+    (mode!=0x0400u && mode!=0x0402u &&
+     mode!=0x0408u && mode!=0x042Au) ||
     y+4u<floor || y>floor+4u)return false;
  const std::int64_t speed=vx<0?-vx:vx;
  switch(action){
@@ -119,7 +124,7 @@ static inline void logEvent(unsigned frame,unsigned side,
                             std::int64_t nativeVx,std::int64_t nativeVy,
                             std::int64_t vx,std::int64_t vy){
  std::fprintf(stderr,
-  "XM87.388 AKUMA_AIR_ARC_%s frame=%u side=%u action=%04X "
+  "XM87.389 AKUMA_AIR_ARC_%s frame=%u side=%u action=%04X "
   "y=%u floor=%u velocity=%lld,%lld -> %lld,%lld\n",
   event,frame,side+1u,action,y,floor,
   (long long)nativeVx,(long long)nativeVy,
@@ -188,7 +193,7 @@ struct State {
        nativeScript(rom,romSize,move,script);
    const bool fireball=fireballPose && y<floor;
    const bool launch=jump && normalLaunch(action,mode,step,y,floor,
-                                           script,anim,d6,nativeVX,nativeVY);
+                                           script,anim,nativeVX,nativeVY);
    if(launch && !s.ordinaryJump)s.ordinaryJump=true;
    // Native Y has reached the EXACT fighter floor while action is
    // still 2C24/2C26/2C28 / mode 2A06. Native movement clamps Y
