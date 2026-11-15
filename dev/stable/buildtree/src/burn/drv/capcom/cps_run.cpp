@@ -47,6 +47,7 @@
 #include "xmvsf_stage87_370_akuma_air_super_startup.h" // 87.372 Akuma air charge hold shortened, ground retained
 #include "xmvsf_stage87_375_akuma_teleport_recovery.h" // 87.375 native Akuma teleport recovery to one frame
 #include "xmvsf_stage87_385_akuma_tatsu.h" // 87.385 native QCF+K hit velocity and 3f landing
+#include "xmvsf_stage87_386_akuma_air_fireball_arc.h" // 87.386 non-superjump air fireball retains native jump arc
 extern int xm14TrainingMode; // native SDL Training mode selection
 extern int xm87102DamageMode; // XM87.102 Training damage option
 #include <cstdio> // XM86.34 first native CPS2 frame tracing
@@ -1415,6 +1416,12 @@ INT32 Cps2Frame()
     // Akuma 2C40/42/44: adjust only the connected victim's Y impulse
     // and the native 2C46/48/4A landing recovery. No ROM action bypass.
     XM87385Tatsu::state().afterCpu(CpsRamFF,CpsRom,(unsigned)nCpsRomLen,
+        (unsigned)GetCurrentFrame(),BurnDrvGetTextA(DRV_NAME),
+        xm262V4,bBurnRunAheadFrame);
+    // 87.386: preserve normal-jump X/Y velocity during Akuma air
+    // fireball; superjump and unknown launch histories retain hover.
+    // Native ROM owns position, animation, projectile and landing.
+    XM87386AirArc::state().afterCpu(CpsRamFF,CpsRom,(unsigned)nCpsRomLen,
         (unsigned)GetCurrentFrame(),BurnDrvGetTextA(DRV_NAME),
         xm262V4,bBurnRunAheadFrame);
     // Read only: report the actual ROM-controlled attack-step timing after
