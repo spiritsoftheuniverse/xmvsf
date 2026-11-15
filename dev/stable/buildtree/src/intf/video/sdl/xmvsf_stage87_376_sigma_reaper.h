@@ -152,12 +152,12 @@ struct Actor {
  int dropPixels()const{
   // The BALL body is not necessarily the complete figure; the three
   // original IDLE sheets are the authoritative full-body silhouette.
-  // Keep the largest visible idle frame as the fixed stage-wide drop.
+  // Move the stable stage-wide anchor UP by half of the prior\n  // (full silhouette height - 20 px) drop; no pose-specific shift.
   int h=0;
   for(const Frame& f:idle)h=std::max(h,f.h);
   // Distinct idle poses can have different visible dimensions; the
   // stage actor uses a single stable offset for every animation frame.
-  return std::max(0,h-20);
+  return std::max(0,(h-20+1)/2);
  }
  double footBase()const{
   return double(WORLD_HEIGHT-ORIGINAL_ABOVE_BOTTOM+dropPixels());
@@ -321,7 +321,7 @@ struct Actor {
   emitted=rendered=0u;lastDebugFrame=~0u;
   decisionIn=range(240u,420u); // 4-7 game seconds at 60 fps
   diagnostic(
-    "XM87.383 SIGMA_REAPER_SPAWN gen=%u worldX=%.1f "
+    "XM87.384 SIGMA_REAPER_SPAWN gen=%u worldX=%.1f "
     "bounds=140..628 bodyH=%d idleH=%d loweredBy=%d foot=%.1f nextDecision=%u\n",
     generation,x,body.h,silhouetteH,dropPixels(),footBase(),decisionIn);
  }
@@ -337,7 +337,7 @@ struct Actor {
         (slashesSinceBall==1u && range(0u,99u)<18u);
   if(ballDue){
    motion=BALL;modeFrame=0u;slashesSinceBall=0u;
-   diagnostic("XM87.383 SIGMA_REAPER_BALL x=%.1f afterSlash=1-2\n",x);
+   diagnostic("XM87.384 SIGMA_REAPER_BALL x=%.1f afterSlash=1-2\n",x);
    return;
   }
   if(range(0u,99u)<15u){
@@ -349,7 +349,7 @@ struct Actor {
   motion=SMASH;modeFrame=0u;
   ++slashesSinceBall;
   diagnostic(
-    "XM87.383 SIGMA_REAPER_SLASH x=%.1f toward=%s slashCount=%u\n",
+    "XM87.384 SIGMA_REAPER_SLASH x=%.1f toward=%s slashCount=%u\n",
     x,facing>0?"RIGHT":"LEFT",slashesSinceBall);
  }
  void advance(){
@@ -499,7 +499,7 @@ struct Actor {
     silhouetteH=0;
     for(const Frame& pose:idle)silhouetteH=std::max(silhouetteH,pose.h);
     diagnostic(
-      "XM87.383 SIGMA_REAPER_READY frames=%u root=%s idleH=%d bodyH=%d "
+      "XM87.384 SIGMA_REAPER_READY frames=%u root=%s idleH=%d bodyH=%d "
       "drop=%d greenSamples=%u/%u/%u hemSamples=%u/%u/%u\n",
       total,root.c_str(),silhouetteH,body.h,dropPixels(),
       unsigned(idle[0].green.size()),unsigned(idle[1].green.size()),
@@ -517,7 +517,7 @@ struct Actor {
   }
   failed=true;failedGeneration=generation;
   diagnostic(
-    "XM87.383 SIGMA_REAPER_MISSING: run BUILD_TEST.bat to extract "
+    "XM87.384 SIGMA_REAPER_MISSING: run BUILD_TEST.bat to extract "
     "_art/sigmastage/reapersigma.psd into extracted/manifest.tsv "
     "and 19 named PNGs; stage background remains usable\n");
   return false;
@@ -550,7 +550,7 @@ struct Actor {
      gameFrame-lastDebugFrame>=180u){
     lastDebugFrame=gameFrame;
     diagnostic(
-      "XM87.383 SIGMA_REAPER_LIVE frame=%u gen=%u mode=%u "
+      "XM87.384 SIGMA_REAPER_LIVE frame=%u gen=%u mode=%u "
       "idleH=%d bodyH=%d drop=%d foot=%.1f cameraY=%d "
       "particles=%u totalEmitted=%u screenFoot=%d drawn=%u "
       "gameClockDelta=%u\n",
