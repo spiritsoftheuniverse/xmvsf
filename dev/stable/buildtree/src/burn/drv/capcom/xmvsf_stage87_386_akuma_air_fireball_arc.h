@@ -1,5 +1,11 @@
 #ifndef XMVSF_STAGE87_386_AKUMA_AIR_FIREBALL_ARC_H
 #define XMVSF_STAGE87_386_AKUMA_AIR_FIREBALL_ARC_H
+// XMVSF 87.391: one-air-fireball-at-a-time arc nerf.
+// If Akuma has a previously launched air projectile still in his own
+// native side-linked projectile list, the NEXT air fireball retains
+// its original ROM hover. The first projectile keeps its full arc.
+// Use observed object identities, NOT hitbox activity or a timer;
+// an object is retired when its original owner link disappears.
 // XMVSF 87.390: preserve 87.389 normal-jump/LP-MP-HP landing, and
 // include Akuma's native dash-jumps: 0202/0414 and 0204/0416.
 // F10 87.389: all 10 NATIVE_HOVER after dash-jump came from these
@@ -149,7 +155,7 @@ static inline void logEvent(unsigned frame,unsigned side,
                             std::int64_t nativeVx,std::int64_t nativeVy,
                             std::int64_t vx,std::int64_t vy){
  std::fprintf(stderr,
-  "XM87.390 AKUMA_AIR_ARC_%s frame=%u side=%u action=%04X "
+  "XM87.391 AKUMA_AIR_ARC_%s frame=%u side=%u action=%04X "
   "y=%u floor=%u velocity=%lld,%lld -> %lld,%lld\n",
   event,frame,side+1u,action,y,floor,
   (long long)nativeVx,(long long)nativeVy,
@@ -164,6 +170,44 @@ static inline void logEvent(unsigned frame,unsigned side,
   (long long)vx,(long long)vy);
  std::fclose(f);
 }
+// Native stage23 / 87.159 projectile-object ownership:
+// P1 FF(E3D8 - slot*4), P2 FF(E3D8+150 - slot*4), 1..12.
+// These are original 68K projectile actor links, not the body or
+// sprite slots. An object can exist before its hitbox becomes active.
+static inline bool hasObject(const unsigned* a,unsigned count,unsigned base){
+ for(unsigned i=0u;i<count;++i)if(a[i]==base)return true;
+ return false;
+}
+static inline unsigned linkedProjectiles(const std::uint8_t* ram,
+                                         unsigned side,unsigned* objects){
+ unsigned n=0u;
+ for(unsigned slot=1u;slot<=12u;++slot){
+  const unsigned address=0xE3D8u+side*0x150u-slot*4u;
+  const unsigned base=XM87142::ramL(ram,address);
+  if(base<0xFF5000u || base>0xFFFF00u)break;
+  if(!hasObject(objects,n,base))objects[n++]=base;
+ }
+ return n;
+}
+static inline bool limitMultipleAirProjectiles(){
+ const char* v=std::getenv("XM87391_AKUMA_PROJECTILE_HOVER");
+ return !v || std::strcmp(v,"0")!=0;
+}
+static inline void projectileNote(unsigned frame,unsigned side,
+                                  const char* event,unsigned action,
+                                  unsigned object,unsigned count){
+ std::fprintf(stderr,
+  "XM87.391 AKUMA_PROJECTILE_%s frame=%u side=P%u action=%04X "
+  "object=%06X tracked=%u\n",
+  event,frame,side+1u,action,object,count);
+ const char* path=std::getenv("XM87391_AKUMA_PROJECTILE_LOG");
+ if(!path||!*path)return;
+ FILE* f=std::fopen(path,"ab");
+ if(!f)return;
+ std::fprintf(f,"%u\t%u\t%s\t%04X\t%06X\t%u\n",
+     frame,side+1u,event,action,object,count);
+ std::fclose(f);
+}
 struct Side {
  unsigned lastFrame=~0u,lastAction=~0u,lastMode=0u,lastId=~0u;
  unsigned lastY=~0u,landingFrame=~0u;
@@ -171,6 +215,11 @@ struct Side {
  std::int64_t arcVX=0,arcVY=0;
  bool ordinaryJump=false,arcActive=false,dashJump=false;
  bool landingArmed=false,landingWaitReported=false;
+ // Persistent only for this active Akuma. A tagged projectile must
+ // have joined the native owner list during his air-fireball action.
+ unsigned priorLinks[12]={},priorCount=0u;
+ unsigned airFireballs[12]={},airFireballCount=0u;
+ bool existingProjectileHover=false;
 };
 struct State {
  Side side[2];
@@ -204,6 +253,24 @@ struct State {
    const std::int64_t nativeVX=signedFixed(ram,p+0x14u);
    const std::int64_t nativeVY=signedFixed(ram,p+0x1Cu);
    const bool actor=id==0x001Eu && floor>=32u && floor<2048u;
+   // Retire already-fired projectile objects as soon as the ROM
+   // removes their link (even if their old RAM slot is reused).
+   // Do this BEFORE deciding the NEXT cast's hover state.
+   unsigned currentLinks[12]={};
+   const unsigned currentCount=linkedProjectiles(ram,i,currentLinks);
+   if(!actor){
+    s.airFireballCount=0u;s.existingProjectileHover=false;
+   }else{
+    for(unsigned j=0u;j<s.airFireballCount;){
+     const unsigned object=s.airFireballs[j];
+     if(!hasObject(currentLinks,currentCount,object)){
+      for(unsigned k=j+1u;k<s.airFireballCount;++k)
+       s.airFireballs[k-1u]=s.airFireballs[k];
+      s.airFireballs[--s.airFireballCount]=0u;
+      projectileNote(frame,i,"EXPIRED",action,object,s.airFireballCount);
+     }else ++j;
+    }
+   }
    const bool jump=actor && normalJumpAction(action);
    const Fireball move=fireballFor(action);
    // Entry evidence for either fighter slot, even if the subsequent
@@ -265,9 +332,23 @@ struct State {
              s.arcVX,s.arcVY);
     s.arcActive=false;
    }
+   // Snapshot whether an OLD Akuma fireball is still on screen.
+   // Do this before registering objects spawned by the current cast.
+   // Different LP/MP/HP actions can also chain directly into another
+   // cast, so compare actions rather than only the 2Cxx family.
    const bool atFireballEntry=fireball &&
-        (!fireballAction(s.lastAction) || s.lastId!=id);
-   if(!s.arcActive && atFireballEntry &&
+        (s.lastAction!=action || s.lastId!=id);
+   if(atFireballEntry){
+    s.existingProjectileHover=limitMultipleAirProjectiles() &&
+                              s.airFireballCount!=0u;
+    projectileNote(frame,i,
+        s.existingProjectileHover?"EXISTING_HOVER":"CLEAR_ARC",
+        action,0u,s.airFireballCount);
+    // A direct LP->MP/HP recast must not inherit the previous
+    // cast's moving arc while its first projectile remains alive.
+    if(s.existingProjectileHover)s.arcActive=false;
+   }
+   if(!s.existingProjectileHover && !s.arcActive && atFireballEntry &&
       s.ordinaryJump && s.lastId==id &&
       normalJumpAction(s.lastAction) &&
       s.lastMode==0x0604u &&
@@ -278,9 +359,11 @@ struct State {
     logEvent(frame,i,s.dashJump?"DASH_BEGIN":"NORMAL_BEGIN",
              action,y,floor,nativeVX,nativeVY,s.arcVX,s.arcVY);
    }else if(atFireballEntry && !s.arcActive){
-    // Preserve the native hover for superjumps or unrecognized moves.
-    logEvent(frame,i,"NATIVE_HOVER",action,y,floor,
-             nativeVX,nativeVY,nativeVX,nativeVY);
+    // Either the native superjump/canceled-air hover, or the
+    // deliberate active-projectile rate limit.
+    logEvent(frame,i,
+             s.existingProjectileHover?"PROJECTILE_HOVER":"NATIVE_HOVER",
+             action,y,floor,nativeVX,nativeVY,nativeVX,nativeVY);
    }
    if(s.arcActive && fireball && !s.landingArmed){
     // Native movement still owns positions, walls and collision. We
@@ -305,6 +388,30 @@ struct State {
     s.lastJumpVX=nativeVX;
     s.lastJumpVY=nativeVY;
    }
+   // Identify Akuma's own *new* projectile links, born while this
+   // air fireball is executing. Register AFTER the entry decision:
+   // a fireball cannot make itself count as an already-out shot.
+   // Tracking linked identity (not attack boxes) handles startup
+   // before the fireball's offensive hitbox is activated.
+   // Source F10 87.388/389: the same LP/MP/HP air-fireball
+   // scripts also run in native mode 2A28 (superjump/air cancels).
+   // They must count as outstanding projectiles too, even though
+   // the custom 2A06 normal-jump arc does not apply to them.
+   const bool firedAirShot=actor && move.action!=0u &&
+       (mode==0x2A06u || mode==0x2A28u) &&
+       d6==8u && step>=2u && nativeScript(rom,romSize,move,script);
+   if(firedAirShot && s.lastFrame!=~0u){
+    for(unsigned j=0u;j<currentCount && s.airFireballCount<12u;++j){
+     const unsigned object=currentLinks[j];
+     if(!hasObject(s.priorLinks,s.priorCount,object) &&
+        !hasObject(s.airFireballs,s.airFireballCount,object)){
+      s.airFireballs[s.airFireballCount++]=object;
+      projectileNote(frame,i,"TRACKED",action,object,s.airFireballCount);
+     }
+    }
+   }
+   s.priorCount=currentCount;
+   for(unsigned j=0u;j<currentCount;++j)s.priorLinks[j]=currentLinks[j];
    if(!jump && !fireball){
     s.ordinaryJump=false;s.dashJump=false;
    }
