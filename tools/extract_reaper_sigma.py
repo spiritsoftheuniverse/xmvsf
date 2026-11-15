@@ -59,6 +59,22 @@ def frame_role(parts: list[str]) -> str | None:
         return "ball1body"
     return None
 
+def role_for_raster(parts: list[str]) -> str | None:
+    """A Photoshop animation frame may be a group of raster sublayers.
+
+    The group itself has no channel pixels; never treat its lsct marker as
+    an image. For a genuine raster, a named leaf wins, then the nearest
+    named ancestor group. This supports e.g. ball2/Layer 1 + ball2/Glow.
+    """
+    direct = frame_role(parts)
+    if direct:
+        return direct
+    for name in reversed(parts[:-1]):
+        candidate = frame_role([name])
+        if candidate:
+            return candidate
+    return None
+
 def read_layers(raw: bytes):
     p = PSD(raw)
     if p.take(4) != b"8BPS" or p.u16() != 1:
@@ -148,7 +164,7 @@ def read_layers(raw: bytes):
                 found[i]=stack+[layer["name"]]
         return found
     forward,backward=path_map(False),path_map(True)
-    score=lambda paths:sum(frame_role(names) is not None for names in paths.values())
+    score=lambda paths:sum(role_for_raster(names) is not None for names in paths.values())
     paths=backward if score(backward)>score(forward) else forward
     return p,width,height,mode,layers,paths
 
@@ -157,14 +173,17 @@ def extract(raw: bytes, src_sha: str, code_sha: str):
     pending={}
     records=[f"FORMAT\t1",f"CANVAS\t{cw}\t{ch}",
              f"SOURCE_SHA256\t{src_sha}",f"EXTRACTOR_SHA256\t{code_sha}"]
-    seen={}
+    # Each role may contain several alpha-bearing sublayers within a PSD
+    # folder. Preserve their original canvas-space bounds for composition.
+    fragments: dict[str,list[tuple[int,int,int,int,bytes,str]]] = {}
     for i,layer in enumerate(layers):
         x,y,right,bottom=layer["bounds"]
         w,h=right-x,bottom-y
-        role=frame_role(paths.get(i,[layer["name"]]))
-        if role and role in seen:
-            raise ValueError(f"Duplicate Reaper Sigma role {role}: "
-                             f"{seen[role]!r} and {layer['name']!r}")
+        # lsct=1/2/3 are Photoshop folder/start/end markers, not pixels.
+        # Their names (ball2, etc.) identify a FRAME GROUP, and its
+        # descendant raster layers contain the art.
+        role=(role_for_raster(paths.get(i,[layer["name"]]))
+              if layer["section"] not in (1,2,3) else None)
         # Channel payload is sequential in the PSD, including folders,
         # invisible source frames, and unrelated/guide layers.
         planes={}
@@ -186,7 +205,10 @@ def extract(raw: bytes, src_sha: str, code_sha: str):
         if not role:
             continue
         if w<=0 or h<=0 or not planes:
-            raise ValueError(f"Named frame {layer['name']!r} has no raster pixels")
+            # Placeholder rasters and empty group thumbnails are legal.
+            # Reject only when the entire required animation role has
+            # no visible source, after inspecting all of its sublayers.
+            continue
         n=w*h
         red=planes.get(0,bytes(n))
         green=planes.get(1,red) if mode==3 else red
@@ -228,20 +250,52 @@ def extract(raw: bytes, src_sha: str, code_sha: str):
             left0=min(left0,first)
             right0=max(right0,last)
         if right0<left0 or bottom0<top0:
-            raise ValueError(f"Named frame {layer['name']!r} is entirely transparent")
+            continue
         tw,th=right0-left0+1,bottom0-top0+1
         trimmed=b"".join(rgba[(yy*w+left0)*4:(yy*w+left0+tw)*4]
                          for yy in range(top0,bottom0+1))
-        filename=role+".png"
-        pending[filename]=png_rgba(tw,th,trimmed)
-        seen[role]=layer["name"]
-        records.append(f"FRAME\t{role}\t{filename}\t{x+left0}\t{y+top0}\t{tw}\t{th}")
-        print(f"REAPER_SIGMA_FRAME {role} layer={layer['name']!r} "
-              f"visible=({x+left0},{y+top0}) {tw}x{th}")
-    absent=[role for role in REQUIRED if role not in seen]
+        fragments.setdefault(role,[]).append(
+            (x+left0,y+top0,tw,th,trimmed,layer["name"]))
+    absent=[role for role in REQUIRED if role not in fragments]
     if absent:
-        print("REAPER_SIGMA_PSD_LAYERS "+repr([l["name"] for l in layers]))
-        raise ValueError("Missing Reaper Sigma animation layers: "+", ".join(absent))
+        print("REAPER_SIGMA_PSD_LAYER_INVENTORY "+
+              repr([(layer["index"],layer["name"],layer["section"],
+                     paths.get(i,[])) for i,layer in enumerate(layers)]))
+        raise ValueError("Missing visible Reaper Sigma animation roles: "+
+                         ", ".join(absent))
+    # Composite sublayers in PSD layer order with Porter-Duff source-over,
+    # correctly accounting for each layer's per-pixel alpha and position.
+    # Photoshop stores layers top-first; draw them in reverse order.
+    for role in REQUIRED:
+        parts=fragments[role]
+        left=min(p[0] for p in parts)
+        top=min(p[1] for p in parts)
+        right=max(p[0]+p[2] for p in parts)
+        bottom=max(p[1]+p[3] for p in parts)
+        tw,th=right-left,bottom-top
+        if tw<=0 or th<=0 or tw*th>8000000:
+            raise ValueError(f"Unsafe frame {role}: {tw}x{th}")
+        output=bytearray(tw*th*4)
+        for px,py,pw,ph,data,source_name in reversed(parts):
+            for yy in range(ph):
+                for xx in range(pw):
+                    src=(yy*pw+xx)*4
+                    a=data[src+3]
+                    if not a:
+                        continue
+                    dst=((py-top+yy)*tw+(px-left+xx))*4
+                    prev=output[dst+3]
+                    oa=a+(prev*(255-a)+127)//255
+                    if oa:
+                        for ch in range(3):
+                            n=data[src+ch]*a*255 + output[dst+ch]*prev*(255-a)
+                            output[dst+ch]=(n+oa*255//2)//(oa*255)
+                        output[dst+3]=oa
+        filename=role+".png"
+        pending[filename]=png_rgba(tw,th,bytes(output))
+        records.append(f"FRAME\t{role}\t{filename}\t{left}\t{top}\t{tw}\t{th}")
+        print(f"REAPER_SIGMA_FRAME {role} layers={len(parts)} "
+              f"visible=({left},{top}) {tw}x{th}")
     OUT.mkdir(parents=True,exist_ok=True)
     for filename,png in pending.items():
         tmp=OUT/(filename+".tmp")
