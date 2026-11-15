@@ -1,6 +1,6 @@
 #ifndef XMVSF_STAGE87_376_SIGMA_REAPER_H
 #define XMVSF_STAGE87_376_SIGMA_REAPER_H
-// 87.380: Reaper Sigma stage actor; dynamic hem placement, frequent ball,
+// 87.381: actual idle silhouette height, stage-clock and particle visibility fixes.
 // subtle breathing and colored curl-noise energy/cloth particles.
 // Manifest integers accept CRLF/whitespace on Windows; junk suffixes fail.
 // Animations are extracted losslessly from reapersigma.psd by the local
@@ -100,6 +100,10 @@ struct Actor {
  unsigned slashesSinceBall=0u;
  std::array<Particle,320> particles{};
  unsigned nextParticle=0u;
+ unsigned lastDebugFrame=~0u;
+ unsigned emitted=0u;
+ unsigned rendered=0u;
+ int silhouetteH=0;
 
  void close(){
   for(auto& f:idle)f.close();
@@ -112,6 +116,7 @@ struct Actor {
   random=0u;x=384.0;facing=-1;motion=IDLE;
   modeFrame=hoverFrame=0u;decisionIn=300u;slashesSinceBall=0u;
   particles={};nextParticle=0u;
+  lastDebugFrame=~0u;emitted=rendered=0u;silhouetteH=0;
  }
  std::uint32_t random32(){
   // Deterministic local animation RNG; does not touch game state/ROM RNG.
@@ -123,11 +128,16 @@ struct Actor {
  unsigned range(unsigned a,unsigned b){
   return a+(random32()%(b-a+1u));
  }
+ int dropPixels()const{
+  // The BALL body is not necessarily the complete figure; the three
+  // original IDLE sheets are the authoritative full-body silhouette.
+  // Keep the largest visible idle frame as the fixed stage-wide drop.
+  int h=0;
+  for(const Frame& f:idle)h=std::max(h,f.h);
+  return std::max(0,h-20);
+ }
  double footBase()const{
-  // Exact requested drop: one full body height minus 20 pixels, with
-  // no dependence on the alpha-transparent PSD canvas or current pose.
-  const int down=std::max(0,body.h-20);
-  return double(WORLD_HEIGHT-ORIGINAL_ABOVE_BOTTOM+down);
+  return double(WORLD_HEIGHT-ORIGINAL_ABOVE_BOTTOM+dropPixels());
  }
  double hoverOffset()const{
   return (motion==SMASH||motion==SLASH)?0.0:
@@ -200,7 +210,11 @@ struct Actor {
    p.b=Uint8(std::min(180,int(b)+10));
    p.opacity=200u;
   }
-  p.size=Uint8(range(1u,4u)==4u?2u:1u);
+  // Previously 75% of pixels were just ONE world pixel, almost
+  // imperceptible on the moving actor. Draw 2px idle / 2-3px slashes.
+  p.size=Uint8((motion==SMASH||motion==SLASH)?
+     range(2u,3u):range(1u,2u));
+  ++emitted;
  }
  unsigned clampParticleLife(bool cloak){
   return cloak?range(16u,29u):range(12u,23u);
@@ -241,6 +255,11 @@ struct Actor {
   for(unsigned i=0u;i<greenCount;++i)spawn(*f,flip,false);
   for(unsigned i=0u;i<hemCount;++i)spawn(*f,flip,true);
  }
+ unsigned visibleParticles()const{
+  unsigned n=0u;
+  for(const auto& p:particles)if(p.life)++n;
+  return n;
+ }
  void drawParticles(SDL_Renderer* renderer,const SDL_Rect& view,
                     int cameraX,int cameraY)const {
   SDL_BlendMode oldBlend=SDL_BLENDMODE_NONE;
@@ -255,7 +274,7 @@ struct Actor {
    if(!a)continue;
    const int dx=view.x+int(std::lround((double(p.x)-cameraX)*sx));
    const int dy=view.y+int(std::lround((9.0+double(p.y)-cameraY)*sy));
-   const int size=std::max(1,int(std::lround(double(p.size)*sx)));
+   const int size=std::max(2,int(std::lround(double(p.size)*sx)));
    const SDL_Rect dot={dx,dy,size,size};
    SDL_SetRenderDrawColor(renderer,p.r,p.g,p.b,Uint8(a));
    SDL_RenderFillRect(renderer,&dot);
@@ -273,11 +292,12 @@ struct Actor {
   facing=-1;motion=IDLE;
   modeFrame=hoverFrame=0u;slashesSinceBall=0u;
   particles={};nextParticle=0u;
+  emitted=rendered=0u;lastDebugFrame=~0u;
   decisionIn=range(240u,420u); // 4-7 game seconds at 60 fps
   std::fprintf(stderr,
-    "XM87.380 SIGMA_REAPER_SPAWN gen=%u worldX=%.1f "
-    "bounds=140..628 loweredBy=%d foot=%.1f nextDecision=%u\n",
-    generation,x,std::max(0,body.h-20),footBase(),decisionIn);
+    "XM87.381 SIGMA_REAPER_SPAWN gen=%u worldX=%.1f "
+    "bounds=140..628 bodyH=%d idleH=%d loweredBy=%d foot=%.1f nextDecision=%u\n",
+    generation,x,body.h,silhouetteH,dropPixels(),footBase(),decisionIn);
  }
  void goIdle(){
   motion=IDLE;modeFrame=0u;
@@ -291,7 +311,7 @@ struct Actor {
         (slashesSinceBall==1u && range(0u,99u)<18u);
   if(ballDue){
    motion=BALL;modeFrame=0u;slashesSinceBall=0u;
-   std::fprintf(stderr,"XM87.380 SIGMA_REAPER_BALL x=%.1f afterSlash=1-2\n",x);
+   std::fprintf(stderr,"XM87.381 SIGMA_REAPER_BALL x=%.1f afterSlash=1-2\n",x);
    return;
   }
   if(range(0u,99u)<15u){
@@ -303,7 +323,7 @@ struct Actor {
   motion=SMASH;modeFrame=0u;
   ++slashesSinceBall;
   std::fprintf(stderr,
-    "XM87.380 SIGMA_REAPER_SLASH x=%.1f toward=%s slashCount=%u\n",
+    "XM87.381 SIGMA_REAPER_SLASH x=%.1f toward=%s slashCount=%u\n",
     x,facing>0?"RIGHT":"LEFT",slashesSinceBall);
  }
  void advance(){
@@ -450,9 +470,15 @@ struct Actor {
    success=success && body.texture && total==19u;
    if(success){
     loaded=true;
+    silhouetteH=0;
+    for(const Frame& pose:idle)silhouetteH=std::max(silhouetteH,pose.h);
     std::fprintf(stderr,
-      "XM87.380 SIGMA_REAPER_READY frames=%u root=%s bounds=140..628\n",
-      total,root.c_str());
+      "XM87.381 SIGMA_REAPER_READY frames=%u root=%s idleH=%d bodyH=%d "
+      "drop=%d greenSamples=%u/%u/%u hemSamples=%u/%u/%u\n",
+      total,root.c_str(),silhouetteH,body.h,dropPixels(),
+      unsigned(idle[0].green.size()),unsigned(idle[1].green.size()),
+      unsigned(idle[2].green.size()),unsigned(idle[0].hem.size()),
+      unsigned(idle[1].hem.size()),unsigned(idle[2].hem.size()));
     return true;
    }
    // A stale/incomplete manifest cannot leave half of the textures
@@ -465,7 +491,7 @@ struct Actor {
   }
   failed=true;failedGeneration=generation;
   std::fprintf(stderr,
-    "XM87.380 SIGMA_REAPER_MISSING: run BUILD_TEST.bat to extract "
+    "XM87.381 SIGMA_REAPER_MISSING: run BUILD_TEST.bat to extract "
     "_art/sigmastage/reapersigma.psd into extracted/manifest.tsv "
     "and 19 named PNGs; stage background remains usable\n");
   return false;
@@ -494,6 +520,17 @@ struct Actor {
             unsigned generation,unsigned gameFrame,int cameraX,int cameraY){
   if(!load(renderer,generation))return false;
   update(generation,gameFrame);
+  if(lastDebugFrame==~0u || gameFrame<lastDebugFrame ||
+     gameFrame-lastDebugFrame>=180u){
+    lastDebugFrame=gameFrame;
+    std::fprintf(stderr,
+      "XM87.381 SIGMA_REAPER_LIVE frame=%u gen=%u mode=%u "
+      "idleH=%d bodyH=%d drop=%d foot=%.1f cameraY=%d "
+      "particles=%u totalEmitted=%u\n",
+      gameFrame,generation,unsigned(motion),silhouetteH,body.h,
+      dropPixels(),footBase()+hoverOffset(),cameraY,
+      visibleParticles(),emitted);
+  }
   const double foot=footBase()+hoverOffset();
   const double breathing=breath();
   if(motion==BALL || motion==BALL_HOLD){
