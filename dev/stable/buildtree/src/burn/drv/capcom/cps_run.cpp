@@ -44,7 +44,7 @@
 #include "xmvsf_stage87_119_cyclops_recovery_probe.h" // XM87.119 read-only recovery state trace
 #include "xmvsf_stage87_121_cyclops_release.h" // XM87.121 restore recorded airborne state after throw
 #include "xmvsf_stage87_220_zero_dash_startup.h" // TEST 87.220 native dash startup countdown
-#include "xmvsf_stage87_370_akuma_air_super_startup.h" // 87.371 Akuma two-super native startup alignment
+#include "xmvsf_stage87_370_akuma_air_super_startup.h" // 87.372 Akuma air charge hold shortened, ground retained
 extern int xm14TrainingMode; // native SDL Training mode selection
 extern int xm87102DamageMode; // XM87.102 Training damage option
 #include <cstdio> // XM86.34 first native CPS2 frame tracing
@@ -1264,9 +1264,8 @@ INT32 Cps2Frame()
                 (unsigned)Cpi01A,(unsigned)Cpi01C,(unsigned)Cpi01E);
     };
     xm87180Sample("BEFORE_CPU");
-    // 87.371: start Akuma air 2E06 / ground 2E02 at the recorded charge
-    // scripts; retain the original controller, meter and projectile events.
-    // Target the 67f Ryu 2E08->step4 reference, not an arbitrary sprite skip.
+    // 87.372: shorten only air 2E06's charge-pose hold; keep ground 2E02
+    // timing from 87.371. Do not bypass native action/meter/projectile logic.
     if(!bBurnRunAheadFrame && CpsRamFF)
         XM87370Akuma::beforeCpu(CpsRamFF,CpsRom,(unsigned)nCpsRomLen,
             (unsigned)GetCurrentFrame(),BurnDrvGetTextA(DRV_NAME),
@@ -1394,7 +1393,7 @@ INT32 Cps2Frame()
 
 	SekClose();
     // Read only: report the actual ROM-controlled attack-step timing after
-    // the 87.371 animation-clock adjustment has completed this CPU frame.
+    // the 87.372 air charge timer has completed this CPU frame.
     if(!bBurnRunAheadFrame && CpsRamFF)
         XM87370Akuma::afterCpu(CpsRamFF,(unsigned)GetCurrentFrame());
     // Live CPS-2 driver controls, not RAM-inferred move-strength labels.

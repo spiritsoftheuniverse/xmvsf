@@ -1,6 +1,6 @@
 #ifndef XMVSF_STAGE87_370_AKUMA_AIR_SUPER_STARTUP_H
 #define XMVSF_STAGE87_370_AKUMA_AIR_SUPER_STARTUP_H
-// XMVSF 87.371 - native Version-4 startup alignment for two Akuma supers.
+// XMVSF 87.372 - air charge-frame duration fix; ground startup preserved.
 // Source: 87.370 F10 combat trace. Ryu QCF+PPP 2E08/step2 -> step4: 67f.
 // Akuma 2E06 air super: 74f, opening 0EB87A, charge 0EB8BA.
 // Akuma 2E02 ground super (QCB+PPP candidate): 70-71f, opening
@@ -9,11 +9,17 @@
 //
 // Do NOT dispatch 2E08/2E04 directly: original 68000 runs every super
 // stage, including meter, blackout, spawned objects and recovery.
-// On the first post-entry CPU frame, move directly to an original ROM
-// charge record and redistribute its *animation* hold to target 67f.
-// The original ROM script record and its frame counter drive the next
-// native transition. Opt out: XM87371_AKUMA_SUPER_STARTUP=0 (both moves),
-// or legacy XM87370_AKUMA_AIR_SUPER_FAST=0 (air only).
+// The 87.370 native trace shows Akuma air 2E06 holds its 0EB8BA /
+// animation 64D4 charge pose for approximately 52 game frames. In 87.371
+// an additional +14 frames extended the hold. The target charge pose
+// is correct, but the timer must not reset to its first/full duration.
+// 87.372 gives the AIR pose two native ticks (adjustable 1..16) and
+// then allows the original 68000 to enter its own 2E08 attack action.
+// Ground 2E02 continues with the 87.371 timing. Never force 2E08.
+//
+// Opt out: XM87371_AKUMA_SUPER_STARTUP=0 (both moves),
+// or XM87370_AKUMA_AIR_SUPER_FAST=0 (air only).
+// Tune without recompiling: XM87372_AKUMA_AIR_CHARGE_FRAMES=1..16 (default 2).
 #include "xmvsf_stage87_142_rom_dispatch.h"
 #include <cstdint>
 #include <cstdio>
@@ -29,7 +35,7 @@ struct Move {
 };
 static inline Move airMove(){
     return {0x2E06u,0u,0x0Au,0x0EB87Au,0x59FAu,
-            0x0EB8BAu,0x64D4u,14u,0x0EB8CAu,"AIR_2E06"};
+            0x0EB8BAu,0x64D4u,0u,0x0EB8CAu,"AIR_2E06"};
 }
 static inline Move groundMove(){
     return {0x2E02u,0x2A28u,0x1Au,0x0EB692u,0x67F8u,
@@ -54,6 +60,17 @@ static inline bool enabled(const Move& m){
     const char* air=std::getenv("XM87370_AKUMA_AIR_SUPER_FAST");
     if(m.action==0x2E06u && air && std::strcmp(air,"0")==0)return false;
     return true;
+}
+// The original charge-pose ROM timer is much too long for a connecting
+// airborne fireball. Clamp the replacement to a small positive count:
+// zero is an original animation-runner sentinel and is never written.
+static inline unsigned airChargeFrames(){
+    const char* value=std::getenv("XM87372_AKUMA_AIR_CHARGE_FRAMES");
+    if(!value || !*value)return 2u;
+    char* end=nullptr;
+    const unsigned long count=std::strtoul(value,&end,10);
+    return end && *end==0 && count>=1ul && count<=16ul ?
+        static_cast<unsigned>(count):2u;
 }
 static inline bool matches(const std::uint8_t* r,unsigned p,
                            const Move& m,bool atRoot){
@@ -94,7 +111,7 @@ static inline bool beforeCpu(std::uint8_t* r,const std::uint8_t* rom,
                XM87142::ramW(r,p+0x60u)!=t.action ||
                frame<t.entered || frame-t.entered>180u){
                 t=Tracker{};
-            }else if(!t.deadlineNudged && enabled(m) &&
+            }else if(m.action==0x2E02u && !t.deadlineNudged && enabled(m) &&
                      frame==t.entered+targetFrames &&
                      matches(r,p,m,false) &&
                      XM87142::ramL(r,p+0x34u)==m.finalScript){
@@ -123,21 +140,26 @@ static inline bool beforeCpu(std::uint8_t* r,const std::uint8_t* rom,
             continue;
         const unsigned duration=XM87142::romW(rom,romSize,m.chargeScript+2u);
         if(duration<1u || duration>32u || duration+m.extraHold>64u)continue;
+        const unsigned appliedDuration=m.action==0x2E06u ?
+            airChargeFrames():duration+m.extraHold;
         // Keep +60 action, +08 controller step, +A0 mode, +D6 native
         // move, +4E super meter/timer, and *all* projectile state intact.
+        // Air: original charge pose, but close to its last frame, not
+        // the first frame of a 52f hold. Ground is unchanged from 87.371.
         putL(r,p+0x34u,m.chargeScript);
         putL(r,p+0x38u,m.chargeScript+16u);
-        putW(r,p+0x3Eu,duration+m.extraHold);
+        putW(r,p+0x3Eu,appliedDuration);
         putW(r,p+0x42u,m.chargeAnim);
         t.active=true;t.deadlineNudged=false;
         t.entered=frame?frame-1u:frame;
         t.action=m.action;
         patched=true;
         std::fprintf(stderr,
-            "XM87.371 AKUMA_SUPER_CHARGE frame=%u side=%u move=%s "
-            "script=%06X->%06X duration=%u+%u target_startup=%u\n",
+            "XM87.372 AKUMA_SUPER_CHARGE frame=%u side=%u move=%s "
+            "script=%06X->%06X original_duration=%u applied_duration=%u "
+            "ryu_reference=%u\n",
             frame,side+1u,m.label,m.rootScript,m.chargeScript,
-            duration,m.extraHold,targetFrames);
+            duration,appliedDuration,targetFrames);
     }
     return patched;
 }
@@ -155,7 +177,7 @@ static inline void afterCpu(const std::uint8_t* r,unsigned frame){
            action==attackAction && step>=4u){
             const unsigned elapsed=frame>=t.entered?frame-t.entered:0u;
             std::fprintf(stderr,
-                "XM87.371 AKUMA_NATIVE_ATTACK_BEGIN frame=%u side=%u "
+                "XM87.372 AKUMA_NATIVE_ATTACK_BEGIN frame=%u side=%u "
                 "move=%s elapsed=%u ryu_reference=%u delta=%d\n",
                 frame,side+1u,isAir?"AIR_2E06":"QCB_PPP_2E02",
                 elapsed,targetFrames,int(elapsed)-int(targetFrames));
