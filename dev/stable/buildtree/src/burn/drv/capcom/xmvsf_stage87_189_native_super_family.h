@@ -14,6 +14,7 @@
 // explicit TEST flag. No speculative recovery bridge for other moves.
 #include "xmvsf_stage87_142_rom_dispatch.h"
 #include "xmvsf_stage87_184_super_action_lifetime.h"
+#include "xmvsf_stage87_334_morphus_2v2_precommit.h" // 87.373 roster-wide native 2C Hyper D6
 namespace XM87189Family {
 enum Phase { OUTSIDE=0, STARTUP=1, ATTACK=2, RECOVERY=3, CONTINUATION=4 };
 enum Event { NOTHING=0, ENTER=1, ATTACK_BEGIN=2,
@@ -49,8 +50,11 @@ struct Tracker {
     // Observed: Storm, Sabretooth, M. Bison and Charlie, with mode 2A
     // and their actual D6. Do not mistake these for failed native tags.
     static bool native2C(const XM87184Life::Sample& s){
+        // A 2C special with D6!=0 is NOT enough for a Hyper.
+        // Use the same registered outgoing Hyper D6 rule as native DHC.
         return (s.action&0xFF00u)==0x2C00u &&
-               (s.mode&0xFF00u)==0x2A00u && s.d6!=0u;
+               (s.mode&0xFF00u)==0x2A00u &&
+               XM87334Native::registeredHyperD6(s.fighter,s.d6);
     }
     static bool originalSuperController(const XM87184Life::Sample& s){
         return ((s.action&0xFF00u)==0x2E00u || native2C(s)) &&

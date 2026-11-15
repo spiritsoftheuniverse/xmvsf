@@ -649,7 +649,7 @@ INT32 Cps2Frame()
             // 68000 handoff are checked independently before swapping.
             const unsigned superAction=sample.action&0xFF00u;
             const bool hyper=XM87340Donor::nativeHyperActive(
-                sample.mode,sample.action,sample.d6);
+                who,sample.mode,sample.action,sample.d6);
             const bool currentWindow=hyper;
             const bool eligible=currentWindow &&
                 XM87142::ramB(CpsRamFF,p+0x03u) &&
@@ -679,6 +679,18 @@ INT32 Cps2Frame()
                 XM87334Native::qualifiedChord(chord);
             const bool newChord=nativeChord && (freshButtons&chord);
             const unsigned oldHidden=st.hidden;
+            // 87.373: record rejected normal-special DHC chord attempts
+            // once per fresh button chord. Source still belongs entirely
+            // to the original ROM; neither input nor actor RAM is altered.
+            if(newChord && !hyper && sample.d6!=0u &&
+               (sample.mode&0xFF00u)==0x2A00u &&
+               (superAction==0x2C00u || superAction==0x2E00u)){
+                char blocked[180];
+                std::snprintf(blocked,sizeof(blocked),
+                    "NATIVE_373_NON_HYPER_D6_REJECT point=%02X reserve=%02X action=%04X mode=%04X d6=%02X chord=%02X",
+                    who,bench,sample.action,sample.mode,sample.d6,chord);
+                XM87274Unified::state().event(now,side,blocked);
+            }
             // 87.360: bounded diagnostics for late Hyper button edges.
             // This reports why a native cue can/cannot DHC, without
             // scanning directions or interfering with normal play.
