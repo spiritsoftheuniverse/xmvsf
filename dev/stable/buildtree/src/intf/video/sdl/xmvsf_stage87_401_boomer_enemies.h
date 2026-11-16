@@ -42,7 +42,7 @@ struct Sprite {
     bool load(SDL_Renderer* renderer,const std::string& path){
         close();
 #if SDL_IMAGE_VERSION_ATLEAST(2,6,0)
-        SDL_Animation* animation=IMG_LoadAnimation(path.c_str());
+        IMG_Animation* animation=IMG_LoadAnimation(path.c_str());
         if(!animation || animation->count<=0 || !animation->frames){
             std::fprintf(stderr,"XM87.401 GIF_LOAD_FAILED file=%s reason=%s\n",
                          path.c_str(),IMG_GetError());
