@@ -147,9 +147,6 @@ struct Triblaster {
     unsigned long long born=0u,nextSpawn=0u,lastAge=0u;
     int x=0,yStart=-96;
     bool initializedEvents=false;
-    // Cache the odd-cycle up/down decision at the cycle boundary so
-    // a moving gun never flips halfway through a single GIF cycle.
-    bool upThisCycle=false;
 };
 enum ProjectileKind {Shot=0,Bullet=1};
 struct Projectile {
@@ -203,6 +200,53 @@ struct State {
     }
     static int rotorPan(int cameraX){
         return (CenterCameraX-cameraX)*60/100; // C uses 30%, B uses 100%
+    }
+    // Screen-space render bounds keep three rotors separated even while
+    // all three scroll with the same 60% horizontal parallax.
+    bool rotorSpawnClear(int x,int camX)const{
+        for(const Triblaster& gun:guns){
+            const int gunX=XM87401Motion::screenX(gun.x,camX);
+            if(!XM87401Motion::horizontallySeparated(
+                 x,rotor.w,gunX,triblaster.w,XM87401Motion::RotorGunGap))
+                return false;
+        }
+        for(const Rotor& other:rotors)if(other.active){
+            const int otherX=other.x+rotorPan(camX);
+            if(!XM87401Motion::horizontallySeparated(
+                 x,rotor.w,otherX,rotor.w,
+                 XM87401Motion::RotorMinSeparation-rotor.w))
+                return false;
+        }
+        return true;
+    }
+    // Split the full 384px stage VIEW into three large randomized zones.
+    // Every rotor has its own zone; the safety predicate additionally
+    // rejects overlap with either Triblaster and with active rotors.
+    // Camera parallax anchors are established ONCE at spawn.
+    bool pickRotorScreenX(unsigned slot,int cameraX,int& result){
+        const int lo=XM87401Motion::RotorScreenMargin;
+        const int hi=std::max(lo,ScreenW-rotor.w-lo);
+        const int range=hi-lo+1;
+        const int laneLo=lo+int(unsigned(range)*slot/3u);
+        const int laneHi=std::max(laneLo,
+            lo+int(unsigned(range)*(slot+1u)/3u)-1);
+        for(int attempt=0;attempt<96;++attempt){
+            const int candidate=int(rng.range(unsigned(laneLo),unsigned(laneHi)));
+            if(rotorSpawnClear(candidate,cameraX)){
+                result=candidate;
+                return true;
+            }
+        }
+        // Deterministic full-lane scan, then whole visible stage. A
+        // temporarily crowded camera postpones the spawn rather than
+        // stacking multiple rotors or placing them over a blaster.
+        for(int x=laneLo;x<=laneHi;++x){
+            if(rotorSpawnClear(x,cameraX)){result=x;return true;}
+        }
+        for(int x=lo;x<=hi;++x){
+            if(rotorSpawnClear(x,cameraX)){result=x;return true;}
+        }
+        return false;
     }
     void reset(unsigned generationNow,unsigned long long gameFrame){
         generation=generationNow;lastFrame=gameFrame;
@@ -291,38 +335,37 @@ struct State {
         if(gen!=generation || lastFrame==~0ull || frame<lastFrame)
             reset(gen,frame);
         lastFrame=frame;
-        if(frame>=choiceAt){
-            desiredRotors=rng.range(1u,3u);
-            choiceAt=frame+unsigned(rng.range(240u,420u));
-        }
         unsigned activeCount=0u;
         for(const Rotor& r:rotors)if(r.active)++activeCount;
-        for(Rotor& r:rotors){
+        for(unsigned slot=0;slot<rotors.size();++slot){
+            Rotor& r=rotors[slot];
             if(r.active){
                 if(rotorY(r,frame)+stageYShift>ScreenH+rotor.h+12){
                     r.active=false;
-                    r.nextSpawn=frame+rng.range(25u,130u);
+                    r.nextSpawn=frame+rng.range(5u,50u);
                     --activeCount;
                 }
                 continue;
             }
-            if(frame<r.nextSpawn || activeCount>=desiredRotors)continue;
+            if(frame<r.nextSpawn)continue;
+            int spawnScreenX=0;
+            if(!pickRotorScreenX(slot,cameraX,spawnScreenX)){
+                r.nextSpawn=frame+10u; // do not overlap a gun or another rotor
+                continue;
+            }
             r.active=true;r.born=frame;
-            // Spawn in the requested SCREEN-space 150..220 range even
-            // when the native camera isn't centered. Store a parallax-
-            // relative anchor so later camera movement shifts it naturally.
-            const int spawnScreenX=int(rng.range(RotorMinX,RotorMaxX));
             r.x=spawnScreenX-rotorPan(cameraX);
             // New entries start above the visible screen even if camera Y
             // has moved since the beginning of the stage.
             r.yStart=-rotor.h-int(rng.range(12u,64u))-stageYShift;
-            r.hoverY=int(rng.range(28u,118u));
+            r.hoverY=int(rng.range(28u,138u));
             r.bobPhase=int(rng.range(0u,80u));
             ++activeCount;
             std::fprintf(stderr,
-                "XM87.401 ROTOR_SPAWN x=%d start_y=%d hover_y=%d "
-                "frame=%llu active=%u\n",
-                spawnScreenX,r.yStart,r.hoverY,(unsigned long long)frame,activeCount);
+                "XM87.405 ROTOR_SPAWN slot=%u screen_x=%d stage_anchor_x=%d "
+                "start_y=%d hover_y=%d frame=%llu active=%u\n",
+                slot,spawnScreenX,r.x,r.yStart,r.hoverY,
+                (unsigned long long)frame,activeCount);
         }
         for(unsigned side=0;side<guns.size();++side){
             Triblaster& gun=guns[side];
