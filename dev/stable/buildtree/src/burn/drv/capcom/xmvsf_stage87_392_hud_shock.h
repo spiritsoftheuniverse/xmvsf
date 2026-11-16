@@ -1,15 +1,15 @@
 #ifndef XMVSF_STAGE87_392_HUD_SHOCK_H
 #define XMVSF_STAGE87_392_HUD_SHOCK_H
-// TEST 87.397: audio-anchored HUD primer aligned to match-screen entry
+// TEST 87.398: 2s audio-anchored primer, preserve invisible fight HUD startup
 // and the separate SDL stun bar. No ROM/RAM mutations or opaque screen masks.
-// 60 game frames per second: 180 hidden, 30 ordered-dither reveal.
+// 60 game frames per second: 120 music frames hidden, 30 reveal.
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
 #include <cstdio>
 
 namespace XM87392 {
-static const unsigned DelayFrames=180u;
+static const unsigned DelayFrames=120u;
 static const unsigned RevealFrames=30u;
 
 // Native original xmvsfu is not CpsXmvSixEnabled. Guard by actual driver
@@ -20,10 +20,17 @@ inline bool eligible(const char* driver,bool version4){
 
 struct Timeline {
     unsigned start=0u;
+    unsigned firstHudFrame=0u;
     unsigned lastFrame=~0u;
     unsigned lastSongStart=0u;
     int lastPhase=-1;
     bool armed=false;
+    bool fightHudSeen=false;
+
+    // Keep the first frame(s) of the actual fight HUD *fully invisible*
+    // even when the music-based 2-second timer expires during VS graphics.
+    // This is NOT another 3.5-second delay; it only protects startup.
+    static const unsigned InitialHiddenFrames=6u;
 
     void reset(){*this=Timeline{};}
 
@@ -33,22 +40,10 @@ struct Timeline {
         if(!songSequence || songSequence==lastSongStart)return;
         lastSongStart=songSequence;
         start=frame;armed=true;
+        fightHudSeen=false;firstHudFrame=0u;
         std::fprintf(stderr,
-            "XM87.397 HUD_SHOCK_SONG_START song=%u frame=%u hold=%u reveal=%u\n",
+            "XM87.398 HUD_SHOCK_SONG_START song=%u frame=%u hold=%u reveal=%u\n",
             songSequence,frame,DelayFrames,RevealFrames);
-    }
-
-    void observe(int phase,unsigned frame,bool allowed){
-        if(!allowed){
-            armed=false;lastFrame=frame;lastPhase=-1;return;
-        }
-        if(lastFrame!=~0u && frame<lastFrame)
-            armed=false; // rewind / replay state load: await a new audio cue
-        // Do NOT disarm on selection/VS transition phases. Song begins on
-        // the match-setup M68K edge, potentially before FF5000 enters 02.
-        // KO/results clear the effect; the next song restart rearms it.
-        if(phase==0x0a || phase==0x0c)armed=false;
-        lastFrame=frame;lastPhase=phase;
     }
 
     // Only the ACTUAL fight-stage HUD pass may have pixels suppressed.
@@ -56,12 +51,38 @@ struct Timeline {
     // CPS2 tiles there exposed the underlying FOREST stage through that UI.
     static bool mayMaskNativeHud(int phase){return phase==6 || phase==8;}
 
+    void observe(int phase,unsigned frame,bool allowed){
+        if(!allowed){
+            armed=false;fightHudSeen=false;lastFrame=frame;lastPhase=-1;return;
+        }
+        if(lastFrame!=~0u && frame<lastFrame){
+            armed=false;fightHudSeen=false; // rewind: await new VS audio cue
+        }
+        // The song begins before a real fight HUD may be drawn. Do not
+        // consume the visibility portion of the reveal while the only
+        // onscreen layers are the selection/Versus transition.
+        if(armed && mayMaskNativeHud(phase) && !fightHudSeen){
+            fightHudSeen=true;firstHudFrame=frame;
+            std::fprintf(stderr,
+                "XM87.398 HUD_SHOCK_FIRST_FIGHT_HUD frame=%u "
+                "song_elapsed=%u min_hidden=%u\n",
+                frame,frame>=start?frame-start:0u,InitialHiddenFrames);
+        }
+        if(phase==0x0a || phase==0x0c)armed=false;
+        lastFrame=frame;lastPhase=phase;
+    }
+
     unsigned step(unsigned frame)const {
         if(!armed || frame<start)return RevealFrames;
-        const unsigned elapsed=frame-start;
-        if(elapsed<DelayFrames)return 0u;
-        if(elapsed>=DelayFrames+RevealFrames)return RevealFrames;
-        return elapsed-DelayFrames+1u;
+        // While the VS screen is up this is hidden, but native masking is
+        // explicitly vetoed by mayMaskNativeHud() to prevent forest leakage.
+        if(!fightHudSeen)return 0u;
+        const unsigned songDue=start+DelayFrames;
+        const unsigned sceneDue=firstHudFrame+InitialHiddenFrames;
+        const unsigned due=songDue>sceneDue?songDue:sceneDue;
+        if(frame<due)return 0u;
+        if(frame>=due+RevealFrames)return RevealFrames;
+        return frame-due+1u;
     }
 };
 inline Timeline& timeline(){static Timeline s;return s;}
