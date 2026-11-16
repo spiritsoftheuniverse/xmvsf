@@ -2,6 +2,7 @@
 """Local-only XMVSF OST Studio. Standard-library UI/server; FFmpeg for saving."""
 from __future__ import annotations
 
+import hashlib
 import json
 import mimetypes
 import os
@@ -22,6 +23,7 @@ AUDIO = ROOT / "audio"
 STATE = AUDIO / ".ost_studio"
 BACKUPS = STATE / "originals"
 LEVELS = STATE / "levels.json"
+IDENTITY = STATE / "file_identity.json"
 PAGE = Path(__file__).with_name("audio_studio.html")
 EXTENSIONS = {".wav", ".ogg", ".flac", ".mp3", ".opus", ".m4a", ".aif", ".aiff"}
 SAVE_LOCK = threading.Lock()
@@ -100,17 +102,77 @@ def load_levels() -> dict:
         return {}
 
 
-def atomic_settings(levels: dict) -> None:
+def atomic_json(path: Path, data: dict, prefix: str) -> None:
     STATE.mkdir(parents=True, exist_ok=True)
-    fd, name = tempfile.mkstemp(prefix=".levels-", suffix=".json", dir=STATE)
+    fd, name = tempfile.mkstemp(prefix=prefix, suffix=".json", dir=STATE)
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as fp:
-            json.dump(levels, fp, indent=2, sort_keys=True)
+            json.dump(data, fp, indent=2, sort_keys=True)
             fp.write("\n")
-        os.replace(name, LEVELS)
+        os.replace(name, path)
     finally:
         if os.path.exists(name):
             os.unlink(name)
+
+
+def atomic_settings(levels: dict) -> None:
+    atomic_json(LEVELS, levels, ".levels-")
+
+
+def read_identities() -> dict:
+    try:
+        value = json.loads(IDENTITY.read_text(encoding="utf-8"))
+        return value if isinstance(value, dict) else {}
+    except FileNotFoundError:
+        return {}
+    except (OSError, ValueError) as err:
+        print("WARNING: output identity ledger unreadable:", err, file=sys.stderr)
+        return {}
+
+
+def sha256_bytes(path: Path) -> str:
+    """Stream the entire file: equal length or modification date is NOT proof."""
+    digest = hashlib.sha256()
+    with path.open("rb") as source:
+        for block in iter(lambda: source.read(1024 * 1024), b""):
+            digest.update(block)
+    return digest.hexdigest()
+
+
+def backup_identity(path: Path, backup: Path, record: object,
+                    last_gain: object) -> tuple[str, str, str | None]:
+    """Return (same/replaced/new/legacy_unknown, working hash, backup hash).
+
+    A saved export intentionally differs from its original. Distinguish that
+    output from an externally replaced song using the hash of the last
+    studio-written output, not by comparing the two audio files directly.
+    """
+    current_hash = sha256_bytes(path)
+    if not backup.is_file():
+        return "new", current_hash, None
+    if backup.is_symlink():
+        raise ValueError("Original backup cannot be a symlink")
+    backup_hash = sha256_bytes(backup)
+    if current_hash == backup_hash:
+        # This also recovers safely from a ledger interrupted before a
+        # completed save, or a user restoring the exact pristine bytes.
+        return "same", current_hash, backup_hash
+    if isinstance(record, dict):
+        known_backup = record.get("backup")
+        known_output = record.get("output")
+        known_previous = record.get("previous")
+        if (isinstance(known_backup, str) and
+                len(known_backup) == 64 and known_backup == backup_hash and
+                isinstance(known_output, str) and len(known_output) == 64):
+            if current_hash in (known_output, known_previous):
+                return "same", current_hash, backup_hash
+            return "replaced", current_hash, backup_hash
+    # Existing backups predate the ledger. A changed song and a prior
+    # studio-generated volume edit have different bytes in both cases.
+    # Never silently throw away an unrecoverable pristine original.
+    if last_gain is not None and last_gain != 100:
+        return "legacy_unknown", current_hash, backup_hash
+    return "replaced", current_hash, backup_hash
 
 
 def run_command(argv: list[str], timeout: int = 900) -> subprocess.CompletedProcess:
@@ -170,7 +232,8 @@ def original_backup(path: Path, rel: Path) -> Path:
     os.close(fd)
     try:
         shutil.copy2(path, temp_name)
-        # The lock protects the studio's own writes. Never replace an existing backup.
+        # First-save creation never overwrites a backup; save_audio handles
+        # verified song replacements separately, after export validation.
         if not backup.exists():
             os.replace(temp_name, backup)
     finally:
@@ -181,24 +244,48 @@ def original_backup(path: Path, rel: Path) -> Path:
     return backup
 
 
-def save_audio(relative: str, gain: float) -> dict:
+def save_audio(relative: str, gain: float,
+               replace_original: bool = False) -> dict:
     if isinstance(gain, bool) or not isinstance(gain, (float, int)) or not 0 <= gain <= 300:
         raise ValueError("Volume must be between 0% and 300%")
+    if not isinstance(replace_original, bool):
+        raise ValueError("replace_original must be a boolean")
     if not FFMPEG or not FFPROBE:
         raise RuntimeError("FFmpeg + FFprobe required to save. Install FFmpeg and restart the studio.")
     with SAVE_LOCK:
         path, rel = resolve_audio(relative)
-        # All edits use the first pristine backup. Re-saving NEVER compounds lossy encoding.
-        backup = original_backup(path, rel)
-        source_meta = probe(backup)
+        key = rel.as_posix()
+        levels = load_levels()
+        identities = read_identities()
+        backup = BACKUPS / rel
+        status, working_hash, backup_hash = backup_identity(
+            path, backup, identities.get(key), levels.get(key))
+        if status == "legacy_unknown" and not replace_original:
+            raise RuntimeError(
+                "This backup predates file identity tracking. Its bytes differ "
+                "from the selected file, which could be a saved volume edit "
+                "OR a replacement song. To keep the old original safe, use "
+                "'Use current song as new original' once if you replaced it.")
+        was_backed_up = backup.is_file()
+        replace_backup = replace_original or status == "replaced"
+        if status == "new":
+            # Preserve the original first-save guarantee even on FFmpeg failure.
+            backup = original_backup(path, rel)
+            backup_hash = sha256_bytes(backup)
+        source = path if replace_backup else backup
+        original_hash = working_hash if replace_backup else backup_hash
+        if not original_hash:
+            raise RuntimeError("Unable to identify source audio")
+        source_meta = probe(source)
         fd, temp_name = tempfile.mkstemp(prefix=".xmvsf-audio-", suffix=path.suffix, dir=path.parent)
         os.close(fd)
+        pending_backup = None
         try:
             if abs(gain - 100.0) < 0.00001:
-                shutil.copy2(backup, temp_name)  # byte-perfect restoration of original
+                shutil.copy2(source, temp_name)
             else:
                 args = [FFMPEG, "-hide_banner", "-nostdin", "-loglevel", "error",
-                        "-y", "-i", str(backup), "-map", "0:a:0", "-map_metadata", "0",
+                        "-y", "-i", str(source), "-map", "0:a:0", "-map_metadata", "0",
                         "-vn", "-af", "volume={:.6f}".format(gain / 100.0)]
                 args += codec_args(path, source_meta["codec"])
                 args += [temp_name]
@@ -210,42 +297,80 @@ def save_audio(relative: str, gain: float) -> dict:
             output_meta = probe(Path(temp_name))
             source_duration = source_meta["duration"]
             if source_duration and abs(output_meta["duration"] - source_duration) > max(0.4, source_duration * 0.005):
-                raise RuntimeError("Export duration differs from original; original left unchanged")
-            os.replace(temp_name, path)  # never replace original until fully verified
-            settings = load_levels()
-            settings[rel.as_posix()] = gain
+                raise RuntimeError("Export duration differs from original; audio left unchanged")
+            output_hash = sha256_bytes(Path(temp_name))
+            # Do not replace a source swapped by another local program
+            # during a potentially long FFmpeg encode.
+            if sha256_bytes(path) != working_hash:
+                raise RuntimeError("Song changed on disk during export; retry with the new song")
+            if replace_backup:
+                # Stage a byte-for-byte backup of the NEW source only
+                # after the new audio has encoded and validated. A failed
+                # export never destroys the old pristine backup.
+                backup.parent.mkdir(parents=True, exist_ok=True)
+                fd, pending_backup = tempfile.mkstemp(prefix=".rebase-original-", dir=backup.parent)
+                os.close(fd)
+                shutil.copy2(path, pending_backup)
+                if sha256_bytes(Path(pending_backup)) != working_hash:
+                    raise RuntimeError("Replacement backup changed during copying")
+                if backup.is_symlink():
+                    raise ValueError("Original backup cannot be a symlink")
+                os.replace(pending_backup, backup)
+                pending_backup = None
+            # Write expected output bytes BEFORE swapping the working file.
+            # The previous working hash remains accepted if a crash occurs
+            # between the ledger update and the atomic audio replacement.
+            identities[key] = {
+                "backup": original_hash,
+                "output": output_hash,
+                "previous": working_hash,
+            }
+            atomic_json(IDENTITY, identities, ".identity-")
+            os.replace(temp_name, path)
+            levels[key] = gain
             try:
-                atomic_settings(settings)
+                atomic_settings(levels)
             except OSError as err:
-                # The audio save succeeded; report the settings write separately.
                 print("WARNING: gain preference could not be written:", err, file=sys.stderr)
-            return {"path": rel.as_posix(), "gain": gain,
+            if replace_backup and was_backed_up:
+                print("[OST] Replaced stale original backup for", key)
+            return {"path": key, "gain": gain,
                     "backup": backup.relative_to(AUDIO).as_posix(),
+                    "backup_replaced": bool(replace_backup and was_backed_up),
                     "bytes": path.stat().st_size}
         finally:
             if os.path.exists(temp_name):
                 os.unlink(temp_name)
+            if pending_backup and os.path.exists(pending_backup):
+                os.unlink(pending_backup)
 
 
 def peak_scan(relative: str) -> dict:
     if not FFMPEG:
         raise RuntimeError("FFmpeg required for peak analysis")
-    path, rel = resolve_audio(relative)
-    # Analyze the pristine source whenever available, so gain suggestions
-    # aren't distorted by previous edits.
-    pristine = BACKUPS / rel
-    source = pristine if pristine.is_file() else path
-    result = run_command([FFMPEG, "-hide_banner", "-nostdin", "-i", str(source),
-                          "-af", "volumedetect", "-vn", "-f", "null", "-"], timeout=900)
-    if result.returncode:
-        raise RuntimeError("Peak analysis failed: " + result.stderr[-900:])
-    match = re.search(r"max_volume:\s*(-?(?:\d+(?:\.\d+)?|inf))\s*dB", result.stderr)
-    if not match:
-        raise RuntimeError("No peak result from FFmpeg")
-    peak = float(match.group(1))
-    return {"peak_dbfs": peak, "max_unclipped_gain_percent":
-            round(100 * (10 ** (-peak / 20)), 1) if peak != float("-inf") else None}
-
+    with SAVE_LOCK:
+        path, rel = resolve_audio(relative)
+        key = rel.as_posix()
+        pristine = BACKUPS / rel
+        levels = load_levels()
+        identities = read_identities()
+        status, _, _ = backup_identity(path, pristine, identities.get(key), levels.get(key))
+        if status == "legacy_unknown":
+            raise RuntimeError(
+                "Cannot identify the old backup for this track. If you replaced "
+                "the song, click 'Use current song as new original' before scanning.")
+        # A replaced track must NEVER be analyzed against the old song.
+        source = pristine if status == "same" else path
+        result = run_command([FFMPEG, "-hide_banner", "-nostdin", "-i", str(source),
+                              "-af", "volumedetect", "-vn", "-f", "null", "-"], timeout=900)
+        if result.returncode:
+            raise RuntimeError("Peak analysis failed: " + result.stderr[-900:])
+        match = re.search(r"max_volume:\s*(-?(?:\d+(?:\.\d+)?|inf))\s*dB", result.stderr)
+        if not match:
+            raise RuntimeError("No peak result from FFmpeg")
+        peak = float(match.group(1))
+        return {"peak_dbfs": peak, "max_unclipped_gain_percent":
+                round(100 * (10 ** (-peak / 20)), 1) if peak != float("-inf") else None}
 
 class StudioServer(ThreadingHTTPServer):
     daemon_threads = True
@@ -253,7 +378,7 @@ class StudioServer(ThreadingHTTPServer):
 
 
 class Handler(BaseHTTPRequestHandler):
-    server_version = "XMVSFOSTStudio/1.0"
+    server_version = "XMVSFOSTStudio/1.1"
 
     def log_message(self, fmt, *args):
         print("[OST] " + fmt % args)
@@ -353,7 +478,8 @@ class Handler(BaseHTTPRequestHandler):
             if not isinstance(data, dict) or not isinstance(data.get("path"), str):
                 raise ValueError("Expected audio path")
             if path == "/api/save":
-                result = save_audio(data["path"], data.get("gain"))
+                result = save_audio(data["path"], data.get("gain"),
+                                    data.get("replace_original", False))
             else:
                 result = peak_scan(data["path"])
             self.answer(200, result)
@@ -370,7 +496,7 @@ def main() -> int:
         print("ERROR: Missing audio_studio.html next to server script", file=sys.stderr)
         return 2
     AUDIO.mkdir(parents=True, exist_ok=True)
-    print("XMVSF OST STUDIO 1.0")
+    print("XMVSF OST STUDIO 1.1 (byte-verified backup identity)")
     print("Library:", AUDIO)
     print("FFmpeg:", FFMPEG or "MISSING (preview works; saving disabled)")
     print("FFprobe:", FFPROBE or "MISSING (saving disabled)")
