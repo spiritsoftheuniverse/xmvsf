@@ -23,6 +23,7 @@
 #include "../../../burner/sdl/xmvsf_stage24_versus.h" /* XMVSF_STAGE24_VERSUS */
 #include <SDL_image.h>
 #include "xmvsf_stage87_400_native_screenshot.h" // TEST 87.400 one-shot final-frame PNG
+#include "xmvsf_stage87_408_capture_catalog.h" // screenshot -> native CPS2 stage registry
 #include "../../../burner/sdl/xmvsf_stage86_52_window_state.h" /* XM86.52 */
 #include "../../../burner/sdl/xmvsf_stage86_56_final.h" /* XM86.56 global final presentation */
 #include "../../../burn/drv/capcom/xmvsf_stage87_33_dizzy_hud.h"
@@ -57,7 +58,25 @@ static unsigned char xm8733Pixels[384*224*4]={};
 // Key press requests exactly ONE capture of the next completely painted game
 // frame. No screenshot I/O in the SDL input or emulation frame callbacks.
 static bool xm87400ScreenshotPending=false;
+static XM87408Catalog::Snapshot xm87408CatalogPending{};
+static bool xm87408CatalogRequested=false;
 extern "C" void xm87400RequestNativeScreenshot(){
+    xm87400ScreenshotPending=true;
+    xm87408CatalogRequested=false; // legacy F6 still works without metadata
+}
+extern "C" void xm87408RequestStageScreenshot(
+    unsigned selector,unsigned firstSelector,unsigned nativeStage,unsigned status,
+    unsigned generation,int choice,int resolved,int observed){
+    xm87408CatalogPending=XM87408Catalog::Snapshot{};
+    xm87408CatalogPending.selector=selector;
+    xm87408CatalogPending.firstSelector=firstSelector;
+    xm87408CatalogPending.nativeStage=nativeStage;
+    xm87408CatalogPending.status=status;
+    xm87408CatalogPending.generation=generation;
+    xm87408CatalogPending.choice=choice;
+    xm87408CatalogPending.resolved=resolved;
+    xm87408CatalogPending.observed=(observed!=0);
+    xm87408CatalogRequested=true;
     xm87400ScreenshotPending=true;
 }
 static void xm8733Overlay(SDL_Renderer*,const SDL_Rect&,bool nativeStage=false);
@@ -188,6 +207,7 @@ static void xm87139ProbeNotice(SDL_Renderer* renderer){
 static int Exit()
 {
     xm87400ScreenshotPending=false; // never carry a queued F6 across sessions
+    xm87408CatalogRequested=false;
     extern bool xm26PersistentShell;
     extern bool xm26ReturnToBoot;
     // TEST 87.227: on MAIN MENU the native single SDL_Window persists.
@@ -330,6 +350,7 @@ static void xmvsfStage12VideoLog(const char* message)
 static int Init()
 {
     xm87400ScreenshotPending=false; // one screenshot only per explicit F6 event
+    xm87408CatalogRequested=false;
     // 87.383: a binary fingerprint from the compiled SDL game video TU.
     XM87376Reaper::diagnostic(
       "XM87.383 VIDEO_INIT_COMPILED sdl2_game_renderer=1\n");
@@ -798,14 +819,21 @@ static void xm87217NativeFloat(SDL_Renderer* render,const SDL_Rect& gameView){
 static void xm87400SaveRequested(SDL_Renderer* renderer,const SDL_Rect& gameView){
     if(!xm87400ScreenshotPending)return;
     xm87400ScreenshotPending=false;
+    const XM87408Catalog::Snapshot observed=xm87408CatalogPending;
+    const bool catalogRequested=xm87408CatalogRequested;
+    xm87408CatalogRequested=false;
     char file[2048]={};
-    const bool saved=XM87400::save(renderer,gameView,
-        (unsigned)GetCurrentFrame(),file,sizeof(file));
+    const unsigned gameFrame=(unsigned)GetCurrentFrame();
+    const bool saved=XM87400::save(renderer,gameView,gameFrame,file,sizeof(file));
     if(saved){
-        XM87140Chat::state().log((unsigned)GetCurrentFrame(),
-            XM87140Chat::SYSTEM,"F6: NATIVE 384x224 PNG SAVED");
+        const bool cataloged=!catalogRequested ||
+            XM87408Catalog::append(file,gameFrame,observed);
+        XM87140Chat::state().log(gameFrame,cataloged?
+            XM87140Chat::SYSTEM:XM87140Chat::ALERT,
+            cataloged?"F6: PNG SAVED + STAGE CATALOG":
+                      "F6: PNG SAVED; STAGE CATALOG WRITE FAILED");
     }else{
-        XM87140Chat::state().log((unsigned)GetCurrentFrame(),
+        XM87140Chat::state().log(gameFrame,
             XM87140Chat::ALERT,"F6: NATIVE PNG SAVE FAILED  SEE LOG");
     }
 }
