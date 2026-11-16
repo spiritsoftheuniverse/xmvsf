@@ -1442,9 +1442,7 @@ if(!xm8725FighterObject && XM8725::Enabled() &&
 		// Find out sprite size
 		bx = ((a >> 8) & 15) + 1;
 		by = ((a >> 12) & 15) + 1;
-        const unsigned xm87392Step=XM87392::timeline().step((unsigned)GetCurrentFrame());
-        const bool xm87392HudTile=xm87394HudEligible &&
-            xm87392Step<XM87392::RevealFrames &&
+        const bool xm87392NativeSource=xm87394HudEligible &&
             XM87392::objectForPhase(xm8745LivePhase,
                             (unsigned)v,(unsigned)a&31u,(unsigned)n,
                             x,y,(unsigned)bx,(unsigned)by,xm87392Portrait,
@@ -1452,6 +1450,14 @@ if(!xm8725FighterObject && XM8725::Enabled() &&
                                                    (unsigned)a&31u) ||
                             xm8665ExtraScenery((unsigned)v,(unsigned)a&31u,
                                                 (unsigned)n));
+        // Record actual native HUD ink arrival, not merely a scene state.
+        // This prevents the song countdown from completing before any
+        // health/timer sprite can be masked or materialized.
+        if(xm87392NativeSource && !xm8651SpriteCaptureActive)
+            XM87392::timeline().noteHudSource((unsigned)GetCurrentFrame());
+        const unsigned xm87392Step=XM87392::timeline().step((unsigned)GetCurrentFrame());
+        const bool xm87392HudTile=xm87392NativeSource &&
+            xm87392Step<XM87392::RevealFrames;
         if(xm87392HudTile && !xm8651SpriteCaptureActive){
             static int xm87393ReportedPhase=-1;
             if(xm87393ReportedPhase!=xm8745LivePhase){
