@@ -1,62 +1,57 @@
-# TEST 87.396 — Audio-anchored grouped HUD shock (forest-safe)
+# TEST 87.397 — Faster audio-anchored HUD shock primer
 
-Branch: `feature/hud-shock-reveal`. Version 4 only, Version 3 unchanged.
+Branch: `feature/hud-shock-reveal`. Version 4 only; Version 3 unchanged.
 
-## Evidence and anchor
+## Evidence in 87.396.zip
 
-In the supplied `87.395.zip`, the F9 movie starts at a native checkpoint
-around frame **290** (`replays/session_0001/manifest.tsv`) and records 383
-frames. This marks the requested transition area, but is not an authoritative
-audio-playback timestamp. The native audio engine owns that timestamp.
+The file includes F9 capture records and a separate live 68000 diagnostic
+trace. The latest F9 session is `replays/session_0002`, whose manifest
+contains a 127-frame recording beginning at a session checkpoint.
+That F9 manifest does not provide a synchronized first-audible VS song
+sample timestamp, and the M68K and F9 clocks should not be conflated.
 
-`xm20_vs_transition.h` calls `xmvsfHost::enterVs()` at the already verified
-68000 chooser-to-Versus handoff. The WASAPI mixer later sets
-`m.versusPlaying=true` and `m.versus.pos=0` at its first actual
-`audio/music/versusscreen.ogg` PCM output. TEST 87.396 now increments a
-thread-safe playback generation **at exactly that audio mixer event** and
-samples the generation on the next emulated game frame.
+The 68000 trace `xm87139_m68k_0001.tsv` shows the first native
+chooser-to-match setup change (`FF5104 WORD 0004 -> 0008`) at
+**frame 2126**. The combat probe `xm87139_probe_0001.tsv` first
+captures a native phase-08 combat frame at **2305**. Their separation is
+**179 emulated frames**, approximately three seconds.
 
-That one event arms the 210-emulated-frame hold (3.5 seconds at 60 fps).
-Then a 30-emulated-frame Bayer-dither reveal animates:
+The previous 210-frame (3.5 s) delay begins on the first actual
+`versusscreen.ogg` audio PCM packet; while the audio packet may follow
+the chooser handoff by a few frames, the 210-frame hold can miss this
+observed pre-fight window and makes the materialization feel late.
 
-- The native CPS2 timer, portraits, health bars and status decorations.
-- The independently painted stun bars.
-- A separate white-hot specular shock sweeping in from both sides with an
-  electric-blue trailing glow; white filaments can light real HUD artwork
-  in Bayer gaps without ever painting over transparent scenery pixels.
+## TEST 87.397 behavior
 
-The reveal ends in the original colors. Phase 02, 04, 06, and 08 NEVER arm,
-restart, or otherwise shift this clock. No new M68K heuristic is introduced.
+- **Primer clock starts on the actual Versus track playback event**,
+  not on ROM phases 02/06/08, nor on the user's F9 input.
+- **Delay reduced to 180 emulated frames (3.0 s)**, a 30-frame shift
+  earlier than 87.396.
+- On the **first reveal frame** the two white-hot shine filaments
+  originate *within* the left/right portrait HUD artwork at x~23 and
+  x~360. They immediately light source HUD ink, including pixels
+  not yet selected by the Bayer threshold, creating a visible primer.
+- The existing 30-game-frame ordered dither and white-to-blue-to-native
+  shock sweep remain otherwise unchanged.
+- Phase 02/04 selector/Versus artwork is NEVER masked. Native HUD
+  pixel manipulation remains restricted to phase 06/08. The 87.395
+  exposed-forest regression remains fixed.
+- No added recorder controls, visual scene masks, gameplay edits,
+  sound-device restarts, GitHub Actions, or Stable overwrites.
 
-## Forest/transition fix
+## Local verification
 
-TEST 87.395 applied a per-tile suppression/restoration pass to native
-priority-7 objects **even during ROM status 02/04**. Those statuses still
-render the selection/Versus handoff atop native forest scenery, so suppressing
-overlay pixels prematurely revealed forest/trees at the transition.
+Run `BUILD_TEST.bat` and `RUN_TEST.bat`: both target **87.397**.
+The standalone regression runner
+`dev/hud/RUN_TEST_HUD_392.bat` retains its historical filename,
+but now checks the new **180+30** schedule and first-frame glint.
 
-TEST 87.396 starts the **clock** from the audio event but restricts actual
-HUD pixel suppression/reveal to the fighting-scene statuses **06 and 08**
-alone. The Versus scene and its backdrop are never modified. Per-tile native
-depth and background restoration remain unchanged within the valid HUD pass.
+Inspect `XM87.397 HUD_SHOCK_SONG_START` alongside the native
+`VERSUS_OGG_PLAY` diagnostic, then confirm the first visible
+white primer occurs around the chosen match-screen timing, and
+that the forest/Versus transition never exposes background.
+A later adjustment may be required if the F9 reference was in a
+different game-session clock domain.
 
-No modifications to audio mixing, stage selection, CPS ROM/RAM, gameplay
-rules, controller input, Stable binaries, or GitHub Actions.
-
-## Local-only checks
-
-Build with existing `BUILD_TEST.bat` and launch `RUN_TEST.bat`, both now
-targeting **87.396**. The local standalone `dev/hud/RUN_TEST_HUD_392.bat`
-remains under its historical filename but now tests the 87.396 clock and
-scene mask, using `dev/hud/tests/test_hud_shock_392.cpp`.
-
-Verify the local logs contain matching:
-
-- `XM87.396 VERSUS_OGG_PLAY audible_start=N`
-- `XM87.396 HUD_SHOCK_SONG_START song=N frame=...`
-- `XM87.396 HUD_SHOCK_OBJECT phase=06/08 ...`
-
-Look for no forest/tree leakage on the VS screen and the HUD's reveal
-3.5 seconds after `versusscreen.ogg` first actually plays.
-
-**Not yet compiled or visually accepted on the user's Windows runtime.**
+Source committed; a Windows native build and visual acceptance are
+still required locally.
