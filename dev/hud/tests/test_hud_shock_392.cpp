@@ -66,6 +66,10 @@ int main(){
     assert(shineRGB(ink,294,28,15)!=shockRGB(ink,15));
     assert(shineRGB(ink,150,28,15)==shockRGB(ink,15));
     assert(shineRGB(ink,90,28,30)==ink);
+    assert(shineCore(91,28,15));
+    assert(!visible(91,28,15)); // white filament is separate from Bayer
+    assert(!shineCore(150,28,15));
+    assert(!shineCore(91,28,30));
     unsigned last=0;
     for(unsigned s=0;s<=30;++s){
         unsigned seen=0;
@@ -117,6 +121,20 @@ int main(){
         }
     }
     assert(shown>0u && restored>0u);
+    // A moving shine streak must be visible even where the ordinary Bayer
+    // dissolve would hide that *actual HUD object* source pixel.
+    Tile glint;
+    glint.save(fb.data(),pitch,z.data(),width,height,88,24);
+    for(int y=24;y<40;++y)for(int x=88;x<104;++x){
+        const std::uint32_t pixel=0x00ff3300u;
+        std::memcpy(fb.data()+(std::size_t)y*pitch+x*4,&pixel,4);
+        z[(std::size_t)y*width+x]=50u;
+    }
+    glint.finish(fb.data(),z.data(),width,height,15u);
+    std::uint32_t whiteFilament=0u;
+    std::memcpy(&whiteFilament,fb.data()+(std::size_t)28*pitch+91*4,4);
+    assert(whiteFilament==shineRGB(0x00ff3300u,91,28,15u));
+    assert(z[(std::size_t)28*width+91]==50u);
 
     std::vector<std::uint8_t> overlay((std::size_t)384*224*4,0u);
     for(int x=60;x<70;++x){
@@ -126,6 +144,17 @@ int main(){
     stunOverlay(overlay.data(),384*4,0u);
     for(int x=60;x<70;++x)
         assert(overlay[((std::size_t)45*384+x)*4+3]==0u);
+    const int sx=94,sy=45; // core of left shockfront at reveal frame 15
+    assert(shineCore(sx,sy,15u));
+    assert(!visible(sx,sy,15u));
+    std::uint8_t* glowing=overlay.data()+((std::size_t)sy*384+sx)*4;
+    glowing[0]=255;glowing[1]=120;glowing[2]=25;glowing[3]=255;
+    stunOverlay(overlay.data(),384*4,15u);
+    assert(glowing[3]==255u);
+    const std::uint32_t shineColor=shineRGB(0x00ff7819u,sx,sy,15u);
+    assert(glowing[0]==((shineColor>>16)&255u));
+    assert(glowing[1]==((shineColor>>8)&255u));
+    assert(glowing[2]==(shineColor&255u));
     std::printf("87.395 HUD shock tests PASS: timeline, object scope, Bayer reveal, Z restore, stun overlay\n");
     return 0;
 }
