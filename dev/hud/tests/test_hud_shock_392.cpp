@@ -30,6 +30,8 @@ int main(){
     assert(t.step(101)==0u);
     t.observe(4,103u,true);
     t.startWithSong(1u,105u); // first actual VS PCM
+    t.noteHudSource(110u); // actual bar drawn before the audio deadline
+    assert(t.sourceSeen && t.firstSourceFrame==110u);
     assert(t.step(105)==0u);
     assert(t.step(224)==0u);
     assert(t.step(225)==1u);
@@ -48,6 +50,7 @@ int main(){
     assert(t.step(400)==0u);
     t.observe(2,401u,true);
     t.startWithSong(2u,410u);
+    t.noteHudSource(420u);
     assert(t.step(529)==0u);
     assert(t.step(530)==1u);
     assert(t.step(559)==30u);
@@ -58,7 +61,12 @@ int main(){
     t.startWithSong(3u,700u); // fallback if song starts before priming
     assert(t.step(700)==0u);
     assert(t.step(819)==0u);
-    assert(t.step(820)==1u);
+    assert(t.step(820)==1u); // internal clock: source not yet available
+    t.noteHudSource(840u);   // first drawable HUD arrives very late
+    assert(t.step(840u)==0u); // MUST be invisible on the first source frame
+    assert(t.step(841u)==1u);
+    assert(t.step(869u)==29u);
+    assert(t.step(870u)==30u);
 
     // Only unambiguous ROM HUD sources can be masked during 02/04.
     // Source-unverified top priority-7 trees/logo must NEVER be removed
