@@ -691,9 +691,15 @@ INT32 Cps2ObjDraw(INT32 nLevelFrom, INT32 nLevelTo)
 	bool bMask = 0;
 	XM8732::Capture(CpsRamFF,(unsigned)GetCurrentFrame(),xm8658GameStatus);
     const int xm8745LivePhase=CpsRamFF?int(CpsRamFF[0x5001u]):xm8658GameStatus;
+    // The normal xmvsfu driver is NOT the separate 3v3 input-window hack.
+    // CpsXmvSixEnabled is zero for xmvsfu: the old gate bypassed ALL HUD FX.
+    const char* xm87394Driver=BurnDrvGetTextA(DRV_NAME);
+    const bool xm87394HudEligible=xm87394Driver &&
+        std::strncmp(xm87394Driver,"xmvsf",5)==0 &&
+        XM87262Game::version4();
     if(!xm8651SpriteCaptureActive)
         XM87392::timeline().observe(xm8745LivePhase,(unsigned)GetCurrentFrame(),
-                                    CpsXmvSixEnabled && XM87262Game::version4());
+                                    xm87394HudEligible);
     // XM87.47 accepted ROM action cues. Read-only, once per emulated frame.
     XM8747::Observe(CpsRamFF,(unsigned)GetCurrentFrame(),xm8745LivePhase,
                     nLevelFrom<=6 && nLevelTo>=6 && !xm8651SpriteCaptureActive);
@@ -1429,8 +1435,7 @@ if(!xm8725FighterObject && XM8725::Enabled() &&
 		bx = ((a >> 8) & 15) + 1;
 		by = ((a >> 12) & 15) + 1;
         const unsigned xm87392Step=XM87392::timeline().step((unsigned)GetCurrentFrame());
-        const bool xm87392HudTile=CpsXmvSixEnabled &&
-            XM87262Game::version4() &&
+        const bool xm87392HudTile=xm87394HudEligible &&
             (xm8745LivePhase==6 || xm8745LivePhase==8) &&
             xm87392Step<XM87392::RevealFrames &&
             XM87392::object((unsigned)v,(unsigned)a&31u,(unsigned)n,
@@ -1444,7 +1449,7 @@ if(!xm8725FighterObject && XM8725::Enabled() &&
             if(xm87393ReportedPhase!=xm8745LivePhase){
                 xm87393ReportedPhase=xm8745LivePhase;
                 std::fprintf(stderr,
-                    "XM87.393 HUD_SHOCK_OBJECT phase=%02X frame=%u step=%u "
+                    "XM87.394 HUD_SHOCK_OBJECT phase=%02X frame=%u step=%u "
                     "priority=%d pal=%u tile=%u x=%d y=%d size=%dx%d\n",
                     xm8745LivePhase,(unsigned)GetCurrentFrame(),xm87392Step,
                     v,(unsigned)a&31u,(unsigned)n,x,y,bx,by);
