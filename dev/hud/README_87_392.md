@@ -1,58 +1,62 @@
-# TEST 87.395 — Handoff-anchored grouped HUD shock
+# TEST 87.396 — Audio-anchored grouped HUD shock (forest-safe)
 
-Branch: `feature/hud-shock-reveal`.
+Branch: `feature/hud-shock-reveal`. Version 4 only, Version 3 unchanged.
 
-The native CPS2 HUD (time, portraits, health and upper status decoration)
-and separately composited stun bars share one emulator-frame timeline.
-This changes the *appearance only*, not game RAM, ROM, inputs, or round clock.
+## Evidence and anchor
 
-## Timing corrected from 87.394 capture
+In the supplied `87.395.zip`, the F9 movie starts at a native checkpoint
+around frame **290** (`replays/session_0001/manifest.tsv`) and records 383
+frames. This marks the requested transition area, but is not an authoritative
+audio-playback timestamp. The native audio engine owns that timestamp.
 
-The user's Sigma-stage TEST 87.394 capture recorded:
-- Screen handoff native status **02** at frame ~1–2;
-- Round-introduction status **06** around frame 182;
-- Fight/combat status **08** around frame 362.
+`xm20_vs_transition.h` calls `xmvsfHost::enterVs()` at the already verified
+68000 chooser-to-Versus handoff. The WASAPI mixer later sets
+`m.versusPlaying=true` and `m.versus.pos=0` at its first actual
+`audio/music/versusscreen.ogg` PCM output. TEST 87.396 now increments a
+thread-safe playback generation **at exactly that audio mixer event** and
+samples the generation on the next emulated game frame.
 
-TEST 87.394 started the HUD effect at **08**, too late.
-TEST 87.395 now arms when the match screen FIRST enters phase **02**.
-The effect is never restarted by phase **04, 06, or 08**.
-Intermediate phases 03/05/07 do not discard the schedule.
-For direct game snapshots that first arrive in the later phase, the first
-observed 04/06/08 frame is a fallback anchor.
+That one event arms the 210-emulated-frame hold (3.5 seconds at 60 fps).
+Then a 30-emulated-frame Bayer-dither reveal animates:
 
-- Phase 02 frame: HUD group hidden at once (do not cover the arena).
-- 210 emulated frames after that handoff: begin the reveal.
-- Next 30 emulated frames: Bayer 8×8 dither reveals the group.
-- During reveal: white blowout shifts to cyan/electric blue, then native
-  palette; TWO additional diagonal, converging specular sweeps run from
-  the portrait edges toward the timer with white-hot centers and a soft
-  blue corona. The moving white filaments also cut through the Bayer gaps
-  **only where actual HUD ink exists**, making this a distinct shine effect
-  rather than merely a recolored dither mask.
-- After 30 frames: exact normal HUD pixels, no ongoing shine or processing.
+- The native CPS2 timer, portraits, health bars and status decorations.
+- The independently painted stun bars.
+- A separate white-hot specular shock sweeping in from both sides with an
+  electric-blue trailing glow; white filaments can light real HUD artwork
+  in Bayer gaps without ever painting over transparent scenery pixels.
 
-Paused paints do not consume frames. KO/results/selection are unaffected.
-Version 3 stays clean. Regular and custom stages use the same native source
-HUD pixel and SDL stun paths; original CPS depth is restored wherever the
-HUD is hidden. The effect does not tint native stage backgrounds or sprites.
+The reveal ends in the original colors. Phase 02, 04, 06, and 08 NEVER arm,
+restart, or otherwise shift this clock. No new M68K heuristic is introduced.
 
-## Local verification
+## Forest/transition fix
 
-Use the existing Windows `BUILD_TEST.bat` and `RUN_TEST.bat`; both target
-TEST 87.395. No GitHub Actions; preserve Stable and all earlier TEST builds.
+TEST 87.395 applied a per-tile suppression/restoration pass to native
+priority-7 objects **even during ROM status 02/04**. Those statuses still
+render the selection/Versus handoff atop native forest scenery, so suppressing
+overlay pixels prematurely revealed forest/trees at the transition.
 
-The standalone `dev\hud\RUN_TEST_HUD_392.bat` is retained under its
-original file path, but its regression now covers the 87.395 phase-02
-clock, transitions, 210+30 frame schedule, the specular beams and the
-native depth restoration. Run it locally if desired.
+TEST 87.396 starts the **clock** from the audio event but restricts actual
+HUD pixel suppression/reveal to the fighting-scene statuses **06 and 08**
+alone. The Versus scene and its backdrop are never modified. Per-tile native
+depth and background restoration remain unchanged within the valid HUD pass.
 
-For visual acceptance, confirm the HUD is hidden on **the first combat
-screen frame**, not the later FIGHT cue. On Sigma, the dither/shine should
-occur around frame 212–241 rather than around frame 572–601, based on the
-uploaded phase trace. Confirm both players' bars and portraits, the timer,
-and stun bars, across both normal and custom stages.
+No modifications to audio mixing, stage selection, CPS ROM/RAM, gameplay
+rules, controller input, Stable binaries, or GitHub Actions.
 
-Runtime markers: `XM87.395 HUD_SHOCK_HANDOFF` and
-`XM87.395 HUD_SHOCK_OBJECT`.
+## Local-only checks
 
-Not locally compiled or visually accepted in this environment.
+Build with existing `BUILD_TEST.bat` and launch `RUN_TEST.bat`, both now
+targeting **87.396**. The local standalone `dev/hud/RUN_TEST_HUD_392.bat`
+remains under its historical filename but now tests the 87.396 clock and
+scene mask, using `dev/hud/tests/test_hud_shock_392.cpp`.
+
+Verify the local logs contain matching:
+
+- `XM87.396 VERSUS_OGG_PLAY audible_start=N`
+- `XM87.396 HUD_SHOCK_SONG_START song=N frame=...`
+- `XM87.396 HUD_SHOCK_OBJECT phase=06/08 ...`
+
+Look for no forest/tree leakage on the VS screen and the HUD's reveal
+3.5 seconds after `versusscreen.ogg` first actually plays.
+
+**Not yet compiled or visually accepted on the user's Windows runtime.**
