@@ -281,7 +281,7 @@ struct State {
         }
         gun.initializedEvents=true;gun.lastAge=now;
     }
-    void update(unsigned long long frame,unsigned gen){
+    void update(unsigned long long frame,unsigned gen,int cameraX){
         if(!ready)return;
         if(gen!=generation || lastFrame==~0ull || frame<lastFrame)
             reset(gen,frame);
@@ -303,7 +303,11 @@ struct State {
             }
             if(frame<r.nextSpawn || activeCount>=desiredRotors)continue;
             r.active=true;r.born=frame;
-            r.x=int(rng.range(RotorMinX,RotorMaxX));
+            // Spawn in the requested SCREEN-space 150..220 range even
+            // when the native camera isn't centered. Store a parallax-
+            // relative anchor so later camera movement shifts it naturally.
+            const int spawnScreenX=int(rng.range(RotorMinX,RotorMaxX));
+            r.x=spawnScreenX-rotorPan(cameraX);
             r.yStart=-rotor.h-int(rng.range(12u,64u));
             r.hoverY=int(rng.range(28u,118u));
             r.bobPhase=int(rng.range(0u,80u));
@@ -311,7 +315,7 @@ struct State {
             std::fprintf(stderr,
                 "XM87.401 ROTOR_SPAWN x=%d start_y=%d hover_y=%d "
                 "frame=%llu active=%u\n",
-                r.x,r.yStart,r.hoverY,(unsigned long long)frame,activeCount);
+                spawnScreenX,r.yStart,r.hoverY,(unsigned long long)frame,activeCount);
         }
         for(unsigned side=0;side<guns.size();++side){
             Triblaster& gun=guns[side];
