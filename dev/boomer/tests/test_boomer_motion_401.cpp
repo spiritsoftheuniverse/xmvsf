@@ -10,7 +10,7 @@ int main(){
     static_assert(RightCornerScreenX==244,"right gun moved 34px left");
     static_assert(LeftCornerScreenX==104,"mirrored left gun moved 2px left");
     static_assert(RotorScreenMargin==8,"rotors cover full stage view");
-    static_assert(RotorMinSeparation==96,"rotors must not bunch");
+    static_assert(RotorMinSeparation==88,"all three rotors must fit with wide clearance");
     static_assert(RotorGunGap==38,"rotors need blaster clearance");
     static_assert(NearFramesPerPixel==2u,"wall 30px/second at 60fps");
     static_assert(RotorFramesPerPixel==3u,"rotor between C=5 and B=2");
@@ -85,21 +85,33 @@ int main(){
     // INCLUDING the two adjusted stationary gun world positions.
     // Search the same screen-wide thirds and use the same production
     // rectangle-clearance predicate. No giant 150..220 rotor cluster.
-    constexpr int rotorW=24, gunW=32, cameraCases[]={0,48,96,192,288,336,384};
+    constexpr int rotorW=24, gunW=32;
+    constexpr int cameraCases[]={0,24,48,72,96,144,192,240,288,336,360,384};
     for(int cam : cameraCases){
         int rotorXs[3]={-10000,-10000,-10000};
         const int lo=RotorScreenMargin;
         const int hi=StageScreenW-RotorScreenMargin-rotorW;
         const int span=hi-lo+1;
+        const auto clearOfGuns=[&](int candidate){
+            // Must stay away from both guns for the ENTIRE camera pan:
+            // one gun follows 100% camera X, rotors follow 60%.
+            for(int futureCam : {cam,0,StageWorldW-StageScreenW}){
+                const int projected=rotorProjectedX(candidate,cam,futureCam);
+                if(!horizontallySeparated(projected,rotorW,
+                    screenX(gunWorldX(true),futureCam),gunW,RotorGunGap))
+                    return false;
+                if(!horizontallySeparated(projected,rotorW,
+                    screenX(gunWorldX(false),futureCam),gunW,RotorGunGap))
+                    return false;
+            }
+            return true;
+        };
         for(int slot=0;slot<3;++slot){
             const int laneLo=lo+span*slot/3;
             const int laneHi=std::max(laneLo,lo+span*(slot+1)/3-1);
             bool found=false;
             for(int x=laneLo;x<=laneHi;++x){
-                if(!horizontallySeparated(x,rotorW,
-                    screenX(gunWorldX(true),cam),gunW,RotorGunGap))continue;
-                if(!horizontallySeparated(x,rotorW,
-                    screenX(gunWorldX(false),cam),gunW,RotorGunGap))continue;
+                if(!clearOfGuns(x))continue;
                 bool separated=true;
                 for(int j=0;j<slot;++j)
                     if(!horizontallySeparated(x,rotorW,
@@ -113,10 +125,7 @@ int main(){
             // the rest of the viewport instead of stacking on the gun.
             if(!found){
                 for(int x=lo;x<=hi && !found;++x){
-                    if(!horizontallySeparated(x,rotorW,
-                        screenX(gunWorldX(true),cam),gunW,RotorGunGap))continue;
-                    if(!horizontallySeparated(x,rotorW,
-                        screenX(gunWorldX(false),cam),gunW,RotorGunGap))continue;
+                    if(!clearOfGuns(x))continue;
                     bool separated=true;
                     for(int j=0;j<slot;++j)
                         if(!horizontallySeparated(x,rotorW,
