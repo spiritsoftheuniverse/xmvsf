@@ -112,16 +112,13 @@ inline std::uint32_t shockRGB(std::uint32_t source,unsigned step) {
 // of drawing an opaque rectangular overlay across the stage.
 struct Tile {
     int x=0,y=0,w=0,h=0,pitch=0,screenWidth=0;
-    std::uint32_t before[256]={};
-    std::uint16_t zBefore[256]={};
+    std::uint32_t before[256];
+    std::uint16_t zBefore[256];
     bool depthValid=false;
     void save(const std::uint8_t* pixels,int rowPitch,
               const std::uint16_t* depth,int sw,int sh,int tx,int ty){
         x=tx;y=ty;pitch=rowPitch;screenWidth=sw;
-        w=(tx>=0 && tx+16<=sw)?16:0;
-        h=(ty>=0 && ty+16<=sh)?16:0;
-        // Care path also covers partially offscreen tiles.
-        if(!w || !h){w=16;h=16;}
+        w=h=16; // clip each pixel below; care tiles may cross screen edges
         depthValid=depth!=nullptr;
         if(!pixels || rowPitch<sw*4){w=h=0;return;}
         for(int yy=0;yy<16;++yy)for(int xx=0;xx<16;++xx){
