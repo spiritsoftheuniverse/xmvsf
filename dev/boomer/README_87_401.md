@@ -1,5 +1,25 @@
 # TEST 87.401 — Boomer Kuwanger rotor + Triblaster GIF effects
 
+## TEST 87.403 compiler fix (November 16)
+
+The local 87.401 and 87.402 builds failed before linking.
+The uploaded `BUILD_TEST.log` isolates a single C++ API spelling error in
+`xmvsf_stage87_401_boomer_enemies.h`: the original code declared
+`SDL_Animation*` for `IMG_LoadAnimation()`. SDL2_image uses
+`IMG_Animation*`. This has been corrected without touching the renderer,
+gameplay, F6 capture, or accepted 87.399 HUD timeline.
+
+`BUILD_TEST.bat` now runs a **compile-only** C++ smoke check against
+`C:\msys64\ucrt64\include\SDL2\SDL_image.h` before invoking the
+long native FBNeo build. Errors are preserved in
+`test\build_logs\BOOMER_GIF_HEADER_403.log`; the permanent
+`BUILD_TEST.log` also receives them. The warm cache is not cleared.
+
+The target executable is now `XMVSF_Test_87_403.exe`, and the
+RUN_TEST launcher requires that exact file. This source correction has
+not been compiled on the user's Windows machine yet.
+
+
 Branch: feature/boomer-enemies-87-401
 Base: feature/native-f6-screenshots (accepted 87.399 HUD timing preserved).
 
