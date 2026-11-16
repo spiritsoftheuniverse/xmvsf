@@ -1,6 +1,6 @@
 #ifndef XMVSF_STAGE87_392_HUD_SHOCK_H
 #define XMVSF_STAGE87_392_HUD_SHOCK_H
-// TEST 87.398: 2s audio-anchored primer, preserve invisible fight HUD startup
+// TEST 87.399: source-verified HUD concealment from VS song request
 // and the separate SDL stun bar. No ROM/RAM mutations or opaque screen masks.
 // 60 game frames per second: 120 music frames hidden, 30 reveal.
 #include <cstddef>
@@ -20,69 +20,61 @@ inline bool eligible(const char* driver,bool version4){
 
 struct Timeline {
     unsigned start=0u;
-    unsigned firstHudFrame=0u;
+    unsigned primedAt=0u;
     unsigned lastFrame=~0u;
     unsigned lastSongStart=0u;
     int lastPhase=-1;
+    bool primed=false;
     bool armed=false;
-    bool fightHudSeen=false;
-
-    // Keep the first frame(s) of the actual fight HUD *fully invisible*
-    // even when the music-based 2-second timer expires during VS graphics.
-    // This is NOT another 3.5-second delay; it only protects startup.
-    static const unsigned InitialHiddenFrames=6u;
 
     void reset(){*this=Timeline{};}
 
-    // Match exactly the event published when versusscreen.ogg's first PCM
-    // is submitted by the audio mixer. This event can PRECEDE native status 02.
+    // Called on the SAME M68K chooser->VS handoff that requests the song.
+    // Hide actual HUD source objects immediately, before audio decode/start.
+    void prepareForSong(unsigned frame){
+        if(primed)return;
+        primed=true;primedAt=frame;
+        std::fprintf(stderr,"XM87.399 HUD_SHOCK_PRIMED frame=%u\n",frame);
+    }
+
+    // The 120-frame delay begins ONLY on the first actual Versus PCM.
     void startWithSong(unsigned songSequence,unsigned frame){
         if(!songSequence || songSequence==lastSongStart)return;
         lastSongStart=songSequence;
-        start=frame;armed=true;
-        fightHudSeen=false;firstHudFrame=0u;
+        primed=true;armed=true;start=frame;
         std::fprintf(stderr,
-            "XM87.398 HUD_SHOCK_SONG_START song=%u frame=%u hold=%u reveal=%u\n",
+            "XM87.399 HUD_SHOCK_SONG_START song=%u frame=%u hold=%u reveal=%u\n",
             songSequence,frame,DelayFrames,RevealFrames);
     }
 
-    // Only the ACTUAL fight-stage HUD pass may have pixels suppressed.
-    // Status 02/04 are the selection/Versus screen transition. Restoring
-    // CPS2 tiles there exposed the underlying FOREST stage through that UI.
-    static bool mayMaskNativeHud(int phase){return phase==6 || phase==8;}
+    // 02/04 overlap the VS transition and native forest. There is NEVER
+    // any broad priority-7 suppression here; only source-confirmed HUD
+    // tiles may be touched, by objectForPhase() below.
+    static bool mayMaskNativeHud(int phase){
+        return phase==2 || phase==4 || phase==6 || phase==8;
+    }
 
     void observe(int phase,unsigned frame,bool allowed){
         if(!allowed){
-            armed=false;fightHudSeen=false;lastFrame=frame;lastPhase=-1;return;
+            primed=false;armed=false;lastFrame=frame;lastPhase=-1;return;
         }
         if(lastFrame!=~0u && frame<lastFrame){
-            armed=false;fightHudSeen=false; // rewind: await new VS audio cue
+            primed=false;armed=false; // reset/replay rewind, do not reuse cue
         }
-        // The song begins before a real fight HUD may be drawn. Do not
-        // consume the visibility portion of the reveal while the only
-        // onscreen layers are the selection/Versus transition.
-        if(armed && mayMaskNativeHud(phase) && !fightHudSeen){
-            fightHudSeen=true;firstHudFrame=frame;
-            std::fprintf(stderr,
-                "XM87.398 HUD_SHOCK_FIRST_FIGHT_HUD frame=%u "
-                "song_elapsed=%u min_hidden=%u\n",
-                frame,frame>=start?frame-start:0u,InitialHiddenFrames);
-        }
-        if(phase==0x0a || phase==0x0c)armed=false;
+        if(phase==0x0a || phase==0x0c){primed=false;armed=false;}
         lastFrame=frame;lastPhase=phase;
     }
 
     unsigned step(unsigned frame)const {
-        if(!armed || frame<start)return RevealFrames;
-        // While the VS screen is up this is hidden, but native masking is
-        // explicitly vetoed by mayMaskNativeHud() to prevent forest leakage.
-        if(!fightHudSeen)return 0u;
-        const unsigned songDue=start+DelayFrames;
-        const unsigned sceneDue=firstHudFrame+InitialHiddenFrames;
-        const unsigned due=songDue>sceneDue?songDue:sceneDue;
-        if(frame<due)return 0u;
-        if(frame>=due+RevealFrames)return RevealFrames;
-        return frame-due+1u;
+        // Before the verified song request: never hide selection art.
+        if(!primed)return RevealFrames;
+        // Hide from the handoff while the PCM decoder prepares.
+        if(!armed)return 0u;
+        if(frame<start)return 0u;
+        const unsigned elapsed=frame-start;
+        if(elapsed<DelayFrames)return 0u;
+        if(elapsed>=DelayFrames+RevealFrames)return RevealFrames;
+        return elapsed-DelayFrames+1u;
     }
 };
 inline Timeline& timeline(){static Timeline s;return s;}
@@ -109,6 +101,33 @@ inline bool object(unsigned priority,unsigned palette,unsigned tile,
     return (palette==2u || palette==4u) && (y==20 || y==32) &&
            ((tile>=88417u && tile<=88579u) ||
              tile==89417u || tile==89418u);
+}
+// 02/04: only the ROM-proven original HP strip sheets and timer-digit
+// atlas are removable. Exclude native stage sprites and the X-Men logo
+// regardless of size, palette similarity or top-of-screen coordinates.
+inline bool verifiedTransitionHud(unsigned priority,unsigned palette,
+                                  unsigned tile,int x,int y,
+                                  unsigned wide,unsigned tall){
+    if(!wide || !tall || x>=384 || y>=56)return false;
+    if(priority==0u)
+        return palette==1u && wide==2u && tall==2u &&
+               tile>=87808u && tile<=87826u &&
+               ((tile-87808u)&1u)==0u && y>=-16;
+    if(priority!=7u || (palette!=2u && palette!=4u) ||
+       (y!=20 && y!=32))return false;
+    return (tile>=88417u && tile<=88579u) ||
+           tile==89417u || tile==89418u;
+}
+// Use the established broad HUD grouping only once the real fight stage is
+// rendering. During VS screen transitions, strict source identity is
+// mandatory to avoid the previously reported forest/tree bleed.
+inline bool objectForPhase(int phase,unsigned priority,unsigned palette,
+                           unsigned tile,int x,int y,unsigned wide,unsigned tall,
+                           bool portrait=false,bool scenery=false){
+    if(scenery || !Timeline::mayMaskNativeHud(phase))return false;
+    if(phase==2 || phase==4)
+        return verifiedTransitionHud(priority,palette,tile,x,y,wide,tall);
+    return object(priority,palette,tile,x,y,wide,tall,portrait,false);
 }
 static const unsigned char Bayer8[64]={
      0,48,12,60, 3,51,15,63,
