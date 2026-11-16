@@ -753,6 +753,14 @@ if ! LC_ALL=C grep -aFq -- "XM87.407 BOOMER_ENEMIES_READY" "$BUILT"; then
   exit 2
 fi
 echo "TEST BOOMER SPREAD PROOF: XM87.407 BOOMER_ENEMIES_READY found in EXE."
+# 87.408: F6 screenshot catalog must be linked into the SDL video source;
+# a bumped title cannot substitute for working native stage evidence.
+if ! LC_ALL=C grep -aFq -- "XM87.408 STAGE_CATALOG_V1" "$BUILT"; then
+  echo "ERROR: TEST 87.408 stage-address screenshot catalog not linked. Refusing stale publish." >&2
+  echo "ERROR: Check vid_sdl2.o and screenshot catalog header dependencies." >&2
+  exit 2
+fi
+echo "TEST STAGE CATALOG PROOF: XM87.408 STAGE_CATALOG_V1 found in EXE."
 # Hash-compare before publishing: a no-op build must NOT overwrite TEST.
 built_sha="$(sha256sum "$BUILT" | cut -d ' ' -f 1)"
 mkdir -p "$PROJECT/runtime/stable"
