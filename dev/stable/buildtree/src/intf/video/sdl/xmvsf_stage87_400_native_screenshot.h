@@ -140,17 +140,25 @@ inline bool save(SDL_Renderer* renderer,const SDL_Rect& gameView,
     char stamp[32]={};
     std::strftime(stamp,sizeof(stamp),"%Y%m%d_%H%M%S",&local);
     static unsigned unique=0u;
-    const unsigned serial=++unique;
     char file[2048]={};
-    const int used=std::snprintf(file,sizeof(file),
-        "%s%cXMVSF_native_%s_f%09u_%04u.png",folder,
+    bool goodName=false;
+    // Never replace a prior capture, including a screenshot from a previous
+    // TEST session that coincidentally used the same timestamp/frame number.
+    for(unsigned attempt=0u;attempt<10000u;++attempt){
+        const unsigned serial=++unique;
+        const int used=std::snprintf(file,sizeof(file),
+            "%s%cXMVSF_native_%s_f%09u_%06u.png",folder,
 #ifdef _WIN32
-        '\\',
+            '\\',
 #else
-        '/',
+            '/',
 #endif
-        stamp,frame,serial);
-    const bool goodName=used>0 && std::size_t(used)<sizeof(file);
+            stamp,frame,serial);
+        if(used<=0 || std::size_t(used)>=sizeof(file))break;
+        std::FILE* previous=std::fopen(file,"rb");
+        if(previous){std::fclose(previous);continue;}
+        goodName=true;break;
+    }
     const int saved=goodName?IMG_SavePNG(surface,file):-1;
     SDL_FreeSurface(surface);
     if(saved!=0){
