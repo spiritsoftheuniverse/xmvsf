@@ -2,8 +2,9 @@
 #define XMVSF_STAGE87_363_BOOMER_KUWANGER_H
 // Boomer Kuwanger Stage. Authored A/B/C PNGs, original native stage-05
 // camera/combat, zero modification to native CPS2 stage collision.
-// Draw order: C distant shaft -> B near shaft sides -> A fixed platform
-// -> native stun HUD -> native fighters -> native flash.
+// Draw order: C distant shaft -> rotor mid-parallax -> B near shaft sides
+// -> Triblasters/shot/bullet -> A fixed platform -> native stun HUD
+// -> native fighters -> native flash.
 // B and C move DOWN at different real-game-frame speeds. B is split
 // into independently translated left/right source slices, tiled vertically
 // and outward. C tiles in both axes with slight X parallax.
@@ -15,6 +16,7 @@
 #include <fstream>
 #include <string>
 #include <vector>
+#include "xmvsf_stage87_401_boomer_enemies.h" // rotor / Triblaster visual GIFs
 
 namespace XMBoomer {
 static const int VIEW_W=384,VIEW_H=224,WORLD_W=768,WORLD_H=471;
@@ -45,6 +47,7 @@ struct Layer {
 };
 struct Scene {
  Layer a,b,c;
+ XMBoomerExtra::State enemies;
  SDL_Texture *fighters=nullptr,*flash=nullptr;
  bool failed=false;
  unsigned failedGeneration=~0u;
@@ -69,6 +72,7 @@ struct Scene {
                stageOffsetY,wallSpread);
  }
  void close(){
+  enemies.close();
   a.close();b.close();c.close();
   if(fighters)SDL_DestroyTexture(fighters);
   if(flash)SDL_DestroyTexture(flash);
@@ -145,6 +149,9 @@ struct Scene {
   SDL_SetTextureScaleMode(flash,SDL_ScaleModeNearest);
   failed=false;failedGeneration=~0u;
   loadPlacement();
+  // GIF assets are an isolated decorative layer: if animated sprites are
+  // unavailable, preserve the existing working A/B/C stage and combat.
+  enemies.load(r,root);
   std::fprintf(stderr,
    "XM87.363 BOOMER_READY A=%dx%d B=%dx%d C=%dx%d world=768x471 scrollDown B=1/2f C=1/5f C_x=30%%\n",
    a.w,a.h,b.w,b.h,c.w,c.h);
@@ -221,10 +228,15 @@ struct Scene {
   SDL_Rect old={0,0,0,0};
   if(oldClip)SDL_RenderGetClipRect(r,&old);
   SDL_RenderSetClipRect(r,&view);
+  enemies.update(frame,xm77StageRollGeneration());
   bool ok=tile(r,view,c,camX,stageTop,frame,FAR_FRAMES_PER_PX,
                FAR_X_PERCENT);
+  // Mid-parallax rotor sprites are ABOVE C but BEHIND the moving B walls.
+  if(ok)ok=enemies.drawRotors(r,view,frame,camX);
   if(ok)ok=drawWallHalf(r,view,b,camX,stageTop,frame,wallSpread,true);
   if(ok)ok=drawWallHalf(r,view,b,camX,stageTop,frame,wallSpread,false);
+  // Each side's sole Triblaster and its animated projectiles move with B.
+  if(ok)ok=enemies.drawGuns(r,view,frame,camX,wallSpread);
   // A remains registered to the original world and camera. Only
   // its saved debug Y displacement changes the visible PNG.
   if(ok){
