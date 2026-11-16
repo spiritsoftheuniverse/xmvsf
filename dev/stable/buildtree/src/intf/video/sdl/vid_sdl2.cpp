@@ -187,6 +187,7 @@ static void xm87139ProbeNotice(SDL_Renderer* renderer){
 
 static int Exit()
 {
+    xm87400ScreenshotPending=false; // never carry a queued F6 across sessions
     extern bool xm26PersistentShell;
     extern bool xm26ReturnToBoot;
     // TEST 87.227: on MAIN MENU the native single SDL_Window persists.
@@ -328,6 +329,7 @@ static void xmvsfStage12VideoLog(const char* message)
 
 static int Init()
 {
+    xm87400ScreenshotPending=false; // one screenshot only per explicit F6 event
     // 87.383: a binary fingerprint from the compiled SDL game video TU.
     XM87376Reaper::diagnostic(
       "XM87.383 VIDEO_INIT_COMPILED sdl2_game_renderer=1\n");
