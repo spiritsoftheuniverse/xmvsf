@@ -8,6 +8,15 @@
 #include <cstring>
 int main(){
     using namespace XM87392;
+    // The original runtime report used the stock xmvsfu driver, with
+    // version4=1 but CpsXmvSixEnabled=0. The old 3v3-only gate meant
+    // every HUD element was always visible.
+    assert(eligible("xmvsfu",true));
+    assert(eligible("xmvsf",true));
+    assert(eligible("xmvsf3v3",true));
+    assert(!eligible("xmvsfu",false));
+    assert(!eligible("mvsc",true));
+    assert(!eligible(nullptr,true));
     Timeline t;
     t.observe(4,99,true);
     assert(t.step(99)==30u);
@@ -105,6 +114,6 @@ int main(){
     stunOverlay(overlay.data(),384*4,0u);
     for(int x=60;x<70;++x)
         assert(overlay[((std::size_t)45*384+x)*4+3]==0u);
-    std::printf("87.393 HUD shock tests PASS: timeline, object scope, Bayer reveal, Z restore, stun overlay\n");
+    std::printf("87.394 HUD shock tests PASS: timeline, object scope, Bayer reveal, Z restore, stun overlay\n");
     return 0;
 }
