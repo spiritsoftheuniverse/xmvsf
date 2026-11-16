@@ -1,6 +1,6 @@
 #ifndef XMVSF_STAGE87_392_HUD_SHOCK_H
 #define XMVSF_STAGE87_392_HUD_SHOCK_H
-// TEST 87.393: one read-only, game-frame HUD shock timeline for native OAM
+// TEST 87.394: one read-only, game-frame HUD shock timeline for native OAM
 // and the separate SDL stun bar. No ROM/RAM mutations or opaque screen masks.
 // 60 game frames per second: 210 hidden, 30 ordered-dither reveal.
 #include <cstddef>
@@ -31,13 +31,13 @@ struct Timeline {
             // Stage intro hides the HUD immediately; the 3.5-second
             // interval does NOT run before FIGHT/combat actually starts.
             armed=true;combatStarted=false;
-            std::fprintf(stderr,"XM87.393 HUD_SHOCK_HIDE intro=%u\n",frame);
+            std::fprintf(stderr,"XM87.394 HUD_SHOCK_HIDE intro=%u\n",frame);
         }else if(phase==8 && (!combatStarted || !armed)){
             // This is the real game start, not the preceding stage/VS intro.
             // A direct phase-8 entry also works without a preceding phase 6.
             start=frame;armed=true;combatStarted=true;
             std::fprintf(stderr,
-                "XM87.393 HUD_SHOCK_COMBAT frame=%u hide=%u reveal=%u\n",
+                "XM87.394 HUD_SHOCK_COMBAT frame=%u hide=%u reveal=%u\n",
                 frame,DelayFrames,RevealFrames);
         }else if(phase!=6 && phase!=8){
             armed=false;combatStarted=false;
