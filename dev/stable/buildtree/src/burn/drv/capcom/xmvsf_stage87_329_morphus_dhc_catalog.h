@@ -13,7 +13,9 @@
 namespace XM87329Morphus {
 enum Review { UNKNOWN_MOTION=0, POSSIBLE=1, NOT_REGISTERED=2,
               NO_HYPER=3, AIR_ONLY=4, CONDITIONAL=5, POSSIBLE_THROW=6 };
-struct Row { std::uint8_t hyper[7]; std::uint8_t air, conditional, throwing; };
+// 87.374: avoid the Windows SDK's 'hyper' macro when the catalog is
+// included by SDL translation units. This is a member name only.
+struct Row { std::uint8_t hyperD6[7]; std::uint8_t air, conditional, throwing; };
 static inline const Row* rows() {
     static const Row a[] = {
         {{0x08,0,0x06,0,0,0,0},0,0,0}, // 00 Wolverine
@@ -56,7 +58,7 @@ static inline Review review(unsigned fighter, unsigned ownerMotion) {
     if (col<0) return UNKNOWN_MOTION;
     if (fighter>0x24u || (fighter&1u)) return NOT_REGISTERED;
     const Row& r=rows()[fighter/2u];
-    if (!r.hyper[col]) return NO_HYPER;
+    if (!r.hyperD6[col]) return NO_HYPER;
     if (r.air & (1u<<col)) return AIR_ONLY;
     if (r.conditional & (1u<<col)) return CONDITIONAL;
     if (r.throwing & (1u<<col)) return POSSIBLE_THROW;

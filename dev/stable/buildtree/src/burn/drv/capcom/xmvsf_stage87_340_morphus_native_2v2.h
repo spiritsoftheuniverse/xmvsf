@@ -21,16 +21,18 @@ static inline const Motion* motions(){
  {3,{1,4,5,0,0}}, {5,{1,5,4,6,2}}, {5,{2,6,4,5,1}},
  {3,{4,0x80,4,0,0}}, {3,{2,6,4,0,0}}};return m; // motion 8: F,DF,D
 }
-// 87.360: native DHC follows the ORIGINAL ROM Hyper lifecycle instead
-// of an animation-script substage or a fabricated frame allowance.
-// A native Super is still running while its controller is 2A and its
-// native action is 2C/2E with an actual nonzero original D6. These
-// exact engine-owned fields naturally end on the original super exit.
-static inline bool nativeHyperActive(unsigned mode,unsigned action,
-                                      unsigned originalD6){
+// 87.373: 2A/2C is not a native Hyper certificate. Normal specials
+// frequently have mode 2A, action 2Cxx and nonzero D6. The original
+// outgoing fighter must own a registered Hyper D6 as well as remain in
+// the original 2C/2E action family. This is roster-wide, no special-move
+// blacklist, fixed timer or character-specific override. The shared
+// registry also contains genuine 2C-family Hypers (Cyclops/Storm/etc.).
+static inline bool nativeHyperActive(unsigned fighter,unsigned mode,
+                                      unsigned action,unsigned originalD6){
  const unsigned a=action&0xFF00u;
- return (mode&0xFF00u)==0x2A00u && originalD6!=0u &&
-        (a==0x2C00u || a==0x2E00u);
+ return (mode&0xFF00u)==0x2A00u &&
+        (a==0x2C00u || a==0x2E00u) &&
+        XM87334Native::registeredHyperD6(fighter,originalD6);
 }
 // 87.343: close-range original WORLD X for the incoming native Hyper.
 // Both sides read the SAME live opponent actor +$0C from original RAM.

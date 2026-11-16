@@ -12,7 +12,6 @@ extern int buttons [4][8];
 
 static bool usesStreetFighterLayout()
 {
-   int fireButtons = 0;
    bool Volume = false;
    struct BurnInputInfo bii;
 
@@ -31,19 +30,8 @@ static bool usesStreetFighterLayout()
       bool bPlayerInName = (bii.szName[0] == 'P' && bii.szName[1] >= '1' && bii.szName[1] <= '4');
 
       if (bPlayerInInfo || bPlayerInName) {
-         INT32 nPlayer = 0;
-
-         if (bPlayerInName) {
-            nPlayer = bii.szName[1] - '1';
-         }
-         if (bPlayerInInfo && nPlayer == 0) {
-            nPlayer = bii.szInfo[1] - '1';
-         }
-         if (nPlayer == 0) {
-            if (strncmp(" fire", bii.szInfo + 2, 5) == 0) {
-               fireButtons++;
-            }
-         }
+         // P1 fire-button counting was unused. The active layout decision
+         // remains based on FBNeo's existing nFireButtons and Volume gate.
          if ((strncmp("Volume", bii.szName, 6) == 0) && (strncmp(" fire", bii.szInfo + 2, 5) == 0)) {
             Volume = true;
          }
@@ -166,7 +154,7 @@ static void GameInpConfigOne(int nPlayer, int nPcDev, int nAnalog, struct GameIn
 	MapJoystick(pgi, szi, nPlayer, nPcDev);
 }
 
-static int GameInpConfig(int nPlayer, int nPcDev, int nAnalog)
+[[maybe_unused]] static int GameInpConfig(int nPlayer, int nPcDev, int nAnalog)
 {
    struct GameInp* pgi = NULL;
    unsigned int i;

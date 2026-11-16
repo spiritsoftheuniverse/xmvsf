@@ -87,6 +87,28 @@ static inline const Command* commands(unsigned* count=nullptr) {
     if(count)*count=unsigned(sizeof(a)/sizeof(a[0]));
     return a;
 }
+// 87.373: outgoing native DHC Hyper qualification must consult the same
+// character-owned Hyper IDs used for incoming commands. Mode 2A with an
+// action in family 2C is not enough: ordinary specials such as a Tatsumaki
+// or Shoryuken also use those fields and have nonzero D6.
+// Union the native-input command list and Morphus' other registered Hyper
+// slots (including air/charge Hypers absent from native-input matching).
+// The European table is an existing supported-DHC registry, not an
+// assertion that any action using the same D6 is itself a Hyper.
+static inline bool registeredHyperD6(unsigned fighter,unsigned d6){
+    if(fighter>0x24u || (fighter&1u) || !d6 || d6>0xFFu)return false;
+    unsigned count=0u;
+    const Command* native=commands(&count);
+    for(unsigned i=0u;i<count;++i){
+        if(native[i].fighter==fighter && native[i].hyperD6==d6)
+            return true;
+    }
+    const XM87329Morphus::Row& row=XM87329Morphus::rows()[fighter/2u];
+    for(unsigned slot=0u;slot<7u;++slot){
+        if(row.hyperD6[slot]==d6)return true;
+    }
+    return false;
+}
 // 87.341: exact ORIGINAL incoming command -> +D6 lookup.
 // Unlike the earlier experimental resolve(), this NEVER falls back to
 // Morphus' DHC-assigned alternate motions. The button family is part of
@@ -164,7 +186,7 @@ static inline Decision resolve(unsigned incoming,unsigned ownerMotion,
     const int column=XM87329Morphus::columnFromOwnerMotion(ownerMotion);
     if(column>=0){
         const auto& row=XM87329Morphus::rows()[incoming/2u];
-        const unsigned selected=row.hyper[unsigned(column)];
+        const unsigned selected=row.hyperD6[unsigned(column)];
         if(selected){
             if(row.air&(1u<<unsigned(column))){
                 d.reason=AIR_ONLY;return d;

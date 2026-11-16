@@ -202,10 +202,12 @@ struct State {
                    // otherwise genuine original Super at the tag hook.
                    XM87142::ramB(ram,p+0xD6u)!=claim.outgoingD6)
                     return;
+                // 87.374: enum constants come from separate namespaces;
+                // convert to the same unsigned address type before adding.
                 m68k_set_reg(M68K_REG_PC,
-                    XM87335Guest::kGuestBase+
-                    (side?XM87340Donor::kExitOffsetP2:
-                          XM87340Donor::kExitOffsetP1));
+                    unsigned(XM87335Guest::kGuestBase)+
+                    (side?unsigned(XM87340Donor::kExitOffsetP2):
+                          unsigned(XM87340Donor::kExitOffsetP1)));
                 claim.phase=XM87340Donor::CHAIN_ENTERED;
                 claim.enteredAt=installedAt;
                 XM87274Unified::state().event(installedAt,side,

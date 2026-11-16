@@ -5,7 +5,7 @@
 set -euo pipefail
 BUILD_WALL_START=$SECONDS
 # Batch sets the version once at launch, before native compilation begins.
-XMVSF_BUILD_VERSION="${XMVSF_TEST_VERSION:-87.362}"
+XMVSF_BUILD_VERSION="${XMVSF_TEST_VERSION:-87.391}"
 XMVSF_BUILD_TAG="${XMVSF_BUILD_VERSION//./_}"
 PROJECT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
@@ -68,6 +68,24 @@ if [[ -s "$GUILE_PSD" ]]; then
   fi
 fi
 
+
+# Reaper Sigma's authored PSD contains 19 literal animation layers.
+# Extract lossless PNGs with the same stdlib PSD decoder used by Guile,
+# without Photoshop, external packages or touching the warm object cache.
+# Only the Sigma stage loads these assets. Extraction itself is SHA-cached.
+REAPER_SIGMA_PSD="$PROJECT/_art/sigmastage/reapersigma.psd"
+if [[ -s "$REAPER_SIGMA_PSD" ]]; then
+  if command -v python3 >/dev/null 2>&1; then
+    python3 "$PROJECT/tools/extract_reaper_sigma.py"
+  elif command -v python >/dev/null 2>&1; then
+    python "$PROJECT/tools/extract_reaper_sigma.py"
+  elif command -v py >/dev/null 2>&1; then
+    py -3 "$PROJECT/tools/extract_reaper_sigma.py"
+  else
+    echo "ERROR: Python 3 required for Reaper Sigma PSD extraction." >&2
+    exit 1
+  fi
+fi
 
 # Ryu PSD extraction is source-hash cached (no rebuild or clean when
 # the PSD did not change). Layer rectangles outside 768x471 survive verbatim.
@@ -593,7 +611,24 @@ if [[ "${XMVSF_WARM_MENU_SINGLE_PASS:-1}" == 1 &&
     fi
   fi
 fi
-if (( WARM_MENU_PASS )); then
+# 87.391: skip the huge two-pass dependency generation only when the
+# cached FULL native graph is complete. Still run GNU Make pass-2 which
+# remakes stale GCC .d files and recompiles changed C/C++ translation units.
+FAST_NATIVE_GRAPH=0
+if [[ -s "$PROJECT/dev/dhc/FAST_NATIVE_DEPENDS_365.sh" ]]; then
+  source "$PROJECT/dev/dhc/FAST_NATIVE_DEPENDS_365.sh"
+  if xm365_fast_native_dep_eligible "$PROJECT" "$TREE" "$CACHE_DIR" \
+       "$SUCCESS_STATE" "$compiler_identity" "$CACHE_SIGNATURE_UNCHANGED" \
+       "${#REPAIR_NATIVE[@]}"; then
+    FAST_NATIVE_GRAPH=1
+  fi
+fi
+if (( FAST_NATIVE_GRAPH )); then
+  echo "BUILD MODE: cached native graph, one full dependency-aware Make pass."
+  MAKELEVEL=2 make -f makefile.sdl2 LSB_FIRST=1 INCLUDE_7Z_SUPPORT=1 DEPEND=1 \
+    "XMVSF_BUILD_SIGNATURE=../../../test/build_cache/compiler.signature" \
+    "${MAKE_COMPILER[@]}" -j"${XMVSF_BUILD_JOBS:-12}" all
+elif (( WARM_MENU_PASS )); then
   # The ordinary pass-2 still constructs FBNeo's full Make wildcard/vpath
   # graph. Reuse the linker-map object's EXACT ordered list instead, and
   # include only the four SDL .d files affected by menu/boot/audio edits.
@@ -733,6 +768,13 @@ echo "BUILD CACHE SUMMARY: rebuilt $rebuilt of $object_count local objects; reus
 echo "BUILD CACHE INVENTORY: $OBJECT_INVENTORY"
 echo "BUILD CACHE REBUILT FILES: $REBUILT_LIST"
 echo "BUILD CACHE LAST SUCCESS: $SUCCESS_STATE"
+# Only snapshot the native .d inventory AFTER a successful native
+# compile, executable hash verification and TEST-only publication.
+if declare -F xm365_record_native_dep_graph >/dev/null 2>&1; then
+  if ! xm365_record_native_dep_graph "$TREE" "$CACHE_DIR"; then
+    echo "BUILD CACHE: optional dependency inventory write failed; TEST remains successful."
+  fi
+fi
 if (( ${#REPAIR_NATIVE[@]} )); then
   # Only seal the repair after native build, link and TEST publication.
   printf 'repaired_source_revision=%s\n' "$(git -C "$PROJECT" rev-parse HEAD 2>/dev/null || true)" > "$REPAIR_MARK"

@@ -544,7 +544,7 @@ static void xm13SetDefaultButtons(XM13_Player* p,int device){
     }
     if(gc)SDL_GameControllerClose(gc);
 }
-static int xm13AssignKeyboard(XM13_Settings* settings,int player){
+static inline int xm13AssignKeyboard(XM13_Settings* settings,int player){
     if(!settings || player<0 || player>1)return 0;
     XM13_Settings updated=*settings;
     XM13_Player* p=&updated.player[player];
@@ -577,7 +577,7 @@ static int xm13AssignKeyboard(XM13_Settings* settings,int player){
     *settings=updated;
     return 1;
 }
-static int xm13Assign(XM13_Settings* settings,int player,int device){
+static inline int xm13Assign(XM13_Settings* settings,int player,int device){
     if(!settings || player<0 || player>1 || device<0 ||
        device>=SDL_NumJoysticks())return 0;
     const XM13_Player wanted=xm13IdentityForDevice(device);
@@ -746,7 +746,7 @@ static inline int xm249DefaultGameAction(SDL_GameController* pad,
     return fallback[action]<SDL_JoystickNumButtons(joy) &&
            SDL_JoystickGetButton(joy,fallback[action])!=0;
 }
-static int xm13ReadInput(const XM13_Settings* s,int player,int sub,
+static inline int xm13ReadInput(const XM13_Settings* s,int player,int sub,
                          SDL_Joystick** raw,SDL_GameController** gc,int count){
     if(xm24ResultInputCapture)return 0;
     if(xm25InputHandoffBlock())return 0;

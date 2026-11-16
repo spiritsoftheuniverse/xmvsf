@@ -41,7 +41,7 @@ static int XM20SoundInit() {
     memset(nAudNextSound,0,nAudSegLen*4);
     xm20NextSound=xm20Silence;
     DspInit();
-    xm20MenuStart(); // no extra device; same sink already used by menu
+    xm20::start(); // preserve active selection/VS ownership; never rearm menu BGM
     fprintf(stderr,"XM20 sound init: %d Hz, %d samples per emulated frame\n",nAudSampleRate[0],nAudSegLen);
     return 0;
 }

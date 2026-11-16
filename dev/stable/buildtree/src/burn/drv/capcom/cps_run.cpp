@@ -44,6 +44,10 @@
 #include "xmvsf_stage87_119_cyclops_recovery_probe.h" // XM87.119 read-only recovery state trace
 #include "xmvsf_stage87_121_cyclops_release.h" // XM87.121 restore recorded airborne state after throw
 #include "xmvsf_stage87_220_zero_dash_startup.h" // TEST 87.220 native dash startup countdown
+#include "xmvsf_stage87_370_akuma_air_super_startup.h" // 87.372 Akuma air charge hold shortened, ground retained
+#include "xmvsf_stage87_375_akuma_teleport_recovery.h" // 87.375 native Akuma teleport recovery to one frame
+#include "xmvsf_stage87_385_akuma_tatsu.h" // 87.385 native QCF+K hit velocity and 3f landing
+#include "xmvsf_stage87_386_akuma_air_fireball_arc.h" // 87.386 non-superjump air fireball retains native jump arc
 extern int xm14TrainingMode; // native SDL Training mode selection
 extern int xm87102DamageMode; // XM87.102 Training damage option
 #include <cstdio> // XM86.34 first native CPS2 frame tracing
@@ -648,7 +652,7 @@ INT32 Cps2Frame()
             // 68000 handoff are checked independently before swapping.
             const unsigned superAction=sample.action&0xFF00u;
             const bool hyper=XM87340Donor::nativeHyperActive(
-                sample.mode,sample.action,sample.d6);
+                who,sample.mode,sample.action,sample.d6);
             const bool currentWindow=hyper;
             const bool eligible=currentWindow &&
                 XM87142::ramB(CpsRamFF,p+0x03u) &&
@@ -678,6 +682,18 @@ INT32 Cps2Frame()
                 XM87334Native::qualifiedChord(chord);
             const bool newChord=nativeChord && (freshButtons&chord);
             const unsigned oldHidden=st.hidden;
+            // 87.373: record rejected normal-special DHC chord attempts
+            // once per fresh button chord. Source still belongs entirely
+            // to the original ROM; neither input nor actor RAM is altered.
+            if(newChord && !hyper && sample.d6!=0u &&
+               (sample.mode&0xFF00u)==0x2A00u &&
+               (superAction==0x2C00u || superAction==0x2E00u)){
+                char blocked[180];
+                std::snprintf(blocked,sizeof(blocked),
+                    "NATIVE_373_NON_HYPER_D6_REJECT point=%02X reserve=%02X action=%04X mode=%04X d6=%02X chord=%02X",
+                    who,bench,sample.action,sample.mode,sample.d6,chord);
+                XM87274Unified::state().event(now,side,blocked);
+            }
             // 87.360: bounded diagnostics for late Hyper button edges.
             // This reports why a native cue can/cannot DHC, without
             // scanning directions or interfering with normal play.
@@ -1263,6 +1279,12 @@ INT32 Cps2Frame()
                 (unsigned)Cpi01A,(unsigned)Cpi01C,(unsigned)Cpi01E);
     };
     xm87180Sample("BEFORE_CPU");
+    // 87.372: shorten only air 2E06's charge-pose hold; keep ground 2E02
+    // timing from 87.371. Do not bypass native action/meter/projectile logic.
+    if(!bBurnRunAheadFrame && CpsRamFF)
+        XM87370Akuma::beforeCpu(CpsRamFF,CpsRom,(unsigned)nCpsRomLen,
+            (unsigned)GetCurrentFrame(),BurnDrvGetTextA(DRV_NAME),
+            xm262V4,false);
     // 87.224: executed 68000 PC / victim reaction+velocity deltas while
     // Charlie's actual 1804/1A04 is running. Read-only and bounded to
     // 32 CPU frames per move; wrap (never replace) the older DHC callback.
@@ -1385,6 +1407,27 @@ INT32 Cps2Frame()
     XM87182PC::state().end();
 
 	SekClose();
+    // 87.375: on entering the original Akuma 2C3A teleport recovery
+    // tail, shorten only its native animation countdown. This runs after
+    // ROM movement has completed and before the next CPU frame.
+    XM87375Teleport::afterCpu(CpsRamFF,CpsRom,(unsigned)nCpsRomLen,
+        (unsigned)GetCurrentFrame(),BurnDrvGetTextA(DRV_NAME),
+        xm262V4,bBurnRunAheadFrame);
+    // Akuma 2C40/42/44: adjust only the connected victim's Y impulse
+    // and the native 2C46/48/4A landing recovery. No ROM action bypass.
+    XM87385Tatsu::state().afterCpu(CpsRamFF,CpsRom,(unsigned)nCpsRomLen,
+        (unsigned)GetCurrentFrame(),BurnDrvGetTextA(DRV_NAME),
+        xm262V4,bBurnRunAheadFrame);
+    // 87.386: preserve normal-jump X/Y velocity during Akuma air
+    // fireball; superjump and unknown launch histories retain hover.
+    // Native ROM owns position, animation, projectile and landing.
+    XM87386AirArc::state().afterCpu(CpsRamFF,CpsRom,(unsigned)nCpsRomLen,
+        (unsigned)GetCurrentFrame(),BurnDrvGetTextA(DRV_NAME),
+        xm262V4,bBurnRunAheadFrame);
+    // Read only: report the actual ROM-controlled attack-step timing after
+    // the 87.372 air charge timer has completed this CPU frame.
+    if(!bBurnRunAheadFrame && CpsRamFF)
+        XM87370Akuma::afterCpu(CpsRamFF,(unsigned)GetCurrentFrame());
     // Live CPS-2 driver controls, not RAM-inferred move-strength labels.
     // P1: CpsInp001[4:6] punches, CpsInp011[0:2] kicks.
     // P2: CpsInp000[4:6] punches, CpsInp011[4:5] kicks, CpsInp020[6] HK.

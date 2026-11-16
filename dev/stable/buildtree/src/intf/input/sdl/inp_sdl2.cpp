@@ -813,7 +813,6 @@ int SDLinpState(int nCode)
 {
     extern bool xm258ArcadeMenuOpen;
     extern int xm14TrainingMode;
-    extern int xm24VersusMode;
     if(xm258ArcadeMenuOpen)return 0; // Arcade menu captures all gameplay inputs.
     if(!xm14TrainingMode){
         // Coin belongs to the Arcade or Versus overlay (both use the same key).

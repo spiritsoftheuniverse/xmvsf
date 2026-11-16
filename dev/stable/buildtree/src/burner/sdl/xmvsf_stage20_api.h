@@ -16,8 +16,9 @@ void xm20FDPrepare(); // async Vorbis decode on Final Destination stage highligh
 void xm20GuilePrepare(); // preload single Guile Stage Vorbis loop
 void xm20SigmaPrepare(); // preload single Sigma Stage Vorbis loop
 void xm20AkumaPrepare();
-void xm20RyuPrepare(); // cached async Ryu Stage Vorbis loop // preload single Akuma Stage Vorbis loop
-void xm20CustomStagePhase(int selectedStage,int nativeStatus); // 0=native 2=FD 3=Guile 4=Sigma 5=Akuma
+void xm20RyuPrepare(); // cached async Ryu Stage Vorbis loop
+void xm20BoomerPrepare(); // preloads boomer01 intro and boomer02 loop
+void xm20CustomStagePhase(int selectedStage,int nativeStatus); // 0=native, 2=FD, 3=Guile, 4=Sigma, 5=Akuma, 6=Ryu, 7=Boomer
 void xm20MeterCharged(int player); // XM87.118 per-stock event
 void xm20MenuEnterGame();
 void xm20OnCombat();

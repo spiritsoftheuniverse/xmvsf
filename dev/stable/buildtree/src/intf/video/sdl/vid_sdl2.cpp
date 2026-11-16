@@ -63,6 +63,7 @@ static SDL_Rect dstrect;
 #include "xmvsf_stage87_314_sigma.h" // authored Sigma PNG, delayed warm glow
 #include "xmvsf_stage87_317_akuma.h"
 #include "xmvsf_stage87_323_ryu.h" // Ryu PSD exact-coordinate stage // native camera Akuma A/B dither / parallax
+#include "xmvsf_stage87_363_boomer_kuwanger.h" // tiled B/C elevator + stage A
 // Shared menu-to-video preload bridge: no SDL texture calls from the worker.
 void xmFDPreloadSetActive(bool enabled){
  XMFDVideo::preload().setEnabled(enabled);
@@ -198,6 +199,7 @@ static int Exit()
     XMSigma::cleanup(); // Sigma base art and cached glow-mask textures.
     XMAkuma::cleanup(); // Akuma A/B PNG pairs and fighter layers.
     XMRyu::cleanup(); // Ryu PSD scenery and native sprite capture.
+    XMBoomer::cleanup(); // Boomer elevator scenery and native sprite cache.
     xm8649VideoCleanup(); // XM86.49 release textures before renderer destruction
     if(xm8733Texture){SDL_DestroyTexture(xm8733Texture);xm8733Texture=NULL;}
     if(xm87217FloatTexture){
@@ -318,6 +320,9 @@ static void xmvsfStage12VideoLog(const char* message)
 
 static int Init()
 {
+    // 87.383: a binary fingerprint from the compiled SDL game video TU.
+    XM87376Reaper::diagnostic(
+      "XM87.383 VIDEO_INIT_COMPILED sdl2_game_renderer=1\n");
     if(!xm87132CleanStableVideo()) { FILE* log = fopen("xmvsf_stage12_video.log", "w");
       if (log) { fputs("STAGE12_VIDEO_INIT\n", log); fclose(log); } }
 
@@ -793,7 +798,27 @@ static int Paint(int bValidate)
     // 64 blank framebuffer rows. Read-only diagnostics identify any DF offset.
     SDL_Rect xm87127View=dstrect;
     XM87206Crash::mark(420,nFramesEmulated);
-	const bool xm8649Painted=XMRyu::paint(sdlRenderer,xm87127View) ||
+	// 87.383: paint routing marker BEFORE any painter can short-circuit.
+    static int lastStage=-100;
+    static unsigned lastStageGeneration=~0u,lastStageFrame=~0u;
+    const unsigned stageFrame=(unsigned)xm8649Visual.frames;
+    const unsigned stageGeneration=xm77StageRollGeneration();
+    if(lastStage!=xm77StageResolved ||
+       lastStageGeneration!=stageGeneration ||
+       (xm77StageResolved==4 &&
+        (lastStageFrame==~0u || stageFrame<lastStageFrame ||
+         stageFrame-lastStageFrame>=180u))){
+      lastStage=xm77StageResolved;lastStageGeneration=stageGeneration;
+      lastStageFrame=stageFrame;
+      XM87376Reaper::diagnostic(
+        "XM87.383 VIDEO_STAGE_ROUTE resolved=%d choice=%d gen=%u "
+        "frame=%u nativeActive=%d nativeStage=%u spriteValid=%d\n",
+        xm77StageResolved,xm77StageChoice,stageGeneration,stageFrame,
+        int(xm8649Visual.sceneActive),xm8649Visual.stage,
+        int(xm77SpriteValid));
+    }
+    const bool xm8649Painted=XMBoomer::paint(sdlRenderer,xm87127View) ||
+                               XMRyu::paint(sdlRenderer,xm87127View) ||
                               XMAkuma::paint(sdlRenderer,xm87127View) ||
                              XMSigma::paint(sdlRenderer,xm87127View) ||
                              XMGuile::paint(sdlRenderer,xm87127View) ||

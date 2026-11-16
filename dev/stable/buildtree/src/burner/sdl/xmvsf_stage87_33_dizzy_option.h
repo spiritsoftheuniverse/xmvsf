@@ -16,8 +16,12 @@ inline void xm8733DizzyLoad(){
     const char* prior=std::getenv("XM8733_DIZZY_BAR");
     if(prior && prior[0]=='0' && prior[1]=='\0')xm8733DizzyEnabled()=false;
     FILE* f=std::fopen("config/games/xmvsfu_dizzy_bar.ini","rb");
-    if(f){int flag=-1; if(std::fscanf(f,"dizzy_bar=%d",&flag)==1 && (flag==0||flag==1))
-        xm8733DizzyEnabled()=(flag==1);std::fclose(f);}
+    if(f){
+        int flag=-1;
+        if(std::fscanf(f,"dizzy_bar=%d",&flag)==1 && (flag==0||flag==1))
+            xm8733DizzyEnabled()=(flag==1);
+        std::fclose(f);
+    }
     xm8733DizzyApply();
 }
 inline void xm8733DizzyToggle(){

@@ -4,6 +4,7 @@
 // Original native stage 05 still owns the camera, collision and sprites.
 // Three masks are created ONCE per renderer: no video decoding, per-frame
 // texture uploads, palette writes, extra audio output, or per-pixel CPU work.
+#include "xmvsf_stage87_376_sigma_reaper.h" // PSD Reaper Sigma stage actor
 #include <SDL.h>
 #include <SDL_image.h>
 #include <algorithm>
@@ -134,7 +135,9 @@ struct Scene {
   SDL_Surface* w=SDL_CreateRGBSurfaceWithFormat(0,imageW,imageH,32,SDL_PIXELFORMAT_RGBA32);
   SDL_Surface* b=SDL_CreateRGBSurfaceWithFormat(0,imageW,imageH,32,SDL_PIXELFORMAT_RGBA32);
   if(!o||!w||!b){
-   if(o)SDL_FreeSurface(o);if(w)SDL_FreeSurface(w);if(b)SDL_FreeSurface(b);
+   if(o)SDL_FreeSurface(o);
+   if(w)SDL_FreeSurface(w);
+   if(b)SDL_FreeSurface(b);
    SDL_FreeSurface(image);failed=true;failedGeneration=xm77StageRollGeneration();return false;
   }
   SDL_FillRect(o,nullptr,SDL_MapRGBA(o->format,0,0,0,0));
@@ -240,9 +243,33 @@ struct Scene {
  }
 };
 static inline Scene& scene(){static Scene s;return s;}
-static inline void cleanup(){scene().close();}
+static inline void cleanup(){
+ XM87376Reaper::cleanup();
+ scene().close();
+}
 static inline bool paint(SDL_Renderer* render,const SDL_Rect& view){
  if(xm77StageResolved!=4)return false;
+ // 87.383: diagnose Sigma painter before native scene and sprite gating.
+ static unsigned lastGateFrame=~0u, lastGateGeneration=~0u;
+ static int lastGateMask=-1;
+ const unsigned gateFrame=(unsigned)xm8649Visual.frames;
+ const unsigned gateGeneration=xm77StageRollGeneration();
+ const int gateMask=int(xm8649Visual.sceneActive) |
+     (int(xm8649Visual.stage==5)<<1) | (int(xm77SpriteValid)<<2);
+ if(lastGateFrame==~0u || gateFrame<lastGateFrame ||
+    gateGeneration!=lastGateGeneration || gateMask!=lastGateMask ||
+    gateFrame-lastGateFrame>=180u){
+  lastGateFrame=gateFrame;lastGateGeneration=gateGeneration;
+  lastGateMask=gateMask;
+  XM87376Reaper::diagnostic(
+   "XM87.383 SIGMA_PAINTER_ENTRY choice=%d resolved=%d gen=%u "
+   "active=%d stage=%u status=%u spriteValid=%d sprite=%dx%d "
+   "camera=%d,%d frame=%u\n",
+   xm77StageChoice,xm77StageResolved,gateGeneration,
+   int(xm8649Visual.sceneActive),xm8649Visual.stage,xm8649Visual.status,
+   int(xm77SpriteValid),xm77SpriteWidth,xm77SpriteHeight,
+   xm8649Visual.nativeCameraX,xm8649Visual.nativeCameraY,gateFrame);
+ }
  // Once per stage-session diagnostic pinpoints a missing native camera
  // gate, sprite capture or disk art without flooding the render loop.
  static unsigned loggedGeneration=~0u;
@@ -263,9 +290,26 @@ static inline bool paint(SDL_Renderer* render,const SDL_Rect& view){
  }
  if(!nativeGate||!spriteGate)return false;
  Scene& s=scene();
- if(!s.load(render))return false;
- if(SDL_UpdateTexture(s.fighters,nullptr,xm77SpritePixels(),W*4)!=0)
+ if(!s.load(render)){
+  static unsigned lastMissing=~0u;
+  if(lastMissing!=generation){
+   lastMissing=generation;
+   XM87376Reaper::diagnostic(
+     "XM87.383 SIGMA_BACKGROUND_LOAD_FAILED gen=%u SDL=%s\n",
+     generation,SDL_GetError());
+  }
   return false;
+ }
+ if(SDL_UpdateTexture(s.fighters,nullptr,xm77SpritePixels(),W*4)!=0){
+  static unsigned lastTexture=~0u;
+  if(lastTexture!=generation){
+   lastTexture=generation;
+   XM87376Reaper::diagnostic(
+     "XM87.383 SIGMA_NATIVE_TEXTURE_FAILED gen=%u SDL=%s\n",
+     generation,SDL_GetError());
+  }
+  return false;
+ }
  const unsigned char* nativeFlash=xm8757FlashPixels();
  if(nativeFlash&&SDL_UpdateTexture(s.flash,nullptr,nativeFlash,W*4)!=0)
   nativeFlash=nullptr;
@@ -303,7 +347,31 @@ static inline bool paint(SDL_Renderer* render,const SDL_Rect& view){
  if(good)good=SDL_RenderCopy(render,s.orange,nullptr,&dst)==0;
  if(good)good=SDL_RenderCopy(render,s.white,nullptr,&dst)==0;
  if(good)good=SDL_RenderCopy(render,s.warm,nullptr,&dst)==0;
+ if(!good){
+  static unsigned lastBackgroundDraw=~0u;
+  if(lastBackgroundDraw!=generation){
+   lastBackgroundDraw=generation;
+   XM87376Reaper::diagnostic(
+     "XM87.383 SIGMA_BACKGROUND_RENDER_FAILED gen=%u SDL=%s\n",
+     generation,SDL_GetError());
+  }
+ }
  if(good){
+  // 87.376: independent art actor between background effects and native
+  // fighters. Missing PSD exports do not obscure original Sigma stage.
+  // This painter ticks only when game frame advances; SDL redraws are
+  // presentation-only and do not advance his animation or random choices.
+  const bool actorDrawn=XM87376Reaper::actor().paint(
+      render,view,generation,(unsigned)xm8649Visual.frames,camera,cameraY);
+  static unsigned actorReportGeneration=~0u;
+  if(actorReportGeneration!=generation){
+   actorReportGeneration=generation;
+   XM87376Reaper::diagnostic(
+     "XM87.383 SIGMA_REAPER_DRAW gen=%u success=%d loaded=%d "
+     "failed=%d stageFrame=%u\n",
+     generation,int(actorDrawn),int(XM87376Reaper::actor().loaded),
+     int(XM87376Reaper::actor().failed),(unsigned)xm8649Visual.frames);
+  }
   xm8733Overlay(render,view); // existing native stun bar depth
   good=SDL_RenderCopy(render,s.fighters,nullptr,&view)==0;
   if(nativeFlash)good=SDL_RenderCopy(render,s.flash,nullptr,&view)==0 && good;

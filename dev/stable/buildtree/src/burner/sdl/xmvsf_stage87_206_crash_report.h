@@ -57,8 +57,12 @@ inline LONG WINAPI onUnhandled(EXCEPTION_POINTERS* error){
         typedef BOOL (WINAPI* DumpFn)(HANDLE,DWORD,HANDLE,MINIDUMP_TYPE,
             PMINIDUMP_EXCEPTION_INFORMATION,PMINIDUMP_USER_STREAM_INFORMATION,
             PMINIDUMP_CALLBACK_INFORMATION);
-        const DumpFn dump=reinterpret_cast<DumpFn>(
-            GetProcAddress(dll,"MiniDumpWriteDump"));
+        // The Win32 symbol address has a generic FARPROC signature;
+        // copy its pointer representation instead of a mismatched cast.
+        const FARPROC raw=GetProcAddress(dll,"MiniDumpWriteDump");
+        DumpFn dump=nullptr;
+        static_assert(sizeof(dump)==sizeof(raw),"Win32 function pointer size mismatch");
+        std::memcpy(&dump,&raw,sizeof(dump));
         if(dump){
             HANDLE file=CreateFileA("test\\87.230\\observer\\crash.dmp",GENERIC_WRITE,
                 FILE_SHARE_READ,nullptr,CREATE_ALWAYS,FILE_ATTRIBUTE_NORMAL,nullptr);
