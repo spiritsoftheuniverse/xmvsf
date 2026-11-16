@@ -16,6 +16,9 @@ Existing authored a.png, b.png and c.png remain unmodified.
 SDL_image's multi-frame GIF decoder loads each animation once into
 frame textures, using the GIF's per-frame delays converted to native
 60-Hz game frames. No GIF decoding or new texture creation per paint.
+Animated GIF loading requires SDL2_image 2.6 or newer; the build fails
+explicitly with an upgrade message if the system headers are older,
+rather than silently showing unchanged background sprites.
 
 ## Painter Z order
 
