@@ -1434,7 +1434,11 @@ if(!xm8725FighterObject && XM8725::Enabled() &&
             (xm8745LivePhase==6 || xm8745LivePhase==8) &&
             xm87392Step<XM87392::RevealFrames &&
             XM87392::object((unsigned)v,(unsigned)a&31u,(unsigned)n,
-                            x,y,(unsigned)bx,(unsigned)by,xm87392Portrait);
+                            x,y,(unsigned)bx,(unsigned)by,xm87392Portrait,
+                            xm8654KnownNativeScenery((unsigned)v,(unsigned)n,
+                                                   (unsigned)a&31u) ||
+                            xm8665ExtraScenery((unsigned)v,(unsigned)a&31u,
+                                                (unsigned)n));
 
 		// Take care with tiles if the sprite goes off the screen
 		if (x < 0 || y < 0 || x + (bx << 4) > (nCpsScreenWidth-1) || y + (by << 4) > (nCpsScreenHeight-1)) {
