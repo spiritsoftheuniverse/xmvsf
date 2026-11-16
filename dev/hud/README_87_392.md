@@ -1,57 +1,57 @@
-# TEST 87.397 — Faster audio-anchored HUD shock primer
+# TEST 87.398 — 2-second song primer, invisible HUD startup restored
 
-Branch: `feature/hud-shock-reveal`. Version 4 only; Version 3 unchanged.
+Branch: `feature/hud-shock-reveal`. Only Game Version 4. No Stable overwrite.
 
-## Evidence in 87.396.zip
+## User feedback and root cause
 
-The file includes F9 capture records and a separate live 68000 diagnostic
-trace. The latest F9 session is `replays/session_0002`, whose manifest
-contains a 127-frame recording beginning at a session checkpoint.
-That F9 manifest does not provide a synchronized first-audible VS song
-sample timestamp, and the M68K and F9 clocks should not be conflated.
+TEST 87.397 placed the white/blue primer closer to the desired replay mark.
+However, the HP/stun/HUD bars could be **already fully visible when the
+fight screen first appeared**. This was not a missing alpha mask: the clock
+was started correctly by the first actual WASAPI
+`versusscreen.ogg` PCM packet, but the 180-frame reveal delay elapsed
+during earlier Versus-screen phases. For safety after the 87.395 tree leak,
+source HUD masking is correctly disabled during phases **02/04**.
+That allowed the 30-frame reveal to finish before any valid fight HUD
+object could be concealed.
 
-The 68000 trace `xm87139_m68k_0001.tsv` shows the first native
-chooser-to-match setup change (`FF5104 WORD 0004 -> 0008`) at
-**frame 2126**. The combat probe `xm87139_probe_0001.tsv` first
-captures a native phase-08 combat frame at **2305**. Their separation is
-**179 emulated frames**, approximately three seconds.
+## Changes
 
-The previous 210-frame (3.5 s) delay begins on the first actual
-`versusscreen.ogg` audio PCM packet; while the audio packet may follow
-the chooser handoff by a few frames, the 210-frame hold can miss this
-observed pre-fight window and makes the materialization feel late.
+- Start time **unchanged**: the first actual Versus-song audio PCM event.
+- Delay reduced by **one second**, from 180 to **120 emulated frames**.
+- Dither/shock remains 30 game frames, white-hot side filaments through
+  source-HUD ink followed by blue and the exact original artwork.
+- New **fight-HUD first-frame guard**: when native status first becomes
+  **06/08** for a song-triggered match, remember that frame. The first six
+  fight-HUD frames are fully hidden. If the song's 120-frame delay has
+  *not* finished, the song clock remains authoritative. If it already
+  finished while the VS screen was showing, reveal immediately after
+  those six invisible combat-screen frames rather than popping in
+  already fully visible.
+- Native source-tile filtering remains strictly OFF in phase 02/04;
+  this preserves the forest/tree transition fix. No full-screen masks,
+  extra graphics over the VS song, or ROM writes.
+- The SDL stun bar follows the same computed timeline.
 
-## TEST 87.397 behavior
+### Clock rules
 
-- **Primer clock starts on the actual Versus track playback event**,
-  not on ROM phases 02/06/08, nor on the user's F9 input.
-- **Delay reduced to 180 emulated frames (3.0 s)**, a 30-frame shift
-  earlier than 87.396.
-- On the **first reveal frame** the two white-hot shine filaments
-  originate *within* the left/right portrait HUD artwork at x~23 and
-  x~360. They immediately light source HUD ink, including pixels
-  not yet selected by the Bayer threshold, creating a visible primer.
-- The existing 30-game-frame ordered dither and white-to-blue-to-native
-  shock sweep remain otherwise unchanged.
-- Phase 02/04 selector/Versus artwork is NEVER masked. Native HUD
-  pixel manipulation remains restricted to phase 06/08. The 87.395
-  exposed-forest regression remains fixed.
-- No added recorder controls, visual scene masks, gameplay edits,
-  sound-device restarts, GitHub Actions, or Stable overwrites.
+`firstRevealFrame = max(versusSongFrame + 120, firstFightHudFrame + 6)`
 
-## Local verification
+If no fight HUD is present yet, the timeline holds at invisible but only
+real phase-06/08 HUD pixels may be suppressed, so VS transition graphics
+stay unmodified.
 
-Run `BUILD_TEST.bat` and `RUN_TEST.bat`: both target **87.397**.
-The standalone regression runner
-`dev/hud/RUN_TEST_HUD_392.bat` retains its historical filename,
-but now checks the new **180+30** schedule and first-frame glint.
+The local regression `dev/hud/RUN_TEST_HUD_392.bat` checks both cases:
+when the song delay expires before the fight HUD appears, and when the
+fight HUD appears before the audio delay expires. It also tests that
+phase 02/04 never participate in native masking and that the first
+primer shine remains independent of the Bayer dither.
 
-Inspect `XM87.397 HUD_SHOCK_SONG_START` alongside the native
-`VERSUS_OGG_PLAY` diagnostic, then confirm the first visible
-white primer occurs around the chosen match-screen timing, and
-that the forest/Versus transition never exposes background.
-A later adjustment may be required if the F9 reference was in a
-different game-session clock domain.
+## Verification
 
-Source committed; a Windows native build and visual acceptance are
-still required locally.
+Use `BUILD_TEST.bat` and `RUN_TEST.bat`, targeting **TEST 87.398**.
+Look for `XM87.398 HUD_SHOCK_SONG_START` and
+`XM87.398 HUD_SHOCK_FIRST_FIGHT_HUD` in the local diagnostics to
+see the actual offset. Verify one complete hidden startup, the primer
+one second sooner, and no tree pixels during the Versus transition.
+
+Not compiled or visually accepted on Windows in this environment.
