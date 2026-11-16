@@ -137,6 +137,11 @@ inline int shineDistance(int x,int y,unsigned step){
     const int b=x>=right?x-right:right-x;
     return a<b?a:b;
 }
+// The leading white filament is a separate reveal mask: it briefly cuts
+// through the Bayer gaps while remaining restricted to actual HUD ink.
+inline bool shineCore(int x,int y,unsigned step){
+    return step>0u && step<RevealFrames && shineDistance(x,y,step)<=3;
+}
 inline unsigned clamp255(unsigned value){return value>255u?255u:value;}
 inline std::uint32_t shineRGB(std::uint32_t source,int x,int y,unsigned step){
     if(step==0u || step>=RevealFrames)return source;
@@ -201,10 +206,15 @@ struct Tile {
             std::uint8_t* dest=pixels+(std::size_t)py*pitch+px*4;
             std::uint32_t after=0u;
             std::memcpy(&after,dest,4);
-            if(!visible(px,py,step)){
+            // The specular filament reveals only real HUD ink even on
+            // Bayer-hidden coordinates; this is visibly distinct from the
+            // ordered dither and never draws across transparent scenery.
+            const bool ink=after!=before[index];
+            const bool reveal=visible(px,py,step) || (ink && shineCore(px,py,step));
+            if(!reveal){
                 std::memcpy(dest,&before[index],4);
                 if(depth && depthValid)depth[(std::size_t)py*sw+px]=zBefore[index];
-            }else if(after!=before[index]){
+            }else if(ink){
                 const std::uint32_t tinted=shineRGB(after,px,py,step);
                 std::memcpy(dest,&tinted,4);
             }
@@ -219,7 +229,9 @@ inline void stunOverlay(std::uint8_t* rgba,int pitch,unsigned step){
     for(int y=43;y<=54;++y)for(int x=0;x<384;++x){
         std::uint8_t* p=rgba+(std::size_t)y*pitch+x*4;
         if(!p[3])continue;
-        if(!visible(x,y,step)){p[3]=0;continue;}
+        if(!visible(x,y,step) && !shineCore(x,y,step)){
+            p[3]=0;continue;
+        }
         const std::uint32_t native=(std::uint32_t(p[0])<<16)|
                                    (std::uint32_t(p[1])<<8)|p[2];
         const std::uint32_t tinted=shineRGB(native,x,y,step);
