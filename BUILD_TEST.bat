@@ -85,6 +85,17 @@ if errorlevel 1 (
 )
 type "%BOOMER_MOTION_LOG%"
 type "%BOOMER_MOTION_LOG%" >>"%BUILDLOG%"
+REM 87.408: cheap compile-only metadata/catalog check; no image reads
+REM or extra native build/link work.
+set "STAGE_CATALOG_PREFLIGHT=%LOGDIR%\STAGE_CATALOG_408.log"
+"C:\msys64\ucrt64\bin\g++.exe" -std=c++17 -fsyntax-only "%PROJECT%\dev\boomer\tests\test_stage_catalog_408.cpp" >"%STAGE_CATALOG_PREFLIGHT%" 2>&1
+if errorlevel 1 (
+  type "%STAGE_CATALOG_PREFLIGHT%"
+  type "%STAGE_CATALOG_PREFLIGHT%" >>"%BUILDLOG%"
+  echo ERROR: Native stage catalog failed C++ preflight.
+  goto :fail
+)
+echo Stage screenshot catalog compile PASS.
 where bash.exe >nul 2>nul
 if errorlevel 1 (
   echo ERROR: MSYS2 bash.exe not found on PATH.
