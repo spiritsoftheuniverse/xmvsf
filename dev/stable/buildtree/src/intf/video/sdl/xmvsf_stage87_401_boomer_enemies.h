@@ -20,8 +20,6 @@
 namespace XMBoomerExtra {
 static constexpr int ScreenW=384, ScreenH=224;
 static constexpr int CenterCameraX=192;
-static constexpr int RotorMinX=XM87401Motion::RotorXMin;
-static constexpr int RotorMaxX=XM87401Motion::RotorXMax;
 static constexpr unsigned WallFramesPerPixel=XM87401Motion::NearFramesPerPixel;
 static constexpr unsigned RotorFramesPerPixel=XM87401Motion::RotorFramesPerPixel;
 static constexpr unsigned MaxShots=24u;
