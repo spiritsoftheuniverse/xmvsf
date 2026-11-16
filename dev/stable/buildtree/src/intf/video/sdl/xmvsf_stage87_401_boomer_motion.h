@@ -32,7 +32,7 @@ static inline bool horizontallySeparated(int aX,int aW,int bX,int bW,int gap){
 }
 // Central vertical third of the native screen, measured at the
 // Triblaster's sprite center. An upward cycle may begin only here.
-static constexpr int UpwardCenterMin=StageScreenW*0 + 75;
+static constexpr int UpwardCenterMin=75;
 static constexpr int UpwardCenterMax=149;
 static inline bool inMiddleVerticalBand(int gunTopY,int gunHeight){
     const int center=gunTopY+gunHeight/2;
