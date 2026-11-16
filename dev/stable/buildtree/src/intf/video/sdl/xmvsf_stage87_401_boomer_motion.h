@@ -9,7 +9,7 @@ static constexpr unsigned ProjectileFramesPerPixel=1u;
 // 87.405: rotors may enter anywhere across the full current 384px stage
 // view, not just the old 150..220px cluster.
 static constexpr int RotorScreenMargin=8;
-static constexpr int RotorMinSeparation=96; // minimum top-left X separation
+static constexpr int RotorMinSeparation=88; // minimum top-left X separation
 static constexpr int RotorGunGap=38; // clear empty space between both sprites
 // 87.405: per-side corrections to 87.404 world-corner placement.
 // Mirrored left moves 2px left: at camX=0, screen X=104.
