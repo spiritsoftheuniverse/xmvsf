@@ -1,15 +1,17 @@
 @echo off
-REM XMVSF TEST 87.399 - Boomer Kuwanger Stage / final native DHC built into Version 4 - local native Windows DHC build (no Stable overwrite)
+REM XMVSF TEST 87.400 - Boomer Kuwanger Stage / final native DHC built into Version 4 - local native Windows DHC build (no Stable overwrite)
 setlocal EnableExtensions DisableDelayedExpansion
 for %%I in ("%~dp0.") do set "PROJECT=%%~fI"
 set "MSYSTEM=UCRT64"
 set "PATH=C:\msys64\ucrt64\bin;C:\msys64\usr\bin;%PATH%"
 set "XMVSF_PROJECT=%PROJECT%"
-set "XMVSF_TEST_VERSION=87.399"
+set "XMVSF_TEST_VERSION=87.400"
 REM Derived from XMVSF_TEST_VERSION; must match BUILD_TEST.bat.
 set "XMVSF_TEST_TAG=%XMVSF_TEST_VERSION:.=_%"
 REM All TEST diagnostics track the same version as the launched executable.
 set "XMVSF_TEST_LOG_ROOT=%PROJECT%\test\%XMVSF_TEST_VERSION%"
+REM F6 completed native-scale PNG output. Absolute path survives FBNeo pushd.
+set "XMVSF_SCREENSHOT_DIR=%PROJECT%\screenshots"
 REM Offline artifact review uses Python only. Never reaches ROM checks or EXE.
 if /I "%~1"=="review" goto :offline_clean_review
 if /I "%~1"=="sprites" goto :offline_sprite_factory
@@ -497,6 +499,11 @@ if "%XM87203_M68K_TRACE%"=="1" if /I "%SOURCE_ROM:~0,4%"=="mvsc" (
   echo M68K sprite writer PC capture configured under test\87.203\m68k_trace\run_XXXX
   echo Writer source dumps and traces remain LOCAL under ignored test\87.203.
 )
+if not exist "%XMVSF_SCREENSHOT_DIR%\" mkdir "%XMVSF_SCREENSHOT_DIR%" >nul 2>nul
+if not exist "%XMVSF_SCREENSHOT_DIR%\" (
+  echo WARNING: F6 screenshot folder could not be created: "%XMVSF_SCREENSHOT_DIR%"
+)
+echo F6 native screenshots: "%XMVSF_SCREENSHOT_DIR%"
 pushd "%PROJECT%\FBNeo" || goto :fail
 REM XMVSF has its own persistent boot/menu application. Passing xmvsfu as
 REM a ROM argument bypasses that application and runs only generic FBNeo.

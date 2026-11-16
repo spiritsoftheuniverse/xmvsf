@@ -22,6 +22,7 @@
 #include "../../../burner/sdl/xmvsf_stage87_217_native_float.h" /* game-pixel SF2 popups */
 #include "../../../burner/sdl/xmvsf_stage24_versus.h" /* XMVSF_STAGE24_VERSUS */
 #include <SDL_image.h>
+#include "xmvsf_stage87_400_native_screenshot.h" // TEST 87.400 one-shot final-frame PNG
 #include "../../../burner/sdl/xmvsf_stage86_52_window_state.h" /* XM86.52 */
 #include "../../../burner/sdl/xmvsf_stage86_56_final.h" /* XM86.56 global final presentation */
 #include "../../../burn/drv/capcom/xmvsf_stage87_33_dizzy_hud.h"
@@ -53,6 +54,12 @@ static SDL_Texture* xm8733Texture = NULL;
 static SDL_Texture* xm87217FloatTexture = NULL;
 static std::vector<Uint8> xm87217FloatRGBA(384u*224u*4u,0u);
 static unsigned char xm8733Pixels[384*224*4]={};
+// Key press requests exactly ONE capture of the next completely painted game
+// frame. No screenshot I/O in the SDL input or emulation frame callbacks.
+static bool xm87400ScreenshotPending=false;
+extern "C" void xm87400RequestNativeScreenshot(){
+    xm87400ScreenshotPending=true;
+}
 static void xm8733Overlay(SDL_Renderer*,const SDL_Rect&,bool nativeStage=false);
 static int  nRotateGame = 0;
 static bool bFlipped = false;
@@ -180,6 +187,7 @@ static void xm87139ProbeNotice(SDL_Renderer* renderer){
 
 static int Exit()
 {
+    xm87400ScreenshotPending=false; // never carry a queued F6 across sessions
     extern bool xm26PersistentShell;
     extern bool xm26ReturnToBoot;
     // TEST 87.227: on MAIN MENU the native single SDL_Window persists.
@@ -321,6 +329,7 @@ static void xmvsfStage12VideoLog(const char* message)
 
 static int Init()
 {
+    xm87400ScreenshotPending=false; // one screenshot only per explicit F6 event
     // 87.383: a binary fingerprint from the compiled SDL game video TU.
     XM87376Reaper::diagnostic(
       "XM87.383 VIDEO_INIT_COMPILED sdl2_game_renderer=1\n");
@@ -786,6 +795,21 @@ static void xm87217NativeFloat(SDL_Renderer* render,const SDL_Rect& gameView){
 }
 
 // Paint the BlitFX surface onto the primary surface
+static void xm87400SaveRequested(SDL_Renderer* renderer,const SDL_Rect& gameView){
+    if(!xm87400ScreenshotPending)return;
+    xm87400ScreenshotPending=false;
+    char file[2048]={};
+    const bool saved=XM87400::save(renderer,gameView,
+        (unsigned)GetCurrentFrame(),file,sizeof(file));
+    if(saved){
+        XM87140Chat::state().log((unsigned)GetCurrentFrame(),
+            XM87140Chat::SYSTEM,"F6: NATIVE 384x224 PNG SAVED");
+    }else{
+        XM87140Chat::state().log((unsigned)GetCurrentFrame(),
+            XM87140Chat::ALERT,"F6: NATIVE PNG SAVE FAILED  SEE LOG");
+    }
+}
+
 static int Paint(int bValidate)
 {
     static unsigned int stage12PaintCount = 0;
@@ -904,12 +928,14 @@ static int Paint(int bValidate)
 xm87132ReplayNotice(sdlRenderer);
         xm87139ProbeNotice(sdlRenderer);
         xm87140ChatOverlay(sdlRenderer);
+        xm87400SaveRequested(sdlRenderer,xm87127View);
         SDL_RenderPresent(sdlRenderer);
     } else { /* XM87.104 removed colored selector overlay */
 
 xm87132ReplayNotice(sdlRenderer);
         xm87139ProbeNotice(sdlRenderer);
         xm87140ChatOverlay(sdlRenderer);
+        xm87400SaveRequested(sdlRenderer,xm87127View);
         SDL_RenderPresent(sdlRenderer);
     } /* XM86.58 native layer-aware gameplay */
     XM87206Crash::mark(450,nFramesEmulated);

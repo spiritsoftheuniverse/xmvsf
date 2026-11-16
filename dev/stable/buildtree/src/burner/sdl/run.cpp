@@ -36,6 +36,7 @@
 #include "xmvsf_stage87_206_crash_report.h" // uncaught FIGHT crash phase breadcrumbs
 #include "xmvsf_stage77_native_stage5.h" // XM86.31 postframe guarded native stage request
 #include "xmvsf_stage29_display.h" /* XMVSF_STAGE29_SCALABLE_DISPLAY */
+extern "C" void xm87400RequestNativeScreenshot(); // SDL video: capture completed scene on next present
 #include "xmvsf_stage24_3_menu_poll.h" /* XMVSF_STAGE24_3_LIVE_RESULTS */
 #include "xm20_vs_transition.h" /* XMVSF_STAGE20_1_VERSUS */ // XMVSF_STAGE17_AUTO
 #include "xmvsf_stage16_snapshot.h" // XMVSF_STAGE16_SNAPSHOT
@@ -805,6 +806,21 @@ int RunMessageLoop()
 		SDL_Event event;
         while (SDL_PollEvent(&event))
 		{
+            // TEST 87.400: one native-size PNG of the fully composed next
+            // frame. Handle before replay/menu input consumers so F6 works
+            // during normal combat, Training, Versus, and replay playback.
+            if(event.type==SDL_KEYDOWN && event.key.keysym.sym==SDLK_F6){
+                if(!event.key.repeat){
+                    const char* driver=bDrvOkay?BurnDrvGetTextA(DRV_NAME):nullptr;
+                    if(driver && std::strncmp(driver,"xmvsf",5)==0){
+                        xm87400RequestNativeScreenshot();
+                        std::fprintf(stderr,
+                            "XM87.400 F6_NATIVE_PNG_REQUEST frame=%u\n",
+                            (unsigned)GetCurrentFrame());
+                    }
+                }
+                continue;
+            }
             // XM87.141: F10 must reach the recorder BEFORE display, Training
             // and Versus event handlers have any opportunity to consume it.
             // 87.161: restore the existing 87.61 F9 state-anchored input
