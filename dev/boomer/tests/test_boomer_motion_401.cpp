@@ -6,8 +6,8 @@
 #include <cstdio>
 int main(){
     using namespace XM87401Motion;
-    static_assert(DefaultRightX==277,"right Triblaster X");
-    static_assert(MirroredLeftX==105,"left Triblaster X");
+    static_assert(RightCornerScreenX==278,"right gun at far-right native camera");
+    static_assert(LeftCornerScreenX==106,"mirrored left gun at far-left native camera");
     static_assert(RotorXMin==150 && RotorXMax==220,"rotor spawn range");
     static_assert(NearFramesPerPixel==2u,"wall 30px/second at 60fps");
     static_assert(RotorFramesPerPixel==3u,"rotor between C=5 and B=2");
