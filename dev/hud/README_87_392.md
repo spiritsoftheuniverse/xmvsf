@@ -1,58 +1,56 @@
-# TEST 87.394 — Match-start grouped HUD shock
+# TEST 87.395 — Handoff-anchored grouped HUD shock
 
-Branch: `feature/hud-shock-reveal` (branched from main TEST 87.391).
+Branch: `feature/hud-shock-reveal`.
 
-The timer digits, native P1/P2 life bars, portraits and related top HUD objects
-are sampled *per source CPS2 tile*, including the original priority-0 digit
-atlas. The separately composed 61×6 stun bars use the same clock.
+The native CPS2 HUD (time, portraits, health and upper status decoration)
+and separately composited stun bars share one emulator-frame timeline.
+This changes the *appearance only*, not game RAM, ROM, inputs, or round clock.
 
-- Stage intro: CPS2 phase 06 **hides the whole HUD immediately**, without
-  counting down the delay while the match is not yet playable.
-- Real match start: the first combat phase 08 begins the **210 emulated-frame
-  hold** (3.5 s at 60 FPS). A direct phase 08 match entry also arms the
-  effect. Phase 06→08 starts the combat clock only once.
-- Reveal: the next **30 emulated frames** (0.5 s at 60 FPS) use an 8×8 ordered
-  Bayer dither, with white overexposure → electric blue → untouched original
-  RGB. The HUD is fully normal on the thirtieth frame.
-- Normal combat continues normally after completion. KO/results/selection are
-  not obstructed. Reloads and new round openings may re-arm. Paused/duplicate
-  paints do not advance the effect. Frame skipping uses the current emulated
-  frame count rather than wall time.
-- Cosmetic, Version 4 only: Version 3 remains clean. No ROM writes, gameplay
-  timing edits, HUD rectangle fills, new stage-filter exclusions or SDL
-  renderer handoffs.
-- Match-phase HUD object coverage includes all small native priority-7
-  top-of-screen objects (bar frames, labels, portrait surrounds), plus
-  source-confirmed long HP strips and timer digits. Verified stage scenery,
-  tall stage objects, and intro walls are explicitly excluded.
-- Original CPS depth and the pixels underneath hidden HUD tiles are restored
-  before the next painter pass; all current custom-stage paths use the same
-  sprite capture and stun overlay hooks.
+## Timing corrected from 87.394 capture
 
-## Local checks
+The user's Sigma-stage TEST 87.394 capture recorded:
+- Screen handoff native status **02** at frame ~1–2;
+- Round-introduction status **06** around frame 182;
+- Fight/combat status **08** around frame 362.
 
-Run `dev\hud\RUN_TEST_HUD_392.bat` on Windows with the existing MSYS2/UCRT64
-`g++` installation. It builds a standalone test under `%TEMP%` and checks
-the 210+30-frame schedule, phase transitions, classification bounds,
-ordered-dither coverage, native-pixel/depth restoration and the stun layer.
+TEST 87.394 started the HUD effect at **08**, too late.
+TEST 87.395 now arms when the match screen FIRST enters phase **02**.
+The effect is never restarted by phase **04, 06, or 08**.
+Intermediate phases 03/05/07 do not discard the schedule.
+For direct game snapshots that first arrive in the later phase, the first
+observed 04/06/08 frame is a fallback anchor.
 
-For visual verification on a **locally built TEST 87.394** using existing
-`BUILD_TEST.bat` / `RUN_TEST.bat` (no GitHub Actions), inspect:
+- Phase 02 frame: HUD group hidden at once (do not cover the arena).
+- 210 emulated frames after that handoff: begin the reveal.
+- Next 30 emulated frames: Bayer 8×8 dither reveals the group.
+- During reveal: white blowout shifts to cyan/electric blue, then native
+  palette; TWO additional diagonal, converging specular sweeps run from
+  the portrait edges toward the timer with white-hot centers and a soft
+  blue corona. This is separately animated from the dither coverage.
+- After 30 frames: exact normal HUD pixels, no ongoing shine or processing.
 
-1. Intro→FIGHT: hide native timer, portraits, life and stun as one HUD group.
-2. At 3.5 s: dither 30 actual game frames, from white to blue to normal.
-3. Check that both the arena and fighters behind hidden HUD areas are intact.
-4. Repeat on a stock stage and at least two custom stages (e.g. Wily and
-   Sigma) to confirm consistent depth and no forest-stage regressions.
-5. Try Training, Versus, pause, round transition, tag-in, and Game Version 3.
+Paused paints do not consume frames. KO/results/selection are unaffected.
+Version 3 stays clean. Regular and custom stages use the same native source
+HUD pixel and SDL stun paths; original CPS depth is restored wherever the
+HUD is hidden. The effect does not tint native stage backgrounds or sprites.
 
-This branch has **not** been locally compiled or visually accepted here.
-A received 87.392 runtime capture confirmed the user was in Version 4,
-and that the 87.392 build's gating incorrectly required
-`CpsXmvSixEnabled`. That flag belongs exclusively to the optional 3v3
-ROM path and is false for the reported stock `xmvsfu` run, so no
-native HUD filtering activated. The first implementation also armed during
-the lengthy stage intro and did not cover every small HUD decoration.
-TEST 87.394 corrects all three, and emits
-`XM87.394 HUD_SHOCK_HIDE`, `XM87.394 HUD_SHOCK_COMBAT`, and
-`XM87.394 HUD_SHOCK_OBJECT` markers in the local TEST transcript.
+## Local verification
+
+Use the existing Windows `BUILD_TEST.bat` and `RUN_TEST.bat`; both target
+TEST 87.395. No GitHub Actions; preserve Stable and all earlier TEST builds.
+
+The standalone `dev\hud\RUN_TEST_HUD_392.bat` is retained under its
+original file path, but its regression now covers the 87.395 phase-02
+clock, transitions, 210+30 frame schedule, the specular beams and the
+native depth restoration. Run it locally if desired.
+
+For visual acceptance, confirm the HUD is hidden on **the first combat
+screen frame**, not the later FIGHT cue. On Sigma, the dither/shine should
+occur around frame 212–241 rather than around frame 572–601, based on the
+uploaded phase trace. Confirm both players' bars and portraits, the timer,
+and stun bars, across both normal and custom stages.
+
+Runtime markers: `XM87.395 HUD_SHOCK_HANDOFF` and
+`XM87.395 HUD_SHOCK_OBJECT`.
+
+Not locally compiled or visually accepted in this environment.
