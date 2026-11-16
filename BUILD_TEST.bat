@@ -34,6 +34,16 @@ if not exist "%PROJECT%\dev\dhc\BUILD_TEST.sh" (
   >>"%BUILDLOG%" echo ERROR: Missing dev\dhc\BUILD_TEST.sh
   goto :fail
 )
+REM TEST 87.401: fail before compilation if the authored GIF pack is absent.
+REM The source repo contains these as binary Git blobs; DO NOT regenerate them.
+for %%G in (rotor.gif triblaster.gif triblaster_shot.gif triblaster_bullet.gif) do (
+  if not exist "%PROJECT%\_art\boomerkuwanger\%%G" (
+    echo ERROR: Missing Boomer sprite: _art\boomerkuwanger\%%G
+    >>"%BUILDLOG%" echo ERROR: Missing Boomer sprite _art\boomerkuwanger\%%G
+    goto :fail
+  )
+)
+echo Boomer GIF asset preflight: all four sprites present.
 where bash.exe >nul 2>nul
 if errorlevel 1 (
   echo ERROR: MSYS2 bash.exe not found on PATH.
