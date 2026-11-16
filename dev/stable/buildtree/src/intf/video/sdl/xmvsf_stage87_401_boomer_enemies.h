@@ -12,14 +12,15 @@
 #include <cstdint>
 #include <string>
 #include <vector>
+#include "xmvsf_stage87_401_boomer_motion.h"
 
 namespace XMBoomerExtra {
 static constexpr int ScreenW=384, ScreenH=224;
 static constexpr int CenterCameraX=192;
-static constexpr int RotorMinX=150, RotorMaxX=220;
-static constexpr unsigned WallFramesPerPixel=2u;   // B: 30 px/s
-static constexpr unsigned RotorFramesPerPixel=3u;  // mid-parallax: 20 px/s
-static constexpr unsigned ProjectileFramesPerPixel=1u; // 60 px/s, 2x B
+static constexpr int RotorMinX=XM87401Motion::RotorXMin;
+static constexpr int RotorMaxX=XM87401Motion::RotorXMax;
+static constexpr unsigned WallFramesPerPixel=XM87401Motion::NearFramesPerPixel;
+static constexpr unsigned RotorFramesPerPixel=XM87401Motion::RotorFramesPerPixel;
 static constexpr unsigned MaxShots=24u;
 
 struct Frame {
@@ -207,7 +208,8 @@ struct State {
         }
         for(unsigned i=0;i<guns.size();++i){
             Triblaster& g=guns[i];g=Triblaster{};
-            g.x=i==0u?277:105; // user-supplied default and mirrored X
+            g.x=i==0u?XM87401Motion::DefaultRightX:
+                       XM87401Motion::MirroredLeftX;
             g.nextSpawn=gameFrame+rng.range(0u,80u)+(i==1u?45u:0u);
         }
         projectiles.clear();
@@ -217,15 +219,14 @@ struct State {
             (unsigned long long)gameFrame,desiredRotors);
     }
     static int gunY(const Triblaster& gun,unsigned long long frame){
-        const unsigned long long elapsed=frame>=gun.born?frame-gun.born:0ull;
-        return gun.yStart+int(elapsed/WallFramesPerPixel);
+        return gun.yStart+XM87401Motion::wallShift(gun.born,frame);
     }
     static int rotorY(const Rotor& rotor,unsigned long long frame){
         const unsigned long long elapsed=frame>=rotor.born?frame-rotor.born:0ull;
         // Drop from above, settle into a slow hover, then descend
         // at an intermediate parallax speed with the moving elevator.
         const int approach=std::min(rotor.hoverY,rotor.yStart+int(elapsed));
-        const int drift=int(elapsed/RotorFramesPerPixel);
+        const int drift=XM87401Motion::rotorShift(rotor.born,frame);
         const int bob=int(std::lround(3.0*std::sin(
              double(elapsed+unsigned(rotor.bobPhase))*0.08)));
         return approach+drift+bob;
@@ -239,8 +240,8 @@ struct State {
         // *attachment point* as well as the artwork.
         const int localX=kind==Shot?8:27;
         const int localY=kind==Shot?26:47;
-        const int x=left?triblaster.w-localX-effect.w:localX;
-        const int y=flipV?triblaster.h-localY-effect.h:localY;
+        const int x=XM87401Motion::offsetX(left,triblaster.w,effect.w,localX);
+        const int y=XM87401Motion::offsetY(flipV,triblaster.h,effect.h,localY);
         const int originX=gun.x+x;
         const int originY=gunY(gun,moment)+y;
         projectiles.push_back(Projectile{kind,left,flipV,moment,
@@ -330,10 +331,10 @@ struct State {
         projectiles.erase(std::remove_if(projectiles.begin(),projectiles.end(),
             [&](const Projectile& p){
                 const unsigned long long elapsed=frame>=p.born?frame-p.born:0ull;
-                const int horizontal=p.kind==Shot?
-                    (p.left?int(elapsed):-int(elapsed)):0;
-                const int vertical=int(elapsed/WallFramesPerPixel)+
-                    (p.kind==Bullet?(p.vertical?-int(elapsed):int(elapsed)):0);
+                const int horizontal=XM87401Motion::projectileDx(
+                    p.left,p.kind==Shot,elapsed);
+                const int vertical=XM87401Motion::projectileDy(
+                    p.vertical,p.kind==Bullet,p.born,frame);
                 const Sprite& art=p.kind==Shot?shot:bullet;
                 const int x=p.startX+horizontal,y=p.startY+vertical;
                 return x< -art.w-64||x>ScreenW+64||
@@ -361,7 +362,7 @@ struct State {
             if(!gun.active)continue;
             const bool left=side==1u;
             const unsigned long long age=frame>=gun.born?frame-gun.born:0ull;
-            const bool flipV=(triblaster.cycle(age)&1ull)!=0ull;
+            const bool flipV=XM87401Motion::verticalFlip(triblaster.cycle(age));
             SDL_RendererFlip flip=left?SDL_FLIP_HORIZONTAL:SDL_FLIP_NONE;
             if(flipV)flip=SDL_RendererFlip(flip|SDL_FLIP_VERTICAL);
             const int x=gun.x+nearPan(camX)+(left?-wallSpread:wallSpread);
@@ -370,11 +371,11 @@ struct State {
         }
         for(const Projectile& p:projectiles){
             const unsigned long long elapsed=frame>=p.born?frame-p.born:0ull;
-            const int horizontal=p.kind==Shot?(p.left? -int(elapsed):int(elapsed)*-1):0;
             // Right-side default: leftward. Mirrored left-side: rightward.
-            const int vx=p.kind==Shot?(p.left?int(elapsed):-int(elapsed)):0;
-            const int vy=int(elapsed/WallFramesPerPixel)+
-                (p.kind==Bullet?(p.vertical?-int(elapsed):int(elapsed)):0);
+            const int vx=XM87401Motion::projectileDx(
+                p.left,p.kind==Shot,elapsed);
+            const int vy=XM87401Motion::projectileDy(
+                p.vertical,p.kind==Bullet,p.born,frame);
             const Sprite& effect=p.kind==Shot?shot:bullet;
             SDL_RendererFlip flip=p.left?SDL_FLIP_HORIZONTAL:SDL_FLIP_NONE;
             if(p.vertical)flip=SDL_RendererFlip(flip|SDL_FLIP_VERTICAL);
@@ -382,8 +383,7 @@ struct State {
             ok=effect.draw(renderer,view,
                 p.startX+nearPan(camX)+sideSpread+vx,
                 p.startY+vy,flip,elapsed)&&ok;
-            (void)horizontal;
-        }
+         }
         return ok;
     }
 };
