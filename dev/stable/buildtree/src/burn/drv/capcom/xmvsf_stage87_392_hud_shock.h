@@ -1,6 +1,6 @@
 #ifndef XMVSF_STAGE87_392_HUD_SHOCK_H
 #define XMVSF_STAGE87_392_HUD_SHOCK_H
-// TEST 87.395: game-frame HUD reveal from initial selection/VS handoff
+// TEST 87.396: HUD reveal clock anchored to actual first Versus song PCM
 // and the separate SDL stun bar. No ROM/RAM mutations or opaque screen masks.
 // 60 game frames per second: 210 hidden, 30 ordered-dither reveal.
 #include <cstddef>
@@ -21,36 +21,42 @@ inline bool eligible(const char* driver,bool version4){
 struct Timeline {
     unsigned start=0u;
     unsigned lastFrame=~0u;
+    unsigned lastSongStart=0u;
     int lastPhase=-1;
     bool armed=false;
 
-    // ROM phase 02 is the FIRST scene handoff frame, well before phase 06
-    // introduction and phase 08 FIGHT. Do not restart in either later phase.
-    static bool scenePhase(int phase){
-        return phase>=2 && phase<=8;
+    void reset(){*this=Timeline{};}
+
+    // Match exactly the event published when versusscreen.ogg's first PCM
+    // is submitted by the audio mixer. This event can PRECEDE native status 02.
+    void startWithSong(unsigned songSequence,unsigned frame){
+        if(!songSequence || songSequence==lastSongStart)return;
+        lastSongStart=songSequence;
+        start=frame;armed=true;
+        std::fprintf(stderr,
+            "XM87.396 HUD_SHOCK_SONG_START song=%u frame=%u hold=%u reveal=%u\n",
+            songSequence,frame,DelayFrames,RevealFrames);
     }
+
     void observe(int phase,unsigned frame,bool allowed){
         if(!allowed){
             armed=false;lastFrame=frame;lastPhase=-1;return;
         }
-        if(frame==lastFrame)return; // paused or multi-pass render
-        if(lastFrame!=~0u && frame<lastFrame){
-            armed=false;lastPhase=-1; // native replay/snapshot clock rewind
-        }
-        if(!scenePhase(phase)){
-            armed=false;
-        }else if(!armed){
-            // Normal handoff enters at 02; phase 04/06/08 fallback covers
-            // direct snapshot launch without a pre-combat transition.
-            armed=true;start=frame;
-            std::fprintf(stderr,
-                "XM87.395 HUD_SHOCK_HANDOFF frame=%u phase=%02X "
-                "hold=%u reveal=%u\n",
-                frame,unsigned(phase),DelayFrames,RevealFrames);
-        }
+        if(lastFrame!=~0u && frame<lastFrame)
+            armed=false; // rewind / replay state load: await a new audio cue
+        // Do NOT disarm on selection/VS transition phases. Song begins on
+        // the match-setup M68K edge, potentially before FF5000 enters 02.
+        // KO/results clear the effect; the next song restart rearms it.
+        if(phase==0x0a || phase==0x0c)armed=false;
         lastFrame=frame;lastPhase=phase;
     }
-    unsigned step(unsigned frame)const{
+
+    // Only the ACTUAL fight-stage HUD pass may have pixels suppressed.
+    // Status 02/04 are the selection/Versus screen transition. Restoring
+    // CPS2 tiles there exposed the underlying FOREST stage through that UI.
+    static bool mayMaskNativeHud(int phase){return phase==6 || phase==8;}
+
+    unsigned step(unsigned frame)const {
         if(!armed || frame<start)return RevealFrames;
         const unsigned elapsed=frame-start;
         if(elapsed<DelayFrames)return 0u;
