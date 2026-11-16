@@ -5,6 +5,9 @@
 // All movement uses the native stage's emulated-frame clock, not SDL paints.
 #include <SDL.h>
 #include <SDL_image.h>
+#if !SDL_IMAGE_VERSION_ATLEAST(2,6,0)
+#error "TEST 87.401 needs SDL2_image 2.6.0+ for animated GIF frames. Update MSYS2 UCRT64 SDL2_image."
+#endif
 #include <array>
 #include <algorithm>
 #include <cmath>
