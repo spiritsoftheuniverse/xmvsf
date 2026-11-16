@@ -66,8 +66,8 @@ if not "%BOOMER_RC%"=="0" (
 echo Boomer GIF native header smoke PASS.
 REM 87.404: run geometry/layer tests before the expensive native Make.
 REM Tests use pure standard C++; never touch Stable or cached FBNeo objects.
-set "BOOMER_MOTION_LOG=%LOGDIR%\BOOMER_MOTION_404.log"
-set "BOOMER_MOTION_EXE=%LOGDIR%\BOOMER_MOTION_404.exe"
+set "BOOMER_MOTION_LOG=%LOGDIR%\BOOMER_MOTION_405.log"
+set "BOOMER_MOTION_EXE=%LOGDIR%\BOOMER_MOTION_405.exe"
 echo Boomer world-anchor/camera/layer filter smoke test...
 "C:\msys64\ucrt64\bin\g++.exe" -std=c++17 -Wall -Wextra -Werror -O2 "%PROJECT%\dev\boomer\tests\test_boomer_motion_401.cpp" -o "%BOOMER_MOTION_EXE%" >"%BOOMER_MOTION_LOG%" 2>&1
 if errorlevel 1 (
