@@ -1447,7 +1447,7 @@ if(!xm8725FighterObject && XM8725::Enabled() &&
             if(xm87393ReportedPhase!=xm8745LivePhase){
                 xm87393ReportedPhase=xm8745LivePhase;
                 std::fprintf(stderr,
-                    "XM87.396 HUD_SHOCK_OBJECT phase=%02X frame=%u step=%u "
+                    "XM87.398 HUD_SHOCK_OBJECT phase=%02X frame=%u step=%u "
                     "priority=%d pal=%u tile=%u x=%d y=%d size=%dx%d\n",
                     xm8745LivePhase,(unsigned)GetCurrentFrame(),xm87392Step,
                     v,(unsigned)a&31u,(unsigned)n,x,y,bx,by);
