@@ -27,7 +27,7 @@ struct Timeline {
     // ROM phase 02 is the FIRST scene handoff frame, well before phase 06
     // introduction and phase 08 FIGHT. Do not restart in either later phase.
     static bool scenePhase(int phase){
-        return phase==2 || phase==4 || phase==6 || phase==8;
+        return phase>=2 && phase<=8;
     }
     void observe(int phase,unsigned frame,bool allowed){
         if(!allowed){
@@ -45,7 +45,7 @@ struct Timeline {
             armed=true;start=frame;
             std::fprintf(stderr,
                 "XM87.395 HUD_SHOCK_HANDOFF frame=%u phase=%02X "
-                "hold=%u reveal=%u\\n",
+                "hold=%u reveal=%u\n",
                 frame,unsigned(phase),DelayFrames,RevealFrames);
         }
         lastFrame=frame;lastPhase=phase;
