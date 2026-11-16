@@ -748,6 +748,15 @@ if ! LC_ALL=C grep -aFq -- "XM87.404 BOOMER_LAYERS_0" "$BUILT"; then
   exit 2
 fi
 echo "TEST BOOMER LAYER PROOF: XM87.404 BOOMER_LAYERS_0 found in EXE."
+# 87.405: don't publish a TEST if the actual Boomer GIF sprite rules
+# (new anchor offsets, Y-only upward firing, three spaced rotors)
+# were not relinked with the SDL video translation unit.
+if ! LC_ALL=C grep -aFq -- "XM87.405 BOOMER_ENEMIES_READY" "$BUILT"; then
+  echo "ERROR: TEST 87.405 Boomer rotor/upward-fire renderer not linked. Refusing stale EXE." >&2
+  echo "ERROR: Check vid_sdl2.o transitive header dependency freshness." >&2
+  exit 2
+fi
+echo "TEST BOOMER SPREAD PROOF: XM87.405 BOOMER_ENEMIES_READY found in EXE."
 # Hash-compare before publishing: a no-op build must NOT overwrite TEST.
 built_sha="$(sha256sum "$BUILT" | cut -d ' ' -f 1)"
 mkdir -p "$PROJECT/runtime/stable"
