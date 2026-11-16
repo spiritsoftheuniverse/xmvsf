@@ -73,11 +73,21 @@ a 24-projectile maximum; sprites are culled outside the viewport.
 
 ## Validation
 
-TEST 87.401 is local only. Run:
+TEST 87.402 (launch preflight; Boomer animation source remains 87.401) is local only. Run:
 
     dev\boomer\RUN_TEST_BOOMER_401.bat
     BUILD_TEST.bat
     RUN_TEST.bat
+
+87.402 launcher repair: `RUN_TEST.bat` checks the exact matching
+`runtime/stable/XMVSF_Test_87_402.exe` **before** generating any
+session diagnostics, re-checks after art validation and immediately
+before launch, and rejects an empty executable. If CMD returns 9009,
+the launcher stops rather than proceeding into misleading offline
+DHC/Capstone analysis. The previous 87.329 labels are now dynamic.
+This does not claim to repair an unknown native compile failure:
+the current local `test/build_logs/BUILD_TEST.log` is required to
+identify a compiler or linker error if BUILD_TEST.bat fails.
 
 The standalone C++ test checks source-parallax motion, attachment flips,
 default leftward/rightward travel and the down/up bullet velocity.
