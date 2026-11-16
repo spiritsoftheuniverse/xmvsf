@@ -64,6 +64,27 @@ if not "%BOOMER_RC%"=="0" (
   goto :fail
 )
 echo Boomer GIF native header smoke PASS.
+REM 87.404: run geometry/layer tests before the expensive native Make.
+REM Tests use pure standard C++; never touch Stable or cached FBNeo objects.
+set "BOOMER_MOTION_LOG=%LOGDIR%\BOOMER_MOTION_404.log"
+set "BOOMER_MOTION_EXE=%LOGDIR%\BOOMER_MOTION_404.exe"
+echo Boomer world-anchor/camera/layer filter smoke test...
+"C:\msys64\ucrt64\bin\g++.exe" -std=c++17 -Wall -Wextra -Werror -O2 "%PROJECT%\dev\boomer\tests\test_boomer_motion_401.cpp" -o "%BOOMER_MOTION_EXE%" >"%BOOMER_MOTION_LOG%" 2>&1
+if errorlevel 1 (
+  type "%BOOMER_MOTION_LOG%"
+  type "%BOOMER_MOTION_LOG%" >>"%BUILDLOG%"
+  echo ERROR: Boomer geometry/layer C++ test did not compile.
+  goto :fail
+)
+"%BOOMER_MOTION_EXE%" >>"%BOOMER_MOTION_LOG%" 2>&1
+if errorlevel 1 (
+  type "%BOOMER_MOTION_LOG%"
+  type "%BOOMER_MOTION_LOG%" >>"%BUILDLOG%"
+  echo ERROR: Boomer geometry/layer C++ assertions failed.
+  goto :fail
+)
+type "%BOOMER_MOTION_LOG%"
+type "%BOOMER_MOTION_LOG%" >>"%BUILDLOG%"
 where bash.exe >nul 2>nul
 if errorlevel 1 (
   echo ERROR: MSYS2 bash.exe not found on PATH.
