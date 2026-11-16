@@ -17,6 +17,7 @@
 #include <string>
 #include <vector>
 #include "xmvsf_stage87_401_boomer_enemies.h" // rotor / Triblaster visual GIFs
+#include "xmvsf_stage87_404_boomer_layers.h" // stage-only 1-0 layer control
 
 namespace XMBoomer {
 static const int VIEW_W=384,VIEW_H=224,WORLD_W=768,WORLD_H=471;
@@ -69,9 +70,8 @@ struct Scene {
  bool keyHeld[10]={};
  bool sceneryOnly=false;
  bool visible(int layer)const{
-  if(layer<0||layer>8)return false;
-  if(sceneryOnly)return layer==0||layer==2||layer==6;
-  return layerOn[layer];
+  return XM87404Layers::shown(layer,
+          layer>=0&&layer<9?layerOn[layer]:false,sceneryOnly);
  }
  void pollLayerKeys(){
   const Uint8* keys=SDL_GetKeyboardState(nullptr);
