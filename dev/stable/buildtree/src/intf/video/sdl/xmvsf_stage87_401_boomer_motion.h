@@ -13,15 +13,15 @@ static constexpr int RotorMinSeparation=88; // minimum top-left X separation
 static constexpr int RotorGunGap=38; // clear empty space between both sprites
 // 87.405: per-side corrections to 87.404 world-corner placement.
 // Mirrored left moves 2px left: at camX=0, screen X=104.
-// Original right moves 34px left: at camX=384, screen X=244.
+// Original right moves 34px left: at camX=384, screen X=245.
 // Do not add saved B wallSpread a second time.
 static constexpr int StageWorldW=768;
 static constexpr int StageScreenW=384;
 static constexpr int WallCornerInset=106;
 static constexpr int LeftCorrection=-2;
-static constexpr int RightCorrection=-34;
+static constexpr int RightCorrection=-33; // TEST 87.407: right gun +1px from 87.406
 static constexpr int LeftCornerScreenX=WallCornerInset+LeftCorrection; // 104
-static constexpr int RightCornerScreenX=StageScreenW-WallCornerInset+RightCorrection; // 244
+static constexpr int RightCornerScreenX=StageScreenW-WallCornerInset+RightCorrection; // 245
 static inline int gunWorldX(bool mirrored){
     return mirrored?LeftCornerScreenX:StageWorldW-WallCornerInset+RightCorrection;
 }
@@ -62,6 +62,12 @@ static inline int rotorShift(unsigned long long born,unsigned long long now){
 }
 static inline int offsetX(bool mirror,int parentW,int projectileW,int localX){
     return mirror?parentW-localX-projectileW:localX;
+}
+// 87.407: adjust ONLY triblaster_bullet.gif's horizontal muzzle
+// alignment. The shot.gif horizontal blast and its firing motion
+// are unchanged. Mirroring reverses this 2px attachment correction.
+static inline int bulletAnchorNudgeX(bool mirroredLeft){
+    return mirroredLeft?2:-2;
 }
 static inline int offsetY(bool verticalFlip,int parentH,int projectileH,int localY){
     return verticalFlip?parentH-localY-projectileH:localY;
