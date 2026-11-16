@@ -1,4 +1,4 @@
-// TEST 87.392: standalone, no ROM/SDL or GitHub Actions required.
+// TEST 87.395: standalone, no ROM/SDL or GitHub Actions required.
 // Build locally with RUN_TEST_HUD_392.bat.
 #include "../../stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_392_hud_shock.h"
 #include <cassert>
@@ -17,29 +17,37 @@ int main(){
     assert(!eligible("xmvsfu",false));
     assert(!eligible("mvsc",true));
     assert(!eligible(nullptr,true));
+    // Actual 87.394 Sigma capture: scene handoff in phase 02 near frame 1,
+    // introduction phase 06 at ~182, first combat phase 08 at ~362.
+    // The 210-frame delay must NOT restart at either later transition.
     Timeline t;
-    t.observe(4,99,true);
+    t.observe(1,99,true);
     assert(t.step(99)==30u);
-    t.observe(6,100,true);
+    t.observe(2,100,true); // first handoff frame
     assert(t.step(100)==0u);
-    t.observe(6,350,true); // long pre-fight intro must remain hidden
-    assert(t.step(350)==0u);
-    t.observe(8,400,true); // delay starts at COMBAT, not phase 06
-    assert(t.step(400)==0u);
-    assert(t.step(609)==0u);
-    assert(t.step(610)==1u);
-    assert(t.step(638)==29u);
-    assert(t.step(639)==30u);
-    t.observe(8,639,true); // same frame / pause
-    assert(t.step(639)==30u);
-    t.observe(10,640,true); // knockout is visible, no hidden results
-    assert(t.step(640)==30u);
-    t.observe(8,660,true); // snapshot/direct-combat entry
+    t.observe(3,170,true); // transitional/odd phase still same scene
+    assert(t.step(170)==0u);
+    t.observe(6,260,true);
+    assert(t.step(260)==0u);
+    assert(t.step(309)==0u);
+    assert(t.step(310)==1u);
+    assert(t.step(338)==29u);
+    assert(t.step(339)==30u);
+    t.observe(8,400,true); // FIGHT must NOT restart the completed reveal
+    assert(t.step(400)==30u);
+    t.observe(8,400,true); // repeated paused paint is not another frame
+    assert(t.step(400)==30u);
+    t.observe(10,410,true); // KO/results stay visible
+    assert(t.step(410)==30u);
+    t.observe(2,500,true); // new handoff re-arms
+    assert(t.step(500)==0u);
+    t.observe(4,520,true);
+    assert(t.step(520)==0u);
+    t.observe(8,530,false); // Version 3 stays unmodified
+    assert(t.step(530)==30u);
+    t.observe(8,660,true); // snapshot/direct-combat fallback
     assert(t.step(660)==0u);
-    t.observe(6,670,true); // new stage
-    assert(t.step(670)==0u);
-    t.observe(8,680,false); // no effect outside V4
-    assert(t.step(680)==30u);
+    assert(t.step(870)==1u);
 
     assert(object(0,1,87808,160,12,2,2));
     assert(!object(0,1,87808,32,100,2,2));
@@ -54,6 +62,10 @@ int main(){
     assert(shockRGB(ink,30)==ink);
     assert(shockRGB(ink,1)!=ink);
     assert(shockRGB(ink,12)!=ink);
+    assert(shineRGB(ink,90,28,15)!=shockRGB(ink,15));
+    assert(shineRGB(ink,294,28,15)!=shockRGB(ink,15));
+    assert(shineRGB(ink,150,28,15)==shockRGB(ink,15));
+    assert(shineRGB(ink,90,28,30)==ink);
     unsigned last=0;
     for(unsigned s=0;s<=30;++s){
         unsigned seen=0;
@@ -97,7 +109,7 @@ int main(){
         std::uint32_t pixel=0u;
         std::memcpy(&pixel,fb.data()+(std::size_t)y*pitch+x*4,4);
         if(visible(x,y,15u)){
-            assert(pixel==shockRGB(0x00ff3300u,15u));++shown;
+            assert(pixel==shineRGB(0x00ff3300u,x,y,15u));++shown;
             assert(z[(std::size_t)y*width+x]==50u);
         }else{
             assert(pixel==0x00202020u);++restored;
@@ -114,6 +126,6 @@ int main(){
     stunOverlay(overlay.data(),384*4,0u);
     for(int x=60;x<70;++x)
         assert(overlay[((std::size_t)45*384+x)*4+3]==0u);
-    std::printf("87.394 HUD shock tests PASS: timeline, object scope, Bayer reveal, Z restore, stun overlay\n");
+    std::printf("87.395 HUD shock tests PASS: timeline, object scope, Bayer reveal, Z restore, stun overlay\n");
     return 0;
 }
