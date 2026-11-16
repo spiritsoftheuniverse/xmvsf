@@ -190,13 +190,12 @@ struct State {
                 (unsigned)triblaster.frames.size());
         std::fprintf(stderr,
             "XM87.401 BOOMER_ENEMIES_READY rotor=1..3 x=150..220 "
-            "triblaster_x_right=277 left=105 gif_frames=%u "
+            "triblaster_corner_screen_x_right=278 left=106 gif_frames=%u "
             "bullet_frame=2 shot_frame=11 "
             "wall_px_per_second=30 rotor=20 projectile=60\n",
             (unsigned)triblaster.frames.size());
         return true;
     }
-    static int nearPan(int cameraX){return CenterCameraX-cameraX;}
     static int rotorPan(int cameraX){
         return (CenterCameraX-cameraX)*60/100; // C uses 30%, B uses 100%
     }
@@ -211,8 +210,9 @@ struct State {
         }
         for(unsigned i=0;i<guns.size();++i){
             Triblaster& g=guns[i];g=Triblaster{};
-            g.x=i==0u?XM87401Motion::DefaultRightX:
-                       XM87401Motion::MirroredLeftX;
+            // World-space corners: at camX=0 the mirrored one is X=106;
+            // at camX=384 the original one is X=278.
+            g.x=XM87401Motion::gunWorldX(i==1u);
             g.nextSpawn=gameFrame+rng.range(0u,80u)+(i==1u?45u:0u);
         }
         projectiles.clear();
@@ -281,7 +281,7 @@ struct State {
         }
         gun.initializedEvents=true;gun.lastAge=now;
     }
-    void update(unsigned long long frame,unsigned gen,int cameraX){
+    void update(unsigned long long frame,unsigned gen,int cameraX,int stageYShift){
         if(!ready)return;
         if(gen!=generation || lastFrame==~0ull || frame<lastFrame)
             reset(gen,frame);
@@ -294,7 +294,7 @@ struct State {
         for(const Rotor& r:rotors)if(r.active)++activeCount;
         for(Rotor& r:rotors){
             if(r.active){
-                if(rotorY(r,frame)>ScreenH+rotor.h+12){
+                if(rotorY(r,frame)+stageYShift>ScreenH+rotor.h+12){
                     r.active=false;
                     r.nextSpawn=frame+rng.range(25u,130u);
                     --activeCount;
@@ -308,7 +308,9 @@ struct State {
             // relative anchor so later camera movement shifts it naturally.
             const int spawnScreenX=int(rng.range(RotorMinX,RotorMaxX));
             r.x=spawnScreenX-rotorPan(cameraX);
-            r.yStart=-rotor.h-int(rng.range(12u,64u));
+            // New entries start above the visible screen even if camera Y
+            // has moved since the beginning of the stage.
+            r.yStart=-rotor.h-int(rng.range(12u,64u))-stageYShift;
             r.hoverY=int(rng.range(28u,118u));
             r.bobPhase=int(rng.range(0u,80u));
             ++activeCount;
@@ -319,13 +321,13 @@ struct State {
         }
         for(unsigned side=0;side<guns.size();++side){
             Triblaster& gun=guns[side];
-            if(gun.active && gunY(gun,frame)>ScreenH+triblaster.h){
+            if(gun.active && gunY(gun,frame)+stageYShift>ScreenH+triblaster.h){
                 gun.active=false;
                 gun.nextSpawn=frame+rng.range(60u,150u);
             }
             if(!gun.active && frame>=gun.nextSpawn){
                 gun.active=true;gun.born=frame;
-                gun.yStart=-triblaster.h-int(rng.range(8u,90u));
+                gun.yStart=-triblaster.h-int(rng.range(8u,90u))-stageYShift;
                 gun.lastAge=0u;gun.initializedEvents=false;
                 std::fprintf(stderr,
                     "XM87.401 TRIBLASTER_SPAWN side=%s x=%d y=%d "
@@ -343,25 +345,26 @@ struct State {
                 const int vertical=XM87401Motion::projectileDy(
                     p.vertical,p.kind==Bullet,p.born,frame);
                 const Sprite& art=p.kind==Shot?shot:bullet;
-                const int x=p.startX+horizontal,y=p.startY+vertical;
+                const int x=XM87401Motion::screenX(p.startX,cameraX)+horizontal;
+                const int y=p.startY+stageYShift+vertical;
                 return x< -art.w-64||x>ScreenW+64||
                        y< -art.h-160||y>ScreenH+art.h+96||
                        elapsed>900ull;
             }),projectiles.end());
     }
     bool drawRotors(SDL_Renderer* renderer,const SDL_Rect& view,
-                    unsigned long long frame,int camX){
+                    unsigned long long frame,int camX,int stageYShift){
         if(!ready)return true;
         bool ok=true;
         for(const Rotor& r:rotors)if(r.active){
             const unsigned long long age=frame>=r.born?frame-r.born:0ull;
             ok=rotor.draw(renderer,view,r.x+rotorPan(camX),
-                          rotorY(r,frame),SDL_FLIP_NONE,age)&&ok;
+                          rotorY(r,frame)+stageYShift,SDL_FLIP_NONE,age)&&ok;
         }
         return ok;
     }
     bool drawGuns(SDL_Renderer* renderer,const SDL_Rect& view,
-                  unsigned long long frame,int camX,int wallSpread){
+                  unsigned long long frame,int camX,int stageYShift){
         if(!ready)return true;
         bool ok=true;
         for(unsigned side=0;side<guns.size();++side){
@@ -372,8 +375,9 @@ struct State {
             const bool flipV=XM87401Motion::verticalFlip(triblaster.cycle(age));
             SDL_RendererFlip flip=left?SDL_FLIP_HORIZONTAL:SDL_FLIP_NONE;
             if(flipV)flip=SDL_RendererFlip(flip|SDL_FLIP_VERTICAL);
-            const int x=gun.x+nearPan(camX)+(left?-wallSpread:wallSpread);
-            ok=triblaster.draw(renderer,view,x,gunY(gun,frame),
+            const int x=XM87401Motion::screenX(gun.x,camX);
+            ok=triblaster.draw(renderer,view,x,
+                               gunY(gun,frame)+stageYShift,
                                flip,age)&&ok;
         }
         for(const Projectile& p:projectiles){
@@ -386,10 +390,9 @@ struct State {
             const Sprite& effect=p.kind==Shot?shot:bullet;
             SDL_RendererFlip flip=p.left?SDL_FLIP_HORIZONTAL:SDL_FLIP_NONE;
             if(p.vertical)flip=SDL_RendererFlip(flip|SDL_FLIP_VERTICAL);
-            const int sideSpread=p.left?-wallSpread:wallSpread;
             ok=effect.draw(renderer,view,
-                p.startX+nearPan(camX)+sideSpread+vx,
-                p.startY+vy,flip,elapsed)&&ok;
+                XM87401Motion::screenX(p.startX,camX)+vx,
+                p.startY+stageYShift+vy,flip,elapsed)&&ok;
          }
         return ok;
     }
