@@ -199,7 +199,7 @@ struct State {
         return true;
     }
     static int rotorPan(int cameraX){
-        return (CenterCameraX-cameraX)*60/100; // C uses 30%, B uses 100%
+        return XM87401Motion::rotorParallaxX(cameraX); // C 30%, B 100%
     }
     // Screen-space render bounds keep three rotors separated even while
     // all three scroll with the same 60% horizontal parallax.
@@ -211,7 +211,8 @@ struct State {
         const int cameras[3]={camX,0,
              XM87401Motion::StageWorldW-XM87401Motion::StageScreenW};
         for(int futureCam:cameras){
-            const int futureRotorX=x+rotorPan(futureCam)-rotorPan(camX);
+            const int futureRotorX=XM87401Motion::rotorProjectedX(
+                x,camX,futureCam);
             for(const Triblaster& gun:guns){
                 const int gunX=XM87401Motion::screenX(gun.x,futureCam);
                 if(!XM87401Motion::horizontallySeparated(
