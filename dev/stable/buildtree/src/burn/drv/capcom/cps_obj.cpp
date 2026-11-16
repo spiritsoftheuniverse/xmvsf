@@ -1453,7 +1453,12 @@ if(!xm8725FighterObject && XM8725::Enabled() &&
         // Record actual native HUD ink arrival, not merely a scene state.
         // This prevents the song countdown from completing before any
         // health/timer sprite can be masked or materialized.
-        if(xm87392NativeSource && !xm8651SpriteCaptureActive)
+        // Only source-VERIFIED HP/timer (not an unrelated small
+        // priority-7 intro object) may establish the first-HUD timestamp.
+        const bool xm87399ConfirmedSource=xm87392NativeSource &&
+            XM87392::verifiedTransitionHud((unsigned)v,(unsigned)a&31u,
+                (unsigned)n,x,y,(unsigned)bx,(unsigned)by);
+        if(xm87399ConfirmedSource && !xm8651SpriteCaptureActive)
             XM87392::timeline().noteHudSource((unsigned)GetCurrentFrame());
         const unsigned xm87392Step=XM87392::timeline().step((unsigned)GetCurrentFrame());
         const bool xm87392HudTile=xm87392NativeSource &&
