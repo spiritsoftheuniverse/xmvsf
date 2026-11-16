@@ -18,7 +18,7 @@ The default for a direct executable launch is a local `screenshots/`
 directory relative to the process working directory.
 
 Each file is named like:
-`XMVSF_native_20261116_082500_f000004278_0001.png`
+`XMVSF_native_20261116_082500_f000004278_000001.png`
 
 PNG dimensions: **384 × 224**. Save is lossless. The screen is read
 **after the current game's custom-stage painter, native fighter rendering,
