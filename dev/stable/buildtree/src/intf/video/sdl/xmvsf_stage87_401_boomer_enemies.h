@@ -214,7 +214,7 @@ struct State {
             const int otherX=other.x+rotorPan(camX);
             if(!XM87401Motion::horizontallySeparated(
                  x,rotor.w,otherX,rotor.w,
-                 XM87401Motion::RotorMinSeparation-rotor.w))
+                 std::max(42,XM87401Motion::RotorMinSeparation-rotor.w)))
                 return false;
         }
         return true;
@@ -304,7 +304,18 @@ struct State {
             left?"left":"right",kind==Shot?"shot":"bullet",
             (unsigned long long)moment,int(flipV),originX,originY);
     }
-    void fireEvents(Triblaster& gun,bool left,unsigned long long frame){
+    // Odd GIF cycles can flip only while the gun's sprite CENTER is in
+    // the vertical middle third of the 224px native view (Y=75..149).
+    // Evaluate at the actual event frame; scroll + camera-Y are included.
+    bool upwardAt(const Triblaster& gun,unsigned long long when,
+                  int stageYShift)const{
+        return XM87401Motion::verticalFlip(
+                   triblaster.cycle(when>=gun.born?when-gun.born:0ull)) &&
+               XM87401Motion::inMiddleVerticalBand(
+                   gunY(gun,when)+stageYShift,triblaster.h);
+    }
+    void fireEvents(Triblaster& gun,bool left,unsigned long long frame,
+                    int stageYShift){
         if(!triblaster.ready()||frame<gun.born)return;
         const unsigned long long now=frame-gun.born;
         // Every GIF cycle triggers on source frames 2 and 11 (1-based).
@@ -323,9 +334,10 @@ struct State {
                                                  triblaster.starts[index];
                 if(trigger>now || (prev!=~0ull && trigger<=prev))continue;
                 if(prev==~0ull && trigger!=0ull && trigger<now)continue;
-                const bool flipV=(cycle&1ull)!=0ull;
+                const unsigned long long fireFrame=gun.born+trigger;
+                const bool flipV=upwardAt(gun,fireFrame,stageYShift);
                 spawnProjectile(left,flipV,index==1u?Bullet:Shot,
-                                gun,gun.born+trigger);
+                                gun,fireFrame);
             }
         }
         gun.initializedEvents=true;gun.lastAge=now;
@@ -383,7 +395,7 @@ struct State {
                     side?"left":"right",gun.x,gun.yStart,
                     (unsigned long long)frame);
             }
-            if(gun.active)fireEvents(gun,side==1u,frame);
+            if(gun.active)fireEvents(gun,side==1u,frame,stageYShift);
         }
         projectiles.erase(std::remove_if(projectiles.begin(),projectiles.end(),
             [&](const Projectile& p){
@@ -421,7 +433,7 @@ struct State {
             if(!gun.active)continue;
             const bool left=side==1u;
             const unsigned long long age=frame>=gun.born?frame-gun.born:0ull;
-            const bool flipV=XM87401Motion::verticalFlip(triblaster.cycle(age));
+            const bool flipV=upwardAt(gun,frame,stageYShift);
             SDL_RendererFlip flip=left?SDL_FLIP_HORIZONTAL:SDL_FLIP_NONE;
             if(flipV)flip=SDL_RendererFlip(flip|SDL_FLIP_VERTICAL);
             const int x=XM87401Motion::screenX(gun.x,camX);
