@@ -16,8 +16,8 @@ int main(){
     assert(wallShift(101,102)==1);
     assert(wallShift(101,103)==1);
     assert(wallShift(101,104)==2);
-    assert(rotorShift(101,103)==0);
-    assert(rotorShift(101,105)==1);
+    assert(rotorShift(99,101)==0);
+    assert(rotorShift(99,102)==1);
     // Source attachment points from the default-side GIF artwork.
     assert(offsetX(false,40,9,8)==8);
     assert(offsetX(true,40,9,8)==23);
