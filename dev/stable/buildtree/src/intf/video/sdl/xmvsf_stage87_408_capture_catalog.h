@@ -73,7 +73,7 @@ inline bool append(const char*png,unsigned gameFrame,const Snapshot& s){
     }
     if(std::fflush(out)!=0)ok=false;
     if(std::fclose(out)!=0)ok=false;
-    std::fprintf(stderr,"XM87.408 STAGE_CATALOG_V1 append_result=%d\\n",int(ok));
+    std::fprintf(stderr,"XM87.408 STAGE_CATALOG_V1 append_result=%d\n",int(ok));
     std::fprintf(stderr,
         "XM87.408 STAGE_CATALOG_%s path=%s screenshot=%s "
         "FF5082=%02X first_selector=%02X FF5113=%02X status=%02X "
