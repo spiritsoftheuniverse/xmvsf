@@ -204,11 +204,21 @@ struct State {
     // Screen-space render bounds keep three rotors separated even while
     // all three scroll with the same 60% horizontal parallax.
     bool rotorSpawnClear(int x,int camX)const{
-        for(const Triblaster& gun:guns){
-            const int gunX=XM87401Motion::screenX(gun.x,camX);
-            if(!XM87401Motion::horizontallySeparated(
-                 x,rotor.w,gunX,triblaster.w,XM87401Motion::RotorGunGap))
-                return false;
+        // B walls travel at 100% camera X; rotors at 60%. A rotor
+        // clear of a gun at spawn can drift INTO it when panning.
+        // Check its projected screen X at BOTH stage camera corners
+        // as well as the current position, before committing a spawn.
+        const int cameras[3]={camX,0,
+             XM87401Motion::StageWorldW-XM87401Motion::StageScreenW};
+        for(int futureCam:cameras){
+            const int futureRotorX=x+rotorPan(futureCam)-rotorPan(camX);
+            for(const Triblaster& gun:guns){
+                const int gunX=XM87401Motion::screenX(gun.x,futureCam);
+                if(!XM87401Motion::horizontallySeparated(
+                     futureRotorX,rotor.w,gunX,triblaster.w,
+                     XM87401Motion::RotorGunGap))
+                    return false;
+            }
         }
         for(const Rotor& other:rotors)if(other.active){
             const int otherX=other.x+rotorPan(camX);
