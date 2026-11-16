@@ -138,6 +138,7 @@ struct Random {
 struct Rotor {
     bool active=false;
     unsigned long long born=0u,nextSpawn=0u;
+    // x stores the camera-parallax-relative anchor. drawX=x+rotorPan(cameraX).
     int x=185,yStart=-64,hoverY=70;
     int bobPhase=0;
 };
@@ -146,6 +147,9 @@ struct Triblaster {
     unsigned long long born=0u,nextSpawn=0u,lastAge=0u;
     int x=0,yStart=-96;
     bool initializedEvents=false;
+    // Cache the odd-cycle up/down decision at the cycle boundary so
+    // a moving gun never flips halfway through a single GIF cycle.
+    bool upThisCycle=false;
 };
 enum ProjectileKind {Shot=0,Bullet=1};
 struct Projectile {
@@ -164,8 +168,8 @@ struct State {
     std::vector<Projectile> projectiles;
     bool ready=false;
     unsigned generation=~0u;
-    unsigned long long lastFrame=~0ull,choiceAt=0u;
-    unsigned desiredRotors=2u;
+    unsigned long long lastFrame=~0ull;
+    static constexpr unsigned DesiredRotors=3u;
     void close(){
         rotor.close();triblaster.close();shot.close();bullet.close();
         projectiles.clear();
@@ -189,8 +193,9 @@ struct State {
                 "XM87.401 TRIBLASTER_FRAME_WARNING count=%u need_frame_11_and_2\n",
                 (unsigned)triblaster.frames.size());
         std::fprintf(stderr,
-            "XM87.401 BOOMER_ENEMIES_READY rotor=1..3 x=150..220 "
-            "triblaster_corner_screen_x_right=278 left=106 gif_frames=%u "
+            "XM87.405 BOOMER_ENEMIES_READY rotors=3 spread=full_view "
+            "avoid_guns=1 right_gun_screen_x=244 left_gun_screen_x=104 "
+            "middle_up_y_center=75..149 gif_frames=%u "
             "bullet_frame=2 shot_frame=11 "
             "wall_px_per_second=30 rotor=20 projectile=60\n",
             (unsigned)triblaster.frames.size());
@@ -202,24 +207,24 @@ struct State {
     void reset(unsigned generationNow,unsigned long long gameFrame){
         generation=generationNow;lastFrame=gameFrame;
         rng.reset(generationNow);
-        desiredRotors=rng.range(1u,3u);
-        choiceAt=gameFrame+240u;
+        // Three independent rotors; spawn in three camera-visible bands
+        // so no two start stacked in the old 150..220 area.
         for(unsigned i=0;i<rotors.size();++i){
             Rotor& r=rotors[i];r=Rotor{};
-            r.nextSpawn=gameFrame+(i<desiredRotors?rng.range(0u,110u):360u);
+            r.nextSpawn=gameFrame+rng.range(0u,70u);
         }
         for(unsigned i=0;i<guns.size();++i){
             Triblaster& g=guns[i];g=Triblaster{};
-            // World-space corners: at camX=0 the mirrored one is X=106;
-            // at camX=384 the original one is X=278.
+            // World-space corners after the per-side adjustments:
+            // camX=0: mirrored X=104; camX=384: original X=244.
             g.x=XM87401Motion::gunWorldX(i==1u);
             g.nextSpawn=gameFrame+rng.range(0u,80u)+(i==1u?45u:0u);
         }
         projectiles.clear();
         std::fprintf(stderr,
-            "XM87.401 BOOMER_ENEMIES_RESET generation=%u frame=%llu "
+            "XM87.405 BOOMER_ENEMIES_RESET generation=%u frame=%llu "
             "rotor_slots=%u\n",generationNow,
-            (unsigned long long)gameFrame,desiredRotors);
+            (unsigned long long)gameFrame,DesiredRotors);
     }
     static int gunY(const Triblaster& gun,unsigned long long frame){
         return gun.yStart+XM87401Motion::wallShift(gun.born,frame);
