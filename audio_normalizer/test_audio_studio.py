@@ -96,6 +96,35 @@ class StudioTest(unittest.TestCase):
         self.assertEqual(digest(path), source_hash)
         self.assertEqual(digest(studio.BACKUPS / "impact.wav"), source_hash)
 
+    def test_clear_backup_preserves_working_audio_and_resets_identity(self):
+        audio = studio.AUDIO / "music" / "theme.wav"
+        backup = studio.BACKUPS / "music" / "theme.wav"
+        backup.parent.mkdir(parents=True, exist_ok=True)
+        backup.write_bytes(audio.read_bytes())
+        studio.atomic_json(studio.IDENTITY, {"music/theme.wav": {
+            "backup": digest(backup), "output": "a" * 64}}, ".identity-")
+        studio.atomic_settings({"music/theme.wav": 180})
+        make_wav(audio, frequency=660)
+        current = digest(audio)
+        studio.clear_backup("music/theme.wav")
+        self.assertFalse(backup.exists())
+        self.assertEqual(digest(audio), current)
+        self.assertNotIn("music/theme.wav", studio.read_identities())
+        self.assertNotIn("music/theme.wav", studio.load_levels())
+        status, _, _ = studio.backup_identity(audio, backup, None, None)
+        self.assertEqual(status, "new")
+
+    @unittest.skipUnless(studio.FFMPEG and studio.FFPROBE, "FFmpeg/FFprobe not installed")
+    def test_clear_backup_next_save_uses_current_song(self):
+        audio = studio.AUDIO / "music" / "theme.wav"
+        studio.save_audio("music/theme.wav", 50)
+        make_wav(audio, frequency=660)
+        current = digest(audio)
+        studio.clear_backup("music/theme.wav")
+        result = studio.save_audio("music/theme.wav", 100)
+        self.assertEqual(digest(studio.AUDIO / result["backup"]), current)
+        self.assertEqual(digest(audio), current)
+
     def test_identical_length_song_swap_is_not_same_file(self):
         original = studio.AUDIO / "music" / "theme.wav"
         backup = studio.BACKUPS / "music" / "theme.wav"
