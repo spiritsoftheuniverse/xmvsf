@@ -4,11 +4,14 @@
 #include "../../stable/buildtree/src/intf/video/sdl/xmvsf_stage87_404_boomer_layers.h"
 #include <cassert>
 #include <cstdio>
+#include <algorithm>
 int main(){
     using namespace XM87401Motion;
-    static_assert(RightCornerScreenX==278,"right gun at far-right native camera");
-    static_assert(LeftCornerScreenX==106,"mirrored left gun at far-left native camera");
-    static_assert(RotorXMin==150 && RotorXMax==220,"rotor spawn range");
+    static_assert(RightCornerScreenX==244,"right gun moved 34px left");
+    static_assert(LeftCornerScreenX==104,"mirrored left gun moved 2px left");
+    static_assert(RotorScreenMargin==8,"rotors cover full stage view");
+    static_assert(RotorMinSeparation==96,"rotors must not bunch");
+    static_assert(RotorGunGap==38,"rotors need blaster clearance");
     static_assert(NearFramesPerPixel==2u,"wall 30px/second at 60fps");
     static_assert(RotorFramesPerPixel==3u,"rotor between C=5 and B=2");
     static_assert(ProjectileFramesPerPixel==1u,"projectiles 2x wall speed");
@@ -40,14 +43,13 @@ int main(){
     assert(projectileDy(true,true,100,160)==-30);
     assert(!verticalFlip(0)&&verticalFlip(1)&&
            !verticalFlip(2)&&verticalFlip(3));
-    // 87.404: camera extrema must place guns near the SCREEN corners,
-    // NOT at x=105/277 at the center of a 768-wide stage.
-    assert(gunWorldX(true)==106);
-    assert(gunWorldX(false)==662);
-    assert(screenX(gunWorldX(true),0)==106);
-    assert(screenX(gunWorldX(false),384)==278);
-    assert(screenX(gunWorldX(true),192)==-86);
-    assert(screenX(gunWorldX(false),192)==470);
+    // 87.405: side-specific world-space adjustments preserve camera lock.
+    assert(gunWorldX(true)==104);
+    assert(gunWorldX(false)==628);
+    assert(screenX(gunWorldX(true),0)==104);
+    assert(screenX(gunWorldX(false),384)==244);
+    assert(screenX(gunWorldX(true),192)==-88);
+    assert(screenX(gunWorldX(false),192)==436);
     // Horizontal scroll is exactly worldX minus native camera X.
     assert(screenX(gunWorldX(true),80)-screenX(gunWorldX(true),100)==20);
     // A jump's native camera-Y movement must move sprites exactly as wall B.
@@ -69,6 +71,48 @@ int main(){
     }
     assert(!XM87404Layers::shown(-1,true,false));
     assert(!XM87404Layers::shown(9,true,false));
-    std::puts("TEST 87.404 BOOMER CAMERA/CORNER/LAYER MOTION PASS");
+    // Up-facing shot/bullet cycles are permitted ONLY in the central
+    // vertical third, based on the animated gun's physical sprite center.
+    assert(!inMiddleVerticalBand(-10,30));
+    assert(!inMiddleVerticalBand(55,38)); // center=74
+    assert(inMiddleVerticalBand(56,38));  // center=75
+    assert(inMiddleVerticalBand(110,38)); // center=129
+    assert(inMiddleVerticalBand(130,38)); // center=149
+    assert(!inMiddleVerticalBand(131,38)); // center=150
+    assert(!inMiddleVerticalBand(224,38));
+    assert(!verticalFlip(0) && verticalFlip(1) && !verticalFlip(2));
+    // Real 3-slot separation feasibility for cameras from both corners,
+    // INCLUDING the two adjusted stationary gun world positions.
+    // Search the same screen-wide thirds and use the same production
+    // rectangle-clearance predicate. No giant 150..220 rotor cluster.
+    constexpr int rotorW=24, gunW=32, cameraCases[]={0,48,96,192,288,336,384};
+    for(int cam : cameraCases){
+        int rotorXs[3]={-10000,-10000,-10000};
+        const int lo=RotorScreenMargin;
+        const int hi=StageScreenW-RotorScreenMargin-rotorW;
+        const int span=hi-lo+1;
+        for(int slot=0;slot<3;++slot){
+            const int laneLo=lo+span*slot/3;
+            const int laneHi=std::max(laneLo,lo+span*(slot+1)/3-1);
+            bool found=false;
+            for(int x=laneLo;x<=laneHi;++x){
+                if(!horizontallySeparated(x,rotorW,
+                    screenX(gunWorldX(true),cam),gunW,RotorGunGap))continue;
+                if(!horizontallySeparated(x,rotorW,
+                    screenX(gunWorldX(false),cam),gunW,RotorGunGap))continue;
+                bool separated=true;
+                for(int j=0;j<slot;++j)
+                    if(!horizontallySeparated(x,rotorW,
+                             rotorXs[j],rotorW,
+                             std::max(42,RotorMinSeparation-rotorW)))
+                        separated=false;
+                if(!separated)continue;
+                rotorXs[slot]=x;found=true;break;
+            }
+            assert(found && "All three rotor zones should be satisfiable");
+        }
+        assert(rotorXs[0]<rotorXs[1]&&rotorXs[1]<rotorXs[2]);
+    }
+    std::puts("TEST 87.405 BOOMER CORNERS, MIDDLE-UP AND 3-ROTOR SPREAD PASS");
     return 0;
 }
