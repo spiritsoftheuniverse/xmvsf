@@ -23,7 +23,11 @@ static inline bool neutralize(unsigned phase, unsigned point, unsigned reserve,
     // at the inputForFrame call site; if eligibility is lost, default to
     // neutral P1 rather than leaking an unrelated physical 3P/dash.
     if(phase==11u)return ryuPoint;
-    if(phase==4u || phase==5u)return kenPoint;
+    // 87.194: preserve the incoming fighter's original native jump
+    // without leaking held reserve-command buttons into its parser
+    // BEFORE the actual ground landing. Release the command only when
+    // its original ROM-owned native descent finishes.
+    if(phase==4u || phase==5u || phase==12u)return kenPoint;
     // 87.177: keep the P1 port neutral if a held physical 3P survives
     // beyond Ken's 9-frame native QCF+2P sequence. Otherwise the native
     // dash chord could leak back in while waiting for 2E ROM acceptance.
