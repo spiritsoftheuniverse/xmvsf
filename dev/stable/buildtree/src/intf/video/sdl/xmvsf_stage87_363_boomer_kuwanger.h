@@ -228,7 +228,7 @@ struct Scene {
   SDL_Rect old={0,0,0,0};
   if(oldClip)SDL_RenderGetClipRect(r,&old);
   SDL_RenderSetClipRect(r,&view);
-  enemies.update(frame,xm77StageRollGeneration());
+  enemies.update(frame,xm77StageRollGeneration(),camX);
   bool ok=tile(r,view,c,camX,stageTop,frame,FAR_FRAMES_PER_PX,
                FAR_X_PERCENT);
   // Mid-parallax rotor sprites are ABOVE C but BEHIND the moving B walls.
