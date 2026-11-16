@@ -1,6 +1,6 @@
 #ifndef XMVSF_STAGE87_392_HUD_SHOCK_H
 #define XMVSF_STAGE87_392_HUD_SHOCK_H
-// TEST 87.394: one read-only, game-frame HUD shock timeline for native OAM
+// TEST 87.395: game-frame HUD reveal from initial selection/VS handoff
 // and the separate SDL stun bar. No ROM/RAM mutations or opaque screen masks.
 // 60 game frames per second: 210 hidden, 30 ordered-dither reveal.
 #include <cstddef>
@@ -23,37 +23,35 @@ struct Timeline {
     unsigned lastFrame=~0u;
     int lastPhase=-1;
     bool armed=false;
-    bool combatStarted=false;
 
-    void observe(int phase,unsigned frame,bool allowed) {
+    // ROM phase 02 is the FIRST scene handoff frame, well before phase 06
+    // introduction and phase 08 FIGHT. Do not restart in either later phase.
+    static bool scenePhase(int phase){
+        return phase==2 || phase==4 || phase==6 || phase==8;
+    }
+    void observe(int phase,unsigned frame,bool allowed){
         if(!allowed){
-            armed=false;combatStarted=false;lastFrame=frame;lastPhase=-1;return;
+            armed=false;lastFrame=frame;lastPhase=-1;return;
         }
-        if(frame==lastFrame)return; // repeated paint does not advance clock
+        if(frame==lastFrame)return; // paused or multi-pass render
         if(lastFrame!=~0u && frame<lastFrame){
-            armed=false;combatStarted=false;lastPhase=-1;
+            armed=false;lastPhase=-1; // native replay/snapshot clock rewind
         }
-        if(phase==6 && lastPhase!=6){
-            // Stage intro hides the HUD immediately; the 3.5-second
-            // interval does NOT run before FIGHT/combat actually starts.
-            armed=true;combatStarted=false;
-            std::fprintf(stderr,"XM87.394 HUD_SHOCK_HIDE intro=%u\n",frame);
-        }else if(phase==8 && (!combatStarted || !armed)){
-            // This is the real game start, not the preceding stage/VS intro.
-            // A direct phase-8 entry also works without a preceding phase 6.
-            start=frame;armed=true;combatStarted=true;
+        if(!scenePhase(phase)){
+            armed=false;
+        }else if(!armed){
+            // Normal handoff enters at 02; phase 04/06/08 fallback covers
+            // direct snapshot launch without a pre-combat transition.
+            armed=true;start=frame;
             std::fprintf(stderr,
-                "XM87.394 HUD_SHOCK_COMBAT frame=%u hide=%u reveal=%u\n",
-                frame,DelayFrames,RevealFrames);
-        }else if(phase!=6 && phase!=8){
-            armed=false;combatStarted=false;
+                "XM87.395 HUD_SHOCK_HANDOFF frame=%u phase=%02X "
+                "hold=%u reveal=%u\\n",
+                frame,unsigned(phase),DelayFrames,RevealFrames);
         }
         lastFrame=frame;lastPhase=phase;
     }
-    unsigned step(unsigned frame)const {
-        if(!armed)return RevealFrames;
-        if(!combatStarted)return 0u; // hide throughout pre-combat phase 6
-        if(frame<start)return 0u;
+    unsigned step(unsigned frame)const{
+        if(!armed || frame<start)return RevealFrames;
         const unsigned elapsed=frame-start;
         if(elapsed<DelayFrames)return 0u;
         if(elapsed>=DelayFrames+RevealFrames)return RevealFrames;
@@ -126,6 +124,51 @@ inline std::uint32_t shockRGB(std::uint32_t source,unsigned step) {
     return (source&0xff000000u)|(rr<<16)|(gg<<8)|bb;
 }
 
+// Separate specular shock front, not just the visibility dither. Two diagonal
+// white-hot sweeps travel from the portrait edges toward the central timer.
+// A broad blue corona follows each narrow white core, then all light ends on
+// frame 30, restoring the exact unmodified source pixel.
+inline int shineDistance(int x,int y,unsigned step){
+    const int travel=int(step*216u/RevealFrames);
+    const int slant=(y-28)/3;
+    const int left=-18+travel+slant;
+    const int right=402-travel-slant;
+    const int a=x>=left?x-left:left-x;
+    const int b=x>=right?x-right:right-x;
+    return a<b?a:b;
+}
+inline unsigned clamp255(unsigned value){return value>255u?255u:value;}
+inline std::uint32_t shineRGB(std::uint32_t source,int x,int y,unsigned step){
+    if(step==0u || step>=RevealFrames)return source;
+    const std::uint32_t base=shockRGB(source,step);
+    const int distance=shineDistance(x,y,step);
+    if(distance>30)return base;
+    const unsigned r=(base>>16)&255u,g=(base>>8)&255u,b=base&255u;
+    unsigned rr=r,gg=g,bb=b;
+    if(distance<=3){
+        // Hard, glossy white filament at the moving leading edge.
+        const unsigned w=distance==0?255u:distance==1?245u:
+                         distance==2?225u:200u;
+        rr=byteBlend(r,255u,w,255u);
+        gg=byteBlend(g,255u,w,255u);
+        bb=byteBlend(b,255u,w,255u);
+    }else if(distance<=12){
+        // Icy electric-blue bloom immediately behind the white crest.
+        const unsigned power=(unsigned)(13-distance)*18u;
+        rr=clamp255(r+power/4u);
+        gg=clamp255(g+power*3u/4u);
+        bb=clamp255(b+power);
+    }else{
+        // The wider soft corona is source-pixel scoped and cannot tint
+        // the arena underneath a suppressed dither pixel.
+        const unsigned power=(unsigned)(31-distance)*4u;
+        rr=clamp255(r+power/6u);
+        gg=clamp255(g+power/2u);
+        bb=clamp255(b+power);
+    }
+    return (source&0xff000000u)|(rr<<16)|(gg<<8)|bb;
+}
+
 // Snapshot only 16x16 pixels of the *selected HUD tile*. Restoring removed
 // pixels and Z positions reveals the real scenery/fighters underneath instead
 // of drawing an opaque rectangular overlay across the stage.
@@ -162,7 +205,7 @@ struct Tile {
                 std::memcpy(dest,&before[index],4);
                 if(depth && depthValid)depth[(std::size_t)py*sw+px]=zBefore[index];
             }else if(after!=before[index]){
-                const std::uint32_t tinted=shockRGB(after,step);
+                const std::uint32_t tinted=shineRGB(after,px,py,step);
                 std::memcpy(dest,&tinted,4);
             }
         }
@@ -179,7 +222,7 @@ inline void stunOverlay(std::uint8_t* rgba,int pitch,unsigned step){
         if(!visible(x,y,step)){p[3]=0;continue;}
         const std::uint32_t native=(std::uint32_t(p[0])<<16)|
                                    (std::uint32_t(p[1])<<8)|p[2];
-        const std::uint32_t tinted=shockRGB(native,step);
+        const std::uint32_t tinted=shineRGB(native,x,y,step);
         p[0]=(unsigned char)((tinted>>16)&255u);
         p[1]=(unsigned char)((tinted>>8)&255u);
         p[2]=(unsigned char)(tinted&255u);
