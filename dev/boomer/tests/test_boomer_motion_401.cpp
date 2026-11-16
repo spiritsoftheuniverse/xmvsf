@@ -7,7 +7,7 @@
 #include <algorithm>
 int main(){
     using namespace XM87401Motion;
-    static_assert(RightCornerScreenX==244,"right gun moved 34px left");
+    static_assert(RightCornerScreenX==245,"right gun moved 1px right from TEST 87.406");
     static_assert(LeftCornerScreenX==104,"mirrored left gun moved 2px left");
     static_assert(RotorScreenMargin==8,"rotors cover full stage view");
     static_assert(RotorMinSeparation==88,"all three rotors must fit with wide clearance");
@@ -27,6 +27,13 @@ int main(){
     assert(offsetX(true,40,9,8)==23);
     assert(offsetX(false,40,6,27)==27);
     assert(offsetX(true,40,6,27)==7);
+    // Bullet-only ±2px correction; shot.gif remains at its prior offset.
+    assert(bulletAnchorNudgeX(false)==-2);
+    assert(bulletAnchorNudgeX(true)==2);
+    assert(629+offsetX(false,40,6,27)+bulletAnchorNudgeX(false)==654);
+    assert(104+offsetX(true,40,6,27)+bulletAnchorNudgeX(true)==113);
+    assert(629+offsetX(false,40,9,8)==637);
+    assert(104+offsetX(true,40,9,8)==127);
     assert(offsetY(false,70,9,26)==26);
     assert(offsetY(true,70,9,26)==35);
     assert(offsetY(false,70,5,47)==47);
@@ -45,11 +52,11 @@ int main(){
            !verticalFlip(2)&&verticalFlip(3));
     // 87.405: side-specific world-space adjustments preserve camera lock.
     assert(gunWorldX(true)==104);
-    assert(gunWorldX(false)==628);
+    assert(gunWorldX(false)==629);
     assert(screenX(gunWorldX(true),0)==104);
-    assert(screenX(gunWorldX(false),384)==244);
+    assert(screenX(gunWorldX(false),384)==245);
     assert(screenX(gunWorldX(true),192)==-88);
-    assert(screenX(gunWorldX(false),192)==436);
+    assert(screenX(gunWorldX(false),192)==437);
     // Horizontal scroll is exactly worldX minus native camera X.
     assert(screenX(gunWorldX(true),80)-screenX(gunWorldX(true),100)==20);
     // A jump's native camera-Y movement must move sprites exactly as wall B.
@@ -143,6 +150,6 @@ int main(){
                 assert(horizontallySeparated(rotorXs[a],rotorW,
                    rotorXs[b],rotorW,std::max(42,RotorMinSeparation-rotorW)));
     }
-    std::puts("TEST 87.405 BOOMER CORNERS, MIDDLE-UP AND 3-ROTOR SPREAD PASS");
+    std::puts("TEST 87.407 BOOMER GUN/BULLET ALIGNMENT AND 3-ROTOR SPREAD PASS");
     return 0;
 }
