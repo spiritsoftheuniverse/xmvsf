@@ -188,7 +188,7 @@ struct State {
                 "XM87.401 TRIBLASTER_FRAME_WARNING count=%u need_frame_11_and_2\n",
                 (unsigned)triblaster.frames.size());
         std::fprintf(stderr,
-            "XM87.405 BOOMER_ENEMIES_READY rotors=3 spread=full_view "
+            "XM87.407 BOOMER_ENEMIES_READY rotors=3 spread=full_view "
             "avoid_guns=1 right_gun_screen_x=244 left_gun_screen_x=104 "
             "middle_up_y_center=75..149 gif_frames=%u "
             "bullet_frame=2 shot_frame=11 "
@@ -303,12 +303,16 @@ struct State {
         const int localY=kind==Shot?26:47;
         const int x=XM87401Motion::offsetX(left,triblaster.w,effect.w,localX);
         const int y=XM87401Motion::offsetY(flipV,triblaster.h,effect.h,localY);
-        const int originX=gun.x+x;
+        // TEST 87.407: bullet muzzle is 2px left on the original/right
+        // gun, 2px right on the mirrored/left gun. Do not shift shot.gif.
+        const int bulletNudge=(kind==Bullet)?
+            XM87401Motion::bulletAnchorNudgeX(left):0;
+        const int originX=gun.x+x+bulletNudge;
         const int originY=gunY(gun,moment)+y;
         projectiles.push_back(Projectile{kind,left,flipV,moment,
                                          originX,originY});
         std::fprintf(stderr,
-            "XM87.401 TRIBLASTER_FIRE side=%s kind=%s frame=%llu "
+            "XM87.407 TRIBLASTER_FIRE side=%s kind=%s frame=%llu "
             "mirror_vertical=%d anchor=%d,%d\n",
             left?"left":"right",kind==Shot?"shot":"bullet",
             (unsigned long long)moment,int(flipV),originX,originY);
