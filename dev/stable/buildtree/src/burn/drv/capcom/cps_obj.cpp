@@ -1549,16 +1549,16 @@ if(!xm8725FighterObject && XM8725::Enabled() &&
                         nBurnPitch,nCpstX,nCpstY);
                 // Per-tile restoration preserves arena pixels and CPS2
                 // depth instead of hiding the entire HUD rectangle.
-                XM87392::Tile xm87392Tile;
-                if(xm87392HudTile)
+                if(xm87392HudTile){
+                    XM87392::Tile xm87392Tile;
                     xm87392Tile.save((const std::uint8_t*)pBurnDraw,
                         nBurnPitch,(const std::uint16_t*)ZBuf,
                         nCpsScreenWidth,nCpsScreenHeight,nCpstX,nCpstY);
-                pCpstOne();
-                if(xm87392HudTile)
+                    pCpstOne();
                     xm87392Tile.finish((std::uint8_t*)pBurnDraw,
                         (std::uint16_t*)ZBuf,nCpsScreenWidth,nCpsScreenHeight,
                         xm87392Step);
+                }else pCpstOne();
                 if(xm8774Cursor!=XM8773::None && !xm8725OffsetPass &&
                    CpsGfx && xm8726TileOffset<=nCpsGfxLen-128u && CpstPal){
                     XM8773::State().StampTile(xm8774Cursor,nCpstX,nCpstY,
