@@ -41,6 +41,14 @@ static inline bool inMiddleVerticalBand(int gunTopY,int gunHeight){
 static inline int screenX(int worldX,int nativeCameraX){
     return worldX-nativeCameraX;
 }
+static inline int rotorParallaxX(int nativeCameraX){
+    return (StageScreenW/2-nativeCameraX)*60/100;
+}
+static inline int rotorProjectedX(int spawnScreenX,int spawnCameraX,
+                                  int targetCameraX){
+    return spawnScreenX+rotorParallaxX(targetCameraX)-
+           rotorParallaxX(spawnCameraX);
+}
 // Sprite Y should use the same vertical camera translation as wall B.
 // Treat the scene's first camera reading as the stable local spawn origin.
 static inline int wallCameraYOffset(int originalCameraY,int currentCameraY){
