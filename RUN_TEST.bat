@@ -1,11 +1,11 @@
 @echo off
-REM XMVSF TEST 87.391 - Boomer Kuwanger Stage / final native DHC built into Version 4 - local native Windows DHC build (no Stable overwrite)
+REM XMVSF TEST 87.399 - Boomer Kuwanger Stage / final native DHC built into Version 4 - local native Windows DHC build (no Stable overwrite)
 setlocal EnableExtensions DisableDelayedExpansion
 for %%I in ("%~dp0.") do set "PROJECT=%%~fI"
 set "MSYSTEM=UCRT64"
 set "PATH=C:\msys64\ucrt64\bin;C:\msys64\usr\bin;%PATH%"
 set "XMVSF_PROJECT=%PROJECT%"
-set "XMVSF_TEST_VERSION=87.391"
+set "XMVSF_TEST_VERSION=87.399"
 REM Derived from XMVSF_TEST_VERSION; must match BUILD_TEST.bat.
 set "XMVSF_TEST_TAG=%XMVSF_TEST_VERSION:.=_%"
 REM All TEST diagnostics track the same version as the launched executable.
@@ -81,7 +81,7 @@ REM 87.391: dedicated, persistent Reaper Sigma graphics/clock diagnostics.
 REM The game is normally launched from FBNeo below; writing this file
 REM avoids relying on redirected stderr from an incorrectly started EXE.
 set "XM87382_REAPER_LOG=%OBSROOT%\reaper_sigma.log"
-> "%XM87382_REAPER_LOG%" echo XM87.391 RUN_TEST_LAUNCH version=%XMVSF_TEST_VERSION% source=%SOURCE_ROM% exe=%PROJECT%\runtime\stable\XMVSF_Test_%XMVSF_TEST_TAG%.exe
+> "%XM87382_REAPER_LOG%" echo XM%XMVSF_TEST_VERSION% RUN_TEST_LAUNCH version=%XMVSF_TEST_VERSION% source=%SOURCE_ROM% exe=%PROJECT%\runtime\stable\XMVSF_Test_%XMVSF_TEST_TAG%.exe
 if not exist "%XM87382_REAPER_LOG%" (
   echo ERROR: Reaper diagnostic file could not be initialized: %XM87382_REAPER_LOG%
   goto :fail

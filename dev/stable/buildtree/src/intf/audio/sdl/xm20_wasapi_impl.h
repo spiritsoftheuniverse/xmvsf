@@ -16,6 +16,7 @@
 #include <cmath>
 #include <cstdint>
 #include <algorithm>
+#include <atomic>
 #ifdef min
 #undef min
 #endif
@@ -89,6 +90,10 @@ struct Machine {
     int underflows = 0;
 };
 static Machine m;
+// One producer (WASAPI mixer thread) and one game-frame observer.
+// This increments exactly when the decoded Versus clip BEGINS producing PCM,
+// not when the ROM reaches a guessed 02/06/08 scene state or when it is queued.
+static std::atomic<unsigned> versusAudibleStarts{0u};
 static LARGE_INTEGER qpf = {};
 static double deadline = 0;
 static bool clockStarted = false;
@@ -429,8 +434,11 @@ static void fillFrames(BYTE* output, UINT32 count, const WAVEFORMATEX* fmt) {
             m.versusPending=false;
             m.versusPlaying=true;
             m.versus.pos=0.0;
-            std::fprintf(stderr,"XM87.311 VERSUS_OGG_PLAY frames=%u\n",
-                         unsigned(m.versus.frames));
+            const unsigned songStart=
+                versusAudibleStarts.fetch_add(1u,std::memory_order_release)+1u;
+            std::fprintf(stderr,
+                "XM87.396 VERSUS_OGG_PLAY audible_start=%u frames=%u\n",
+                songStart,unsigned(m.versus.frames));
         }else if(m.versusPending && m.versusLoadState==3){
             m.versusPending=false;
             std::fprintf(stderr,"XM87.311 VERSUS_OGG_UNAVAILABLE\n");
@@ -720,6 +728,10 @@ static void queue(const int16_t* samples,unsigned frames,unsigned hz) {
     LeaveCriticalSection(&m.lock);
 }
 } // namespace xm20
+// Safe read-only handoff from the audio thread to the emulation frame clock.
+unsigned xm20VersusPlaybackStarts(){
+    return xm20::versusAudibleStarts.load(std::memory_order_acquire);
+}
 // The stage picker may call this repeatedly; only one Vorbis decode worker.
 void xm20FDPrepare(){
     if(!xm20::start()||!xm20::m.csReady)return;

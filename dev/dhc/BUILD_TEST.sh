@@ -5,7 +5,7 @@
 set -euo pipefail
 BUILD_WALL_START=$SECONDS
 # Batch sets the version once at launch, before native compilation begins.
-XMVSF_BUILD_VERSION="${XMVSF_TEST_VERSION:-87.391}"
+XMVSF_BUILD_VERSION="${XMVSF_TEST_VERSION:-87.399}"
 XMVSF_BUILD_TAG="${XMVSF_BUILD_VERSION//./_}"
 PROJECT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
@@ -713,8 +713,17 @@ if (( ${#REPAIR_NATIVE[@]} )); then
   echo "BUILD CACHE REPAIR: verified all five native object files were freshly compiled."
 fi
 
-# Make's successful return and nonempty executable are authoritative.
-# Do not scan binary strings for arbitrary historical markers.
+# TEST 87.399: one targeted, cheap validation for the specific native
+# renderer regression. A TEST title change alone can succeed while the
+# CPS2 HUD object source is stale: never publish that as a working HUD build.
+# This searches the compiled EXE for a NEW source-embedded runtime marker;
+# it does not scan historical markers or clear any build cache.
+if ! LC_ALL=C grep -aFq -- "XM87.399 HUD_SHOCK_RUNTIME_SOURCE" "$BUILT"; then
+  echo "ERROR: Native HUD 87.399 source not linked into built EXE. Refusing stale TEST publish." >&2
+  echo "ERROR: Check cps_obj.o dependency freshness; Stable and previous TESTs preserved." >&2
+  exit 2
+fi
+echo "TEST HUD SOURCE PROOF: XM87.399 HUD_SHOCK_RUNTIME_SOURCE found in native EXE."
 # Hash-compare before publishing: a no-op build must NOT overwrite TEST.
 built_sha="$(sha256sum "$BUILT" | cut -d ' ' -f 1)"
 mkdir -p "$PROJECT/runtime/stable"

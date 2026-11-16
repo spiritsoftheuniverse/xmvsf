@@ -114,6 +114,12 @@ static inline void xm20VsCheck(int ready,int paused) {
             "VS_M68K_HANDOFF_0004_TO_INTERMEDIATE":
             "VS_M68K_HANDOFF_0004_TO_0008",status,p1ptr);
         xm20Vs.triggered=true;
+        // 87.399: conceal only verified HUD OAM when the SAME native
+        // chooser event requests the song. The 120f countdown still
+        // begins when the audio mixer outputs its first real VS PCM.
+        if(XM87392::eligible(BurnDrvGetTextA(DRV_NAME),
+                             XM87262Game::version4()))
+            XM87392::timeline().prepareForSong((unsigned)GetCurrentFrame());
         xmvsfHost::enterVs(); // reset and start versus music here ONLY
     }
     // Trigger column marks the SAME replay frame that actually armed audio.
