@@ -285,6 +285,14 @@ struct Scene {
   const unsigned gen=xm77StageRollGeneration();
   if(!cameraAnchorKnown || cameraAnchorGeneration!=gen ||
      (cameraLastFrame!=~0ull && frame<cameraLastFrame)){
+   // Never carry hidden fighters or scenery-only screenshot mode to a
+   // different match or restored replay timeline.
+   if(cameraAnchorKnown){
+    for(bool& on:layerOn)on=true;
+    for(bool& held:keyHeld)held=false;
+    sceneryOnly=false;
+    std::fprintf(stderr,"XM87.404 BOOMER_LAYERS_RESET new_scene=1\n");
+   }
    cameraAnchorKnown=true;cameraAnchorGeneration=gen;
    cameraAnchorY=camY;
    std::fprintf(stderr,
