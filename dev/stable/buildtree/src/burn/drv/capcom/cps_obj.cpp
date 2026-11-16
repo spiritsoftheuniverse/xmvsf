@@ -1434,7 +1434,7 @@ if(!xm8725FighterObject && XM8725::Enabled() &&
 		by = ((a >> 12) & 15) + 1;
         const unsigned xm87392Step=XM87392::timeline().step((unsigned)GetCurrentFrame());
         const bool xm87392HudTile=xm87394HudEligible &&
-            XM87392::Timeline::scenePhase(xm8745LivePhase) &&
+            XM87392::Timeline::mayMaskNativeHud(xm8745LivePhase) &&
             xm87392Step<XM87392::RevealFrames &&
             XM87392::object((unsigned)v,(unsigned)a&31u,(unsigned)n,
                             x,y,(unsigned)bx,(unsigned)by,xm87392Portrait,
@@ -1447,7 +1447,7 @@ if(!xm8725FighterObject && XM8725::Enabled() &&
             if(xm87393ReportedPhase!=xm8745LivePhase){
                 xm87393ReportedPhase=xm8745LivePhase;
                 std::fprintf(stderr,
-                    "XM87.395 HUD_SHOCK_OBJECT phase=%02X frame=%u step=%u "
+                    "XM87.396 HUD_SHOCK_OBJECT phase=%02X frame=%u step=%u "
                     "priority=%d pal=%u tile=%u x=%d y=%d size=%dx%d\n",
                     xm8745LivePhase,(unsigned)GetCurrentFrame(),xm87392Step,
                     v,(unsigned)a&31u,(unsigned)n,x,y,bx,by);
