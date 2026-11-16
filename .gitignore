@@ -43,6 +43,9 @@
 # Never commit decrypted ROM dumps.
 /local_rom_dump/
 
+# F6 native-size game screenshots are local output, not tracked game assets.
+/screenshots/
+
 # FD .fdb stage videos ARE runtime assets and must remain committed.
 # Only exclude partially generated files.
 /_art/video/*.fdb.partial
