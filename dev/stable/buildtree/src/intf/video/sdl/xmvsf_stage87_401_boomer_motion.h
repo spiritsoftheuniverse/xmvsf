@@ -10,6 +10,24 @@ static constexpr int DefaultRightX=277;
 static constexpr int MirroredLeftX=105;
 static constexpr int RotorXMin=150;
 static constexpr int RotorXMax=220;
+// 87.404: Triblasters belong to the outer WORLD corners, not the
+// initial 384-wide camera viewport. Exact top-left screen X at corners:
+// mirrored (left) = 106 when cameraX=0; original (right) = 278 when
+// cameraX=384. Do not add saved B wallSpread a second time.
+static constexpr int StageWorldW=768;
+static constexpr int StageScreenW=384;
+static constexpr int WallCornerInset=106;
+static inline int gunWorldX(bool mirrored){
+    return mirrored?WallCornerInset:StageWorldW-WallCornerInset;
+}
+static inline int screenX(int worldX,int nativeCameraX){
+    return worldX-nativeCameraX;
+}
+// Sprite Y should use the same vertical camera translation as wall B.
+// Treat the scene's first camera reading as the stable local spawn origin.
+static inline int wallCameraYOffset(int originalCameraY,int currentCameraY){
+    return originalCameraY-currentCameraY;
+}
 static inline int wallShift(unsigned long long born,unsigned long long now){
     return now>=born?int(now/NearFramesPerPixel-born/NearFramesPerPixel):0;
 }
