@@ -109,9 +109,30 @@ int main(){
                 if(!separated)continue;
                 rotorXs[slot]=x;found=true;break;
             }
-            assert(found && "All three rotor zones should be satisfiable");
+            // When a gun occupies a zone, the actual spawner searches
+            // the rest of the viewport instead of stacking on the gun.
+            if(!found){
+                for(int x=lo;x<=hi && !found;++x){
+                    if(!horizontallySeparated(x,rotorW,
+                        screenX(gunWorldX(true),cam),gunW,RotorGunGap))continue;
+                    if(!horizontallySeparated(x,rotorW,
+                        screenX(gunWorldX(false),cam),gunW,RotorGunGap))continue;
+                    bool separated=true;
+                    for(int j=0;j<slot;++j)
+                        if(!horizontallySeparated(x,rotorW,
+                             rotorXs[j],rotorW,
+                             std::max(42,RotorMinSeparation-rotorW)))
+                            separated=false;
+                    if(!separated)continue;
+                    rotorXs[slot]=x;found=true;
+                }
+            }
+            assert(found && "Three non-overlapping rotor spawns must fit");
         }
-        assert(rotorXs[0]<rotorXs[1]&&rotorXs[1]<rotorXs[2]);
+        for(int a=0;a<3;++a)
+            for(int b=a+1;b<3;++b)
+                assert(horizontallySeparated(rotorXs[a],rotorW,
+                   rotorXs[b],rotorW,std::max(42,RotorMinSeparation-rotorW)));
     }
     std::puts("TEST 87.405 BOOMER CORNERS, MIDDLE-UP AND 3-ROTOR SPREAD PASS");
     return 0;
