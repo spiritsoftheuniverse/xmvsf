@@ -1,6 +1,7 @@
 // TEST 87.401: SDL-independent stage geometry and projectile behavior.
 // Pure C++ standard assertions; run locally via RUN_TEST_BOOMER_401.bat.
 #include "../../stable/buildtree/src/intf/video/sdl/xmvsf_stage87_401_boomer_motion.h"
+#include "../../stable/buildtree/src/intf/video/sdl/xmvsf_stage87_404_boomer_layers.h"
 #include <cassert>
 #include <cstdio>
 int main(){
@@ -39,6 +40,35 @@ int main(){
     assert(projectileDy(true,true,100,160)==-30);
     assert(!verticalFlip(0)&&verticalFlip(1)&&
            !verticalFlip(2)&&verticalFlip(3));
-    std::puts("TEST 87.401 BOOMER MOTION PASS");
+    // 87.404: camera extrema must place guns near the SCREEN corners,
+    // NOT at x=105/277 at the center of a 768-wide stage.
+    assert(gunWorldX(true)==106);
+    assert(gunWorldX(false)==662);
+    assert(screenX(gunWorldX(true),0)==106);
+    assert(screenX(gunWorldX(false),384)==278);
+    assert(screenX(gunWorldX(true),192)==-86);
+    assert(screenX(gunWorldX(false),192)==470);
+    // Horizontal scroll is exactly worldX minus native camera X.
+    assert(screenX(gunWorldX(true),80)-screenX(gunWorldX(true),100)==20);
+    // A jump's native camera-Y movement must move sprites exactly as wall B.
+    const int stageTop100=224-471+256-100;
+    const int stageTop80=224-471+256-80;
+    assert(stageTop80-stageTop100==wallCameraYOffset(100,80));
+    assert(wallCameraYOffset(100,100)==0);
+    assert(wallCameraYOffset(100,110)==-10);
+    // 1-9 independently filter Boomer sources; 0 always shows all A/B/C
+    // but hides actors, HUD, and projectiles for F6 scenery-only capture.
+    for(int layer=0;layer<9;++layer){
+        const bool keep=layer==XM87404Layers::DistantC||
+                        layer==XM87404Layers::WallB||
+                        layer==XM87404Layers::PlatformA;
+        assert(XM87404Layers::shown(layer,true,true)==keep);
+        assert(XM87404Layers::shown(layer,false,true)==keep);
+        assert(XM87404Layers::shown(layer,true,false));
+        assert(!XM87404Layers::shown(layer,false,false));
+    }
+    assert(!XM87404Layers::shown(-1,true,false));
+    assert(!XM87404Layers::shown(9,true,false));
+    std::puts("TEST 87.404 BOOMER CAMERA/CORNER/LAYER MOTION PASS");
     return 0;
 }
