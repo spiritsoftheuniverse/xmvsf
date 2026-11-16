@@ -237,12 +237,6 @@ set "XM87182_NATIVE_PC_TRACE_LOG="
 REM 87.391: health observer disabled; no append/create or mandatory check.
 set "XM87181_DIAGNOSTIC_STATUS="
 if not defined XM87180_EXPERIMENTAL_DELAYED_PRIME set "XM87180_EXPERIMENTAL_DELAYED_PRIME=0"
-REM Revalidate after source extraction, which runs after initial preflight.
-REM Never substitute a different/previous TEST or Stable binary here.
-if not exist "%EXE%" (
-  echo ERROR: TEST executable disappeared after asset checks: "%EXE%"
-  goto :fail
-)
 if not exist "%PROJECT%\FBNeo" (
   echo ERROR: FBNeo game data directory is missing.
   goto :fail
@@ -274,6 +268,12 @@ if /I "%SOURCE_ROM%"=="xmvsfu" if exist "%PROJECT%\_art\ryustage\ryustage.psd" (
     echo ERROR: Ryu PSD extraction failed; inspect the layer names/coordinates in the log.
     goto :fail
   )
+)
+REM Revalidate after both source extractors and before initializing the
+REM remaining test environment. Never use a prior TEST or Stable as fallback.
+if not exist "%EXE%" (
+  echo ERROR: TEST executable disappeared after art validation: "%EXE%"
+  goto :fail
 )
 REM 87.139 isolation: disable the old 87.138 normal-tag mutation.
 set "XM87138_TAG_LAND_TEST=0"
