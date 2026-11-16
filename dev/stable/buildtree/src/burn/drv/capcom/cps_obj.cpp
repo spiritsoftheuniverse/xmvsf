@@ -693,10 +693,8 @@ INT32 Cps2ObjDraw(INT32 nLevelFrom, INT32 nLevelTo)
     const int xm8745LivePhase=CpsRamFF?int(CpsRamFF[0x5001u]):xm8658GameStatus;
     // The normal xmvsfu driver is NOT the separate 3v3 input-window hack.
     // CpsXmvSixEnabled is zero for xmvsfu: the old gate bypassed ALL HUD FX.
-    const char* xm87394Driver=BurnDrvGetTextA(DRV_NAME);
-    const bool xm87394HudEligible=xm87394Driver &&
-        std::strncmp(xm87394Driver,"xmvsf",5)==0 &&
-        XM87262Game::version4();
+    const bool xm87394HudEligible=XM87392::eligible(
+        BurnDrvGetTextA(DRV_NAME),XM87262Game::version4());
     if(!xm8651SpriteCaptureActive)
         XM87392::timeline().observe(xm8745LivePhase,(unsigned)GetCurrentFrame(),
                                     xm87394HudEligible);
