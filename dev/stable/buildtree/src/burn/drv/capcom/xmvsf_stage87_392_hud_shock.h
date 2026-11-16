@@ -12,6 +12,12 @@ namespace XM87392 {
 static const unsigned DelayFrames=210u;
 static const unsigned RevealFrames=30u;
 
+// Native original xmvsfu is not CpsXmvSixEnabled. Guard by actual driver
+// identity so normal Arcade/Training/Versus and the 3v3 derivative all work.
+inline bool eligible(const char* driver,bool version4){
+    return version4 && driver && std::strncmp(driver,"xmvsf",5)==0;
+}
+
 struct Timeline {
     unsigned start=0u;
     unsigned lastFrame=~0u;
