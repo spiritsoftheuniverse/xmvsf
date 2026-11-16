@@ -106,7 +106,7 @@ input[type=range]{width:100%;cursor:pointer;accent-color:#65c8ff}
   <div class="controls"><button id="scan" class="small ghost" disabled>Analyze original peak</button><button id="reset" class="small ghost" disabled>Reset slider to 100%</button></div>
  </div>
  <p class="hint">The slider adjusts preview volume immediately. Save applies that gain to the file on disk. The studio recognizes its own exports by their byte fingerprints, automatically refreshing the backup when you swap in a different song. Older backups without fingerprints can be reset explicitly.</p>
- <div class="savebar"><button id="save" class="primary" disabled>Save adjusted file</button><button id="replace-original" class="small ghost" disabled title="Manually make the CURRENT song the new original if its old backup predates identity tracking.">Use current song as new original</button><div id="status" class="message">Choose a track to begin.</div></div>
+ <div class="savebar"><button id="save" class="primary" disabled>Save adjusted file</button><button id="clear-backup" class="small ghost" disabled title="Delete only this track’s stored backup; keep the currently selected audio file untouched.">Clear backup</button><button id="replace-original" class="small ghost" disabled title="Manually make the CURRENT song the new original if its old backup predates identity tracking.">Use current song as new original</button><div id="status" class="message">Choose a track to begin.</div></div>
 </section>
 </main>
 <div class="footer">Backups: audio/.ost_studio/originals/ · Supports WAV, OGG, FLAC, MP3, Opus, M4A and AIFF · All processing stays on this computer.</div>
@@ -220,6 +220,7 @@ function enableControls(){
  for(const id of ["play","stop","volume","reset","scan"]){$(id).disabled=!editable;}
  $("save").disabled=!editable||$("engine").dataset.available!=="true";
  $("replace-original").disabled=!editable||$("engine").dataset.available!=="true";
+ $("clear-backup").disabled=!editable||!selectedFile().backup;
  $("seek").disabled=!editable;
  $("refresh").disabled=state.busy;
 }
@@ -290,6 +291,23 @@ async function saveTrack(replaceOriginal=false){
  }finally{state.busy=false;enableControls();}
 }
 $("save").onclick=()=>saveTrack(false);
+$("clear-backup").onclick=async()=>{
+ const file=selectedFile();
+ if(!file||!file.backup||state.busy)return;
+ if(!window.confirm("Clear the stored backup for "+file.name+"? The CURRENT audio file stays untouched and becomes the source for the next save."))return;
+ const path=file.path;
+ state.busy=true;enableControls();stopPlayback(true);
+ try{
+  await api("/api/clear-backup",{path});
+  await refresh();
+  state.selected=path;state.peak=null;
+  $("volume").value=100;updateGain();
+  if(selectedFile()){player.src=mediaUrl(path);player.load();}
+  renderList();
+  setStatus("Backup cleared. Current audio preserved; the next save will back up these bytes as the new original.","success");
+ }catch(e){setStatus("Clear backup failed: "+e.message,"error");}
+ finally{state.busy=false;enableControls();}
+};
 $("replace-original").onclick=()=>{
  if(!selectedFile()||state.busy)return;
  if(!window.confirm("Replace the existing backup with the CURRENT file? Any edits already in that file become the new original. Use this when you have replaced the song."))return;
