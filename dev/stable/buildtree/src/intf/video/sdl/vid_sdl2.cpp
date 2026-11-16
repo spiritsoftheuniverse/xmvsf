@@ -25,6 +25,7 @@
 #include "../../../burner/sdl/xmvsf_stage86_52_window_state.h" /* XM86.52 */
 #include "../../../burner/sdl/xmvsf_stage86_56_final.h" /* XM86.56 global final presentation */
 #include "../../../burn/drv/capcom/xmvsf_stage87_33_dizzy_hud.h"
+#include "../../../burn/drv/capcom/xmvsf_stage87_392_hud_shock.h" // TEST 87.392 grouped HUD timing
 #include "../../../burn/drv/capcom/xmvsf_stage87_28_interior_mask.h" // CPS2 native fighter opacity stencil
 #include "xmvsf_stage87_40_hud_color.h" // Separate portrait and HP source-colored overlay
 #include "../../../burn/drv/capcom/xmvsf_stage87_35_hud_palette.h" // Exact native HUD chroma overlay // Post-Wily HUD
@@ -719,6 +720,11 @@ static void xm8733Overlay(SDL_Renderer* render,const SDL_Rect& view,bool nativeS
                     xm8733Pixels[pixel*4u+3u]=0u;
         }
     }
+    // Native CPS2 OAM and the independently painted stun meter dissolve on
+    // one ROM-frame timeline. Native stage, Wily and all custom stages agree.
+    if(XM87262Game::version4())
+        XM87392::stunOverlay(xm8733Pixels,384*4,
+                              XM87392::timeline().step((unsigned)GetCurrentFrame()));
     if(SDL_UpdateTexture(xm8733Texture,NULL,xm8733Pixels,384*4)==0)
         SDL_RenderCopy(render,xm8733Texture,NULL,&view);
 }
