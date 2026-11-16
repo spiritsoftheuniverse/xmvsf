@@ -720,11 +720,23 @@ static void xm8733Overlay(SDL_Renderer* render,const SDL_Rect& view,bool nativeS
                     xm8733Pixels[pixel*4u+3u]=0u;
         }
     }
-    // Native CPS2 OAM and the independently painted stun meter dissolve on
-    // one ROM-frame timeline. Native stage, Wily and all custom stages agree.
-    if(XM87262Game::version4())
+    // The SDL stun art can be the FIRST actual HUD source on custom stages.
+    // Observe its opaque ink before resolving this frame's reveal step;
+    // do not let an earlier (offscreen) music timer expose it immediately.
+    if(XM87262Game::version4()){
+        XM87392::Timeline& shock=XM87392::timeline();
+        if(shock.primed && !shock.sourceSeen){
+            bool hasStunInk=false;
+            for(int y=43;y<=54 && !hasStunInk;++y)
+                for(int x=0;x<384;++x)
+                    if(xm8733Pixels[((std::size_t)y*384u+(unsigned)x)*4u+3u]){
+                        hasStunInk=true;break;
+                    }
+            if(hasStunInk)shock.noteHudSource((unsigned)GetCurrentFrame());
+        }
         XM87392::stunOverlay(xm8733Pixels,384*4,
-                              XM87392::timeline().step((unsigned)GetCurrentFrame()));
+                              shock.step((unsigned)GetCurrentFrame()));
+    }
     if(SDL_UpdateTexture(xm8733Texture,NULL,xm8733Pixels,384*4)==0)
         SDL_RenderCopy(render,xm8733Texture,NULL,&view);
 }
