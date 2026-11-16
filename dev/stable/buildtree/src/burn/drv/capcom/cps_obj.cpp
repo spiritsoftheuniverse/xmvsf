@@ -20,6 +20,7 @@ extern "C" bool xm8746DizzyHudAllowed(); // SDL game-wide + Training option
 #include "xmvsf_stage87_23_echo_mono.h" // Three-echo monochrome fallback, not a palette blanket
 #include "xmvsf_stage87_32_stun_probe.h"
 #include "xmvsf_stage87_45_hp_rgb_and_opening.h"
+#include "xmvsf_stage87_392_hud_shock.h" // TEST 87.392 shared game-frame HUD reveal
 #include "../../../burner/sdl/xmvsf_stage87_108_lifecycle.h"
 #include "xmvsf_stage87_47_movement_cues.h"
 #include "xmvsf_stage87_55_super_probe.h" // Opt-in read-only ROM-action discovery
@@ -690,6 +691,9 @@ INT32 Cps2ObjDraw(INT32 nLevelFrom, INT32 nLevelTo)
 	bool bMask = 0;
 	XM8732::Capture(CpsRamFF,(unsigned)GetCurrentFrame(),xm8658GameStatus);
     const int xm8745LivePhase=CpsRamFF?int(CpsRamFF[0x5001u]):xm8658GameStatus;
+    if(!xm8651SpriteCaptureActive)
+        XM87392::timeline().observe(xm8745LivePhase,(unsigned)GetCurrentFrame(),
+                                    CpsXmvSixEnabled && XM87262Game::version4());
     // XM87.47 accepted ROM action cues. Read-only, once per emulated frame.
     XM8747::Observe(CpsRamFF,(unsigned)GetCurrentFrame(),xm8745LivePhase,
                     nLevelFrom<=6 && nLevelTo>=6 && !xm8651SpriteCaptureActive);
@@ -1359,7 +1363,11 @@ if(!xm8725FighterObject && XM8725::Enabled() &&
 		UINT32* pStockPal = CpstPal;
 		UINT32 nPortraitPal[16];
 		UINT32 nPortraitColor = 0;
-		if (CpsXmvSixEnabled && XmvPortraitObject(n, BURN_ENDIAN_SWAP_INT16(ps[0]), BURN_ENDIAN_SWAP_INT16(ps[1]), a, CpsXmvWide != 0, &nPortraitColor)) {
+		const bool xm87392Portrait=CpsXmvSixEnabled &&
+            XmvPortraitObject(n,BURN_ENDIAN_SWAP_INT16(ps[0]),
+                              BURN_ENDIAN_SWAP_INT16(ps[1]),a,
+                              CpsXmvWide!=0,&nPortraitColor);
+        if (xm87392Portrait) {
 			UINT16 nColors[16];
 			if (!XmvPortraitColors(CpsRom, nCpsRomLen, n, nPortraitColor, nColors)) {
 				continue;	// the marker isn't a palette, so don't draw it with one
@@ -1420,6 +1428,13 @@ if(!xm8725FighterObject && XM8725::Enabled() &&
 		// Find out sprite size
 		bx = ((a >> 8) & 15) + 1;
 		by = ((a >> 12) & 15) + 1;
+        const unsigned xm87392Step=XM87392::timeline().step((unsigned)GetCurrentFrame());
+        const bool xm87392HudTile=CpsXmvSixEnabled &&
+            XM87262Game::version4() &&
+            (xm8745LivePhase==6 || xm8745LivePhase==8) &&
+            xm87392Step<XM87392::RevealFrames &&
+            XM87392::object((unsigned)v,(unsigned)a&31u,(unsigned)n,
+                            x,y,(unsigned)bx,(unsigned)by,xm87392Portrait);
 
 		// Take care with tiles if the sprite goes off the screen
 		if (x < 0 || y < 0 || x + (bx << 4) > (nCpsScreenWidth-1) || y + (by << 4) > (nCpsScreenHeight-1)) {
@@ -1532,7 +1547,18 @@ if(!xm8725FighterObject && XM8725::Enabled() &&
                 if(xm8725OffsetPass && xm8728Mask.ready)
                     xm8728Mask.Save(xm8728Saved,(const std::uint8_t*)pBurnDraw,
                         nBurnPitch,nCpstX,nCpstY);
+                // Per-tile restoration preserves arena pixels and CPS2
+                // depth instead of hiding the entire HUD rectangle.
+                XM87392::Tile xm87392Tile;
+                if(xm87392HudTile)
+                    xm87392Tile.save((const std::uint8_t*)pBurnDraw,
+                        nBurnPitch,(const std::uint16_t*)ZBuf,
+                        nCpsScreenWidth,nCpsScreenHeight,nCpstX,nCpstY);
                 pCpstOne();
+                if(xm87392HudTile)
+                    xm87392Tile.finish((std::uint8_t*)pBurnDraw,
+                        (std::uint16_t*)ZBuf,nCpsScreenWidth,nCpsScreenHeight,
+                        xm87392Step);
                 if(xm8774Cursor!=XM8773::None && !xm8725OffsetPass &&
                    CpsGfx && xm8726TileOffset<=nCpsGfxLen-128u && CpstPal){
                     XM8773::State().StampTile(xm8774Cursor,nCpstX,nCpstY,
