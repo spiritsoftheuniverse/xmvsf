@@ -37,6 +37,8 @@
 #include "xmvsf_stage77_native_stage5.h" // XM86.31 postframe guarded native stage request
 #include "xmvsf_stage29_display.h" /* XMVSF_STAGE29_SCALABLE_DISPLAY */
 extern "C" void xm87400RequestNativeScreenshot(); // SDL video: capture completed scene on next present
+extern "C" void xm87408RequestStageScreenshot(unsigned,unsigned,unsigned,unsigned,
+                                             unsigned,int,int,int); // F6 catalog snapshot
 #include "xmvsf_stage24_3_menu_poll.h" /* XMVSF_STAGE24_3_LIVE_RESULTS */
 #include "xm20_vs_transition.h" /* XMVSF_STAGE20_1_VERSUS */ // XMVSF_STAGE17_AUTO
 #include "xmvsf_stage16_snapshot.h" // XMVSF_STAGE16_SNAPSHOT
@@ -53,6 +55,14 @@ static bool xm87132CleanStable(){
 XM8649VisualState xm8649Visual{}; // XM86.49 shared read-only video data
 // XM86.58: phase observer for game screen output, never an emulation mutation.
 int xm8658GameStatus=-1;
+// Read-only last EMULATED frame stage state, shared with the F6 key handler.
+// Never query M68K while processing a raw SDL keyboard event.
+struct XM87408NativeStageEvidence {
+    unsigned selector=0xffu,firstSelector=0xffu,stage=0u,status=0xffu;
+    unsigned generation=~0u;
+    bool seen=false;
+};
+static XM87408NativeStageEvidence xm87408Evidence;
 static void xm8658ObserveGamePhase(bool ready){
     xm8658GameStatus=-1;
     if(!ready || bBurnRunAheadFrame)return;
@@ -60,7 +70,24 @@ static void xm8658ObserveGamePhase(bool ready){
     if(!name || std::strncmp(name,"xmvsf",5)!=0)return;
     cpu_core_config* c=GetCpuCoreConfig(0);
     if(!c || !c->open || !c->close || !c->read)return;
-    c->open(0); xm8658GameStatus=int(c->read(0xFF5000u)&255u); c->close();
+    c->open(0);
+    xm8658GameStatus=int(c->read(0xFF5000u)&255u);
+    const unsigned selector=c->read(0xFF5082u)&255u;
+    const unsigned nativeStage=c->read(0xFF5113u)&255u;
+    c->close();
+    const unsigned generation=xm77StageRollGeneration();
+    if(xm87408Evidence.generation!=generation){
+        xm87408Evidence=XM87408NativeStageEvidence{};
+        xm87408Evidence.generation=generation;
+    }
+    // Values may change after stage commitment: preserve the first
+    // observed non-FF selector separately from the value at F6.
+    if(xm87408Evidence.firstSelector==0xffu && selector!=0xffu)
+        xm87408Evidence.firstSelector=selector;
+    xm87408Evidence.selector=selector;
+    xm87408Evidence.stage=nativeStage;
+    xm87408Evidence.status=(unsigned)xm8658GameStatus;
+    xm87408Evidence.seen=true;
     static int previous=-2;
     if(xm8658GameStatus!=previous){
         if(xm8658GameStatus==8){
@@ -813,10 +840,25 @@ int RunMessageLoop()
                 if(!event.key.repeat){
                     const char* driver=bDrvOkay?BurnDrvGetTextA(DRV_NAME):nullptr;
                     if(driver && std::strncmp(driver,"xmvsf",5)==0){
-                        xm87400RequestNativeScreenshot();
+                        xm87408RequestStageScreenshot(
+                            xm87408Evidence.selector,
+                            xm87408Evidence.firstSelector,
+                            xm87408Evidence.stage,
+                            xm87408Evidence.status,
+                            xm87408Evidence.generation,
+                            xm77StageChoice,xm77StageResolved,
+                            int(xm87408Evidence.seen));
                         std::fprintf(stderr,
-                            "XM87.400 F6_NATIVE_PNG_REQUEST frame=%u\n",
-                            (unsigned)GetCurrentFrame());
+                            "XM87.408 F6_STAGE_CATALOG_REQUEST frame=%u "
+                            "FF5082=%02X first=%02X FF5113=%02X status=%02X "
+                            "host=%d/%d observed=%d\n",
+                            (unsigned)GetCurrentFrame(),
+                            xm87408Evidence.selector,
+                            xm87408Evidence.firstSelector,
+                            xm87408Evidence.stage,
+                            xm87408Evidence.status,
+                            xm77StageChoice,xm77StageResolved,
+                            int(xm87408Evidence.seen));
                     }
                 }
                 continue;
