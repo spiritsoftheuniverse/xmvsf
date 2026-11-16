@@ -6,8 +6,6 @@ namespace XM87401Motion {
 static constexpr unsigned NearFramesPerPixel=2u;
 static constexpr unsigned RotorFramesPerPixel=3u;
 static constexpr unsigned ProjectileFramesPerPixel=1u;
-static constexpr int DefaultRightX=277;
-static constexpr int MirroredLeftX=105;
 static constexpr int RotorXMin=150;
 static constexpr int RotorXMax=220;
 // 87.404: Triblasters belong to the outer WORLD corners, not the
@@ -17,6 +15,8 @@ static constexpr int RotorXMax=220;
 static constexpr int StageWorldW=768;
 static constexpr int StageScreenW=384;
 static constexpr int WallCornerInset=106;
+static constexpr int RightCornerScreenX=StageScreenW-WallCornerInset; // 278
+static constexpr int LeftCornerScreenX=WallCornerInset; // 106
 static inline int gunWorldX(bool mirrored){
     return mirrored?WallCornerInset:StageWorldW-WallCornerInset;
 }
