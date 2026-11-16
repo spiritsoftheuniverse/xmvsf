@@ -740,6 +740,14 @@ if ! LC_ALL=C grep -aFq -- "XM87.401 BOOMER_ENEMIES_READY" "$BUILT"; then
   exit 2
 fi
 echo "TEST BOOMER SOURCE PROOF: XM87.401 BOOMER_ENEMIES_READY found in native EXE."
+# 87.404: verify the ACTUAL Boomer number-key compositor reached the
+# linked native SDL video module. A new TEST label alone is not proof.
+if ! LC_ALL=C grep -aFq -- "XM87.404 BOOMER_LAYERS_0" "$BUILT"; then
+  echo "ERROR: TEST 87.404 Boomer camera/layer painter not linked. Refusing stale publication." >&2
+  echo "ERROR: Check vid_sdl2.o and included stage header dependency freshness." >&2
+  exit 2
+fi
+echo "TEST BOOMER LAYER PROOF: XM87.404 BOOMER_LAYERS_0 found in EXE."
 # Hash-compare before publishing: a no-op build must NOT overwrite TEST.
 built_sha="$(sha256sum "$BUILT" | cut -d ' ' -f 1)"
 mkdir -p "$PROJECT/runtime/stable"
