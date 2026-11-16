@@ -1,11 +1,12 @@
 #ifndef XMVSF_STAGE87_392_HUD_SHOCK_H
 #define XMVSF_STAGE87_392_HUD_SHOCK_H
-// TEST 87.392: one read-only, game-frame HUD shock timeline for native OAM
+// TEST 87.393: one read-only, game-frame HUD shock timeline for native OAM
 // and the separate SDL stun bar. No ROM/RAM mutations or opaque screen masks.
 // 60 game frames per second: 210 hidden, 30 ordered-dither reveal.
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <cstdio>
 
 namespace XM87392 {
 static const unsigned DelayFrames=210u;
@@ -16,24 +17,37 @@ struct Timeline {
     unsigned lastFrame=~0u;
     int lastPhase=-1;
     bool armed=false;
+    bool combatStarted=false;
 
     void observe(int phase,unsigned frame,bool allowed) {
         if(!allowed){
-            armed=false;lastFrame=frame;lastPhase=-1;return;
+            armed=false;combatStarted=false;lastFrame=frame;lastPhase=-1;return;
         }
-        if(frame==lastFrame)return; // paused/repeated paint is not elapsed game time
-        if(lastFrame!=~0u && frame<lastFrame){armed=false;lastPhase=-1;}
+        if(frame==lastFrame)return; // repeated paint does not advance clock
+        if(lastFrame!=~0u && frame<lastFrame){
+            armed=false;combatStarted=false;lastPhase=-1;
+        }
         if(phase==6 && lastPhase!=6){
-            start=frame;armed=true; // stage opens, before FIGHT
-        }else if(phase==8 && !armed){
-            start=frame;armed=true; // snapshot/direct-combat entry
+            // Stage intro hides the HUD immediately; the 3.5-second
+            // interval does NOT run before FIGHT/combat actually starts.
+            armed=true;combatStarted=false;
+            std::fprintf(stderr,"XM87.393 HUD_SHOCK_HIDE intro=%u\n",frame);
+        }else if(phase==8 && (!combatStarted || !armed)){
+            // This is the real game start, not the preceding stage/VS intro.
+            // A direct phase-8 entry also works without a preceding phase 6.
+            start=frame;armed=true;combatStarted=true;
+            std::fprintf(stderr,
+                "XM87.393 HUD_SHOCK_COMBAT frame=%u hide=%u reveal=%u\n",
+                frame,DelayFrames,RevealFrames);
         }else if(phase!=6 && phase!=8){
-            armed=false; // KO/results/selection: never conceal the score screen
+            armed=false;combatStarted=false;
         }
         lastFrame=frame;lastPhase=phase;
     }
     unsigned step(unsigned frame)const {
-        if(!armed || frame<start)return RevealFrames;
+        if(!armed)return RevealFrames;
+        if(!combatStarted)return 0u; // hide throughout pre-combat phase 6
+        if(frame<start)return 0u;
         const unsigned elapsed=frame-start;
         if(elapsed<DelayFrames)return 0u;
         if(elapsed>=DelayFrames+RevealFrames)return RevealFrames;
@@ -45,26 +59,25 @@ inline Timeline& timeline(){static Timeline s;return s;}
 // Strictly scoped to the upper native HUD; never blanket-filter the fighter,
 // arena, introductory logo walls, or unrelated large priority-7 artwork.
 inline bool object(unsigned priority,unsigned palette,unsigned tile,
-                   int x,int y,unsigned wide,unsigned tall,bool portrait=false){
-    if(!wide || !tall || x>=384 || x+int(wide*16u)<=0 ||
+                   int x,int y,unsigned wide,unsigned tall,bool portrait=false,
+                   bool scenery=false){
+    if(scenery || !wide || !tall || x>=384 || x+int(wide*16u)<=0 ||
        y>=56 || y+int(tall*16u)<=0)return false;
     if(priority==0u)
         return palette==1u && wide==2u && tall==2u &&
                tile>=87808u && tile<=87826u && ((tile-87808u)&1u)==0u &&
-               x>=130 && x<=226 && y>=0 && y<52; // verified time digits
+               y>=-16 && y<56; // verified ROM timer-digit atlas
     if(priority!=7u)return false;
-    if(portrait)return y>=-32 && y<=46;
-    if(y< -32 || wide>9u || tall>5u)return false;
-    // Health-strip sources can be fairly long. Exclude other large pre-fight
-    // sprites except the source-verified HP tile families.
-    if(wide>=5u || tall>=5u){
-        const bool hp=(palette==2u || palette==4u) &&
-                      (y==20 || y==32) &&
-                      ((tile>=88417u && tile<=88579u) ||
-                        tile==89417u || tile==89418u);
-        if(!hp)return false;
-    }
-    return true;
+    if(portrait)return y>=-64 && y<56;
+    if(y< -48)return false;
+    // Small priority-7 objects spanning the upper HUD are all part of its
+    // native object stream. The earlier narrow tile/size list leaked the
+    // frames, labels and portrait decorations.
+    if(wide<=9u && tall<=5u)return true;
+    // Long bars are independently verified ROM HP strip sheets.
+    return (palette==2u || palette==4u) && (y==20 || y==32) &&
+           ((tile>=88417u && tile<=88579u) ||
+             tile==89417u || tile==89418u);
 }
 static const unsigned char Bayer8[64]={
      0,48,12,60, 3,51,15,63,
