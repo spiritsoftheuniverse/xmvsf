@@ -6,19 +6,37 @@ namespace XM87401Motion {
 static constexpr unsigned NearFramesPerPixel=2u;
 static constexpr unsigned RotorFramesPerPixel=3u;
 static constexpr unsigned ProjectileFramesPerPixel=1u;
-static constexpr int RotorXMin=150;
-static constexpr int RotorXMax=220;
-// 87.404: Triblasters belong to the outer WORLD corners, not the
-// initial 384-wide camera viewport. Exact top-left screen X at corners:
-// mirrored (left) = 106 when cameraX=0; original (right) = 278 when
-// cameraX=384. Do not add saved B wallSpread a second time.
+// 87.405: rotors may enter anywhere across the full current 384px stage
+// view, not just the old 150..220px cluster.
+static constexpr int RotorScreenMargin=8;
+static constexpr int RotorMinSeparation=96; // minimum top-left X separation
+static constexpr int RotorGunGap=38; // clear empty space between both sprites
+// 87.405: per-side corrections to 87.404 world-corner placement.
+// Mirrored left moves 2px left: at camX=0, screen X=104.
+// Original right moves 34px left: at camX=384, screen X=244.
+// Do not add saved B wallSpread a second time.
 static constexpr int StageWorldW=768;
 static constexpr int StageScreenW=384;
 static constexpr int WallCornerInset=106;
-static constexpr int RightCornerScreenX=StageScreenW-WallCornerInset; // 278
-static constexpr int LeftCornerScreenX=WallCornerInset; // 106
+static constexpr int LeftCorrection=-2;
+static constexpr int RightCorrection=-34;
+static constexpr int LeftCornerScreenX=WallCornerInset+LeftCorrection; // 104
+static constexpr int RightCornerScreenX=StageScreenW-WallCornerInset+RightCorrection; // 244
 static inline int gunWorldX(bool mirrored){
-    return mirrored?WallCornerInset:StageWorldW-WallCornerInset;
+    return mirrored?LeftCornerScreenX:StageWorldW-WallCornerInset+RightCorrection;
+}
+// Compare HORIZONTAL SPRITE BOUNDS with an empty gap between them,
+// not just their origins. Applies to every active rotor and gun.
+static inline bool horizontallySeparated(int aX,int aW,int bX,int bW,int gap){
+    return aX+aW+gap<=bX || bX+bW+gap<=aX;
+}
+// Central vertical third of the native screen, measured at the
+// Triblaster's sprite center. An upward cycle may begin only here.
+static constexpr int UpwardCenterMin=StageScreenW*0 + 75;
+static constexpr int UpwardCenterMax=149;
+static inline bool inMiddleVerticalBand(int gunTopY,int gunHeight){
+    const int center=gunTopY+gunHeight/2;
+    return center>=UpwardCenterMin && center<=UpwardCenterMax;
 }
 static inline int screenX(int worldX,int nativeCameraX){
     return worldX-nativeCameraX;
