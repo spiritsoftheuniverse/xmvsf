@@ -46,6 +46,9 @@
 # F6 native-size game screenshots are local output, not tracked game assets.
 /screenshots/
 
+# Locally compiled Boomer animation/motion regression executable.
+/dev/boomer/tests/*.exe
+
 # FD .fdb stage videos ARE runtime assets and must remain committed.
 # Only exclude partially generated files.
 /_art/video/*.fdb.partial
