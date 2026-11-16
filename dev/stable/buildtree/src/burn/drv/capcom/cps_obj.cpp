@@ -1439,6 +1439,17 @@ if(!xm8725FighterObject && XM8725::Enabled() &&
                                                    (unsigned)a&31u) ||
                             xm8665ExtraScenery((unsigned)v,(unsigned)a&31u,
                                                 (unsigned)n));
+        if(xm87392HudTile && !xm8651SpriteCaptureActive){
+            static int xm87393ReportedPhase=-1;
+            if(xm87393ReportedPhase!=xm8745LivePhase){
+                xm87393ReportedPhase=xm8745LivePhase;
+                std::fprintf(stderr,
+                    "XM87.393 HUD_SHOCK_OBJECT phase=%02X frame=%u step=%u "
+                    "priority=%d pal=%u tile=%u x=%d y=%d size=%dx%d\n",
+                    xm8745LivePhase,(unsigned)GetCurrentFrame(),xm87392Step,
+                    v,(unsigned)a&31u,(unsigned)n,x,y,bx,by);
+            }
+        }
 
 		// Take care with tiles if the sprite goes off the screen
 		if (x < 0 || y < 0 || x + (bx << 4) > (nCpsScreenWidth-1) || y + (by << 4) > (nCpsScreenHeight-1)) {
