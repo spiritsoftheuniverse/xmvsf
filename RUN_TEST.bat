@@ -10,6 +10,8 @@ REM Derived from XMVSF_TEST_VERSION; must match BUILD_TEST.bat.
 set "XMVSF_TEST_TAG=%XMVSF_TEST_VERSION:.=_%"
 REM All TEST diagnostics track the same version as the launched executable.
 set "XMVSF_TEST_LOG_ROOT=%PROJECT%\test\%XMVSF_TEST_VERSION%"
+REM F6 completed native-scale PNG output. Absolute path survives FBNeo pushd.
+set "XMVSF_SCREENSHOT_DIR=%PROJECT%\screenshots"
 REM Offline artifact review uses Python only. Never reaches ROM checks or EXE.
 if /I "%~1"=="review" goto :offline_clean_review
 if /I "%~1"=="sprites" goto :offline_sprite_factory
@@ -497,6 +499,11 @@ if "%XM87203_M68K_TRACE%"=="1" if /I "%SOURCE_ROM:~0,4%"=="mvsc" (
   echo M68K sprite writer PC capture configured under test\87.203\m68k_trace\run_XXXX
   echo Writer source dumps and traces remain LOCAL under ignored test\87.203.
 )
+if not exist "%XMVSF_SCREENSHOT_DIR%\" mkdir "%XMVSF_SCREENSHOT_DIR%" >nul 2>nul
+if not exist "%XMVSF_SCREENSHOT_DIR%\" (
+  echo WARNING: F6 screenshot folder could not be created: "%XMVSF_SCREENSHOT_DIR%"
+)
+echo F6 native screenshots: "%XMVSF_SCREENSHOT_DIR%"
 pushd "%PROJECT%\FBNeo" || goto :fail
 REM XMVSF has its own persistent boot/menu application. Passing xmvsfu as
 REM a ROM argument bypasses that application and runs only generic FBNeo.
