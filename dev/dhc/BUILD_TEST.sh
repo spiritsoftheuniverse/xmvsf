@@ -724,6 +724,14 @@ if ! LC_ALL=C grep -aFq -- "XM87.399 HUD_SHOCK_RUNTIME_SOURCE" "$BUILT"; then
   exit 2
 fi
 echo "TEST HUD SOURCE PROOF: XM87.399 HUD_SHOCK_RUNTIME_SOURCE found in native EXE."
+# Lightweight F6 capture freshness proof: source-version labels alone are
+# insufficient to guarantee the SDL video translation unit was relinked.
+if ! LC_ALL=C grep -aFq -- "XM87.400 F6_NATIVE_PNG_SAVED" "$BUILT"; then
+  echo "ERROR: Native F6 PNG video source not linked into built EXE. Refusing stale TEST publish." >&2
+  echo "ERROR: Inspect vid_sdl2.o dependency freshness; existing TEST and Stable preserved." >&2
+  exit 2
+fi
+echo "TEST F6 SCREENSHOT PROOF: XM87.400 F6_NATIVE_PNG_SAVED found in native EXE."
 # Hash-compare before publishing: a no-op build must NOT overwrite TEST.
 built_sha="$(sha256sum "$BUILT" | cut -d ' ' -f 1)"
 mkdir -p "$PROJECT/runtime/stable"
