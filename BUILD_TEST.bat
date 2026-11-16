@@ -6,7 +6,7 @@ set "PATH=C:\msys64\ucrt64\bin;C:\msys64\usr\bin;%PATH%"
 set "XMVSF_PROJECT=%PROJECT%"
 REM Freeze the target for this invocation: updates during a long build must not
 REM make the wrapper look for a different version than the shell published.
-set "XMVSF_TEST_VERSION=87.402"
+set "XMVSF_TEST_VERSION=87.403"
 set "XMVSF_TEST_TAG=%XMVSF_TEST_VERSION:.=_%"
 REM Explicit Joe-only refresh: BUILD_TEST.bat joe. No other PSD PNG is touched.
 REM Normal BUILD_TEST.bat keeps the original complete SHA-inventory validation.
@@ -44,6 +44,26 @@ for %%G in (rotor.gif triblaster.gif triblaster_shot.gif triblaster_bullet.gif) 
   )
 )
 echo Boomer GIF asset preflight: all four sprites present.
+REM 87.403: compile the exact stage GIF header against the installed
+REM SDL2_image API BEFORE the expensive full native Make. This catches
+REM misspelled IMG_Animation types in seconds without changing warm cache.
+set "BOOMER_PREFLIGHT=%LOGDIR%\BOOMER_GIF_HEADER_403.log"
+if not exist "C:\msys64\ucrt64\include\SDL2\SDL_image.h" (
+  echo ERROR: UCRT64 SDL2_image headers are missing.
+  >>"%BUILDLOG%" echo ERROR: UCRT64 SDL2_image headers missing.
+  goto :fail
+)
+echo Boomer SDL2_image GIF type smoke check...
+"C:\msys64\ucrt64\bin\g++.exe" -std=c++17 -fsyntax-only -I"C:\msys64\ucrt64\include\SDL2" "%PROJECT%\dev\boomer\tests\test_boomer_gif_header_403.cpp" >"%BOOMER_PREFLIGHT%" 2>&1
+set "BOOMER_RC=%ERRORLEVEL%"
+type "%BOOMER_PREFLIGHT%"
+type "%BOOMER_PREFLIGHT%" >>"%BUILDLOG%"
+if not "%BOOMER_RC%"=="0" (
+  echo ERROR: Boomer GIF header failed compiler smoke check. Aborting before full native build.
+  >>"%BUILDLOG%" echo ERROR: Boomer GIF header failed compiler smoke check.
+  goto :fail
+)
+echo Boomer GIF native header smoke PASS.
 where bash.exe >nul 2>nul
 if errorlevel 1 (
   echo ERROR: MSYS2 bash.exe not found on PATH.
