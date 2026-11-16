@@ -97,6 +97,12 @@ input[type=range]{width:100%;cursor:pointer;accent-color:#65c8ff}
   <span class="time" id="time">00:00 / 00:00</span>
  </div>
  <input class="seek" id="seek" type="range" min="0" max="1000" step="1" value="0" disabled aria-label="Audio position">
+ <div class="volume">
+  <div class="vol-head"><span class="label">Studio playback loudness · monitor only</span><div><strong id="monitor-amount">200%</strong></div></div>
+  <input id="monitor-volume" type="range" min="50" max="300" step="10" value="200" aria-label="Studio playback loudness">
+  <div class="scale"><span>50% · Quiet</span><span>100% · Unboosted</span><span>300% · Louder</span></div>
+  <p class="hint">Raises only what you hear in this studio. Independent of Save adjusted file, with peak limiting to avoid digital clipping.</p>
+ </div>
  <audio id="player" preload="metadata"></audio>
  <div class="volume">
   <div class="vol-head"><span class="label">Output volume</span><div><strong id="amount">100%</strong><span id="decibels" class="db">0.00 dB</span></div></div>
@@ -114,7 +120,7 @@ input[type=range]{width:100%;cursor:pointer;accent-color:#65c8ff}
 "use strict";
 const TOKEN="__TOKEN__";
 const $=id=>document.getElementById(id);
-const state={files:[],levels:{},group:"Music",selected:null,peak:null,busy:false,audioContext:null,gainNode:null};
+const state={files:[],levels:{},group:"Music",selected:null,peak:null,busy:false,audioContext:null,gainNode:null,monitorNode:null,limiter:null};
 const player=$("player");
 function formatTime(time){
  if(!Number.isFinite(time)||time<0)return "00:00";
@@ -204,6 +210,18 @@ function updateGain(){
  if(projected>0.01){$("peak").textContent="Original peak "+peak.toFixed(1)+" dBFS · adjusted peak "+projected.toFixed(1)+" dBFS · may clip on export";$("peak").className="meter warn";}
  else{$("peak").textContent="Original peak "+peak.toFixed(1)+" dBFS · adjusted peak "+(Number.isFinite(projected)?projected.toFixed(1):"−∞")+" dBFS";$("peak").className="meter";}
 }
+function updateMonitor(){
+ const boost=Number($("monitor-volume").value);
+ $("monitor-amount").textContent=boost+"%";
+ if(state.monitorNode)state.monitorNode.gain.value=boost/100;
+ try{localStorage.setItem("xmvsf-studio-monitor-volume",String(boost));}catch(e){}
+}
+try{
+ const stored=Number(localStorage.getItem("xmvsf-studio-monitor-volume"));
+ if(Number.isFinite(stored)&&stored>=50&&stored<=300)$("monitor-volume").value=stored;
+}catch(e){}
+updateMonitor();
+$("monitor-volume").addEventListener("input",updateMonitor);
 function choose(path){
  if(state.busy)return;
  stopPlayback(true);state.selected=path;state.peak=null;
@@ -244,7 +262,18 @@ function activateAudio(){
  state.audioContext=new Context();
  state.gainNode=state.audioContext.createGain();
  const source=state.audioContext.createMediaElementSource(player);
- source.connect(state.gainNode);state.gainNode.connect(state.audioContext.destination);
+ state.monitorNode=state.audioContext.createGain();
+ state.limiter=state.audioContext.createDynamicsCompressor();
+ state.limiter.threshold.value=-1;
+ state.limiter.knee.value=0;
+ state.limiter.ratio.value=20;
+ state.limiter.attack.value=0.003;
+ state.limiter.release.value=0.12;
+ source.connect(state.gainNode);
+ state.gainNode.connect(state.monitorNode);
+ state.monitorNode.connect(state.limiter);
+ state.limiter.connect(state.audioContext.destination);
+ updateMonitor();
  updateGain();
 }
 $("play").onclick=async()=>{
