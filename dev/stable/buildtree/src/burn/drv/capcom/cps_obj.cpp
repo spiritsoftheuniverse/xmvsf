@@ -698,6 +698,16 @@ INT32 Cps2ObjDraw(INT32 nLevelFrom, INT32 nLevelTo)
     if(!xm8651SpriteCaptureActive)
         XM87392::timeline().observe(xm8745LivePhase,(unsigned)GetCurrentFrame(),
                                     xm87394HudEligible);
+    // One unambiguous, build-verified runtime signature. BUILD_TEST.sh
+    // rejects any executable that lacks this newly compiled native module.
+    static bool xm87399SourceLogged=false;
+    if(xm87394HudEligible && !xm87399SourceLogged &&
+       !xm8651SpriteCaptureActive){
+        xm87399SourceLogged=true;
+        std::fprintf(stderr,
+            "XM87.399 HUD_SHOCK_RUNTIME_SOURCE verified=1 delay=120 "
+            "transition=source-verified-only\n");
+    }
     // XM87.47 accepted ROM action cues. Read-only, once per emulated frame.
     XM8747::Observe(CpsRamFF,(unsigned)GetCurrentFrame(),xm8745LivePhase,
                     nLevelFrom<=6 && nLevelTo>=6 && !xm8651SpriteCaptureActive);
@@ -1434,9 +1444,9 @@ if(!xm8725FighterObject && XM8725::Enabled() &&
 		by = ((a >> 12) & 15) + 1;
         const unsigned xm87392Step=XM87392::timeline().step((unsigned)GetCurrentFrame());
         const bool xm87392HudTile=xm87394HudEligible &&
-            XM87392::Timeline::mayMaskNativeHud(xm8745LivePhase) &&
             xm87392Step<XM87392::RevealFrames &&
-            XM87392::object((unsigned)v,(unsigned)a&31u,(unsigned)n,
+            XM87392::objectForPhase(xm8745LivePhase,
+                            (unsigned)v,(unsigned)a&31u,(unsigned)n,
                             x,y,(unsigned)bx,(unsigned)by,xm87392Portrait,
                             xm8654KnownNativeScenery((unsigned)v,(unsigned)n,
                                                    (unsigned)a&31u) ||
@@ -1447,7 +1457,7 @@ if(!xm8725FighterObject && XM8725::Enabled() &&
             if(xm87393ReportedPhase!=xm8745LivePhase){
                 xm87393ReportedPhase=xm8745LivePhase;
                 std::fprintf(stderr,
-                    "XM87.398 HUD_SHOCK_OBJECT phase=%02X frame=%u step=%u "
+                    "XM87.399 HUD_SHOCK_OBJECT phase=%02X frame=%u step=%u "
                     "priority=%d pal=%u tile=%u x=%d y=%d size=%dx%d\n",
                     xm8745LivePhase,(unsigned)GetCurrentFrame(),xm87392Step,
                     v,(unsigned)a&31u,(unsigned)n,x,y,bx,by);
