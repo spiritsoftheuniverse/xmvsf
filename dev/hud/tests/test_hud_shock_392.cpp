@@ -1,4 +1,4 @@
-// TEST 87.396: standalone, no ROM/SDL or GitHub Actions required.
+// TEST 87.397: standalone, no ROM/SDL or GitHub Actions required.
 // Build locally with RUN_TEST_HUD_392.bat.
 #include "../../stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_392_hud_shock.h"
 #include <cassert>
@@ -30,10 +30,12 @@ int main(){
     t.observe(2,130u,true);
     t.observe(4,160u,true);
     t.observe(6,240u,true);
-    assert(t.step(309)==0u);
-    assert(t.step(310)==1u);
-    assert(t.step(338)==29u);
-    assert(t.step(339)==30u);
+    // Hold finishes 30 game frames sooner: real VS setup around native
+    // frame 2126; the first observed fight frame was around 2305.
+    assert(t.step(279)==0u);
+    assert(t.step(280)==1u);
+    assert(t.step(308)==29u);
+    assert(t.step(309)==30u);
     t.observe(8,410u,true);  // FIGHT does not re-arm
     t.startWithSong(1u,410u); // duplicate mixer read cannot re-arm
     assert(t.step(410)==30u);
@@ -55,7 +57,8 @@ int main(){
     assert(t.step(530)==30u);
     t.startWithSong(3u,550u);
     assert(t.step(550)==0u);
-    assert(t.step(760)==1u);
+    assert(t.step(729)==0u);
+    assert(t.step(730)==1u);
 
     assert(object(0,1,87808,160,12,2,2));
     assert(!object(0,1,87808,32,100,2,2));
@@ -70,14 +73,19 @@ int main(){
     assert(shockRGB(ink,30)==ink);
     assert(shockRGB(ink,1)!=ink);
     assert(shockRGB(ink,12)!=ink);
-    assert(shineRGB(ink,90,28,15)!=shockRGB(ink,15));
-    assert(shineRGB(ink,294,28,15)!=shockRGB(ink,15));
+    assert(shineRGB(ink,105,28,15)!=shockRGB(ink,15));
+    assert(shineRGB(ink,279,28,15)!=shockRGB(ink,15));
     assert(shineRGB(ink,150,28,15)==shockRGB(ink,15));
-    assert(shineRGB(ink,90,28,30)==ink);
-    assert(shineCore(91,28,15));
-    assert(!visible(91,28,15)); // white filament is separate from Bayer
+    assert(shineRGB(ink,105,28,30)==ink);
+    // First materialization frame already contains visible white primer,
+    // even when the ordinary first Bayer step is still dark.
+    assert(shineCore(23,28,1));
+    assert(!visible(23,28,1));
+    assert(shineCore(105,28,15));
+    assert(!visible(105,28,15)); // white filament separate from Bayer
+    assert(shineCore(279,28,15));
     assert(!shineCore(150,28,15));
-    assert(!shineCore(91,28,30));
+    assert(!shineCore(105,28,30));
     unsigned last=0;
     for(unsigned s=0;s<=30;++s){
         unsigned seen=0;
@@ -132,17 +140,17 @@ int main(){
     // A moving shine streak must be visible even where the ordinary Bayer
     // dissolve would hide that *actual HUD object* source pixel.
     Tile glint;
-    glint.save(fb.data(),pitch,z.data(),width,height,88,24);
-    for(int y=24;y<40;++y)for(int x=88;x<104;++x){
+    glint.save(fb.data(),pitch,z.data(),width,height,104,24);
+    for(int y=24;y<40;++y)for(int x=104;x<120;++x){
         const std::uint32_t pixel=0x00ff3300u;
         std::memcpy(fb.data()+(std::size_t)y*pitch+x*4,&pixel,4);
         z[(std::size_t)y*width+x]=50u;
     }
     glint.finish(fb.data(),z.data(),width,height,15u);
     std::uint32_t whiteFilament=0u;
-    std::memcpy(&whiteFilament,fb.data()+(std::size_t)28*pitch+91*4,4);
-    assert(whiteFilament==shineRGB(0x00ff3300u,91,28,15u));
-    assert(z[(std::size_t)28*width+91]==50u);
+    std::memcpy(&whiteFilament,fb.data()+(std::size_t)28*pitch+105*4,4);
+    assert(whiteFilament==shineRGB(0x00ff3300u,105,28,15u));
+    assert(z[(std::size_t)28*width+105]==50u);
 
     std::vector<std::uint8_t> overlay((std::size_t)384*224*4,0u);
     for(int x=60;x<70;++x){
@@ -152,7 +160,7 @@ int main(){
     stunOverlay(overlay.data(),384*4,0u);
     for(int x=60;x<70;++x)
         assert(overlay[((std::size_t)45*384+x)*4+3]==0u);
-    const int sx=94,sy=45; // core of left shockfront at reveal frame 15
+    const int sx=110,sy=45; // core of left shockfront at reveal frame 15
     assert(shineCore(sx,sy,15u));
     assert(!visible(sx,sy,15u));
     std::uint8_t* glowing=overlay.data()+((std::size_t)sy*384+sx)*4;
@@ -163,6 +171,6 @@ int main(){
     assert(glowing[0]==((shineColor>>16)&255u));
     assert(glowing[1]==((shineColor>>8)&255u));
     assert(glowing[2]==(shineColor&255u));
-    std::printf("87.396 HUD shock tests PASS: timeline, object scope, Bayer reveal, Z restore, stun overlay\n");
+    std::printf("87.397 HUD shock tests PASS: timeline, object scope, Bayer reveal, Z restore, stun overlay\n");
     return 0;
 }
