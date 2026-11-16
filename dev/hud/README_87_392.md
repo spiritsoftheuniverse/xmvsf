@@ -26,7 +26,9 @@ observed 04/06/08 frame is a fallback anchor.
 - During reveal: white blowout shifts to cyan/electric blue, then native
   palette; TWO additional diagonal, converging specular sweeps run from
   the portrait edges toward the timer with white-hot centers and a soft
-  blue corona. This is separately animated from the dither coverage.
+  blue corona. The moving white filaments also cut through the Bayer gaps
+  **only where actual HUD ink exists**, making this a distinct shine effect
+  rather than merely a recolored dither mask.
 - After 30 frames: exact normal HUD pixels, no ongoing shine or processing.
 
 Paused paints do not consume frames. KO/results/selection are unaffected.
