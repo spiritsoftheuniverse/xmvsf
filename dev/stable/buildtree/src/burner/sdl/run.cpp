@@ -24,6 +24,7 @@
 #include "xmvsf_stage22_select_audio.h" /* XMVSF_STAGE22_SELECTION_SFX */
 #include "xmvsf_stage23_engine.h" /* XMVSF_STAGE23_TRAINING_MENU */
 #include "xmvsf_menu_glyph_atlas.h" /* release sprite UI before renderer shutdown */
+#include "../../burn/drv/capcom/xmvsf_stage87_392_hud_shock.h" // TEST 87.396 VS audio-owned HUD timing
 #include "xmvsf_stage87_118_meter_audio.h" /* XM87.118 read-only stock edge (restored in 87.132 build repair) */
 #include "xmvsf_stage24_engine.h" /* XMVSF_STAGE24_VERSUS */
 #include "xmvsf_stage86_49_camera.h" // XM86.49 opt-in read-only native camera
@@ -72,6 +73,20 @@ static void xm8658ObserveGamePhase(bool ready){
     }
 }
 
+// Audio thread publishes the first actual VS music PCM packet. Poll that
+// monotonically increasing event on the normal emulated-frame thread, before
+// painting, so pause/frame skip and custom-stage draw routes agree.
+static unsigned xm87396LastVsPlayed=0u;
+static void xm87396ObserveVersusSong(bool ready){
+    if(!ready || bBurnRunAheadFrame)return;
+    const unsigned started=xm20VersusPlaybackStarts();
+    if(!started || started==xm87396LastVsPlayed)return;
+    xm87396LastVsPlayed=started;
+    if(XM87392::eligible(BurnDrvGetTextA(DRV_NAME),
+                         XM87262Game::version4())){
+        XM87392::timeline().startWithSong(started,(unsigned)GetCurrentFrame());
+    }
+}
 static unsigned int nDoFPS = 0;
 bool bAltPause = 0;
 
@@ -400,6 +415,7 @@ static int RunFrame(int bDraw, int bPause)
             xm8649ObserveCamera(bDrvOkay);
             // Cue audio on the first native VS frame, BEFORE VidPaint.
             xm20VsCheck(bDrvOkay,bRunPause);
+            xm87396ObserveVersusSong(bDrvOkay);
             xm14ApplyTrainingCheats(xm14TrainingMode && !xm23State.dizzyAllowed); // XM87.44: before first presentation
         }
 	    if(traceFrame){std::fprintf(stderr,"XM86.34 FRAME1 BEFORE_VIDPAINT\n");std::fflush(stderr);}
@@ -416,6 +432,7 @@ static int RunFrame(int bDraw, int bPause)
 		if (!bPause) {
             xm8658ObserveGamePhase(bDrvOkay); // phase 08/0A even during FD paint skips
             xm20VsCheck(bDrvOkay,bRunPause); // precombat VS cue on skipped frames
+            xm87396ObserveVersusSong(bDrvOkay); // same audio event across skipped game frames
             // Advance native-camera OAM alignment across skipped real frames.
             xm8649ObserveCamera(bDrvOkay);
             xm14ApplyTrainingCheats(xm14TrainingMode && !xm23State.dizzyAllowed); // XM87.100 non-rendered frame
@@ -767,6 +784,9 @@ int RunMessageLoop()
     if(xm20Vs.log){std::fclose(xm20Vs.log);xm20Vs.log=nullptr;}
     xm20VsClose(); // Flush any prior native VS/M68K replay trace before resetting.
     xm20Vs=XM20VsTracker{};
+    // Never inherit the previous match's VS start when re-entering the shell.
+    xm87396LastVsPlayed=xm20VersusPlaybackStarts();
+    XM87392::timeline().reset();
     xm22::diagnosticWritten=false;
     xm22::writes=0;
     std::fprintf(stderr,"XM86.55 SESSION_AUDIO_RESET vs=0 select_mute_rearmed=1\n");
