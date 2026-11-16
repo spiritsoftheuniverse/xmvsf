@@ -82,6 +82,12 @@ static void xm8658ObserveGamePhase(bool ready){
     }
     // Values may change after stage commitment: preserve the first
     // observed non-FF selector separately from the value at F6.
+    // In Arcade, a new natural ROM stage can begin without any host
+    // stage-roll generation change. The next stage's selection window
+    // must not inherit the previous stage's first selector.
+    if(nativeStage==0u && xm87408Evidence.stage!=0u &&
+       (unsigned)xm8658GameStatus<2u)
+        xm87408Evidence.firstSelector=0xffu;
     if(xm87408Evidence.firstSelector==0xffu && selector!=0xffu)
         xm87408Evidence.firstSelector=selector;
     xm87408Evidence.selector=selector;
@@ -846,7 +852,8 @@ int RunMessageLoop()
                             xm87408Evidence.stage,
                             xm87408Evidence.status,
                             xm87408Evidence.generation,
-                            xm77StageChoice,xm77StageResolved,
+                            (xm14TrainingMode||xm24VersusMode)?xm77StageChoice:0,
+                            (xm14TrainingMode||xm24VersusMode)?xm77StageResolved:0,
                             int(xm87408Evidence.seen));
                         std::fprintf(stderr,
                             "XM87.408 F6_STAGE_CATALOG_REQUEST frame=%u "
