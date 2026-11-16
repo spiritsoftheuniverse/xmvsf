@@ -1,4 +1,4 @@
-// TEST 87.398: standalone, no ROM/SDL or GitHub Actions required.
+// TEST 87.399: standalone, no ROM/SDL or GitHub Actions required.
 // Build locally with RUN_TEST_HUD_392.bat.
 #include "../../stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_392_hud_shock.h"
 #include <cassert>
@@ -17,57 +17,66 @@ int main(){
     assert(!eligible("xmvsfu",false));
     assert(!eligible("mvsc",true));
     assert(!eligible(nullptr,true));
-    // The Versus soundtrack is the only clock source. This now begins
-    // 120 frames earlier than the 87.397 hold, but the fight-screen HUD
-    // stays invisible for six native frames when its scene appears late.
+    // 87.399: concealment is PRIMED at the native VS music request;
+    // the 120-frame countdown begins at the first ACTUAL audio PCM packet.
+    // No first-fight-frame max(): that was why 87.397 and 87.398
+    // appeared to have exactly the same timing.
     Timeline t;
     t.observe(0,98,true);
     assert(t.step(98)==30u);
-    t.startWithSong(1u,100u);
-    assert(t.step(100)==0u);
-    t.observe(0,101u,true);
-    t.observe(2,130u,true);
-    t.observe(4,160u,true);
-    assert(t.step(219u)==0u); // song clock elapsed but no fight HUD yet
-    assert(t.step(220u)==0u); // must never complete offscreen
-    assert(!Timeline::mayMaskNativeHud(2));
-    assert(!Timeline::mayMaskNativeHud(4)); // forest transition untouched
+    t.prepareForSong(100u);
+    assert(t.step(100)==0u); // hide before the music decoder starts
+    t.observe(2,101u,true);
+    assert(t.step(101)==0u);
+    t.observe(4,103u,true);
+    t.startWithSong(1u,105u); // first actual VS PCM
+    assert(t.step(105)==0u);
+    assert(t.step(224)==0u);
+    assert(t.step(225)==1u);
+    assert(t.step(253)==29u);
+    assert(t.step(254)==30u);
+    t.observe(6,260u,true);
+    assert(t.step(260)==30u); // do NOT re-delay until combat
+    t.startWithSong(1u,261u);
+    assert(t.step(261)==30u); // no duplicate start
+    t.observe(8,300u,true);
+    assert(t.step(300)==30u); // FIGHT must not re-arm
+    t.observe(10,310u,true);
+    assert(t.step(310)==30u); // results visible
+
+    t.prepareForSong(400u); // new match, immediately hidden again
+    assert(t.step(400)==0u);
+    t.observe(2,401u,true);
+    t.startWithSong(2u,410u);
+    assert(t.step(529)==0u);
+    assert(t.step(530)==1u);
+    assert(t.step(559)==30u);
+    t.observe(4,560u,false);
+    assert(t.step(560)==30u); // Version 3 clean
+    t.reset();
+    assert(t.step(600)==30u);
+    t.startWithSong(3u,700u); // fallback if song starts before priming
+    assert(t.step(700)==0u);
+    assert(t.step(819)==0u);
+    assert(t.step(820)==1u);
+
+    // Only unambiguous ROM HUD sources can be masked during 02/04.
+    // Source-unverified top priority-7 trees/logo must NEVER be removed
+    // in a transition, even when they fit the regular HUD geometry.
+    assert(Timeline::mayMaskNativeHud(2));
+    assert(Timeline::mayMaskNativeHud(4));
     assert(Timeline::mayMaskNativeHud(6));
     assert(Timeline::mayMaskNativeHud(8));
     assert(!Timeline::mayMaskNativeHud(10));
-    t.observe(6,240u,true); // first fight HUD, after song timer expired
-    assert(t.fightHudSeen && t.firstHudFrame==240u);
-    assert(t.step(240u)==0u);
-    assert(t.step(245u)==0u); // invisible on first six fight HUD frames
-    assert(t.step(246u)==1u); // start primer immediately afterward
-    assert(t.step(274u)==29u);
-    assert(t.step(275u)==30u);
-    t.observe(8,300u,true);
-    assert(t.step(300u)==30u); // no repeat on FIGHT
-    t.startWithSong(1u,305u); // same audio event cannot re-arm
-    assert(t.step(305u)==30u);
-    t.observe(10,320u,true);
-    assert(t.step(320u)==30u); // KO/results fully visible
-
-    // Scenario 2: fight HUD appears BEFORE the song hold finishes. The
-    // source audio timing remains authoritative; no extra startup delay.
-    t.startWithSong(2u,500u);
-    t.observe(2,510u,true);
-    t.observe(6,550u,true);
-    assert(t.step(550u)==0u);
-    assert(t.step(619u)==0u);
-    assert(t.step(620u)==1u); // 500+120
-    assert(t.step(649u)==30u);
-
-    // Version 3 disables the effect without changing the song generation.
-    t.observe(6,650u,false);
-    assert(t.step(650u)==30u);
-    t.reset();
-    assert(t.step(660u)==30u);
-    t.startWithSong(3u,700u);
-    t.observe(6,705u,true);
-    assert(t.step(819u)==0u);
-    assert(t.step(820u)==1u);
+    assert(objectForPhase(2,7,2,88463,32,20,2,1));
+    assert(objectForPhase(4,7,4,88547,300,32,2,1));
+    assert(objectForPhase(2,0,1,87808,160,12,2,2));
+    assert(!objectForPhase(2,7,3,50000,20,0,3,2));
+    assert(!objectForPhase(4,7,2,109100,32,20,2,1));
+    assert(!objectForPhase(2,7,2,88463,32,90,2,1));
+    assert(!objectForPhase(2,7,2,88463,32,20,2,1,false,true));
+    assert(objectForPhase(6,7,3,50000,20,0,3,2));
+    assert(!objectForPhase(10,7,2,88463,32,20,2,1));
 
     assert(object(0,1,87808,160,12,2,2));
     assert(!object(0,1,87808,32,100,2,2));
@@ -180,6 +189,6 @@ int main(){
     assert(glowing[0]==((shineColor>>16)&255u));
     assert(glowing[1]==((shineColor>>8)&255u));
     assert(glowing[2]==(shineColor&255u));
-    std::printf("87.398 HUD shock tests PASS: timeline, object scope, Bayer reveal, Z restore, stun overlay\n");
+    std::printf("87.399 HUD shock tests PASS: timeline, object scope, Bayer reveal, Z restore, stun overlay\n");
     return 0;
 }
