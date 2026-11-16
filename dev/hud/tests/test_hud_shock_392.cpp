@@ -1,4 +1,4 @@
-// TEST 87.395: standalone, no ROM/SDL or GitHub Actions required.
+// TEST 87.396: standalone, no ROM/SDL or GitHub Actions required.
 // Build locally with RUN_TEST_HUD_392.bat.
 #include "../../stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_392_hud_shock.h"
 #include <cassert>
@@ -17,37 +17,45 @@ int main(){
     assert(!eligible("xmvsfu",false));
     assert(!eligible("mvsc",true));
     assert(!eligible(nullptr,true));
-    // Actual 87.394 Sigma capture: scene handoff in phase 02 near frame 1,
-    // introduction phase 06 at ~182, first combat phase 08 at ~362.
-    // The 210-frame delay must NOT restart at either later transition.
+    // Versus OGG playback (not FF5000 status) is the sole timeline source.
+    // The 87.395 replay starts at native frame 290, already in the
+    // handoff; the fixture can begin inside or before phase 02.
     Timeline t;
-    t.observe(1,99,true);
-    assert(t.step(99)==30u);
-    t.observe(2,100,true); // first handoff frame
+    t.observe(0,98,true);
+    assert(t.step(98)==30u);
+    t.startWithSong(1u,100u); // first real VS PCM; no phase assumption
     assert(t.step(100)==0u);
-    t.observe(3,170,true); // transitional/odd phase still same scene
-    assert(t.step(170)==0u);
-    t.observe(6,260,true);
-    assert(t.step(260)==0u);
+    t.observe(0,101u,true);   // may still be in selection transition
+    assert(t.step(101)==0u);
+    t.observe(2,130u,true);
+    t.observe(4,160u,true);
+    t.observe(6,240u,true);
     assert(t.step(309)==0u);
     assert(t.step(310)==1u);
     assert(t.step(338)==29u);
     assert(t.step(339)==30u);
-    t.observe(8,400,true); // FIGHT must NOT restart the completed reveal
-    assert(t.step(400)==30u);
-    t.observe(8,400,true); // repeated paused paint is not another frame
-    assert(t.step(400)==30u);
-    t.observe(10,410,true); // KO/results stay visible
+    t.observe(8,410u,true);  // FIGHT does not re-arm
+    t.startWithSong(1u,410u); // duplicate mixer read cannot re-arm
     assert(t.step(410)==30u);
-    t.observe(2,500,true); // new handoff re-arms
+    t.observe(10,420u,true); // KO disarms
+    assert(t.step(420)==30u);
+    t.startWithSong(2u,500u); // next actual VS song starts new hold
     assert(t.step(500)==0u);
-    t.observe(4,520,true);
-    assert(t.step(520)==0u);
-    t.observe(8,530,false); // Version 3 stays unmodified
+    t.observe(2,510u,true);
+    assert(t.step(510)==0u);
+    assert(!Timeline::mayMaskNativeHud(0));
+    assert(!Timeline::mayMaskNativeHud(2));
+    assert(!Timeline::mayMaskNativeHud(4)); // never reveal native forest
+    assert(Timeline::mayMaskNativeHud(6));
+    assert(Timeline::mayMaskNativeHud(8));
+    assert(!Timeline::mayMaskNativeHud(10));
+    t.observe(6,520u,false); // Version 3 remains unmodified
+    assert(t.step(520)==30u);
+    t.reset();
     assert(t.step(530)==30u);
-    t.observe(8,660,true); // snapshot/direct-combat fallback
-    assert(t.step(660)==0u);
-    assert(t.step(870)==1u);
+    t.startWithSong(3u,550u);
+    assert(t.step(550)==0u);
+    assert(t.step(760)==1u);
 
     assert(object(0,1,87808,160,12,2,2));
     assert(!object(0,1,87808,32,100,2,2));
@@ -155,6 +163,6 @@ int main(){
     assert(glowing[0]==((shineColor>>16)&255u));
     assert(glowing[1]==((shineColor>>8)&255u));
     assert(glowing[2]==(shineColor&255u));
-    std::printf("87.395 HUD shock tests PASS: timeline, object scope, Bayer reveal, Z restore, stun overlay\n");
+    std::printf("87.396 HUD shock tests PASS: timeline, object scope, Bayer reveal, Z restore, stun overlay\n");
     return 0;
 }
