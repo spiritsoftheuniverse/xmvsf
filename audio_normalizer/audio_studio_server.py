@@ -345,6 +345,33 @@ def save_audio(relative: str, gain: float,
                 os.unlink(pending_backup)
 
 
+def clear_backup(relative: str) -> dict:
+    """Discard this track's stored source/identity, leaving working audio intact."""
+    with SAVE_LOCK:
+        path, rel = resolve_audio(relative)
+        key = rel.as_posix()
+        backup = BACKUPS / rel
+        if backup.is_symlink():
+            raise ValueError("Original backup cannot be a symlink")
+        if backup.exists() and not backup.is_file():
+            raise ValueError("Original backup is not a regular file")
+        # Never remove the working audio. Future saves use its current bytes.
+        working_hash = sha256_bytes(path)
+        if backup.is_file():
+            backup.unlink()
+        identities = read_identities()
+        if key in identities:
+            del identities[key]
+            atomic_json(IDENTITY, identities, ".identity-")
+        levels = load_levels()
+        if key in levels:
+            del levels[key]
+            atomic_settings(levels)
+        if sha256_bytes(path) != working_hash:
+            raise RuntimeError("Working audio changed while clearing backup")
+        return {"path": key, "cleared": True}
+
+
 def peak_scan(relative: str) -> dict:
     if not FFMPEG:
         raise RuntimeError("FFmpeg required for peak analysis")
@@ -464,7 +491,7 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self) -> None:
         path = urllib.parse.urlsplit(self.path).path
-        if path not in ("/api/save", "/api/peak"):
+        if path not in ("/api/save", "/api/peak", "/api/clear-backup"):
             return self.answer(404, {"error": "Unknown route"})
         origin = self.headers.get("Origin", "")
         local_origin = "http://127.0.0.1:{}".format(self.server.server_port)
@@ -480,6 +507,8 @@ class Handler(BaseHTTPRequestHandler):
             if path == "/api/save":
                 result = save_audio(data["path"], data.get("gain"),
                                     data.get("replace_original", False))
+            elif path == "/api/clear-backup":
+                result = clear_backup(data["path"])
             else:
                 result = peak_scan(data["path"])
             self.answer(200, result)
