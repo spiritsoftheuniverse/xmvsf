@@ -1,4 +1,4 @@
-# TEST 87.393 — Match-start grouped HUD shock
+# TEST 87.394 — Match-start grouped HUD shock
 
 Branch: `feature/hud-shock-reveal` (branched from main TEST 87.391).
 
@@ -36,7 +36,7 @@ Run `dev\hud\RUN_TEST_HUD_392.bat` on Windows with the existing MSYS2/UCRT64
 the 210+30-frame schedule, phase transitions, classification bounds,
 ordered-dither coverage, native-pixel/depth restoration and the stun layer.
 
-For visual verification on a **locally built TEST 87.393** using existing
+For visual verification on a **locally built TEST 87.394** using existing
 `BUILD_TEST.bat` / `RUN_TEST.bat` (no GitHub Actions), inspect:
 
 1. Intro→FIGHT: hide native timer, portraits, life and stun as one HUD group.
@@ -48,6 +48,11 @@ For visual verification on a **locally built TEST 87.393** using existing
 
 This branch has **not** been locally compiled or visually accepted here.
 A received 87.392 runtime capture confirmed the user was in Version 4,
-but the first implementation armed during the lengthy stage intro and did
-not cover every small HUD decoration. TEST 87.393 corrects both, and emits
-XM87.393 HUD_SHOCK_HIDE / HUD_SHOCK_COMBAT / HUD_SHOCK_OBJECT markers.
+and that the 87.392 build's gating incorrectly required
+`CpsXmvSixEnabled`. That flag belongs exclusively to the optional 3v3
+ROM path and is false for the reported stock `xmvsfu` run, so no
+native HUD filtering activated. The first implementation also armed during
+the lengthy stage intro and did not cover every small HUD decoration.
+TEST 87.394 corrects all three, and emits
+`XM87.394 HUD_SHOCK_HIDE`, `XM87.394 HUD_SHOCK_COMBAT`, and
+`XM87.394 HUD_SHOCK_OBJECT` markers in the local TEST transcript.
