@@ -1,11 +1,11 @@
 @echo off
-REM XMVSF TEST 87.401 - Boomer Kuwanger Stage / final native DHC built into Version 4 - local native Windows DHC build (no Stable overwrite)
+REM XMVSF TEST 87.402 - Boomer Kuwanger Stage / final native DHC built into Version 4 - local native Windows DHC build (no Stable overwrite)
 setlocal EnableExtensions DisableDelayedExpansion
 for %%I in ("%~dp0.") do set "PROJECT=%%~fI"
 set "MSYSTEM=UCRT64"
 set "PATH=C:\msys64\ucrt64\bin;C:\msys64\usr\bin;%PATH%"
 set "XMVSF_PROJECT=%PROJECT%"
-set "XMVSF_TEST_VERSION=87.401"
+set "XMVSF_TEST_VERSION=87.402"
 REM Derived from XMVSF_TEST_VERSION; must match BUILD_TEST.bat.
 set "XMVSF_TEST_TAG=%XMVSF_TEST_VERSION:.=_%"
 REM All TEST diagnostics track the same version as the launched executable.
@@ -50,6 +50,20 @@ if /I "%SOURCE_ROM%"=="xmvsfu" if /I "%CLEAN_RIP_MODE%"=="trace" (
 if /I not "%SOURCE_ROM:~0,4%"=="mvsc" if /I not "%SOURCE_ROM%"=="xmvsfu" (
   echo ERROR: Stage capture supports Marvel vs. Capcom mvsc* ROM sets.
   echo Optional XMVSF mode is xmvsfu; no arbitrary ROM fallback.
+  goto :fail
+)
+REM 87.402: exact TEST executable preflight BEFORE generating any new
+REM F9/F10/chat/ROM-analysis session files. Offline review routes remain usable.
+set "EXE=%PROJECT%\runtime\stable\XMVSF_Test_%XMVSF_TEST_TAG%.exe"
+if not exist "%EXE%" (
+  echo ERROR: TEST %XMVSF_TEST_VERSION% executable is missing.
+  echo Expected: "%EXE%"
+  echo BUILD_TEST.bat must complete and print TEST BUILD READY first.
+  echo Build transcript: "%PROJECT%\test\build_logs\BUILD_TEST.log"
+  goto :fail
+)
+for %%I in ("%EXE%") do if %%~zI LEQ 0 (
+  echo ERROR: TEST %XMVSF_TEST_VERSION% executable is empty: "%EXE%"
   goto :fail
 )
 REM F11 exclusively activates native level capture; no implicit huge capture on boot.
@@ -223,12 +237,6 @@ set "XM87182_NATIVE_PC_TRACE_LOG="
 REM 87.391: health observer disabled; no append/create or mandatory check.
 set "XM87181_DIAGNOSTIC_STATUS="
 if not defined XM87180_EXPERIMENTAL_DELAYED_PRIME set "XM87180_EXPERIMENTAL_DELAYED_PRIME=0"
-set "EXE=%PROJECT%\runtime\stable\XMVSF_Test_%XMVSF_TEST_TAG%.exe"
-if not exist "%EXE%" (
-  echo ERROR: Stage 87.329 TEST executable is missing; no fallback to older builds.
-  echo Run BUILD_TEST.bat first. Will NOT fall back to 87.132.4 or Stable.
-  goto :fail
-)
 if not exist "%PROJECT%\FBNeo" (
   echo ERROR: FBNeo game data directory is missing.
   goto :fail
@@ -260,6 +268,12 @@ if /I "%SOURCE_ROM%"=="xmvsfu" if exist "%PROJECT%\_art\ryustage\ryustage.psd" (
     echo ERROR: Ryu PSD extraction failed; inspect the layer names/coordinates in the log.
     goto :fail
   )
+)
+REM Revalidate after both source extractors and before initializing the
+REM remaining test environment. Never use a prior TEST or Stable as fallback.
+if not exist "%EXE%" (
+  echo ERROR: TEST executable disappeared after art validation: "%EXE%"
+  goto :fail
 )
 REM 87.139 isolation: disable the old 87.138 normal-tag mutation.
 set "XM87138_TAG_LAND_TEST=0"
@@ -366,7 +380,7 @@ echo 87.185: delayed DHC input priming disabled by default, preserves original R
 echo 87.184 native Shinkuu action lifetime: 2E08 startup/attack, 2E0A recovery, exact exit.
 echo 87.235 ROM super start-to-real-exit DHC: %XM87191_TEST_OPEN_SUPER_LIFETIME%  (no phase/timer/air-mode availability veto)
 echo Native 2E family: %XM87189_TEST_NATIVE_SUPER_FAMILY% full original attack: %XM87188_TEST_FULL_ATTACK% recovery: %XM87185_TEST_RECOVERY_REBOUND%
-echo XMVSF Stage 87.329 TEST - KEEP KEN SHORYUREPPA; CUT OUTGOING RYU PROJECTILE HITS
+echo XMVSF Stage %XMVSF_TEST_VERSION% TEST - KEEP KEN SHORYUREPPA; CUT OUTGOING RYU PROJECTILE HITS
 echo Executable: %EXE%
 echo SAME BUILD, TWO DHC CHOICES:
 echo   During Ryu Shinkuu Hadoken, QCF+ANY TWO PUNCHES or QCF+3P queues Ken SHORYUREPPA.
@@ -504,6 +518,18 @@ if not exist "%XMVSF_SCREENSHOT_DIR%\" (
   echo WARNING: F6 screenshot folder could not be created: "%XMVSF_SCREENSHOT_DIR%"
 )
 echo F6 native screenshots: "%XMVSF_SCREENSHOT_DIR%"
+REM Last possible prelaunch check, after every preparatory step. This stops
+REM command-interpreter error 9009 being mistaken for an emulator/ROM failure.
+if not exist "%EXE%" (
+  echo ERROR: TEST executable no longer exists immediately before launch.
+  echo Expected: "%EXE%"
+  echo Check build output: "%PROJECT%\test\build_logs\BUILD_TEST.log"
+  goto :fail
+)
+for %%I in ("%EXE%") do if %%~zI LEQ 0 (
+  echo ERROR: Empty TEST executable at launch: "%EXE%"
+  goto :fail
+)
 pushd "%PROJECT%\FBNeo" || goto :fail
 REM XMVSF has its own persistent boot/menu application. Passing xmvsfu as
 REM a ROM argument bypasses that application and runs only generic FBNeo.
@@ -511,7 +537,7 @@ REM Stage 87.235: start the exact TEST executable without ROM argument.
 REM Restore the pre-merge zero-argument native TEST launch for XMVSF.
 REM MVC1 remains an explicit source-ROM invocation for capture option 3.
 if /I "%SOURCE_ROM%"=="xmvsfu" (
-  echo Launching native XMVSF TEST 87.329: Arcade / Training / Versus.
+  echo Launching native XMVSF TEST %XMVSF_TEST_VERSION%: Arcade / Training / Versus.
   "%EXE%"
 ) else (
   echo Launching original CPS2 donor ROM %SOURCE_ROM% with controller support.
@@ -519,6 +545,12 @@ if /I "%SOURCE_ROM%"=="xmvsfu" (
 )
 set "RC=%ERRORLEVEL%"
 popd
+if "%RC%"=="9009" (
+  echo ERROR: Windows could not execute the exact TEST file: "%EXE%"
+  echo This is a launch/path error, NOT a DHC or Capstone error.
+  echo Rebuild using BUILD_TEST.bat; inspect "%PROJECT%\test\build_logs\BUILD_TEST.log".
+  goto :fail
+)
 REM Health observer disabled; preserve EXE return code.
 REM Include the actual FBNeo-to-physical controller mapping alongside the
 REM controller and ordinary Training side-switch traces for local diagnosis.
@@ -928,9 +960,9 @@ REM ROM and advanced capture/analysis commands remain backward compatible.
 :suite_menu
 echo.
 echo ============================================================
-echo   XMVSF - TEST 87.329 / ASSET / CAPTURE SUITE
+echo   XMVSF - TEST %XMVSF_TEST_VERSION% / ASSET / CAPTURE SUITE
 echo ============================================================
-echo   [1] Test game - XMVSF native TEST 87.329
+echo   [1] Test game - XMVSF native TEST %XMVSF_TEST_VERSION%
 echo   [2] Asset Organizer - build and open local editor
 echo   [3] Capture Level - select original donor game
 echo.
