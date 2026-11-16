@@ -1,0 +1,23 @@
+FORMAT	1
+CANVAS	143	193
+SOURCE_SHA256	197848a4f0a1a39efbf5c0e0c9f43dc607f55930ccf2a9346a8675d032b7689e
+EXTRACTOR_SHA256	8f4713973b0f209e5ab6b0ec9ea81012c492e73fb6ed0115c65524bba4f3ee84
+FRAME	idle1	idle1.png	37	33	80	106
+FRAME	idle2	idle2.png	37	33	79	106
+FRAME	idle3	idle3.png	37	33	78	106
+FRAME	smash1	smash1.png	29	0	87	144
+FRAME	smash2	smash2.png	29	1	87	143
+FRAME	smash3	smash3.png	29	5	87	139
+FRAME	smash4	smash4.png	0	50	126	97
+FRAME	slashrun5	slashrun5.png	26	50	112	139
+FRAME	slashrun6	slashrun6.png	26	50	117	138
+FRAME	slashrun7	slashrun7.png	26	50	103	136
+FRAME	ball1body	ball1body.png	29	51	85	89
+FRAME	ball2	ball2.png	0	0	1	1
+FRAME	ball3	ball3.png	56	83	38	36
+FRAME	ball4	ball4.png	53	80	42	40
+FRAME	ball5	ball5.png	46	73	57	54
+FRAME	ball6	ball6.png	59	85	32	30
+FRAME	ball7	ball7.png	62	87	26	26
+FRAME	ball8	ball8.png	65	90	20	20
+FRAME	ball9	ball9.png	65	88	22	23
