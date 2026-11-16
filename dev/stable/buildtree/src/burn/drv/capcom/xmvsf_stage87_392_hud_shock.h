@@ -23,9 +23,11 @@ struct Timeline {
     unsigned primedAt=0u;
     unsigned lastFrame=~0u;
     unsigned lastSongStart=0u;
+    unsigned firstSourceFrame=0u;
     int lastPhase=-1;
     bool primed=false;
     bool armed=false;
+    bool sourceSeen=false;
 
     void reset(){*this=Timeline{};}
 
@@ -34,6 +36,7 @@ struct Timeline {
     void prepareForSong(unsigned frame){
         if(primed)return;
         primed=true;primedAt=frame;
+        sourceSeen=false;firstSourceFrame=0u;
         std::fprintf(stderr,"XM87.399 HUD_SHOCK_PRIMED frame=%u\n",frame);
     }
 
@@ -41,6 +44,7 @@ struct Timeline {
     void startWithSong(unsigned songSequence,unsigned frame){
         if(!songSequence || songSequence==lastSongStart)return;
         lastSongStart=songSequence;
+        if(!primed){sourceSeen=false;firstSourceFrame=0u;}
         primed=true;armed=true;start=frame;
         std::fprintf(stderr,
             "XM87.399 HUD_SHOCK_SONG_START song=%u frame=%u hold=%u reveal=%u\n",
@@ -65,16 +69,34 @@ struct Timeline {
         lastFrame=frame;lastPhase=phase;
     }
 
+    // Called when an actual ROM-verified HUD source first reaches the
+    // painter. The VS song can finish its delay BEFORE these sprites exist.
+    // If so, prevent a fully-visible first frame, then reveal over 30 frames.
+    void noteHudSource(unsigned frame){
+        if(!primed || sourceSeen)return;
+        sourceSeen=true;firstSourceFrame=frame;
+        const unsigned songDue=armed?start+DelayFrames:0u;
+        std::fprintf(stderr,
+            "XM87.399 HUD_SHOCK_FIRST_SOURCE frame=%u song_due=%u "
+            "late=%u\n",frame,songDue,
+            (unsigned)(armed && frame>=songDue));
+    }
+
     unsigned step(unsigned frame)const {
         // Before the verified song request: never hide selection art.
         if(!primed)return RevealFrames;
         // Hide from the handoff while the PCM decoder prepares.
         if(!armed)return 0u;
         if(frame<start)return 0u;
-        const unsigned elapsed=frame-start;
-        if(elapsed<DelayFrames)return 0u;
-        if(elapsed>=DelayFrames+RevealFrames)return RevealFrames;
-        return elapsed-DelayFrames+1u;
+        // When source artwork starts after the music deadline, do not
+        // spend the entire reveal in an offscreen phase and expose the
+        // completed bars instantly. Only ONE initial hidden source frame,
+        // not the previous arbitrary six-frame scene delay.
+        unsigned due=start+DelayFrames;
+        if(sourceSeen && firstSourceFrame>=due)due=firstSourceFrame+1u;
+        if(frame<due)return 0u;
+        if(frame>=due+RevealFrames)return RevealFrames;
+        return frame-due+1u;
     }
 };
 inline Timeline& timeline(){static Timeline s;return s;}
