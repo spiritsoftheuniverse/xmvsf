@@ -5,7 +5,7 @@
 set -euo pipefail
 BUILD_WALL_START=$SECONDS
 # Batch sets the version once at launch, before native compilation begins.
-XMVSF_BUILD_VERSION="${XMVSF_TEST_VERSION:-87.405}"
+XMVSF_BUILD_VERSION="${XMVSF_TEST_VERSION:-87.406}"
 XMVSF_BUILD_TAG="${XMVSF_BUILD_VERSION//./_}"
 PROJECT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
@@ -732,14 +732,10 @@ if ! LC_ALL=C grep -aFq -- "XM87.400 F6_NATIVE_PNG_SAVED" "$BUILT"; then
   exit 2
 fi
 echo "TEST F6 SCREENSHOT PROOF: XM87.400 F6_NATIVE_PNG_SAVED found in native EXE."
-# Confirm the source-GIF Boomer enemy renderer is in the newly linked binary.
-# The HUD and screenshot checks above remain unchanged and authoritative.
-if ! LC_ALL=C grep -aFq -- "XM87.401 BOOMER_ENEMIES_READY" "$BUILT"; then
-  echo "ERROR: TEST 87.401 Boomer GIF renderer was not linked. Refusing stale TEST publish." >&2
-  echo "ERROR: Check vid_sdl2.o and its new included stage header dependencies." >&2
-  exit 2
-fi
-echo "TEST BOOMER SOURCE PROOF: XM87.401 BOOMER_ENEMIES_READY found in native EXE."
+# 87.406: the obsolete 87.401 BOOMER_ENEMIES_READY signature was
+# replaced by 87.405 inside the same source GIF renderer. Requiring
+# both labels rejects a correctly compiled executable. The authoritative
+# current Boomer signature check remains below, after the layer proof.
 # 87.404: verify the ACTUAL Boomer number-key compositor reached the
 # linked native SDL video module. A new TEST label alone is not proof.
 if ! LC_ALL=C grep -aFq -- "XM87.404 BOOMER_LAYERS_0" "$BUILT"; then
