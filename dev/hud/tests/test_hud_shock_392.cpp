@@ -13,20 +13,24 @@ int main(){
     assert(t.step(99)==30u);
     t.observe(6,100,true);
     assert(t.step(100)==0u);
-    t.observe(8,200,true); // phase 6->8 must NOT re-arm
-    assert(t.step(200)==0u);
-    assert(t.step(309)==0u);
-    assert(t.step(310)==1u);
-    assert(t.step(338)==29u);
-    assert(t.step(339)==30u);
-    t.observe(8,339,true); // same frame / pause
-    assert(t.step(339)==30u);
-    t.observe(10,340,true); // knockout is visible, no hidden results
-    assert(t.step(340)==30u);
-    t.observe(6,355,true);
-    assert(t.step(355)==0u);
-    t.observe(8,356,false); // no effect outside V4
-    assert(t.step(356)==30u);
+    t.observe(6,350,true); // long pre-fight intro must remain hidden
+    assert(t.step(350)==0u);
+    t.observe(8,400,true); // delay starts at COMBAT, not phase 06
+    assert(t.step(400)==0u);
+    assert(t.step(609)==0u);
+    assert(t.step(610)==1u);
+    assert(t.step(638)==29u);
+    assert(t.step(639)==30u);
+    t.observe(8,639,true); // same frame / pause
+    assert(t.step(639)==30u);
+    t.observe(10,640,true); // knockout is visible, no hidden results
+    assert(t.step(640)==30u);
+    t.observe(8,660,true); // snapshot/direct-combat entry
+    assert(t.step(660)==0u);
+    t.observe(6,670,true); // new stage
+    assert(t.step(670)==0u);
+    t.observe(8,680,false); // no effect outside V4
+    assert(t.step(680)==30u);
 
     assert(object(0,1,87808,160,12,2,2));
     assert(!object(0,1,87808,32,100,2,2));
@@ -34,6 +38,8 @@ int main(){
     assert(object(7,12,90000,352,0,2,4,true));
     assert(!object(6,2,88463,32,20,2,1));
     assert(!object(7,3,50000,20,0,12,10)); // massive intro wall
+    assert(object(7,3,50000,20,0,3,2)); // all native HUD decorations
+    assert(!object(7,3,50000,20,0,3,2,false,true)); // stage scenery excluded
     assert(!object(7,2,88463,32,90,2,1));  // no fight-field sprites
     const std::uint32_t ink=0x004491ccu;
     assert(shockRGB(ink,30)==ink);
@@ -99,6 +105,6 @@ int main(){
     stunOverlay(overlay.data(),384*4,0u);
     for(int x=60;x<70;++x)
         assert(overlay[((std::size_t)45*384+x)*4+3]==0u);
-    std::printf("87.392 HUD shock tests PASS: timeline, object scope, Bayer reveal, Z restore, stun overlay\n");
+    std::printf("87.393 HUD shock tests PASS: timeline, object scope, Bayer reveal, Z restore, stun overlay\n");
     return 0;
 }
