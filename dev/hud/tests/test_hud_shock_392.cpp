@@ -1,4 +1,4 @@
-// TEST 87.397: standalone, no ROM/SDL or GitHub Actions required.
+// TEST 87.398: standalone, no ROM/SDL or GitHub Actions required.
 // Build locally with RUN_TEST_HUD_392.bat.
 #include "../../stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_392_hud_shock.h"
 #include <cassert>
@@ -17,48 +17,57 @@ int main(){
     assert(!eligible("xmvsfu",false));
     assert(!eligible("mvsc",true));
     assert(!eligible(nullptr,true));
-    // Versus OGG playback (not FF5000 status) is the sole timeline source.
-    // The 87.395 replay starts at native frame 290, already in the
-    // handoff; the fixture can begin inside or before phase 02.
+    // The Versus soundtrack is the only clock source. This now begins
+    // 120 frames earlier than the 87.397 hold, but the fight-screen HUD
+    // stays invisible for six native frames when its scene appears late.
     Timeline t;
     t.observe(0,98,true);
     assert(t.step(98)==30u);
-    t.startWithSong(1u,100u); // first real VS PCM; no phase assumption
+    t.startWithSong(1u,100u);
     assert(t.step(100)==0u);
-    t.observe(0,101u,true);   // may still be in selection transition
-    assert(t.step(101)==0u);
+    t.observe(0,101u,true);
     t.observe(2,130u,true);
     t.observe(4,160u,true);
-    t.observe(6,240u,true);
-    // Hold finishes 30 game frames sooner: real VS setup around native
-    // frame 2126; the first observed fight frame was around 2305.
-    assert(t.step(279)==0u);
-    assert(t.step(280)==1u);
-    assert(t.step(308)==29u);
-    assert(t.step(309)==30u);
-    t.observe(8,410u,true);  // FIGHT does not re-arm
-    t.startWithSong(1u,410u); // duplicate mixer read cannot re-arm
-    assert(t.step(410)==30u);
-    t.observe(10,420u,true); // KO disarms
-    assert(t.step(420)==30u);
-    t.startWithSong(2u,500u); // next actual VS song starts new hold
-    assert(t.step(500)==0u);
-    t.observe(2,510u,true);
-    assert(t.step(510)==0u);
-    assert(!Timeline::mayMaskNativeHud(0));
+    assert(t.step(219u)==0u); // song clock elapsed but no fight HUD yet
+    assert(t.step(220u)==0u); // must never complete offscreen
     assert(!Timeline::mayMaskNativeHud(2));
-    assert(!Timeline::mayMaskNativeHud(4)); // never reveal native forest
+    assert(!Timeline::mayMaskNativeHud(4)); // forest transition untouched
     assert(Timeline::mayMaskNativeHud(6));
     assert(Timeline::mayMaskNativeHud(8));
     assert(!Timeline::mayMaskNativeHud(10));
-    t.observe(6,520u,false); // Version 3 remains unmodified
-    assert(t.step(520)==30u);
+    t.observe(6,240u,true); // first fight HUD, after song timer expired
+    assert(t.fightHudSeen && t.firstHudFrame==240u);
+    assert(t.step(240u)==0u);
+    assert(t.step(245u)==0u); // invisible on first six fight HUD frames
+    assert(t.step(246u)==1u); // start primer immediately afterward
+    assert(t.step(274u)==29u);
+    assert(t.step(275u)==30u);
+    t.observe(8,300u,true);
+    assert(t.step(300u)==30u); // no repeat on FIGHT
+    t.startWithSong(1u,305u); // same audio event cannot re-arm
+    assert(t.step(305u)==30u);
+    t.observe(10,320u,true);
+    assert(t.step(320u)==30u); // KO/results fully visible
+
+    // Scenario 2: fight HUD appears BEFORE the song hold finishes. The
+    // source audio timing remains authoritative; no extra startup delay.
+    t.startWithSong(2u,500u);
+    t.observe(2,510u,true);
+    t.observe(6,550u,true);
+    assert(t.step(550u)==0u);
+    assert(t.step(619u)==0u);
+    assert(t.step(620u)==1u); // 500+120
+    assert(t.step(649u)==30u);
+
+    // Version 3 disables the effect without changing the song generation.
+    t.observe(6,650u,false);
+    assert(t.step(650u)==30u);
     t.reset();
-    assert(t.step(530)==30u);
-    t.startWithSong(3u,550u);
-    assert(t.step(550)==0u);
-    assert(t.step(729)==0u);
-    assert(t.step(730)==1u);
+    assert(t.step(660u)==30u);
+    t.startWithSong(3u,700u);
+    t.observe(6,705u,true);
+    assert(t.step(819u)==0u);
+    assert(t.step(820u)==1u);
 
     assert(object(0,1,87808,160,12,2,2));
     assert(!object(0,1,87808,32,100,2,2));
@@ -171,6 +180,6 @@ int main(){
     assert(glowing[0]==((shineColor>>16)&255u));
     assert(glowing[1]==((shineColor>>8)&255u));
     assert(glowing[2]==(shineColor&255u));
-    std::printf("87.397 HUD shock tests PASS: timeline, object scope, Bayer reveal, Z restore, stun overlay\n");
+    std::printf("87.398 HUD shock tests PASS: timeline, object scope, Bayer reveal, Z restore, stun overlay\n");
     return 0;
 }
