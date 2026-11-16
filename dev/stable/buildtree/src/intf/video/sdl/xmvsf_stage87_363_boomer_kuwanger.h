@@ -2,8 +2,9 @@
 #define XMVSF_STAGE87_363_BOOMER_KUWANGER_H
 // Boomer Kuwanger Stage. Authored A/B/C PNGs, original native stage-05
 // camera/combat, zero modification to native CPS2 stage collision.
-// Draw order: C distant shaft -> B near shaft sides -> A fixed platform
-// -> native stun HUD -> native fighters -> native flash.
+// Draw order: C distant shaft -> rotor mid-parallax -> B near shaft sides
+// -> Triblasters/shot/bullet -> A fixed platform -> native stun HUD
+// -> native fighters -> native flash.
 // B and C move DOWN at different real-game-frame speeds. B is split
 // into independently translated left/right source slices, tiled vertically
 // and outward. C tiles in both axes with slight X parallax.
@@ -15,6 +16,8 @@
 #include <fstream>
 #include <string>
 #include <vector>
+#include "xmvsf_stage87_401_boomer_enemies.h" // rotor / Triblaster visual GIFs
+#include "xmvsf_stage87_404_boomer_layers.h" // stage-only 1-0 layer control
 
 namespace XMBoomer {
 static const int VIEW_W=384,VIEW_H=224,WORLD_W=768,WORLD_H=471;
@@ -45,12 +48,65 @@ struct Layer {
 };
 struct Scene {
  Layer a,b,c;
+ XMBoomerExtra::State enemies;
  SDL_Texture *fighters=nullptr,*flash=nullptr;
  bool failed=false;
  unsigned failedGeneration=~0u;
  // Final authored offsets are loaded read-only; no arrow key adjustment.
  int stageOffsetY=0,wallSpread=0;
  bool placementLoaded=false;
+ // 87.404: mirror wall B's CAMERA-Y change for world-attached sprites.
+ // Sampling the first frame keeps initial top-edge spawn screen-relative;
+ // later jumps move sprites WITH the painted wall, not with the fighter.
+ bool cameraAnchorKnown=false;
+ unsigned cameraAnchorGeneration=~0u;
+ unsigned long long cameraLastFrame=~0ull;
+ int cameraAnchorY=GROUND_CAMERA_Y;
+
+ // 1..9 are local Boomer painter layer toggles, like the existing Wily
+ // number-key audit. 0 toggles truly clean scenery-only F6 captures.
+ // Indices: C,rotor,B,gun,shot,bullet,A,stun,fighter/flash.
+ bool layerOn[9]={true,true,true,true,true,true,true,true,true};
+ bool keyHeld[10]={};
+ bool sceneryOnly=false;
+ bool visible(int layer)const{
+  return XM87404Layers::shown(layer,
+          layer>=0&&layer<9?layerOn[layer]:false,sceneryOnly);
+ }
+ void pollLayerKeys(){
+  const Uint8* keys=SDL_GetKeyboardState(nullptr);
+  if(!keys)return;
+  static const SDL_Scancode top[10]={
+   SDL_SCANCODE_0,SDL_SCANCODE_1,SDL_SCANCODE_2,
+   SDL_SCANCODE_3,SDL_SCANCODE_4,SDL_SCANCODE_5,
+   SDL_SCANCODE_6,SDL_SCANCODE_7,SDL_SCANCODE_8,
+   SDL_SCANCODE_9};
+  static const SDL_Scancode pad[10]={
+   SDL_SCANCODE_KP_0,SDL_SCANCODE_KP_1,SDL_SCANCODE_KP_2,
+   SDL_SCANCODE_KP_3,SDL_SCANCODE_KP_4,SDL_SCANCODE_KP_5,
+   SDL_SCANCODE_KP_6,SDL_SCANCODE_KP_7,SDL_SCANCODE_KP_8,
+   SDL_SCANCODE_KP_9};
+  static const char* const names[9]={
+   "distant C","rotors","B walls","Triblasters","shots",
+   "bullets","A platform","stun HUD","fighters and flash"};
+  for(int k=0;k<10;++k){
+   const bool pressed=(keys[top[k]]!=0 || keys[pad[k]]!=0);
+   if(pressed && !keyHeld[k]){
+    if(k==0){
+     sceneryOnly=!sceneryOnly;
+     std::fprintf(stderr,
+       "XM87.404 BOOMER_LAYERS_0 scenery_only=%d "
+       "F6_captures_clean_stage=1\n",int(sceneryOnly));
+    }else{
+     layerOn[k-1]=!layerOn[k-1];
+     std::fprintf(stderr,
+       "XM87.404 BOOMER_LAYER_%d name=%s enabled=%d clean=%d\n",
+       k,names[k-1],int(layerOn[k-1]),int(sceneryOnly));
+    }
+   }
+   keyHeld[k]=pressed;
+  }
+ }
  void loadPlacement(){
   if(placementLoaded)return;
   placementLoaded=true;
@@ -69,6 +125,12 @@ struct Scene {
                stageOffsetY,wallSpread);
  }
  void close(){
+  enemies.close();
+  cameraAnchorKnown=false;cameraAnchorGeneration=~0u;
+  cameraLastFrame=~0ull;
+  for(bool& on:layerOn)on=true;
+  for(bool& held:keyHeld)held=false;
+  sceneryOnly=false;
   a.close();b.close();c.close();
   if(fighters)SDL_DestroyTexture(fighters);
   if(flash)SDL_DestroyTexture(flash);
@@ -145,6 +207,9 @@ struct Scene {
   SDL_SetTextureScaleMode(flash,SDL_ScaleModeNearest);
   failed=false;failedGeneration=~0u;
   loadPlacement();
+  // GIF assets are an isolated decorative layer: if animated sprites are
+  // unavailable, preserve the existing working A/B/C stage and combat.
+  enemies.load(r,root);
   std::fprintf(stderr,
    "XM87.363 BOOMER_READY A=%dx%d B=%dx%d C=%dx%d world=768x471 scrollDown B=1/2f C=1/5f C_x=30%%\n",
    a.w,a.h,b.w,b.h,c.w,c.h);
@@ -217,23 +282,53 @@ struct Scene {
   const int camY=clamp(xm8649Visual.nativeCameraY,-14,GROUND_CAMERA_Y);
   const int stageTop=VIEW_H-WORLD_H+GROUND_CAMERA_Y-camY;
   const unsigned long long frame=xm8649Visual.frames;
+  const unsigned gen=xm77StageRollGeneration();
+  if(!cameraAnchorKnown || cameraAnchorGeneration!=gen ||
+     (cameraLastFrame!=~0ull && frame<cameraLastFrame)){
+   // Never carry hidden fighters or scenery-only screenshot mode to a
+   // different match or restored replay timeline.
+   if(cameraAnchorKnown){
+    for(bool& on:layerOn)on=true;
+    for(bool& held:keyHeld)held=false;
+    sceneryOnly=false;
+    std::fprintf(stderr,"XM87.404 BOOMER_LAYERS_RESET new_scene=1\n");
+   }
+   cameraAnchorKnown=true;cameraAnchorGeneration=gen;
+   cameraAnchorY=camY;
+   std::fprintf(stderr,
+       "XM87.404 BOOMER_CAMERA_ANCHOR frame=%llu camera_y=%d\n",
+       (unsigned long long)frame,cameraAnchorY);
+  }
+  cameraLastFrame=frame;
+  // Wall B's screen Y is stageTop; this is exactly the change in
+  // stageTop since first appearance, so props stay fixed to B on jump.
+  const int stageYShift=XM87401Motion::wallCameraYOffset(cameraAnchorY,camY);
+  pollLayerKeys();
   const bool oldClip=SDL_RenderIsClipEnabled(r)==SDL_TRUE;
   SDL_Rect old={0,0,0,0};
   if(oldClip)SDL_RenderGetClipRect(r,&old);
   SDL_RenderSetClipRect(r,&view);
-  bool ok=tile(r,view,c,camX,stageTop,frame,FAR_FRAMES_PER_PX,
-               FAR_X_PERCENT);
-  if(ok)ok=drawWallHalf(r,view,b,camX,stageTop,frame,wallSpread,true);
-  if(ok)ok=drawWallHalf(r,view,b,camX,stageTop,frame,wallSpread,false);
+  enemies.update(frame,gen,camX,stageYShift);
+  bool ok=true;
+  if(visible(0))ok=tile(r,view,c,camX,stageTop,frame,
+                        FAR_FRAMES_PER_PX,FAR_X_PERCENT);
+  // Mid-parallax rotors draw above C, behind split B.
+  if(ok && visible(1))ok=enemies.drawRotors(r,view,frame,camX,stageYShift);
+  if(ok && visible(2))ok=drawWallHalf(r,view,b,camX,stageTop,frame,wallSpread,true);
+  if(ok && visible(2))ok=drawWallHalf(r,view,b,camX,stageTop,frame,wallSpread,false);
+  // Original Triblasters and projectile sprites occupy the B wall plane.
+  if(ok && (visible(3)||visible(4)||visible(5)))
+   ok=enemies.drawGuns(r,view,frame,camX,stageYShift,
+                       visible(3),visible(4),visible(5));
   // A remains registered to the original world and camera. Only
   // its saved debug Y displacement changes the visible PNG.
-  if(ok){
+  if(ok && visible(6)){
    const SDL_Rect d=rect(view,(WORLD_W-a.w)/2-camX,
                          stageTop+WORLD_H-a.h+stageOffsetY,a.w,a.h);
    ok=d.w>0 && d.h>0 && SDL_RenderCopy(r,a.tex,nullptr,&d)==0;
   }
-  if(ok){
-   xm8733Overlay(r,view);
+  if(ok && visible(7))xm8733Overlay(r,view);
+  if(ok && visible(8)){
    ok=SDL_RenderCopy(r,fighters,nullptr,&view)==0;
    const UINT8* nativeFlash=xm8757FlashPixels();
    if(nativeFlash && SDL_UpdateTexture(flash,nullptr,nativeFlash,
@@ -247,6 +342,10 @@ struct Scene {
  }
 };
 static inline Scene& scene(){static Scene s;return s;}
+static inline bool sceneryOnly(){
+ return xm77StageResolved==7 && xm8649Visual.sceneActive &&
+        xm8649Visual.stage==5 && scene().sceneryOnly;
+}
 static inline void cleanup(){scene().close();}
 static inline bool paint(SDL_Renderer* r,const SDL_Rect& view){
  if(xm77StageResolved!=7)return false;

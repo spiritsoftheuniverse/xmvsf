@@ -867,6 +867,9 @@ static int Paint(int bValidate)
                              XMFD::paint(sdlRenderer,xm87127View) ||
 	                         xm8649Paint(sdlRenderer,xm87127View);
     XM87206Crash::mark(421,nFramesEmulated);
+    // When Boomer key 0 is active, the F6 frame excludes all character,
+    // native HUD, game text and recorder banners. No ROM state changes.
+    const bool xm87404BoomerClean=XMBoomer::sceneryOnly();
 	if(!xm8649Painted){
 	if (nRotateGame)
 	{
@@ -892,11 +895,13 @@ static int Paint(int bValidate)
     // The label layer belongs to the GAME viewport, not SDL logical UI.
     // Its source pixels are already rasterized at 384x224 and scale with
     // the original stage, including custom Wily and Double Feature.
-    xm87217NativeFloat(sdlRenderer,xm87127View);
-	RenderMessage();
-	xm23Overlay(sdlRenderer,xm87127View,nVidImageWidth,nVidImageHeight); /* XMVSF_STAGE23_TRAINING_MENU */
-	XM87206Crash::mark(430,nFramesEmulated);
-    xm24Overlay(sdlRenderer,xm87127View); /* XMVSF_STAGE24_VERSUS */
+    if(!xm87404BoomerClean){
+        xm87217NativeFloat(sdlRenderer,xm87127View);
+        RenderMessage();
+        xm23Overlay(sdlRenderer,xm87127View,nVidImageWidth,nVidImageHeight); /* XMVSF_STAGE23_TRAINING_MENU */
+        xm24Overlay(sdlRenderer,xm87127View); /* XMVSF_STAGE24_VERSUS */
+    }
+    XM87206Crash::mark(430,nFramesEmulated);
     XM87206Crash::mark(431,nFramesEmulated);
     static bool xm87104Notice=false;
     if(!xm87104Notice){std::fprintf(stderr,"XM87.104 SELECTOR_OVERLAY_DISABLED native_ROM_only=1\n");xm87104Notice=true;}
@@ -925,16 +930,20 @@ static int Paint(int bValidate)
         // Do not perform GPU readback or file IO in presentation.
         /* XM87.104 removed colored selector overlay */
 
-xm87132ReplayNotice(sdlRenderer);
-        xm87139ProbeNotice(sdlRenderer);
-        xm87140ChatOverlay(sdlRenderer);
+if(!xm87404BoomerClean){
+            xm87132ReplayNotice(sdlRenderer);
+            xm87139ProbeNotice(sdlRenderer);
+            xm87140ChatOverlay(sdlRenderer);
+        }
         xm87400SaveRequested(sdlRenderer,xm87127View);
         SDL_RenderPresent(sdlRenderer);
     } else { /* XM87.104 removed colored selector overlay */
 
-xm87132ReplayNotice(sdlRenderer);
-        xm87139ProbeNotice(sdlRenderer);
-        xm87140ChatOverlay(sdlRenderer);
+if(!xm87404BoomerClean){
+            xm87132ReplayNotice(sdlRenderer);
+            xm87139ProbeNotice(sdlRenderer);
+            xm87140ChatOverlay(sdlRenderer);
+        }
         xm87400SaveRequested(sdlRenderer,xm87127View);
         SDL_RenderPresent(sdlRenderer);
     } /* XM86.58 native layer-aware gameplay */
