@@ -1,15 +1,15 @@
 #ifndef XMVSF_STAGE87_392_HUD_SHOCK_H
 #define XMVSF_STAGE87_392_HUD_SHOCK_H
-// TEST 87.396: HUD reveal clock anchored to actual first Versus song PCM
+// TEST 87.397: audio-anchored HUD primer aligned to match-screen entry
 // and the separate SDL stun bar. No ROM/RAM mutations or opaque screen masks.
-// 60 game frames per second: 210 hidden, 30 ordered-dither reveal.
+// 60 game frames per second: 180 hidden, 30 ordered-dither reveal.
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
 #include <cstdio>
 
 namespace XM87392 {
-static const unsigned DelayFrames=210u;
+static const unsigned DelayFrames=180u;
 static const unsigned RevealFrames=30u;
 
 // Native original xmvsfu is not CpsXmvSixEnabled. Guard by actual driver
@@ -34,7 +34,7 @@ struct Timeline {
         lastSongStart=songSequence;
         start=frame;armed=true;
         std::fprintf(stderr,
-            "XM87.396 HUD_SHOCK_SONG_START song=%u frame=%u hold=%u reveal=%u\n",
+            "XM87.397 HUD_SHOCK_SONG_START song=%u frame=%u hold=%u reveal=%u\n",
             songSequence,frame,DelayFrames,RevealFrames);
     }
 
@@ -135,10 +135,13 @@ inline std::uint32_t shockRGB(std::uint32_t source,unsigned step) {
 // A broad blue corona follows each narrow white core, then all light ends on
 // frame 30, restoring the exact unmodified source pixel.
 inline int shineDistance(int x,int y,unsigned step){
-    const int travel=int(step*216u/RevealFrames);
+    // Start ON the actual portrait areas at step 1, not outside the
+    // 384px canvas. The first visible materialization frame must already
+    // show a white primer before the Bayer pattern becomes dense.
+    const int travel=int(step*174u/RevealFrames);
     const int slant=(y-28)/3;
-    const int left=-18+travel+slant;
-    const int right=402-travel-slant;
+    const int left=18+travel+slant;
+    const int right=366-travel-slant;
     const int a=x>=left?x-left:left-x;
     const int b=x>=right?x-right:right-x;
     return a<b?a:b;
