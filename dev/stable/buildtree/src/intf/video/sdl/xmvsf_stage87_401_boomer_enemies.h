@@ -364,10 +364,11 @@ struct State {
         return ok;
     }
     bool drawGuns(SDL_Renderer* renderer,const SDL_Rect& view,
-                  unsigned long long frame,int camX,int stageYShift){
+                  unsigned long long frame,int camX,int stageYShift,
+                  bool showGuns,bool showShots,bool showBullets){
         if(!ready)return true;
         bool ok=true;
-        for(unsigned side=0;side<guns.size();++side){
+        if(showGuns)for(unsigned side=0;side<guns.size();++side){
             const Triblaster& gun=guns[side];
             if(!gun.active)continue;
             const bool left=side==1u;
@@ -381,6 +382,7 @@ struct State {
                                flip,age)&&ok;
         }
         for(const Projectile& p:projectiles){
+            if(p.kind==Shot?!showShots:!showBullets)continue;
             const unsigned long long elapsed=frame>=p.born?frame-p.born:0ull;
             // Right-side default: leftward. Mirrored left-side: rightward.
             const int vx=XM87401Motion::projectileDx(
