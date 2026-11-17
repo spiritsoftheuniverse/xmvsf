@@ -91,24 +91,16 @@ static SDL_Rect dstrect;
 #include "xmvsf_stage87_317_akuma.h"
 #include "xmvsf_stage87_323_ryu.h" // Ryu PSD exact-coordinate stage // native camera Akuma A/B dither / parallax
 #include "xmvsf_stage87_363_boomer_kuwanger.h" // tiled B/C elevator + stage A
-// 87.410: consume numeric key edges without depending on paint/renderer life.
+// 87.412: only 8=SDL stun and 9=native actors, key-down edges.
 extern "C" void xm87410HandleBoomerLayerKey(const SDL_Event* event){
  if(!event || event->type!=SDL_KEYDOWN || event->key.repeat ||
     xm77StageResolved!=7 || !xm8649Visual.sceneActive ||
     xm8649Visual.stage!=5)return;
  int digit=-1;
  switch(event->key.keysym.scancode){
- case SDL_SCANCODE_0:case SDL_SCANCODE_KP_0:digit=0;break;
- case SDL_SCANCODE_1:case SDL_SCANCODE_KP_1:digit=1;break;
- case SDL_SCANCODE_2:case SDL_SCANCODE_KP_2:digit=2;break;
- case SDL_SCANCODE_3:case SDL_SCANCODE_KP_3:digit=3;break;
- case SDL_SCANCODE_4:case SDL_SCANCODE_KP_4:digit=4;break;
- case SDL_SCANCODE_5:case SDL_SCANCODE_KP_5:digit=5;break;
- case SDL_SCANCODE_6:case SDL_SCANCODE_KP_6:digit=6;break;
- case SDL_SCANCODE_7:case SDL_SCANCODE_KP_7:digit=7;break;
  case SDL_SCANCODE_8:case SDL_SCANCODE_KP_8:digit=8;break;
- case SDL_SCANCODE_9:case SDL_SCANCODE_KP_9:digit=9;break;
- default:break;
+  case SDL_SCANCODE_9:case SDL_SCANCODE_KP_9:digit=9;break;
+  default:break;
  }
  if(digit>=0)XMBoomer::scene().toggleDigit(unsigned(digit));
 }
@@ -916,11 +908,7 @@ static int Paint(int bValidate)
                              XMFD::paint(sdlRenderer,xm87127View) ||
 	                         xm8649Paint(sdlRenderer,xm87127View);
     XM87206Crash::mark(421,nFramesEmulated);
-    // When Boomer key 0 is active, the F6 frame excludes all character,
-    // native HUD, game text and recorder banners. No ROM state changes.
-    const bool xm87404BoomerClean=XMBoomer::sceneryOnly();
-    // Key 8 cuts out SDL HUD/host UI; key 0 cuts out every non-scenery pass.
-    const bool xm87404SDLHud=!xm87404BoomerClean && XMBoomer::sdlHudVisible();
+    // 87.412: never gate unrelated SDL HUD and host UI on Boomer keys.
 	if(!xm8649Painted){
 	if (nRotateGame)
 	{
@@ -942,16 +930,15 @@ static int Paint(int bValidate)
 
     // Keep native UI order: scene -> stun bar -> other HUD/notifications.
     // Wily's compositor draws the same stun UI itself, so skip a second pass.
-    if(!xm8649Painted && xm87404SDLHud)xm8733Overlay(sdlRenderer,xm87127View,true);
+    if(!xm8649Painted && XMBoomer::sdlStunVisible())
+        xm8733Overlay(sdlRenderer,xm87127View,true);
     // The label layer belongs to the GAME viewport, not SDL logical UI.
     // Its source pixels are already rasterized at 384x224 and scale with
     // the original stage, including custom Wily and Double Feature.
-    if(xm87404SDLHud){
-        xm87217NativeFloat(sdlRenderer,xm87127View);
-        RenderMessage();
-        xm23Overlay(sdlRenderer,xm87127View,nVidImageWidth,nVidImageHeight); /* XMVSF_STAGE23_TRAINING_MENU */
-        xm24Overlay(sdlRenderer,xm87127View); /* XMVSF_STAGE24_VERSUS */
-    }
+    xm87217NativeFloat(sdlRenderer,xm87127View);
+    RenderMessage();
+    xm23Overlay(sdlRenderer,xm87127View,nVidImageWidth,nVidImageHeight); /* XMVSF_STAGE23_TRAINING_MENU */
+    xm24Overlay(sdlRenderer,xm87127View); /* XMVSF_STAGE24_VERSUS */
     XM87206Crash::mark(430,nFramesEmulated);
     XM87206Crash::mark(431,nFramesEmulated);
     static bool xm87104Notice=false;
@@ -981,20 +968,16 @@ static int Paint(int bValidate)
         // Do not perform GPU readback or file IO in presentation.
         /* XM87.104 removed colored selector overlay */
 
-if(xm87404SDLHud){
-            xm87132ReplayNotice(sdlRenderer);
+xm87132ReplayNotice(sdlRenderer);
             xm87139ProbeNotice(sdlRenderer);
             xm87140ChatOverlay(sdlRenderer);
-        }
         xm87400SaveRequested(sdlRenderer,xm87127View);
         SDL_RenderPresent(sdlRenderer);
     } else { /* XM87.104 removed colored selector overlay */
 
-if(xm87404SDLHud){
-            xm87132ReplayNotice(sdlRenderer);
+xm87132ReplayNotice(sdlRenderer);
             xm87139ProbeNotice(sdlRenderer);
             xm87140ChatOverlay(sdlRenderer);
-        }
         xm87400SaveRequested(sdlRenderer,xm87127View);
         SDL_RenderPresent(sdlRenderer);
     } /* XM86.58 native layer-aware gameplay */
