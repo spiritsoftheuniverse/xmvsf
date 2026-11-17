@@ -44,10 +44,14 @@ static inline void xm8649ObserveCamera(bool gameReady){
  const bool boomerStage=((xm77StageChoice==0||xm77StageChoice==7) && xm77StageResolved==7 &&
                          (xm14TrainingMode==1 || xm24VersusMode==1));
  if(!gameReady || bBurnRunAheadFrame || (!wily&&!finalDestination&&!guileStage&&!sigmaStage&&!akumaStage&&!ryuStage&&!boomerStage)){
-  xm8649Visual.sceneActive=false;xm8649ForgetCameraHistory();return;
+  xm8649Visual.sceneActive=false;
+  previouslyActive=false;
+  xm8649ForgetCameraHistory();return;
  }
  const char* name=BurnDrvGetTextA(DRV_NAME);
- if(!name || std::strncmp(name,"xmvsf",5)!=0){xm8649Visual.sceneActive=false;return;}
+ if(!name || std::strncmp(name,"xmvsf",5)!=0){
+  xm8649Visual.sceneActive=false;previouslyActive=false;return;
+ }
  cpu_core_config* c=GetCpuCoreConfig(0);
  if(!c || !c->open || !c->close || !c->read)return;
  c->open(0);
@@ -76,6 +80,13 @@ static inline void xm8649ObserveCamera(bool gameReady){
  const int y=matchingBufferedOAM?xm8649BufferedObjCameraY:rawY;
  if(!active)xm8649ForgetCameraHistory();
  c->close();
+ if(active && !previouslyActive){
+  ++xm8649Visual.activationSerial;
+  std::fprintf(stderr,
+    "XM87.414 CUSTOM_STAGE_ACTIVATION serial=%u gen=%u stage=%u status=%02X frames=%llu\n",
+    xm8649Visual.activationSerial,xm77StageRollGeneration(),stage,status,
+    xm8649Visual.frames);
+ }
  xm8649Visual.stage=stage; xm8649Visual.status=status;
  xm8649Visual.pointer=actor; xm8649Visual.sceneActive=active;
  if(active && status>=0x0au){

@@ -6,6 +6,9 @@ struct XM8649VisualState {
  bool sceneActive=false;
  unsigned stage=0,status=0,pointer=0;
  int nativeCameraX=0,nativeCameraY=256;
+ // Unlike frames, this increments at each inactive->active custom stage.
+ // A second match may have a larger frame number with the SAME generation.
+ unsigned activationSerial=0;
  unsigned long long frames=0;
 };
 extern XM8649VisualState xm8649Visual;

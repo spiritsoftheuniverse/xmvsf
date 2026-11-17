@@ -56,7 +56,9 @@ event-driven visibility controls remain, for top-row and keypad digits:
 
 Keys **1–7 and 0 no longer toggle Boomer layers**. Key presses are processed
 once per non-repeating SDL KEYDOWN. The Boomer key **9** state resets on a new stage generation **or**
-a new stage frame-timeline rewind, and its SDL key edge is accepted
+the actual custom-stage inactive-to-active transition. The global camera
+frame counter never rewinds during consecutive matches, so watching
+frame rewinds alone was insufficient. The SDL key 9 edge is accepted
 through the stage handoff even when sceneActive is temporarily false. The global SDL stun-bar key **8** resets when
 a new game session starts. Neither control changes ROM collision, gameplay,
 memory, nor the ordinary native stage renderer.

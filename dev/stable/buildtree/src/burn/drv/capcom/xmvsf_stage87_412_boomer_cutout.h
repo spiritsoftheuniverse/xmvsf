@@ -14,9 +14,10 @@ struct Controls {
  }
 };
 inline bool needsMatchReset(unsigned seenGeneration,unsigned generation,
+                            unsigned seenActivation,unsigned activation,
                             unsigned long long lastFrame,
                             unsigned long long frame){
- return seenGeneration!=generation ||
+ return seenGeneration!=generation || seenActivation!=activation ||
         (lastFrame!=~0ull && frame<lastFrame);
 }
 inline bool nativeHud(unsigned priority,unsigned palette,unsigned tile,

@@ -67,21 +67,27 @@ struct Scene {
  // The native capture keeps HP/timer when 9 hides actors. 8 owns SDL stun.
  XM87412::Controls cutout;
  unsigned layerGeneration=~0u;
+ unsigned layerActivation=~0u;
  void syncLayerGeneration(unsigned long long frame){
   const unsigned gen=xm77StageRollGeneration();
-  if(!XM87412::needsMatchReset(layerGeneration,gen,cameraLastFrame,frame))
-   return;
+  const unsigned activation=xm8649Visual.activationSerial;
+  if(!XM87412::needsMatchReset(layerGeneration,gen,layerActivation,
+                                activation,cameraLastFrame,frame))return;
   const bool rewound=(cameraLastFrame!=~0ull && frame<cameraLastFrame);
+  const bool newActivation=(layerActivation!=activation);
   layerGeneration=gen;
+  layerActivation=activation;
   cutout.reset();
   xm87412BoomerActorsVisible=1;
-  if(rewound){
+  // Camera frame numbers are process-monotonic. A new activation, even
+  // without a generation change or rewind, starts a fresh filter session.
+  if(rewound || newActivation){
    cameraLastFrame=~0ull;
    cameraAnchorKnown=false;
   }
   std::fprintf(stderr,
-   "XM87.414 BOOMER_9_MATCH_RESET gen=%u frame=%llu rewind=%d actors=1\n",
-   gen,frame,int(rewound));
+   "XM87.414 BOOMER_9_MATCH_RESET gen=%u activation=%u frame=%llu new_activation=%d rewind=%d actors=1\n",
+   gen,activation,frame,int(newActivation),int(rewound));
  }
  void toggleDigit(unsigned k){
   if(k!=8u && k!=9u)return;
@@ -116,6 +122,7 @@ struct Scene {
   cutout.reset();
   xm87412BoomerActorsVisible=1;
   layerGeneration=~0u;
+  layerActivation=~0u;
   a.close();b.close();c.close();
   if(fighters)SDL_DestroyTexture(fighters);
   if(flash)SDL_DestroyTexture(flash);
