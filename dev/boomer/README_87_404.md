@@ -55,16 +55,16 @@ event-driven visibility controls remain, for top-row and keypad digits:
 | **8** | SDL stun/dizzy bars, directly at the shared SDL draw function on any stage. It does **not** hide the native health/timer/portrait HUD, shock-entry effect, frame data, training UI or F9/F10/chat notices. |
 
 Keys **1–7 and 0 no longer toggle Boomer layers**. Key presses are processed
-once per non-repeating SDL KEYDOWN. A new stage generation resets both 8 and
-9 to visible, preventing hidden players or stun bars from leaking into a
-subsequent match. SDL key 8 resets to visible when a new game session starts. The ROM's collision, gameplay, memory and standard native
-stage renderer are untouched.
+once per non-repeating SDL KEYDOWN. The Boomer key **9** state resets when a
+new stage generation starts. The global SDL stun-bar key **8** resets when
+a new game session starts. Neither control changes ROM collision, gameplay,
+memory, nor the ordinary native stage renderer.
 
 The native actor cutout is done **before CPS2 OBJ pixels are rasterized** for
 the disposable SDL custom-stage sprite texture, not by obscuring a rectangle
 of the completed framebuffer. The verified HUD-source classifier preserves
-original health and timer objects. The independent SDL dizzy meter is drawn
-on Boomer only while key 8 is enabled; every other SDL UI pass remains on.
+original health and timer objects. The independent SDL dizzy meter is drawn on any stage only while the
+global SDL key 8 is enabled; every other SDL UI pass remains on.
 
 F6 still records the fully presented 384×224 source to
 `F:\\xmvsf\\screenshots`. Wily's separate 1–9 audit is unchanged.
