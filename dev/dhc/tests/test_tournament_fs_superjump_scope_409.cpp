@@ -128,6 +128,10 @@ int main(){
     setup(0x1804u);
     sw(V+0x08u,2u);
     Actor fallback=primed();
+    // Isolate the older pending writer itself: without a preexisting
+    // FS latch, its 18xx rejection must be the reason no write occurs.
+    fallback.stormFlightUsedUntilLanding=false;
+    fallback.postFlightNeedsNativeLanding=false;
     fallback.pendingSevere=true;
     fallback.pendingAge=0u;fallback.pendingAction=0x1804u;
     fallback.pendingButton=4u;fallback.pendingBank=0x0021u;
