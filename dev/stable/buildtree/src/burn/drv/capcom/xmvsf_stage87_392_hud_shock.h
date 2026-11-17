@@ -152,6 +152,30 @@ inline bool sidePortrait(unsigned priority,unsigned palette,unsigned tile,
     return (portrait || palette==12u || palette==15u) &&
            (x<96 || x>=288);
 }
+// Source-verified portrait frame trio from XM87.41. These frame boxes
+// sit ABOVE name-glyph ink, so the 87.414 nameFootprint rule missed them.
+inline bool portraitBackdrop(unsigned priority,unsigned palette,unsigned tile,
+                             int x,int y){
+    return priority==7u && palette==2u &&
+           tile>=89113u && tile<=89115u &&
+           (y==-2 || y==8) &&
+           ((x>=-20 && x<=32) || (x>=348 && x<=388));
+}
+// CPS2 ROM upper-HUD graphics sheets, bounded by atlas AND location.
+// Avoid 87.413's arbitrary "small priority 7" policy: that admitted
+// forest/tree objects, which belong to different (109xxx) families.
+inline bool hudSheetObject(unsigned priority,unsigned palette,unsigned tile,
+                           int x,int y,unsigned wide,unsigned tall){
+    if(priority!=7u || palette>=25u || tile<87808u || tile>=90000u ||
+       !wide || !tall || wide>16u || tall>5u ||
+       y< -48 || y>=56 || x>=384 ||
+       x+int(wide*16u)<=0)return false;
+    const bool side=(x>=-20 && x<144) || (x>=224 && x<388);
+    const bool clock=(x>=136 && x<248 && y>=-16 && y<=40 &&
+                      wide<=3u && tall<=2u &&
+                      (palette==1u || palette==2u || palette==4u));
+    return (y>=-16 && y<=40) && (side || clock);
+}
 inline bool topHudObject(unsigned priority,unsigned palette,unsigned tile,
                          int x,int y,unsigned wide,unsigned tall,bool portrait,
                          bool scenery,bool transition){
@@ -165,7 +189,9 @@ inline bool topHudObject(unsigned priority,unsigned palette,unsigned tile,
     if(y< -48 || palette>=25u ||
        (tile>=109000u && tile<=110500u))return false;
     if(nameGlyph(priority,palette,tile,x,y,wide,tall) ||
-       sidePortrait(priority,palette,tile,x,y,wide,tall,portrait))return true;
+       sidePortrait(priority,palette,tile,x,y,wide,tall,portrait) ||
+       portraitBackdrop(priority,palette,tile,x,y) ||
+       hudSheetObject(priority,palette,tile,x,y,wide,tall))return true;
     // NO broad 02/04 fallback: that is how the forest/tree glitch returned.
     if(transition)return false;
     // In actual combat 06/08 retain older native HUD ornament grouping.

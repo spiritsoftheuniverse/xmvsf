@@ -103,6 +103,12 @@ int main(){
     assert(!objectForPhase(4,7,3,109500,20,16,3,2)); // tree source
     assert(!objectForPhase(4,7,2,109100,32,20,2,1)); // stage sprite
     assert(objectForPhase(2,7,12,90200,12,0,6,4)); // left portrait
+    assert(objectForPhase(2,7,2,89113,16,-2,2,1)); // verified portrait box
+    assert(objectForPhase(4,7,2,89115,352,8,2,1)); // right portrait box
+    assert(objectForPhase(2,7,2,89250,20,8,3,2)); // top HUD point panel
+    assert(objectForPhase(4,7,1,87820,174,12,2,2)); // clock panel
+    assert(!objectForPhase(2,7,2,89250,180,8,6,3)); // center intro
+    assert(!objectForPhase(4,7,2,109100,20,8,2,2)); // forest
     assert(objectForPhase(4,7,15,90200,322,0,6,4)); // right portrait
     assert(!objectForPhase(2,7,3,50000,20,0,12,10)); // intro wall
     assert(!objectForPhase(2,7,3,50000,20,0,5,3)); // wall fragment

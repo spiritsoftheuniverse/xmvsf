@@ -1478,6 +1478,21 @@ if(!xm8725FighterObject && XM8725::Enabled() &&
         if(xm87399ConfirmedSource && !xm8651SpriteCaptureActive)
             XM87392::timeline().noteHudSource((unsigned)GetCurrentFrame());
         const unsigned xm87392Step=XM87392::timeline().step((unsigned)GetCurrentFrame());
+        // Bound source audit for the remaining phase-02/04 portrait/point
+        // and timer escapes. Metadata only: no guesses from screen RGB.
+        if(!xm8651SpriteCaptureActive && xm87394HudEligible &&
+           XM87392::timeline().primed && xm87392Step<XM87392::RevealFrames &&
+           (xm8745LivePhase==2 || xm8745LivePhase==4 ||
+            xm8745LivePhase==6 || xm8745LivePhase==8) &&
+           ((unsigned)v==0u || (unsigned)v==7u) && y<56 && y>=-48 &&
+           x>=-20 && x<388 && !xm87392NativeSource){
+            static unsigned hudMisses=0;
+            if(hudMisses++<64u)
+                std::fprintf(stderr,
+                   "XM87.415 HUD_SOURCE_ESCAPE phase=%02X frame=%u p=%u pal=%u tile=%u x=%d y=%d size=%dx%d\n",
+                   xm8745LivePhase,(unsigned)GetCurrentFrame(),(unsigned)v,
+                   (unsigned)a&31u,(unsigned)n,x,y,bx,by);
+        }
         // Source diagnostic for real split/long name tiles that remain
         // outside the shock classifier (e.g. Wolverine). First 64 only;
         // records OAM evidence, never guesses names from rendered colors.

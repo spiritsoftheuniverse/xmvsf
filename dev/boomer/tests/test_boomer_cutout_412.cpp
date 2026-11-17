@@ -22,6 +22,7 @@ int main(){
  assert(!XM87412::nativeHud(6,6,50001,120,20,9,1));
  assert(!XM87412::nativeHud(7,26,109950,180,90,4,4));
  assert(!XM87412::nativeHud(7,3,50000,20,0,3,2)); // never restore tree
+ assert(XM87412::nativeHud(7,2,89113,16,-2,2,1)); // portrait frame
  assert(XM87412::nativeHud(7,3,89500,20,16,11,2)); // long name
  assert(!XM87412::nativeHud(0,1,87808,176,90,2,2));
  std::puts("87.414 Boomer session rearm and source HUD safety tests PASS");
