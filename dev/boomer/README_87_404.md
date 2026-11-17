@@ -44,41 +44,30 @@ entry still begins above the top edge; they then remain attached
 to their scenery plane through jumps. Rotor drift 20px/sec, B 30px/sec,
 and GIF animation timing are preserved.
 
-## Native keyboard layer filtering (Boomer stage only)
+## Native layer cutouts (TEST 87.412)
 
-Top-row **1–0** and keypad **1–0** are one-shot press toggles:
+Boomer's scene art and decorative enemies are always visible. Only two
+event-driven visibility controls remain, for top-row and keypad digits:
 
-| Key | Boomer compositor source |
+| Key | Cutout |
 |---|---|
-| 1 | Distant background C |
-| 2 | Rotors |
-| 3 | B split walls (both sides) |
-| 4 | Triblasters (both sides) |
-| 5 | Triblaster shot blasts |
-| 6 | Triblaster downward/upward bullets |
-| 7 | Foreground/platform A |
-| 8 | Stun HUD |
-| 9 | Native fighters and flash effects |
-| **0** | **Scenery-only mode**: show C, B, A; hide everything else |
+| **9** | Native CPS2 fighters/FX and native flash. Native HP and time objects remain visible through the independent source-qualified CPS2 HUD-only capture. |
+| **8** | SDL stun/dizzy bars only. It does **not** hide health bars, frame data, training UI or F9/F10/chat notices. |
 
-Press 0 again to restore the individual 1–9 selections. In
-scenery-only mode, even an independently disabled scenery layer is
-temporarily shown so F6 captures the full background. Independent
-1–9 selections are preserved while 0 is active, and reappear when
-0 is switched off. On a new stage generation/replay rewind, filters
-reset to all-on; a previous clean capture cannot leave fighters
-invisible in a subsequent match.
+Keys **1–7 and 0 no longer toggle Boomer layers**. Key presses are processed
+once per non-repeating SDL KEYDOWN. A new stage generation resets both 8 and
+9 to visible, preventing hidden players or stun bars from leaking into a
+subsequent match. The ROM's collision, gameplay, memory and standard native
+stage renderer are untouched.
 
-In clean mode the final SDL presentation also hides the floating
-frame-data text, player HUD, training/versus UI, and F9/F10/chat status
-notices. F6 is unchanged and saves a clean native-size **384x224** PNG to
-`F:\xmvsf\screenshots` when launched by RUN_TEST.bat.
+The native actor cutout is done **before CPS2 OBJ pixels are rasterized** for
+the disposable SDL custom-stage sprite texture, not by obscuring a rectangle
+of the completed framebuffer. The verified HUD-source classifier preserves
+original health and timer objects. The independent SDL dizzy meter is drawn
+on Boomer only while key 8 is enabled; every other SDL UI pass remains on.
 
-Wily's previous 1–9 audit remains its own feature; the Boomer control
-does not affect other stages. These toggles are paint-only; the original
-CPS2 game still runs and accepts normal physical button inputs.
-The original authored A/B/C PNGs are untouched: any imagery baked
-directly into those PNGs is not separately removable.
+F6 still records the fully presented 384×224 source to
+`F:\\xmvsf\\screenshots`. Wily's separate 1–9 audit is unchanged.
 
 ## Validation
 
