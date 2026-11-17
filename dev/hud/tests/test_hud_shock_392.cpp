@@ -80,9 +80,8 @@ int main(){
     assert(t.step(869u)==29u);
     assert(t.step(870u)==30u);
 
-    // Only unambiguous ROM HUD sources can be masked during 02/04.
-    // Source-unverified top priority-7 trees/logo must NEVER be removed
-    // in a transition, even when they fit the regular HUD geometry.
+    // 87.413 shock entry must conceal timer, name/frame and portraits
+    // together with HP strips; scenery and large VS logo walls survive.
     assert(Timeline::mayMaskNativeHud(2));
     assert(Timeline::mayMaskNativeHud(4));
     assert(Timeline::mayMaskNativeHud(6));
@@ -92,11 +91,16 @@ int main(){
     assert(objectForPhase(4,7,4,88547,300,32,2,1));
     assert(objectForPhase(2,0,1,87808,160,12,2,2));
     assert(objectForPhase(6,0,1,91999,160,12,2,2));
-    assert(!objectForPhase(4,0,1,91999,160,12,2,2));
+    assert(objectForPhase(4,0,1,91999,160,12,2,2)); // timer atlas changes
     assert(!objectForPhase(6,0,1,91999,20,12,2,2));
     assert(!objectForPhase(6,0,1,91999,160,80,2,2));
-    assert(!objectForPhase(2,7,3,50000,20,0,3,2));
-    assert(!objectForPhase(4,7,2,109100,32,20,2,1));
+    assert(objectForPhase(2,7,3,50000,20,0,3,2)); // top HUD name/frame
+    assert(!objectForPhase(4,7,2,109100,32,20,2,1)); // stage sprite
+    assert(objectForPhase(2,7,12,90200,12,0,6,4)); // left portrait
+    assert(objectForPhase(4,7,15,90200,322,0,6,4)); // right portrait
+    assert(!objectForPhase(2,7,3,50000,20,0,12,10)); // intro wall
+    assert(!objectForPhase(2,7,3,50000,20,0,5,3)); // wall fragment
+    assert(!objectForPhase(2,7,25,50000,20,0,3,2)); // scenery palette
     assert(!objectForPhase(2,7,2,88463,32,90,2,1));
     assert(!objectForPhase(2,7,2,88463,32,20,2,1,false,true));
     assert(objectForPhase(6,7,3,50000,20,0,3,2));

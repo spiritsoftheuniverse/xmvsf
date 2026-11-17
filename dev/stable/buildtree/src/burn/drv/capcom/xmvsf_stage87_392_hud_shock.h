@@ -103,67 +103,65 @@ struct Timeline {
 };
 inline Timeline& timeline(){static Timeline s;return s;}
 
-// The timer uses a priority-0 clock source, not the priority-7 HP bar.
-// During VS 02/04 admit only its verified tile atlas. In live 06/08,
-// additional small clock glyphs in the central timer footprint may change
-// tile IDs between rounds; upstream scenery ownership is still vetoed.
+// 87.413: SHOCK ENTRY conceals the WHOLE top HUD during VS 02/04.
+// The former transition whitelist admitted only HP strips and one digit
+// atlas, leaving timer/portraits/names/frames visible before the reveal.
+// Source OBJ classification precedes drawing; no screen-wide erasure.
 inline bool timeIndicator(unsigned priority,unsigned palette,unsigned tile,
                           int x,int y,unsigned wide,unsigned tall,bool transition){
+    (void)transition;
     if(priority!=0u || palette!=1u || !wide || !tall ||
        wide>2u || tall>2u || x<128 || x>=256 ||
        y< -16 || y>=56)return false;
-    if(transition)
-        return wide==2u && tall==2u &&
-               tile>=87808u && tile<=87826u &&
-               ((tile-87808u)&1u)==0u;
     return (tile>=87808u && tile<=87831u) ||
            (x>=144 && x<224 && y>=0 && y<40);
 }
-// Strictly scoped to the upper native HUD; never blanket-filter the fighter,
-// arena, introductory logo walls, or unrelated large priority-7 artwork.
-inline bool object(unsigned priority,unsigned palette,unsigned tile,
-                   int x,int y,unsigned wide,unsigned tall,bool portrait=false,
-                   bool scenery=false){
-    if(scenery || !wide || !tall || x>=384 || x+int(wide*16u)<=0 ||
-       y>=56 || y+int(tall*16u)<=0)return false;
-    if(priority==0u)
-        return timeIndicator(priority,palette,tile,x,y,wide,tall,false);
-    if(priority!=7u)return false;
-    if(portrait)return y>=-64 && y<56;
-    if(y< -48)return false;
-    // Small priority-7 objects spanning the upper HUD are all part of its
-    // native object stream. The earlier narrow tile/size list leaked the
-    // frames, labels and portrait decorations.
-    if(wide<=9u && tall<=5u)return true;
-    // Long bars are independently verified ROM HP strip sheets.
-    return (palette==2u || palette==4u) && (y==20 || y==32) &&
+inline bool verifiedHpStrip(unsigned priority,unsigned palette,unsigned tile,
+                            int x,int y,unsigned wide,unsigned tall){
+    return priority==7u && (palette==2u || palette==4u) &&
+           x>=-4 && x<=370 && (y==20 || y==32) && wide && tall &&
            ((tile>=88417u && tile<=88579u) ||
              tile==89417u || tile==89418u);
 }
-// 02/04: only the ROM-proven original HP strip sheets and timer-digit
-// atlas are removable. Exclude native stage sprites and the X-Men logo
-// regardless of size, palette similarity or top-of-screen coordinates.
+inline bool topHudObject(unsigned priority,unsigned palette,unsigned tile,
+                         int x,int y,unsigned wide,unsigned tall,bool portrait,
+                         bool scenery,bool transition){
+    if(scenery || !wide || !tall || x>=384 ||
+       x+int(wide*16u)<=0 || y>=56 ||
+       y+int(tall*16u)<=0)return false;
+    if(priority==0u)
+        return timeIndicator(priority,palette,tile,x,y,wide,tall,transition);
+    if(priority!=7u)return false;
+    if(verifiedHpStrip(priority,palette,tile,x,y,wide,tall))return true;
+    // Stage-05 109xxx/110xxx sprite art and 25..30 palettes are scenery;
+    // large pre-fight priority-7 logo walls are not generic HUD.
+    if(y< -48 || palette>=25u ||
+       (tile>=109000u && tile<=110500u))return false;
+    if(transition){
+        if(wide<=4u && tall<=4u)return true; // native frame/name/clock pieces
+        return (palette==12u || palette==15u || portrait) &&
+               wide<=9u && tall<=5u && (x<96 || x>=288);
+    }
+    return portrait || (wide<=9u && tall<=5u);
+}
+inline bool object(unsigned priority,unsigned palette,unsigned tile,
+                   int x,int y,unsigned wide,unsigned tall,bool portrait=false,
+                   bool scenery=false){
+    return topHudObject(priority,palette,tile,x,y,wide,tall,
+                        portrait,scenery,false);
+}
 inline bool verifiedTransitionHud(unsigned priority,unsigned palette,
                                   unsigned tile,int x,int y,
                                   unsigned wide,unsigned tall){
-    if(!wide || !tall || x>=384 || y>=56)return false;
-    if(priority==0u)
-        return timeIndicator(priority,palette,tile,x,y,wide,tall,true);
-    if(priority!=7u || (palette!=2u && palette!=4u) ||
-       (y!=20 && y!=32))return false;
-    return (tile>=88417u && tile<=88579u) ||
-           tile==89417u || tile==89418u;
+    return topHudObject(priority,palette,tile,x,y,wide,tall,
+                        false,false,true);
 }
-// Use the established broad HUD grouping only once the real fight stage is
-// rendering. During VS screen transitions, strict source identity is
-// mandatory to avoid the previously reported forest/tree bleed.
 inline bool objectForPhase(int phase,unsigned priority,unsigned palette,
                            unsigned tile,int x,int y,unsigned wide,unsigned tall,
                            bool portrait=false,bool scenery=false){
     if(scenery || !Timeline::mayMaskNativeHud(phase))return false;
-    if(phase==2 || phase==4)
-        return verifiedTransitionHud(priority,palette,tile,x,y,wide,tall);
-    return object(priority,palette,tile,x,y,wide,tall,portrait,false);
+    return topHudObject(priority,palette,tile,x,y,wide,tall,
+                        portrait,false,phase==2 || phase==4);
 }
 static const unsigned char Bayer8[64]={
      0,48,12,60, 3,51,15,63,
