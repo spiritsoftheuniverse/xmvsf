@@ -6,7 +6,7 @@ set "PATH=C:\msys64\ucrt64\bin;C:\msys64\usr\bin;%PATH%"
 set "XMVSF_PROJECT=%PROJECT%"
 REM Freeze the target for this invocation: updates during a long build must not
 REM make the wrapper look for a different version than the shell published.
-set "XMVSF_TEST_VERSION=87.408"
+set "XMVSF_TEST_VERSION=87.409"
 set "XMVSF_TEST_TAG=%XMVSF_TEST_VERSION:.=_%"
 REM Explicit Joe-only refresh: BUILD_TEST.bat joe. No other PSD PNG is touched.
 REM Normal BUILD_TEST.bat keeps the original complete SHA-inventory validation.
@@ -96,6 +96,27 @@ if errorlevel 1 (
   goto :fail
 )
 echo Stage screenshot catalog compile PASS.
+REM TEST 87.409: prevent grounded/ordinary-jump normals from inheriting
+REM Tournament flying-screen reaction writes. Fast ROM-free C++ test only;
+REM preserve warm cache and do not extend the full native test suite.
+set "FS_SCOPE_LOG=%LOGDIR%\FS_SUPERJUMP_SCOPE_409.log"
+set "FS_SCOPE_EXE=%LOGDIR%\FS_SUPERJUMP_SCOPE_409.exe"
+"C:\msys64\ucrt64\bin\g++.exe" -std=c++17 -Wall -Wextra -Werror -O2 -I"%PROJECT%\dev\stable\buildtree\src\burn\drv\capcom" "%PROJECT%\dev\dhc\tests\test_tournament_fs_superjump_scope_409.cpp" -o "%FS_SCOPE_EXE%" >"%FS_SCOPE_LOG%" 2>&1
+if errorlevel 1 (
+  type "%FS_SCOPE_LOG%"
+  type "%FS_SCOPE_LOG%" >>"%BUILDLOG%"
+  echo ERROR: Tournament superjump FS scope regression did not compile.
+  goto :fail
+)
+"%FS_SCOPE_EXE%" >>"%FS_SCOPE_LOG%" 2>&1
+if errorlevel 1 (
+  type "%FS_SCOPE_LOG%"
+  type "%FS_SCOPE_LOG%" >>"%BUILDLOG%"
+  echo ERROR: Ground/normal-jump FS leak regression failed.
+  goto :fail
+)
+type "%FS_SCOPE_LOG%"
+type "%FS_SCOPE_LOG%" >>"%BUILDLOG%"
 where bash.exe >nul 2>nul
 if errorlevel 1 (
   echo ERROR: MSYS2 bash.exe not found on PATH.
