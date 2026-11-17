@@ -67,44 +67,38 @@ struct Scene {
  // number-key audit. 0 toggles truly clean scenery-only F6 captures.
  // Indices: C,rotor,B,gun,shot,bullet,A,stun,fighter/flash.
  bool layerOn[9]={true,true,true,true,true,true,true,true,true};
- bool keyHeld[10]={};
  bool sceneryOnly=false;
+ unsigned layerGeneration=~0u;
  bool visible(int layer)const{
   return XM87404Layers::shown(layer,
           layer>=0&&layer<9?layerOn[layer]:false,sceneryOnly);
  }
- void pollLayerKeys(){
-  const Uint8* keys=SDL_GetKeyboardState(nullptr);
-  if(!keys)return;
-  static const SDL_Scancode top[10]={
-   SDL_SCANCODE_0,SDL_SCANCODE_1,SDL_SCANCODE_2,
-   SDL_SCANCODE_3,SDL_SCANCODE_4,SDL_SCANCODE_5,
-   SDL_SCANCODE_6,SDL_SCANCODE_7,SDL_SCANCODE_8,
-   SDL_SCANCODE_9};
-  static const SDL_Scancode pad[10]={
-   SDL_SCANCODE_KP_0,SDL_SCANCODE_KP_1,SDL_SCANCODE_KP_2,
-   SDL_SCANCODE_KP_3,SDL_SCANCODE_KP_4,SDL_SCANCODE_KP_5,
-   SDL_SCANCODE_KP_6,SDL_SCANCODE_KP_7,SDL_SCANCODE_KP_8,
-   SDL_SCANCODE_KP_9};
+ void syncLayerGeneration(){
+  const unsigned gen=xm77StageRollGeneration();
+  if(layerGeneration==gen)return;
+  layerGeneration=gen;
+  for(bool& on:layerOn)on=true;
+  sceneryOnly=false;
+  std::fprintf(stderr,
+   "XM87.410 BOOMER_LAYERS_RESET generation=%u all_visible=1\n",gen);
+ }
+ // One physical SDL KEYDOWN per toggle; no paint-loop key polling.
+ void toggleDigit(unsigned k){
+  if(k>9u)return;
+  syncLayerGeneration();
   static const char* const names[9]={
    "distant C","rotors","B walls","Triblasters","shots",
    "bullets","A platform","stun HUD","fighters and flash"};
-  for(int k=0;k<10;++k){
-   const bool pressed=(keys[top[k]]!=0 || keys[pad[k]]!=0);
-   if(pressed && !keyHeld[k]){
-    if(k==0){
-     sceneryOnly=!sceneryOnly;
-     std::fprintf(stderr,
-       "XM87.404 BOOMER_LAYERS_0 scenery_only=%d "
-       "F6_captures_clean_stage=1\n",int(sceneryOnly));
-    }else{
-     layerOn[k-1]=!layerOn[k-1];
-     std::fprintf(stderr,
-       "XM87.404 BOOMER_LAYER_%d name=%s enabled=%d clean=%d\n",
-       k,names[k-1],int(layerOn[k-1]),int(sceneryOnly));
-    }
-   }
-   keyHeld[k]=pressed;
+  if(k==0u){
+   sceneryOnly=!sceneryOnly;
+   std::fprintf(stderr,
+     "XM87.410 BOOMER_LAYERS_0 scenery_only=%d F6_captures_clean_stage=1\n",
+     int(sceneryOnly));
+  }else{
+   layerOn[k-1u]=!layerOn[k-1u];
+   std::fprintf(stderr,
+     "XM87.410 BOOMER_LAYER_%u name=%s enabled=%d clean=%d\n",
+     k,names[k-1u],int(layerOn[k-1u]),int(sceneryOnly));
   }
  }
  void loadPlacement(){
@@ -129,7 +123,7 @@ struct Scene {
   cameraAnchorKnown=false;cameraAnchorGeneration=~0u;
   cameraLastFrame=~0ull;
   for(bool& on:layerOn)on=true;
-  for(bool& held:keyHeld)held=false;
+  layerGeneration=~0u;
   sceneryOnly=false;
   a.close();b.close();c.close();
   if(fighters)SDL_DestroyTexture(fighters);
@@ -283,16 +277,11 @@ struct Scene {
   const int stageTop=VIEW_H-WORLD_H+GROUND_CAMERA_Y-camY;
   const unsigned long long frame=xm8649Visual.frames;
   const unsigned gen=xm77StageRollGeneration();
+  syncLayerGeneration();
   if(!cameraAnchorKnown || cameraAnchorGeneration!=gen ||
      (cameraLastFrame!=~0ull && frame<cameraLastFrame)){
    // Never carry hidden fighters or scenery-only screenshot mode to a
    // different match or restored replay timeline.
-   if(cameraAnchorKnown){
-    for(bool& on:layerOn)on=true;
-    for(bool& held:keyHeld)held=false;
-    sceneryOnly=false;
-    std::fprintf(stderr,"XM87.404 BOOMER_LAYERS_RESET new_scene=1\n");
-   }
    cameraAnchorKnown=true;cameraAnchorGeneration=gen;
    cameraAnchorY=camY;
    std::fprintf(stderr,
@@ -303,7 +292,6 @@ struct Scene {
   // Wall B's screen Y is stageTop; this is exactly the change in
   // stageTop since first appearance, so props stay fixed to B on jump.
   const int stageYShift=XM87401Motion::wallCameraYOffset(cameraAnchorY,camY);
-  pollLayerKeys();
   const bool oldClip=SDL_RenderIsClipEnabled(r)==SDL_TRUE;
   SDL_Rect old={0,0,0,0};
   if(oldClip)SDL_RenderGetClipRect(r,&old);
@@ -342,6 +330,12 @@ struct Scene {
  }
 };
 static inline Scene& scene(){static Scene s;return s;}
+// Common cutout for every SDL-host HUD and notification pass.
+static inline bool sdlHudVisible(){
+ return xm77StageResolved!=7 || !xm8649Visual.sceneActive ||
+        xm8649Visual.stage!=5 ||
+        scene().visible(XM87404Layers::StunHUD);
+}
 static inline bool sceneryOnly(){
  return xm77StageResolved==7 && xm8649Visual.sceneActive &&
         xm8649Visual.stage==5 && scene().sceneryOnly;

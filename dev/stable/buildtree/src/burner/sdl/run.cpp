@@ -37,6 +37,9 @@
 #include "xmvsf_stage77_native_stage5.h" // XM86.31 postframe guarded native stage request
 #include "xmvsf_stage29_display.h" /* XMVSF_STAGE29_SCALABLE_DISPLAY */
 extern "C" void xm87400RequestNativeScreenshot(); // SDL video: capture completed scene on next present
+#ifdef BUILD_SDL2
+extern "C" void xm87410HandleBoomerLayerKey(const SDL_Event*); // event-led 1..0 layers
+#endif
 extern "C" void xm87408RequestStageScreenshot(unsigned,unsigned,unsigned,unsigned,
                                              unsigned,int,int,int); // F6 catalog snapshot
 #include "xmvsf_stage24_3_menu_poll.h" /* XMVSF_STAGE24_3_LIVE_RESULTS */
@@ -839,6 +842,11 @@ int RunMessageLoop()
 		SDL_Event event;
         while (SDL_PollEvent(&event))
 		{
+#ifdef BUILD_SDL2
+            // Deliver Boomer numeric SDL edges before gameplay/menu consumers.
+            // Do not eat their underlying CPS2 input events.
+            xm87410HandleBoomerLayerKey(&event);
+#endif
             // TEST 87.400: one native-size PNG of the fully composed next
             // frame. Handle before replay/menu input consumers so F6 works
             // during normal combat, Training, Versus, and replay playback.

@@ -56,6 +56,18 @@ int main(){
     assert(t.step(559)==30u);
     t.observe(4,560u,false);
     assert(t.step(560)==30u); // Version 3 clean
+    // Within one persistent SDL process, a fresh VS song replaces the old
+    // source frame while retaining legitimate pre-PCM evidence.
+    t.prepareForSong(600u);
+    t.noteHudSource(602u);
+    t.startWithSong(4u,610u);
+    assert(t.firstSourceFrame==602u);
+    t.prepareForSong(700u);
+    assert(!t.armed && !t.sourceSeen);
+    t.startWithSong(5u,705u);
+    t.noteHudSource(840u);
+    assert(t.step(840u)==0u);
+    assert(t.step(841u)==1u);
     t.reset();
     assert(t.step(600)==30u);
     t.startWithSong(3u,700u); // fallback if song starts before priming
@@ -79,6 +91,10 @@ int main(){
     assert(objectForPhase(2,7,2,88463,32,20,2,1));
     assert(objectForPhase(4,7,4,88547,300,32,2,1));
     assert(objectForPhase(2,0,1,87808,160,12,2,2));
+    assert(objectForPhase(6,0,1,91999,160,12,2,2));
+    assert(!objectForPhase(4,0,1,91999,160,12,2,2));
+    assert(!objectForPhase(6,0,1,91999,20,12,2,2));
+    assert(!objectForPhase(6,0,1,91999,160,80,2,2));
     assert(!objectForPhase(2,7,3,50000,20,0,3,2));
     assert(!objectForPhase(4,7,2,109100,32,20,2,1));
     assert(!objectForPhase(2,7,2,88463,32,90,2,1));

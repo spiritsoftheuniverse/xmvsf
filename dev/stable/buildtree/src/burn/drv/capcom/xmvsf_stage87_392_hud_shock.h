@@ -34,8 +34,8 @@ struct Timeline {
     // Called on the SAME M68K chooser->VS handoff that requests the song.
     // Hide actual HUD source objects immediately, before audio decode/start.
     void prepareForSong(unsigned frame){
-        if(primed)return;
-        primed=true;primedAt=frame;
+        if(primed && !armed)return; // duplicate cue before audio starts
+        primed=true;armed=false;primedAt=frame;
         sourceSeen=false;firstSourceFrame=0u;
         std::fprintf(stderr,"XM87.399 HUD_SHOCK_PRIMED frame=%u\n",frame);
     }
@@ -44,7 +44,7 @@ struct Timeline {
     void startWithSong(unsigned songSequence,unsigned frame){
         if(!songSequence || songSequence==lastSongStart)return;
         lastSongStart=songSequence;
-        if(!primed){sourceSeen=false;firstSourceFrame=0u;}
+        if(!primed || armed){sourceSeen=false;firstSourceFrame=0u;}
         primed=true;armed=true;start=frame;
         std::fprintf(stderr,
             "XM87.399 HUD_SHOCK_SONG_START song=%u frame=%u hold=%u reveal=%u\n",
@@ -65,7 +65,9 @@ struct Timeline {
         if(lastFrame!=~0u && frame<lastFrame){
             primed=false;armed=false; // reset/replay rewind, do not reuse cue
         }
-        if(phase==0x0a || phase==0x0c){primed=false;armed=false;}
+        if(phase==0x0a || phase==0x0c){
+            primed=false;armed=false;sourceSeen=false;firstSourceFrame=0u;
+        }
         lastFrame=frame;lastPhase=phase;
     }
 
@@ -101,6 +103,22 @@ struct Timeline {
 };
 inline Timeline& timeline(){static Timeline s;return s;}
 
+// The timer uses a priority-0 clock source, not the priority-7 HP bar.
+// During VS 02/04 admit only its verified tile atlas. In live 06/08,
+// additional small clock glyphs in the central timer footprint may change
+// tile IDs between rounds; upstream scenery ownership is still vetoed.
+inline bool timeIndicator(unsigned priority,unsigned palette,unsigned tile,
+                          int x,int y,unsigned wide,unsigned tall,bool transition){
+    if(priority!=0u || palette!=1u || !wide || !tall ||
+       wide>2u || tall>2u || x<128 || x>=256 ||
+       y< -16 || y>=56)return false;
+    if(transition)
+        return wide==2u && tall==2u &&
+               tile>=87808u && tile<=87826u &&
+               ((tile-87808u)&1u)==0u;
+    return (tile>=87808u && tile<=87831u) ||
+           (x>=144 && x<224 && y>=0 && y<40);
+}
 // Strictly scoped to the upper native HUD; never blanket-filter the fighter,
 // arena, introductory logo walls, or unrelated large priority-7 artwork.
 inline bool object(unsigned priority,unsigned palette,unsigned tile,
@@ -109,9 +127,7 @@ inline bool object(unsigned priority,unsigned palette,unsigned tile,
     if(scenery || !wide || !tall || x>=384 || x+int(wide*16u)<=0 ||
        y>=56 || y+int(tall*16u)<=0)return false;
     if(priority==0u)
-        return palette==1u && wide==2u && tall==2u &&
-               tile>=87808u && tile<=87826u && ((tile-87808u)&1u)==0u &&
-               y>=-16 && y<56; // verified ROM timer-digit atlas
+        return timeIndicator(priority,palette,tile,x,y,wide,tall,false);
     if(priority!=7u)return false;
     if(portrait)return y>=-64 && y<56;
     if(y< -48)return false;
@@ -132,9 +148,7 @@ inline bool verifiedTransitionHud(unsigned priority,unsigned palette,
                                   unsigned wide,unsigned tall){
     if(!wide || !tall || x>=384 || y>=56)return false;
     if(priority==0u)
-        return palette==1u && wide==2u && tall==2u &&
-               tile>=87808u && tile<=87826u &&
-               ((tile-87808u)&1u)==0u && y>=-16;
+        return timeIndicator(priority,palette,tile,x,y,wide,tall,true);
     if(priority!=7u || (palette!=2u && palette!=4u) ||
        (y!=20 && y!=32))return false;
     return (tile>=88417u && tile<=88579u) ||
