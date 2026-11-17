@@ -2,6 +2,15 @@
 
 Branch: `feature/hud-shock-reveal`. Version 4 only; Version 3 untouched.
 
+## TEST 87.415 follow-up: portrait/point/time sources
+
+The previously verified portrait-border tiles 89113..89115 are now
+classified as HUD through the opening shock, alongside 87808..89999
+upper HUD sheets restricted to portrait and clock source footprints.
+The stage-05 tree/forest sprites in the 109xxx tile family remain
+excluded. Unmatched top-band priority-0/7 objects are now recorded
+as `XM87.415 HUD_SOURCE_ESCAPE` with exact OAM metadata.
+
 ## TEST 87.414 follow-up: transition and name source scope
 
 The prior 87.413 all-small-priority-7 transition fallback was NOT

@@ -6,7 +6,7 @@ set "PATH=C:\msys64\ucrt64\bin;C:\msys64\usr\bin;%PATH%"
 set "XMVSF_PROJECT=%PROJECT%"
 REM Freeze the target for this invocation: updates during a long build must not
 REM make the wrapper look for a different version than the shell published.
-set "XMVSF_TEST_VERSION=87.414"
+set "XMVSF_TEST_VERSION=87.415"
 set "XMVSF_TEST_TAG=%XMVSF_TEST_VERSION:.=_%"
 REM Explicit Joe-only refresh: BUILD_TEST.bat joe. No other PSD PNG is touched.
 REM Normal BUILD_TEST.bat keeps the original complete SHA-inventory validation.
@@ -115,7 +115,7 @@ if errorlevel 1 (
 )
 type "%BOOMER_CUTOUT_LOG%"
 type "%BOOMER_CUTOUT_LOG%" >>"%BUILDLOG%"
-REM 87.414: strict 02/04 forest veto and long name font shock regression.
+REM 87.415: verify portrait frames, point/time atlas and strict forest veto.
 REM Previous builds ran only the Boomer policy test and missed 02/04 regression.
 set "SHOCK_HUD_LOG=%LOGDIR%\HUD_SHOCK_413.log"
 set "SHOCK_HUD_EXE=%LOGDIR%\HUD_SHOCK_413.exe"

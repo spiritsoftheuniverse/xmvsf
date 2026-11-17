@@ -44,22 +44,21 @@ entry still begins above the top edge; they then remain attached
 to their scenery plane through jumps. Rotor drift 20px/sec, B 30px/sec,
 and GIF animation timing are preserved.
 
-## Native layer cutouts (TEST 87.414)
+## Native layer cutouts (TEST 87.415)
 
 Boomer's scene art and decorative enemies are always visible. Only two
 event-driven visibility controls remain, for top-row and keypad digits:
 
 | Key | Cutout |
 |---|---|
-| **9** | Native CPS2 fighters/FX and native flash. Native HP and time objects remain visible through the independent source-qualified CPS2 HUD-only capture. |
+| **9** | Native CPS2 fighters/FX and flash on **all seven custom stages** (Wily, FD, Guile, Sigma, Akuma, Ryu, Boomer). Preserves native HP, portrait, name and timer objects through HUD-only capture. |
 | **8** | SDL stun/dizzy bars, directly at the shared SDL draw function on any stage. It does **not** hide the native health/timer/portrait HUD, shock-entry effect, frame data, training UI or F9/F10/chat notices. |
 
 Keys **1–7 and 0 no longer toggle Boomer layers**. Key presses are processed
-once per non-repeating SDL KEYDOWN. The Boomer key **9** state resets on a new stage generation **or**
-the actual custom-stage inactive-to-active transition. The global camera
-frame counter never rewinds during consecutive matches, so watching
-frame rewinds alone was insufficient. The SDL key 9 edge is accepted
-through the stage handoff even when sceneActive is temporarily false. The global SDL stun-bar key **8** resets when
+once per non-repeating SDL KEYDOWN. The shared key **9** state resets on actual custom-stage activation.
+It no longer belongs to Wily or Boomer individually; all seven stage
+painters receive the same CPS2 OBJ source filter. SDL key 8 stays the
+independent shared stun-bar switch. The global SDL stun-bar key **8** resets when
 a new game session starts. Neither control changes ROM collision, gameplay,
 memory, nor the ordinary native stage renderer.
 
@@ -69,8 +68,11 @@ of the completed framebuffer. The verified HUD-source classifier preserves
 original health and timer objects. The independent SDL dizzy meter is drawn on any stage only while the
 global SDL key 8 is enabled; every other SDL UI pass remains on.
 
+Wily's legacy 8/9 audit toggles are no longer active, avoiding
+duplicate toggles that previously obscured the shared 8/9 switches.
+
 F6 still records the fully presented 384×224 source to
-`F:\\xmvsf\\screenshots`. Wily's separate 1–9 audit is unchanged.
+`F:\\xmvsf\\screenshots`. Wily's independent audit controls 1–7 are unchanged.
 
 ## Validation
 

@@ -2,6 +2,13 @@
 #include <cassert>
 #include <cstdio>
 int main(){
+ for(unsigned s=1;s<=7;++s){
+  assert(XM87412::customStage(s));
+  assert(XM87412::hudOnlyCapture(s,false));
+  assert(!XM87412::hudOnlyCapture(s,true));
+ }
+ assert(!XM87412::hudOnlyCapture(0,false));
+ assert(!XM87412::customStage(8));
  XM87412::Controls c;
  assert(c.actors&&c.stun);
  for(unsigned k=0;k<8;++k)assert(!c.toggle(k));

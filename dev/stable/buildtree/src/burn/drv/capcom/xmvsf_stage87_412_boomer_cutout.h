@@ -4,6 +4,11 @@
 // The SDL stun meter is independent. No native ROM or framebuffer mutation.
 #include "xmvsf_stage87_392_hud_shock.h"
 namespace XM87412 {
+// One key-9 policy covers all seven host-custom stages (not native ROM stages).
+inline bool customStage(unsigned stage){return stage>=1u && stage<=7u;}
+inline bool hudOnlyCapture(unsigned stage,bool actorsVisible){
+ return customStage(stage) && !actorsVisible;
+}
 struct Controls {
  bool actors=true,stun=true;
  void reset(){actors=true;stun=true;}

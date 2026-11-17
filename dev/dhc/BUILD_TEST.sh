@@ -5,7 +5,7 @@
 set -euo pipefail
 BUILD_WALL_START=$SECONDS
 # Batch sets the version once at launch, before native compilation begins.
-XMVSF_BUILD_VERSION="${XMVSF_TEST_VERSION:-87.414}"
+XMVSF_BUILD_VERSION="${XMVSF_TEST_VERSION:-87.415}"
 XMVSF_BUILD_TAG="${XMVSF_BUILD_VERSION//./_}"
 PROJECT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
@@ -736,16 +736,16 @@ echo "TEST F6 SCREENSHOT PROOF: XM87.400 F6_NATIVE_PNG_SAVED found in native EXE
 # replaced by 87.405 inside the same source GIF renderer. Requiring
 # both labels rejects a correctly compiled executable. The authoritative
 # current Boomer signature check remains below, after the layer proof.
-# TEST 87.412: verify both key-down visibility and native HUD-only OBJ capture.
-if ! LC_ALL=C grep -aFq -- "XM87.412 BOOMER_9_FIGHTER_CUTOUT" "$BUILT"; then
-  echo "ERROR: TEST 87.412 Boomer SDL 8/9 event source not linked." >&2
+# TEST 87.415: previous Wily/Boomer-only key-9 signatures are obsolete.
+if ! LC_ALL=C grep -aFq -- "XM87.415 UNIVERSAL_9" "$BUILT"; then
+  echo "ERROR: TEST 87.415 universal key 9 handler not linked." >&2
   exit 2
 fi
-if ! LC_ALL=C grep -aFq -- "XM87.412 BOOMER_OBJ_HUD_ONLY" "$BUILT"; then
-  echo "ERROR: TEST 87.412 native HP-preserving object cutout not linked." >&2
+if ! LC_ALL=C grep -aFq -- "XM87.415 CUSTOM_OBJ_HUD_ONLY" "$BUILT"; then
+  echo "ERROR: TEST 87.415 shared CPS2 OBJ cutout not linked." >&2
   exit 2
 fi
-echo "TEST BOOMER CUTOUT PROOF: SDL keys and CPS2 native source linked."
+echo "TEST UNIVERSAL OBJ PROOF: all custom stages share native source cutout."
 # 87.405: don't publish a TEST if the actual Boomer GIF sprite rules
 # (new anchor offsets, Y-only upward firing, three spaced rotors)
 # were not relinked with the SDL video translation unit.
@@ -789,10 +789,7 @@ if ! LC_ALL=C grep -aFq -- "XM87.414 HUD_SHOCK_TRANSITION_SCOPED" "$BUILT"; then
   echo "ERROR: 87.414 forest-safe native shock-entry classification not linked." >&2
   exit 2
 fi
-if ! LC_ALL=C grep -aFq -- "XM87.414 BOOMER_9_SESSION_EDGE" "$BUILT"; then
-  echo "ERROR: 87.414 key 9 event handler did not relink." >&2
-  exit 2
-fi
+# SDL key 9 is proved by the 87.415 universal handler marker above.
 if ! LC_ALL=C grep -aFq -- "XM87.414 BOOMER_9_MATCH_RESET" "$BUILT"; then
   echo "ERROR: 87.414 per-match key-9 rearm did not relink." >&2
   exit 2
@@ -802,6 +799,11 @@ if ! LC_ALL=C grep -aFq -- "XM87.414 CUSTOM_STAGE_ACTIVATION" "$BUILT"; then
   exit 2
 fi
 echo "TEST HUD/BOOMER 87.414 SOURCE PROOF: forest scope, font candidates, key 9 event/session and activation observer linked."
+if ! LC_ALL=C grep -aFq -- "XM87.415 HUD_SOURCE_ESCAPE" "$BUILT"; then
+  echo "ERROR: 87.415 native top-HUD shock object audit not linked." >&2
+  exit 2
+fi
+echo "TEST 87.415 native HUD source diagnostics linked."
 # Hash-compare before publishing: a no-op build must NOT overwrite TEST.
 built_sha="$(sha256sum "$BUILT" | cut -d ' ' -f 1)"
 mkdir -p "$PROJECT/runtime/stable"
