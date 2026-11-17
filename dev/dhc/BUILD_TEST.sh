@@ -5,7 +5,7 @@
 set -euo pipefail
 BUILD_WALL_START=$SECONDS
 # Batch sets the version once at launch, before native compilation begins.
-XMVSF_BUILD_VERSION="${XMVSF_TEST_VERSION:-87.427}"
+XMVSF_BUILD_VERSION="${XMVSF_TEST_VERSION:-87.428}"
 XMVSF_BUILD_TAG="${XMVSF_BUILD_VERSION//./_}"
 PROJECT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
@@ -846,18 +846,22 @@ if ! LC_ALL=C grep -aFq -- "XM87.422 PCM_LAG" "$BUILT"; then
   exit 2
 fi
 echo "TEST 87.425 PCM-LAG PROOF: unchanged audio diagnostic linked."
-# TEST 87.427: existing 02+27 song marker and new 130f shock marker.
-# Song-trigger code is NOT allowed to advance or move.
+# TEST 87.428: still require 87.426 SONG marker exactly as before.
+# Shock reveal is an independent 04>06+23 M68K event, not 130f wait.
 # Existing 87.417 HUD artwork/classification and keys 8/9 untouched.
 if ! LC_ALL=C grep -aFq -- "XM87.426 VS_PHASE02_PLUS_27" "$BUILT"; then
   echo "ERROR: TEST 87.426 phase02+27 song cue not linked." >&2
   exit 2
 fi
-if ! LC_ALL=C grep -aFq -- "XM87.427 HUD_EARLY_20" "$BUILT"; then
-  echo "ERROR: TEST 87.427 130f HUD delay not linked." >&2
+if ! LC_ALL=C grep -aFq -- "XM87.428 SHOCK_VISUAL_ACTIVATION" "$BUILT"; then
+  echo "ERROR: TEST 87.428 ROM 04>06+23 fade activation hook not linked." >&2
   exit 2
 fi
-echo "TEST 87.427 PHASE02+27 song UNCHANGED; HUD hold 130f, reveal 30f."
+if ! LC_ALL=C grep -aFq -- "XM87.428 HUD_SHOCK_VISUAL_START" "$BUILT"; then
+  echo "ERROR: TEST 87.428 independent HUD fade clock not linked." >&2
+  exit 2
+fi
+echo "TEST 87.428 song phase02+27 unchanged; HUD fade starts native 04>06+23."
 # Hash-compare before publishing: a no-op build must NOT overwrite TEST.
 built_sha="$(sha256sum "$BUILT" | cut -d ' ' -f 1)"
 mkdir -p "$PROJECT/runtime/stable"

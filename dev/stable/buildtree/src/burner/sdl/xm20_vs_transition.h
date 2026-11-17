@@ -10,14 +10,16 @@
 #include <cstdlib>
 #include "../../cpu/m68000_intf.h"
 #include "xm20_vs_early_phase.h"
-#include "xm20_vs_visual_anchor_422.h" // screenshot-measured native phase-02 placement
+#include "xm20_vs_visual_anchor_422.h" // song only: phase-02 + 27
+#include "xm20_vs_shock_activation_428.h" // HUD fade only: phase-06 + 23
 
 struct XM20VsTracker {
     unsigned int polls=0;
     unsigned int previousStatus=0xffffffffu,previousPointer=0xffffffffu;
     unsigned int gameStep=0xffffffffu,p1Choice=0xffffffffu,p2Choice=0xffffffffu;
     XM20VsEarly::Gate gate{};
-    XM87422VisualAnchor::Gate visualAnchor{};
+    XM87422VisualAnchor::Gate visualAnchor{}; // VS OGG start: unchanged
+    XM87428ShockActivation::Gate shockActivation{}; // independent fade
     bool triggered=false,combatNotified=false,missedLogged=false;
     FILE* log=nullptr;
     FILE* trace=nullptr;
@@ -113,6 +115,22 @@ static inline void xm20VsCheck(int ready,int paused) {
             XM87422VisualAnchor::DelayFrom02);
     }
 
+    // TEST 87.428: 04>06 observed at F1452 and user's desired
+    // shock-insertion screenshot is F1475 (23 frames into 06).
+    // This ONLY releases the concealed HUD into its existing 30f fade.
+    // Never call enterVs here: song stays anchored to phase-02+27.
+    if(xm20Vs.shockActivation.observe(status,(unsigned)GetCurrentFrame())){
+        const unsigned frame=(unsigned)GetCurrentFrame();
+        if(XM87392::eligible(BurnDrvGetTextA(DRV_NAME),
+                             XM87262Game::version4()))
+            XM87392::timeline().activateShockAtVisualFrame(frame);
+        xm20VsLog("XM87.428 SHOCK_ACTIVATE_04_TO_06_PLUS_23",status,p1ptr);
+        std::fprintf(stderr,
+            "XM87.428 SHOCK_VISUAL_ACTIVATION frame=%u phase=%02X entry=%u offset=%u song_unchanged=1\n",
+            frame,status,xm20Vs.shockActivation.phase06Entry,
+            XM87428ShockActivation::FramesInto06);
+    }
+
     if(status==0x08u){
         xm20VsTrace(status,gameStep,p1Choice,p2Choice,p1ptr,pc,ppc,opcode,stage,timer);
         xm20VsLog(xm20Vs.triggered?"VS_TO_COMBAT":
@@ -135,13 +153,13 @@ static inline void xm20VsCheck(int ready,int paused) {
             "VS_M68K_HANDOFF_0004_TO_0008",status,p1ptr);
         xm20Vs.triggered=true;
         // Preserve the approved HUD concealment prime at the original
-        // chooser->match handoff. Only SONG REQUEST + DELAY START move
-        // to the screenshot-measured phase-02 position.
+        // chooser->match handoff. Song at phase-02+27; separate HUD
+        // shock-activation frame now follows phase-06+23.
         if(XM87392::eligible(BurnDrvGetTextA(DRV_NAME),
                              XM87262Game::version4()))
             XM87392::timeline().prepareForSong((unsigned)GetCurrentFrame());
         // Do NOT queue the song at the earlier chooser handoff.
-        // The phase-02 frame-zero edge above owns playback.
+        // The original phase-02+27 event above owns playback.
     }
     // Trigger column marks the SAME replay frame that actually armed audio.
     xm20VsTrace(status,gameStep,p1Choice,p2Choice,p1ptr,pc,ppc,opcode,stage,timer);

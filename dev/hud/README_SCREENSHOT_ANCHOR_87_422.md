@@ -1,3 +1,31 @@
+# TEST 87.428 — Explicit shock activation at screenshot F1475
+
+The user's F6 screenshot `XMVSF_native_20261117_185307_f000001475_000001.png`
+records F=1475, status FF5000=06, step FF5104=0008, stage FF5113=05,
+WRPC 00F2BE, last FF5000 EDGE 04>06 at frame 1452.
+This identifies the desired shock FADE START 23 emulated frames into
+native phase 06.
+
+The previous 87.427 fixed 130-frame hold after the song made the
+shock start too early. TEST 87.428 replaces that song-to-reveal delay
+for captured Versus scenes with an independent read-only native
+phase gate: **04>06 entry plus 23 frames**.
+Until that event, the HUD stays concealed; starting at that frame,
+the APPROVED 30-frame dither reveal runs without further waiting
+(unless HUD sources first appear late, retaining the anti-pop safeguard).
+
+**Do not alter the song start.** It remains the previously approved
+phase 02+27 M68K event. The 130-frame DelayFrames constant remains
+only for the legacy no-captured-anchor PCM compatibility path,
+never the normal HUD reveal. Stage graphics, HUD tile classification,
+dither art, FX, controllers, and keys 8/9 are unchanged.
+
+Regression tests verify exact F1452->F1475 offset, no premature reveal
+even if song elapsed 130f, one-shot triggering, stage-load invariance,
+unchanged music clock and 30-frame full reveal at frame 1504.
+Binary markers require the old 87.426 SONG cue plus BOTH new
+87.428 native shock and HUD fade signals. Local Windows build only.
+
 # TEST 87.427 — Advance shock reveal by 20 frames; DO NOT move song
 
 The user confirmed the musical anchor is correct and specifically requested

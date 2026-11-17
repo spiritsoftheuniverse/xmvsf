@@ -2,6 +2,7 @@
 // Build locally with RUN_TEST_HUD_392.bat.
 #include "../../stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_392_hud_shock.h"
 #include "../../stable/buildtree/src/burner/sdl/xm20_vs_visual_anchor_422.h"
+#include "../../stable/buildtree/src/burner/sdl/xm20_vs_shock_activation_428.h"
 #include <cassert>
 #include <cstdint>
 #include <cstdio>
@@ -18,8 +19,9 @@ int main(){
     assert(!eligible("xmvsfu",false));
     assert(!eligible("mvsc",true));
     assert(!eligible(nullptr,true));
-    // TEST 87.427: original 87.426 song cue remains phase 02+27.
-    // Only the shock hold changes 150 -> 130 frames; fade stays 30f.
+    // TEST 87.428: song remains phase 02+27. The captured HUD reveal
+    // starts at 04->06 +23 regardless of song elapsed frames.
+    // Keep 130f as a legacy non-captured compatibility delay.
     // No first-fight-frame max(): that was why 87.397 and 87.398
     // appeared to have exactly the same timing.
     assert(DelayFrames==130u);
@@ -108,26 +110,58 @@ int main(){
     assert(!interrupted.observe(2u,100u));
     assert(!interrupted.observe(4u,115u));
     assert(!interrupted.observe(2u,140u)); // no second match edge
+    // TEST 87.428: screenshot F1475 ST06, native 04->06 at F1452.
+    // The exact 23-frame native offset controls visual fade activation.
+    using XM87428ShockActivation::Gate;
+    Gate shock;
+    assert(!shock.observe(2u,1300u));
+    for(unsigned f=1400u;f<=1451u;++f)assert(!shock.observe(4u,f));
+    assert(!shock.observe(6u,1452u)); // phase-06 entry
+    for(unsigned f=1453u;f<1475u;++f)assert(!shock.observe(6u,f));
+    assert(shock.observe(6u,1475u)); // selected screenshot
+    assert(shock.fired && shock.phase06Entry==1452u);
+    assert(!shock.observe(6u,1476u));
+    assert(!shock.observe(8u,1500u)); // no second fade
+    Gate noObservedTransition;
+    assert(!noObservedTransition.observe(6u,1452u));
+    assert(!noObservedTransition.observe(6u,1475u));
+    Gate variableLoad;
+    for(unsigned f=100u;f<=700u;++f)assert(!variableLoad.observe(4u,f));
+    assert(!variableLoad.observe(6u,701u));
+    assert(!variableLoad.observe(6u,723u));
+    assert(variableLoad.observe(6u,724u)); // stage load excluded
+    Gate interrupted;
+    assert(!interrupted.observe(4u,100u));
+    assert(!interrupted.observe(6u,101u));
+    assert(!interrupted.observe(8u,110u));
+    assert(!interrupted.observe(6u,140u)); // cannot resume
     Timeline visualClock;
-    visualClock.prepareForSong(1600u);
-    assert(visualClock.step(1677u)==0u);
-    visualClock.beginAtCapturedPosition(1678u);
-    assert(visualClock.capturedAnchor && visualClock.start==1678u);
-    visualClock.startWithSong(91u,1686u); // PCM must NOT restart clock
-    assert(visualClock.start==1678u);
-    visualClock.noteHudSource(1720u);
-    assert(visualClock.step(1807u)==0u); // 130f concealment
-    assert(visualClock.step(1808u)==1u); // fade begins 20 frames earlier
-    assert(visualClock.step(1836u)==29u);
-    assert(visualClock.step(1837u)==30u); // full HUD
-    visualClock.beginAtCapturedPosition(1800u);
-    assert(visualClock.start==1678u);
+    visualClock.prepareForSong(1300u);
+    visualClock.beginAtCapturedPosition(1360u); // existing song, unchanged
+    assert(visualClock.capturedAnchor && visualClock.start==1360u);
+    visualClock.startWithSong(91u,1370u); // PCM must not restart or fade
+    visualClock.noteHudSource(1450u);
+    assert(visualClock.step(1474u)==0u); // NO song-based 130f reveal
+    visualClock.activateShockAtVisualFrame(1475u);
+    assert(visualClock.visualShockActive && visualClock.visualShockFrame==1475u);
+    assert(visualClock.step(1475u)==1u); // exactly the pictured frame
+    assert(visualClock.step(1503u)==29u);
+    assert(visualClock.step(1504u)==30u);
+    assert(visualClock.start==1360u); // song unchanged
+    visualClock.activateShockAtVisualFrame(1490u); // one-shot
+    assert(visualClock.visualShockFrame==1475u);
     Timeline lateCaptured;
-    lateCaptured.beginAtCapturedPosition(1678u);
-    lateCaptured.noteHudSource(2200u);
-    assert(lateCaptured.step(2200u)==0u); // preserve late-source safeguard
-    assert(lateCaptured.step(2201u)==1u);
-    assert(lateCaptured.step(2230u)==30u);
+    lateCaptured.beginAtCapturedPosition(1360u);
+    lateCaptured.activateShockAtVisualFrame(1475u);
+    lateCaptured.noteHudSource(1500u);
+    assert(lateCaptured.step(1500u)==0u); // late HUD guard preserved
+    assert(lateCaptured.step(1501u)==1u);
+    assert(lateCaptured.step(1530u)==30u);
+    Timeline withoutCue;
+    withoutCue.prepareForSong(1300u);
+    withoutCue.activateShockAtVisualFrame(1475u);
+    assert(!withoutCue.visualShockActive);
+    assert(withoutCue.step(1475u)==0u);
     // 87.416 shock-only comprehensive top HUD from native priority 7.
     // Source-level key 9 remains separate and is tested below.
     // 87.414 transition shock: strict source/tile + documented name regions.

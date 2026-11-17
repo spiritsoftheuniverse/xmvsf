@@ -2,8 +2,9 @@
 #define XMVSF_STAGE87_392_HUD_SHOCK_H
 // TEST 87.399: source-verified HUD concealment from VS song request
 // and the separate SDL stun bar. No ROM/RAM mutations or opaque screen masks.
-// TEST 87.427: hold reduced by 20 frames (150 -> 130).
-// Song anchor remains phase 02+27; 30-frame fade and HUD visuals are frozen.
+// TEST 87.428: normal VS shock reveal no longer uses this 130f
+// compatibility delay. Song stays phase 02+27; 04>06 +23 starts the
+// unchanged 30-frame HUD reveal. HUD sprite classification is frozen.
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
@@ -25,10 +26,12 @@ struct Timeline {
     unsigned lastFrame=~0u;
     unsigned lastSongStart=0u;
     unsigned firstSourceFrame=0u;
+    unsigned visualShockFrame=0u; // independent visual activation
     int lastPhase=-1;
     bool primed=false;
     bool armed=false;
     bool capturedAnchor=false;
+    bool visualShockActive=false; // true only after phase 06+23
     bool sourceSeen=false;
 
     void reset(){*this=Timeline{};}
@@ -37,7 +40,8 @@ struct Timeline {
     // Hide actual HUD source objects immediately, before audio decode/start.
     void prepareForSong(unsigned frame){
         if(primed && !armed)return; // duplicate cue before audio starts
-        primed=true;armed=false;capturedAnchor=false;primedAt=frame;
+        primed=true;armed=false;capturedAnchor=false;
+        visualShockActive=false;visualShockFrame=0u;primedAt=frame;
         sourceSeen=false;firstSourceFrame=0u;
         std::fprintf(stderr,"XM87.399 HUD_SHOCK_PRIMED frame=%u\n",frame);
     }
@@ -56,8 +60,8 @@ struct Timeline {
             songSequence,frame,DelayFrames,RevealFrames);
     }
 
-    // Clock-only method: no HUD tile classification, palette masks or
-    // approved 87.417 dither contents are changed in TEST 87.424.
+    // Song anchor is separate from the shock reveal; no sprite source,
+    // palette or dither rules are modified in TEST 87.428.
     void beginAtCapturedPosition(unsigned frame){
         if(capturedAnchor)return;
         if(!primed){
@@ -65,9 +69,21 @@ struct Timeline {
             sourceSeen=false;firstSourceFrame=0u;
         }
         armed=true;capturedAnchor=true;start=frame;
+        visualShockActive=false;visualShockFrame=0u;
         std::fprintf(stderr,
-            "XM87.427 HUD_EARLY_20 frame=%u hold=%u fade=%u\n",
-            frame,DelayFrames,RevealFrames);
+            "XM87.428 HUD_SONG_ANCHOR_ONLY frame=%u phase02_offset=27 shock_wait=1\n",
+            frame);
+    }
+
+    // Called once by the observed 04->06 transition +23 frame gate,
+    // NOT by the song mixer or any fixed song-to-shock timer.
+    void activateShockAtVisualFrame(unsigned frame){
+        if(!primed || !armed || !capturedAnchor || visualShockActive)return;
+        visualShockActive=true;
+        visualShockFrame=frame;
+        std::fprintf(stderr,
+            "XM87.428 HUD_SHOCK_VISUAL_START frame=%u fade_frames=%u song_start=%u\n",
+            frame,RevealFrames,start);
     }
 
     // 02/04 overlap the VS transition and native forest. There is NEVER
@@ -80,13 +96,16 @@ struct Timeline {
     void observe(int phase,unsigned frame,bool allowed){
         if(!allowed){
             primed=false;armed=false;capturedAnchor=false;
+            visualShockActive=false;visualShockFrame=0u;
             lastFrame=frame;lastPhase=-1;return;
         }
         if(lastFrame!=~0u && frame<lastFrame){
-            primed=false;armed=false;capturedAnchor=false; // rewind
+            primed=false;armed=false;capturedAnchor=false;
+            visualShockActive=false;visualShockFrame=0u; // rewind
         }
         if(phase==0x0a || phase==0x0c){
             primed=false;armed=false;capturedAnchor=false;
+            visualShockActive=false;visualShockFrame=0u;
             sourceSeen=false;firstSourceFrame=0u;
         }
         lastFrame=frame;lastPhase=phase;
@@ -98,11 +117,14 @@ struct Timeline {
     void noteHudSource(unsigned frame){
         if(!primed || sourceSeen)return;
         sourceSeen=true;firstSourceFrame=frame;
-        const unsigned songDue=armed?start+DelayFrames:0u;
+        const unsigned fadeDue=capturedAnchor?
+            (visualShockActive?visualShockFrame:0u):
+            (armed?start+DelayFrames:0u);
         std::fprintf(stderr,
-            "XM87.399 HUD_SHOCK_FIRST_SOURCE frame=%u song_due=%u "
-            "late=%u\n",frame,songDue,
-            (unsigned)(armed && frame>=songDue));
+            "XM87.428 HUD_SHOCK_FIRST_SOURCE frame=%u fade_due=%u "
+            "waiting_for_visual=%u late=%u\n",
+            frame,fadeDue,(unsigned)(capturedAnchor && !visualShockActive),
+            (unsigned)(fadeDue && frame>=fadeDue));
     }
 
     unsigned step(unsigned frame)const {
@@ -111,15 +133,13 @@ struct Timeline {
         // Hide from the handoff while the PCM decoder prepares.
         if(!armed)return 0u;
         if(frame<start)return 0u;
-        // When source artwork starts after the music deadline, do not
-        // spend the entire reveal in an offscreen phase and expose the
-        // completed bars instantly. Only ONE initial hidden source frame,
-        // not the previous arbitrary six-frame scene delay.
-        unsigned due=start+DelayFrames;
-        // Keep the visually accepted 87.417 late-source safeguard.
-        // The 130f DELAY starts at phase-02+27, but if
-        // HUD artwork first becomes drawable afterward, reveal starts
-        // on its next frame rather than flashing fully visible.
+        // Normal captured VS matches wait for the verified phase-06+23
+        // visual trigger; they DO NOT use the song-to-shock delay.
+        if(capturedAnchor && !visualShockActive)return 0u;
+        // Compatibility path retains the former 130f mixer-based hold.
+        // Source-late guard still prevents a sudden fully-visible first
+        // HUD frame when sprite creation occurs after the cue.
+        unsigned due=capturedAnchor?visualShockFrame:start+DelayFrames;
         if(sourceSeen && firstSourceFrame>=due)due=firstSourceFrame+1u;
         if(frame<due)return 0u;
         if(frame>=due+RevealFrames)return RevealFrames;
