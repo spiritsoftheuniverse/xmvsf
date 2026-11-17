@@ -18,7 +18,7 @@
 #include <vector>
 #include "xmvsf_stage87_401_boomer_enemies.h" // rotor / Triblaster visual GIFs
 #include "../../../burn/drv/capcom/xmvsf_stage87_412_boomer_cutout.h"
-extern "C" int xm87412BoomerActorsVisible;
+extern "C" int xm87415NativeActorsVisible;
 
 namespace XMBoomer {
 static const int VIEW_W=384,VIEW_H=224,WORLD_W=768,WORLD_H=471;
@@ -78,7 +78,7 @@ struct Scene {
   layerGeneration=gen;
   layerActivation=activation;
   cutout.reset();
-  xm87412BoomerActorsVisible=1;
+  // Native actor state resets in common stage activation observer.
   // Camera frame numbers are process-monotonic. A new activation, even
   // without a generation change or rewind, starts a fresh filter session.
   if(rewound || newActivation){
@@ -93,7 +93,7 @@ struct Scene {
   if(k!=8u && k!=9u)return;
   syncLayerGeneration(xm8649Visual.frames);
   cutout.toggle(k);
-  xm87412BoomerActorsVisible=cutout.actors?1:0;
+  // Local Boomer audit no longer owns the shared native actor state.
   std::fprintf(stderr,
      "XM87.412 BOOMER_9_FIGHTER_CUTOUT key=%u actors=%d stun=%d native_hp_preserved=1\n",
      k,int(cutout.actors),int(cutout.stun));
@@ -120,7 +120,7 @@ struct Scene {
   cameraAnchorKnown=false;cameraAnchorGeneration=~0u;
   cameraLastFrame=~0ull;
   cutout.reset();
-  xm87412BoomerActorsVisible=1;
+  // Native actor state resets in common stage activation observer.
   layerGeneration=~0u;
   layerActivation=~0u;
   a.close();b.close();c.close();
@@ -312,7 +312,7 @@ struct Scene {
   // 9 switches the native OBJ source between full and HUD-only, never
   // removes the full texture (which also contains the HP bars).
   if(ok)ok=SDL_RenderCopy(r,fighters,nullptr,&view)==0;
-  if(ok && cutout.actors){
+  if(ok && xm87415NativeActorsVisible){
    const UINT8* nativeFlash=xm8757FlashPixels();
    if(nativeFlash && SDL_UpdateTexture(flash,nullptr,nativeFlash,VIEW_W*4)==0)
     ok=SDL_RenderCopy(r,flash,nullptr,&view)==0 && ok;

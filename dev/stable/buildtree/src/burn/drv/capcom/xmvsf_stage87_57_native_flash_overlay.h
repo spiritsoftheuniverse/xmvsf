@@ -45,7 +45,9 @@ static void xm8757FinalizeNativeFlash(){
  xm8757flash::compose(xm8757NativeFlashBgr.data(),384*4,sprite,
                       xm8757NativeFlashRgba.data(),384,224);
 }
+extern "C" int xm87415NativeActorsVisible;
 const UINT8* xm8757FlashPixels(){
+ if(!xm87415NativeActorsVisible)return nullptr; // universal 9 hides native FX
  return xm8757NativeFlashActive && xm8757NativeFlashRgba.size()==384u*224u*4u
     ?xm8757NativeFlashRgba.data():nullptr;
 }

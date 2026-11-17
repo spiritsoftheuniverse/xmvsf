@@ -494,7 +494,7 @@ void XM44WriteBufferedSprites(FILE* f, int sample) {
 // XM86.54: this flag is scoped to the disposable Wily native OBJ overlay.
 extern bool xm8651SpriteCaptureActive;
 extern bool xm8651SpriteCaptureStats;
-extern bool xm87412BoomerHudOnlyCapture;
+extern bool xm87415NativeHudOnlyCapture;
 extern int xm8654ConsideredObjects;
 extern int xm8654FilteredObjects;
 extern int xm8654RetainedObjects;
@@ -867,7 +867,7 @@ INT32 Cps2ObjDraw(INT32 nLevelFrom, INT32 nLevelTo)
 			const unsigned height=((attr>>12)&15U)+1U;
 			const bool scenery=xm8654KnownNativeScenery((unsigned)v,tile,pal);
 			bool keep=xm8654KeepNativeObject((unsigned)v,tile,pal,width,height);
-			if(keep && xm87412BoomerHudOnlyCapture){
+			if(keep && xm87415NativeHudOnlyCapture){
 			    // Inspect original OAM source before touching native OBJ pixels/Z.
 			    const UINT16 xw=BURN_ENDIAN_SWAP_INT16(ps[0]);
 			    int ox=int(xw);

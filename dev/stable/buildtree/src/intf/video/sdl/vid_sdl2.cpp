@@ -91,9 +91,10 @@ static SDL_Rect dstrect;
 #include "xmvsf_stage87_317_akuma.h"
 #include "xmvsf_stage87_323_ryu.h" // Ryu PSD exact-coordinate stage // native camera Akuma A/B dither / parallax
 #include "xmvsf_stage87_363_boomer_kuwanger.h" // tiled B/C elevator + stage A
-// 87.413: 8 gates the shared SDL stun painter itself, on EVERY stage.
-// The already-working 9 remains Boomer-only and untouched in semantics.
+// 87.415: 8 stays the global SDL stun switch; 9 now controls native
+// actors/FX at the shared CPS2 OBJ capture for ALL custom stages.
 static bool xm87413SDLStunVisible=true;
+extern "C" int xm87415NativeActorsVisible;
 extern "C" void xm87413ResetSDLStunCutout(){
  xm87413SDLStunVisible=true;
 }
@@ -108,15 +109,15 @@ extern "C" void xm87410HandleBoomerLayerKey(const SDL_Event* event){
   return;
  }
  if(key!=SDL_SCANCODE_9 && key!=SDL_SCANCODE_KP_9)return;
- // Do not require the transient sceneActive flag: it can be false between
- // consecutive matches despite the host still selecting Boomer stage.
- const bool stageChosen=(xm77StageResolved==7 || xm77StageChoice==7);
- std::fprintf(stderr,
-    "XM87.414 BOOMER_9_SESSION_EDGE accepted=%d choice=%d resolved=%d active=%d native=%u gen=%u\n",
-    int(stageChosen),xm77StageChoice,xm77StageResolved,
-    int(xm8649Visual.sceneActive),(unsigned)xm8649Visual.stage,
-    xm77StageRollGeneration());
- if(stageChosen)XMBoomer::scene().toggleDigit(9);
+ // Key 9 is not Wily-only or Boomer-only: every custom stage receives the
+ // exact same source-qualified native OBJ output.
+ if(xm77StageResolved>=1 && xm77StageResolved<=7){
+  xm87415NativeActorsVisible=!xm87415NativeActorsVisible;
+  std::fprintf(stderr,
+   "XM87.415 UNIVERSAL_9 stage=%d choice=%d actors=%d active=%d gen=%u\n",
+   xm77StageResolved,xm77StageChoice,int(xm87415NativeActorsVisible),
+   int(xm8649Visual.sceneActive),xm77StageRollGeneration());
+ }
 }
 // Shared menu-to-video preload bridge: no SDL texture calls from the worker.
 void xmFDPreloadSetActive(bool enabled){

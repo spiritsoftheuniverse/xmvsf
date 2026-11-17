@@ -39,6 +39,10 @@ static int xm8649Presented=0;
 // one visualization pass. Top-row digits and keypad digits are equivalent.
 static void xm8650PollAuditKeys(SDL_Window* win){
  if(!xm8649Preview || !win)return;
+ // 8 is reserved for global SDL stun; 9 is universal native actor source.
+ // Keep both Wily subtextures enabled, avoiding two competing toggles.
+ xm8649Preview->auditPass[8]=true;
+ xm8649Preview->auditPass[9]=true;
  const Uint8* keys=SDL_GetKeyboardState(nullptr);
  if(!keys)return;
  static bool held[10]={};
@@ -52,7 +56,7 @@ static void xm8650PollAuditKeys(SDL_Window* win){
   SDL_SCANCODE_KP_7,SDL_SCANCODE_KP_8,SDL_SCANCODE_KP_9};
  static const char* const names[10]={"","factory","middle","foreground",
   "sky-fill","natural-patch","upper-repair","smoke-vapor","Wily-actor","native-sprites"};
- for(int n=1;n<=9;++n){
+ for(int n=1;n<=7;++n){
   const bool down=keys[numberKeys[n]] || keys[keypadKeys[n]];
   if(down && !held[n]){
    // XM86.54: the broad palette/family selectors were removed.

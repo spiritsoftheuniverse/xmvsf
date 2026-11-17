@@ -9,6 +9,7 @@
 #include <cstring>
 extern int xm14TrainingMode;
 extern int xm24VersusMode;
+extern "C" int xm87415NativeActorsVisible;
 extern bool bRunPause;
 // Cps2ObjDraw publishes the native camera recorded with its exact
 // buffered CPS2 sprite list (cps_obj.cpp). The custom stage uses that
@@ -82,6 +83,7 @@ static inline void xm8649ObserveCamera(bool gameReady){
  c->close();
  if(active && !previouslyActive){
   ++xm8649Visual.activationSerial;
+  xm87415NativeActorsVisible=1; // rearm global key 9 for next custom stage
   std::fprintf(stderr,
     "XM87.414 CUSTOM_STAGE_ACTIVATION serial=%u gen=%u stage=%u status=%02X frames=%llu\n",
     xm8649Visual.activationSerial,xm77StageRollGeneration(),stage,status,
