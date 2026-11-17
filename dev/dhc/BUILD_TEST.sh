@@ -5,7 +5,7 @@
 set -euo pipefail
 BUILD_WALL_START=$SECONDS
 # Batch sets the version once at launch, before native compilation begins.
-XMVSF_BUILD_VERSION="${XMVSF_TEST_VERSION:-87.425}"
+XMVSF_BUILD_VERSION="${XMVSF_TEST_VERSION:-87.426}"
 XMVSF_BUILD_TAG="${XMVSF_BUILD_VERSION//./_}"
 PROJECT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
@@ -846,17 +846,17 @@ if ! LC_ALL=C grep -aFq -- "XM87.422 PCM_LAG" "$BUILT"; then
   exit 2
 fi
 echo "TEST 87.425 PCM-LAG PROOF: unchanged audio diagnostic linked."
-# TEST 87.425: verify the current 87.424 zero-offset / 150f source markers.
+# TEST 87.426: verify the new user screenshot's +27f cue with 150f hold.
 # Existing 87.417 HUD artwork/classification and keys 8/9 untouched.
-if ! LC_ALL=C grep -aFq -- "XM87.424 VS_PHASE02_ZERO" "$BUILT"; then
-  echo "ERROR: TEST 87.424 phase02 frame-zero audio cue not linked." >&2
+if ! LC_ALL=C grep -aFq -- "XM87.426 VS_PHASE02_PLUS_27" "$BUILT"; then
+  echo "ERROR: TEST 87.426 phase02+27 song cue not linked." >&2
   exit 2
 fi
-if ! LC_ALL=C grep -aFq -- "XM87.424 HUD_PHASE02_ZERO" "$BUILT"; then
-  echo "ERROR: TEST 87.424 150f shock hold not linked." >&2
+if ! LC_ALL=C grep -aFq -- "XM87.426 HUD_PHASE02_PLUS_27" "$BUILT"; then
+  echo "ERROR: TEST 87.426 captured-position 150f HUD delay not linked." >&2
   exit 2
 fi
-echo "TEST 87.425 ZERO-OFFSET / 150F HOLD linked; retired 87.422 markers not required."
+echo "TEST 87.426 PHASE02+27 / 150F HOLD linked; old frame-zero cue retired."
 # Hash-compare before publishing: a no-op build must NOT overwrite TEST.
 built_sha="$(sha256sum "$BUILT" | cut -d ' ' -f 1)"
 mkdir -p "$PROJECT/runtime/stable"

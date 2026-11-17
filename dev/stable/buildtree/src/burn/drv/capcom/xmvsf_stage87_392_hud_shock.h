@@ -66,7 +66,7 @@ struct Timeline {
         }
         armed=true;capturedAnchor=true;start=frame;
         std::fprintf(stderr,
-            "XM87.424 HUD_PHASE02_ZERO frame=%u hold=%u fade=%u\n",
+            "XM87.426 HUD_PHASE02_PLUS_27 frame=%u hold=%u fade=%u\n",
             frame,DelayFrames,RevealFrames);
     }
 

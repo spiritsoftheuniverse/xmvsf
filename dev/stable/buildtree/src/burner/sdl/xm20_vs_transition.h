@@ -95,10 +95,10 @@ static inline void xm20VsCheck(int ready,int paused) {
     xm20Vs.p1Choice=p1Choice;
     xm20Vs.p2Choice=p2Choice;
 
-    // TEST 87.424: song and HUD delay both start at phase-02 frame ZERO,
-    // the observed 00->02 edge (F1969 in the user's F10 screenshot).
-    // This removes the prior +35-frame wait after stage entry.
-    // Loading before phase 02 does not advance either clock.
+    // TEST 87.426: user-selected wall position is frame 1678, 27
+    // frames after FF5000 00->02 at 1651 (WRPC 00F1E4).
+    // Trigger both the preloaded song request and 150f HUD delay
+    // at this observed position; stage load before 02 is excluded.
     if(xm20Vs.visualAnchor.observe(status,(unsigned)GetCurrentFrame())){
         const unsigned frame=(unsigned)GetCurrentFrame();
         xm20Vs.triggered=true; // suppress the old pre-stage song request
@@ -106,9 +106,9 @@ static inline void xm20VsCheck(int ready,int paused) {
                              XM87262Game::version4()))
             XM87392::timeline().beginAtCapturedPosition(frame);
         xmvsfHost::enterVs(); // request preloaded song on SAME frame
-        xm20VsLog("XM87.424 PHASE02_ZERO_SONG_AND_HUD",status,p1ptr);
+        xm20VsLog("XM87.426 PHASE02_PLUS_27_SONG_AND_HUD",status,p1ptr);
         std::fprintf(stderr,
-            "XM87.424 VS_PHASE02_ZERO frame=%u status=%02X from02=%u offset=%u song_request=1\n",
+            "XM87.426 VS_PHASE02_PLUS_27 frame=%u status=%02X from02=%u offset=%u song_request=1\n",
             frame,status,xm20Vs.visualAnchor.phase02Entry,
             XM87422VisualAnchor::DelayFrom02);
     }

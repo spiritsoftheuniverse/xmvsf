@@ -1,11 +1,11 @@
 #ifndef XMVSF_STAGE20_VS_VISUAL_ANCHOR_422_H
 #define XMVSF_STAGE20_VS_VISUAL_ANCHOR_422_H
-// TEST 87.424. Start song and HUD-delay clock at phase-02 FRAME ZERO,
-// i.e. the first observed 00->02 transition (WRPC=00F1E4).
-// The user's prior F6 sample was 35 frames into 02; this adjusts ONLY
-// its requested offset to zero. No CPU writes, stage IDs or renderer reads.
+// TEST 87.426. Exact new user F6 capture: frame 1678 in phase 02,
+// preceding 00->02 write at frame 1651 (PPC 00F1E4): offset 27.
+// Start the VS song and the existing 150f HUD-delay at that position.
+// No CPU writes, stage IDs, renderer reads or 8/9 key changes.
 namespace XM87422VisualAnchor {
-static constexpr unsigned DelayFrom02=0u;
+static constexpr unsigned DelayFrom02=27u;
 struct Gate {
     unsigned lastPhase=~0u;
     unsigned phase02Entry=0u;

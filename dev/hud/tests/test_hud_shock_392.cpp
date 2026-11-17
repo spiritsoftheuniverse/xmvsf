@@ -24,7 +24,7 @@ int main(){
     // appeared to have exactly the same timing.
     assert(DelayFrames==150u);
     assert(RevealFrames==30u);
-    assert(XM87422VisualAnchor::DelayFrom02==0u);
+    assert(XM87422VisualAnchor::DelayFrom02==27u);
     Timeline t;
     t.observe(0,98,true);
     assert(t.step(98)==30u);
@@ -84,44 +84,46 @@ int main(){
     assert(t.step(899u)==29u);
     assert(t.step(900u)==30u);
 
-    // TEST 87.424: target the actual first phase-02 frame, F1969
-    // (the earlier F2004 screenshot occurred 35 frames later).
+    // TEST 87.426: new F6 image shows ST02 frame 1678, and an
+    // executed 00->02 status write at frame 1651: exact offset +27f.
     using XM87422VisualAnchor::Gate;
     Gate captured;
-    assert(!captured.observe(0u,1968u));
-    assert(captured.observe(2u,1969u)); // frame ZERO: start immediately
-    assert(captured.fired && captured.phase02Entry==1969u);
-    assert(!captured.observe(2u,1970u)); // no repeated song start
-    assert(!captured.observe(2u,2004u)); // screenshot position no retrigger
-    assert(!captured.observe(4u,2060u)); // 02->04 no retrigger
+    assert(!captured.observe(0u,1650u));
+    assert(!captured.observe(2u,1651u)); // phase-02 frame zero, too early
+    for(unsigned f=1652u;f<1678u;++f)assert(!captured.observe(2u,f));
+    assert(captured.observe(2u,1678u)); // captured wall position
+    assert(captured.fired && captured.phase02Entry==1651u);
+    assert(!captured.observe(2u,1679u)); // one song request per match
+    assert(!captured.observe(4u,1760u)); // 02->04 cannot retrigger
     Gate variableLoad;
     for(unsigned f=100u;f<=700u;++f)assert(!variableLoad.observe(0u,f));
-    assert(variableLoad.observe(2u,701u)); // load time ignored
-    assert(!variableLoad.observe(2u,735u));
+    assert(!variableLoad.observe(2u,701u)); // load duration is irrelevant
+    assert(!variableLoad.observe(2u,727u));
+    assert(variableLoad.observe(2u,728u)); // 701+27
     Gate wrongPhase;
-    assert(!wrongPhase.observe(2u,100u)); // no verified 00->02 edge
+    assert(!wrongPhase.observe(2u,100u)); // no observed 00->02
     assert(!wrongPhase.observe(2u,300u));
     Gate interrupted;
     assert(!interrupted.observe(0u,99u));
-    assert(interrupted.observe(2u,100u));
+    assert(!interrupted.observe(2u,100u));
     assert(!interrupted.observe(4u,115u));
-    assert(!interrupted.observe(2u,140u)); // no fabricated restart
+    assert(!interrupted.observe(2u,140u)); // no second match edge
     Timeline visualClock;
-    visualClock.prepareForSong(1900u);
-    assert(visualClock.step(1968u)==0u);
-    visualClock.beginAtCapturedPosition(1969u);
-    assert(visualClock.capturedAnchor && visualClock.start==1969u);
-    visualClock.startWithSong(91u,1977u); // PCM event must NOT shift clock
-    assert(visualClock.start==1969u);
-    visualClock.noteHudSource(2020u);
-    assert(visualClock.step(2118u)==0u);
-    assert(visualClock.step(2119u)==1u);
-    assert(visualClock.step(2147u)==29u);
-    assert(visualClock.step(2148u)==30u);
-    visualClock.beginAtCapturedPosition(2040u);
-    assert(visualClock.start==1969u);
+    visualClock.prepareForSong(1600u);
+    assert(visualClock.step(1677u)==0u);
+    visualClock.beginAtCapturedPosition(1678u);
+    assert(visualClock.capturedAnchor && visualClock.start==1678u);
+    visualClock.startWithSong(91u,1686u); // PCM must NOT restart clock
+    assert(visualClock.start==1678u);
+    visualClock.noteHudSource(1720u);
+    assert(visualClock.step(1827u)==0u); // 150f concealment
+    assert(visualClock.step(1828u)==1u); // 30f fade begins
+    assert(visualClock.step(1856u)==29u);
+    assert(visualClock.step(1857u)==30u); // full HUD
+    visualClock.beginAtCapturedPosition(1800u);
+    assert(visualClock.start==1678u);
     Timeline lateCaptured;
-    lateCaptured.beginAtCapturedPosition(1969u);
+    lateCaptured.beginAtCapturedPosition(1678u);
     lateCaptured.noteHudSource(2200u);
     assert(lateCaptured.step(2200u)==0u); // preserve late-source safeguard
     assert(lateCaptured.step(2201u)==1u);

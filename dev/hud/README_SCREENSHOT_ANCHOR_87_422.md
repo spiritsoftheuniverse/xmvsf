@@ -1,3 +1,24 @@
+# TEST 87.426 — New screenshot anchor at phase 02 + 27 frames
+
+User screenshot `XMVSF_native_20261117_090817_f000001678_000002.png`
+shows frame **1678**, FF5000 status **02**, FF5104 step **0008**,
+FF5113 stage **05**, ROM status writer PPC **00F1E4**,
+and FF5000 **00->02** at frame **1651**.
+
+Therefore the song and HUD-delay cue is at **phase-02 entry +27 frames**
+(instead of the 87.424 frame-zero cue). The requested increased delay
+**remains 150 frames (2.5 seconds at 60 fps)**, with the original
+30-frame reveal: nominal first fade frame **1828**, complete **1857**.
+The late-first-HUD-source safeguard may defer the *visible* reveal,
+but never resets the song or initial anchor clock.
+
+Only the visual-anchor offset, corresponding HUD/audio diagnostics,
+unit-test expectations, docs, local build scripts and version changed.
+Approved native HUD classification, actual rendering, keys 8/9,
+audio decoding and gameplay remain untouched. The screen image proves
+the current requested placement within this match; repeat-load visual
+consistency is not yet verified.
+
 # TEST 87.424 — Phase-02 frame ZERO and +0.5-second HUD delay
 
 At user request, adjust **only** the stage-start timing from TEST 87.423:
