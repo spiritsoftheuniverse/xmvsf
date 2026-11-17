@@ -1,39 +1,22 @@
-# TEST 87.419 — Corrected 02->04 wall-opening timing (HUD visuals FROZEN)
+# TEST 87.420 — Isolate immediate launch crash; restore proven 87.417 runtime
 
-Cross-checking the user's two screenshots with the F10 M68K state trace
-shows tiled transition walls at frame 1118 during native phase 02
-and visible stage at frame 1172 during phase 04 in the corresponding
-transition sequence. Therefore the original 87.418 choice of 04->06
-was too late. The actual trigger is 02->04 at ROM PC F20C.
-Version 87.419 uses that earlier, first wall-opening event. The
-approved 87.417 HUD tile classifier, artwork, key 8, and key 9
-are untouched.
+87.419 compiled but the user reported an immediate crash on launch.
+The provided BUILD_TEST transcript confirms a successful executable link
+and publish, but it contains NO runtime exception or stack trace.
+Do not claim 87.419's crash is fixed from compile-only evidence.
 
-# TEST 87.418 — Native wall-opening timing (historical proposal)
+87.420 restores the precise 87.417 contents of run.cpp,
+xm20_vs_transition.h and xmvsf_stage87_392_hud_shock.h, plus its HUD
+regression tests. In particular it removes the experimental ROM
+wall-opening song/fade timing anchor (87.418/87.419). This is a
+CONTROLLED ROLLBACK to isolate whether that new code caused the crash,
+not a claim that the desired timing synchronization is finished.
 
-The 87.417 screenshot confirmed that HUD layout, disappearance and
-reveal now look correct. **Do not modify the HUD source classifier,
-shock colors/dither, or stage artwork** while calibrating timing.
-
-The supplied F10 M68K log shows FF5000 native state transitions
-00->02 (PC F1E4), 02->04 (F20C), 04->06 (F2BE),
-and 06->08 (F304). Stage image evidence puts the wall-opening
-boundary at 02->04, not 04->06. The song was previously requested at the earlier
-FF5104 chooser step 0004->0008, which can precede this stage reveal
-by a variable amount of loading time.
-
-TEST 87.419 starts the **preloaded one-shot Versus OGG** at the
-native 02->04 wall-opening edge and anchors the existing
-120-frame concealment + 30-frame HUD reveal to that same exact
-game frame. Earlier 0004->0008 chooser handoff only primes
-concement (as before), but does NOT start the song or the delay.
-First audible PCM is now read-only lag telemetry,
-`XM87.419 VS_PCM_OBSERVED`, never a second clock that drifts.
-The 87.417 stage imagery mask, key 8, key 9 and game physics are
-unchanged. Native phase 08 still stops the VS song as before.
-
-This implementation is frozen for unrelated stage work after
-the user confirms song/fade synchronization in their Windows build.
+The 87.417 HUD visuals and 87.415 keyboard 8/9 behavior are unchanged.
+Use the Windows RUN_TEST.bat launch to compare behavior. If 87.420
+also crashes, inspect FBNeo/test/87.230/observer/crash_report.log
+and crash.dmp (cwd is FBNeo at launch), plus TEST exit code. Do not
+change HUD visuals or infer a cause from only the build transcript.
 
 # TEST 87.417 — Protect native VS transition logo tiles
 

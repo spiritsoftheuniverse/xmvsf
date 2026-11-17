@@ -27,7 +27,6 @@ struct Timeline {
     int lastPhase=-1;
     bool primed=false;
     bool armed=false;
-    bool wallClock=false; // TEST 87.419: exact native 02->04 reveal anchor
     bool sourceSeen=false;
 
     void reset(){*this=Timeline{};}
@@ -36,38 +35,20 @@ struct Timeline {
     // Hide actual HUD source objects immediately, before audio decode/start.
     void prepareForSong(unsigned frame){
         if(primed && !armed)return; // duplicate cue before audio starts
-        primed=true;armed=false;wallClock=false;primedAt=frame;
+        primed=true;armed=false;primedAt=frame;
         sourceSeen=false;firstSourceFrame=0u;
         std::fprintf(stderr,"XM87.399 HUD_SHOCK_PRIMED frame=%u\n",frame);
     }
 
-    // Historical PCM-owned cue, retained only for source tests/compatibility.
-    // The runtime now uses beginAtWallOpening, never this asynchronous cue.
     // The 120-frame delay begins ONLY on the first actual Versus PCM.
     void startWithSong(unsigned songSequence,unsigned frame){
         if(!songSequence || songSequence==lastSongStart)return;
         lastSongStart=songSequence;
         if(!primed || armed){sourceSeen=false;firstSourceFrame=0u;}
-        primed=true;armed=true;wallClock=false;start=frame;
+        primed=true;armed=true;start=frame;
         std::fprintf(stderr,
             "XM87.399 HUD_SHOCK_SONG_START song=%u frame=%u hold=%u reveal=%u\n",
             songSequence,frame,DelayFrames,RevealFrames);
-    }
-
-    // TEST 87.419: wall opening starts when ROM phase switches 02->04.
-    // Stage loading while the box walls are closed may take any duration.
-    // Both the VS OGG request and the 120f shock clock are initiated on
-    // this same native frame. Do NOT change HUD source/ink classification.
-    void beginAtWallOpening(unsigned frame){
-        if(armed && wallClock)return; // one event, no re-trigger on redraw
-        if(!primed){
-            primed=true;primedAt=frame;
-            sourceSeen=false;firstSourceFrame=0u;
-        }
-        armed=true;wallClock=true;start=frame;
-        std::fprintf(stderr,
-            "XM87.419 HUD_OPEN_WALL_CLOCK frame=%u hold=%u reveal=%u first_source=%u\n",
-            frame,DelayFrames,RevealFrames,firstSourceFrame);
     }
 
     // 02/04 overlap the VS transition and native forest. There is NEVER
@@ -79,13 +60,13 @@ struct Timeline {
 
     void observe(int phase,unsigned frame,bool allowed){
         if(!allowed){
-            primed=false;armed=false;wallClock=false;lastFrame=frame;lastPhase=-1;return;
+            primed=false;armed=false;lastFrame=frame;lastPhase=-1;return;
         }
         if(lastFrame!=~0u && frame<lastFrame){
-            primed=false;armed=false;wallClock=false; // reset/replay rewind, do not reuse cue
+            primed=false;armed=false; // reset/replay rewind, do not reuse cue
         }
         if(phase==0x0a || phase==0x0c){
-            primed=false;armed=false;wallClock=false;sourceSeen=false;firstSourceFrame=0u;
+            primed=false;armed=false;sourceSeen=false;firstSourceFrame=0u;
         }
         lastFrame=frame;lastPhase=phase;
     }
@@ -114,30 +95,13 @@ struct Timeline {
         // completed bars instantly. Only ONE initial hidden source frame,
         // not the previous arbitrary six-frame scene delay.
         unsigned due=start+DelayFrames;
-        // The wall-open clock must be load-time independent. In older
-        // PCM-clock compatibility mode, keep the first-HUD-source guard.
-        if(!wallClock && sourceSeen && firstSourceFrame>=due)
-            due=firstSourceFrame+1u;
+        if(sourceSeen && firstSourceFrame>=due)due=firstSourceFrame+1u;
         if(frame<due)return 0u;
         if(frame>=due+RevealFrames)return RevealFrames;
         return frame-due+1u;
     }
 };
 inline Timeline& timeline(){static Timeline s;return s;}
-
-// Pure native transition edge. FF5000 status 02 is VS boxes closing,
-// 04 is the beginning of wall opening / stage reveal. 06 is the later
-// fighter-intro interval, 08 is live combat. Never start at 04->06.
-struct WallOpeningEdge {
-    unsigned previousPhase=~0u;
-    bool fired=false;
-    bool observe(unsigned phase){
-        const bool open=!fired && previousPhase==2u && phase==4u;
-        previousPhase=phase;
-        if(open)fired=true;
-        return open;
-    }
-};
 
 // TEST 87.414: 02/04 MUST be source-scoped. The 87.413 fallback
 // "any small priority-7 object" hid original forest/tree imagery again.

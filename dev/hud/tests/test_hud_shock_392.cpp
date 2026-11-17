@@ -80,47 +80,6 @@ int main(){
     assert(t.step(869u)==29u);
     assert(t.step(870u)==30u);
 
-    // 87.419: 87.417 F10 confirmed native 02->04 at PC F20C;
-    // f1118 transition tiles, f1172 stage visible. Never use 04->06.
-    WallOpeningEdge edge;
-    assert(!edge.observe(0));
-    for(unsigned i=0;i<78;++i)assert(!edge.observe(2)); // walls closing/closed
-    assert(edge.observe(4)); // first opening frame / stage reveal
-    assert(!edge.observe(4));
-    assert(!edge.observe(6));
-    assert(!edge.observe(8));
-    assert(!edge.observe(2) && !edge.observe(4)); // single-shot
-    WallOpeningEdge missing;
-    assert(!missing.observe(4)); // no observed 02
-    assert(!missing.observe(6));
-    WallOpeningEdge variableLoad;
-    for(unsigned i=0;i<407;++i)assert(!variableLoad.observe(2));
-    assert(variableLoad.observe(4)); // closed-box duration irrelevant
-
-    Timeline open;
-    open.prepareForSong(1060u);
-    open.observe(2,1100u,true);
-    assert(open.step(1230u)==0u); // still loading behind closed walls
-    open.beginAtWallOpening(1400u);
-    assert(open.armed && open.wallClock && open.start==1400u);
-    open.noteHudSource(1410u);
-    assert(open.step(1519u)==0u);
-    assert(open.step(1520u)==1u);
-    assert(open.step(1548u)==29u);
-    assert(open.step(1549u)==30u);
-    open.beginAtWallOpening(1540u);
-    assert(open.start==1400u); // duplicated 06 frame must not restart
-    Timeline late;
-    late.prepareForSong(100u);
-    late.beginAtWallOpening(600u);
-    late.noteHudSource(750u);
-    assert(late.step(720u)==1u); // source arrival never shifts fixed wall clock
-    assert(late.step(749u)==30u);
-    // Legacy PCM compatibility tests below do NOT own the runtime clock.
-
-    // First 04 frame triggers the song; native 06 later must not reset.
-    open.observe(6,1430u,true);
-    assert(open.start==1400u);
     // 87.416 shock-only comprehensive top HUD from native priority 7.
     // Source-level key 9 remains separate and is tested below.
     // 87.414 transition shock: strict source/tile + documented name regions.

@@ -9,7 +9,6 @@
 #include <cstdint>
 #include <cstdlib>
 #include "../../cpu/m68000_intf.h"
-#include "../../burn/drv/capcom/xmvsf_stage87_392_hud_shock.h" // TEST 87.419 exact wall-edge clock
 #include "xm20_vs_early_phase.h"
 
 struct XM20VsTracker {
@@ -18,7 +17,6 @@ struct XM20VsTracker {
     unsigned int gameStep=0xffffffffu,p1Choice=0xffffffffu,p2Choice=0xffffffffu;
     XM20VsEarly::Gate gate{};
     bool triggered=false,combatNotified=false,missedLogged=false;
-    XM87392::WallOpeningEdge wallOpening{}; // 87.419 native 02->04
     FILE* log=nullptr;
     FILE* trace=nullptr;
     unsigned traceCount=0;
@@ -95,23 +93,6 @@ static inline void xm20VsCheck(int ready,int paused) {
     xm20Vs.p1Choice=p1Choice;
     xm20Vs.p2Choice=p2Choice;
 
-    // 87.417 F10 M68K: 02->04 at F20C, 04->06 at F2BE,
-    // 06->08 at F304. Screenshot f1118 shows tile walls during 02,
-    // while screenshot f1172 shows the exposed stage during 04.
-    // Start song AND HUD hold at the first 02->04 wall-opening frame,
-    // after variable-length loading while the box walls were closed.
-    if(xm20Vs.wallOpening.observe(status)){
-        const unsigned openingFrame=(unsigned)GetCurrentFrame();
-        xm20VsLog("XM87.419 VS_WALL_OPEN_SYNC_02_TO_04",status,p1ptr);
-        if(XM87392::eligible(BurnDrvGetTextA(DRV_NAME),
-                             XM87262Game::version4()))
-            XM87392::timeline().beginAtWallOpening(openingFrame);
-        xmvsfHost::enterVs(); // start PRELOADED one-shot OGG on opening
-        std::fprintf(stderr,
-            "XM87.419 VS_WALL_OPEN_SYNC frame=%u phase=%02X step=%04X stage=%02X p1=%02X p2=%02X\n",
-            openingFrame,status,gameStep,stage,p1Choice,p2Choice);
-    }
-
     if(status==0x08u){
         xm20VsTrace(status,gameStep,p1Choice,p2Choice,p1ptr,pc,ppc,opcode,stage,timer);
         xm20VsLog(xm20Vs.triggered?"VS_TO_COMBAT":
@@ -133,16 +114,15 @@ static inline void xm20VsCheck(int ready,int paused) {
             "VS_M68K_HANDOFF_0004_TO_INTERMEDIATE":
             "VS_M68K_HANDOFF_0004_TO_0008",status,p1ptr);
         xm20Vs.triggered=true;
-        // Conceal HUD as before at the chooser handoff, but leave
-        // the song and its 120f timer unarmed until 02->04 wall opening.
+        // 87.399: conceal only verified HUD OAM when the SAME native
+        // chooser event requests the song. The 120f countdown still
+        // begins when the audio mixer outputs its first real VS PCM.
         if(XM87392::eligible(BurnDrvGetTextA(DRV_NAME),
                              XM87262Game::version4()))
             XM87392::timeline().prepareForSong((unsigned)GetCurrentFrame());
-        // Do NOT start music here: closed-box stage load duration varies.
-        // The 02->04 wallOpening event above owns the one-shot request.
+        xmvsfHost::enterVs(); // reset and start versus music here ONLY
     }
-    // Trigger column records the earlier selection-to-setup handoff.
-    // Audio is armed by the later 02->04 box-opening event.
+    // Trigger column marks the SAME replay frame that actually armed audio.
     xm20VsTrace(status,gameStep,p1Choice,p2Choice,p1ptr,pc,ppc,opcode,stage,timer);
     // No status-only fallback. A missing ROM handoff remains a logged miss.
     if(!xm20Vs.triggered && !xm20Vs.missedLogged && status>=0x08u){
