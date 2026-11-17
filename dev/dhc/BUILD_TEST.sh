@@ -5,7 +5,7 @@
 set -euo pipefail
 BUILD_WALL_START=$SECONDS
 # Batch sets the version once at launch, before native compilation begins.
-XMVSF_BUILD_VERSION="${XMVSF_TEST_VERSION:-87.411}"
+XMVSF_BUILD_VERSION="${XMVSF_TEST_VERSION:-87.412}"
 XMVSF_BUILD_TAG="${XMVSF_BUILD_VERSION//./_}"
 PROJECT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
@@ -736,15 +736,16 @@ echo "TEST F6 SCREENSHOT PROOF: XM87.400 F6_NATIVE_PNG_SAVED found in native EXE
 # replaced by 87.405 inside the same source GIF renderer. Requiring
 # both labels rejects a correctly compiled executable. The authoritative
 # current Boomer signature check remains below, after the layer proof.
-# 87.410: after migrating Boomer's 1-0 toggle to SDL KEYDOWN, the prior
-# XM87.404 paint-poll signature no longer exists. Verify the actual current
-# event-driven compositor marker instead; DO NOT weaken the stale-binary gate.
-if ! LC_ALL=C grep -aFq -- "XM87.410 BOOMER_LAYERS_0" "$BUILT"; then
-  echo "ERROR: TEST 87.410 Boomer SDL key/event compositor not linked. Refusing stale publication." >&2
-  echo "ERROR: Check vid_sdl2.o and included stage header dependency freshness." >&2
+# TEST 87.412: verify both key-down visibility and native HUD-only OBJ capture.
+if ! LC_ALL=C grep -aFq -- "XM87.412 BOOMER_9_FIGHTER_CUTOUT" "$BUILT"; then
+  echo "ERROR: TEST 87.412 Boomer SDL 8/9 event source not linked." >&2
   exit 2
 fi
-echo "TEST BOOMER LAYER PROOF: XM87.410 BOOMER_LAYERS_0 found in EXE."
+if ! LC_ALL=C grep -aFq -- "XM87.412 BOOMER_OBJ_HUD_ONLY" "$BUILT"; then
+  echo "ERROR: TEST 87.412 native HP-preserving object cutout not linked." >&2
+  exit 2
+fi
+echo "TEST BOOMER CUTOUT PROOF: SDL keys and CPS2 native source linked."
 # 87.405: don't publish a TEST if the actual Boomer GIF sprite rules
 # (new anchor offsets, Y-only upward firing, three spaced rotors)
 # were not relinked with the SDL video translation unit.

@@ -6,7 +6,7 @@ set "PATH=C:\msys64\ucrt64\bin;C:\msys64\usr\bin;%PATH%"
 set "XMVSF_PROJECT=%PROJECT%"
 REM Freeze the target for this invocation: updates during a long build must not
 REM make the wrapper look for a different version than the shell published.
-set "XMVSF_TEST_VERSION=87.411"
+set "XMVSF_TEST_VERSION=87.412"
 set "XMVSF_TEST_TAG=%XMVSF_TEST_VERSION:.=_%"
 REM Explicit Joe-only refresh: BUILD_TEST.bat joe. No other PSD PNG is touched.
 REM Normal BUILD_TEST.bat keeps the original complete SHA-inventory validation.
@@ -96,6 +96,25 @@ if errorlevel 1 (
   goto :fail
 )
 echo Stage screenshot catalog compile PASS.
+REM 87.412 quick actor/HUD and independent SDL stun regression.
+set "BOOMER_CUTOUT_LOG=%LOGDIR%\BOOMER_CUTOUT_412.log"
+set "BOOMER_CUTOUT_EXE=%LOGDIR%\BOOMER_CUTOUT_412.exe"
+"C:\msys64\ucrt64\bin\g++.exe" -std=c++17 -Wall -Wextra -Werror -O2 "%PROJECT%\dev\boomer\tests\test_boomer_cutout_412.cpp" -o "%BOOMER_CUTOUT_EXE%" >"%BOOMER_CUTOUT_LOG%" 2>&1
+if errorlevel 1 (
+  type "%BOOMER_CUTOUT_LOG%"
+  type "%BOOMER_CUTOUT_LOG%" >>"%BUILDLOG%"
+  echo ERROR: Boomer native HUD/source cutout regression did not compile.
+  goto :fail
+)
+"%BOOMER_CUTOUT_EXE%" >>"%BOOMER_CUTOUT_LOG%" 2>&1
+if errorlevel 1 (
+  type "%BOOMER_CUTOUT_LOG%"
+  type "%BOOMER_CUTOUT_LOG%" >>"%BUILDLOG%"
+  echo ERROR: Boomer native HP and SDL stun cutout assertions failed.
+  goto :fail
+)
+type "%BOOMER_CUTOUT_LOG%"
+type "%BOOMER_CUTOUT_LOG%" >>"%BUILDLOG%"
 REM TEST 87.409: prevent grounded/ordinary-jump normals from inheriting
 REM Tournament flying-screen reaction writes. Fast ROM-free C++ test only;
 REM preserve warm cache and do not extend the full native test suite.
