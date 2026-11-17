@@ -1,6 +1,7 @@
-// 87.231: flying screen has a Storm knockdown FLOOR on every confirmed
-// normal hit. Only connected HP->HK and grounded HP/HK upgrade to Cyclops.
-// The pending conversion belongs to the exact native hit/attacker/action.
+// 87.409: narrow the historical Storm FS baseline to confirmed 1Axx
+// superjump HP/HK only. Ordinary 18xx air and grounded 10xx/12xx/14xx
+// normals must preserve native reaction even with an active-FS latch.
+// The pending conversion still belongs to its originating native hit.
 // ROM-free CPS-2 actor RAM fixture; source compilation remains Windows-local.
 #include <cassert>
 #include <cstdint>
@@ -72,8 +73,8 @@ static void severe(const Decision& d,const char* label){
     assert(rl(V+0x1cu)==TARGET_DOWN);
 }
 int main(){
-    // All six normal buttons retain at least Storm's FS knockdown.
-    // Input strength cannot silently skip the baseline any more.
+    // Earlier 87.231 blanket floor leaked into ordinary jumping normals
+    // and grounded light/medium attacks. Only SJ HK still gets Storm.
     const unsigned airActions[]={0x1800u,0x1808u,0x180au,
                                  0x1a00u,0x1a08u,0x1a04u};
     const unsigned airButtons[]={1u,2u,4u,8u,16u,32u};
@@ -81,20 +82,26 @@ int main(){
         setup(airActions[i]);
         Actor a=activeFS(1u);
         Decision hit=onset(a,airButtons[i]);
-        assert(a.fsConditionalPending && !a.fsPendingSevere);
-        assert(std::strcmp(hit.outcome,"FS_STORM_HIT_CONFIRMED_PENDING")==0);
-        storm(finish(a));
-        assert(!a.fsConditionalPending);
+        if(airActions[i]==0x1a04u){
+            assert(a.fsConditionalPending && !a.fsPendingSevere);
+            assert(std::strcmp(hit.outcome,"FS_STORM_HIT_CONFIRMED_PENDING")==0);
+            storm(finish(a));
+        }else{
+            assert(!a.fsConditionalPending);
+            assert(!finish(a).velocityWritten);
+            assert(rl(V+0x1cu)==0x00010000u);
+        }
     }
-    // Same Storm floor for grounded light/medium normals against a FS victim.
+    // Grounded normals still register as native hits but never write FS.
     const unsigned groundActions[]={0x1000u,0x1002u,0x1008u,0x1208u};
     const unsigned groundButtons[]={1u,2u,8u,16u};
     for(unsigned i=0;i<4u;++i){
         setup(groundActions[i],0u,0x21u,true);
         Actor a=activeFS(4u);
         onset(a,groundButtons[i]);
-        assert(!a.fsPendingSevere);
-        storm(finish(a));
+        assert(!a.fsConditionalPending && !a.fsPendingSevere);
+        assert(!finish(a).velocityWritten);
+        assert(rl(V+0x1cu)==0x00010000u);
     }
     // Two exact severe upgrades on real native impact.
     setup(0x1a04u);
@@ -107,31 +114,33 @@ int main(){
     assert(hpHkRelease.previousHitButton==4u); // originating HP, not HK
     setup(0x1004u,0u,0x21u,true);
     Actor groundHp=activeFS(1u);
-    assert(std::strcmp(onset(groundHp,4u).outcome,
-        "FS_GROUNDED_HEAVY_CONFIRMED_PENDING")==0);
-    severe(finish(groundHp),"FS_GROUNDED_HEAVY_CYCLOPS_SEVERE");
+    onset(groundHp,4u);
+    assert(!groundHp.fsConditionalPending);
+    assert(!finish(groundHp).velocityWritten);
     setup(0x120au,0u,0x21u,true);
     Actor groundHk=activeFS(8u);
     onset(groundHk,32u);
-    severe(finish(groundHk),"FS_GROUNDED_HEAVY_CYCLOPS_SEVERE");
+    assert(!groundHk.fsConditionalPending);
+    assert(!finish(groundHk).velocityWritten);
 
-    // HP->LP->HK must become Storm on BOTH followups, not delayed severe.
+    // HP->LP->HK: the ordinary-jump LP is native; subsequent SJ HK may
+    // get Storm but NEVER inherits a previous HP for severe.
     setup(0x1800u);
     Actor gap=activeFS(4u);
     onset(gap,1u);
     assert(gap.lastConnectedButton==1u);
-    storm(finish(gap));
+    assert(!finish(gap).velocityWritten);
     sw(A+0x60u,0x1a04u);sw(V+0x08u,0u);
     Decision nowHk=onset(gap,32u);
     assert(nowHk.previousHitButton==1u);
     assert(!gap.fsPendingSevere);
     storm(finish(gap));
-    // A connected grounded medium also breaks previous HP.
+    // A connected grounded medium also breaks previous HP without FS.
     setup(0x1002u,0u,0x21u,true);
     Actor groundMp=activeFS(4u);
     onset(groundMp,2u);
     assert(groundMp.lastConnectedButton==2u);
-    storm(finish(groundMp));
+    assert(!finish(groundMp).velocityWritten);
 
     // Native hit step 0 is only a promise. No conversion until step 2.
     setup(0x1800u);
@@ -156,23 +165,22 @@ int main(){
     assert(!cancelStorm.velocityWritten && !stormCancelled.fsConditionalPending);
     assert(rl(V+0x14u)==0x00040000u);
 
-    // The two native/host FS latches must work independently.
+    // An old FS latch cannot cause ordinary-jump LP to overwrite RAM.
     setup(0x1800u);
     Actor hostOnly=activeFS(1u);
     hostOnly.postFlightNeedsNativeLanding=false;
     onset(hostOnly,1u);
-    storm(finish(hostOnly));
+    assert(!finish(hostOnly).velocityWritten);
 
-    // Ground/air classification is captured at the ORIGINAL native hit,
-    // not revalidated 9 frames later as the attacker changes altitude.
-    // The move remains identical, so this is still the same impact.
+    // A grounded hit never gains Tournament FS retroactively because
+    // the attacker jumps before the native reaction settles.
     setup(0x1004u,0u,0x21u,true);
     Actor groundMotion=activeFS(1u);
     onset(groundMotion,4u);
-    sw(A+0x10u,140u);sw(A+0xaau,0x0100u); // leaves floor after impact
+    sw(A+0x10u,140u);sw(A+0xaau,0x0100u);
     const Decision groundMotionRelease=finish(groundMotion);
-    severe(groundMotionRelease,"FS_GROUNDED_HEAVY_CYCLOPS_SEVERE");
-    assert(groundMotionRelease.groundedAttacker==1u);
+    assert(!groundMotionRelease.velocityWritten);
+    assert(rl(V+0x1cu)==0x00010000u);
 
     setup(0x1a04u);
     Actor airMotion=activeFS(4u);
@@ -190,9 +198,9 @@ int main(){
     assert(!finish(without).velocityWritten);
 
     // Never overwrite an authentically steep native knockdown.
-    setup(0x1800u);
+    setup(0x1a04u);
     Actor native=activeFS(1u);
-    onset(native,1u);
+    onset(native,32u);
     sw(V+0x60u,SEVERE_ACTION);sw(V+0xe0u,SEVERE_PROFILE);
     sl(V+0x14u,0x00060000u);sl(V+0x1cu,0x00120000u);
     const Decision kept=finish(native);
@@ -240,6 +248,6 @@ int main(){
     assert(!landed.postFlightNeedsNativeLanding &&
            !landed.stormFlightUsedUntilLanding &&
            landed.lastConnectedButton==0u);
-    std::puts("87.231 Storm floor per FS hit + narrow Cyclops severe: PASS");
+    std::puts("87.409 87.231 revised: native grounded/18xx, superjump heavy-only FS: PASS");
     return 0;
 }
