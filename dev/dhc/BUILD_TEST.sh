@@ -797,7 +797,11 @@ if ! LC_ALL=C grep -aFq -- "XM87.414 BOOMER_9_MATCH_RESET" "$BUILT"; then
   echo "ERROR: 87.414 per-match key-9 rearm did not relink." >&2
   exit 2
 fi
-echo "TEST HUD/BOOMER 87.414 SOURCE PROOF: transition trees, name fonts and key 9 rearm linked."
+if ! LC_ALL=C grep -aFq -- "XM87.414 CUSTOM_STAGE_ACTIVATION" "$BUILT"; then
+  echo "ERROR: 87.414 real camera activation edge did not relink. Refusing stale key-9 behavior." >&2
+  exit 2
+fi
+echo "TEST HUD/BOOMER 87.414 SOURCE PROOF: forest scope, font candidates, key 9 event/session and activation observer linked."
 # Hash-compare before publishing: a no-op build must NOT overwrite TEST.
 built_sha="$(sha256sum "$BUILT" | cut -d ' ' -f 1)"
 mkdir -p "$PROJECT/runtime/stable"
