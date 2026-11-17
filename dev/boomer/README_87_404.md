@@ -44,7 +44,7 @@ entry still begins above the top edge; they then remain attached
 to their scenery plane through jumps. Rotor drift 20px/sec, B 30px/sec,
 and GIF animation timing are preserved.
 
-## Native layer cutouts (TEST 87.412)
+## Native layer cutouts (TEST 87.413)
 
 Boomer's scene art and decorative enemies are always visible. Only two
 event-driven visibility controls remain, for top-row and keypad digits:
@@ -52,12 +52,12 @@ event-driven visibility controls remain, for top-row and keypad digits:
 | Key | Cutout |
 |---|---|
 | **9** | Native CPS2 fighters/FX and native flash. Native HP and time objects remain visible through the independent source-qualified CPS2 HUD-only capture. |
-| **8** | SDL stun/dizzy bars only. It does **not** hide health bars, frame data, training UI or F9/F10/chat notices. |
+| **8** | SDL stun/dizzy bars, directly at the shared SDL draw function on any stage. It does **not** hide the native health/timer/portrait HUD, shock-entry effect, frame data, training UI or F9/F10/chat notices. |
 
 Keys **1–7 and 0 no longer toggle Boomer layers**. Key presses are processed
 once per non-repeating SDL KEYDOWN. A new stage generation resets both 8 and
 9 to visible, preventing hidden players or stun bars from leaking into a
-subsequent match. The ROM's collision, gameplay, memory and standard native
+subsequent match. SDL key 8 resets to visible when a new game session starts. The ROM's collision, gameplay, memory and standard native
 stage renderer are untouched.
 
 The native actor cutout is done **before CPS2 OBJ pixels are rasterized** for

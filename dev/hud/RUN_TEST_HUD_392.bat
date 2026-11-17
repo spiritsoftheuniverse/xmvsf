@@ -3,16 +3,16 @@ setlocal
 cd /d "%~dp0"
 set "COMPILER=C:\msys64\ucrt64\bin\g++.exe"
 if not exist "%COMPILER%" set "COMPILER=g++"
-set "OUTPUT=%TEMP%\xmvsf_hud_shock_399_test.exe"
-echo [HUD 87.399] Compiling standalone C++11 test...
+set "OUTPUT=%TEMP%\xmvsf_hud_shock_413_test.exe"
+echo [HUD 87.413] Compiling standalone C++11 test...
 "%COMPILER%" -std=c++11 -O2 -Wall -Wextra -pedantic "%~dp0tests\test_hud_shock_392.cpp" -o "%OUTPUT%"
 if errorlevel 1 goto failed
-echo [HUD 87.399] Running...
+echo [HUD 87.413] Running...
 "%OUTPUT%"
 if errorlevel 1 goto failed
-echo [HUD 87.399] PASS
+echo [HUD 87.413] PASS
 exit /b 0
 :failed
-echo [HUD 87.399] FAILED
+echo [HUD 87.413] FAILED
 pause
 exit /b 1

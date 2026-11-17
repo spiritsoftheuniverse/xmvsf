@@ -1,4 +1,4 @@
-// TEST 87.399: standalone, no ROM/SDL or GitHub Actions required.
+// TEST 87.413: whole upper HUD shock-entry regression, no ROM/SDL or GitHub Actions.
 // Build locally with RUN_TEST_HUD_392.bat.
 #include "../../stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_392_hud_shock.h"
 #include <cassert>
@@ -217,6 +217,6 @@ int main(){
     assert(glowing[0]==((shineColor>>16)&255u));
     assert(glowing[1]==((shineColor>>8)&255u));
     assert(glowing[2]==(shineColor&255u));
-    std::printf("87.399 HUD shock tests PASS: timeline, object scope, Bayer reveal, Z restore, stun overlay\n");
+    std::printf("87.413 HUD shock tests PASS: full top HUD, timer, portraits, scene veto, Bayer reveal, stun overlay\n");
     return 0;
 }
