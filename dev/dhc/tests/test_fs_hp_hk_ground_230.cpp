@@ -1,6 +1,6 @@
-// TEST 87.230: narrow post-FS severe cases; no leaked HP/HK after LP/LK/MP.
-// Cases: (1) previous CONNECTED hit HP -> confirmed HK while FS active;
-//        (2) physically grounded heavy normal connects during FS.
+// TEST 87.409: preserve 87.230 superjump HP->HK severe but stop
+// the former grounded HP/HK FS override and ordinary-jump leakage.
+// Only confirmed airborne 1Axx HP/HK may request Tournament FS.
 // ROM-free, real CPS-2 RAM byte/word layout; no synthesized hit counter.
 #include <cassert>
 #include <cstdint>
@@ -96,10 +96,10 @@ int main(){
     Actor lpHk=primed(1u);
     Decision ignored=onset(lpHk,32u);
     assert(ignored.hitConfirmed);
-    assert(!lpHk.fsConditionalPending);
+    assert(lpHk.fsConditionalPending && !lpHk.fsPendingSevere);
     Decision lpHkRelease=finish(lpHk);
-    assert(!lpHkRelease.velocityWritten);
-    assert(rw(V+0x60u)==SOFT_ACTION);
+    assert(lpHkRelease.velocityWritten); // SJ HK: Storm, NOT Cyclops
+    assert(rl(V+0x1cu)!=TARGET_DOWN);
 
     // HP -> LP -> HK is not HP -> HK. Every connected light/medium hit
     // replaces the stored previous hit rather than retaining an old HP.
@@ -113,7 +113,7 @@ int main(){
     sw(V+0x08u,0u);
     const Decision noSevere=onset(hpLpHk,32u);
     assert(noSevere.hitConfirmed);
-    assert(!hpLpHk.fsConditionalPending);
+    assert(hpLpHk.fsConditionalPending && !hpLpHk.fsPendingSevere);
 
     // A pending HK is cancelled when LK begins before step 2, never
     // delayed 9 frames and applied to the next staggered attack.
@@ -127,22 +127,20 @@ int main(){
     assert(rw(V+0x60u)==SOFT_ACTION);
     assert(rl(V+0x1cu)==0x00010000u);
 
-    // Grounded normal HP connects during ongoing FS, even when the
-    // preceding hit is NOT HP. This has its own native hit criterion.
+    // 87.409 cork: Grounded HP/HK are still recorded as native hits,
+    // but must NEVER use the post-FS severe or Storm velocity writer.
     setup(0u,0x21u,0x1004u,true);
     Actor groundHP=primed(1u);
     const Decision groundHit=onset(groundHP,4u);
-    assert(groundHP.fsConditionalPending && groundHP.fsPendingGround);
-    assert(std::strcmp(groundHit.outcome,
-        "FS_GROUNDED_HEAVY_CONFIRMED_PENDING")==0);
-    expectSevere(finish(groundHP),"FS_GROUNDED_HEAVY_CYCLOPS_SEVERE");
-
+    assert(groundHit.hitConfirmed && !groundHP.fsConditionalPending);
+    const Decision groundHPRelease=finish(groundHP);
+    assert(!groundHPRelease.velocityWritten);
+    assert(rl(V+0x1cu)==0x00010000u);
     setup(0u,0x21u,0x120au,true);
     Actor groundHK=primed(8u);
     onset(groundHK,32u);
-    assert(groundHK.fsPendingGround);
-    expectSevere(finish(groundHK),
-        "FS_GROUNDED_HEAVY_CYCLOPS_SEVERE");
+    assert(!groundHK.fsPendingGround && !groundHK.fsConditionalPending);
+    assert(!finish(groundHK).velocityWritten);
 
     // Even if the attacker is at floor height, the SUPER-JUMP family
     // cannot masquerade as a grounded heavy.
@@ -194,6 +192,6 @@ int main(){
     // functions are untouched by this added post-FS rule.
     assert(charlieNativeAirHP(0x20u,0x28u,0x1804u));
     assert(charlieAirHK(0x20u,0x28u,0x1a04u,32u));
-    std::puts("87.230 HP->HK in active FS, grounded non-SJ heavy, no LP/LK/MP leak: PASS");
+    std::puts("87.409 superjump HP->HK kept; grounded HP/HK native; no medium leak: PASS");
     return 0;
 }
