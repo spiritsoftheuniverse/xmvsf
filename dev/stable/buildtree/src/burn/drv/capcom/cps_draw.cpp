@@ -1,5 +1,6 @@
 #include "cps.h"
 #include "xmvsf_stage87_custom_stage_ids.h" // single shared capture limit
+#include "xmvsf_stage87_412_boomer_cutout.h" // TEST 87.415 all-custom actor switch policy
 #include "xmvsf_stage87_25_direct_outline.h" // Existing fighter outline enable gate
 #include "xmvsf_stage87_26_seamless_bloom.h" // Stage87.26 exterior-only fighter glow
 #include "xmvsf_stage87_28_interior_mask.h" // ROM-derived fighter opacity stencil
@@ -916,7 +917,8 @@ static void xm77CaptureSprites(){
     const INT32 savedMask=nBurnLayer,savedStart=nStartline,savedEnd=nEndline,savedHi=nBgHi;
     nBurnLayer=1; // CPS2 OBJ only. Native scroll layers are NOT drawn in temporary pass.
     xm8651SpriteCaptureActive=true; // only the temporary two-fill pass is filtered
-    xm87415NativeHudOnlyCapture=(xm87415NativeActorsVisible==0);
+    xm87415NativeHudOnlyCapture=XM87412::hudOnlyCapture(
+        (unsigned)xm77StageResolved,xm87415NativeActorsVisible!=0);
     static int lastFilter=-1,lastStage=-1;
     if(lastFilter!=int(xm87415NativeHudOnlyCapture) ||
        lastStage!=xm77StageResolved){

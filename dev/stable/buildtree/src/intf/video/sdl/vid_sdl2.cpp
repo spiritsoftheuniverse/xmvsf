@@ -111,7 +111,7 @@ extern "C" void xm87410HandleBoomerLayerKey(const SDL_Event* event){
  if(key!=SDL_SCANCODE_9 && key!=SDL_SCANCODE_KP_9)return;
  // Key 9 is not Wily-only or Boomer-only: every custom stage receives the
  // exact same source-qualified native OBJ output.
- if(xm77StageResolved>=1 && xm77StageResolved<=7){
+ if(XM87412::customStage((unsigned)xm77StageResolved)){
   xm87415NativeActorsVisible=!xm87415NativeActorsVisible;
   std::fprintf(stderr,
    "XM87.415 UNIVERSAL_9 stage=%d choice=%d actors=%d active=%d gen=%u\n",
