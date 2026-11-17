@@ -108,9 +108,15 @@ extern "C" void xm87410HandleBoomerLayerKey(const SDL_Event* event){
   return;
  }
  if(key!=SDL_SCANCODE_9 && key!=SDL_SCANCODE_KP_9)return;
- if(xm77StageResolved==7 && xm8649Visual.sceneActive &&
-    xm8649Visual.stage==5)
-  XMBoomer::scene().toggleDigit(9);
+ // Do not require the transient sceneActive flag: it can be false between
+ // consecutive matches despite the host still selecting Boomer stage.
+ const bool stageChosen=(xm77StageResolved==7 || xm77StageChoice==7);
+ std::fprintf(stderr,
+    "XM87.414 BOOMER_9_SESSION_EDGE accepted=%d choice=%d resolved=%d active=%d native=%u gen=%u\n",
+    int(stageChosen),xm77StageChoice,xm77StageResolved,
+    int(xm8649Visual.sceneActive),(unsigned)xm8649Visual.stage,
+    xm77StageRollGeneration());
+ if(stageChosen)XMBoomer::scene().toggleDigit(9);
 }
 // Shared menu-to-video preload bridge: no SDL texture calls from the worker.
 void xmFDPreloadSetActive(bool enabled){

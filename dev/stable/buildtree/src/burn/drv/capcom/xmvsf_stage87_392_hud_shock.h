@@ -103,10 +103,11 @@ struct Timeline {
 };
 inline Timeline& timeline(){static Timeline s;return s;}
 
-// 87.413: SHOCK ENTRY conceals the WHOLE top HUD during VS 02/04.
-// The former transition whitelist admitted only HP strips and one digit
-// atlas, leaving timer/portraits/names/frames visible before the reveal.
-// Source OBJ classification precedes drawing; no screen-wide erasure.
+// TEST 87.414: 02/04 MUST be source-scoped. The 87.413 fallback
+// "any small priority-7 object" hid original forest/tree imagery again.
+// Preserve the native 120+30 frame shock clock, but mask only native
+// HP/time, candidate name glyph sheets in the original documented name
+// footprints and ROM portrait sprites during pre-fight transitions.
 inline bool timeIndicator(unsigned priority,unsigned palette,unsigned tile,
                           int x,int y,unsigned wide,unsigned tall,bool transition){
     (void)transition;
@@ -123,6 +124,31 @@ inline bool verifiedHpStrip(unsigned priority,unsigned palette,unsigned tile,
            ((tile>=88417u && tile<=88579u) ||
              tile==89417u || tile==89418u);
 }
+// Coordinates match the native Stage87.35 left/right name ink footprints,
+// including long multi-cell names such as Wolverine. Geometry is deliberately
+// not the generic 87.413 <=4x4 test. Candidate ROM bank is upper HUD range,
+// NOT Stage05 109xxx-110xxx scenery.
+inline bool nameFootprint(unsigned priority,int x,int y,
+                          unsigned wide,unsigned tall){
+    if(priority!=7u || !wide || !tall ||
+       wide>16u || tall>3u || y>=43 ||
+       y+int(tall*16u)<=16)return false;
+    const int right=x+int(wide*16u);
+    return (x<113 && right>20) || (x<366 && right>271);
+}
+inline bool nameGlyph(unsigned priority,unsigned palette,unsigned tile,
+                      int x,int y,unsigned wide,unsigned tall){
+    return palette<25u && tile>=80000u && tile<100000u &&
+           nameFootprint(priority,x,y,wide,tall);
+}
+inline bool sidePortrait(unsigned priority,unsigned palette,unsigned tile,
+                         int x,int y,unsigned wide,unsigned tall,bool portrait){
+    if(priority!=7u || tile<80000u || tile>=100000u ||
+       !wide || !tall || wide>9u || tall>5u ||
+       y< -48 || y>=56 || palette>=25u)return false;
+    return (portrait || palette==12u || palette==15u) &&
+           (x<96 || x>=288);
+}
 inline bool topHudObject(unsigned priority,unsigned palette,unsigned tile,
                          int x,int y,unsigned wide,unsigned tall,bool portrait,
                          bool scenery,bool transition){
@@ -133,16 +159,15 @@ inline bool topHudObject(unsigned priority,unsigned palette,unsigned tile,
         return timeIndicator(priority,palette,tile,x,y,wide,tall,transition);
     if(priority!=7u)return false;
     if(verifiedHpStrip(priority,palette,tile,x,y,wide,tall))return true;
-    // Stage-05 109xxx/110xxx sprite art and 25..30 palettes are scenery;
-    // large pre-fight priority-7 logo walls are not generic HUD.
     if(y< -48 || palette>=25u ||
        (tile>=109000u && tile<=110500u))return false;
-    if(transition){
-        if(wide<=4u && tall<=4u)return true; // native frame/name/clock pieces
-        return (palette==12u || palette==15u || portrait) &&
-               wide<=9u && tall<=5u && (x<96 || x>=288);
-    }
-    return portrait || (wide<=9u && tall<=5u);
+    if(nameGlyph(priority,palette,tile,x,y,wide,tall) ||
+       sidePortrait(priority,palette,tile,x,y,wide,tall,portrait))return true;
+    // NO broad 02/04 fallback: that is how the forest/tree glitch returned.
+    if(transition)return false;
+    // In actual combat 06/08 retain older native HUD ornament grouping.
+    // Long name sprites are handled above regardless of this size limit.
+    return wide<=9u && tall<=5u;
 }
 inline bool object(unsigned priority,unsigned palette,unsigned tile,
                    int x,int y,unsigned wide,unsigned tall,bool portrait=false,

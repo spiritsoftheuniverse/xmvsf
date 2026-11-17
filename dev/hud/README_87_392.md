@@ -2,6 +2,19 @@
 
 Branch: `feature/hud-shock-reveal`. Version 4 only; Version 3 untouched.
 
+## TEST 87.414 follow-up: transition and name source scope
+
+The prior 87.413 all-small-priority-7 transition fallback was NOT
+source-verified and could mask native forest/intro trees. TEST 87.414
+removes it during phases 02/04, retains verified HP/time, and adds
+upper-HUD candidate glyphs only within original Stage87.35 name bounds
+and HUD ROM tile families. The Wolverine-sized 11x2 multi-tile name
+now has an explicit regression; stage trees and mid-screen objects have
+negative regression cases. Captures print bounded
+`XM87.414 SHOCK_NAME_ESCAPE_CANDIDATE` records for any remaining name
+source not covered, with priority, tile, palette, bounding box and
+phase so real exceptions can be fixed without speculative broad filters.
+
 ## Root causes of the repeated 87.397–87.398 regression
 
 1. Previous `Timeline::step()` selected

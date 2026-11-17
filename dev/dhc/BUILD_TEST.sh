@@ -5,7 +5,7 @@
 set -euo pipefail
 BUILD_WALL_START=$SECONDS
 # Batch sets the version once at launch, before native compilation begins.
-XMVSF_BUILD_VERSION="${XMVSF_TEST_VERSION:-87.413}"
+XMVSF_BUILD_VERSION="${XMVSF_TEST_VERSION:-87.414}"
 XMVSF_BUILD_TAG="${XMVSF_BUILD_VERSION//./_}"
 PROJECT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
@@ -783,6 +783,21 @@ if ! LC_ALL=C grep -aFq -- "XM87.413 SDL_STUN_KEY8" "$BUILT"; then
   exit 2
 fi
 echo "TEST HUD 87.413 SOURCE PROOF: full shock entry + independent SDL stun cutout linked."
+# 87.414: the native 02/04 forest guard AND persistent 9 event/rearm
+# are mandatory. Version strings alone cannot certify those source edits.
+if ! LC_ALL=C grep -aFq -- "XM87.414 HUD_SHOCK_TRANSITION_SCOPED" "$BUILT"; then
+  echo "ERROR: 87.414 forest-safe native shock-entry classification not linked." >&2
+  exit 2
+fi
+if ! LC_ALL=C grep -aFq -- "XM87.414 BOOMER_9_SESSION_EDGE" "$BUILT"; then
+  echo "ERROR: 87.414 key 9 event handler did not relink." >&2
+  exit 2
+fi
+if ! LC_ALL=C grep -aFq -- "XM87.414 BOOMER_9_MATCH_RESET" "$BUILT"; then
+  echo "ERROR: 87.414 per-match key-9 rearm did not relink." >&2
+  exit 2
+fi
+echo "TEST HUD/BOOMER 87.414 SOURCE PROOF: transition trees, name fonts and key 9 rearm linked."
 # Hash-compare before publishing: a no-op build must NOT overwrite TEST.
 built_sha="$(sha256sum "$BUILT" | cut -d ' ' -f 1)"
 mkdir -p "$PROJECT/runtime/stable"

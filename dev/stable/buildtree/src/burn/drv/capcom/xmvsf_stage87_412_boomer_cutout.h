@@ -13,9 +13,18 @@ struct Controls {
   return false;
  }
 };
+inline bool needsMatchReset(unsigned seenGeneration,unsigned generation,
+                            unsigned long long lastFrame,
+                            unsigned long long frame){
+ return seenGeneration!=generation ||
+        (lastFrame!=~0ull && frame<lastFrame);
+}
 inline bool nativeHud(unsigned priority,unsigned palette,unsigned tile,
                       int x,int y,unsigned width,unsigned height){
- return XM87392::object(priority,palette,tile,x,y,width,height,false,false);
+ // 9 is a SOURCE cutout, not the broad 06/08 shock classifier.
+ // Preserve only verified HUD objects so native forest cannot reappear.
+ return XM87392::topHudObject(priority,palette,tile,x,y,width,height,
+                             false,false,true);
 }
 }
 #endif

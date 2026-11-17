@@ -80,8 +80,9 @@ int main(){
     assert(t.step(869u)==29u);
     assert(t.step(870u)==30u);
 
-    // 87.413 shock entry must conceal timer, name/frame and portraits
-    // together with HP strips; scenery and large VS logo walls survive.
+    // 87.414 transition shock: strict source/tile + documented name regions.
+    // Wolverine's long name may span >9 tiles, while 02/04 forest art
+    // must never be masked by the former generic priority-7 fallback.
     assert(Timeline::mayMaskNativeHud(2));
     assert(Timeline::mayMaskNativeHud(4));
     assert(Timeline::mayMaskNativeHud(6));
@@ -94,12 +95,19 @@ int main(){
     assert(objectForPhase(4,0,1,91999,160,12,2,2)); // timer atlas changes
     assert(!objectForPhase(6,0,1,91999,20,12,2,2));
     assert(!objectForPhase(6,0,1,91999,160,80,2,2));
-    assert(objectForPhase(2,7,3,50000,20,0,3,2)); // top HUD name/frame
+    assert(!objectForPhase(2,7,3,50000,20,0,3,2)); // unverified 02/04 object
+    assert(objectForPhase(2,7,3,89500,20,16,11,2)); // long P1 name
+    assert(objectForPhase(4,7,11,89540,271,18,11,2)); // long P2 name
+    assert(objectForPhase(6,7,3,89500,20,16,11,2)); // combat as well
+    assert(!objectForPhase(2,7,3,89500,168,16,11,2)); // outside names
+    assert(!objectForPhase(4,7,3,109500,20,16,3,2)); // tree source
     assert(!objectForPhase(4,7,2,109100,32,20,2,1)); // stage sprite
     assert(objectForPhase(2,7,12,90200,12,0,6,4)); // left portrait
     assert(objectForPhase(4,7,15,90200,322,0,6,4)); // right portrait
     assert(!objectForPhase(2,7,3,50000,20,0,12,10)); // intro wall
     assert(!objectForPhase(2,7,3,50000,20,0,5,3)); // wall fragment
+    assert(!objectForPhase(4,7,3,89500,165,16,5,2)); // top mid forest
+    assert(!objectForPhase(2,7,3,98000,20,16,12,5)); // tall scenery
     assert(!objectForPhase(2,7,25,50000,20,0,3,2)); // scenery palette
     assert(!objectForPhase(2,7,2,88463,32,90,2,1));
     assert(!objectForPhase(2,7,2,88463,32,20,2,1,false,true));

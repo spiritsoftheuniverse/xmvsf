@@ -712,6 +712,8 @@ INT32 Cps2ObjDraw(INT32 nLevelFrom, INT32 nLevelTo)
         std::fprintf(stderr,
             "XM87.413 HUD_SHOCK_ENTRY_FULL native_hp_timer_labels_portraits=1 "
             "native_stage_scenery_veto=1\n");
+        std::fprintf(stderr,
+            "XM87.414 HUD_SHOCK_TRANSITION_SCOPED forest_veto=1 font_candidates=1\n");
     }
     // XM87.47 accepted ROM action cues. Read-only, once per emulated frame.
     XM8747::Observe(CpsRamFF,(unsigned)GetCurrentFrame(),xm8745LivePhase,
@@ -1476,6 +1478,23 @@ if(!xm8725FighterObject && XM8725::Enabled() &&
         if(xm87399ConfirmedSource && !xm8651SpriteCaptureActive)
             XM87392::timeline().noteHudSource((unsigned)GetCurrentFrame());
         const unsigned xm87392Step=XM87392::timeline().step((unsigned)GetCurrentFrame());
+        // Source diagnostic for real split/long name tiles that remain
+        // outside the shock classifier (e.g. Wolverine). First 64 only;
+        // records OAM evidence, never guesses names from rendered colors.
+        if(!xm8651SpriteCaptureActive && xm87394HudEligible &&
+           (xm8745LivePhase==2 || xm8745LivePhase==4 ||
+            xm8745LivePhase==6 || xm8745LivePhase==8) &&
+           xm87392Step<XM87392::RevealFrames &&
+           XM87392::nameFootprint((unsigned)v,x,y,
+                                  (unsigned)bx,(unsigned)by) &&
+           !xm87392NativeSource){
+            static unsigned misses=0u;
+            if(misses++<64u)
+                std::fprintf(stderr,
+                 "XM87.414 SHOCK_NAME_ESCAPE_CANDIDATE phase=%02X frame=%u v=%u pal=%u tile=%u x=%d y=%d size=%dx%d\n",
+                 xm8745LivePhase,(unsigned)GetCurrentFrame(),(unsigned)v,
+                 (unsigned)a&31u,(unsigned)n,x,y,bx,by);
+        }
         const bool xm87392HudTile=xm87392NativeSource &&
             xm87392Step<XM87392::RevealFrames;
         if(xm87392HudTile && !xm8651SpriteCaptureActive){

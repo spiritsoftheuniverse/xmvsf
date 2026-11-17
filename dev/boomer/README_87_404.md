@@ -44,7 +44,7 @@ entry still begins above the top edge; they then remain attached
 to their scenery plane through jumps. Rotor drift 20px/sec, B 30px/sec,
 and GIF animation timing are preserved.
 
-## Native layer cutouts (TEST 87.413)
+## Native layer cutouts (TEST 87.414)
 
 Boomer's scene art and decorative enemies are always visible. Only two
 event-driven visibility controls remain, for top-row and keypad digits:
@@ -55,8 +55,9 @@ event-driven visibility controls remain, for top-row and keypad digits:
 | **8** | SDL stun/dizzy bars, directly at the shared SDL draw function on any stage. It does **not** hide the native health/timer/portrait HUD, shock-entry effect, frame data, training UI or F9/F10/chat notices. |
 
 Keys **1–7 and 0 no longer toggle Boomer layers**. Key presses are processed
-once per non-repeating SDL KEYDOWN. The Boomer key **9** state resets when a
-new stage generation starts. The global SDL stun-bar key **8** resets when
+once per non-repeating SDL KEYDOWN. The Boomer key **9** state resets on a new stage generation **or**
+a new stage frame-timeline rewind, and its SDL key edge is accepted
+through the stage handoff even when sceneActive is temporarily false. The global SDL stun-bar key **8** resets when
 a new game session starts. Neither control changes ROM collision, gameplay,
 memory, nor the ordinary native stage renderer.
 
