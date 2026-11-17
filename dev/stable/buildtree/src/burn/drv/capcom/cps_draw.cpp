@@ -893,6 +893,9 @@ int xm8654FilteredObjects=0;
 int xm8654RetainedObjects=0;
 int xm8654SceneryObjects=0;
 int xm8654FilteredPriority[8]={0};
+// Boomer key 9 gates the disposable native OBJ source, never ROM state.
+extern "C" { int xm87412BoomerActorsVisible=1; }
+bool xm87412BoomerHudOnlyCapture=false;
 INT32 xm77SpriteWidth=0, xm77SpriteHeight=0, xm77SpriteValid=0;
 static std::vector<UINT8> xm77Pixels;
 const UINT8* xm77SpritePixels(){return xm77SpriteValid?xm77Pixels.data():NULL;}
@@ -913,6 +916,15 @@ static void xm77CaptureSprites(){
     const INT32 savedMask=nBurnLayer,savedStart=nStartline,savedEnd=nEndline,savedHi=nBgHi;
     nBurnLayer=1; // CPS2 OBJ only. Native scroll layers are NOT drawn in temporary pass.
     xm8651SpriteCaptureActive=true; // only the temporary two-fill pass is filtered
+    xm87412BoomerHudOnlyCapture=(xm77StageResolved==7 &&
+                                 xm87412BoomerActorsVisible==0);
+    if(xm87412BoomerHudOnlyCapture){
+        static bool logged=false;
+        if(!logged){
+            std::fprintf(stderr,"XM87.412 BOOMER_OBJ_HUD_ONLY native_actors=0 hp_timer=1\n");
+            logged=true;
+        }
+    }
     xm8654ConsideredObjects=0; xm8654FilteredObjects=0;
     xm8654RetainedObjects=0; xm8654SceneryObjects=0;
     for(int priority=0;priority<8;++priority)xm8654FilteredPriority[priority]=0;
@@ -933,6 +945,7 @@ static void xm77CaptureSprites(){
     }
     xm8651SpriteCaptureStats=false;
     xm8651SpriteCaptureActive=false;
+    xm87412BoomerHudOnlyCapture=false;
     nBurnLayer=savedMask;nStartline=savedStart;nEndline=savedEnd;nBgHi=savedHi;
     memcpy(pBurnDraw,original.data(),bytes); // original screen remains pristine
     xm77Pixels.resize((size_t)w*h*4);
