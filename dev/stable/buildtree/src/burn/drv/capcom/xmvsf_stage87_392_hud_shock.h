@@ -134,7 +134,10 @@ inline bool nameFootprint(unsigned priority,int x,int y,
        wide>16u || tall>3u || y>=43 ||
        y+int(tall*16u)<=16)return false;
     const int right=x+int(wide*16u);
-    return (x<113 && right>20) || (x<366 && right>271);
+    // Require the sprite ORIGIN to be on its HUD side. A long object
+    // spanning from the center into the right name area is not name text.
+    return (x>=0 && x<113 && right>20) ||
+           (x>=220 && x<366 && right>271);
 }
 inline bool nameGlyph(unsigned priority,unsigned palette,unsigned tile,
                       int x,int y,unsigned wide,unsigned tall){
