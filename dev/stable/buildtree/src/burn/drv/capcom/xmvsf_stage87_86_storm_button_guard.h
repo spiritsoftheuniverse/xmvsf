@@ -182,9 +182,9 @@ struct Actor {
     // Per-victim, per-combo state; only a fresh connected airborne hit counts.
     bool observed,prevAttackNow,pendingSevere,nativeLaunched,pendingStormRepeatHK;
     bool stormFlightUsedUntilLanding=false;
-    // TEST 87.230: the previous CONNECTED hit, not merely the preceding
-    // button press, decides whether an HK during live FS becomes severe.
-    // Grounded normal HP/HK during FS is a second independent rule.
+    // TEST 87.409: only an airborne 1Axx superjump normal HP/HK may
+    // create/upgrade Tournament FS. Ground and 18xx normal-jump hits
+    // still update the previous CONNECTED hit ledger but never write FS.
     bool postFlightNeedsNativeLanding=false;
     bool fsConditionalPending=false,fsPendingGround=false,fsPendingSevere=false,fsPendingCharlieHK=false;
     bool fsPendingOriginGrounded=false;
@@ -329,8 +329,9 @@ struct Actor {
                              postFlightNeedsNativeLanding);
         d.previousHitButton=lastConnectedButton;
         const bool stateChanged=!observed || prevAction!=d.victimActionBefore || prevProfile!=d.victimProfileBefore;
-        // Fresh victim hit onset: game transition from native hit substate 2 to 0,
-        // or a new hit reaction. It must coincide with a NEW airborne move.
+        // Fresh victim hit onset: game transition from native hit substate
+        // 2 to 0 or a new hit reaction. Ground normals can still count as
+        // native connected hits; FS writer eligibility is separate.
         const bool freshReaction=observed && d.substate==0u &&
           (prevSubstate==2u || prevReaction!=d.reaction) &&
           (stateChanged || prevSubstate==2u);
@@ -372,10 +373,10 @@ struct Actor {
                 groundAttackNow)?d.taggedButton:0u;
             lastConnectedAttacker=d.attackerId;
             lastConnectedVictim=d.victimId;
-            // 87.327: Tournament is permitted to modify only CONFIRMED
-            // HP/HK finishing knockdowns. The older 87.231 blanket FS
-            // baseline on every normal hit rewrote Ryu 1A02/MK, 1800/LP
-            // and other medium/light attacks while a previous FS lingered.
+            // 87.409: Tournament is permitted to modify only CONFIRMED
+            // airborne superjump 1Axx HP/HK knockdowns. The older 87.231
+            // baseline leaked into ground and ordinary-jump normals while
+            // a previous FS latch lingered.
             // Keep their native upward velocity and reaction untouched.
             // All connected hits still update the HP->HK combo ledger.
             const Signature* fsSignature=match(d.attackerBank,d.attackerAction,
@@ -430,8 +431,8 @@ struct Actor {
             const bool stormUnidentified=stormShared && !d.stormHeavyButton && !d.stormMediumButton;
             // Update the count AFTER evaluating candidate status: a first
             // connected heavy is still the FIRST hit, never a finisher.
-            // Storm: confirmed connected HP/HK, followed by HK in one aerial
-            // combo, must finish with native severe knockdown even if no 1C14/0210.
+            // Storm: confirmed superjump HP/HK followed by HK in one
+            // aerial combo may finish severe even without 1C14/0210.
             // Other fighters and Storm's first heavy/medium hits remain native.
             const bool stormConfirmedHeavy=d.attackerId==0x0004u && d.attackerBank==0x0022u &&
                 attackerAir && superjumpHeavyAttack(d.attackerAction) &&
@@ -486,8 +487,8 @@ struct Actor {
             }else if(stormFlightUsedUntilLanding ||
                      postFlightNeedsNativeLanding){
                 // This fallback is only for unexpected/unsupported moves.
-                // Every supported connected FS normal now takes the
-                // 87.231 Storm floor / severe upgrade above.
+                // Only supported 1Axx superjump heavy normals may reach
+                // the Storm floor / severe upgrade above.
                 d.excluded=true;
                 d.outcome="STORM_FLIGHT_ALREADY_USED_UNTIL_NATIVE_LANDING";
             }else if(!enabled){
@@ -509,9 +510,9 @@ struct Actor {
             d.connectedAfter=connectedAirHits;
             if(d.airAttackStart)d.outcome="AIR_ATTACK_ATTEMPT_UNCONFIRMED";
         }
-        // 87.231: resolve EACH FS hit on its own original ROM impact.
-        // Normal FS hits receive Storm's gentle knockdown; only the
-        // confirmed HP->HK and grounded HP/HK cases receive Cyclops severe.
+        // 87.409: resolve ONLY an original airborne superjump 1Axx
+        // HP/HK impact. Grounded and ordinary-jump normals retain ROM
+        // motion; an SJ HP->HK may upgrade to Cyclops severe.
         // Never carry either variant into the next move/attack serial.
         if(fsConditionalPending && !d.hitConfirmed){
             if(fsPendingAge<1000u)++fsPendingAge;
