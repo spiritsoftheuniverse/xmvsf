@@ -129,9 +129,10 @@ int main(){
     assert(!objectForPhase(2,7,25,104000,20,0,3,2)); // scenery palette
     assert(!objectForPhase(2,7,3,109100,20,0,3,2)); // forest family
     assert(!objectForPhase(2,7,3,104000,20,0,3,2,false,true)); // caller scenery
-    // Key 9 uses the original narrow classifier, not shock's new coverage.
-    assert(!object(7,3,104000,16,8,2,2));
-    assert(!object(0,1,95000,160,8,4,2));
+    // Key 9 uses topHudObject with transition=true. Shock's broader
+    // phase-aware coverage does NOT alter that source capture predicate.
+    assert(!topHudObject(7,3,104000,16,8,2,2,false,false,true));
+    assert(!topHudObject(0,1,95000,160,8,4,2,false,false,true));
     assert(!objectForPhase(2,7,3,98000,20,16,12,5)); // tall scenery
     assert(!objectForPhase(2,7,25,50000,20,0,3,2)); // scenery palette
     assert(!objectForPhase(2,7,2,88463,32,90,2,1));
