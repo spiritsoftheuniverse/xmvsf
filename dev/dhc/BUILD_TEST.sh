@@ -804,6 +804,11 @@ if ! LC_ALL=C grep -aFq -- "XM87.415 HUD_SOURCE_ESCAPE" "$BUILT"; then
   exit 2
 fi
 echo "TEST 87.415 native HUD source diagnostics linked."
+if ! LC_ALL=C grep -aFq -- "XM87.415 HUD_SHOCK_CAPTURE_TILED" "$BUILT"; then
+  echo "ERROR: 87.415 custom-stage OBJ HUD shock painter not linked." >&2
+  exit 2
+fi
+echo "TEST 87.415 HUD shock reached sprite-capture renderer."
 # Hash-compare before publishing: a no-op build must NOT overwrite TEST.
 built_sha="$(sha256sum "$BUILT" | cut -d ' ' -f 1)"
 mkdir -p "$PROJECT/runtime/stable"

@@ -8,8 +8,11 @@ The previously verified portrait-border tiles 89113..89115 are now
 classified as HUD through the opening shock, alongside 87808..89999
 upper HUD sheets restricted to portrait and clock source footprints.
 The stage-05 tree/forest sprites in the 109xxx tile family remain
-excluded. Unmatched top-band priority-0/7 objects are now recorded
-as `XM87.415 HUD_SOURCE_ESCAPE` with exact OAM metadata.
+excluded. Unmatched top-band priority-0/7 objects are now recorded in both
+the original and custom-stage OBJ passes as `XM87.415 HUD_SOURCE_ESCAPE`
+with `capture=0/1` and exact OAM metadata. The first actual HUD tile
+processed in custom capture also emits `XM87.415 HUD_SHOCK_CAPTURE_TILED`,
+distinguishing missing source classification from an inactive shock.
 
 ## TEST 87.414 follow-up: transition and name source scope
 
