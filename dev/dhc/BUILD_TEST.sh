@@ -5,7 +5,7 @@
 set -euo pipefail
 BUILD_WALL_START=$SECONDS
 # Batch sets the version once at launch, before native compilation begins.
-XMVSF_BUILD_VERSION="${XMVSF_TEST_VERSION:-87.420}"
+XMVSF_BUILD_VERSION="${XMVSF_TEST_VERSION:-87.421}"
 XMVSF_BUILD_TAG="${XMVSF_BUILD_VERSION//./_}"
 PROJECT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
@@ -828,6 +828,16 @@ if LC_ALL=C grep -aFq -- "XM87.419 VS_WALL_OPEN_SYNC" "$BUILT"; then
   exit 2
 fi
 echo "TEST 87.420 TIMING ROLLBACK PROOF: 87.419 wall cue absent; 87.417 visuals retained."
+# 87.421: both F7 toggle and game-frame painter must be linked into TEST.
+if ! LC_ALL=C grep -aFq -- "XM87.421 M68K_OVERLAY_TOGGLE" "$BUILT"; then
+  echo "ERROR: TEST 87.421 F7 M68K overlay not linked." >&2
+  exit 2
+fi
+if ! LC_ALL=C grep -aFq -- "XM87.421 M68K_OVERLAY_PRESENT" "$BUILT"; then
+  echo "ERROR: TEST 87.421 M68K screenshot painter not linked." >&2
+  exit 2
+fi
+echo "TEST 87.421 F7 M68K + F6 captured overlay LINK PROOF PASS."
 # Hash-compare before publishing: a no-op build must NOT overwrite TEST.
 built_sha="$(sha256sum "$BUILT" | cut -d ' ' -f 1)"
 mkdir -p "$PROJECT/runtime/stable"

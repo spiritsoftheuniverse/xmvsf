@@ -78,6 +78,10 @@ struct State {
     const std::uint8_t* nativeRam=nullptr;
     unsigned nativeFrameId=0,nativeOrdinal=0,nativeLastPpc=0,nativeLastNext=0;
     unsigned nativeA6=0,nativeD0=0,nativeD1=0,nativeChanges=0,nativeRows=0;
+    // Presentation-only copies of the existing F10 INSTRUCTION_CHANGE data.
+    unsigned writerPpc=0,writerNext=0,writerFrame=0,writerBefore=0,writerAfter=0;
+    bool writerValid=false,latestValid=false;
+    NativeSnapshot latest{};
     NativeSnapshot nativePrevious,nativeAtFrameStart;
     bool priorValid[4]={false,false,false,false};
     Actor prior[4];
@@ -113,6 +117,12 @@ struct State {
         // avoiding heavyweight getters on every 68000 instruction.
         nativeLastPpc=SekGetPPC(-1)&0xffffffu;
         nativeLastNext=SekGetPC(-1)&0xffffffu;
+        if(changed&1u){
+            writerPpc=nativeLastPpc;writerNext=nativeLastNext;
+            writerFrame=nativeFrameId;
+            writerBefore=nativePrevious.phase;writerAfter=now.phase;
+            writerValid=true;
+        }
         nativeA6=(unsigned)m68k_get_reg(nullptr,M68K_REG_A6)&0xffffffu;
         nativeD0=(unsigned)m68k_get_reg(nullptr,M68K_REG_D0);
         nativeD1=(unsigned)m68k_get_reg(nullptr,M68K_REG_D1);
@@ -149,6 +159,7 @@ struct State {
         nativePrior=nullptr;
         if(nativeRam){
             const NativeSnapshot after=snapshot(nativeRam);
+            latest=after;latestValid=true;
             nativeRow("FRAME",nativeAtFrameStart,after,
                       delta(nativeAtFrameStart,after));
         }
@@ -206,6 +217,7 @@ struct State {
         tracePath=path;oamPath=oamName;nativePath=nativeName;
         frames=precombatFrames=tagEvents=oamCount=nativeChanges=nativeRows=0;
         lastFrame=lastOamFrame=~0u;tagUntil=0;
+        writerValid=latestValid=false;
         for(unsigned i=0;i<4;++i)priorValid[i]=false;
         std::fputs("frame\trole\tevent\tphase\tstage\tp1buttons\tp2buttons"
           "\tcpi01A\tcpi01C\tcpi01E\tmapP1frame\tmapP1dir\tmapP1held\tmapP1pressed"

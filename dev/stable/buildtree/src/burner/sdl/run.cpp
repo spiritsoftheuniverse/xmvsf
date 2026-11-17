@@ -37,6 +37,7 @@
 #include "xmvsf_stage77_native_stage5.h" // XM86.31 postframe guarded native stage request
 #include "xmvsf_stage29_display.h" /* XMVSF_STAGE29_SCALABLE_DISPLAY */
 extern "C" void xm87400RequestNativeScreenshot(); // SDL video: capture completed scene on next present
+extern "C" void xm87421ToggleM68kOverlay(); // F7: screenshot-visible M68K address
 #ifdef BUILD_SDL2
 extern "C" void xm87410HandleBoomerLayerKey(const SDL_Event*); // 8=SDL stun, 9=Boomer native actors
 extern "C" void xm87413ResetSDLStunCutout();
@@ -880,6 +881,11 @@ int RunMessageLoop()
                             int(xm87408Evidence.seen));
                     }
                 }
+                continue;
+            }
+            // TEST 87.421: F7 overlay shows actual F10 status-writer PC.
+            if(event.type==SDL_KEYDOWN && event.key.keysym.sym==SDLK_F7){
+                if(!event.key.repeat && bDrvOkay)xm87421ToggleM68kOverlay();
                 continue;
             }
             // XM87.141: F10 must reach the recorder BEFORE display, Training

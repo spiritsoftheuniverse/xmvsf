@@ -24,6 +24,7 @@
 #include <SDL_image.h>
 #include "xmvsf_stage87_400_native_screenshot.h" // TEST 87.400 one-shot final-frame PNG
 #include "xmvsf_stage87_408_capture_catalog.h" // screenshot -> native CPS2 stage registry
+#include "xmvsf_stage87_421_m68k_overlay.h" // F7 overlay included in F6 PNG
 #include "../../../burner/sdl/xmvsf_stage86_52_window_state.h" /* XM86.52 */
 #include "../../../burner/sdl/xmvsf_stage86_56_final.h" /* XM86.56 global final presentation */
 #include "../../../burn/drv/capcom/xmvsf_stage87_33_dizzy_hud.h"
@@ -232,8 +233,12 @@ static void xm87139ProbeNotice(SDL_Renderer* renderer){
     inprint_shadowed(renderer,caption,x,y);
 }
 
+extern "C" void xm87421ToggleM68kOverlay(){
+    XM87421Overlay::state().toggle();
+}
 static int Exit()
 {
+    XM87421Overlay::state().cleanup();
     xm87400ScreenshotPending=false; // never carry a queued F6 across sessions
     xm87408CatalogRequested=false;
     extern bool xm26PersistentShell;
@@ -988,6 +993,9 @@ static int Paint(int bValidate)
 xm87132ReplayNotice(sdlRenderer);
             xm87139ProbeNotice(sdlRenderer);
             xm87140ChatOverlay(sdlRenderer);
+            XM87421Overlay::state().paint(sdlRenderer,xm87127View,
+                (unsigned)GetCurrentFrame(),xm8658GameStatus,
+                XM87139Probe::state());
         xm87400SaveRequested(sdlRenderer,xm87127View);
         SDL_RenderPresent(sdlRenderer);
     } else { /* XM87.104 removed colored selector overlay */
@@ -995,6 +1003,9 @@ xm87132ReplayNotice(sdlRenderer);
 xm87132ReplayNotice(sdlRenderer);
             xm87139ProbeNotice(sdlRenderer);
             xm87140ChatOverlay(sdlRenderer);
+            XM87421Overlay::state().paint(sdlRenderer,xm87127View,
+                (unsigned)GetCurrentFrame(),xm8658GameStatus,
+                XM87139Probe::state());
         xm87400SaveRequested(sdlRenderer,xm87127View);
         SDL_RenderPresent(sdlRenderer);
     } /* XM86.58 native layer-aware gameplay */
