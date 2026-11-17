@@ -123,12 +123,12 @@ static inline bool groundedNormalHeavy(unsigned action){
 // Tournament flying-screen rewrite. Animation-only classification is
 // insufficient: shared 1A04 animations can represent medium attacks.
 // Light/medium hits retain the original native reaction and velocity.
+// Compatibility helper must obey the SAME superjump-only writer rule.
 static inline bool confirmedHeavyNormal(unsigned action,unsigned button,
                                         bool buttonEvidence,bool airborne,
                                         bool grounded){
-    if(!buttonEvidence || (button!=(1u<<2u) && button!=(1u<<5u)))return false;
-    return (airborne && heavyAirAttack(action)) ||
-           (grounded && groundedNormalHeavy(action));
+    (void)grounded;
+    return confirmedSuperjumpHeavy(action,button,buttonEvidence,airborne);
 }
 // XM87.124: fighter +0x52 is the ROM's character-id field. Values below
 // follow the native roster convention (Cyclops=0x02 in 87.119 snapshots).
@@ -274,15 +274,18 @@ struct Actor {
         const unsigned attackerFloor=wordAt(r,attacker+0x254u);
         const unsigned groundY=attackerFloor>0u && attackerFloor<2048u?
             attackerFloor:472u;
-        const bool attackerAir=attackerY>0u && attackerY<472u;
+        // Position alone is NOT proof of a superjump: on an attack/land
+        // boundary the actor can have an above-floor Y with its native
+        // airborne flag already cleared. Keep ground and normal-jump
+        // normals completely outside the Tournament FS writer.
+        const unsigned attackerAirState=wordAt(r,attacker+0xaau)>>8u;
+        const bool attackerAir=attackerY>0u && attackerY<groundY &&
+            attackerAirState!=0u;
         const bool attackerGrounded=(attackerY>=groundY ||
             attackerY==0u) && !attackerAir &&
-            wordAt(r,attacker)!=0u &&
-            (wordAt(r,attacker+0xaau)>>8u)==0u;
+            wordAt(r,attacker)!=0u && attackerAirState==0u;
         const bool groundAttackNow=attackerGrounded &&
             groundedNormalAttack(d.attackerAction);
-        const bool groundHeavyNow=groundAttackNow &&
-            groundedNormalHeavy(d.attackerAction);
         d.groundedAttacker=unsigned(attackerGrounded);
         const bool attackNow=(attackerAir &&
             (normalAirAttack(d.attackerAction)||isDrillCandidate(d.attackerAction))) ||
