@@ -98,32 +98,47 @@ int main(){
     assert(!objectForPhase(6,0,1,91999,20,12,2,2));
     assert(!objectForPhase(6,0,1,91999,160,80,2,2));
     assert(!objectForPhase(2,7,3,50000,20,0,3,2)); // unverified 02/04 object
-    assert(objectForPhase(2,7,3,89500,20,16,11,2)); // long P1 name
-    assert(objectForPhase(4,7,11,89540,271,18,11,2)); // long P2 name
+    assert(!objectForPhase(2,7,3,89500,20,16,11,2)); // intro tile is protected; name begins in 06/08
+    assert(objectForPhase(8,7,11,89540,271,18,11,2)); // long P2 name in combat
     assert(objectForPhase(6,7,3,89500,20,16,11,2)); // combat as well
     assert(!objectForPhase(2,7,3,89500,168,16,11,2)); // outside names
     assert(!objectForPhase(4,7,3,109500,20,16,3,2)); // tree source
     assert(!objectForPhase(4,7,2,109100,32,20,2,1)); // stage sprite
-    assert(objectForPhase(2,7,12,90200,12,0,6,4)); // left portrait
+    assert(objectForPhase(6,7,12,90200,12,0,6,4)); // left portrait during combat
     assert(objectForPhase(2,7,2,89113,16,-2,2,1)); // verified portrait box
     assert(objectForPhase(4,7,2,89115,352,8,2,1)); // right portrait box
-    assert(objectForPhase(2,7,2,89250,20,8,3,2)); // top HUD point panel
-    assert(objectForPhase(4,7,1,87820,174,12,2,2)); // clock panel
+    assert(objectForPhase(8,7,2,89250,20,8,3,2)); // top HUD point panel in combat
+    assert(objectForPhase(8,7,1,87820,174,12,2,2)); // clock panel in combat
     assert(!objectForPhase(2,7,2,89250,180,8,6,3)); // center intro
     assert(!objectForPhase(4,7,2,109100,20,8,2,2)); // forest
-    assert(objectForPhase(4,7,15,90200,322,0,6,4)); // right portrait
+    assert(objectForPhase(8,7,15,90200,322,0,6,4)); // right portrait in combat
     assert(!objectForPhase(2,7,3,50000,20,0,12,10)); // intro wall
     assert(!objectForPhase(2,7,3,50000,20,0,5,3)); // wall fragment
     assert(!objectForPhase(4,7,3,89500,165,16,5,2)); // top mid forest
+    // TEST 87.417: reproduce the uploaded 384x224 screenshot's
+    // disappearing top-row logo boxes. Same tile source below y=56 must
+    // remain visible above y=56 during phases 02/04: no intro cutouts.
+    assert(!objectForPhase(2,7,3,89500,32,0,3,3));
+    assert(!objectForPhase(4,7,3,89500,32,32,3,3));
+    assert(!objectForPhase(2,7,12,90200,12,0,6,4));
+    assert(!objectForPhase(4,7,15,90200,322,0,6,4));
+    assert(!objectForPhase(2,7,3,104000,16,8,2,2));
+    assert(!objectForPhase(4,7,8,106100,338,8,2,2));
+    // Verified health strip, portrait border and center numeral still
+    // respect the pre-combat shock. Full remaining HUD hides in 06/08.
+    assert(objectForPhase(2,7,2,88463,32,20,2,1));
+    assert(objectForPhase(4,7,2,89113,16,-2,2,1));
+    assert(objectForPhase(2,0,1,87808,160,12,2,2));
+    assert(objectForPhase(8,7,3,89500,32,0,3,3));
     // Fonts/portrait/name/point sub-sprites may use alternate palettes
     // and ROM tiles. Source priority 7 (not a speculative atlas) binds
     // them to the same fade step on both sides and ALL stages.
-    assert(objectForPhase(2,7,3,104000,16,8,2,2)); // extra left box
-    assert(objectForPhase(4,7,8,106100,338,8,2,2)); // extra right box
+    assert(objectForPhase(6,7,3,104000,16,8,2,2)); // alternate left HUD source during combat
+    assert(objectForPhase(8,7,8,106100,338,8,2,2)); // alternate right HUD source during combat
     assert(objectForPhase(6,7,10,50000,18,8,3,2)); // combat HUD source
     assert(objectForPhase(8,7,24,87000,315,8,2,2)); // alternate palette
-    assert(objectForPhase(2,0,1,95000,160,8,4,2)); // clock face graphics
-    assert(objectForPhase(4,0,1,87832,176,8,2,2)); // varying clock atlas
+    assert(objectForPhase(6,0,1,95000,160,8,4,2)); // clock face during combat
+    assert(objectForPhase(8,0,1,87832,176,8,2,2)); // varying clock atlas during combat
     assert(!objectForPhase(2,0,1,95000,24,8,4,2)); // not side stage
     assert(!objectForPhase(2,7,3,50000,20,0,3,2)); // intro logo
     assert(!objectForPhase(2,7,25,104000,20,0,3,2)); // scenery palette
@@ -251,6 +266,6 @@ int main(){
     assert(glowing[0]==((shineColor>>16)&255u));
     assert(glowing[1]==((shineColor>>8)&255u));
     assert(glowing[2]==(shineColor&255u));
-    std::printf("87.416 shock-only HUD tests PASS: priority7 complete, timer0 complete, stage veto, key9 untouched, single fade\n");
+    std::printf("87.417 shock tests PASS: VS intro tile rows untouched; combat HUD unified reveal; key9 unchanged\n");
     return 0;
 }

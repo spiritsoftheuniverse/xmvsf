@@ -716,6 +716,8 @@ INT32 Cps2ObjDraw(INT32 nLevelFrom, INT32 nLevelTo)
             "XM87.414 HUD_SHOCK_TRANSITION_SCOPED forest_veto=1 font_candidates=1\n");
         std::fprintf(stderr,
             "XM87.416 SHOCK_UNIFIED_HUD_SOURCE priority7_full=1 timer0_complete=1 forest_veto=1 key9_unchanged=1\n");
+        std::fprintf(stderr,
+            "XM87.417 SHOCK_INTRO_BOX_PROTECTED precombat_p7_broad=0 combat_p7_full=1 key9_unchanged=1\n");
     }
     // XM87.47 accepted ROM action cues. Read-only, once per emulated frame.
     XM8747::Observe(CpsRamFF,(unsigned)GetCurrentFrame(),xm8745LivePhase,

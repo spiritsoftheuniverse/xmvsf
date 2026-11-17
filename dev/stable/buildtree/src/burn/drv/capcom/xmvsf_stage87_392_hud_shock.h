@@ -221,6 +221,19 @@ inline bool shockHudSource(int phase,unsigned priority,unsigned palette,
     if(scenery || !Timeline::mayMaskNativeHud(phase) ||
        !wide || !tall || x>=384 || x+int(wide*16u)<=0 ||
        y>=56 || y+int(tall*16u)<=0)return false;
+    // TEST 87.417: native X-Men vs Street Fighter transition boxes are
+    // priority-7 OBJs overlaid on the stage-05 forest in phases 02/04.
+    // Their upper rows meet the 87.416 small-HUD heuristic, causing
+    // disappearing boxes / tree punch-through. During these phases, only
+    // CONFIRMED HUD sources may be concealed; never mask a generic P7
+    // sprite or title/intro decoration. Phase 06/08 still uses the full
+    // HUD source set and one shared shock/reveal step at combat entry.
+    if(phase==2 || phase==4){
+        if(priority==0u)
+            return timeIndicator(priority,palette,tile,x,y,wide,tall,true);
+        return verifiedHpStrip(priority,palette,tile,x,y,wide,tall) ||
+               portraitBackdrop(priority,palette,tile,x,y);
+    }
     if(priority==0u){
         // Time/clock uses priority 0, palette 1. Earlier source whitelists
         // caught the digits but left its adjacent clock graphics visible.
@@ -232,21 +245,9 @@ inline bool shockHudSource(int phase,unsigned priority,unsigned palette,
        (tile>=109000u && tile<=110500u))return false;
     if(topHudObject(priority,palette,tile,x,y,wide,tall,
                     portrait,false,phase==2 || phase==4))return true;
-    // Pre-fight phases contain the native X-Men logo. Restrict the
-    // catch-up path to actual high ROM object graphics banks, not
-    // the separate low-tile logo/forest art. Native combat has no logo.
-    if((phase==2 || phase==4) && tile<80000u)return false;
-    // Return to the earlier all-small-priority-7 HUD stream instead of
-    // maintaining a narrow, character-dependent atlas whitelist.
-    if(wide<=9u && tall<=5u){
-        // The upper CENTER is reserved for the priority-0 clock; a
-        // small priority-7 clock fragment is allowed but not logo art.
-        if(phase==2 || phase==4){
-            if(x>=144 && x<224)
-                return palette<=4u && wide<=3u && tall<=2u;
-        }
-        return true;
-    }
+    // Entire native priority-7 HUD on combat phases 06/08. This must
+    // never be evaluated for the 02/04 tiled VS transition above.
+    if(wide<=9u && tall<=5u)return true;
     // Long multi-cell names including Wolverine; no stage-sized panels.
     return wide<=16u && tall<=3u &&
            nameFootprint(priority,x,y,wide,tall);

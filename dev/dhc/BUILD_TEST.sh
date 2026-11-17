@@ -5,7 +5,7 @@
 set -euo pipefail
 BUILD_WALL_START=$SECONDS
 # Batch sets the version once at launch, before native compilation begins.
-XMVSF_BUILD_VERSION="${XMVSF_TEST_VERSION:-87.416}"
+XMVSF_BUILD_VERSION="${XMVSF_TEST_VERSION:-87.417}"
 XMVSF_BUILD_TAG="${XMVSF_BUILD_VERSION//./_}"
 PROJECT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
@@ -816,6 +816,11 @@ if ! LC_ALL=C grep -aFq -- "XM87.416 SHOCK_UNIFIED_HUD_SOURCE" "$BUILT"; then
   exit 2
 fi
 echo "TEST 87.416 SHOCK-ONLY SOURCE PROOF: unified native HUD source linked."
+if ! LC_ALL=C grep -aFq -- "XM87.417 SHOCK_INTRO_BOX_PROTECTED" "$BUILT"; then
+  echo "ERROR: TEST 87.417 VS intro box safeguard not linked." >&2
+  exit 2
+fi
+echo "TEST 87.417 VS transition box source safeguard linked."
 # Hash-compare before publishing: a no-op build must NOT overwrite TEST.
 built_sha="$(sha256sum "$BUILT" | cut -d ' ' -f 1)"
 mkdir -p "$PROJECT/runtime/stable"

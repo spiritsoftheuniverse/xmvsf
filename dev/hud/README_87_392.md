@@ -1,3 +1,23 @@
+# TEST 87.417 — Protect native VS transition logo tiles
+
+The user supplied a native 384x224 capture of the VS transition: logo
+tile boxes were disappearing only across the top of the screen,
+exposing the background forest. The 87.416 broad priority-7 classifier
+treated the top row of repeating transition tiles as HUD.
+
+In phases **02/04**, conceal ONLY verified native HP strip, verified
+portrait border and central timer-digit sources. Preserve every other
+priority-7 intro/logo/forest object, independent of whether it is
+small, upper-screen, or a high ROM tile. In combat phases **06/08**,
+hide and reveal the complete top HUD through ONE original shock clock.
+The key-8 stun renderer and key-9 native fighter cutout are untouched.
+
+The provided 87.416 F10 OAM files contained no sprite rows, and its
+probe files cover only combat phase 08. Therefore screenshot/visual
+validation is still required for the VS transition; the test guards
+the precise phase-vs-size regression without claiming the live OAM
+signature is known.
+
 # TEST 87.416 — Unified HUD shock; freeze after visual acceptance
 
 TEST 87.416 is **shock-only**. It does not change key 8, key 9,
