@@ -7,6 +7,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
+#include <initializer_list>
 #include "xmvsf_stage87_86_storm_button_guard.h"
 using namespace XM8786Flight;
 static std::uint8_t ram[65536]={};
@@ -116,6 +117,7 @@ int main(){
         stale.fsPendingOriginGrounded=action==0x1004u;
         stale.fsPendingAttacker=6u;stale.fsPendingVictim=8u;
         stale.fsPendingSerial=1u;stale.fsPendingAge=0u;
+        stale.prevAttackerAction=action; // same move, no serial-change escape
         sw(V+0x08u,2u);
         const Decision noLeak=stale.evaluate(ram,V,A,true,true,0u);
         assert(!noLeak.velocityWritten && !stale.fsConditionalPending);
