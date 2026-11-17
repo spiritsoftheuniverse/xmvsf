@@ -113,7 +113,7 @@ static void xm8658ObserveGamePhase(bool ready){
 }
 
 // Audio thread publishes the first VS PCM packet. From 87.418 onward,
-// this is diagnostic evidence only: the ROM 04->06 wall-opening edge
+// this is diagnostic evidence only: the ROM 02->04 wall-opening edge
 // (not asynchronous mixer scheduling) anchors the HUD fade clock.
 static unsigned xm87396LastVsPlayed=0u;
 static void xm87396ObserveVersusSong(bool ready){
@@ -128,7 +128,7 @@ static void xm87396ObserveVersusSong(bool ready){
             ? (long long)(unsigned)GetCurrentFrame()-(long long)shock.start
             : -1ll;
         std::fprintf(stderr,
-            "XM87.418 VS_PCM_OBSERVED song=%u frame=%u wall_clock=%d wall_start=%u pcm_lag_frames=%lld\n",
+            "XM87.419 VS_PCM_OBSERVED song=%u frame=%u wall_clock=%d wall_start=%u pcm_lag_frames=%lld\n",
             started,(unsigned)GetCurrentFrame(),int(shock.wallClock),
             shock.start,lag);
     }

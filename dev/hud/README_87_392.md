@@ -1,4 +1,15 @@
-# TEST 87.418 — Native wall-opening timing (HUD visuals FROZEN)
+# TEST 87.419 — Corrected 02->04 wall-opening timing (HUD visuals FROZEN)
+
+Cross-checking the user's two screenshots with the F10 M68K state trace
+shows tiled transition walls at frame 1118 during native phase 02
+and visible stage at frame 1172 during phase 04 in the corresponding
+transition sequence. Therefore the original 87.418 choice of 04->06
+was too late. The actual trigger is 02->04 at ROM PC F20C.
+Version 87.419 uses that earlier, first wall-opening event. The
+approved 87.417 HUD tile classifier, artwork, key 8, and key 9
+are untouched.
+
+# TEST 87.418 — Native wall-opening timing (historical proposal)
 
 The 87.417 screenshot confirmed that HUD layout, disappearance and
 reveal now look correct. **Do not modify the HUD source classifier,
@@ -6,18 +17,18 @@ shock colors/dither, or stage artwork** while calibrating timing.
 
 The supplied F10 M68K log shows FF5000 native state transitions
 00->02 (PC F1E4), 02->04 (F20C), 04->06 (F2BE),
-and 06->08 (F304), with an approximately 103-frame closed-box
-state 04. The song was previously requested at the earlier
+and 06->08 (F304). Stage image evidence puts the wall-opening
+boundary at 02->04, not 04->06. The song was previously requested at the earlier
 FF5104 chooser step 0004->0008, which can precede this stage reveal
 by a variable amount of loading time.
 
-TEST 87.418 starts the **preloaded one-shot Versus OGG** at the
-native 04->06 wall-opening edge and anchors the existing
+TEST 87.419 starts the **preloaded one-shot Versus OGG** at the
+native 02->04 wall-opening edge and anchors the existing
 120-frame concealment + 30-frame HUD reveal to that same exact
 game frame. Earlier 0004->0008 chooser handoff only primes
 concement (as before), but does NOT start the song or the delay.
 First audible PCM is now read-only lag telemetry,
-`XM87.418 VS_PCM_OBSERVED`, never a second clock that drifts.
+`XM87.419 VS_PCM_OBSERVED`, never a second clock that drifts.
 The 87.417 stage imagery mask, key 8, key 9 and game physics are
 unchanged. Native phase 08 still stops the VS song as before.
 

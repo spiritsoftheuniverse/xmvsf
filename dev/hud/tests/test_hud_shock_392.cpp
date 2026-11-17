@@ -80,27 +80,26 @@ int main(){
     assert(t.step(869u)==29u);
     assert(t.step(870u)==30u);
 
-    // 87.418: ROM state is authoritative, no load-time/PCM thread drift.
+    // 87.419: 87.417 F10 confirmed native 02->04 at PC F20C;
+    // f1118 transition tiles, f1172 stage visible. Never use 04->06.
     WallOpeningEdge edge;
     assert(!edge.observe(0));
-    assert(!edge.observe(2));
-    for(unsigned i=0;i<103;++i)assert(!edge.observe(4)); // boxes closed
-    assert(edge.observe(6)); // first frame walls open / stage revealed
+    for(unsigned i=0;i<78;++i)assert(!edge.observe(2)); // walls closing/closed
+    assert(edge.observe(4)); // first opening frame / stage reveal
+    assert(!edge.observe(4));
     assert(!edge.observe(6));
     assert(!edge.observe(8));
-    assert(!edge.observe(4) && !edge.observe(6)); // no duplicate
+    assert(!edge.observe(2) && !edge.observe(4)); // single-shot
     WallOpeningEdge missing;
-    assert(!missing.observe(6)); // no speculative start without closed box
-    assert(!missing.observe(8));
+    assert(!missing.observe(4)); // no observed 02
+    assert(!missing.observe(6));
     WallOpeningEdge variableLoad;
-    variableLoad.observe(2);
-    for(unsigned i=0;i<407;++i)assert(!variableLoad.observe(4));
-    assert(variableLoad.observe(6)); // duration does not affect the edge
+    for(unsigned i=0;i<407;++i)assert(!variableLoad.observe(2));
+    assert(variableLoad.observe(4)); // closed-box duration irrelevant
 
     Timeline open;
     open.prepareForSong(1060u);
     open.observe(2,1100u,true);
-    open.observe(4,1200u,true);
     assert(open.step(1230u)==0u); // still loading behind closed walls
     open.beginAtWallOpening(1400u);
     assert(open.armed && open.wallClock && open.start==1400u);
@@ -119,6 +118,9 @@ int main(){
     assert(late.step(749u)==30u);
     // Legacy PCM compatibility tests below do NOT own the runtime clock.
 
+    // First 04 frame triggers the song; native 06 later must not reset.
+    open.observe(6,1430u,true);
+    assert(open.start==1400u);
     // 87.416 shock-only comprehensive top HUD from native priority 7.
     // Source-level key 9 remains separate and is tested below.
     // 87.414 transition shock: strict source/tile + documented name regions.

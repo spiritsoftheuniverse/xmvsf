@@ -27,7 +27,7 @@ struct Timeline {
     int lastPhase=-1;
     bool primed=false;
     bool armed=false;
-    bool wallClock=false; // TEST 87.418: exact native 04->06 reveal anchor
+    bool wallClock=false; // TEST 87.419: exact native 02->04 reveal anchor
     bool sourceSeen=false;
 
     void reset(){*this=Timeline{};}
@@ -54,7 +54,7 @@ struct Timeline {
             songSequence,frame,DelayFrames,RevealFrames);
     }
 
-    // TEST 87.418: actual wall opening starts when ROM phase switches 04->06.
+    // TEST 87.419: wall opening starts when ROM phase switches 02->04.
     // Stage loading while the box walls are closed may take any duration.
     // Both the VS OGG request and the 120f shock clock are initiated on
     // this same native frame. Do NOT change HUD source/ink classification.
@@ -66,7 +66,7 @@ struct Timeline {
         }
         armed=true;wallClock=true;start=frame;
         std::fprintf(stderr,
-            "XM87.418 HUD_OPEN_WALL_CLOCK frame=%u hold=%u reveal=%u first_source=%u\n",
+            "XM87.419 HUD_OPEN_WALL_CLOCK frame=%u hold=%u reveal=%u first_source=%u\n",
             frame,DelayFrames,RevealFrames,firstSourceFrame);
     }
 
@@ -125,13 +125,14 @@ struct Timeline {
 };
 inline Timeline& timeline(){static Timeline s;return s;}
 
-// Pure native transition edge. FF5000 status 04 is the closed-box
-// presentation, 06 is opening/stage reveal, 08 is live combat.
+// Pure native transition edge. FF5000 status 02 is VS boxes closing,
+// 04 is the beginning of wall opening / stage reveal. 06 is the later
+// fighter-intro interval, 08 is live combat. Never start at 04->06.
 struct WallOpeningEdge {
     unsigned previousPhase=~0u;
     bool fired=false;
     bool observe(unsigned phase){
-        const bool open=!fired && previousPhase==4u && phase==6u;
+        const bool open=!fired && previousPhase==2u && phase==4u;
         previousPhase=phase;
         if(open)fired=true;
         return open;
