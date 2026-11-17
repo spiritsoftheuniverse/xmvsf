@@ -1,4 +1,25 @@
-# TEST 87.399 — Corrected HUD concealment, real timing, and binary proof
+# TEST 87.416 — Unified HUD shock; freeze after visual acceptance
+
+TEST 87.416 is **shock-only**. It does not change key 8, key 9,
+native OBJ HUD-only capture, stage painters, or match controls.
+
+During the VS-to-combat transition the existing 120-frame hold and
+30-frame common dither clock now cover the **entire native priority-7
+top HUD**, including portrait frames, hero/point labels and name cells,
+plus the priority-0 palette-1 center clock graphics. It reuses the
+earlier 87.393 whole-priority-7 source treatment with the later
+ROM stage-05 scenery veto (including 109xxx and palettes 25+),
+scene exclusions and top-screen bounds. Its source predicate is separate
+from the **unchanged** key-9 HUD-only native capture predicate.
+
+Acceptance lock: when the user confirms that all top HUD contents
+are hidden and reveal in unison without scenery damage, treat this
+implementation and its regression tests as FROZEN. Never modify the
+shock timeline, classifier, or compositor during unrelated stage or
+controller work. Require explicit user authorization for any future
+shock change. Do not claim visual acceptance from source checks.
+
+
 
 Branch: `feature/hud-shock-reveal`. Version 4 only; Version 3 untouched.
 

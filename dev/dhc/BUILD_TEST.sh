@@ -5,7 +5,7 @@
 set -euo pipefail
 BUILD_WALL_START=$SECONDS
 # Batch sets the version once at launch, before native compilation begins.
-XMVSF_BUILD_VERSION="${XMVSF_TEST_VERSION:-87.415}"
+XMVSF_BUILD_VERSION="${XMVSF_TEST_VERSION:-87.416}"
 XMVSF_BUILD_TAG="${XMVSF_BUILD_VERSION//./_}"
 PROJECT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
@@ -809,6 +809,13 @@ if ! LC_ALL=C grep -aFq -- "XM87.415 HUD_SHOCK_CAPTURE_TILED" "$BUILT"; then
   exit 2
 fi
 echo "TEST 87.415 HUD shock reached sprite-capture renderer."
+# TEST 87.416: native-source complete HUD shock must be linked; old
+# keyboard 8/9 and native capture remain untouched by this checkpoint.
+if ! LC_ALL=C grep -aFq -- "XM87.416 SHOCK_UNIFIED_HUD_SOURCE" "$BUILT"; then
+  echo "ERROR: TEST 87.416 unified HUD shock-only native source not linked." >&2
+  exit 2
+fi
+echo "TEST 87.416 SHOCK-ONLY SOURCE PROOF: unified native HUD source linked."
 # Hash-compare before publishing: a no-op build must NOT overwrite TEST.
 built_sha="$(sha256sum "$BUILT" | cut -d ' ' -f 1)"
 mkdir -p "$PROJECT/runtime/stable"

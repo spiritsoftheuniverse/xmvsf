@@ -80,6 +80,8 @@ int main(){
     assert(t.step(869u)==29u);
     assert(t.step(870u)==30u);
 
+    // 87.416 shock-only comprehensive top HUD from native priority 7.
+    // Source-level key 9 remains separate and is tested below.
     // 87.414 transition shock: strict source/tile + documented name regions.
     // Wolverine's long name may span >9 tiles, while 02/04 forest art
     // must never be masked by the former generic priority-7 fallback.
@@ -113,6 +115,23 @@ int main(){
     assert(!objectForPhase(2,7,3,50000,20,0,12,10)); // intro wall
     assert(!objectForPhase(2,7,3,50000,20,0,5,3)); // wall fragment
     assert(!objectForPhase(4,7,3,89500,165,16,5,2)); // top mid forest
+    // Fonts/portrait/name/point sub-sprites may use alternate palettes
+    // and ROM tiles. Source priority 7 (not a speculative atlas) binds
+    // them to the same fade step on both sides and ALL stages.
+    assert(objectForPhase(2,7,3,104000,16,8,2,2)); // extra left box
+    assert(objectForPhase(4,7,8,106100,338,8,2,2)); // extra right box
+    assert(objectForPhase(6,7,10,50000,18,8,3,2)); // combat HUD source
+    assert(objectForPhase(8,7,24,87000,315,8,2,2)); // alternate palette
+    assert(objectForPhase(2,0,1,95000,160,8,4,2)); // clock face graphics
+    assert(objectForPhase(4,0,1,87832,176,8,2,2)); // varying clock atlas
+    assert(!objectForPhase(2,0,1,95000,24,8,4,2)); // not side stage
+    assert(!objectForPhase(2,7,3,50000,20,0,3,2)); // intro logo
+    assert(!objectForPhase(2,7,25,104000,20,0,3,2)); // scenery palette
+    assert(!objectForPhase(2,7,3,109100,20,0,3,2)); // forest family
+    assert(!objectForPhase(2,7,3,104000,20,0,3,2,false,true)); // caller scenery
+    // Key 9 uses the original narrow classifier, not shock's new coverage.
+    assert(!object(7,3,104000,16,8,2,2));
+    assert(!object(0,1,95000,160,8,4,2));
     assert(!objectForPhase(2,7,3,98000,20,16,12,5)); // tall scenery
     assert(!objectForPhase(2,7,25,50000,20,0,3,2)); // scenery palette
     assert(!objectForPhase(2,7,2,88463,32,90,2,1));
@@ -231,6 +250,6 @@ int main(){
     assert(glowing[0]==((shineColor>>16)&255u));
     assert(glowing[1]==((shineColor>>8)&255u));
     assert(glowing[2]==(shineColor&255u));
-    std::printf("87.413 HUD shock tests PASS: full top HUD, timer, portraits, scene veto, Bayer reveal, stun overlay\n");
+    std::printf("87.416 shock-only HUD tests PASS: priority7 complete, timer0 complete, stage veto, key9 untouched, single fade\n");
     return 0;
 }

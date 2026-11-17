@@ -210,12 +210,52 @@ inline bool verifiedTransitionHud(unsigned priority,unsigned palette,
     return topHudObject(priority,palette,tile,x,y,wide,tall,
                         false,false,true);
 }
+// TEST 87.416: shock-only coverage, derived from the earlier complete
+// priority-7 native HUD stream. This is deliberately NOT used by key 9
+// (XM87412::nativeHud continues using topHudObject unchanged).
+// The game's own palette split identifies priority 7 as upper HUD;
+// the ROM stage-05 scenery veto was added subsequently. Preserve both.
+inline bool shockHudSource(int phase,unsigned priority,unsigned palette,
+                           unsigned tile,int x,int y,unsigned wide,unsigned tall,
+                           bool portrait,bool scenery){
+    if(scenery || !Timeline::mayMaskNativeHud(phase) ||
+       !wide || !tall || x>=384 || x+int(wide*16u)<=0 ||
+       y>=56 || y+int(tall*16u)<=0)return false;
+    if(priority==0u){
+        // Time/clock uses priority 0, palette 1. Earlier source whitelists
+        // caught the digits but left its adjacent clock graphics visible.
+        // The center clock band is not the stage-05 OBJ scenery family.
+        return palette==1u && x>=128 && x<256 && y>=-16 &&
+               wide<=4u && tall<=4u;
+    }
+    if(priority!=7u || palette>=25u || y< -48 ||
+       (tile>=109000u && tile<=110500u))return false;
+    if(topHudObject(priority,palette,tile,x,y,wide,tall,
+                    portrait,false,phase==2 || phase==4))return true;
+    // Pre-fight phases contain the native X-Men logo. Restrict the
+    // catch-up path to actual high ROM object graphics banks, not
+    // the separate low-tile logo/forest art. Native combat has no logo.
+    if((phase==2 || phase==4) && tile<80000u)return false;
+    // Return to the earlier all-small-priority-7 HUD stream instead of
+    // maintaining a narrow, character-dependent atlas whitelist.
+    if(wide<=9u && tall<=5u){
+        // The upper CENTER is reserved for the priority-0 clock; a
+        // small priority-7 clock fragment is allowed but not logo art.
+        if(phase==2 || phase==4){
+            if(x>=144 && x<224)
+                return palette<=4u && wide<=3u && tall<=2u;
+        }
+        return true;
+    }
+    // Long multi-cell names including Wolverine; no stage-sized panels.
+    return wide<=16u && tall<=3u &&
+           nameFootprint(priority,x,y,wide,tall);
+}
 inline bool objectForPhase(int phase,unsigned priority,unsigned palette,
                            unsigned tile,int x,int y,unsigned wide,unsigned tall,
                            bool portrait=false,bool scenery=false){
-    if(scenery || !Timeline::mayMaskNativeHud(phase))return false;
-    return topHudObject(priority,palette,tile,x,y,wide,tall,
-                        portrait,false,phase==2 || phase==4);
+    return shockHudSource(phase,priority,palette,tile,x,y,wide,tall,
+                          portrait,scenery);
 }
 static const unsigned char Bayer8[64]={
      0,48,12,60, 3,51,15,63,
