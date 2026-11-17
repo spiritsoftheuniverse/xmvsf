@@ -1,3 +1,19 @@
+# TEST 87.427 — Advance shock reveal by 20 frames; DO NOT move song
+
+The user confirmed the musical anchor is correct and specifically requested
+the start of the shock insertion 20 frames earlier, without moving the song
+back. Keep the **song request at phase 02 + 27 frames**, as confirmed by
+F10/F6 evidence. Only shorten the HUD's concealed hold **150 -> 130 frames**
+at 60 fps. Keep the **same 30-frame reveal** and existing late-HUD-source
+safeguard. Do not change the approved HUD source classifier, draw path,
+palette, game physics, stage art, controller or key 8/9 behavior.
+
+Using captured phase entry F1651 and song anchor F1678, the nominal fade
+starts F1808 (previously F1828) and becomes fully visible F1837
+(previously F1857), provided HUD objects are already drawable.
+Unit tests cover the 130-frame global hold and exactly unchanged anchor.
+Version advances to 87.427. No GitHub Actions or remote build.
+
 # TEST 87.426 — New screenshot anchor at phase 02 + 27 frames
 
 User screenshot `XMVSF_native_20261117_090817_f000001678_000002.png`

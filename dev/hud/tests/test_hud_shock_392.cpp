@@ -18,11 +18,11 @@ int main(){
     assert(!eligible("xmvsfu",false));
     assert(!eligible("mvsc",true));
     assert(!eligible(nullptr,true));
-    // 87.399 legacy audio-clock compatibility; TEST 87.424 makes
-    // the global hold 150f (+0.5s), with the same 30f fade.
+    // TEST 87.427: original 87.426 song cue remains phase 02+27.
+    // Only the shock hold changes 150 -> 130 frames; fade stays 30f.
     // No first-fight-frame max(): that was why 87.397 and 87.398
     // appeared to have exactly the same timing.
-    assert(DelayFrames==150u);
+    assert(DelayFrames==130u);
     assert(RevealFrames==30u);
     assert(XM87422VisualAnchor::DelayFrom02==27u);
     Timeline t;
@@ -37,10 +37,10 @@ int main(){
     t.noteHudSource(110u); // actual bar drawn before the audio deadline
     assert(t.sourceSeen && t.firstSourceFrame==110u);
     assert(t.step(105)==0u);
-    assert(t.step(254)==0u);
-    assert(t.step(255)==1u);
-    assert(t.step(283)==29u);
-    assert(t.step(284)==30u);
+    assert(t.step(234)==0u);
+    assert(t.step(235)==1u);
+    assert(t.step(263)==29u);
+    assert(t.step(264)==30u);
     t.observe(6,290u,true);
     assert(t.step(290)==30u); // do NOT re-delay until combat
     t.startWithSong(1u,291u);
@@ -55,9 +55,9 @@ int main(){
     t.observe(2,401u,true);
     t.startWithSong(2u,410u);
     t.noteHudSource(420u);
-    assert(t.step(559)==0u);
-    assert(t.step(560)==1u);
-    assert(t.step(589)==30u);
+    assert(t.step(539)==0u);
+    assert(t.step(540)==1u);
+    assert(t.step(569)==30u);
     t.observe(4,560u,false);
     assert(t.step(560)==30u); // Version 3 clean
     // Within one persistent SDL process, a fresh VS song replaces the old
@@ -76,8 +76,8 @@ int main(){
     assert(t.step(600)==30u);
     t.startWithSong(3u,700u); // fallback if song starts before priming
     assert(t.step(700)==0u);
-    assert(t.step(849)==0u);
-    assert(t.step(850)==1u); // internal clock: source not yet available
+    assert(t.step(829)==0u);
+    assert(t.step(830)==1u); // internal clock: source not yet available
     t.noteHudSource(870u);   // first drawable HUD arrives very late
     assert(t.step(870u)==0u); // MUST be invisible on the first source frame
     assert(t.step(871u)==1u);
@@ -116,10 +116,10 @@ int main(){
     visualClock.startWithSong(91u,1686u); // PCM must NOT restart clock
     assert(visualClock.start==1678u);
     visualClock.noteHudSource(1720u);
-    assert(visualClock.step(1827u)==0u); // 150f concealment
-    assert(visualClock.step(1828u)==1u); // 30f fade begins
-    assert(visualClock.step(1856u)==29u);
-    assert(visualClock.step(1857u)==30u); // full HUD
+    assert(visualClock.step(1807u)==0u); // 130f concealment
+    assert(visualClock.step(1808u)==1u); // fade begins 20 frames earlier
+    assert(visualClock.step(1836u)==29u);
+    assert(visualClock.step(1837u)==30u); // full HUD
     visualClock.beginAtCapturedPosition(1800u);
     assert(visualClock.start==1678u);
     Timeline lateCaptured;
