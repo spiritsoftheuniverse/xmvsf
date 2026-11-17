@@ -9,6 +9,7 @@
 #include <cstdint>
 #include <cstdlib>
 #include "../../cpu/m68000_intf.h"
+#include "../../burn/drv/capcom/xmvsf_stage87_392_hud_shock.h" // TEST 87.419 exact wall-edge clock
 #include "xm20_vs_early_phase.h"
 
 struct XM20VsTracker {
