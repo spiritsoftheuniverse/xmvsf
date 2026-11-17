@@ -699,7 +699,7 @@ struct Controller {
             log=std::fopen(path,"wb");
             if(log)std::fputs("frame\tvictim\tattacker_bank\tattacker_action\tattacker_pointer\treaction\tsubstate\ty\tvictim_action_before\tvictim_profile_before\toriginal_vx\toriginal_vy\tfinal_vx\tfinal_vy\tvictim_action_after\tvictim_profile_after\trom_signature_matched\tfirst_air_followup\tair_attack_index\theavy_followup\tnew_air_attack\tconnected_hits_before\tconnected_hits_after\tcombo_continuous\thit_confirmed\tvelocity_written\tstate_pair_written\texcluded\tbutton_bits\tbutton_tag\tbutton_age\tbutton_evidence\tstorm_mk\tstorm_heavy\tdecision\tattacker_id\tvictim_id\tobserved_native_launch\tcharacter_hp_excluded\tprevious_confirmed_hit_button\tattacker_grounded\tfs_active\n",log);
         }
-        std::fprintf(stderr,"XM87.327 FS_HEAVY_ONLY_READY enabled=%d confirmed_button=HP/HK shared_medium_safe=1 fallback_x=0010AA00 fallback_y=0000B000 fs_latch_until_landing=1\n",int(enabled));
+        std::fprintf(stderr,"XM87.409 FS_SUPERJUMP_SCOPE enabled=%d airborne_AA_required=1 heavy_1Axx_only=1 ground_18xx_native=1 fs_latch_until_landing=1\n",int(enabled));
     }
     void frame(unsigned tick,std::uint8_t* r,unsigned p1Buttons,unsigned p2Buttons){
         if(!initialized)init();
