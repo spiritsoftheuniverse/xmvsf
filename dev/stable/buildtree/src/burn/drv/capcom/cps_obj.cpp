@@ -21,6 +21,7 @@ extern "C" bool xm8746DizzyHudAllowed(); // SDL game-wide + Training option
 #include "xmvsf_stage87_32_stun_probe.h"
 #include "xmvsf_stage87_45_hp_rgb_and_opening.h"
 #include "xmvsf_stage87_392_hud_shock.h" // TEST 87.392 shared game-frame HUD reveal
+#include "xmvsf_stage87_412_boomer_cutout.h" // HP-preserving native actor filter
 #include "../../../burner/sdl/xmvsf_stage87_108_lifecycle.h"
 #include "xmvsf_stage87_47_movement_cues.h"
 #include "xmvsf_stage87_55_super_probe.h" // Opt-in read-only ROM-action discovery
@@ -493,6 +494,7 @@ void XM44WriteBufferedSprites(FILE* f, int sample) {
 // XM86.54: this flag is scoped to the disposable Wily native OBJ overlay.
 extern bool xm8651SpriteCaptureActive;
 extern bool xm8651SpriteCaptureStats;
+extern bool xm87412BoomerHudOnlyCapture;
 extern int xm8654ConsideredObjects;
 extern int xm8654FilteredObjects;
 extern int xm8654RetainedObjects;
@@ -859,7 +861,17 @@ INT32 Cps2ObjDraw(INT32 nLevelFrom, INT32 nLevelTo)
 			const unsigned width=((attr>>8)&15U)+1U;
 			const unsigned height=((attr>>12)&15U)+1U;
 			const bool scenery=xm8654KnownNativeScenery((unsigned)v,tile,pal);
-			const bool keep=xm8654KeepNativeObject((unsigned)v,tile,pal,width,height);
+			bool keep=xm8654KeepNativeObject((unsigned)v,tile,pal,width,height);
+			if(keep && xm87412BoomerHudOnlyCapture){
+			    // Inspect original OAM source before touching native OBJ pixels/Z.
+			    const UINT16 xw=BURN_ENDIAN_SWAP_INT16(ps[0]);
+			    int ox=int(xw);
+			    if(attr&0x80u)ox+=CpsSaveFrg[0][0x9];
+			    ox=((ox&0x03ff)^0x200)-0x200+pof->nShiftX;
+			    const int oy=((int(yw)&0x03ff)^0x200)-0x200+pof->nShiftY;
+			    keep=XM87412::nativeHud((unsigned)v,pal,tile,
+			                              ox,oy,width,height);
+			}
 			if (xm8651SpriteCaptureStats && v >= nLevelFrom && v <= nLevelTo) {
 				++xm8654ConsideredObjects;
 				if (scenery) ++xm8654SceneryObjects;
