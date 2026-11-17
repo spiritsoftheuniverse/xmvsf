@@ -94,6 +94,10 @@ int main(){
     verifyNative(0x1004u,4u,true);
     verifyNative(0x120au,32u,true);
     verifyNative(0x1404u,4u,true);
+    verifyNative(0x1000u,1u,true);
+    verifyNative(0x1002u,2u,true);
+    verifyNative(0x1800u,1u);
+    verifyNative(0x1802u,2u);
     verifyNative(0x1804u,4u);
     verifyNative(0x180au,32u);
     // Even a superjump action with an above-floor Y must not qualify
@@ -101,6 +105,34 @@ int main(){
     verifyNative(0x1a04u,4u,false,true);
     verifyNative(0x1a04u,32u,true);
 
+    // A stale delayed FS proposal cannot release through a 10xx or
+    // 18xx normal when the original input/move did NOT originate in SJ.
+    for(unsigned action : {0x1004u,0x1804u}){
+        setup(action,action==0x1004u);
+        Actor stale=primed();
+        stale.fsConditionalPending=true;
+        stale.fsPendingAction=action;
+        stale.fsPendingButton=4u;
+        stale.fsPendingOriginGrounded=action==0x1004u;
+        stale.fsPendingAttacker=6u;stale.fsPendingVictim=8u;
+        stale.fsPendingSerial=1u;stale.fsPendingAge=0u;
+        sw(V+0x08u,2u);
+        const Decision noLeak=stale.evaluate(ram,V,A,true,true,0u);
+        assert(!noLeak.velocityWritten && !stale.fsConditionalPending);
+        assert(rw(V+0x60u)==SOFT_ACTION);
+        assert(rl(V+0x1cu)==0x00010000u);
+    }
+    // The older fallback latch must also reject ordinary 18xx HP.
+    setup(0x1804u);
+    sw(V+0x08u,2u);
+    Actor fallback=primed();
+    fallback.pendingSevere=true;
+    fallback.pendingAge=0u;fallback.pendingAction=0x1804u;
+    fallback.pendingButton=4u;fallback.pendingBank=0x0021u;
+    fallback.pendingAttackerId=6u;
+    const Decision oldLatch=fallback.evaluate(ram,V,A,true,true,0u);
+    assert(!oldLatch.velocityWritten && !fallback.pendingSevere);
+    assert(rw(V+0x60u)==SOFT_ACTION);
     // Legal superjump HP->HK after a connected HP still becomes severe.
     setup(0x1a04u);
     Actor sj=primed(4u);
