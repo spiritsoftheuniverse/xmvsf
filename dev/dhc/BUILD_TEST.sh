@@ -5,7 +5,7 @@
 set -euo pipefail
 BUILD_WALL_START=$SECONDS
 # Batch sets the version once at launch, before native compilation begins.
-XMVSF_BUILD_VERSION="${XMVSF_TEST_VERSION:-87.408}"
+XMVSF_BUILD_VERSION="${XMVSF_TEST_VERSION:-87.409}"
 XMVSF_BUILD_TAG="${XMVSF_BUILD_VERSION//./_}"
 PROJECT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
@@ -761,6 +761,15 @@ if ! LC_ALL=C grep -aFq -- "XM87.408 STAGE_CATALOG_V1" "$BUILT"; then
   exit 2
 fi
 echo "TEST STAGE CATALOG PROOF: XM87.408 STAGE_CATALOG_V1 found in EXE."
+# 87.409: Tournament FS writer must be the newly gated superjump-only
+# implementation. A changed boot/version string is not proof of an
+# updated cps_run.o / included ROM-flight controller.
+if ! LC_ALL=C grep -aFq -- "XM87.409 FS_SUPERJUMP_SCOPE" "$BUILT"; then
+  echo "ERROR: TEST 87.409 guarded superjump-only Tournament FS controller not linked. Refusing stale publish." >&2
+  echo "ERROR: Check cps_run.o transitive header dependency freshness." >&2
+  exit 2
+fi
+echo "TEST TOURNAMENT FS PROOF: XM87.409 FS_SUPERJUMP_SCOPE found in EXE."
 # Hash-compare before publishing: a no-op build must NOT overwrite TEST.
 built_sha="$(sha256sum "$BUILT" | cut -d ' ' -f 1)"
 mkdir -p "$PROJECT/runtime/stable"
