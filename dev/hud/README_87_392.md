@@ -1,3 +1,29 @@
+# TEST 87.418 — Native wall-opening timing (HUD visuals FROZEN)
+
+The 87.417 screenshot confirmed that HUD layout, disappearance and
+reveal now look correct. **Do not modify the HUD source classifier,
+shock colors/dither, or stage artwork** while calibrating timing.
+
+The supplied F10 M68K log shows FF5000 native state transitions
+00->02 (PC F1E4), 02->04 (F20C), 04->06 (F2BE),
+and 06->08 (F304), with an approximately 103-frame closed-box
+state 04. The song was previously requested at the earlier
+FF5104 chooser step 0004->0008, which can precede this stage reveal
+by a variable amount of loading time.
+
+TEST 87.418 starts the **preloaded one-shot Versus OGG** at the
+native 04->06 wall-opening edge and anchors the existing
+120-frame concealment + 30-frame HUD reveal to that same exact
+game frame. Earlier 0004->0008 chooser handoff only primes
+concement (as before), but does NOT start the song or the delay.
+First audible PCM is now read-only lag telemetry,
+`XM87.418 VS_PCM_OBSERVED`, never a second clock that drifts.
+The 87.417 stage imagery mask, key 8, key 9 and game physics are
+unchanged. Native phase 08 still stops the VS song as before.
+
+This implementation is frozen for unrelated stage work after
+the user confirms song/fade synchronization in their Windows build.
+
 # TEST 87.417 — Protect native VS transition logo tiles
 
 The user supplied a native 384x224 capture of the VS transition: logo

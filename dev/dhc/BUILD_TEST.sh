@@ -5,7 +5,7 @@
 set -euo pipefail
 BUILD_WALL_START=$SECONDS
 # Batch sets the version once at launch, before native compilation begins.
-XMVSF_BUILD_VERSION="${XMVSF_TEST_VERSION:-87.417}"
+XMVSF_BUILD_VERSION="${XMVSF_TEST_VERSION:-87.418}"
 XMVSF_BUILD_TAG="${XMVSF_BUILD_VERSION//./_}"
 PROJECT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
@@ -821,6 +821,21 @@ if ! LC_ALL=C grep -aFq -- "XM87.417 SHOCK_INTRO_BOX_PROTECTED" "$BUILT"; then
   exit 2
 fi
 echo "TEST 87.417 VS transition box source safeguard linked."
+# TEST 87.418: both native wall-opening event and audio clock observer
+# must link, while previously visually accepted HUD classifier remains intact.
+if ! LC_ALL=C grep -aFq -- "XM87.418 VS_WALL_OPEN_SYNC" "$BUILT"; then
+  echo "ERROR: 87.418 04->06 VS wall-opening/audio trigger not linked." >&2
+  exit 2
+fi
+if ! LC_ALL=C grep -aFq -- "XM87.418 HUD_OPEN_WALL_CLOCK" "$BUILT"; then
+  echo "ERROR: 87.418 wall-owned 120f HUD clock not linked." >&2
+  exit 2
+fi
+if ! LC_ALL=C grep -aFq -- "XM87.418 VS_PCM_OBSERVED" "$BUILT"; then
+  echo "ERROR: 87.418 post-start audio evidence reporter not linked." >&2
+  exit 2
+fi
+echo "TEST 87.418 SOUND+SHOCK WALL-OPEN CLOCK PROOF: native, HUD, PCM evidence linked."
 # Hash-compare before publishing: a no-op build must NOT overwrite TEST.
 built_sha="$(sha256sum "$BUILT" | cut -d ' ' -f 1)"
 mkdir -p "$PROJECT/runtime/stable"

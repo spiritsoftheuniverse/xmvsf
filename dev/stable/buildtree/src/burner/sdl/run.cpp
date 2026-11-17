@@ -112,9 +112,9 @@ static void xm8658ObserveGamePhase(bool ready){
     }
 }
 
-// Audio thread publishes the first actual VS music PCM packet. Poll that
-// monotonically increasing event on the normal emulated-frame thread, before
-// painting, so pause/frame skip and custom-stage draw routes agree.
+// Audio thread publishes the first VS PCM packet. From 87.418 onward,
+// this is diagnostic evidence only: the ROM 04->06 wall-opening edge
+// (not asynchronous mixer scheduling) anchors the HUD fade clock.
 static unsigned xm87396LastVsPlayed=0u;
 static void xm87396ObserveVersusSong(bool ready){
     if(!ready || bBurnRunAheadFrame)return;
@@ -123,7 +123,14 @@ static void xm87396ObserveVersusSong(bool ready){
     xm87396LastVsPlayed=started;
     if(XM87392::eligible(BurnDrvGetTextA(DRV_NAME),
                          XM87262Game::version4())){
-        XM87392::timeline().startWithSong(started,(unsigned)GetCurrentFrame());
+        const XM87392::Timeline& shock=XM87392::timeline();
+        const long long lag=shock.wallClock
+            ? (long long)(unsigned)GetCurrentFrame()-(long long)shock.start
+            : -1ll;
+        std::fprintf(stderr,
+            "XM87.418 VS_PCM_OBSERVED song=%u frame=%u wall_clock=%d wall_start=%u pcm_lag_frames=%lld\n",
+            started,(unsigned)GetCurrentFrame(),int(shock.wallClock),
+            shock.start,lag);
     }
 }
 static unsigned int nDoFPS = 0;
