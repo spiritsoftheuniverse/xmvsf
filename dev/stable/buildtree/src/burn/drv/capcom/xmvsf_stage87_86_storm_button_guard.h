@@ -88,6 +88,23 @@ static inline bool normalAirAttack(unsigned action){
 static inline bool heavyAirAttack(unsigned action){
     return action==0x1804u || action==0x180Au || action==0x1A04u || action==0x1A0Au;
 }
+// TEST 87.409: the ROM's 18xx ordinary-jump normals and the grounded
+// 10xx/12xx/14xx families must NEVER enter Tournament's host FS writer.
+// 1Axx is the native superjump-normal action family. Position Y alone,
+// or a victim's earlier flying-screen latch, is not superjump evidence.
+static inline bool superjumpNormalAttack(unsigned action){
+    return (action&0xFFF0u)==0x1A00u &&
+           (action&1u)==0u && (action&0x000Eu)<=0x000Au;
+}
+static inline bool superjumpHeavyAttack(unsigned action){
+    return superjumpNormalAttack(action) && heavyAirAttack(action);
+}
+static inline bool confirmedSuperjumpHeavy(unsigned action,unsigned button,
+                                          bool evidence,bool attackerAir){
+    return attackerAir && evidence &&
+           (button==(1u<<2u) || button==(1u<<5u)) &&
+           superjumpHeavyAttack(action);
+}
 // Ground normals are 100x/120x/140x, never super-jump 1Axx.
 // Include ordinary light/medium hits in the PREVIOUS CONNECTED HIT
 // ledger so a landed MP between HP and HK correctly breaks the chain.
@@ -336,14 +353,12 @@ struct Actor {
                 stormFlightUsedUntilLanding;
             const bool hpThenHK=flightAlready && previousWasHP &&
                 d.buttonEvidence && d.taggedButton==(1u<<5u) &&
-                attackerAir && heavyAirAttack(d.attackerAction) &&
+                attackerAir && superjumpHeavyAttack(d.attackerAction) &&
                 !isDrillCandidate(d.attackerAction);
-            const bool groundedFSHeavy=flightAlready && groundHeavyNow &&
-                d.buttonEvidence &&
-                (d.taggedButton==(1u<<2u) ||
-                 d.taggedButton==(1u<<5u)) &&
-                !excludedCharacterHP(d.attackerId,d.attackerAction,
-                                     d.taggedButton);
+            // A grounded hit may update the previous-connected-hit ledger,
+            // but must not produce a flying-screen or Cyclops severe writer.
+            // The old groundedFSHeavy exception was the ground leak.
+            const bool groundedFSHeavy=false;
             // Regardless of whether this hit becomes a finisher, the
             // preceding-hit identity is now this confirmed native hit.
             // A connecting light or medium breaks the HP->HK sequence.
@@ -367,9 +382,8 @@ struct Actor {
                 excludedCharacterHP(d.attackerId,d.attackerAction,d.taggedButton) ||
                 isDrillCandidate(d.attackerAction) ||
                 (fsSignature && fsSignature->preserveNative);
-            const bool confirmedHeavy=confirmedHeavyNormal(
-                d.attackerAction,d.taggedButton,d.buttonEvidence,
-                attackerAir,attackerGrounded);
+            const bool confirmedHeavy=confirmedSuperjumpHeavy(
+                d.attackerAction,d.taggedButton,d.buttonEvidence,attackerAir);
             const bool fsStormBaseline=flightAlready && !protectedFSNative &&
                 confirmedHeavy;
             if(enabled && fsStormBaseline){
@@ -417,15 +431,16 @@ struct Actor {
             // combo, must finish with native severe knockdown even if no 1C14/0210.
             // Other fighters and Storm's first heavy/medium hits remain native.
             const bool stormConfirmedHeavy=d.attackerId==0x0004u && d.attackerBank==0x0022u &&
-                d.stormHeavyButton && d.buttonEvidence &&
-                (d.attackerAction==0x1A04u || d.attackerAction==0x1804u);
+                attackerAir && superjumpHeavyAttack(d.attackerAction) &&
+                d.stormHeavyButton && d.buttonEvidence;
             const bool stormRepeatHK=stormConfirmedHeavy && d.taggedButton==(1u<<5) &&
                 connectedStormHeavyHits>0u && d.hadConnectedAirHit;
             // The older fallback severe conversion is ALSO a RAM writer:
             // it must not infer HP/HK from shared move animation alone.
             d.heavyFollowup=d.hadConnectedAirHit && (d.nativeLaunched || stormRepeatHK) &&
-                d.provisionalHeavy && !medium && paired && confirmedHeavy &&
-                !isDrillCandidate(d.attackerAction) && !d.characterHPExcluded;
+                superjumpHeavyAttack(d.attackerAction) && !medium && paired &&
+                confirmedHeavy && !isDrillCandidate(d.attackerAction) &&
+                !d.characterHPExcluded;
             if(stormConfirmedHeavy)++connectedStormHeavyHits;
             d.candidate=d.heavyFollowup;
             ++connectedAirHits;
@@ -504,13 +519,14 @@ struct Actor {
             const bool nativePair=paired ||
                 nativeLaunchReaction(d.victimActionBefore,
                                      d.victimProfileBefore);
-            // Defense in depth: a previous attack's button, or an
-            // ambiguous/medium hit, can never survive into a velocity
-            // write even if a future change accidentally re-arms FS.
+            // Defense in depth: the pending impact itself must originate
+            // from a confirmed airborne SUPERJUMP normal. Neither ground
+            // normals nor 18xx normal-jump normals can resolve later,
+            // even if they inherited an active-FS latch.
             const bool originalHeavy=
+                !fsPendingOriginGrounded &&
                 (fsPendingButton==(1u<<2u) || fsPendingButton==(1u<<5u)) &&
-                (heavyAirAttack(fsPendingAction) ||
-                 groundedNormalHeavy(fsPendingAction));
+                superjumpHeavyAttack(fsPendingAction);
             const bool expired=fsPendingAge>24u || !enabled || !combat ||
                 !originalHeavy || !sameHit || nativeLanded ||
                 !(postFlightNeedsNativeLanding || stormFlightUsedUntilLanding) ||
@@ -586,7 +602,7 @@ struct Actor {
                 magnitude(signedFixed(d.beforeX))<=0x000a0000LL;
             const bool pendingHeavy=
                 (pendingButton==(1u<<2u) || pendingButton==(1u<<5u)) &&
-                heavyAirAttack(pendingAction);
+                superjumpHeavyAttack(pendingAction);
             const bool stale=stormFlightUsedUntilLanding ||
               (postFlightNeedsNativeLanding && !alreadyNativeSteep) ||
               !pendingHeavy || pendingAge>24u || !combat || !attackerAir ||
