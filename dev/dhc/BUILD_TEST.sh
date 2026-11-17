@@ -5,7 +5,7 @@
 set -euo pipefail
 BUILD_WALL_START=$SECONDS
 # Batch sets the version once at launch, before native compilation begins.
-XMVSF_BUILD_VERSION="${XMVSF_TEST_VERSION:-87.423}"
+XMVSF_BUILD_VERSION="${XMVSF_TEST_VERSION:-87.424}"
 XMVSF_BUILD_TAG="${XMVSF_BUILD_VERSION//./_}"
 PROJECT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
@@ -853,6 +853,17 @@ if ! LC_ALL=C grep -aFq -- "XM87.422 PCM_LAG" "$BUILT"; then
   exit 2
 fi
 echo "TEST 87.423 VISUAL ANCHOR PROOF: cue + original late HUD safeguard + PCM evidence."
+# TEST 87.424: prove zero-offset / 150f source revisions are linked.
+# Existing 87.417 HUD artwork/classification and keys 8/9 untouched.
+if ! LC_ALL=C grep -aFq -- "XM87.424 VS_PHASE02_ZERO" "$BUILT"; then
+  echo "ERROR: TEST 87.424 phase02 frame-zero audio cue not linked." >&2
+  exit 2
+fi
+if ! LC_ALL=C grep -aFq -- "XM87.424 HUD_PHASE02_ZERO" "$BUILT"; then
+  echo "ERROR: TEST 87.424 150f shock hold not linked." >&2
+  exit 2
+fi
+echo "TEST 87.424 ZERO-OFFSET / 150F HOLD linked."
 # Hash-compare before publishing: a no-op build must NOT overwrite TEST.
 built_sha="$(sha256sum "$BUILT" | cut -d ' ' -f 1)"
 mkdir -p "$PROJECT/runtime/stable"

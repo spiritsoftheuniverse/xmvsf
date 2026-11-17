@@ -95,10 +95,10 @@ static inline void xm20VsCheck(int ready,int paused) {
     xm20Vs.p1Choice=p1Choice;
     xm20Vs.p2Choice=p2Choice;
 
-    // One measured user-selected visual placement, not a guessed ROM
-    // 02->04/04->06 transition. The native 00->02 writer at F1969
-    // preceded the supplied stage-visible screenshot F2004 by 35f.
-    // Stage loading before 02 is excluded from this measured countdown.
+    // TEST 87.424: song and HUD delay both start at phase-02 frame ZERO,
+    // the observed 00->02 edge (F1969 in the user's F10 screenshot).
+    // This removes the prior +35-frame wait after stage entry.
+    // Loading before phase 02 does not advance either clock.
     if(xm20Vs.visualAnchor.observe(status,(unsigned)GetCurrentFrame())){
         const unsigned frame=(unsigned)GetCurrentFrame();
         xm20Vs.triggered=true; // suppress the old pre-stage song request
@@ -106,9 +106,9 @@ static inline void xm20VsCheck(int ready,int paused) {
                              XM87262Game::version4()))
             XM87392::timeline().beginAtCapturedPosition(frame);
         xmvsfHost::enterVs(); // request preloaded song on SAME frame
-        xm20VsLog("XM87.422 CAPTURED_WALL_PLACEMENT_02_PLUS_35",status,p1ptr);
+        xm20VsLog("XM87.424 PHASE02_ZERO_SONG_AND_HUD",status,p1ptr);
         std::fprintf(stderr,
-            "XM87.422 VS_VISUAL_ANCHOR frame=%u status=%02X from02=%u offset=%u song_request=1\n",
+            "XM87.424 VS_PHASE02_ZERO frame=%u status=%02X from02=%u offset=%u song_request=1\n",
             frame,status,xm20Vs.visualAnchor.phase02Entry,
             XM87422VisualAnchor::DelayFrom02);
     }
@@ -140,8 +140,8 @@ static inline void xm20VsCheck(int ready,int paused) {
         if(XM87392::eligible(BurnDrvGetTextA(DRV_NAME),
                              XM87262Game::version4()))
             XM87392::timeline().prepareForSong((unsigned)GetCurrentFrame());
-        // 87.422: Do NOT queue the song while boxes are closed/loading.
-        // The measured phase-02 visual-anchor event above owns playback.
+        // Do NOT queue the song at the earlier chooser handoff.
+        // The phase-02 frame-zero edge above owns playback.
     }
     // Trigger column marks the SAME replay frame that actually armed audio.
     xm20VsTrace(status,gameStep,p1Choice,p2Choice,p1ptr,pc,ppc,opcode,stage,timer);

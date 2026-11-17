@@ -18,10 +18,13 @@ int main(){
     assert(!eligible("xmvsfu",false));
     assert(!eligible("mvsc",true));
     assert(!eligible(nullptr,true));
-    // 87.399: concealment is PRIMED at the native VS music request;
-    // the 120-frame countdown begins at the first ACTUAL audio PCM packet.
+    // 87.399 legacy audio-clock compatibility; TEST 87.424 makes
+    // the global hold 150f (+0.5s), with the same 30f fade.
     // No first-fight-frame max(): that was why 87.397 and 87.398
     // appeared to have exactly the same timing.
+    assert(DelayFrames==150u);
+    assert(RevealFrames==30u);
+    assert(XM87422VisualAnchor::DelayFrom02==0u);
     Timeline t;
     t.observe(0,98,true);
     assert(t.step(98)==30u);
@@ -34,27 +37,27 @@ int main(){
     t.noteHudSource(110u); // actual bar drawn before the audio deadline
     assert(t.sourceSeen && t.firstSourceFrame==110u);
     assert(t.step(105)==0u);
-    assert(t.step(224)==0u);
-    assert(t.step(225)==1u);
-    assert(t.step(253)==29u);
-    assert(t.step(254)==30u);
-    t.observe(6,260u,true);
-    assert(t.step(260)==30u); // do NOT re-delay until combat
-    t.startWithSong(1u,261u);
-    assert(t.step(261)==30u); // no duplicate start
-    t.observe(8,300u,true);
-    assert(t.step(300)==30u); // FIGHT must not re-arm
-    t.observe(10,310u,true);
-    assert(t.step(310)==30u); // results visible
+    assert(t.step(254)==0u);
+    assert(t.step(255)==1u);
+    assert(t.step(283)==29u);
+    assert(t.step(284)==30u);
+    t.observe(6,290u,true);
+    assert(t.step(290)==30u); // do NOT re-delay until combat
+    t.startWithSong(1u,291u);
+    assert(t.step(291)==30u); // no duplicate start
+    t.observe(8,330u,true);
+    assert(t.step(330)==30u); // FIGHT must not re-arm
+    t.observe(10,340u,true);
+    assert(t.step(340)==30u); // results visible
 
     t.prepareForSong(400u); // new match, immediately hidden again
     assert(t.step(400)==0u);
     t.observe(2,401u,true);
     t.startWithSong(2u,410u);
     t.noteHudSource(420u);
-    assert(t.step(529)==0u);
-    assert(t.step(530)==1u);
-    assert(t.step(559)==30u);
+    assert(t.step(559)==0u);
+    assert(t.step(560)==1u);
+    assert(t.step(589)==30u);
     t.observe(4,560u,false);
     assert(t.step(560)==30u); // Version 3 clean
     // Within one persistent SDL process, a fresh VS song replaces the old
@@ -66,63 +69,61 @@ int main(){
     t.prepareForSong(700u);
     assert(!t.armed && !t.sourceSeen);
     t.startWithSong(5u,705u);
-    t.noteHudSource(840u);
-    assert(t.step(840u)==0u);
-    assert(t.step(841u)==1u);
+    t.noteHudSource(870u);
+    assert(t.step(870u)==0u);
+    assert(t.step(871u)==1u);
     t.reset();
     assert(t.step(600)==30u);
     t.startWithSong(3u,700u); // fallback if song starts before priming
     assert(t.step(700)==0u);
-    assert(t.step(819)==0u);
-    assert(t.step(820)==1u); // internal clock: source not yet available
-    t.noteHudSource(840u);   // first drawable HUD arrives very late
-    assert(t.step(840u)==0u); // MUST be invisible on the first source frame
-    assert(t.step(841u)==1u);
-    assert(t.step(869u)==29u);
-    assert(t.step(870u)==30u);
+    assert(t.step(849)==0u);
+    assert(t.step(850)==1u); // internal clock: source not yet available
+    t.noteHudSource(870u);   // first drawable HUD arrives very late
+    assert(t.step(870u)==0u); // MUST be invisible on the first source frame
+    assert(t.step(871u)==1u);
+    assert(t.step(899u)==29u);
+    assert(t.step(900u)==30u);
 
-    // TEST 87.422: use the user's actual 384x224 F6 placement,
-    // F2004 ST02, 00->02 writer at F1969 (offset=35f).
+    // TEST 87.424: target the actual first phase-02 frame, F1969
+    // (the earlier F2004 screenshot occurred 35 frames later).
     using XM87422VisualAnchor::Gate;
     Gate captured;
     assert(!captured.observe(0u,1968u));
-    assert(!captured.observe(2u,1969u));
-    for(unsigned f=1970u;f<2004u;++f)assert(!captured.observe(2u,f));
-    assert(captured.observe(2u,2004u));
+    assert(captured.observe(2u,1969u)); // frame ZERO: start immediately
     assert(captured.fired && captured.phase02Entry==1969u);
-    assert(!captured.observe(2u,2005u));
-    assert(!captured.observe(4u,2060u)); // 02->04 does not restart
+    assert(!captured.observe(2u,1970u)); // no repeated song start
+    assert(!captured.observe(2u,2004u)); // screenshot position no retrigger
+    assert(!captured.observe(4u,2060u)); // 02->04 no retrigger
     Gate variableLoad;
     for(unsigned f=100u;f<=700u;++f)assert(!variableLoad.observe(0u,f));
-    assert(!variableLoad.observe(2u,701u));
+    assert(variableLoad.observe(2u,701u)); // load time ignored
     assert(!variableLoad.observe(2u,735u));
-    assert(variableLoad.observe(2u,736u)); // closed-box load time ignored
     Gate wrongPhase;
-    assert(!wrongPhase.observe(2u,100u)); // no confirmed 00->02 edge
+    assert(!wrongPhase.observe(2u,100u)); // no verified 00->02 edge
     assert(!wrongPhase.observe(2u,300u));
     Gate interrupted;
     assert(!interrupted.observe(0u,99u));
-    assert(!interrupted.observe(2u,100u));
+    assert(interrupted.observe(2u,100u));
     assert(!interrupted.observe(4u,115u));
-    assert(!interrupted.observe(2u,140u)); // no fabricated fallback
+    assert(!interrupted.observe(2u,140u)); // no fabricated restart
     Timeline visualClock;
     visualClock.prepareForSong(1900u);
-    assert(visualClock.step(1969u)==0u);
-    visualClock.beginAtCapturedPosition(2004u);
-    assert(visualClock.capturedAnchor && visualClock.start==2004u);
-    visualClock.startWithSong(91u,2012u); // actual PCM must NOT shift hold
-    assert(visualClock.start==2004u);
+    assert(visualClock.step(1968u)==0u);
+    visualClock.beginAtCapturedPosition(1969u);
+    assert(visualClock.capturedAnchor && visualClock.start==1969u);
+    visualClock.startWithSong(91u,1977u); // PCM event must NOT shift clock
+    assert(visualClock.start==1969u);
     visualClock.noteHudSource(2020u);
-    assert(visualClock.step(2123u)==0u);
-    assert(visualClock.step(2124u)==1u);
-    assert(visualClock.step(2152u)==29u);
-    assert(visualClock.step(2153u)==30u);
+    assert(visualClock.step(2118u)==0u);
+    assert(visualClock.step(2119u)==1u);
+    assert(visualClock.step(2147u)==29u);
+    assert(visualClock.step(2148u)==30u);
     visualClock.beginAtCapturedPosition(2040u);
-    assert(visualClock.start==2004u);
+    assert(visualClock.start==1969u);
     Timeline lateCaptured;
-    lateCaptured.beginAtCapturedPosition(2004u);
+    lateCaptured.beginAtCapturedPosition(1969u);
     lateCaptured.noteHudSource(2200u);
-    assert(lateCaptured.step(2200u)==0u); // original late-source safeguard
+    assert(lateCaptured.step(2200u)==0u); // preserve late-source safeguard
     assert(lateCaptured.step(2201u)==1u);
     assert(lateCaptured.step(2230u)==30u);
     // 87.416 shock-only comprehensive top HUD from native priority 7.

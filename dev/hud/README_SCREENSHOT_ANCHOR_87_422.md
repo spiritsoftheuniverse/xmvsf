@@ -1,3 +1,24 @@
+# TEST 87.424 — Phase-02 frame ZERO and +0.5-second HUD delay
+
+At user request, adjust **only** the stage-start timing from TEST 87.423:
+- VS song request + HUD shock clock at the **first observed native 00->02
+  frame** (offset `0`, instead of the prior phase-02 +35 frames)
+- Shock hold from **120** to **150 frames** (0.5 seconds added at 60fps)
+- Original **30-frame** synchronized dither reveal unchanged
+- Preserve the previously accepted 87.417 native HUD classifier, stage
+  rendering and the late-HUD-source visibility safeguard
+- Keep keys 8/9, F7/F6 M68K diagnostics and audio decoder unchanged
+
+On the F10 screenshot's example timeline, the 00->02 state write was at
+frame 1969, making this the shared song/clock start; the first dither
+frame is nominally frame 2119, the 30th is frame 2148. A late first
+HUD source may postpone the *visible* fade to avoid an instant pop-in,
+but never re-arms the song or initial delay.
+
+Source tests assert the exact frame-zero trigger, one-shot behavior,
+150-frame hold, 30-frame fade, PCM non-restart, and late-source guard.
+Windows runtime playback has not yet been validated.
+
 # TEST 87.422 — Song/HUD delay at user-selected M68K screenshot position
 
 The user's native F6 PNG `XMVSF_native_20261117_075620_f000002004_000001.png`

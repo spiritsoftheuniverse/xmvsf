@@ -2,14 +2,15 @@
 #define XMVSF_STAGE87_392_HUD_SHOCK_H
 // TEST 87.399: source-verified HUD concealment from VS song request
 // and the separate SDL stun bar. No ROM/RAM mutations or opaque screen masks.
-// 60 game frames per second: 120 music frames hidden, 30 reveal.
+// 60 game frames per second: 150 music frames hidden, 30 reveal.
+// TEST 87.424: +30 frames (+0.5 s) from the earlier 120-frame hold.
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
 #include <cstdio>
 
 namespace XM87392 {
-static const unsigned DelayFrames=120u;
+static const unsigned DelayFrames=150u;
 static const unsigned RevealFrames=30u;
 
 // Native original xmvsfu is not CpsXmvSixEnabled. Guard by actual driver
@@ -41,7 +42,7 @@ struct Timeline {
         std::fprintf(stderr,"XM87.399 HUD_SHOCK_PRIMED frame=%u\n",frame);
     }
 
-    // The 120-frame delay begins ONLY on the first actual Versus PCM.
+    // The fallback audio-clock delay uses the same 150-frame hold.
     void startWithSong(unsigned songSequence,unsigned frame){
         if(!songSequence || songSequence==lastSongStart)return;
         lastSongStart=songSequence;
@@ -56,7 +57,7 @@ struct Timeline {
     }
 
     // Clock-only method: no HUD tile classification, palette masks or
-    // approved 87.417 dither contents are changed in TEST 87.422.
+    // approved 87.417 dither contents are changed in TEST 87.424.
     void beginAtCapturedPosition(unsigned frame){
         if(capturedAnchor)return;
         if(!primed){
@@ -65,7 +66,7 @@ struct Timeline {
         }
         armed=true;capturedAnchor=true;start=frame;
         std::fprintf(stderr,
-            "XM87.422 HUD_CAPTURED_POSITION frame=%u hold=%u fade=%u\n",
+            "XM87.424 HUD_PHASE02_ZERO frame=%u hold=%u fade=%u\n",
             frame,DelayFrames,RevealFrames);
     }
 
@@ -116,7 +117,7 @@ struct Timeline {
         // not the previous arbitrary six-frame scene delay.
         unsigned due=start+DelayFrames;
         // Keep the visually accepted 87.417 late-source safeguard.
-        // The 120f DELAY starts at the captured wall placement, but if
+        // The 150f DELAY starts at phase-02 frame zero, but if
         // HUD artwork first becomes drawable afterward, reveal starts
         // on its next frame rather than flashing fully visible.
         if(sourceSeen && firstSourceFrame>=due)due=firstSourceFrame+1u;
