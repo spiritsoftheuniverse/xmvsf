@@ -38,7 +38,8 @@
 #include "xmvsf_stage29_display.h" /* XMVSF_STAGE29_SCALABLE_DISPLAY */
 extern "C" void xm87400RequestNativeScreenshot(); // SDL video: capture completed scene on next present
 #ifdef BUILD_SDL2
-extern "C" void xm87410HandleBoomerLayerKey(const SDL_Event*); // event-led 1..0 layers
+extern "C" void xm87410HandleBoomerLayerKey(const SDL_Event*); // 8=SDL stun, 9=Boomer native actors
+extern "C" void xm87413ResetSDLStunCutout();
 #endif
 extern "C" void xm87408RequestStageScreenshot(unsigned,unsigned,unsigned,unsigned,
                                              unsigned,int,int,int); // F6 catalog snapshot
@@ -825,6 +826,9 @@ int RunMessageLoop()
     // Never inherit the previous match's VS start when re-entering the shell.
     xm87396LastVsPlayed=xm20VersusPlaybackStarts();
     XM87392::timeline().reset();
+#ifdef BUILD_SDL2
+    xm87413ResetSDLStunCutout();
+#endif
     xm22::diagnosticWritten=false;
     xm22::writes=0;
     std::fprintf(stderr,"XM86.55 SESSION_AUDIO_RESET vs=0 select_mute_rearmed=1\n");

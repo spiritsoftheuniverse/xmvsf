@@ -91,18 +91,26 @@ static SDL_Rect dstrect;
 #include "xmvsf_stage87_317_akuma.h"
 #include "xmvsf_stage87_323_ryu.h" // Ryu PSD exact-coordinate stage // native camera Akuma A/B dither / parallax
 #include "xmvsf_stage87_363_boomer_kuwanger.h" // tiled B/C elevator + stage A
-// 87.412: only 8=SDL stun and 9=native actors, key-down edges.
+// 87.413: 8 gates the shared SDL stun painter itself, on EVERY stage.
+// The already-working 9 remains Boomer-only and untouched in semantics.
+static bool xm87413SDLStunVisible=true;
+extern "C" void xm87413ResetSDLStunCutout(){
+ xm87413SDLStunVisible=true;
+}
 extern "C" void xm87410HandleBoomerLayerKey(const SDL_Event* event){
- if(!event || event->type!=SDL_KEYDOWN || event->key.repeat ||
-    xm77StageResolved!=7 || !xm8649Visual.sceneActive ||
-    xm8649Visual.stage!=5)return;
- int digit=-1;
- switch(event->key.keysym.scancode){
- case SDL_SCANCODE_8:case SDL_SCANCODE_KP_8:digit=8;break;
-  case SDL_SCANCODE_9:case SDL_SCANCODE_KP_9:digit=9;break;
-  default:break;
+ if(!event || event->type!=SDL_KEYDOWN || event->key.repeat)return;
+ const SDL_Scancode key=event->key.keysym.scancode;
+ if(key==SDL_SCANCODE_8 || key==SDL_SCANCODE_KP_8){
+  xm87413SDLStunVisible=!xm87413SDLStunVisible;
+  std::fprintf(stderr,
+      "XM87.413 SDL_STUN_KEY8 visible=%d native_top_hud_untouched=1\n",
+      int(xm87413SDLStunVisible));
+  return;
  }
- if(digit>=0)XMBoomer::scene().toggleDigit(unsigned(digit));
+ if(key!=SDL_SCANCODE_9 && key!=SDL_SCANCODE_KP_9)return;
+ if(xm77StageResolved==7 && xm8649Visual.sceneActive &&
+    xm8649Visual.stage==5)
+  XMBoomer::scene().toggleDigit(9);
 }
 // Shared menu-to-video preload bridge: no SDL texture calls from the worker.
 void xmFDPreloadSetActive(bool enabled){
@@ -711,7 +719,9 @@ static const XM8733::BarArt* xm87207StunArt(){
 }
 // Stun HUD now uses the existing UI stack for both ordinary and Wily stages.
 static void xm8733Overlay(SDL_Renderer* render,const SDL_Rect& view,bool nativeStage) {
-    if(!XM87262Game::version4())return;
+    // One shared draw-owner gate: works in Boomer, Wily and native fallback.
+    // This never suppresses CPS2 health, timer, portraits or shock entry.
+    if(!xm87413SDLStunVisible || !XM87262Game::version4())return;
     const char* name=BurnDrvGetTextA(DRV_NAME);
     // Phase 06 is the combat scene's opening/round-intro, ahead of
     // status 08 ("FIGHT!"). Keep the bar hidden on character select

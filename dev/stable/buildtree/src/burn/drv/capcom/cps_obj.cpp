@@ -709,6 +709,9 @@ INT32 Cps2ObjDraw(INT32 nLevelFrom, INT32 nLevelTo)
         std::fprintf(stderr,
             "XM87.399 HUD_SHOCK_RUNTIME_SOURCE verified=1 delay=120 "
             "transition=source-verified-only\n");
+        std::fprintf(stderr,
+            "XM87.413 HUD_SHOCK_ENTRY_FULL native_hp_timer_labels_portraits=1 "
+            "native_stage_scenery_veto=1\n");
     }
     // XM87.47 accepted ROM action cues. Read-only, once per emulated frame.
     XM8747::Observe(CpsRamFF,(unsigned)GetCurrentFrame(),xm8745LivePhase,
