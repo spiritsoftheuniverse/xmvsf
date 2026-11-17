@@ -30,6 +30,7 @@ int main(){
     set(A+0x52u,0x0004u);set(A+0x40u,0x0022u); // Storm attacker
     set(V+0x52u,0x0002u);
     set(A+0x10u,140u);set(V+0x10u,180u); // airborne
+    set(A+0xaau,0x0100u); // 87.409: actual ROM airborne flag, not merely Y
     set(V+0x254u,472u);set(V+0xaau,0x0100u);
     put32(A+0x0cu,0x01000000u);
     put32(V+0x0cu,0x02000000u);
