@@ -1,6 +1,7 @@
 // TEST 87.413: whole upper HUD shock-entry regression, no ROM/SDL or GitHub Actions.
 // Build locally with RUN_TEST_HUD_392.bat.
 #include "../../stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_392_hud_shock.h"
+#include "../../stable/buildtree/src/burner/sdl/xm20_vs_visual_anchor_422.h"
 #include <cassert>
 #include <cstdint>
 #include <cstdio>
@@ -80,6 +81,48 @@ int main(){
     assert(t.step(869u)==29u);
     assert(t.step(870u)==30u);
 
+    // TEST 87.422: use the user's actual 384x224 F6 placement,
+    // F2004 ST02, 00->02 writer at F1969 (offset=35f).
+    using XM87422VisualAnchor::Gate;
+    Gate captured;
+    assert(!captured.observe(0u,1968u));
+    assert(!captured.observe(2u,1969u));
+    for(unsigned f=1970u;f<2004u;++f)assert(!captured.observe(2u,f));
+    assert(captured.observe(2u,2004u));
+    assert(captured.fired && captured.phase02Entry==1969u);
+    assert(!captured.observe(2u,2005u));
+    assert(!captured.observe(4u,2060u)); // 02->04 does not restart
+    Gate variableLoad;
+    for(unsigned f=100u;f<=700u;++f)assert(!variableLoad.observe(0u,f));
+    assert(!variableLoad.observe(2u,701u));
+    assert(!variableLoad.observe(2u,735u));
+    assert(variableLoad.observe(2u,736u)); // closed-box load time ignored
+    Gate wrongPhase;
+    assert(!wrongPhase.observe(2u,100u)); // no confirmed 00->02 edge
+    assert(!wrongPhase.observe(2u,300u));
+    Gate interrupted;
+    assert(!interrupted.observe(0u,99u));
+    assert(!interrupted.observe(2u,100u));
+    assert(!interrupted.observe(4u,115u));
+    assert(!interrupted.observe(2u,140u)); // no fabricated fallback
+    Timeline visualClock;
+    visualClock.prepareForSong(1900u);
+    assert(visualClock.step(1969u)==0u);
+    visualClock.beginAtCapturedPosition(2004u);
+    assert(visualClock.capturedAnchor && visualClock.start==2004u);
+    visualClock.startWithSong(91u,2012u); // actual PCM must NOT shift hold
+    assert(visualClock.start==2004u);
+    visualClock.noteHudSource(2020u);
+    assert(visualClock.step(2123u)==0u);
+    assert(visualClock.step(2124u)==1u);
+    assert(visualClock.step(2152u)==29u);
+    assert(visualClock.step(2153u)==30u);
+    visualClock.beginAtCapturedPosition(2040u);
+    assert(visualClock.start==2004u);
+    Timeline lateCaptured;
+    lateCaptured.beginAtCapturedPosition(2004u);
+    lateCaptured.noteHudSource(2200u);
+    assert(lateCaptured.step(2130u)==7u); // never move fade due to late source
     // 87.416 shock-only comprehensive top HUD from native priority 7.
     // Source-level key 9 remains separate and is tested below.
     // 87.414 transition shock: strict source/tile + documented name regions.

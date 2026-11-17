@@ -27,6 +27,7 @@ struct Timeline {
     int lastPhase=-1;
     bool primed=false;
     bool armed=false;
+    bool capturedAnchor=false;
     bool sourceSeen=false;
 
     void reset(){*this=Timeline{};}
@@ -35,7 +36,7 @@ struct Timeline {
     // Hide actual HUD source objects immediately, before audio decode/start.
     void prepareForSong(unsigned frame){
         if(primed && !armed)return; // duplicate cue before audio starts
-        primed=true;armed=false;primedAt=frame;
+        primed=true;armed=false;capturedAnchor=false;primedAt=frame;
         sourceSeen=false;firstSourceFrame=0u;
         std::fprintf(stderr,"XM87.399 HUD_SHOCK_PRIMED frame=%u\n",frame);
     }
@@ -44,11 +45,28 @@ struct Timeline {
     void startWithSong(unsigned songSequence,unsigned frame){
         if(!songSequence || songSequence==lastSongStart)return;
         lastSongStart=songSequence;
+        // Mixer scheduling is asynchronous. The measured screenshot
+        // anchor owns both clocks; audible PCM must not restart the fade.
+        if(capturedAnchor)return;
         if(!primed || armed){sourceSeen=false;firstSourceFrame=0u;}
         primed=true;armed=true;start=frame;
         std::fprintf(stderr,
             "XM87.399 HUD_SHOCK_SONG_START song=%u frame=%u hold=%u reveal=%u\n",
             songSequence,frame,DelayFrames,RevealFrames);
+    }
+
+    // Clock-only method: no HUD tile classification, palette masks or
+    // approved 87.417 dither contents are changed in TEST 87.422.
+    void beginAtCapturedPosition(unsigned frame){
+        if(capturedAnchor)return;
+        if(!primed){
+            primed=true;primedAt=frame;
+            sourceSeen=false;firstSourceFrame=0u;
+        }
+        armed=true;capturedAnchor=true;start=frame;
+        std::fprintf(stderr,
+            "XM87.422 HUD_CAPTURED_POSITION frame=%u hold=%u fade=%u\n",
+            frame,DelayFrames,RevealFrames);
     }
 
     // 02/04 overlap the VS transition and native forest. There is NEVER
@@ -60,13 +78,15 @@ struct Timeline {
 
     void observe(int phase,unsigned frame,bool allowed){
         if(!allowed){
-            primed=false;armed=false;lastFrame=frame;lastPhase=-1;return;
+            primed=false;armed=false;capturedAnchor=false;
+            lastFrame=frame;lastPhase=-1;return;
         }
         if(lastFrame!=~0u && frame<lastFrame){
-            primed=false;armed=false; // reset/replay rewind, do not reuse cue
+            primed=false;armed=false;capturedAnchor=false; // rewind
         }
         if(phase==0x0a || phase==0x0c){
-            primed=false;armed=false;sourceSeen=false;firstSourceFrame=0u;
+            primed=false;armed=false;capturedAnchor=false;
+            sourceSeen=false;firstSourceFrame=0u;
         }
         lastFrame=frame;lastPhase=phase;
     }
@@ -95,7 +115,10 @@ struct Timeline {
         // completed bars instantly. Only ONE initial hidden source frame,
         // not the previous arbitrary six-frame scene delay.
         unsigned due=start+DelayFrames;
-        if(sourceSeen && firstSourceFrame>=due)due=firstSourceFrame+1u;
+        // A recorded wall placement has a fixed clock. Late HUD sprite
+        // arrival must not move this deadline or desynchronize the song.
+        if(!capturedAnchor && sourceSeen && firstSourceFrame>=due)
+            due=firstSourceFrame+1u;
         if(frame<due)return 0u;
         if(frame>=due+RevealFrames)return RevealFrames;
         return frame-due+1u;

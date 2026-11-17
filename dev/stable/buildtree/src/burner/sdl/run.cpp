@@ -124,7 +124,13 @@ static void xm87396ObserveVersusSong(bool ready){
     xm87396LastVsPlayed=started;
     if(XM87392::eligible(BurnDrvGetTextA(DRV_NAME),
                          XM87262Game::version4())){
-        XM87392::timeline().startWithSong(started,(unsigned)GetCurrentFrame());
+        XM87392::Timeline& clock=XM87392::timeline();
+        if(clock.capturedAnchor){
+            const unsigned frame=(unsigned)GetCurrentFrame();
+            std::fprintf(stderr,
+                "XM87.422 PCM_LAG song=%u wall_frame=%u heard_frame=%u lag_frames=%u\n",
+                started,clock.start,frame,frame>=clock.start?frame-clock.start:0u);
+        }else clock.startWithSong(started,(unsigned)GetCurrentFrame());
     }
 }
 static unsigned int nDoFPS = 0;

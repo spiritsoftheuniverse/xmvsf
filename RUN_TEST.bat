@@ -1,11 +1,11 @@
 @echo off
-REM XMVSF TEST 87.421 - F7 show M68K status writer on screen and inside F6 PNG
+REM XMVSF TEST 87.422 - synchronize VS song and HUD fade to user's F6 measured phase-02 placement
 setlocal EnableExtensions DisableDelayedExpansion
 for %%I in ("%~dp0.") do set "PROJECT=%%~fI"
 set "MSYSTEM=UCRT64"
 set "PATH=C:\msys64\ucrt64\bin;C:\msys64\usr\bin;%PATH%"
 set "XMVSF_PROJECT=%PROJECT%"
-set "XMVSF_TEST_VERSION=87.421"
+set "XMVSF_TEST_VERSION=87.422"
 REM Derived from XMVSF_TEST_VERSION; must match BUILD_TEST.bat.
 set "XMVSF_TEST_TAG=%XMVSF_TEST_VERSION:.=_%"
 REM All TEST diagnostics track the same version as the launched executable.
