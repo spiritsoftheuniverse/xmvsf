@@ -17,7 +17,8 @@
 #include <string>
 #include <vector>
 #include "xmvsf_stage87_401_boomer_enemies.h" // rotor / Triblaster visual GIFs
-#include "xmvsf_stage87_404_boomer_layers.h" // stage-only 1-0 layer control
+#include "../../../burn/drv/capcom/xmvsf_stage87_412_boomer_cutout.h"
+extern "C" int xm87412BoomerActorsVisible;
 
 namespace XMBoomer {
 static const int VIEW_W=384,VIEW_H=224,WORLD_W=768,WORLD_H=471;
@@ -63,43 +64,25 @@ struct Scene {
  unsigned long long cameraLastFrame=~0ull;
  int cameraAnchorY=GROUND_CAMERA_Y;
 
- // 1..9 are local Boomer painter layer toggles, like the existing Wily
- // number-key audit. 0 toggles truly clean scenery-only F6 captures.
- // Indices: C,rotor,B,gun,shot,bullet,A,stun,fighter/flash.
- bool layerOn[9]={true,true,true,true,true,true,true,true,true};
- bool sceneryOnly=false;
+ // The native capture keeps HP/timer when 9 hides actors. 8 owns SDL stun.
+ XM87412::Controls cutout;
  unsigned layerGeneration=~0u;
- bool visible(int layer)const{
-  return XM87404Layers::shown(layer,
-          layer>=0&&layer<9?layerOn[layer]:false,sceneryOnly);
- }
  void syncLayerGeneration(){
   const unsigned gen=xm77StageRollGeneration();
   if(layerGeneration==gen)return;
   layerGeneration=gen;
-  for(bool& on:layerOn)on=true;
-  sceneryOnly=false;
-  std::fprintf(stderr,
-   "XM87.410 BOOMER_LAYERS_RESET generation=%u all_visible=1\n",gen);
+  cutout.reset();
+  xm87412BoomerActorsVisible=1;
+  std::fprintf(stderr,"XM87.412 BOOMER_CUTOUT_RESET gen=%u actors=1 stun=1\n",gen);
  }
- // One physical SDL KEYDOWN per toggle; no paint-loop key polling.
  void toggleDigit(unsigned k){
-  if(k>9u)return;
+  if(k!=8u && k!=9u)return;
   syncLayerGeneration();
-  static const char* const names[9]={
-   "distant C","rotors","B walls","Triblasters","shots",
-   "bullets","A platform","stun HUD","fighters and flash"};
-  if(k==0u){
-   sceneryOnly=!sceneryOnly;
-   std::fprintf(stderr,
-     "XM87.410 BOOMER_LAYERS_0 scenery_only=%d F6_captures_clean_stage=1\n",
-     int(sceneryOnly));
-  }else{
-   layerOn[k-1u]=!layerOn[k-1u];
-   std::fprintf(stderr,
-     "XM87.410 BOOMER_LAYER_%u name=%s enabled=%d clean=%d\n",
-     k,names[k-1u],int(layerOn[k-1u]),int(sceneryOnly));
-  }
+  cutout.toggle(k);
+  xm87412BoomerActorsVisible=cutout.actors?1:0;
+  std::fprintf(stderr,
+     "XM87.412 BOOMER_9_FIGHTER_CUTOUT key=%u actors=%d stun=%d native_hp_preserved=1\n",
+     k,int(cutout.actors),int(cutout.stun));
  }
  void loadPlacement(){
   if(placementLoaded)return;
@@ -122,9 +105,9 @@ struct Scene {
   enemies.close();
   cameraAnchorKnown=false;cameraAnchorGeneration=~0u;
   cameraLastFrame=~0ull;
-  for(bool& on:layerOn)on=true;
+  cutout.reset();
+  xm87412BoomerActorsVisible=1;
   layerGeneration=~0u;
-  sceneryOnly=false;
   a.close();b.close();c.close();
   if(fighters)SDL_DestroyTexture(fighters);
   if(flash)SDL_DestroyTexture(flash);
@@ -298,29 +281,25 @@ struct Scene {
   SDL_RenderSetClipRect(r,&view);
   enemies.update(frame,gen,camX,stageYShift);
   bool ok=true;
-  if(visible(0))ok=tile(r,view,c,camX,stageTop,frame,
+  if(ok)ok=tile(r,view,c,camX,stageTop,frame,
                         FAR_FRAMES_PER_PX,FAR_X_PERCENT);
-  // Mid-parallax rotors draw above C, behind split B.
-  if(ok && visible(1))ok=enemies.drawRotors(r,view,frame,camX,stageYShift);
-  if(ok && visible(2))ok=drawWallHalf(r,view,b,camX,stageTop,frame,wallSpread,true);
-  if(ok && visible(2))ok=drawWallHalf(r,view,b,camX,stageTop,frame,wallSpread,false);
-  // Original Triblasters and projectile sprites occupy the B wall plane.
-  if(ok && (visible(3)||visible(4)||visible(5)))
-   ok=enemies.drawGuns(r,view,frame,camX,stageYShift,
-                       visible(3),visible(4),visible(5));
-  // A remains registered to the original world and camera. Only
-  // its saved debug Y displacement changes the visible PNG.
-  if(ok && visible(6)){
+  // Only native actor OBJ and SDL stun are toggled. All authored art stays.
+  if(ok)ok=enemies.drawRotors(r,view,frame,camX,stageYShift);
+  if(ok)ok=drawWallHalf(r,view,b,camX,stageTop,frame,wallSpread,true);
+  if(ok)ok=drawWallHalf(r,view,b,camX,stageTop,frame,wallSpread,false);
+  if(ok)ok=enemies.drawGuns(r,view,frame,camX,stageYShift,true,true,true);
+  if(ok){
    const SDL_Rect d=rect(view,(WORLD_W-a.w)/2-camX,
                          stageTop+WORLD_H-a.h+stageOffsetY,a.w,a.h);
    ok=d.w>0 && d.h>0 && SDL_RenderCopy(r,a.tex,nullptr,&d)==0;
   }
-  if(ok && visible(7))xm8733Overlay(r,view);
-  if(ok && visible(8)){
-   ok=SDL_RenderCopy(r,fighters,nullptr,&view)==0;
+  if(ok && cutout.stun)xm8733Overlay(r,view);
+  // 9 switches the native OBJ source between full and HUD-only, never
+  // removes the full texture (which also contains the HP bars).
+  if(ok)ok=SDL_RenderCopy(r,fighters,nullptr,&view)==0;
+  if(ok && cutout.actors){
    const UINT8* nativeFlash=xm8757FlashPixels();
-   if(nativeFlash && SDL_UpdateTexture(flash,nullptr,nativeFlash,
-                                      VIEW_W*4)==0)
+   if(nativeFlash && SDL_UpdateTexture(flash,nullptr,nativeFlash,VIEW_W*4)==0)
     ok=SDL_RenderCopy(r,flash,nullptr,&view)==0 && ok;
   }
   SDL_RenderSetClipRect(r,oldClip?&old:nullptr);
@@ -330,15 +309,10 @@ struct Scene {
  }
 };
 static inline Scene& scene(){static Scene s;return s;}
-// Common cutout for every SDL-host HUD and notification pass.
-static inline bool sdlHudVisible(){
+// Stun key 8 never hides other SDL host HUD, notices, or game labels.
+static inline bool sdlStunVisible(){
  return xm77StageResolved!=7 || !xm8649Visual.sceneActive ||
-        xm8649Visual.stage!=5 ||
-        scene().visible(XM87404Layers::StunHUD);
-}
-static inline bool sceneryOnly(){
- return xm77StageResolved==7 && xm8649Visual.sceneActive &&
-        xm8649Visual.stage==5 && scene().sceneryOnly;
+        xm8649Visual.stage!=5 || scene().cutout.stun;
 }
 static inline void cleanup(){scene().close();}
 static inline bool paint(SDL_Renderer* r,const SDL_Rect& view){
