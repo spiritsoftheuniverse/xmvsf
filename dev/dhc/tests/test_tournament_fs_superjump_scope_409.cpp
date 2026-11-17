@@ -52,7 +52,9 @@ static void verifyNative(unsigned attack,unsigned button,bool ground=false,
     setup(attack,ground,missingAirFlag);
     Actor a=primed();
     const Decision first=a.evaluate(ram,V,A,true,true,button);
-    if(ground || !missingAirFlag)assert(first.hitConfirmed);
+    const bool eligibleHit=ground?groundedNormalAttack(attack):
+        (!missingAirFlag && normalAirAttack(attack));
+    assert(first.hitConfirmed==eligibleHit);
     assert(!a.fsConditionalPending);
     assert(!a.pendingSevere);
     assert(!first.velocityWritten);
