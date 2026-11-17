@@ -122,7 +122,9 @@ int main(){
     Timeline lateCaptured;
     lateCaptured.beginAtCapturedPosition(2004u);
     lateCaptured.noteHudSource(2200u);
-    assert(lateCaptured.step(2130u)==7u); // never move fade due to late source
+    assert(lateCaptured.step(2200u)==0u); // original late-source safeguard
+    assert(lateCaptured.step(2201u)==1u);
+    assert(lateCaptured.step(2230u)==30u);
     // 87.416 shock-only comprehensive top HUD from native priority 7.
     // Source-level key 9 remains separate and is tested below.
     // 87.414 transition shock: strict source/tile + documented name regions.

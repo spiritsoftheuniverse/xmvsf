@@ -5,7 +5,7 @@
 set -euo pipefail
 BUILD_WALL_START=$SECONDS
 # Batch sets the version once at launch, before native compilation begins.
-XMVSF_BUILD_VERSION="${XMVSF_TEST_VERSION:-87.422}"
+XMVSF_BUILD_VERSION="${XMVSF_TEST_VERSION:-87.423}"
 XMVSF_BUILD_TAG="${XMVSF_BUILD_VERSION//./_}"
 PROJECT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
@@ -838,7 +838,7 @@ if ! LC_ALL=C grep -aFq -- "XM87.421 M68K_OVERLAY_PRESENT" "$BUILT"; then
   exit 2
 fi
 echo "TEST 87.421 F7 M68K + F6 captured overlay LINK PROOF PASS."
-# TEST 87.422: event cue, fade start and PCM-lag reporter must all link.
+# TEST 87.423: measured phase02 cue and original late-HUD-safe fade.
 # The 87.417 source-classifier and F7 diagnostic are unchanged.
 if ! LC_ALL=C grep -aFq -- "XM87.422 VS_VISUAL_ANCHOR" "$BUILT"; then
   echo "ERROR: TEST 87.422 phase-02 measured song cue not linked." >&2
@@ -852,7 +852,7 @@ if ! LC_ALL=C grep -aFq -- "XM87.422 PCM_LAG" "$BUILT"; then
   echo "ERROR: TEST 87.422 PCM-lag diagnostic not linked." >&2
   exit 2
 fi
-echo "TEST 87.422 VISUAL ANCHOR PROOF: native cue + HUD clock + audio reporter linked."
+echo "TEST 87.423 VISUAL ANCHOR PROOF: cue + original late HUD safeguard + PCM evidence."
 # Hash-compare before publishing: a no-op build must NOT overwrite TEST.
 built_sha="$(sha256sum "$BUILT" | cut -d ' ' -f 1)"
 mkdir -p "$PROJECT/runtime/stable"

@@ -115,10 +115,11 @@ struct Timeline {
         // completed bars instantly. Only ONE initial hidden source frame,
         // not the previous arbitrary six-frame scene delay.
         unsigned due=start+DelayFrames;
-        // A recorded wall placement has a fixed clock. Late HUD sprite
-        // arrival must not move this deadline or desynchronize the song.
-        if(!capturedAnchor && sourceSeen && firstSourceFrame>=due)
-            due=firstSourceFrame+1u;
+        // Keep the visually accepted 87.417 late-source safeguard.
+        // The 120f DELAY starts at the captured wall placement, but if
+        // HUD artwork first becomes drawable afterward, reveal starts
+        // on its next frame rather than flashing fully visible.
+        if(sourceSeen && firstSourceFrame>=due)due=firstSourceFrame+1u;
         if(frame<due)return 0u;
         if(frame>=due+RevealFrames)return RevealFrames;
         return frame-due+1u;

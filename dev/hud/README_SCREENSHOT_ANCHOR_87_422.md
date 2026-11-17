@@ -17,6 +17,11 @@ one-shot VS music is requested and the existing 120-frame concealment
 clock begins together. The existing 30-frame HUD dither then begins
 at phase-entry+155 frames. The independent audio PCM first-packet edge
 is diagnostic only (lag), never a second trigger that can slip the fade.
+The original 87.417 late-HUD-source safeguard remains intact: if
+native HUD artwork first becomes drawable only *after* the 120f
+deadline, the visible dither begins on its next frame rather than
+popping into view fully formed. That safeguard never restarts the
+song or the initial 120-frame delay.
 If phase02 exits before the measured position, it fails closed.
 
 Important: no modifications to the approved 87.417 visual HUD
