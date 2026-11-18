@@ -1,11 +1,11 @@
 @echo off
-REM XMVSF TEST 87.428 - shock fade triggered at native 04>06+23; song stays phase02+27
+REM XMVSF TEST 87.429 - fix C++ shock regression Gate alias collisions; 87.428 timing unchanged
 setlocal EnableExtensions DisableDelayedExpansion
 for %%I in ("%~dp0.") do set "PROJECT=%%~fI"
 set "MSYSTEM=UCRT64"
 set "PATH=C:\msys64\ucrt64\bin;C:\msys64\usr\bin;%PATH%"
 set "XMVSF_PROJECT=%PROJECT%"
-set "XMVSF_TEST_VERSION=87.428"
+set "XMVSF_TEST_VERSION=87.429"
 REM Derived from XMVSF_TEST_VERSION; must match BUILD_TEST.bat.
 set "XMVSF_TEST_TAG=%XMVSF_TEST_VERSION:.=_%"
 REM All TEST diagnostics track the same version as the launched executable.

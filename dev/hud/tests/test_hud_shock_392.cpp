@@ -112,8 +112,10 @@ int main(){
     assert(!interrupted.observe(2u,140u)); // no second match edge
     // TEST 87.428: screenshot F1475 ST06, native 04->06 at F1452.
     // The exact 23-frame native offset controls visual fade activation.
-    using XM87428ShockActivation::Gate;
-    Gate shock;
+    // Distinct from XM87422VisualAnchor::Gate used above. Do not
+    // import both into the same function scope under the name Gate.
+    using ShockGate = XM87428ShockActivation::Gate;
+    ShockGate shock;
     assert(!shock.observe(2u,1300u));
     for(unsigned f=1400u;f<=1451u;++f)assert(!shock.observe(4u,f));
     assert(!shock.observe(6u,1452u)); // phase-06 entry
@@ -122,19 +124,19 @@ int main(){
     assert(shock.fired && shock.phase06Entry==1452u);
     assert(!shock.observe(6u,1476u));
     assert(!shock.observe(8u,1500u)); // no second fade
-    Gate noObservedTransition;
+    ShockGate noObservedTransition;
     assert(!noObservedTransition.observe(6u,1452u));
     assert(!noObservedTransition.observe(6u,1475u));
-    Gate variableLoad;
-    for(unsigned f=100u;f<=700u;++f)assert(!variableLoad.observe(4u,f));
-    assert(!variableLoad.observe(6u,701u));
-    assert(!variableLoad.observe(6u,723u));
-    assert(variableLoad.observe(6u,724u)); // stage load excluded
-    Gate interrupted;
-    assert(!interrupted.observe(4u,100u));
-    assert(!interrupted.observe(6u,101u));
-    assert(!interrupted.observe(8u,110u));
-    assert(!interrupted.observe(6u,140u)); // cannot resume
+    ShockGate shockVariableLoad;
+    for(unsigned f=100u;f<=700u;++f)assert(!shockVariableLoad.observe(4u,f));
+    assert(!shockVariableLoad.observe(6u,701u));
+    assert(!shockVariableLoad.observe(6u,723u));
+    assert(shockVariableLoad.observe(6u,724u)); // stage load excluded
+    ShockGate shockInterrupted;
+    assert(!shockInterrupted.observe(4u,100u));
+    assert(!shockInterrupted.observe(6u,101u));
+    assert(!shockInterrupted.observe(8u,110u));
+    assert(!shockInterrupted.observe(6u,140u)); // cannot resume
     Timeline visualClock;
     visualClock.prepareForSong(1300u);
     visualClock.beginAtCapturedPosition(1360u); // existing song, unchanged
