@@ -1,4 +1,4 @@
-# XMVSF native front end — 87.450 (controller preflight before installation)
+# XMVSF native front end — 87.451 (capture activator/deactivator integrity)
 
 The real XMVSF front end now renders in CPS-2 Recomp's **SDL3 native
 window and pixel presenter**, not an additional SDL launcher. The preserved
@@ -33,6 +33,43 @@ Esc / gamepad menu input; while shown, no game ticks are executed.
 Navigation uses both keyboard and gamepad: arrows / D-pad, Enter or Space / A.
 Esc returns to the home menu, and F1 there opens our Options. Shift+F1 opens the original recomp diagnostics.
 Use `XMVSF_RECOMP_HOME_OFF=1` when comparing against untouched upstream.
+
+## 87.451 Correct the capture activator/deactivator state
+
+Selecting a Controller binding with A or Enter used to set capture=true
+and ignore EVERY input for a fixed 180 ms. A legitimate button pressed
+quickly was discarded forever, with no timeout, no controller cancellation
+and no interruption recovery. The old SDL2 Stage14 version instead used
+a release gate between selection and capture.
+
+87.451 adds a small, separately C++-tested capture lifecycle:
+- Capture records the actual held Enter, Space, mapped gamepad A, or raw
+  joystick confirm button that opened assignment, and ignores only that
+  physical initiating press. A DIFFERENT button/key can be assigned
+  immediately; no 180 ms discard window.
+- Release of the activating key/button makes A itself bindable on the
+  NEXT press. Residual analog/hat movement is ignored until A releases.
+- Escape, or controller Guide when SDL delivers it, cancels capture.
+  Gamepad B remains assignable as an attack button; it is NOT stolen
+  as a cancel control.
+- Capture times out after 12 seconds. Loss of window focus or physical
+  device removal cancels capture instead of leaving it stranded.
+- Save success, save failure and cancellation transition to a menu
+  rearm phase. Confirm/Back must be released to navigate again; even
+  an SDL driver reporting Confirm held forever cannot lock the page
+  longer than 1.5 seconds. The original menu one-press edge gate stays.
+- Additional SDL joystick and semantic gamepad events for a single
+  physical press are suppressed while rearming. Unsupported semantic
+  buttons report a message rather than silently appearing stuck.
+
+`tests/test_capture_lifecycle.py` executes a real tiny C++ test using
+the MSYS2 UCRT64 g++ compiler before the controller patch or Ninja build,
+with checks for quick presses, release/repress, timeout, cancel,
+stuck-confirm recovery and resetting on tab/menu transitions.
+The new lifecycle header is installed by the same idempotent Options
+installer; no extra source-translator run is needed.
+
+The 87.441 GPU menu renderer and 87.447 audio path are untouched.
 
 ## 87.450 Repair Python regex and execute the installer before writing
 
