@@ -1,4 +1,4 @@
-// XMVSF native menu presentation, v87.440 (SDL2-style renderer).
+// XMVSF native menu presentation, v87.441 (direct source-texture menu).
 // Adapted from this repository's Stage14 layout and XMGlyph bitmap atlas rules.
 // Draws into the native CPS-2 Recomp pixel presenter; no SDL2 or SDL_image dependency.
 #pragma once
@@ -289,6 +289,7 @@ struct Font {
 };
 
 class Menu {
+    friend class TexturedMenu; // 87.441: use already decoded source art.
     static constexpr int W = 960, H = 540;
     bool enabled_ = false;
     bool visible_ = false;
@@ -392,7 +393,7 @@ public:
 
         Text(pixels, "A SELECT   B / ESC BACK", 489, 495, true, 1.375f, 235);
         Text(pixels, "ESC TO RETURN", 18, 522, true, 1.08f, 185, 0);
-        Text(pixels, "TEST 87.440", 942, 522, true, 1.08f, 185, 2);
+        Text(pixels, "TEST 87.441", 942, 522, true, 1.08f, 185, 2);
     }
 };
 
