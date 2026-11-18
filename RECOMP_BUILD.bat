@@ -71,6 +71,15 @@ if errorlevel 1 (
   goto :fail
 )
 
+REM Fail early if the three source installers disagree or an SDL integration hook
+REM is missing. Source-only test; zero M68k translation or build-cache impact.
+"%BASH%" -c "python3 ../recomp_port/tests/test_textured_menu.py"
+if errorlevel 1 (
+  echo ERROR: XMVSF SDL texture menu regression failed; not compiling.
+  popd
+  goto :fail
+)
+
 REM Default is FAST once configured. It only recompiles changed C++ objects.
 REM refresh explicitly regenerates M68000 translation and reconfigures CMake.
 if /I "%~1"=="refresh" goto :refresh
