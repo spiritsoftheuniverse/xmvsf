@@ -322,6 +322,10 @@ def main() -> int:
     ]
     updated = TARGET.read_text(encoding="utf-8")
     before_update = updated
+    # Later ownership routing retains these hooks but supersedes the
+    # original lifecycle line. Never inject duplicate 87.437 hooks into 87.443.
+    if "XMVSF_RECOMP_PAD_OWNER_87_443" in updated:
+        updates = []
     for old, new, label in updates:
         updated = replace_once(updated, old, new, label)
     if updated != before_update:
