@@ -222,12 +222,15 @@ public:
                        (pressed & recomp::kMenuLeft ? 1 : 0);
         if (dy) {
             int *row = tab_ == 0 ? &gameRow_ : tab_ == 1 ? &graphicsRow_ : &controlRow_;
-            const int count = tab_ == 0 ? 7 : tab_ == 1 ? 8 : 16;
+            const int count = tab_ == 0 ? 7 : tab_ == 1 ? 8 : owners.VisibleActions(player_) + 1;
             *row = (*row + count + dy) % count;
             return 1;
         }
         if (dx) {
-            if (tab_ == 2) player_ = (player_ + 2 + dx) % 2;
+            if (tab_ == 2) {
+                player_ = (player_ + 2 + dx) % 2;
+                controlRow_ = 0; // exactly Stage14 P1/P2 page handoff
+            }
             else ChangeTab(dx);
             return 1;
         }
@@ -262,19 +265,16 @@ public:
                 SDL_MaximizeWindow(window);
             }
         } else if (tab_ == 2) {
-            if (controlRow_ == 0) {
-                std::string status;
-                owners.AssignNext(player_, settingsPath, bindings, table, status);
-                Notice(std::move(status));
-            } else if (controlRow_ == 1) {
-                editPad_[size_t(player_)] = !editPad_[size_t(player_)];
-                if (PadMode() && !owners.Assigned(player_))
-                    Notice("ASSIGN A LIVE CONTROLLER FIRST");
-            } else if (PadMode() && !owners.Assigned(player_)) {
-                Notice("CONTROLLER NOT CONNECTED");
+            // Original SDL2: DEVICE row does not cycle a type.
+            // A arms capture; the next key or joystick button assigns P1/P2.
+            // Subsequent input rows capture one key or physical device input.
+            if (controlRow_ > 0 && !owners.Keyboard(player_) &&
+                !owners.Assigned(player_)) {
+                Notice("ASSIGN CONTROLLER FIRST", 2400);
             } else {
                 capture_ = true;
                 captureAt_ = SDL_GetTicks();
+                Notice("PRESS KEY OR DEVICE BUTTON", 5000);
             }
         }
         return 2;
@@ -311,24 +311,21 @@ public:
         return "P" + std::to_string(player_ + 1) + " DEVICE : " +
                owners.DeviceName(player_);
     }
-    std::string EditLabel(const PadOwners &owners) const {
-        return std::string("EDIT INPUT : ") +
-               (PadMode() ? (owners.Raw(player_) ? "RAW JOYSTICK" : "GAMEPAD")
-                          : "KEYBOARD");
-    }
-
     std::string BindingLabel(int row, const recomp::Bindings &bindings,
                              const BoundTable &table, const PadOwners &owners) const {
+        if (row < 0 || row >= owners.VisibleActions(player_))
+            return "NONE";
         const int action = kActionOrder[size_t(row)];
         const std::string label = kActionTitles[size_t(row)];
         if (action >= table.table.count) return label + " : UNSUPPORTED";
-        if (!PadMode()) {
+        if (owners.Keyboard(player_)) {
             const SDL_Scancode key = bindings.key[player_][action];
             return label + " : KEY " + recomp::KeyText(key);
         }
-        if (owners.Raw(player_)) return label + " : " + owners.RawLabel(player_, action);
-        return label + " : " + recomp::PadText(bindings.pad[player_][action]);
+        if (!owners.Physical(player_)) return label + " : NONE";
+        return label + " : " + owners.RawLabel(player_, action);
     }
+
 };
 
 } // namespace port::xmvsf_home
