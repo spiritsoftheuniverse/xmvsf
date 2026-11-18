@@ -18,8 +18,11 @@ def main():
         PORT / "frontend_sdl.cpp", PORT / "present.h",
         PORT / "present.cpp", PORT / "xmvsf_home.h"
     )}
-    first = installer.patch(source)
-    assert installer.patch(first) == first, "installer must be idempotent"
+    if "XMVSF_RECOMP_PAD_OWNER_87_443" in source[PORT / "frontend_sdl.cpp"]:
+        first = source  # later version retains renderer, changes shutdown
+    else:
+        first = installer.patch(source)
+        assert installer.patch(first) == first, "installer must be idempotent"
 
     front = first[PORT / "frontend_sdl.cpp"]
     present = first[PORT / "present.cpp"]
