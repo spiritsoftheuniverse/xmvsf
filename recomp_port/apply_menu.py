@@ -172,6 +172,58 @@ def main() -> int:
         print("XMVSF 87.436 native 960x540 presentation upgraded")
     elif new_render not in installed:
         raise RuntimeError("unknown native menu render block; refusing to overwrite")
+    # 87.437: native SDL3 window hotkeys + menu PCM mixer. Apply to both
+    # already-patched 87.436 worktrees and freshly initialized submodules.
+    updates = [
+        (
+            '#include "xmvsf_home.h" // XMVSF_RECOMP_HOME_87_435\\n',
+            '#include "xmvsf_home.h" // XMVSF_RECOMP_HOME_87_435\\n'
+            '#include "xmvsf_menu_audio.h" // XMVSF_RECOMP_HOME_87_437\\n'
+            '#include "xmvsf_window.h"\\n',
+            "87.437 includes",
+        ),
+        (
+            '    xmvsf_home::Menu home(homeEnabled);\\n',
+            '    xmvsf_home::Menu home(homeEnabled);\\n'
+            '    xmvsf_home::MenuAudio homeAudio(homeEnabled);\\n',
+            "87.437 menu audio",
+        ),
+        (
+            '            case SDL_EVENT_KEY_DOWN:\\n'
+            '                if (!port.menu.IsOpen() && !ev.key.repeat &&\\n',
+            '            case SDL_EVENT_KEY_DOWN:\\n'
+            '                if (home.Enabled() && !ev.key.repeat &&\\n'
+            '                    xmvsf_home::WindowShortcut(window, ev.key.scancode, ev.key.mod)) {\\n'
+            '                    break; // native window shortcut, not an arcade input\\n'
+            '                }\\n'
+            '                if (!port.menu.IsOpen() && !ev.key.repeat &&\\n',
+            "87.437 keyboard scaling",
+        ),
+        (
+            '                const xmvsf_home::Action choice = home.Press(menuPressed);\\n'
+            '                switch (choice) {\\n',
+            '                const int oldMenuRow = home.Selection();\\n'
+            '                const xmvsf_home::Action choice = home.Press(menuPressed);\\n'
+            '                if (home.Selection() != oldMenuRow) homeAudio.Move();\\n'
+            '                if (choice != xmvsf_home::Action::None) homeAudio.Select();\\n'
+            '                switch (choice) {\\n',
+            "87.437 menu navigation and select audio",
+        ),
+        (
+            '        if (home.Visible()) { // XMVSF_RECOMP_HOME_87_435: present our menu, no game Tick.\\n',
+            '        homeAudio.Step(home.Visible()); // XMVSF_RECOMP_HOME_87_437\\n'
+            '        if (home.Visible()) { // XMVSF_RECOMP_HOME_87_435: present our menu, no game Tick.\\n',
+            "87.437 PCM lifecycle",
+        ),
+    ]
+    updated = TARGET.read_text(encoding="utf-8")
+    before_update = updated
+    for old, new, label in updates:
+        updated = replace_once(updated, old, new, label)
+    if updated != before_update:
+        TARGET.write_text(updated, encoding="utf-8")
+        print("XMVSF 87.437 native window and audio hooks upgraded")
+
     body = SOURCE.read_text(encoding="utf-8")
     if not HEADER.exists() or HEADER.read_text(encoding="utf-8") != body:
         HEADER.write_text(body, encoding="utf-8")
@@ -184,6 +236,14 @@ def main() -> int:
     if not decoder_dst.exists() or decoder_dst.read_bytes() != decoder:
         decoder_dst.write_bytes(decoder)
         print(f"XMVSF menu decoder installed: {decoder_dst}")
+    # Source-owned SDL3 mixer/window controls are local to the recomp worktree.
+    for filename in ("xmvsf_menu_audio.h", "xmvsf_window.h"):
+        source = ROOT / "recomp_port" / filename
+        target = ROOT / "recomp" / "port" / filename
+        bytes_ = source.read_bytes()
+        if not target.exists() or target.read_bytes() != bytes_:
+            target.write_bytes(bytes_)
+            print(f"XMVSF 87.437 helper installed: {target}")
     return 0
 
 if __name__ == "__main__":
