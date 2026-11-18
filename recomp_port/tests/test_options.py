@@ -55,7 +55,12 @@ def main():
     assert "SDL_EVENT_GAMEPAD_BUTTON_DOWN" in src
     assert "SDL_EVENT_GAMEPAD_AXIS_MOTION" in src
     assert "SDL_EVENT_KEY_DOWN" in src
-    assert "SDL_GetGamepadName" in src
+    if "XMVSF_RECOMP_PAD_OWNER_87_443" in first:
+        owners = (ROOT / "recomp_port" / "xmvsf_pad_owners.h").read_text(encoding="utf-8")
+        assert "SDL_GetJoystickName" in owners  # real OS device identity
+        assert "owners.DeviceName" in src
+    else:
+        assert "SDL_GetGamepadName" in src
     assert "BindingSection(false, p)" in src
     assert "BindingSection(true, p)" in src
     assert "SDL_SetWindowSize" in src
