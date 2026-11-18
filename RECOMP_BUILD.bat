@@ -89,6 +89,15 @@ if errorlevel 1 (
   goto :fail
 )
 
+REM 87.451: compile and run the real C++ capture release-gate tests
+REM BEFORE the controller installer or the warm incremental Ninja build.
+"%BASH%" -c "python3 ../recomp_port/tests/test_capture_lifecycle.py"
+if errorlevel 1 (
+  echo ERROR: XMVSF capture activator/deactivator regression failed.
+  popd
+  goto :fail
+)
+
 REM 87.450: execute actual controller installer twice IN MEMORY before
 REM any file writes or Ninja compilation. Catches regex/anchor bugs early.
 "%BASH%" -c "python3 ../recomp_port/tests/test_pad_owners_preflight.py"
