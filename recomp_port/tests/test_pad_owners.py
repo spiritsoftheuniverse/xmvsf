@@ -58,7 +58,7 @@ def main():
     assert (PORT / "xmvsf_pad_owners.h").read_bytes() == SOURCE.read_bytes()
     for needed in (
         "previousMenuButtons = menuNow", "menuNow & ~previousMenuButtons",
-        "owners.Refresh(gamepads)", "owners.ReadRaw(p, Table())",
+        "owners.Refresh(gamepads, g_bindings, Table())", "owners.ReadRaw(p, Table())",
         "owners.Gamepad(p)", "owners.AdditionalGamepad(p - 2)",
         "owners.RawMenu(Table())", "owners.Event(ev)",
         "owners.LoadSavedProfiles(g_bindings, Table())",
@@ -84,15 +84,30 @@ def main():
 
     options = OPTIONS.read_text(encoding="utf-8")
     for needed in (
-        "owners.AssignNext(", "owners.PopulateProfile(", "owners.SaveRaw(",
-        "owners.RawJoystick(", "SDL_EVENT_JOYSTICK_BUTTON_DOWN",
+        "owners.AssignFromInstance(", "owners.AssignKeyboard(", "owners.SaveRaw(",
+        "owners.AssignedInstance(", "SDL_EVENT_JOYSTICK_BUTTON_DOWN",
         "SDL_EVENT_JOYSTICK_AXIS_MOTION", "SDL_EVENT_JOYSTICK_HAT_MOTION",
-        "SDL_GetGamepadID(assignedGamepad)",
-        "const int count = tab_ == 0 ? 7 : tab_ == 1 ? 8 : 16"
+        "SDL_EVENT_GAMEPAD_BUTTON_DOWN",
+        "owners.VisibleActions(player_) + 1"
     ):
         assert needed in options, f"missing Options hook: {needed}"
-    assert "TEST 87.447" in HOME.read_text(encoding="utf-8")
-    assert "TEST 87.447" in RENDER.read_text(encoding="utf-8")
+    assert "owners.AssignNext(" not in options, "old device-cycle UI must be removed"
+    assert "editPad_" not in options, "old keyboard/gamepad toggle must be removed"
+    for required in (
+        "controlRow_ == 0", "StoreDevice(", "StoreInput(",
+        "owners.Keyboard(player_)", "owners.VisibleActions(player_) + 1",
+        "SDL_EVENT_JOYSTICK_BUTTON_DOWN", "SDL_EVENT_JOYSTICK_AXIS_MOTION",
+        "ev.jbutton.which", "ev.jaxis.which", "SDL_GetTicks() < captureAt_ + 180",
+    ):
+        assert required in options, f"missing Stage13 capture behavior: {required}"
+    assert "AssignFromInstance(" in cpp and "AssignKeyboard(" in cpp
+    assert "SaveKeyboardAction(" in cpp and "PhysicalForGamepadButton(" in cpp
+    assert "SDL_GetGamepadBindings(" in cpp, "semantic mappings must resolve physical indices"
+    assert "SDL_SCANCODE_J" in cpp and "SDL_SCANCODE_KP_1" in cpp
+    assert "if (player >= 2 || !owners.Physical(player))" in text
+    assert "if (p >= 2 || !owners.Physical(p))" in text
+    assert "TEST 87.448" in HOME.read_text(encoding="utf-8")
+    assert "TEST 87.448" in RENDER.read_text(encoding="utf-8")
     assert "SDL_SCALEMODE_NEAREST" in RENDER.read_text(encoding="utf-8")
     prev = 0
     edge = []
@@ -100,7 +115,7 @@ def main():
         edge.append(current & ~prev)
         prev = current
     assert edge == [4, 0, 0, 0, 4]
-    print("XMVSF 87.447: anchored renderer fix + press edges, P1/P2, OS device names, remembered profiles and raw HID: PASS (source)")
+    print("XMVSF 87.448: anchored renderer fix + press edges, P1/P2, OS device names, remembered profiles and raw HID: PASS (source)")
 
 if __name__ == "__main__":
     main()
