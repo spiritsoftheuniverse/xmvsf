@@ -165,6 +165,8 @@ public:
             if (visible) selectAt_ = kIdle;
         }
         if (!visible && selectAt_ == kIdle) return;
+        const bool playMenuMusic = visible &&
+            boot.Elapsed(SDL_GetTicks()) >= XM87235Intro::MenuStart;
 
         // Queue only ~100ms, rather than several seconds of the 31MB WAV.
         for (int i = 0; i < 12; ++i) {
@@ -174,8 +176,7 @@ public:
             bool active = false;
             for (int frame = 0; frame < kBlock; ++frame) {
                 int left = 0, right = 0;
-                if (visible && boot.Elapsed(SDL_GetTicks()) >= XM87235Intro::MenuStart &&
-                    !music_.Empty()) {
+                if (playMenuMusic && !music_.Empty()) {
                     AddFrame(music_, musicAt_, left, right, 72, true);
                     active = true;
                 }
