@@ -1,4 +1,4 @@
-// XMVSF v87.443 — stable per-player SDL3 controller ownership.
+// XMVSF v87.448 — original SDL2 per-player capture and physical profiles.
 // Port of Stage13/87.248/87.249: live instance first, saved GUID/ordinal,
 // then exact joystick/OS name. Profiles survive disconnect and reassignment.
 #pragma once
@@ -44,6 +44,7 @@ public:
 private:
     std::array<Slot, kPlayers> slots_{};
     std::array<std::array<RawBind, 14>, kPlayers> rawBindings_{};
+    std::array<SDL_JoystickID, kPlayers> profileInstance_{{0, 0}};
     std::vector<std::pair<SDL_JoystickID, SDL_Joystick *>> rawOpened_;
     std::vector<Device> devices_;
     std::array<int, kPlayers> routed_{{-1, -1}};
@@ -85,6 +86,13 @@ private:
         return !s.name.empty() && s.name == d.name && s.nameOrdinal == d.nameOrdinal;
     }
     static bool IsRawDown(SDL_Joystick *js, RawBind bind) {
+        // Original Stage13 allows a keyboard scancode on any individual
+        // action, including a controller-owned player's action row.
+        if (bind.type == 'k') {
+            const bool *keys = SDL_GetKeyboardState(nullptr);
+            return keys && bind.index >= 0 && bind.index < SDL_SCANCODE_COUNT &&
+                   keys[bind.index];
+        }
         if (!js) return false;
         if (bind.type == 'b') {
             return bind.index >= 0 && bind.index < SDL_GetNumJoystickButtons(js) &&
@@ -102,6 +110,10 @@ private:
         return false;
     }
     static std::string RawText(RawBind b) {
+        if (b.type == 'k') {
+            const char *name = SDL_GetScancodeName(static_cast<SDL_Scancode>(b.index));
+            return std::string("KEY ") + (name && *name ? name : "UNKNOWN");
+        }
         if (b.type == 'b') return "BUTTON " + std::to_string(b.index);
         if (b.type == 'a') return "AXIS " + std::to_string(b.index) +
                                   (b.direction > 0 ? " +" : " -");
@@ -121,7 +133,7 @@ private:
         char type = 0, extra = 0;
         if (std::sscanf(s.c_str(), "%c:%d:%d%c", &type, &index, &dir, &extra) != 3)
             return b;
-        if ((type == 'b' || type == 'a' || type == 'h') &&
+        if ((type == 'b' || type == 'a' || type == 'h' || type == 'k') &&
             index >= 0 && index <= 63 && dir >= -32768 && dir <= 32768)
             return RawBind{type, index, dir};
         return b;
@@ -137,9 +149,10 @@ private:
             const std::string value = ini.get(section, table.table.actions[i].name);
             if (value.empty()) continue;
             hasAny = true;
-            if (slots_[p].mode == "raw")
+            if (value == "none" || (value.size() > 2 && value[1] == ':'))
                 rawBindings_[p][size_t(i)] = ParseRaw(value);
-            else bindings.pad[p][i] = recomp::PadFromText(value);
+            else if (slots_[p].mode == "gamepad")
+                bindings.pad[p][i] = recomp::PadFromText(value);
         }
         if (hasAny)
             std::fprintf(stderr, "XMVSF 87.443 P%d remembered input profile %s\n",
@@ -338,11 +351,24 @@ public:
     }
     SDL_Joystick *RawJoystick(int p) const {
         const Device *d = Assigned(p);
-        return d && d->raw ? d->joystick : nullptr;
+        return d ? d->joystick : nullptr;
     }
     bool Raw(int p) const {
         const Device *d = Assigned(p);
         return d && d->raw;
+    }
+    bool Keyboard(int p) const {
+        return p >= 0 && p < kPlayers && slots_[p].configured &&
+               slots_[p].mode == "keyboard";
+    }
+    bool Physical(int p) const {
+        return p >= 0 && p < kPlayers && slots_[p].configured &&
+               (slots_[p].mode == "raw" || slots_[p].mode == "gamepad");
+    }
+    int VisibleActions(int p) const { return Keyboard(p) ? 14 : 10; }
+    SDL_JoystickID AssignedInstance(int p) const {
+        const Device *d = Assigned(p);
+        return d ? d->instance : 0;
     }
     std::string DeviceName(int p) const {
         if (p < 0 || p >= kPlayers) return "INVALID PLAYER";
@@ -432,10 +458,7 @@ public:
                          const BoundTable &table) const {
         if (p < 0 || p >= kPlayers || slots_[p].profile.empty()) return;
         const std::string &sec = slots_[p].profile;
-        if (slots_[p].mode == "gamepad") {
-            for (int a = 0; a < table.table.count; ++a)
-                ini.set(sec, table.table.actions[a].name, recomp::PadText(b.pad[p][a]));
-        } else if (slots_[p].mode == "raw") {
+        if (slots_[p].mode == "gamepad" || slots_[p].mode == "raw") {
             for (int a = 0; a < table.table.count; ++a)
                 ini.set(sec, table.table.actions[a].name,
                         RawSetting(rawBindings_[p][size_t(a)]));
@@ -444,7 +467,7 @@ public:
     bool SaveRaw(int p, int action, RawBind bind, const std::string &file,
                  const BoundTable &table) {
         if (p < 0 || p >= kPlayers || action < 0 || action >= table.table.count ||
-            file.empty() || slots_[p].mode != "raw" || slots_[p].profile.empty())
+            file.empty() || !Physical(p) || slots_[p].profile.empty())
             return false;
         auto replacement = rawBindings_[p];
         for (int a = 0; a < table.table.count; ++a)
