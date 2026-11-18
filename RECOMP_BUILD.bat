@@ -89,8 +89,16 @@ if errorlevel 1 (
   goto :fail
 )
 
-REM 87.443: lock menu navigation to rising input edges, and bind P1/P2
-REM to remembered physical devices (including raw HID arcade joysticks).
+REM 87.450: execute actual controller installer twice IN MEMORY before
+REM any file writes or Ninja compilation. Catches regex/anchor bugs early.
+"%BASH%" -c "python3 ../recomp_port/tests/test_pad_owners_preflight.py"
+if errorlevel 1 (
+  echo ERROR: XMVSF controller preflight FAILED. No files modified by controller installer.
+  popd
+  goto :fail
+)
+
+REM 87.450: Stable P1/P2 ownership, old SDL2 capture, edge-only menus.
 "%BASH%" -c "python3 ../recomp_port/apply_pad_owners.py"
 if errorlevel 1 (
   echo ERROR: XMVSF controller ownership patch failed. No build performed.
