@@ -122,7 +122,7 @@ def main():
     assert "const int deviceY = 156 + (296 - groupHeight) / 2;" in art
     assert "const int inputY = deviceY + 16 + 12;" in art
     assert "options.ControlRow() == i + 1" in art
-    assert "owners.AssignKeyboard(" in ownersSource and "AssignFromInstance(" in ownersSource
+    assert "bool AssignKeyboard(" in ownersSource and "bool AssignFromInstance(" in ownersSource
     assert "PhysicalForGamepadButton(" in ownersSource
     assert "SDL_GetJoystickName(js)" in ownersSource
     assert "RenderOptions(" in art
