@@ -38,7 +38,7 @@ def main():
     require(source, "DrawBackground(SDL_Renderer *r, std::uint64_t now, float introStrength = 0.0f)",
             "Options compatibility")
     require(source, "iiPainter_.release()", "SDL renderer shutdown")
-    require(source, "TEST 87.452", "recomp version")
+    require(source, "TEST 87.453", "recomp version")
     require(mixer, 'crash_.Load("crash.wav")', "crash cue")
     require(mixer, 'welcome_.Load("xmvsf_welcome.wav")', "announcer cue")
     require(mixer, "XM87235Intro::MenuStart", "delayed menu music")
@@ -55,6 +55,16 @@ def main():
         assert banned not in strokes, f"unported SDL2 API: {banned}"
     require(strokes, "SDL_RenderTexture(", "SDL3 stroke rendering")
     require(strokes, "SDL_PIXELFORMAT_ABGR8888", "correct packed RGBA pixel format")
+    # Both the final numeral and the animated A-D strokes use upload().
+    # Assert nearest filtering inside that shared function, not just elsewhere
+    # in the renderer or in a comment.
+    upload = strokes.split("static SDL_Texture* upload(", 1)[1].split(
+        "static void renderRect(", 1
+    )[0]
+    require(upload, "SDL_SetTextureScaleMode(tex,SDL_SCALEMODE_NEAREST);",
+            "sharp II pixels on all textures")
+    require(strokes, "final_=upload(renderer_,full);", "final numeral uses upload")
+    require(strokes, "p.texture=upload(renderer_,p.pixels);", "animated strokes use upload")
 
     test = r"""
 #include "xmvsf_intro_timeline.h"
@@ -89,7 +99,7 @@ int main() {
         subprocess.run(["g++","-std=c++17","-Wall","-Wextra","-Werror",
                         "-I",str(PORT),str(src),"-o",str(exe)],check=True)
         subprocess.run([str(exe)],check=True)
-    print("XMVSF 87.452: intro timeline C++ and source-effect preflight PASS")
+    print("XMVSF 87.453: intro timeline C++ and source-effect preflight PASS")
 
 if __name__ == "__main__":
     main()
