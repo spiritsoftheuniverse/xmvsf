@@ -56,6 +56,13 @@ def recover_repeated_options(text: str) -> str:
     original music timing rather than leaving stale calls on every frame.
     """
     draw_count = text.count(OPTIONS_DRAW_BLOCK)
+    total_calls = text.count("homeTextures.RenderOptions(")
+    if total_calls > 1 and total_calls != draw_count:
+        raise RuntimeError(
+            f"87.446 saw {total_calls} Options rendering calls but only "
+            f"{draw_count} unmodified 87.442-generated branches; "
+            f"refusing to discard user-modified code"
+        )
     if draw_count <= 1:
         return text
     # Verify these are exactly the blocks emitted by our own 87.442
