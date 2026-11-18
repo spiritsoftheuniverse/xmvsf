@@ -45,6 +45,7 @@ private:
     std::array<Slot, kPlayers> slots_{};
     std::array<std::array<RawBind, 14>, kPlayers> rawBindings_{};
     std::array<SDL_JoystickID, kPlayers> profileInstance_{{0, 0}};
+    std::array<std::string, kPlayers> loadedProfile_{};
     std::vector<std::pair<SDL_JoystickID, SDL_Joystick *>> rawOpened_;
     std::vector<Device> devices_;
     std::array<int, kPlayers> routed_{{-1, -1}};
@@ -137,6 +138,69 @@ private:
             index >= 0 && index <= 63 && dir >= -32768 && dir <= 32768)
             return RawBind{type, index, dir};
         return b;
+    }
+
+    // Resolve SDL3's semantic gamepad controls to their actual joystick
+    // button/axis/hat indices, like the old SDL2 GetBindForButton path.
+    static RawBind FromSDLGamepad(SDL_Gamepad *gp, int button, int axis = -1) {
+        if (!gp) return {};
+        int count = 0;
+        SDL_GamepadBinding **maps = SDL_GetGamepadBindings(gp, &count);
+        RawBind result{};
+        for (int i = 0; maps && i < count; ++i) {
+            const SDL_GamepadBinding &b = *maps[i];
+            if (button >= 0 &&
+                (b.output_type != SDL_GAMEPAD_BINDTYPE_BUTTON ||
+                 int(b.output.button) != button)) continue;
+            if (button < 0 &&
+                (b.output_type != SDL_GAMEPAD_BINDTYPE_AXIS ||
+                 int(b.output.axis.axis) != axis)) continue;
+            if (b.input_type == SDL_GAMEPAD_BINDTYPE_BUTTON)
+                result = {'b', b.input.button, 0};
+            else if (b.input_type == SDL_GAMEPAD_BINDTYPE_AXIS)
+                result = {'a', b.input.axis.axis,
+                          b.input.axis.axis_max > 0 ? 1 : -1};
+            else if (b.input_type == SDL_GAMEPAD_BINDTYPE_HAT)
+                result = {'h', b.input.hat.hat, b.input.hat.hat_mask};
+            break;
+        }
+        SDL_free(maps); // SDL3 returns one allocation, not separate entries
+        return result;
+    }
+
+    void DefaultsForPhysical(int p, const Device &device) {
+        rawBindings_[p].fill({});
+        // Exact Stage13 initial physical button order:
+        // X/Y/LB, A/B/RB, Back/Start (3P/3K intentionally unbound).
+        constexpr int index[8] = {4, 5, 6, 7, 8, 9, 11, 10};
+        constexpr int fallback[8] = {2, 3, 4, 0, 1, 5, 6, 7};
+        constexpr int semantic[8] = {
+            SDL_GAMEPAD_BUTTON_WEST, SDL_GAMEPAD_BUTTON_NORTH,
+            SDL_GAMEPAD_BUTTON_LEFT_SHOULDER, SDL_GAMEPAD_BUTTON_SOUTH,
+            SDL_GAMEPAD_BUTTON_EAST, SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER,
+            SDL_GAMEPAD_BUTTON_BACK, SDL_GAMEPAD_BUTTON_START
+        };
+        for (int i = 0; i < 8; ++i) {
+            RawBind b = FromSDLGamepad(device.gamepad, semantic[i]);
+            if (b.type == 'n') b = {'b', fallback[i], 0};
+            rawBindings_[p][size_t(index[i])] = b;
+        }
+    }
+
+    void RefreshPhysicalProfiles(recomp::Bindings &bindings, const BoundTable &table) {
+        for (int p = 0; p < kPlayers; ++p) {
+            const Device *d = Assigned(p);
+            if (!d || !Physical(p)) {
+                profileInstance_[p] = 0;
+                continue;
+            }
+            if (profileInstance_[p] == d->instance &&
+                loadedProfile_[p] == slots_[p].profile) continue;
+            DefaultsForPhysical(p, *d);
+            LoadProfile(p, bindings, table);
+            profileInstance_[p] = d->instance;
+            loadedProfile_[p] = slots_[p].profile;
+        }
     }
 
     void LoadProfile(int p, recomp::Bindings &bindings, const BoundTable &table) {
@@ -318,9 +382,11 @@ public:
             }
         }
     }
-    void Refresh(const std::vector<SDL_Gamepad *> &open) {
+    void Refresh(const std::vector<SDL_Gamepad *> &open,
+                 recomp::Bindings &bindings, const BoundTable &table) {
         Rebuild(open);
         Route();
+        RefreshPhysicalProfiles(bindings, table);
     }
     void Close() {
         for (const auto &[id, js] : rawOpened_) SDL_CloseJoystick(js);
@@ -446,9 +512,12 @@ public:
             for (int a = 0; a < table.table.count; ++a)
                 bindings.pad[p][a] = defaults.pad[p][a];
         }
-        if (candidate.mode == "gamepad" || candidate.mode == "raw")
-            LoadProfile(p, bindings, table);
+        // Re-evaluate physical bindings with the newly selected controller.
+        // The profile remains on disk even when switching to Keyboard.
+        profileInstance_[p] = 0;
+        loadedProfile_[p].clear();
         Route();
+        RefreshPhysicalProfiles(bindings, table);
         message = "P" + std::to_string(p + 1) + " DEVICE : " + DeviceName(p);
         std::fprintf(stderr, "XMVSF 87.443 %s\n", message.c_str());
         return true;
@@ -515,7 +584,7 @@ public:
         unsigned out = 0;
         for (int p = 0; p < kPlayers; ++p) {
             SDL_Joystick *js = RawJoystick(p);
-            if (!js) continue;
+            if (!js || !Raw(p)) continue;
             const uint16_t buttons = ReadRaw(p, table);
             out |= buttons & table.bits[0] ? recomp::kMenuUp : 0;
             out |= buttons & table.bits[1] ? recomp::kMenuDown : 0;
