@@ -151,12 +151,13 @@ void Presenter::Show(const uint32_t *pixels, int width, int height, const SDL_FR
     static constexpr int W = 960, H = 540;''',
         "give texture renderer access to the original source assets",
     )
-    home = replace_exact(
-        home,
-        '''"TEST 87.440"''',
-        '''"TEST 87.441"''',
-        "visible version",
-    )
+    if '"TEST 87.442"' not in home:
+        home = replace_exact(
+            home,
+            '''"TEST 87.440"''',
+            '''"TEST 87.441"''',
+            "87.441 menu version",
+        )
     return {FRONTEND: front, PRESENT_H: ph, PRESENT_CPP: pc, HOME: home}
 
 def main() -> int:
