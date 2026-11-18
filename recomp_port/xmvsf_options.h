@@ -366,7 +366,10 @@ public:
     int Press(unsigned pressed, SDL_Window *window, recomp::Bindings &bindings,
               const BoundTable &table, const std::string &settingsPath,
               PadOwners &owners) {
-        if (!visible_ || capture_ || !pressed || SDL_GetTicks() < suppressUntil_) return 0;
+        if (!visible_) return 0;
+        // Called even on frames without a new menu action.
+        TickCapture(owners, table);
+        if (!lifecycle_.MayNavigate() || !pressed) return 0;
         if (pressed & recomp::kMenuBack) { Close(); return 3; }
         const int dy = (pressed & recomp::kMenuDown ? 1 : 0) -
                        (pressed & recomp::kMenuUp ? 1 : 0);
@@ -424,8 +427,7 @@ public:
                 !owners.Assigned(player_)) {
                 Notice("ASSIGN CONTROLLER FIRST", 2400);
             } else {
-                capture_ = true;
-                captureAt_ = SDL_GetTicks();
+                BeginCapture(owners, table);
                 Notice("PRESS KEY OR DEVICE BUTTON", 5000);
             }
         }
