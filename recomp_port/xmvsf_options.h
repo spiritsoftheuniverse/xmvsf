@@ -53,14 +53,14 @@ class OptionsPanel {
     }
     void Finished(bool saved, const std::string &success,
                   const std::string &failure = "SAVE FAILED") {
-        lifecycle_.Finish(); // A fresh menu press requires confirm/back release.
+        lifecycle_.Finish(SDL_GetTicks()); // A fresh menu press requires confirm/back release.
         activators_.clear();
         captureHint_.clear();
         Notice(saved ? success : failure, 1800);
     }
 
     void CancelCapture(const char *reason) {
-        lifecycle_.Cancel();
+        lifecycle_.Cancel(SDL_GetTicks());
         activators_.clear();
         captureHint_.clear();
         Notice(reason, 1700);
@@ -138,7 +138,7 @@ class OptionsPanel {
     void TickCapture(const PadOwners &owners, const BoundTable &table) {
         if (lifecycle_.Expired(SDL_GetTicks()))
             CancelCapture("CAPTURE TIMED OUT - PRESS A TO RETRY");
-        lifecycle_.MenuButtons(ConfirmOrBackHeld(owners, table));
+        lifecycle_.MenuButtons(ConfirmOrBackHeld(owners, table), SDL_GetTicks());
     }
 
     void StoreInput(PadOwners &owners, recomp::Bindings &bindings,
