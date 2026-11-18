@@ -102,7 +102,9 @@ private:
         if (bind.type == 'a') {
             if (bind.index < 0 || bind.index >= SDL_GetNumJoystickAxes(js)) return false;
             const int axis = SDL_GetJoystickAxis(js, bind.index);
-            return bind.direction > 0 ? axis > 14000 : axis < -14000;
+            // Stage13 bound-axis threshold is 16000, distinct from the
+            // 9000 deadzone on directional joystick movement.
+            return bind.direction > 0 ? axis > 16000 : axis < -16000;
         }
         if (bind.type == 'h') {
             return bind.index >= 0 && bind.index < SDL_GetNumJoystickHats(js) &&
@@ -651,10 +653,19 @@ public:
         const Uint8 hat = SDL_GetNumJoystickHats(js) > 0 ? SDL_GetJoystickHat(js, 0) : 0;
         const uint16_t dirs[] = {table.bits[0], table.bits[1],
                                  table.bits[2], table.bits[3]};
-        const bool defaults[] = {(hat & SDL_HAT_UP) || y < -14000,
-                                 (hat & SDL_HAT_DOWN) || y > 14000,
-                                 (hat & SDL_HAT_LEFT) || x < -14000,
-                                 (hat & SDL_HAT_RIGHT) || x > 14000};
+        // Stage13 combines raw hats, 9000-deadzone analog directions,
+        // and the mapped SDL gamepad's D-pad (when a physical hat is absent).
+        SDL_Gamepad *pad = Gamepad(p);
+        const bool defaults[] = {
+            (hat & SDL_HAT_UP) || y < -9000 ||
+                (pad && SDL_GetGamepadButton(pad, SDL_GAMEPAD_BUTTON_DPAD_UP)),
+            (hat & SDL_HAT_DOWN) || y > 9000 ||
+                (pad && SDL_GetGamepadButton(pad, SDL_GAMEPAD_BUTTON_DPAD_DOWN)),
+            (hat & SDL_HAT_LEFT) || x < -9000 ||
+                (pad && SDL_GetGamepadButton(pad, SDL_GAMEPAD_BUTTON_DPAD_LEFT)),
+            (hat & SDL_HAT_RIGHT) || x > 9000 ||
+                (pad && SDL_GetGamepadButton(pad, SDL_GAMEPAD_BUTTON_DPAD_RIGHT))
+        };
         for (int i = 0; i < 4; ++i)
             if (rawBindings_[p][size_t(i)].type == 'n' && defaults[i]) out |= dirs[i];
         return out;
