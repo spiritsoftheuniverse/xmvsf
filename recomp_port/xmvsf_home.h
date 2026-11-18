@@ -1,9 +1,11 @@
-// XMVSF native menu presentation, v87.451 (capture A-release lifecycle and recovery).
+// XMVSF native menu presentation, v87.452 (capture A-release lifecycle and recovery).
 // Adapted from this repository's Stage14 layout and XMGlyph bitmap atlas rules.
 // Draws into the native CPS-2 Recomp pixel presenter; no SDL2 or SDL_image dependency.
 #pragma once
 #include "../recomp-common/menu.h"
 #include "../recomp-common/text.h"
+#include "xmvsf_intro_timeline.h"
+#include <SDL3/SDL.h>
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -354,11 +356,17 @@ public:
     bool Visible() const { return visible_; }
     int Selection() const { return selection_; }
     void Open() { if (enabled_) visible_ = true; }
-    void Hide() { visible_ = false; }
-    void Toggle() { if (enabled_) visible_ = !visible_; }
+    void Hide() {
+        if (XM87235Intro::State().InputAllowed(SDL_GetTicks())) visible_ = false;
+    }
+    void Toggle() {
+        if (enabled_ && XM87235Intro::State().InputAllowed(SDL_GetTicks()))
+            visible_ = !visible_;
+    }
 
     Action Press(unsigned input) {
-        if (!visible_) return Action::None;
+        if (!visible_ || !XM87235Intro::State().InputAllowed(SDL_GetTicks()))
+            return Action::None;
         if (input & recomp::kMenuUp) selection_ = (selection_ + 3) % 4;
         if (input & recomp::kMenuDown) selection_ = (selection_ + 1) % 4;
         if (input & recomp::kMenuBack) { Hide(); return Action::None; }
@@ -385,15 +393,17 @@ public:
                 canvas.Fill(float(x), 0, 1, H, {26, 41, 71, 60});
             }
         }
-        Logo(pixels, atMs);
+        const std::uint32_t bootMs = XM87235Intro::State().Elapsed(atMs);
+        if (bootMs >= XM87235Intro::LogoStart) Logo(pixels, atMs);
         static constexpr std::array<const char *, 4> names = {"ARCADE", "TRAINING", "VERSUS", "OPTIONS"};
-        for (int i = 0; i < 4; ++i)
-            Text(pixels, names[size_t(i)], 489, 347 + i * 31, false, 1.35f,
-                 i == selection_ ? 255 : 80);
+        if (bootMs >= XM87235Intro::MenuStart)
+            for (int i = 0; i < 4; ++i)
+                Text(pixels, names[size_t(i)], 489, 347 + i * 31, false, 1.35f,
+                     i == selection_ ? 255 : 80);
 
         Text(pixels, "A SELECT   B / ESC BACK", 489, 495, true, 1.375f, 235);
         Text(pixels, "ESC TO RETURN", 18, 522, true, 1.08f, 185, 0);
-        Text(pixels, "TEST 87.451", 942, 522, true, 1.08f, 185, 2);
+        Text(pixels, "TEST 87.452", 942, 522, true, 1.08f, 185, 2);
     }
 };
 
