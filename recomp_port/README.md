@@ -1,4 +1,4 @@
-# XMVSF native front end — 87.446 (idempotent Options recovery)
+# XMVSF native front end — 87.447 (Options audio-state reconciliation)
 
 The real XMVSF front end now renders in CPS-2 Recomp's **SDL3 native
 window and pixel presenter**, not an additional SDL launcher. The preserved
@@ -33,6 +33,33 @@ Esc / gamepad menu input; while shown, no game ticks are executed.
 Navigation uses both keyboard and gamepad: arrows / D-pad, Enter or Space / A.
 Esc returns to the home menu, and F1 there opens our Options. Shift+F1 opens the original recomp diagnostics.
 Use `XMVSF_RECOMP_HOME_OFF=1` when comparing against untouched upstream.
+
+## 87.447 Fix buzzing on entry into Options
+
+The historical installers could leave **both** audio visibility updates in
+the same frontend frame:
+
+- 87.437: `homeAudio.Step(home.Visible())`, false when Options is open
+- 87.442: `homeAudio.Step(home.Visible() || options.Active())`, true in Options
+
+Since `MenuAudio::Step` clears its SDL audio queue and rewinds playback on
+a visibility transition, the simultaneous false/true calls repeatedly
+restart the music and produce an audible buzz when opening Options.
+
+The 87.447 Options installer now removes only the old **stamped** 87.437
+statement, collapses duplicate 87.442 stream updates, and preserves exactly
+one 87.442 update in the active menu loop. It also handles an existing
+87.443 controller patch without rebuilding the pinned submodule from scratch.
+The pre-build test verifies both synthetic conflicting hook scenarios and
+the actual generated frontend contains one 87.442 update and zero 87.437
+updates. The 87.441 source-texture renderer, menu WAV files and 87.443
+controller assignment logic are unchanged.
+
+Expected repair diagnostic (when historical hooks are present):
+`XMVSF 87.447: removed N conflicting legacy audio steps ...`
+
+No translation refresh or GitHub Actions; incremental Ninja compilation
+follows the existing source-only checks.
 
 ## 87.446 recover repeated Options/audio hooks
 
