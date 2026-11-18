@@ -1,4 +1,4 @@
-# XMVSF native front end — 87.436 (source-art presentation)
+# XMVSF native front end — 87.437 (native window sizing and audio)
 
 The real XMVSF front end now renders in CPS-2 Recomp's **SDL3 native
 window and pixel presenter**, not an additional SDL launcher. The preserved
@@ -32,6 +32,34 @@ Navigation uses both keyboard and gamepad: arrows / D-pad, Enter or Space / A.
 Esc returns to the home menu, and F1 there opens the original recomp diagnostics.
 Use `XMVSF_RECOMP_HOME_OFF=1` when comparing against untouched upstream.
 
+## Window controls (87.437)
+
+While the game or our menu has focus:
+
+- **Ctrl++ / Ctrl+= / Ctrl+keypad plus** advances to the next window-size preset.
+- **Ctrl+- / Ctrl+keypad minus** steps to the preceding size.
+- **Ctrl+Backspace** toggles maximize/restore without switching to fullscreen.
+
+The six original Stage29 presets remain 384x224 through 2304x1344. Only
+the SDL3 window's physical size changes; the game stays in its original
+native resolution and the authored 960x540 menu stays fitted/letterboxed.
+Scaling keys are ignored while already fullscreen.
+
+## Original menu audio (87.437)
+
+Load WAVs directly from `FBNeo/assets/xmvsf/`, once when the normal native
+menu initializes (or the folder named by `XMVSF_MENU_AUDIO`):
+
+- `xmvsfMenu.wav` — loop continuously **only while our home menu is visible**.
+- `menu_movement1.wav` — each changed navigation row.
+- `menu_selection1.wav` — confirmed menu choice.
+
+One independent SDL3 audio stream converts sources to stereo 48kHz S16
+once and mixes with bounded buffering. When a menu selection enters
+gameplay, music and queued buffers stop immediately; the selection effect
+can finish naturally. No FFNeo sound code and no SDL_mixer dependency.
+Missing WAVs are logged and don't prevent gameplay.
+
 ## Building and storage
 
 Upstream source is still pinned under the `recomp/` Git submodule. This repo
@@ -64,7 +92,7 @@ No GitHub Actions. No edits to `main`, Stable, FBNeo builds, or ROM binaries.
 
 ## Remaining presentation work
 
-Menu movement/selection audio; source-authored full intro/reveal timing;
+Source-authored full intro/reveal timing;
 accurate Game/Graphics/Controller tabs with persistence; and our dedicated
 Versus/Training lifecycle. These should be ported as **separate functional
 modules**, not more version-specific hooks.
