@@ -13,6 +13,9 @@
 #include <vector>
 #include "xmvsf_home.h"
 #include "xmvsf_intro_timeline.h"
+#include "xmvsf_palette_fx.h"
+#include <cstdint>
+#include <limits>
 
 namespace XM87235II {
 static constexpr int CanvasWidth=400;
@@ -40,6 +43,10 @@ class Painter {
     Stroke parts_[4];
     SDL_Texture* final_=nullptr;
     SDL_Rect finalBounds_={0,0,0,0};
+    // Source RGBA never changes. Pulse every time from the authored pixels.
+    std::vector<Uint8> originalFinalRGBA_,pulsedFinalRGBA_;
+    std::uint64_t lastFinalTick_=std::numeric_limits<std::uint64_t>::max();
+    bool warnedFinalUpdate_=false;
     bool attempted_=false;
 
     static bool white(const Uint8* p){
@@ -82,7 +89,7 @@ class Painter {
                        SDL_Rect& bounds){
         const port::xmvsf_home::Image img=port::xmvsf_home::LoadPng(filename);
         if(!img.Valid() || img.width!=CanvasWidth || img.height!=CanvasHeight){
-            std::fprintf(stderr,"XM87.453 II_CANVAS_MISSING_OR_INVALID %s expected=%dx%d\n",
+            std::fprintf(stderr,"XM87.454 II_CANVAS_MISSING_OR_INVALID %s expected=%dx%d\n",
                          filename,CanvasWidth,CanvasHeight);
             return false;
         }
@@ -106,6 +113,21 @@ class Painter {
             SDL_DestroyTexture(tex);return nullptr;
         }
         return tex;
+    }
+    void updateFinal(std::uint64_t now){
+        if(!final_||originalFinalRGBA_.empty())return;
+        if(lastFinalTick_!=std::numeric_limits<std::uint64_t>::max() &&
+           now>=lastFinalTick_ && now-lastFinalTick_<80u)return;
+        XMMenuColor::logoPalettePulse(originalFinalRGBA_,pulsedFinalRGBA_,
+                                      CanvasWidth,CanvasHeight,static_cast<Uint32>(now));
+        if(!SDL_UpdateTexture(final_,nullptr,pulsedFinalRGBA_.data(),CanvasWidth*4)){
+            if(!warnedFinalUpdate_){
+                std::fprintf(stderr,"XMVSF 87.454 II pulse upload failed: %s\n",SDL_GetError());
+                warnedFinalUpdate_=true;
+            }
+            return;
+        }
+        lastFinalTick_=now;
     }
     static void renderRect(SDL_Renderer* render,SDL_Texture* texture,
                            const SDL_Rect& source,const SDL_Rect& dest){
@@ -274,6 +296,9 @@ public:
         for(Stroke& p:parts_)p.release();
         if(final_)SDL_DestroyTexture(final_);
         final_=nullptr;finalBounds_={0,0,0,0};
+        originalFinalRGBA_.clear();pulsedFinalRGBA_.clear();
+        lastFinalTick_=std::numeric_limits<std::uint64_t>::max();
+        warnedFinalUpdate_=false;
         renderer_=nullptr;attempted_=false;
     }
     bool load(SDL_Renderer* render){
@@ -281,8 +306,10 @@ public:
         release();renderer_=render;attempted_=true;
         if(!render)return false;
         std::vector<Uint8> full;
-        if(source("logo_II.png",full,finalBounds_))
-            final_=upload(renderer_,full);
+        if(source("logo_II.png",full,finalBounds_)){
+            originalFinalRGBA_=full;
+            final_=upload(renderer_,originalFinalRGBA_);
+        }
         // A: upright (up/right). B: up. C: down. D: up/right.
         loadStroke(0,"logo_II_A.png",1,-1);
         loadStroke(1,"logo_II_B.png",0,-1);
@@ -294,12 +321,13 @@ public:
         return final_!=nullptr;
     }
     SDL_Rect FinalBounds() const { return finalBounds_; }
-    void draw(SDL_Renderer* render,std::uint32_t elapsed,bool cinematic,
-              const SDL_Rect& canvas){
+    void draw(SDL_Renderer* render,std::uint64_t now,
+              std::uint32_t elapsed,bool cinematic,const SDL_Rect& canvas){
         if(!renderer_||renderer_!=render||canvas.w<=0||canvas.h<=0)return;
         if(!cinematic || elapsed>=XM87235Intro::StrikeStart+
                                   XM87235Intro::StrikeDurationMs){
             if(final_){
+                updateFinal(now);
                 const SDL_Rect placed=place(canvas,finalBounds_);
                 renderRect(render,final_,finalBounds_,placed);
             }else for(Stroke& p:parts_)if(p.valid){
