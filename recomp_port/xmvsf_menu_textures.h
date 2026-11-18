@@ -4,12 +4,18 @@
 #pragma once
 #include "xmvsf_home.h"
 #include "xmvsf_options.h"
+#include "xmvsf_ii_strikes.h"
+#include "xmvsf_palette_fx.h"
+#include "xmvsf_intro_timeline.h"
 #include <SDL3/SDL.h>
 #include <algorithm>
 #include <array>
 #include <cmath>
 #include <cstdint>
 #include <cstdio>
+#include <cstring>
+#include <limits>
+#include <vector>
 
 namespace port::xmvsf_home {
 
@@ -21,6 +27,14 @@ class TexturedMenu {
     SDL_Texture *logoII_ = nullptr;
     SDL_Texture *largeFont_ = nullptr;
     SDL_Texture *smallFont_ = nullptr;
+    SDL_Texture *revealLarge_ = nullptr, *revealSmall_ = nullptr;
+    XM87235II::Painter iiPainter_;
+    std::vector<Uint8> originalLogoRGBA_, pulsedLogo_, introLogo_;
+    std::vector<Uint8> backgroundOriginalRGBA_, introBackground_;
+    std::vector<uint32_t> largeRevealPixels_, smallRevealPixels_;
+    std::uint64_t lastLogoTick_ = std::numeric_limits<std::uint64_t>::max();
+    int introLogoStep_ = -1, introBackgroundStep_ = -1, menuRevealStep_ = -1;
+    bool warnedLogoUpdate_ = false;
     int gifW_ = 0, gifH_ = 0;
     int gifFrame_ = -1, gifHue_ = -1;
     bool warned_ = false;
@@ -56,10 +70,17 @@ class TexturedMenu {
         if (renderer_ == r) return largeFont_ && smallFont_ && logo_;
         Release();
         renderer_ = r;
-        logo_ = MakeTexture(r, menu_.logo_);
+        logo_ = MakeTexture(r, menu_.logo_, true);
+        if (menu_.logo_.Valid()) {
+            originalLogoRGBA_.resize(menu_.logo_.pixels.size() * 4u);
+            std::memcpy(originalLogoRGBA_.data(), menu_.logo_.pixels.data(), originalLogoRGBA_.size());
+        }
+        iiPainter_.load(r);
         logoII_ = MakeTexture(r, menu_.logoII_);
         largeFont_ = MakeTexture(r, menu_.large_.sheet);
         smallFont_ = MakeTexture(r, menu_.small_.sheet);
+        revealLarge_ = MakeTexture(r, menu_.large_.sheet, true);
+        revealSmall_ = MakeTexture(r, menu_.small_.sheet, true);
         if (!menu_.backdrop_.frames.empty()) {
             const Image &first = menu_.backdrop_.frames.front();
             background_ = MakeTexture(r, first, true);
@@ -109,53 +130,123 @@ class TexturedMenu {
         Tint(texture, 255);
     }
 
-    void DrawLogo(SDL_Renderer *r, uint64_t now) {
+
+    void UpdateLogo(std::uint64_t now, float introRemaining) {
+        if (!logo_ || originalLogoRGBA_.empty()) return;
+        const int step = std::clamp(int(introRemaining * 16.0f + 0.5f), 0, 16);
+        if (lastLogoTick_ != std::numeric_limits<std::uint64_t>::max() &&
+            now >= lastLogoTick_ && now - lastLogoTick_ < 80u &&
+            step == introLogoStep_) return;
+        XMMenuColor::logoPalettePulse(originalLogoRGBA_, pulsedLogo_,
+            menu_.logo_.width, menu_.logo_.height, static_cast<Uint32>(now));
+        const std::vector<Uint8> *pixels = &pulsedLogo_;
+        if (introRemaining > 0.0f) {
+            XMMenuColor::introLogoDither(pulsedLogo_, introLogo_,
+                menu_.logo_.width, menu_.logo_.height,
+                static_cast<Uint32>(now), introRemaining);
+            pixels = &introLogo_;
+        }
+        if (!SDL_UpdateTexture(logo_, nullptr, pixels->data(), menu_.logo_.width * 4)) {
+            if (!warnedLogoUpdate_) {
+                std::fprintf(stderr,"XMVSF 87.452 logo FX upload failed: %s\n",SDL_GetError());
+                warnedLogoUpdate_ = true;
+            }
+            return;
+        }
+        lastLogoTick_ = now;
+        introLogoStep_ = step;
+    }
+    // Base and II artwork share one source canvas and a combined optical center.
+    void DrawLogo(SDL_Renderer *r, std::uint64_t now, std::uint32_t elapsed,
+                  bool cinematic) {
         const Rect crop = VisibleBounds(menu_.logo_);
         if (crop.w < 1 || crop.h < 1) return;
-        // The original Stage14 MainLayout target — no forced new aspect ratio.
         const float scale = std::min(544.0f / crop.w, 289.0f / crop.h);
         const int drawnW = int(crop.w * scale + .5f);
         const int drawnH = int(crop.h * scale + .5f);
-        const int x = 208 + (544 - drawnW) / 2;
+        int x = 208 + (544 - drawnW) / 2;
         const int y = 51 + (289 - drawnH) / 2;
-        const int light = std::clamp(246 + int(9.0 * std::sin(
-                         double(now % 1600) * 6.28318530718 / 1600.0)), 220, 255);
-        Tint(logo_, light);
-        DrawTexture(r, logo_, crop,
-                    {float(x), float(y), float(drawnW), float(drawnH)});
-        if (logoII_ && menu_.logoII_.Valid()) {
-            // Shared 400x300 original art canvas, no independent auto-fit.
-            const int fullX = x - int(crop.x * scale + .5f);
-            const int fullY = y - int(crop.y * scale + .5f);
-            Tint(logoII_, light);
+        const SDL_Rect iiBounds = iiPainter_.FinalBounds();
+        if (iiBounds.w > 0 && iiBounds.h > 0) {
+            const int left = std::min(crop.x, iiBounds.x);
+            const int right = std::max(crop.x + crop.w, iiBounds.x + iiBounds.w);
+            const double baseCenter = double(crop.x) + double(crop.w) / 2.0;
+            const double combinedCenter = double(left + right) / 2.0;
+            x += int(std::round((baseCenter - combinedCenter) * scale));
+        }
+        const float remaining = cinematic ? XM87235Intro::logoStrength(elapsed) : 0.0f;
+        UpdateLogo(now, remaining);
+        Tint(logo_, 255);
+        DrawTexture(r, logo_, crop,{float(x),float(y),float(drawnW),float(drawnH)});
+        const int fullX = x - int(crop.x * scale + .5f);
+        const int fullY = y - int(crop.y * scale + .5f);
+        const SDL_Rect canvas{fullX,fullY,
+            std::max(1,int(menu_.logo_.width * scale + .5f)),
+            std::max(1,int(menu_.logo_.height * scale + .5f))};
+        if (iiBounds.w > 0 && iiBounds.h > 0) {
+            iiPainter_.draw(r, elapsed, cinematic, canvas);
+        } else if (logoII_ && menu_.logoII_.Valid() &&
+                   (!cinematic || elapsed >= XM87235Intro::StrikeStart +
+                                              XM87235Intro::StrikeDurationMs)) {
             DrawTexture(r, logoII_,
-                {0, 0, menu_.logoII_.width, menu_.logoII_.height},
-                {float(fullX), float(fullY),
+                {0,0,menu_.logoII_.width,menu_.logoII_.height},
+                {float(fullX),float(fullY),
                  float(int(menu_.logoII_.width * scale + .5f)),
                  float(int(menu_.logoII_.height * scale + .5f))});
         }
     }
+    void RevealFonts(int level) {
+        level = std::clamp(level, 0, 16);
+        if (level == menuRevealStep_) return;
+        menuRevealStep_ = level;
+        constexpr Uint8 bayer[16]={0,8,2,10,12,4,14,6,3,11,1,9,15,7,13,5};
+        const auto update = [&](const Image &source, SDL_Texture *texture,
+                                std::vector<uint32_t> &buffer) {
+            if (!texture || !source.Valid()) return;
+            buffer = source.pixels;
+            for (int y = 0; y < source.height; ++y)
+                for (int x = 0; x < source.width; ++x)
+                    if (bayer[(y & 3) * 4 + (x & 3)] >= level)
+                        buffer[size_t(y) * source.width + x] &= 0x00ffffffu;
+            if (!SDL_UpdateTexture(texture,nullptr,buffer.data(),source.width*4))
+                std::fprintf(stderr,"XMVSF 87.452 font FX upload failed: %s\n",SDL_GetError());
+        };
+        update(menu_.large_.sheet,revealLarge_,largeRevealPixels_);
+        update(menu_.small_.sheet,revealSmall_,smallRevealPixels_);
+    }
 
-    void DrawBackground(SDL_Renderer *r, uint64_t now) {
+    void DrawBackground(SDL_Renderer *r, std::uint64_t now, float introStrength = 0.0f) {
         if (!background_ || menu_.backdrop_.frames.empty()) return;
-        const Image &frame = menu_.backdrop_.At(now);
-        if (!frame.Valid()) return;
+        const Image &normalFrame = menu_.backdrop_.At(now);
+        if (!normalFrame.Valid()) return;
         const int frameNo = menu_.backdrop_.shownFrame;
         const int hueNo = menu_.backdrop_.shownHue;
-        if (frameNo != gifFrame_ || hueNo != gifHue_) {
+        const int step = std::clamp(int(introStrength*16.0f+.5f),0,16);
+        if (frameNo != gifFrame_ || hueNo != gifHue_ || step != introBackgroundStep_) {
             gifFrame_ = frameNo;
             gifHue_ = hueNo;
-            // Only the current original GIF frame/hue is uploaded at 12.5Hz,
-            // never the entire 960x540 composed menu.
-            SDL_UpdateTexture(background_, nullptr,
-                              frame.pixels.data(), frame.width * 4);
+            introBackgroundStep_ = step;
+            if (introStrength > 0.0f && frameNo >= 0 &&
+                size_t(frameNo) < menu_.backdrop_.frames.size()) {
+                const Image &original = menu_.backdrop_.frames[size_t(frameNo)];
+                backgroundOriginalRGBA_.resize(original.pixels.size()*4u);
+                std::memcpy(backgroundOriginalRGBA_.data(),original.pixels.data(),
+                            backgroundOriginalRGBA_.size());
+                XMMenuColor::backgroundHue(backgroundOriginalRGBA_,introBackground_,
+                    static_cast<Uint32>(now),introStrength,original.width);
+                SDL_UpdateTexture(background_,nullptr,introBackground_.data(),original.width*4);
+            } else {
+                SDL_UpdateTexture(background_,nullptr,normalFrame.pixels.data(),
+                                  normalFrame.width*4);
+            }
         }
-        const double cover = std::max(960.0 / frame.width, 540.0 / frame.height);
-        const int cropW = std::clamp(int(960.0 / cover + .5), 1, frame.width);
-        const int cropH = std::clamp(int(540.0 / cover + .5), 1, frame.height);
-        DrawTexture(r, background_,
-            {(frame.width - cropW) / 2, (frame.height - cropH) / 2, cropW, cropH},
-            {0, 0, 960, 540});
+        Tint(background_,int(77.0f+178.0f*introStrength+.5f));
+        const double cover=std::max(960.0/normalFrame.width,540.0/normalFrame.height);
+        const int cropW=std::clamp(int(960.0/cover+.5),1,normalFrame.width);
+        const int cropH=std::clamp(int(540.0/cover+.5),1,normalFrame.height);
+        DrawTexture(r,background_,
+            {(normalFrame.width-cropW)/2,(normalFrame.height-cropH)/2,cropW,cropH},
+            {0,0,960,540});
     }
 
 public:
@@ -168,9 +259,17 @@ public:
     }
 
     void Release() {
-        for (SDL_Texture *texture : {background_, logo_, logoII_, largeFont_, smallFont_})
+        iiPainter_.release();
+        for (SDL_Texture *texture : {background_, logo_, logoII_, largeFont_, smallFont_, revealLarge_, revealSmall_})
             if (texture) SDL_DestroyTexture(texture);
         background_ = logo_ = logoII_ = largeFont_ = smallFont_ = nullptr;
+        revealLarge_ = revealSmall_ = nullptr;
+        originalLogoRGBA_.clear(); pulsedLogo_.clear(); introLogo_.clear();
+        backgroundOriginalRGBA_.clear(); introBackground_.clear();
+        largeRevealPixels_.clear(); smallRevealPixels_.clear();
+        lastLogoTick_ = std::numeric_limits<std::uint64_t>::max();
+        introLogoStep_ = introBackgroundStep_ = menuRevealStep_ = -1;
+        warnedLogoUpdate_ = false;
         renderer_ = nullptr;
         gifW_ = gifH_ = 0;
         gifFrame_ = gifHue_ = -1;
@@ -260,31 +359,51 @@ public:
             center(notice, 480, 462, 1.45f, options.Capturing() ? 255 : 173);
         }
         center("A SELECT   B / ESC BACK", 480, 511, 1.5f, 176);
-        left("TEST 87.451", 834, 523, 1.05f, 160);
+        left("TEST 87.452", 834, 523, 1.05f, 160);
         SDL_RenderPresent(renderer);
         return true;
     }
 
     bool Render(SDL_Renderer *renderer, uint64_t now) {
         if (!renderer || !menu_.Visible() || !Init(renderer)) return false;
-        SDL_SetRenderDrawColor(renderer, 8, 16, 36, 255);
+        const auto &clock = XM87235Intro::State();
+        const std::uint32_t elapsed = clock.Elapsed(now);
+        const bool cinematic = clock.started && elapsed < XM87235Intro::TotalMs;
+        const float backgroundStrength = clock.started ?
+            XM87235Intro::backgroundStrength(elapsed) : 0.0f;
+        const auto channel = [](float v) -> Uint8 {
+            return Uint8(std::clamp(int(v+.5f),0,255));
+        };
+        SDL_SetRenderDrawColor(renderer,
+            channel(8.0f+247.0f*backgroundStrength),
+            channel(16.0f+239.0f*backgroundStrength),
+            channel(36.0f+219.0f*backgroundStrength),255);
         SDL_RenderClear(renderer);
-        DrawBackground(renderer, now);
-        DrawLogo(renderer, now);
+        DrawBackground(renderer,now,backgroundStrength);
+        if (elapsed >= XM87235Intro::LogoStart) DrawLogo(renderer,now,elapsed,cinematic);
+        if (elapsed < XM87235Intro::MenuStart) {
+            SDL_RenderPresent(renderer);
+            return true;
+        }
+        const int reveal = cinematic ?
+            std::clamp(int(XM87235Intro::menuReveal(elapsed)*16.0f),0,16) : 16;
+        if (cinematic) RevealFonts(reveal);
+        SDL_Texture *mainFont = cinematic && revealLarge_ ? revealLarge_ : largeFont_;
+        SDL_Texture *captionFont = cinematic && revealSmall_ ? revealSmall_ : smallFont_;
         static constexpr std::array<const char *, 4> rows{
             "ARCADE", "TRAINING", "VERSUS", "OPTIONS"
         };
         for (int i = 0; i < 4; ++i) {
-            GlyphText(renderer, menu_.large_, largeFont_, rows[size_t(i)],
+            GlyphText(renderer, menu_.large_, mainFont, rows[size_t(i)],
                       489, 347 + i * 31, 1.35f,
                       menu_.selection_ == i ? 255 : 80, 1);
         }
-        GlyphText(renderer, menu_.small_, smallFont_,
+        GlyphText(renderer, menu_.small_, captionFont,
                   "A SELECT   B / ESC BACK", 489, 495, 1.375f, 235, 1);
-        GlyphText(renderer, menu_.small_, smallFont_,
+        GlyphText(renderer, menu_.small_, captionFont,
                   "ESC TO RETURN", 18, 522, 1.08f, 185, 0);
-        GlyphText(renderer, menu_.small_, smallFont_,
-                  "TEST 87.451", 942, 522, 1.08f, 185, 2);
+        GlyphText(renderer, menu_.small_, captionFont,
+                  "TEST 87.452", 942, 522, 1.08f, 185, 2);
         SDL_RenderPresent(renderer);
         return true;
     }
