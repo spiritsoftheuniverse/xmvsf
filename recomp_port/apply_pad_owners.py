@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""87.448: original SDL2 physical capture and P1/P2 ownership and one-press-one-menu-step.
+"""87.450: original SDL2 physical capture, installed safely and repeatably.
 
 Source-only anchored patch after 87.442 Options. Never modifies ROMs,
 resets the user's submodule, or invalidates the 87.441 renderer design.
@@ -39,7 +39,7 @@ def _reconcile_render_call(code: str) -> str:
         r"SDL_GetTicks\s*\(\s*\)\s*,\s*"
         r"options\s*,\s*g_bindings\s*,\s*"
         r"Table\s*\(\s*\)\s*,\s*)"
-        r"gamepads(\s*\)\s*;"
+        r"gamepads(\s*\)\s*;)"
     )
     new = re.compile(
         r"\bhomeTextures\s*\.\s*RenderOptions\s*\(\s*"
