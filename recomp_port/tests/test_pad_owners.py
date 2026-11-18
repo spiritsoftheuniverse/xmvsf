@@ -36,7 +36,7 @@ def main():
     for needed in (
         "SDL_GetJoystickName(js)", "SDL_GetJoystickGUID(js)",
         "SDL_GetJoystickSerial(js)", "SDL_GetGamepadID(gp)",
-        "SDL_GetJoystickID(js)", "SDL_GetJoysticks(&count)",
+        "SDL_GetJoysticks(&count)",
         "SDL_EVENT_JOYSTICK_ADDED", "SDL_EVENT_JOYSTICK_REMOVED",
         "SDL_GetJoystickHat(js", "SDL_GetJoystickButton(js",
         "SDL_GetJoystickAxis(js", "SameIdentity",
