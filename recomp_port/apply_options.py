@@ -47,6 +47,46 @@ OPTIONS_AUDIO_LINE = (
     'XMVSF_RECOMP_OPTIONS_87_442\n'
 )
 
+# Legacy hook inserted repeatedly by the 87.437 upgrade before the
+# 87.442 Options page existed. Both calls in one iteration disagree on
+# visibility ONLY on Options, which clears and rewinds the stream every
+# frame: a short looping buzz rather than menu music.
+LEGACY_AUDIO_LINE = (
+    '        homeAudio.Step(home.Visible()); // XMVSF_RECOMP_HOME_87_437\n'
+)
+
+
+def normalize_menu_audio_steps(text: str) -> str:
+    """Keep one canonical audio step, never alternate false/true on Options.
+
+    Modify only our exact stamped generated statements; leave arbitrary user
+    SDL/audio code untouched. Also handles a preinstalled 87.443 owner patch.
+    """
+    old = text.count(LEGACY_AUDIO_LINE)
+    current = text.count(OPTIONS_AUDIO_LINE)
+    if not old and current == 1:
+        return text
+
+    # A generated Options view must have at least one known audio step.
+    if current == 0 and old == 0:
+        raise RuntimeError("87.447 Options has no recognized menu audio step; source untouched")
+    if current == 0:
+        # Promote the last existing 87.437 hook to the 87.442 semantics.
+        # Only one shared stream pump may run in a frontend iteration.
+        text = text.replace(LEGACY_AUDIO_LINE, "", old - 1)
+        text = text.replace(LEGACY_AUDIO_LINE, OPTIONS_AUDIO_LINE, 1)
+    else:
+        # Retain the last 87.442 step in its existing position.
+        text = text.replace(LEGACY_AUDIO_LINE, "")
+        text = text.replace(OPTIONS_AUDIO_LINE, "", current - 1)
+
+    if text.count(LEGACY_AUDIO_LINE) != 0 or text.count(OPTIONS_AUDIO_LINE) != 1:
+        raise RuntimeError("87.447 menu audio normalization incomplete; source untouched")
+    print(f"XMVSF 87.447: removed {old} conflicting legacy audio steps "
+          f"and {max(0, current - 1)} repeated active steps")
+    return text
+
+
 
 def recover_repeated_options(text: str) -> str:
     """Collapse known duplicate generated code; preserve unknown source.
@@ -243,9 +283,9 @@ def main() -> int:
                 or 'xmvsf_home::OptionsPanel options;' not in before
                 or 'homeTextures.RenderOptions(' not in before):
             raise RuntimeError("87.446 incomplete Options integration; refusing to reinstall over unknown source")
-        updated = recover_repeated_options(before)
+        updated = normalize_menu_audio_steps(recover_repeated_options(before))
     else:
-        updated = patch(before)
+        updated = normalize_menu_audio_steps(patch(before))
     content = SOURCE.read_bytes()
     # Install only after the complete source patch has been validated.
     if updated != before:
