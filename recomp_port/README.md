@@ -1,4 +1,4 @@
-# XMVSF native front end — 87.439 (native window sizing and audio)
+# XMVSF native front end — 87.440
 
 The real XMVSF front end now renders in CPS-2 Recomp's **SDL3 native
 window and pixel presenter**, not an additional SDL launcher. The preserved
@@ -31,6 +31,25 @@ Esc / gamepad menu input; while shown, no game ticks are executed.
 Navigation uses both keyboard and gamepad: arrows / D-pad, Enter or Space / A.
 Esc returns to the home menu, and F1 there opens the original recomp diagnostics.
 Use `XMVSF_RECOMP_HOME_OFF=1` when comparing against untouched upstream.
+
+## 87.440 SDL2-style renderer port
+
+The XMVSF game and native menu now use SDL3's accelerated 2D
+SDL_Renderer path with the old SDL2 window/rendering policy: nearest
+texture sampling, SDL-managed centered 960x540 logical menu, and one
+persistent OS window. The custom recomp GPU shader and its linear
+edge-blending pass are bypassed for interactive XMVSF.
+
+This does NOT force square pixels or change existing Game/Display
+settings, menu layout, artwork, M68000 translation, or window presets.
+The native game is still shown with its original FitPicture rectangle.
+
+The port is installed by recomp_port/apply_classic_renderer.py, after
+the existing menu installer and before incremental Ninja, and has a
+source-only regression under recomp_port/tests/test_classic_renderer.py.
+See CLASSIC_RENDERER_87_440.md for details. Set
+XMVSF_RECOMP_CLASSIC_OFF=1 at runtime to disable the bridge and restore
+upstream behavior for diagnostics.
 
 ## 87.439 restoration of original display behavior
 
