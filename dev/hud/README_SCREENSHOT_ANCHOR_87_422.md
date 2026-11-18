@@ -1,3 +1,24 @@
+# TEST 87.431 — Force existing step-zero invisibility in the painter
+
+This is NOT another attempt to schedule the concealment with a chooser,
+music or stage observer. The native CPS2 OAM draw path now passes
+`Timeline::paintStep(phase,frame)` to the existing source-identified HUD
+dither. For the precombat ROM phases **02,04,06**, `paintStep` is
+**zero immediately**, even if the previous pre-hide event was missed
+and `primed` is false. The SDL stun meter uses the same method.
+
+The existing screenshot-verified **song phase02+27** and **shock reveal
+phase06+23** are unchanged. When `visualShockActive` becomes true,
+`paintStep` delegates directly to the original `step()` and the
+same 30-frame dither fade. No change to the HUD source classifier,
+transition-wall exclusion, ROM game logic, palette or controller keys.
+
+The value zero removes every source-classified HUD tile and leaves
+the original stage framebuffer intact; it does not touch unrelated
+scenery. A sprite NOT recognized by the approved source classifier
+is outside this dither path and may still require source identification.
+Build and native runtime visual inspection are required to confirm.
+
 # TEST 87.430 — Guarantee HUD concealment before the shock
 
 USER-APPROVED TIMING IS FROZEN: the Versus song still starts at native

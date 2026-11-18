@@ -799,8 +799,9 @@ static void xm8733Overlay(SDL_Renderer* render,const SDL_Rect& view,bool nativeS
                     }
             if(hasStunInk)shock.noteHudSource((unsigned)GetCurrentFrame());
         }
+        // Same exact phase-owned zero dither as CPS2 native HUD sprites.
         XM87392::stunOverlay(xm8733Pixels,384*4,
-                              shock.step((unsigned)GetCurrentFrame()));
+                shock.paintStep(xm8658GameStatus,(unsigned)GetCurrentFrame()));
     }
     if(SDL_UpdateTexture(xm8733Texture,NULL,xm8733Pixels,384*4)==0)
         SDL_RenderCopy(render,xm8733Texture,NULL,&view);

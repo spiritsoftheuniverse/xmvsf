@@ -20,6 +20,22 @@ int main(){
     assert(!eligible("xmvsfu",false));
     assert(!eligible("mvsc",true));
     assert(!eligible(nullptr,true));
+    // TEST 87.431: do not rely on the asynchronous pre-hide event.
+    // The dither is already at the fully-invisible step on the FIRST
+    // native precombat frame, even when Timeline has never been primed.
+    Timeline coldHud;
+    assert(coldHud.step(100u)==RevealFrames); // old path exposed HUD
+    assert(coldHud.paintStep(0,100u)==RevealFrames); // selection unchanged
+    assert(coldHud.paintStep(2,100u)==0u);
+    assert(coldHud.paintStep(4,101u)==0u);
+    assert(coldHud.paintStep(6,102u)==0u);
+    assert(coldHud.paintStep(8,103u)==RevealFrames); // live combat fallback
+    assert(coldHud.paintStep(10,104u)==RevealFrames); // results unchanged
+    for(int y=0;y<56;++y)
+        for(int x=0;x<384;++x){
+            assert(!visible(x,y,coldHud.paintStep(2,100u)));
+            assert(!shineCore(x,y,coldHud.paintStep(4,101u)));
+        }
     // TEST 87.428: song remains phase 02+27. The captured HUD reveal
     // starts at 04->06 +23 regardless of song elapsed frames.
     // Keep 130f as a legacy non-captured compatibility delay.
@@ -172,10 +188,13 @@ int main(){
     visualClock.startWithSong(91u,1370u); // PCM must not restart or fade
     visualClock.noteHudSource(1450u);
     assert(visualClock.step(1474u)==0u); // NO song-based 130f reveal
+    assert(visualClock.paintStep(6,1474u)==0u); // forced hidden before shock
     visualClock.activateShockAtVisualFrame(1475u);
     assert(visualClock.visualShockActive && visualClock.visualShockFrame==1475u);
     assert(visualClock.step(1475u)==1u); // exactly the pictured frame
+    assert(visualClock.paintStep(6,1475u)==1u); // direct zero releases
     assert(visualClock.step(1503u)==29u);
+    assert(visualClock.paintStep(6,1504u)==30u);
     assert(visualClock.step(1504u)==30u);
     assert(visualClock.start==1360u); // song unchanged
     visualClock.activateShockAtVisualFrame(1490u); // one-shot

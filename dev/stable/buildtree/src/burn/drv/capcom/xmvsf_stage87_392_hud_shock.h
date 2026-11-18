@@ -145,6 +145,18 @@ struct Timeline {
         if(frame>=due+RevealFrames)return RevealFrames;
         return frame-due+1u;
     }
+
+    // TEST 87.431: renderer-owned dither, not a best-effort "primed" cue.
+    // Native precombat HUD is already on screen during phases 02/04/06.
+    // Force the ALREADY-APPROVED step-zero invisibility immediately,
+    // including when the chooser observer or audio setup is late/missed.
+    // After the fixed 04->06 + 23 shock trigger, the original step()
+    // runs its unchanged 30-frame reveal. Selection/results remain native.
+    unsigned paintStep(int phase,unsigned frame)const {
+        if((phase==2 || phase==4 || phase==6) && !visualShockActive)
+            return 0u;
+        return step(frame);
+    }
 };
 inline Timeline& timeline(){static Timeline s;return s;}
 

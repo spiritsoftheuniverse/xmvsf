@@ -1481,7 +1481,21 @@ if(!xm8725FighterObject && XM8725::Enabled() &&
                 (unsigned)n,x,y,(unsigned)bx,(unsigned)by);
         if(xm87399ConfirmedSource && !xm8651SpriteCaptureActive)
             XM87392::timeline().noteHudSource((unsigned)GetCurrentFrame());
-        const unsigned xm87392Step=XM87392::timeline().step((unsigned)GetCurrentFrame());
+        // TEST 87.431: phase-owned dither zero from first precombat OBJ.
+        // No reliance on a prior song/chooser prime for source-qualified HUD.
+        const unsigned xm87392Step=XM87392::timeline().paintStep(
+            xm8745LivePhase,(unsigned)GetCurrentFrame());
+        if(xm87394HudEligible && !xm8651SpriteCaptureActive &&
+           (xm8745LivePhase==2 || xm8745LivePhase==4 ||
+            xm8745LivePhase==6) && !XM87392::timeline().visualShockActive){
+            static bool reported=false;
+            if(!reported){
+                reported=true;
+                std::fprintf(stderr,
+                    "XM87.431 HUD_DITHER_ZERO_IMMEDIATE pre_shock=1 phase=%02X step=%u primed=%d\n",
+                    xm8745LivePhase,xm87392Step,int(XM87392::timeline().primed));
+            }
+        }
         // Bound source audit for the remaining phase-02/04 portrait/point
         // and timer escapes. Metadata only: no guesses from screen RGB.
         if(xm87394HudEligible &&

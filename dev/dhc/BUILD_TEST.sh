@@ -5,7 +5,7 @@
 set -euo pipefail
 BUILD_WALL_START=$SECONDS
 # Batch sets the version once at launch, before native compilation begins.
-XMVSF_BUILD_VERSION="${XMVSF_TEST_VERSION:-87.430}"
+XMVSF_BUILD_VERSION="${XMVSF_TEST_VERSION:-87.431}"
 XMVSF_BUILD_TAG="${XMVSF_BUILD_VERSION//./_}"
 PROJECT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
@@ -868,6 +868,13 @@ if ! LC_ALL=C grep -aFq -- "XM87.430 HUD_EARLY_PRIME" "$BUILT"; then
   exit 2
 fi
 echo "TEST 87.430 source-qualified HUD now primes at first precombat phase."
+# TEST 87.431: the renderer's own HUD dither value must be set to ZERO
+# before activation, independent of delayed best-effort priming.
+if ! LC_ALL=C grep -aFq -- "XM87.431 HUD_DITHER_ZERO_IMMEDIATE" "$BUILT"; then
+  echo "ERROR: TEST 87.431 immediate native source dither not linked." >&2
+  exit 2
+fi
+echo "TEST 87.431 native HUD dither zero before visual shock linked."
 # Hash-compare before publishing: a no-op build must NOT overwrite TEST.
 built_sha="$(sha256sum "$BUILT" | cut -d ' ' -f 1)"
 mkdir -p "$PROJECT/runtime/stable"
