@@ -82,7 +82,7 @@ class Painter {
                        SDL_Rect& bounds){
         const port::xmvsf_home::Image img=port::xmvsf_home::LoadPng(filename);
         if(!img.Valid() || img.width!=CanvasWidth || img.height!=CanvasHeight){
-            std::fprintf(stderr,"XM87.452 II_CANVAS_MISSING_OR_INVALID %s expected=%dx%d\n",
+            std::fprintf(stderr,"XM87.453 II_CANVAS_MISSING_OR_INVALID %s expected=%dx%d\n",
                          filename,CanvasWidth,CanvasHeight);
             return false;
         }
@@ -98,6 +98,9 @@ class Painter {
                                           SDL_TEXTUREACCESS_STREAMING,
                                           CanvasWidth,CanvasHeight);
         if(!tex)return nullptr;
+        // Match the main logo's sharp CPS2 pixel sampling for the finished II
+        // and all four animated stroke textures (one shared upload path).
+        SDL_SetTextureScaleMode(tex,SDL_SCALEMODE_NEAREST);
         SDL_SetTextureBlendMode(tex,SDL_BLENDMODE_BLEND);
         if(!SDL_UpdateTexture(tex,nullptr,pixels.data(),CanvasWidth*4)){
             SDL_DestroyTexture(tex);return nullptr;
