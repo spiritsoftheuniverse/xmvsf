@@ -78,6 +78,20 @@ def patch(inputs: dict[Path, str]) -> dict[Path, str]:
             }''',
         "remove full-frame CPU compositor from live menu",
     )
+    front = replace_exact(
+        front,
+        '''    presenter.Close();
+    SDL_DestroyWindow(window);
+    SDL_Quit();''',
+        '''    // XMVSF_RECOMP_MENU_TEXTURES_87_441: release SDL objects before
+    // upstream closes the renderer/window and calls SDL_Quit.
+    homeTextures.Release();
+    homeAudio.Close();
+    presenter.Close();
+    SDL_DestroyWindow(window);
+    SDL_Quit();''',
+        "SDL shutdown ownership order",
+    )
     ph = replace_exact(
         ph,
         '''    void SetScaling(Scaling scaling) {
