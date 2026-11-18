@@ -48,13 +48,19 @@ def main():
         assert b"xmvsf_home::WindowShortcut(window, ev.key.scancode, ev.key.mod)" in first
         assert b"homeAudio.Move()" in first and b"homeAudio.Select()" in first
         assert b"homeAudio.Step(home.Visible())" in first
+        # The 87.438 generated source may be present in an existing submodule.
+        # The 87.439 installer must remove every generated override.
+        assert b"XMVSF_RECOMP_HOME_87_438" not in first
+        assert b"presenter.SetScaling(DisplayScaling());" in first
+        assert b"home.Draw(homePicture, SDL_GetTicks());" in first
+        assert b"SDL_Delay(8);" in first
         assert module.HEADER.read_bytes() == OWN_HEADER.read_bytes()
         assert (sandbox / "recomp" / "port" / "xmvsf_stb_image.h").read_bytes() == DECODER.read_bytes()
         assert (sandbox / "recomp" / "port" / "xmvsf_menu_audio.h").read_bytes() == AUDIO.read_bytes()
         assert (sandbox / "recomp" / "port" / "xmvsf_window.h").read_bytes() == WINDOW.read_bytes()
         assert module.main() == 0
         assert clone.read_bytes() == first, "installer is not idempotent"
-    print("XMVSF 87.437 menu installer: PASS (isolated, idempotent, window + audio + assets)")
+    print("XMVSF 87.439 installer: PASS (87.438 graphics rollback) (isolated, idempotent, window + audio + assets)")
 
 if __name__ == "__main__":
     main()
