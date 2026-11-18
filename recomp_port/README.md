@@ -1,4 +1,4 @@
-# XMVSF native front end — 87.437 (native window sizing and audio)
+# XMVSF native front end — 87.439 (native window sizing and audio)
 
 The real XMVSF front end now renders in CPS-2 Recomp's **SDL3 native
 window and pixel presenter**, not an additional SDL launcher. The preserved
@@ -31,6 +31,32 @@ Esc / gamepad menu input; while shown, no game ticks are executed.
 Navigation uses both keyboard and gamepad: arrows / D-pad, Enter or Space / A.
 Esc returns to the home menu, and F1 there opens the original recomp diagnostics.
 Use `XMVSF_RECOMP_HOME_OFF=1` when comparing against untouched upstream.
+
+## 87.439 restoration of original display behavior
+
+87.438 was retracted because its integer-scale/menu downsample changes
+altered the intended appearance. **87.439 restores the complete 87.437
+drawing/window/presentation source** and changes only the visible version
+number. This keeps:
+
+- Original 87.437 physical scaling presets, SDL3 presenter defaults,
+  fractional menu fitting, and SDL/VSync behavior.
+- The source artwork, PCM menu music, menu movement/selection sounds,
+  and controller input.
+- The pinned recomp engine, warm Ninja cache, local build scripts, and
+  the original FBNeo Stable/TEST builds.
+
+Since `recomp/` is a pinned submodule with locally applied generated
+patches, `RECOMP_BUILD.bat` automatically detects and **reverses exactly
+the six 87.438 frontend changes** already present in a local checkout
+before reapplying the known 87.437 menu integration. An unknown/partly
+modified source refuses the rollback without writing a partial file;
+there is no `git reset --hard` or removal of ROMs or object caches.
+
+**The rapid compilation is a Ninja/build-cache improvement and is unaffected
+by this presentation rollback.** The actual cause of sluggish OS dragging
+under SDL3 remains unproven and requires separate profiling rather than
+guessing from the size of the source image.
 
 ## Window controls (87.437)
 
