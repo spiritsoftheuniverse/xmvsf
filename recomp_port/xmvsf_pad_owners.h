@@ -460,6 +460,26 @@ public:
         SDL_Gamepad *gp = Gamepad(p);
         return FromSDLGamepad(gp, -1, int(axis));
     }
+    // True only for the physical joystick button that produced menu A.
+    // SDL3 emits both gamepad and joystick events for a mapped pad; the
+    // second half of that single physical press must never bind itself.
+    bool IsMappedConfirmPhysical(SDL_JoystickID instance, int button) const {
+        for (const Device &d : devices_) {
+            if (d.instance != instance || !d.gamepad) continue;
+            const RawBind a = FromSDLGamepad(d.gamepad, SDL_GAMEPAD_BUTTON_SOUTH);
+            return a.type == 'b' && a.index == button;
+        }
+        return false;
+    }
+    bool IsRawMenuConfirmPhysical(SDL_JoystickID instance, int button) const {
+        for (int p = 0; p < kPlayers; ++p) {
+            const Device *d = Assigned(p);
+            if (!d || !d->raw || d->instance != instance) continue;
+            const RawBind lp = rawBindings_[p][4];
+            return button == 0 || (lp.type == 'b' && lp.index == button);
+        }
+        return false;
+    }
     std::string DeviceName(int p) const {
         if (p < 0 || p >= kPlayers) return "INVALID PLAYER";
         const Slot &s = slots_[p];
