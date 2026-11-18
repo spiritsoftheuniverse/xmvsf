@@ -31,14 +31,24 @@ def main():
     assert cleaned.count(module.OPTIONS_AUDIO_LINE) == 1
     assert module.recover_repeated_options(cleaned) == cleaned
     assert cleaned.startswith("begin\n") and cleaned.endswith("        if (home.Visible()) {\n")
-    # Unknown or partially edited copies must remain untouched.
-    malformed = fixture.replace(module.OPTIONS_AUDIO_LINE, "", 1)
+    # Partial legacy rewrites can separate the generated audio line from
+    # the generated render block. They must still be normalized exactly.
+    separated = fixture.replace(pair, module.OPTIONS_DRAW_BLOCK +
+                                module.OPTIONS_AUDIO_LINE, 1)
+    separated_fixed = module.recover_repeated_options(separated)
+    assert separated_fixed.count(module.OPTIONS_DRAW_BLOCK) == 1
+    assert separated_fixed.count(module.OPTIONS_AUDIO_LINE) == 1
+    assert module.recover_repeated_options(separated_fixed) == separated_fixed
+    # Unknown or hand-edited Options rendering calls must not be deleted.
+    malformed = fixture.replace(
+        "nextFrame = SDL_GetTicksNS();", "nextFrame = CUSTOM_FRAME_CLOCK();", 1
+    )
     try:
         module.recover_repeated_options(malformed)
     except RuntimeError:
         pass
     else:
-        raise AssertionError("ambiguous generated Options cleanup must fail closed")
+        raise AssertionError("custom-modified Options blocks must be preserved")
     original = (PORT / "frontend_sdl.cpp").read_text(encoding="utf-8")
     # 87.443 supersedes the 87.442 Options handlers. Its installer
     # intentionally preserves the newer native source on repeated builds.
