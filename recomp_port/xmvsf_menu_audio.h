@@ -121,8 +121,13 @@ public:
 
     MenuAudio(const MenuAudio &) = delete;
     MenuAudio &operator=(const MenuAudio &) = delete;
-    ~MenuAudio() {
+    ~MenuAudio() { Close(); }
+
+    // Called explicitly before the native frontend invokes SDL_Quit.
+    // Destructor remains idempotent if it runs afterward.
+    void Close() {
         if (stream_) SDL_DestroyAudioStream(stream_);
+        stream_ = nullptr;
     }
 
     void Move() { if (!movement_.Empty()) moveAt_ = 0; }
