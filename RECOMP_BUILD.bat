@@ -62,6 +62,15 @@ if errorlevel 1 (
   goto :fail
 )
 
+REM 87.441: compose original menu assets as persistent GPU textures, not a
+REM full 960x540 CPU image and upload each frame (the original SDL2 model).
+"%BASH%" -c "python3 ../recomp_port/apply_textured_menu.py"
+if errorlevel 1 (
+  echo ERROR: XMVSF texture menu integration failed. Existing build unchanged.
+  popd
+  goto :fail
+)
+
 REM Default is FAST once configured. It only recompiles changed C++ objects.
 REM refresh explicitly regenerates M68000 translation and reconfigures CMake.
 if /I "%~1"=="refresh" goto :refresh
