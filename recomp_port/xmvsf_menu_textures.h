@@ -255,7 +255,7 @@ public:
             center(notice, 480, 462, 1.45f, options.Capturing() ? 255 : 173);
         }
         center("A SELECT   B / ESC BACK", 480, 511, 1.5f, 176);
-        left("TEST 87.443", 834, 523, 1.05f, 160);
+        left("TEST 87.444", 834, 523, 1.05f, 160);
         SDL_RenderPresent(renderer);
         return true;
     }
