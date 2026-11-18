@@ -212,20 +212,43 @@ public:
                      const BoundTable &table, const std::string &file,
                      PadOwners &owners) {
         if (!visible_) return false;
-        if (capture_) {
-            // Stage13 capture is driven by the NEXT physical event.
-            // The A/Enter that selected this field must not itself become
-            // the assigned device or binding. Never react to key repeats.
+        if (lifecycle_.Capturing()) {
+            // Loss of focus or a disappearing controller cannot strand the
+            // capture field. The real SDL event still reaches window/hotplug.
+            if (ev.type == SDL_EVENT_WINDOW_FOCUS_LOST ||
+                ev.type == SDL_EVENT_JOYSTICK_REMOVED ||
+                ev.type == SDL_EVENT_GAMEPAD_REMOVED) {
+                CancelCapture("CAPTURE INTERRUPTED - PRESS A TO RETRY");
+                return false;
+            }
+            if (lifecycle_.Expired(SDL_GetTicks())) {
+                CancelCapture("CAPTURE TIMED OUT - PRESS A TO RETRY");
+                return false;
+            }
+            if (ev.type == SDL_EVENT_KEY_DOWN && !ev.key.repeat &&
+                ev.key.scancode == SDL_SCANCODE_ESCAPE) {
+                CancelCapture("CAPTURE CANCELLED");
+                return true;
+            }
+            // GUIDE is reserved as an optional controller-side escape,
+            // leaving B/EAST freely available as a custom attack binding.
+            if (ev.type == SDL_EVENT_GAMEPAD_BUTTON_DOWN &&
+                ev.gbutton.button == SDL_GAMEPAD_BUTTON_GUIDE) {
+                CancelCapture("CAPTURE CANCELLED");
+                return true;
+            }
+            if (ev.type == SDL_EVENT_KEY_UP ||
+                ev.type == SDL_EVENT_GAMEPAD_BUTTON_UP ||
+                ev.type == SDL_EVENT_JOYSTICK_BUTTON_UP) {
+                ObserveActivatorRelease(ev);
+                return true;
+            }
+            // Suppress only the physical A/Enter that activated capture.
+            // A different button pressed immediately (even within 180ms)
+            // is a legitimate intended binding.
+            if (IsActivatorPress(ev, owners)) return true;
             if (ev.type == SDL_EVENT_KEY_DOWN && !ev.key.repeat) {
                 const SDL_Scancode key = ev.key.scancode;
-                if (key == SDL_SCANCODE_ESCAPE) {
-                    capture_ = false;
-                    suppressUntil_ = SDL_GetTicks() + 250;
-                    Notice("CAPTURE CANCELLED", 1500);
-                    return true;
-                }
-                if (SDL_GetTicks() < captureAt_ + 180) return true;
-                // Reserve diagnostics exactly as in our SDL2 frontend.
                 if (key == SDL_SCANCODE_UNKNOWN || key == SDL_SCANCODE_F9 ||
                     key == SDL_SCANCODE_F10 || key == SDL_SCANCODE_F12) return true;
                 if (controlRow_ == 0)
@@ -234,16 +257,7 @@ public:
                     StoreInput(owners, bindings, table, file, {'k', int(key), 0});
                 return true;
             }
-            if (SDL_GetTicks() < captureAt_ + 180) {
-                return ev.type == SDL_EVENT_GAMEPAD_BUTTON_DOWN ||
-                       ev.type == SDL_EVENT_JOYSTICK_BUTTON_DOWN ||
-                       ev.type == SDL_EVENT_JOYSTICK_AXIS_MOTION ||
-                       ev.type == SDL_EVENT_JOYSTICK_HAT_MOTION;
-            }
             if (controlRow_ == 0) {
-                // Pressing a physical BUTTON on any device owns that exact
-                // SDL instance. If it belongs to the other player, SWAP
-                // their entire saved player configurations (Stage13).
                 if (ev.type == SDL_EVENT_JOYSTICK_BUTTON_DOWN) {
                     StoreDevice(owners, bindings, table, file,
                                 ev.jbutton.which, false);
@@ -255,17 +269,17 @@ public:
                     return true;
                 }
             } else {
-                // Only the controller currently owned by this player can
-                // change their per-action physical binding.
                 const SDL_JoystickID owner = owners.AssignedInstance(player_);
-                // SDL3 can deliver a mapped Gamepad event before its raw
-                // Joystick event. Translate it back to the physical input
-                // using SDL_GetGamepadBindings, preserving Stage13 semantics.
+                // A mapped pad can emit its SDL3 semantic event before the
+                // underlying physical joystick event. Resolve both, never
+                // silently swallow an unmapped semantic press.
                 if (owner && ev.type == SDL_EVENT_GAMEPAD_BUTTON_DOWN &&
                     ev.gbutton.which == owner && owners.Physical(player_)) {
                     const auto physical = owners.PhysicalForGamepadButton(
                         player_, static_cast<SDL_GamepadButton>(ev.gbutton.button));
-                    if (physical.type != 'n') StoreInput(owners, bindings, table, file, physical);
+                    if (physical.type != 'n')
+                        StoreInput(owners, bindings, table, file, physical);
+                    else captureHint_ = "UNMAPPED BUTTON - TRY RAW INPUT OR ESC";
                     return true;
                 }
                 if (owner && ev.type == SDL_EVENT_GAMEPAD_AXIS_MOTION &&
@@ -273,7 +287,9 @@ public:
                     owners.Physical(player_)) {
                     const auto physical = owners.PhysicalForGamepadAxis(
                         player_, static_cast<SDL_GamepadAxis>(ev.gaxis.axis));
-                    if (physical.type != 'n') StoreInput(owners, bindings, table, file, physical);
+                    if (physical.type != 'n')
+                        StoreInput(owners, bindings, table, file, physical);
+                    else captureHint_ = "UNMAPPED AXIS - TRY RAW INPUT OR ESC";
                     return true;
                 }
                 if (owner && ev.type == SDL_EVENT_JOYSTICK_BUTTON_DOWN &&
@@ -283,9 +299,10 @@ public:
                     return true;
                 }
                 if (owner && ev.type == SDL_EVENT_JOYSTICK_AXIS_MOTION &&
-                    ev.jaxis.which == owner && ev.jaxis.value > 20000) {
+                    ev.jaxis.which == owner &&
+                    (ev.jaxis.value > 20000 || ev.jaxis.value < -20000)) {
                     StoreInput(owners, bindings, table, file,
-                               {'a', int(ev.jaxis.axis), 1});
+                               {'a', int(ev.jaxis.axis), ev.jaxis.value > 0 ? 1 : -1});
                     return true;
                 }
                 if (owner && ev.type == SDL_EVENT_JOYSTICK_HAT_MOTION &&
@@ -294,15 +311,32 @@ public:
                                {'h', int(ev.jhat.hat), int(ev.jhat.value)});
                     return true;
                 }
+                if (ev.type == SDL_EVENT_JOYSTICK_BUTTON_DOWN ||
+                    ev.type == SDL_EVENT_GAMEPAD_BUTTON_DOWN)
+                    captureHint_ = owners.Keyboard(player_)
+                        ? "KEYBOARD ASSIGNED - PRESS A KEY OR ESC"
+                        : "PRESS A BUTTON ON ASSIGNED CONTROLLER";
             }
-            // Suppress navigation until capture finishes; don't route
-            // events to the game while editing, but allow SDL_QUIT.
+            // Events being captured cannot simultaneously trigger gameplay
+            // or global menu shortcuts; SDL quit/focus events still pass.
             return ev.type == SDL_EVENT_KEY_DOWN ||
                    ev.type == SDL_EVENT_GAMEPAD_BUTTON_DOWN ||
                    ev.type == SDL_EVENT_GAMEPAD_AXIS_MOTION ||
                    ev.type == SDL_EVENT_JOYSTICK_BUTTON_DOWN ||
                    ev.type == SDL_EVENT_JOYSTICK_AXIS_MOTION ||
                    ev.type == SDL_EVENT_JOYSTICK_HAT_MOTION;
+        }
+        // A second SDL event for the just-saved physical input may be
+        // queued in the same pump. Suppress it until confirm/back is up,
+        // otherwise it can accidentally switch tabs or re-arm capture.
+        if (!lifecycle_.MayNavigate()) {
+            if (ev.type == SDL_EVENT_KEY_DOWN ||
+                ev.type == SDL_EVENT_GAMEPAD_BUTTON_DOWN ||
+                ev.type == SDL_EVENT_JOYSTICK_BUTTON_DOWN ||
+                ev.type == SDL_EVENT_GAMEPAD_AXIS_MOTION ||
+                ev.type == SDL_EVENT_JOYSTICK_AXIS_MOTION ||
+                ev.type == SDL_EVENT_JOYSTICK_HAT_MOTION)
+                return true;
         }
         if (ev.type == SDL_EVENT_KEY_DOWN && !ev.key.repeat) {
             if (ev.key.scancode == SDL_SCANCODE_Q ||
