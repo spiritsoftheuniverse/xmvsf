@@ -1,4 +1,4 @@
-# XMVSF native front end — 87.438 (square pixels and responsive menu)
+# XMVSF native front end — 87.437 (native window sizing and audio)
 
 The real XMVSF front end now renders in CPS-2 Recomp's **SDL3 native
 window and pixel presenter**, not an additional SDL launcher. The preserved
@@ -40,32 +40,10 @@ While the game or our menu has focus:
 - **Ctrl+- / Ctrl+keypad minus** steps to the preceding size.
 - **Ctrl+Backspace** toggles maximize/restore without switching to fullscreen.
 
-87.438 replaces the old arcade-area window presets with **six native
-menu-friendly sizes:** 480x270, 960x540, 1440x810, 1920x1080,
-2400x1350, and 2880x1620. The default normal window is 960x540.
-
-In gameplay, the native CPS-2 **384x224 pixel grid** is no longer stretched
-horizontally into 4:3; each original pixel is a square block, and only
-whole-number expansion factors are used. The result may be letterboxed and
-not fill the entire desktop; that's deliberate.
-
-The 960x540 authored menu is decimated (usually 2x) into a 480x270
-pixel grid and then enlarged **only by integer factors**. Original menu
-fonts and logo are now sized with integer source pixels as well. This
-prevents uneven one/two-pixel columns. Both game and menu share the same
-window without swapping renderers.
-
-The menu's GIF/logo/text composition is recomputed only when its 80ms
-animation tick or highlighted row changes, rather than on every SDL
-loop. The 480x270 cached frame uploads instead of the earlier 960x540
-one, and menu refresh is eased to a 24ms sleep, with vsync disabled
-only while the native menu is visible. This should reduce CPU/GPU
-traffic during dragging/resizing; the runtime effect needs confirmation
-on the Windows machine.
-
-Scaling keys are ignored while already fullscreen. Manually resized
-windows smaller than the menu grid use a higher integer decimation
-factor to preserve square physical pixels.
+The six original Stage29 presets remain 384x224 through 2304x1344. Only
+the SDL3 window's physical size changes; the game stays in its original
+native resolution and the authored 960x540 menu stays fitted/letterboxed.
+Scaling keys are ignored while already fullscreen.
 
 ## Original menu audio (87.437)
 
@@ -107,8 +85,7 @@ F:\xmvsf-recomp\RECOMP_RUN.bat
 ```
 
 For a fast patch sanity test (no Windows compilation required):
-`python3 recomp_port/tests/check_patch.py`. An additional UCRT64 C++
-geometry check is in `recomp_port/tests/test_pixel_geometry.cpp`. The actual SDL3 executable must
+`python3 recomp_port/tests/check_patch.py`. The actual SDL3 executable must
 still be built locally; this commit has not been verified by a Windows build.
 
 No GitHub Actions. No edits to `main`, Stable, FBNeo builds, or ROM binaries.

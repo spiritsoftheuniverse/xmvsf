@@ -3,58 +3,16 @@
 #pragma once
 #include <SDL3/SDL.h>
 #include <array>
-#include <algorithm>
-#include <vector>
 #include <cstddef>
 #include <cstdint>
 #include <limits>
 
 namespace port::xmvsf_home {
 struct WindowSize { int width, height; };
-// Every preset contains an integer number of 480x270 authored menu pixels.
-// The CPS-2 scene itself remains 384x224 and is centered at an integer factor.
 inline constexpr std::array<WindowSize, 6> kWindowSizes{{
-    {480, 270}, {960, 540}, {1440, 810}, {1920, 1080},
-    {2400, 1350}, {2880, 1620}
+    {384, 224}, {768, 448}, {1152, 672}, {1536, 896},
+    {1920, 1120}, {2304, 1344}
 }};
-
-
-struct PixelView {
-    int x = 0, y = 0, w = 0, h = 0, sourceW = 480, sourceH = 270, divisor = 2;
-};
-// 960x540 authoring -> exact nearest-neighbour downsample (normally 2x)
-// -> integer-scale output. Fractional RGB/blurred edge widths never arise.
-inline PixelView MenuViewport(int outputW, int outputH) {
-    PixelView view;
-    outputW = std::max(1, outputW);
-    outputH = std::max(1, outputH);
-    while (view.divisor < 12 &&
-           (960 / view.divisor > outputW || 540 / view.divisor > outputH))
-        ++view.divisor;
-    view.sourceW = 960 / view.divisor;
-    view.sourceH = 540 / view.divisor;
-    const int zoom = std::max(1, std::min(outputW / view.sourceW, outputH / view.sourceH));
-    view.w = view.sourceW * zoom;
-    view.h = view.sourceH * zoom;
-    view.x = (outputW - view.w) / 2;
-    view.y = (outputH - view.h) / 2;
-    return view;
-}
-inline void DownsampleHome(const std::vector<uint32_t> &source,
-                           std::vector<uint32_t> &out, const PixelView &view) {
-    if (source.size() != size_t(960) * 540) {
-        out.clear();
-        return;
-    }
-    out.resize(size_t(view.sourceW) * view.sourceH);
-    for (int y = 0; y < view.sourceH; ++y) {
-        const int sy = std::min(539, y * view.divisor + view.divisor / 2);
-        for (int x = 0; x < view.sourceW; ++x) {
-            const int sx = std::min(959, x * view.divisor + view.divisor / 2);
-            out[size_t(y) * view.sourceW + x] = source[size_t(sy) * 960 + sx];
-        }
-    }
-}
 
 inline bool WindowShortcut(SDL_Window *window, SDL_Scancode scancode, SDL_Keymod modifiers) {
     if (!window || !(modifiers & SDL_KMOD_CTRL) || (modifiers & SDL_KMOD_ALT))
