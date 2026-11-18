@@ -15,6 +15,8 @@ ROOT = Path(__file__).resolve().parents[1]
 FRONTEND = ROOT / "recomp" / "port" / "frontend_sdl.cpp"
 OPTIONS = ROOT / "recomp" / "port" / "xmvsf_options.h"
 SOURCE = ROOT / "recomp_port" / "xmvsf_options.h"
+CAPTURE_SOURCE = ROOT / "recomp_port" / "xmvsf_capture_lifecycle.h"
+CAPTURE_TARGET = ROOT / "recomp" / "port" / "xmvsf_capture_lifecycle.h"
 MARK = "XMVSF_RECOMP_OPTIONS_87_442"
 
 
@@ -272,6 +274,8 @@ def main() -> int:
         raise RuntimeError(f"missing pinned source {FRONTEND}")
     if not SOURCE.exists():
         raise RuntimeError(f"missing Options implementation {SOURCE}")
+    if not CAPTURE_SOURCE.is_file():
+        raise RuntimeError(f"missing capture-state implementation {CAPTURE_SOURCE}")
     before = FRONTEND.read_text(encoding="utf-8")
     # 87.446: native Options is already installed as soon as its include
     # marker exists, whether or not a later controller upgrade succeeded.
@@ -287,13 +291,19 @@ def main() -> int:
     else:
         updated = normalize_menu_audio_steps(patch(before))
     content = SOURCE.read_bytes()
+    capture_content = CAPTURE_SOURCE.read_bytes()
+    if b'#include "xmvsf_capture_lifecycle.h"' not in content:
+        raise RuntimeError("87.451 Options must include its capture lifecycle header")
     # Install only after the complete source patch has been validated.
     if updated != before:
         FRONTEND.write_text(updated, encoding="utf-8")
         print("XMVSF 87.442 native Options UI installed")
     if not OPTIONS.exists() or OPTIONS.read_bytes() != content:
         OPTIONS.write_bytes(content)
-        print("XMVSF 87.442 input/feature/graphics bindings installed")
+        print("XMVSF 87.451 Options capture lifecycle synchronized")
+    if not CAPTURE_TARGET.exists() or CAPTURE_TARGET.read_bytes() != capture_content:
+        CAPTURE_TARGET.write_bytes(capture_content)
+        print("XMVSF 87.451 capture release gate installed")
     if before == updated and OPTIONS.read_bytes() == content:
         print("XMVSF 87.442 Options patch ready/idempotent")
     return 0
