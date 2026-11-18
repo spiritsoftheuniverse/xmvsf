@@ -1,4 +1,4 @@
-# XMVSF native front end — 87.453 (pixel-crisp II numeral on SDL3)
+# XMVSF native front end — 87.454 (Roman II shares main logo color pulses)
 
 The real XMVSF front end now renders in CPS-2 Recomp's **SDL3 native
 window and pixel presenter**, not an additional SDL launcher. The preserved
@@ -33,6 +33,15 @@ Esc / gamepad menu input; while shown, no game ticks are executed.
 Navigation uses both keyboard and gamepad: arrows / D-pad, Enter or Space / A.
 Esc returns to the home menu, and F1 there opens our Options. Shift+F1 opens the original recomp diagnostics.
 Use `XMVSF_RECOMP_HOME_OFF=1` when comparing against untouched upstream.
+
+## 87.454 — Roman II uses the main logo's source-pixel pulse
+The final `_art/logo_II.png` is now recolored using the same
+`XMMenuColor::logoPalettePulse` routine and SDL tick clock as the main
+title. It keeps immutable original RGBA pixels, updates the streaming
+texture at most once per 80 ms, and preserves the already-established
+nearest-neighbor sampling. Stroke A/B/C/D reveal geometry, masks and
+spark particles are unchanged. The source preflight guards the new
+palette call, renderer clock, texture upload and cleanup.
 
 ## 87.453 — nearest-neighbor filtering for all II textures
 The final II numeral and all four stroke textures now explicitly use
