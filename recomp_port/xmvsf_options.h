@@ -158,6 +158,24 @@ public:
                 // Only the controller currently owned by this player can
                 // change their per-action physical binding.
                 const SDL_JoystickID owner = owners.AssignedInstance(player_);
+                // SDL3 can deliver a mapped Gamepad event before its raw
+                // Joystick event. Translate it back to the physical input
+                // using SDL_GetGamepadBindings, preserving Stage13 semantics.
+                if (owner && ev.type == SDL_EVENT_GAMEPAD_BUTTON_DOWN &&
+                    ev.gbutton.which == owner && owners.Physical(player_)) {
+                    const auto physical = owners.PhysicalForGamepadButton(
+                        player_, static_cast<SDL_GamepadButton>(ev.gbutton.button));
+                    if (physical.type != 'n') StoreInput(owners, bindings, table, file, physical);
+                    return true;
+                }
+                if (owner && ev.type == SDL_EVENT_GAMEPAD_AXIS_MOTION &&
+                    ev.gaxis.which == owner && ev.gaxis.value > 20000 &&
+                    owners.Physical(player_)) {
+                    const auto physical = owners.PhysicalForGamepadAxis(
+                        player_, static_cast<SDL_GamepadAxis>(ev.gaxis.axis));
+                    if (physical.type != 'n') StoreInput(owners, bindings, table, file, physical);
+                    return true;
+                }
                 if (owner && ev.type == SDL_EVENT_JOYSTICK_BUTTON_DOWN &&
                     ev.jbutton.which == owner) {
                     StoreInput(owners, bindings, table, file,
