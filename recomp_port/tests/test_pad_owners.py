@@ -91,8 +91,8 @@ def main():
         "const int count = tab_ == 0 ? 7 : tab_ == 1 ? 8 : 16"
     ):
         assert needed in options, f"missing Options hook: {needed}"
-    assert "TEST 87.445" in HOME.read_text(encoding="utf-8")
-    assert "TEST 87.445" in RENDER.read_text(encoding="utf-8")
+    assert "TEST 87.446" in HOME.read_text(encoding="utf-8")
+    assert "TEST 87.446" in RENDER.read_text(encoding="utf-8")
     assert "SDL_SCALEMODE_NEAREST" in RENDER.read_text(encoding="utf-8")
     prev = 0
     edge = []
@@ -100,7 +100,7 @@ def main():
         edge.append(current & ~prev)
         prev = current
     assert edge == [4, 0, 0, 0, 4]
-    print("XMVSF 87.445: anchored renderer fix + press edges, P1/P2, OS device names, remembered profiles and raw HID: PASS (source)")
+    print("XMVSF 87.446: anchored renderer fix + press edges, P1/P2, OS device names, remembered profiles and raw HID: PASS (source)")
 
 if __name__ == "__main__":
     main()
