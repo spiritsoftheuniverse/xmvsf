@@ -180,7 +180,7 @@ public:
     // never a CPU-composited frame. Called while the normal home menu hides.
     bool RenderOptions(SDL_Renderer *renderer, uint64_t now, const OptionsPanel &options,
                        const recomp::Bindings &bindings, const BoundTable &table,
-                       const std::vector<SDL_Gamepad *> &gamepads) {
+                       const PadOwners &owners) {
         if (!renderer || !options.Active() || !Init(renderer)) return false;
         SDL_SetRenderDrawColor(renderer, 8, 16, 36, 255);
         SDL_RenderClear(renderer);
@@ -227,21 +227,24 @@ public:
             center("CTRL + / - RESIZE   CTRL + BACKSPACE MAXIMIZE", 480, 480, 1.3f, 135);
         } else {
             center("LEFT / RIGHT PAGE", 480, 109, 1.7f, 145);
-            const std::string device = options.DeviceLabel(gamepads);
-            // Device names are hardware-supplied and can be very long.
-            center(device.substr(0, 44).c_str(), 480, 137, 1.68f,
+            const std::string device = options.DeviceLabel(owners);
+            // Name from SDL_GetJoystickName, not a generic XInput mapping.
+            center(device.substr(0, 55).c_str(), 480, 123, 1.55f,
                    options.ControlRow() == 0 ? 255 : 138);
+            const std::string editor = options.EditLabel(owners);
+            center(editor.c_str(), 480, 150, 1.6f,
+                   options.ControlRow() == 1 ? 255 : 115);
             const float scale = 1.64f;
             int widest = 0;
             std::array<std::string, 14> labels;
             for (int i = 0; i < 14; ++i) {
-                labels[size_t(i)] = options.BindingLabel(i, bindings, table);
+                labels[size_t(i)] = options.BindingLabel(i, bindings, table, owners);
                 widest = std::max(widest, int(menu_.small_.Measure(labels[size_t(i)].c_str()) * scale));
             }
             const int startX = std::max(108, (960 - widest) / 2);
             for (int i = 0; i < 14; ++i) {
-                const int intensity = options.ControlRow() == i + 1 ? 255 : 98;
-                left(labels[size_t(i)].c_str(), startX, 169 + i * 20,
+                const int intensity = options.ControlRow() == i + 2 ? 255 : 98;
+                left(labels[size_t(i)].c_str(), startX, 177 + i * 19,
                      scale, intensity);
             }
             center("PLAYER 1", 375, 479, 1.6f, options.Player() == 0 ? 255 : 105);
@@ -252,7 +255,7 @@ public:
             center(notice, 480, 462, 1.45f, options.Capturing() ? 255 : 173);
         }
         center("A SELECT   B / ESC BACK", 480, 511, 1.5f, 176);
-        left("TEST 87.442", 834, 523, 1.05f, 160);
+        left("TEST 87.443", 834, 523, 1.05f, 160);
         SDL_RenderPresent(renderer);
         return true;
     }

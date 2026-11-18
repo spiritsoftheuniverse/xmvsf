@@ -1,4 +1,4 @@
-// XMVSF native Options v87.442: real SDL3 input mappings and settings hooks.
+// XMVSF native Options v87.443: real SDL3 input mappings and settings hooks.
 // This is the old Game / Graphics / Controller organization, not recomp's menu.
 // Values marked NOT PORTED are intentionally inert. No ROM writes or patches.
 #pragma once
@@ -12,6 +12,7 @@
 #include "bindings.h"
 #include "../recomp-common/menu.h"
 #include "xmvsf_window.h"
+#include "xmvsf_pad_owners.h"
 #include "../recomp-common/settings.h"
 #include "../runtime/game.h"
 
@@ -43,8 +44,9 @@ class OptionsPanel {
         capture_ = false;
     }
     void Save(recomp::Bindings &b, const BoundTable &table,
-              const std::string &file, SDL_Scancode key, recomp::PadInput pad) {
-        const int action = kActionOrder[size_t(controlRow_ - 1)];
+              const std::string &file, SDL_Scancode key, recomp::PadInput pad,
+              PadOwners &owners) {
+        const int action = kActionOrder[size_t(controlRow_ - 2)];
         const bool isPad = editPad_[size_t(player_)];
         if (file.empty()) {
             Notice("SETTINGS FILE IS UNAVAILABLE"); capture_ = false; return;
@@ -85,6 +87,7 @@ class OptionsPanel {
                 }
             }
         }
+        if (isPad) owners.PopulateProfile(ini, player_, candidate, table);
         if (!ini.save()) {
             Notice("COULD NOT SAVE INPUT SETTINGS"); capture_ = false; return;
         }
@@ -92,6 +95,14 @@ class OptionsPanel {
         capture_ = false;
         suppressUntil_ = SDL_GetTicks() + 350;
         Notice("INPUT SAVED");
+    }
+    void SaveRaw(PadOwners &owners, const BoundTable &table,
+                 const std::string &file, PadOwners::RawBind bind) {
+        const int action = kActionOrder[size_t(controlRow_ - 2)];
+        const bool saved = owners.SaveRaw(player_, action, bind, file, table);
+        capture_ = false;
+        suppressUntil_ = SDL_GetTicks() + 350;
+        Notice(saved ? "RAW INPUT SAVED" : "COULD NOT SAVE RAW INPUT");
     }
 
 public:
@@ -121,7 +132,7 @@ public:
     // shortcuts.  Only the currently assigned physical gamepad is accepted.
     bool HandleEvent(const SDL_Event &ev, recomp::Bindings &bindings,
                      const BoundTable &table, const std::string &file,
-                     const std::vector<SDL_Gamepad *> &gamepads) {
+                     PadOwners &owners) {
         if (!visible_) return false;
         if (capture_) {
             if (ev.type == SDL_EVENT_KEY_DOWN && !ev.key.repeat) {
@@ -131,7 +142,8 @@ public:
                 }
                 if (ev.key.scancode == SDL_SCANCODE_DELETE ||
                     ev.key.scancode == SDL_SCANCODE_BACKSPACE) {
-                    Save(bindings, table, file, SDL_SCANCODE_UNKNOWN, {});
+                    if (PadMode() && owners.Raw(player_)) SaveRaw(owners, table, file, {});
+                    else Save(bindings, table, file, SDL_SCANCODE_UNKNOWN, {}, owners);
                     return true;
                 }
                 if (!PadMode() && SDL_GetTicks() >= captureAt_ + 180 &&
@@ -141,33 +153,60 @@ public:
                     ev.key.scancode != SDL_SCANCODE_F9 &&
                     ev.key.scancode != SDL_SCANCODE_F11 &&
                     ev.key.scancode != SDL_SCANCODE_F12) {
-                    Save(bindings, table, file, ev.key.scancode, {});
+                    Save(bindings, table, file, ev.key.scancode, {}, owners);
                 }
                 return true;
             }
-            const bool selectedPad = PadMode() && player_ < int(gamepads.size()) &&
-                                     gamepads[size_t(player_)] != nullptr;
+            SDL_Gamepad *assignedGamepad = PadMode() ? owners.Gamepad(player_) : nullptr;
+            const bool selectedPad = assignedGamepad != nullptr;
             if (selectedPad && ev.type == SDL_EVENT_GAMEPAD_BUTTON_DOWN &&
-                ev.gbutton.which == SDL_GetGamepadID(gamepads[size_t(player_)]) &&
+                ev.gbutton.which == SDL_GetGamepadID(assignedGamepad) &&
                 SDL_GetTicks() >= captureAt_ + 180) {
                 Save(bindings, table, file, SDL_SCANCODE_UNKNOWN,
-                     {int(ev.gbutton.button), -1});
+                     {int(ev.gbutton.button), -1}, owners);
                 return true;
             }
             if (selectedPad && ev.type == SDL_EVENT_GAMEPAD_AXIS_MOTION &&
-                ev.gaxis.which == SDL_GetGamepadID(gamepads[size_t(player_)]) &&
+                ev.gaxis.which == SDL_GetGamepadID(assignedGamepad) &&
                 (ev.gaxis.axis == SDL_GAMEPAD_AXIS_LEFT_TRIGGER ||
                  ev.gaxis.axis == SDL_GAMEPAD_AXIS_RIGHT_TRIGGER) &&
                 ev.gaxis.value >= 24000 && SDL_GetTicks() >= captureAt_ + 180) {
                 Save(bindings, table, file, SDL_SCANCODE_UNKNOWN,
-                     {-1, int(ev.gaxis.axis)});
+                     {-1, int(ev.gaxis.axis)}, owners);
                 return true;
+            }
+            // A Fighter PI may be a genuine SDL joystick rather than an
+            // XInput gamepad. Capture its physical button/hat/axis numbers.
+            SDL_Joystick *raw = PadMode() ? owners.RawJoystick(player_) : nullptr;
+            const SDL_JoystickID id = raw ? SDL_GetJoystickID(raw) : 0;
+            if (id && SDL_GetTicks() >= captureAt_ + 180) {
+                if (ev.type == SDL_EVENT_JOYSTICK_BUTTON_DOWN &&
+                    ev.jbutton.which == id) {
+                    SaveRaw(owners, table, file, {'b', int(ev.jbutton.button), 0});
+                    return true;
+                }
+                if (ev.type == SDL_EVENT_JOYSTICK_HAT_MOTION &&
+                    ev.jhat.which == id && ev.jhat.value != SDL_HAT_CENTERED) {
+                    SaveRaw(owners, table, file,
+                            {'h', int(ev.jhat.hat), int(ev.jhat.value)});
+                    return true;
+                }
+                if (ev.type == SDL_EVENT_JOYSTICK_AXIS_MOTION &&
+                    ev.jaxis.which == id &&
+                    (ev.jaxis.value >= 24000 || ev.jaxis.value <= -24000)) {
+                    SaveRaw(owners, table, file,
+                            {'a', int(ev.jaxis.axis), ev.jaxis.value > 0 ? 1 : -1});
+                    return true;
+                }
             }
             // Prevent keyboard/pad events from reaching gameplay while a
             // field waits for input; SDL_QUIT still passes through.
             return ev.type == SDL_EVENT_KEY_DOWN ||
                    ev.type == SDL_EVENT_GAMEPAD_BUTTON_DOWN ||
-                   ev.type == SDL_EVENT_GAMEPAD_AXIS_MOTION;
+                   ev.type == SDL_EVENT_GAMEPAD_AXIS_MOTION ||
+                   ev.type == SDL_EVENT_JOYSTICK_BUTTON_DOWN ||
+                   ev.type == SDL_EVENT_JOYSTICK_AXIS_MOTION ||
+                   ev.type == SDL_EVENT_JOYSTICK_HAT_MOTION;
         }
         if (ev.type == SDL_EVENT_KEY_DOWN && !ev.key.repeat) {
             if (ev.key.scancode == SDL_SCANCODE_Q ||
@@ -195,7 +234,8 @@ public:
     // Called on the same menu-repeat signal as the old main menu.
     // Result: 0 idle, 1 move, 2 confirm, 3 return-to-home.
     int Press(unsigned pressed, SDL_Window *window, recomp::Bindings &bindings,
-              const BoundTable &table, const std::vector<SDL_Gamepad *> &gamepads) {
+              const BoundTable &table, const std::string &settingsPath,
+              PadOwners &owners) {
         if (!visible_ || capture_ || !pressed || SDL_GetTicks() < suppressUntil_) return 0;
         if (pressed & recomp::kMenuBack) { Close(); return 3; }
         const int dy = (pressed & recomp::kMenuDown ? 1 : 0) -
@@ -204,7 +244,7 @@ public:
                        (pressed & recomp::kMenuLeft ? 1 : 0);
         if (dy) {
             int *row = tab_ == 0 ? &gameRow_ : tab_ == 1 ? &graphicsRow_ : &controlRow_;
-            const int count = tab_ == 0 ? 7 : tab_ == 1 ? 8 : 15;
+            const int count = tab_ == 0 ? 7 : tab_ == 1 ? 8 : 16;
             *row = (*row + count + dy) % count;
             return 1;
         }
@@ -245,13 +285,15 @@ public:
             }
         } else if (tab_ == 2) {
             if (controlRow_ == 0) {
+                std::string status;
+                owners.AssignNext(player_, settingsPath, bindings, table, status);
+                Notice(std::move(status));
+            } else if (controlRow_ == 1) {
                 editPad_[size_t(player_)] = !editPad_[size_t(player_)];
-                if (PadMode() && (player_ >= int(gamepads.size()) ||
-                                  !gamepads[size_t(player_)]))
-                    Notice("CONNECT GAMEPAD TO EDIT ITS INPUTS");
-            } else if (PadMode() && (player_ >= int(gamepads.size()) ||
-                                     !gamepads[size_t(player_)])) {
-                Notice("GAMEPAD IS NOT CONNECTED");
+                if (PadMode() && !owners.Assigned(player_))
+                    Notice("ASSIGN A LIVE CONTROLLER FIRST");
+            } else if (PadMode() && !owners.Assigned(player_)) {
+                Notice("CONTROLLER NOT CONNECTED");
             } else {
                 capture_ = true;
                 captureAt_ = SDL_GetTicks();
@@ -287,17 +329,18 @@ public:
         return row < 6 ? presets[row] : row == 6 ? "FULLSCREEN FIT" : "MAXIMIZE WINDOW";
     }
 
-    std::string DeviceLabel(const std::vector<SDL_Gamepad *> &gamepads) const {
-        if (!PadMode()) return "P" + std::to_string(player_ + 1) + " EDIT : KEYBOARD";
-        if (player_ >= int(gamepads.size()) || !gamepads[size_t(player_)])
-            return "P" + std::to_string(player_ + 1) + " EDIT : PAD DISCONNECTED";
-        const char *name = SDL_GetGamepadName(gamepads[size_t(player_)]);
-        return "P" + std::to_string(player_ + 1) + " EDIT : " +
-                std::string(name && *name ? name : "GAMEPAD");
+    std::string DeviceLabel(const PadOwners &owners) const {
+        return "P" + std::to_string(player_ + 1) + " DEVICE : " +
+               owners.DeviceName(player_);
+    }
+    std::string EditLabel(const PadOwners &owners) const {
+        return std::string("EDIT INPUT : ") +
+               (PadMode() ? (owners.Raw(player_) ? "RAW JOYSTICK" : "GAMEPAD")
+                          : "KEYBOARD");
     }
 
     std::string BindingLabel(int row, const recomp::Bindings &bindings,
-                             const BoundTable &table) const {
+                             const BoundTable &table, const PadOwners &owners) const {
         const int action = kActionOrder[size_t(row)];
         const std::string label = kActionTitles[size_t(row)];
         if (action >= table.table.count) return label + " : UNSUPPORTED";
@@ -305,6 +348,7 @@ public:
             const SDL_Scancode key = bindings.key[player_][action];
             return label + " : KEY " + recomp::KeyText(key);
         }
+        if (owners.Raw(player_)) return label + " : " + owners.RawLabel(player_, action);
         return label + " : " + recomp::PadText(bindings.pad[player_][action]);
     }
 };
