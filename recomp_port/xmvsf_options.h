@@ -247,6 +247,13 @@ public:
             // A different button pressed immediately (even within 180ms)
             // is a legitimate intended binding.
             if (IsActivatorPress(ev, owners)) return true;
+            // Stick/hat motion left over from menu navigation is not a
+            // fresh button assignment. Wait for A release before accepting
+            // analog/hat capture, but accept other distinct buttons now.
+            if (lifecycle_.AwaitingActivatorRelease() &&
+                (ev.type == SDL_EVENT_GAMEPAD_AXIS_MOTION ||
+                 ev.type == SDL_EVENT_JOYSTICK_AXIS_MOTION ||
+                 ev.type == SDL_EVENT_JOYSTICK_HAT_MOTION)) return true;
             if (ev.type == SDL_EVENT_KEY_DOWN && !ev.key.repeat) {
                 const SDL_Scancode key = ev.key.scancode;
                 if (key == SDL_SCANCODE_UNKNOWN || key == SDL_SCANCODE_F9 ||
