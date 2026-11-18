@@ -122,8 +122,8 @@ def main():
     assert "SDL_SCANCODE_J" in cpp and "SDL_SCANCODE_KP_1" in cpp
     assert "if (player >= 2 || !owners.Physical(player))" in text
     assert "if (p >= 2 || !owners.Physical(p))" in text
-    assert "TEST 87.449" in HOME.read_text(encoding="utf-8")
-    assert "TEST 87.449" in RENDER.read_text(encoding="utf-8")
+    assert "TEST 87.450" in HOME.read_text(encoding="utf-8")
+    assert "TEST 87.450" in RENDER.read_text(encoding="utf-8")
     assert "SDL_SCALEMODE_NEAREST" in RENDER.read_text(encoding="utf-8")
     prev = 0
     edge = []
@@ -131,7 +131,7 @@ def main():
         edge.append(current & ~prev)
         prev = current
     assert edge == [4, 0, 0, 0, 4]
-    print("XMVSF 87.449: anchored renderer fix + press edges, P1/P2, OS device names, remembered profiles and raw HID: PASS (source)")
+    print("XMVSF 87.450: anchored renderer fix + press edges, P1/P2, OS device names, remembered profiles and raw HID: PASS (source)")
 
 if __name__ == "__main__":
     main()
