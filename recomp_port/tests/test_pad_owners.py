@@ -128,8 +128,8 @@ def main():
     assert "SDL_SCANCODE_J" in cpp and "SDL_SCANCODE_KP_1" in cpp
     assert "if (player >= 2 || !owners.Physical(player))" in text
     assert "if (p >= 2 || !owners.Physical(p))" in text
-    assert "TEST 87.451" in HOME.read_text(encoding="utf-8")
-    assert "TEST 87.451" in RENDER.read_text(encoding="utf-8")
+    assert "TEST 87.452" in HOME.read_text(encoding="utf-8")
+    assert "TEST 87.452" in RENDER.read_text(encoding="utf-8")
     assert "SDL_SCALEMODE_NEAREST" in RENDER.read_text(encoding="utf-8")
     prev = 0
     edge = []
