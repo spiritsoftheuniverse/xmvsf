@@ -575,7 +575,12 @@ public:
         recomp::Bindings next = bindings;
         const int other = 1 - p;
         if (upcoming[other].configured && SameIdentity(upcoming[other], d)) {
-            // Stage13 swaps BOTH entire slots, with their customized maps.
+            // Stage13 swaps BOTH entire slots and their custom profile
+            // identities. Reusing the other player's saved profile is
+            // essential after GUID/driver updates; do not silently load a
+            // newly created default profile on the receiving player.
+            if (!upcoming[other].profile.empty())
+                chosen.profile = upcoming[other].profile;
             std::swap(upcoming[p], upcoming[other]);
             std::swap(maps[p], maps[other]);
             std::swap(next.key[p], next.key[other]);
