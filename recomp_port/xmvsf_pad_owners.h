@@ -188,31 +188,29 @@ private:
     void Route() {
         routed_ = {{-1, -1}};
         std::set<int> used;
-        // First reserve BOTH players' live physical instances before trying
-        // saved GUIDs. Unplugging P1 cannot steal P2's still-live Fighter PI,
-        // even if duplicate devices' ordinals have shifted.
+        // Reserve both explicitly configured LIVE player instances before
+        // reconnect recovery. An unconfigured automatic slot must not steal
+        // another player's Fighter PI or identical GUID device.
         for (int p = 0; p < kPlayers; ++p) {
             const Slot &owner = slots_[p];
-            if (!owner.live || (owner.configured &&
-                (owner.mode == "none" || owner.mode == "keyboard"))) continue;
+            if (!owner.configured || !owner.live ||
+                owner.mode == "none" || owner.mode == "keyboard") continue;
             for (int i = 0; i < int(devices_.size()); ++i) {
                 if (devices_[size_t(i)].instance != owner.live || used.count(i)) continue;
                 routed_[p] = i; used.insert(i); break;
             }
         }
-        // Then recover disconnected identities by serial, GUID+ordinal or
-        // exact OS name+ordinal. Auto slots get only unused physical devices.
+        // Recover explicitly configured slots by serial, GUID+ordinal
+        // or OS name+ordinal, never substituting unrelated physical pads.
         for (int p = 0; p < kPlayers; ++p) {
             Slot &owner = slots_[p];
-            if (routed_[p] >= 0) continue;
-            if (owner.configured &&
-                (owner.mode == "none" || owner.mode == "keyboard")) {
+            if (!owner.configured || routed_[p] >= 0) continue;
+            if (owner.mode == "none" || owner.mode == "keyboard") {
                 owner.live = 0; continue;
             }
             int matched = -1;
             for (int i = 0; i < int(devices_.size()); ++i) {
-                if (used.count(i)) continue;
-                if (owner.configured ? SameIdentity(owner, devices_[size_t(i)]) : true) {
+                if (!used.count(i) && SameIdentity(owner, devices_[size_t(i)])) {
                     matched = i; break;
                 }
             }
@@ -220,9 +218,24 @@ private:
                 routed_[p] = matched;
                 owner.live = devices_[size_t(matched)].instance;
                 used.insert(matched);
-            } else {
-                owner.live = 0; // no unrelated pad falls into a saved slot
-            }
+            } else owner.live = 0;
+        }
+        // Only now allocate unused controllers to legacy auto slots.
+        for (int p = 0; p < kPlayers; ++p) {
+            Slot &owner = slots_[p];
+            if (owner.configured) continue;
+            int found = -1;
+            // Reuse this auto slot's live device if still unclaimed.
+            for (int i = 0; i < int(devices_.size()); ++i)
+                if (!used.count(i) && owner.live &&
+                    devices_[size_t(i)].instance == owner.live) {
+                    found = i; break;
+                }
+            if (found < 0) for (int i = 0; i < int(devices_.size()); ++i)
+                if (!used.count(i)) { found = i; break; }
+            routed_[p] = found;
+            owner.live = found < 0 ? 0 : devices_[size_t(found)].instance;
+            if (found >= 0) used.insert(found);
         }
     }
 
@@ -355,20 +368,25 @@ public:
         const int choices = 2 + int(devices_.size());
         // First explicit selection keeps the auto-routed physical device;
         // subsequent presses cycle choices including KEYBOARD and NONE.
-        const int selected = slots_[p].configured ? (CurrentChoice(p) + 1) % choices :
-                             (routed_[p] >= 0 ? routed_[p] + 2 : 1);
+        int selected = slots_[p].configured ? (CurrentChoice(p) + 1) % choices :
+                       (routed_[p] >= 0 ? routed_[p] + 2 : 1);
+        // Skip devices that have been explicitly claimed by the other
+        // player; a rejected choice must not trap the user in one row.
+        for (int attempt = 0; attempt < choices && selected >= 2; ++attempt) {
+            const Device &d = devices_[size_t(selected - 2)];
+            const int other = 1 - p;
+            if (!(slots_[other].configured && Assigned(other) &&
+                  Assigned(other)->instance == d.instance)) break;
+            selected = (selected + 1) % choices;
+        }
         Slot candidate{};
         candidate.configured = true;
         if (selected == 0) candidate.mode = "none";
         else if (selected == 1) candidate.mode = "keyboard";
         else {
             const Device &d = devices_[size_t(selected - 2)];
-            for (int other = 0; other < kPlayers; ++other)
-                if (other != p && Assigned(other) &&
-                    Assigned(other)->instance == d.instance) {
-                    message = "DEVICE ALREADY ASSIGNED TO P" + std::to_string(other + 1);
-                    return false;
-                }
+            // Auto ownership yields to an explicit assignment; a saved
+            // physical device is protected by the skip loop above.
             candidate.mode = d.raw ? "raw" : "gamepad";
             candidate.guid = d.guid;
             candidate.name = d.name;
