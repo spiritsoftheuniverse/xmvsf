@@ -176,43 +176,43 @@ def main() -> int:
     # already-patched 87.436 worktrees and freshly initialized submodules.
     updates = [
         (
-            '#include "xmvsf_home.h" // XMVSF_RECOMP_HOME_87_435\\n',
-            '#include "xmvsf_home.h" // XMVSF_RECOMP_HOME_87_435\\n'
-            '#include "xmvsf_menu_audio.h" // XMVSF_RECOMP_HOME_87_437\\n'
-            '#include "xmvsf_window.h"\\n',
+            '#include "xmvsf_home.h" // XMVSF_RECOMP_HOME_87_435\n',
+            '#include "xmvsf_home.h" // XMVSF_RECOMP_HOME_87_435\n'
+            '#include "xmvsf_menu_audio.h" // XMVSF_RECOMP_HOME_87_437\n'
+            '#include "xmvsf_window.h"\n',
             "87.437 includes",
         ),
         (
-            '    xmvsf_home::Menu home(homeEnabled);\\n',
-            '    xmvsf_home::Menu home(homeEnabled);\\n'
-            '    xmvsf_home::MenuAudio homeAudio(homeEnabled);\\n',
+            '    xmvsf_home::Menu home(homeEnabled);\n',
+            '    xmvsf_home::Menu home(homeEnabled);\n'
+            '    xmvsf_home::MenuAudio homeAudio(homeEnabled);\n',
             "87.437 menu audio",
         ),
         (
-            '            case SDL_EVENT_KEY_DOWN:\\n'
-            '                if (!port.menu.IsOpen() && !ev.key.repeat &&\\n',
-            '            case SDL_EVENT_KEY_DOWN:\\n'
-            '                if (home.Enabled() && !ev.key.repeat &&\\n'
-            '                    xmvsf_home::WindowShortcut(window, ev.key.scancode, ev.key.mod)) {\\n'
-            '                    break; // native window shortcut, not an arcade input\\n'
-            '                }\\n'
-            '                if (!port.menu.IsOpen() && !ev.key.repeat &&\\n',
+            '            case SDL_EVENT_KEY_DOWN:\n'
+            '                if (!port.menu.IsOpen() && !ev.key.repeat &&\n',
+            '            case SDL_EVENT_KEY_DOWN:\n'
+            '                if (home.Enabled() && !ev.key.repeat &&\n'
+            '                    xmvsf_home::WindowShortcut(window, ev.key.scancode, ev.key.mod)) {\n'
+            '                    break; // native window shortcut, not an arcade input\n'
+            '                }\n'
+            '                if (!port.menu.IsOpen() && !ev.key.repeat &&\n',
             "87.437 keyboard scaling",
         ),
         (
-            '                const xmvsf_home::Action choice = home.Press(menuPressed);\\n'
-            '                switch (choice) {\\n',
-            '                const int oldMenuRow = home.Selection();\\n'
-            '                const xmvsf_home::Action choice = home.Press(menuPressed);\\n'
-            '                if (home.Selection() != oldMenuRow) homeAudio.Move();\\n'
-            '                if (choice != xmvsf_home::Action::None) homeAudio.Select();\\n'
-            '                switch (choice) {\\n',
+            '                const xmvsf_home::Action choice = home.Press(menuPressed);\n'
+            '                switch (choice) {\n',
+            '                const int oldMenuRow = home.Selection();\n'
+            '                const xmvsf_home::Action choice = home.Press(menuPressed);\n'
+            '                if (home.Selection() != oldMenuRow) homeAudio.Move();\n'
+            '                if (choice != xmvsf_home::Action::None) homeAudio.Select();\n'
+            '                switch (choice) {\n',
             "87.437 menu navigation and select audio",
         ),
         (
-            '        if (home.Visible()) { // XMVSF_RECOMP_HOME_87_435: present our menu, no game Tick.\\n',
-            '        homeAudio.Step(home.Visible()); // XMVSF_RECOMP_HOME_87_437\\n'
-            '        if (home.Visible()) { // XMVSF_RECOMP_HOME_87_435: present our menu, no game Tick.\\n',
+            '        if (home.Visible()) { // XMVSF_RECOMP_HOME_87_435: present our menu, no game Tick.\n',
+            '        homeAudio.Step(home.Visible()); // XMVSF_RECOMP_HOME_87_437\n'
+            '        if (home.Visible()) { // XMVSF_RECOMP_HOME_87_435: present our menu, no game Tick.\n',
             "87.437 PCM lifecycle",
         ),
     ]
