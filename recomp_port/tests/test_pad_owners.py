@@ -40,7 +40,7 @@ def main():
         "SDL_EVENT_JOYSTICK_ADDED", "SDL_EVENT_JOYSTICK_REMOVED",
         "SDL_GetJoystickHat(js", "SDL_GetJoystickButton(js",
         "SDL_GetJoystickAxis(js", "SameIdentity",
-        "reserve BOTH players", "recomp::Ini ini(",
+        "Reserve both explicitly configured LIVE", "recomp::Ini ini(",
         "RawSetting(", "PopulateProfile(",
         "LoadSavedProfiles(", "AdditionalGamepad("
     ):
