@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""87.445: explicit SDL3 P1/P2 ownership and one-press-one-menu-step.
+"""87.448: original SDL2 physical capture and P1/P2 ownership and one-press-one-menu-step.
 
 Source-only anchored patch after 87.442 Options. Never modifies ROMs,
 resets the user's submodule, or invalidates the 87.441 renderer design.
@@ -141,6 +141,36 @@ def patch(code: str) -> str:
             f"87.445 expected one Options RenderOptions call; "
             f"old={old_count}, new={new_count}; source untouched"
         )
+    # 87.448: restore Stage13's actual physical input path after the
+    # 87.443 device ownership hooks are installed. These are incremental
+    # upgrades; rerunning this script leaves completed hooks untouched.
+    code = once(code,
+        '        owners.Refresh(gamepads);',
+        '        owners.Refresh(gamepads, g_bindings, Table());',
+        "refresh raw physical profiles with owner and device",
+    )
+    code = once(code,
+        '''                    pads[player] |= ReadKeyboard(keys, player);''',
+        '''                    // Stage13: a controller-owned player only
+                    // receives explicitly bound physical/K actions,
+                    // not the recomp's default keyboard at the same time.
+                    if (player >= 2 || !owners.Physical(player))
+                        pads[player] |= ReadKeyboard(keys, player);''',
+        "keyboard obeys player owner",
+    )
+    code = once(code,
+        '''                if (p < 2) pads[p] |= owners.ReadRaw(p, Table());
+                if (!gp) continue;
+                pads[p] |= ReadGamepad(gp, p);''',
+        '''                if (p < 2 && (owners.Physical(p) || owners.Raw(p)))
+                    pads[p] |= owners.ReadRaw(p, Table());
+                if (!gp) continue;
+                // Once a physical device is explicitly assigned, do NOT
+                // also apply its generic SDL semantic pad mapping.
+                if (p >= 2 || !owners.Physical(p))
+                    pads[p] |= ReadGamepad(gp, p);''',
+        "physical controller mapping replaces default semantic binding",
+    )
     code = once(code,
         '''    homeTextures.Release();
     homeAudio.Close();
@@ -159,7 +189,7 @@ def main() -> int:
     updated = patch(original)  # all anchors verified before writing
     if updated != original:
         TARGET.write_text(updated, encoding="utf-8")
-        print("XMVSF 87.445: persistent P1/P2 routing and press-edge menu installed")
+        print("XMVSF 87.448: persistent P1/P2 routing and press-edge menu installed")
     blob = SRC.read_bytes()
     if not OUT.is_file() or OUT.read_bytes() != blob:
         OUT.write_bytes(blob)
