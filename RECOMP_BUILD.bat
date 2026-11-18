@@ -80,6 +80,15 @@ if errorlevel 1 (
   goto :fail
 )
 
+REM 87.452: exercise the original cold-boot clock and verify that each
+REM frame/palette/audio hook was installed before touching the Ninja cache.
+"%BASH%" -c "python3 ../recomp_port/tests/test_logo_intro.py"
+if errorlevel 1 (
+  echo ERROR: XMVSF 87.452 logo intro integrity preflight FAILED. No build performed.
+  popd
+  goto :fail
+)
+
 REM 87.442: native Game/Graphics/Controller tabs, real SDL3 remapping,
 REM persisted INI bindings, and the current recomp Game version V2.
 "%BASH%" -c "python3 ../recomp_port/apply_options.py"
