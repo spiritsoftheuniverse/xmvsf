@@ -8,6 +8,20 @@ if not exist "%BASH%" (
   echo ERROR: MSYS2 UCRT64 is required at C:\msys64.
   goto :fail
 )
+REM Recomp requires SDL3, not the SDL2 used by the old FBNeo build.
+REM Fail immediately with the exact MSYS2 UCRT64 package instead of an opaque CMake error.
+set "UCRT_PREFIX=C:\msys64\ucrt64"
+set "SDL3_CMAKE=%UCRT_PREFIX%\lib\cmake\SDL3\SDL3Config.cmake"
+if not exist "%SDL3_CMAKE%" (
+  echo ERROR: SDL3 UCRT64 development package not found.
+  echo Required CMake file: "%SDL3_CMAKE%"
+  echo Open MSYS2 UCRT64 and install:
+  echo   pacman -S --needed mingw-w64-ucrt-x86_64-sdl3 mingw-w64-ucrt-x86_64-cmake mingw-w64-ucrt-x86_64-ninja mingw-w64-ucrt-x86_64-zlib
+  goto :fail
+)
+REM Prefer the correct UCRT64 package discovery, never a stray Windows or MINGW64 SDL3.
+set "SDL3_DIR=%UCRT_PREFIX%\lib\cmake\SDL3"
+set "CMAKE_PREFIX_PATH=%UCRT_PREFIX%"
 if not exist "%PROJECT%\recomp\Makefile" (
   echo Fetching pinned upstream source submodule...
   where git.exe >nul 2>nul
