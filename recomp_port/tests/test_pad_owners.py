@@ -109,11 +109,17 @@ def main():
         assert needed in options, f"missing Options hook: {needed}"
     assert "owners.AssignNext(" not in options, "old device-cycle UI must be removed"
     assert "editPad_" not in options, "old keyboard/gamepad toggle must be removed"
+    assert "captureAt_ + 180" not in options, "fast button must not be discarded"
+    assert "CaptureLifecycle lifecycle_" in options
+    assert "lifecycle_.MayNavigate()" in options
+    assert "CancelCapture(" in options
+    assert "SDL_EVENT_GAMEPAD_BUTTON_UP" in options
+    assert "SDL_EVENT_WINDOW_FOCUS_LOST" in options
     for required in (
         "controlRow_ == 0", "StoreDevice(", "StoreInput(",
         "owners.Keyboard(player_)", "owners.VisibleActions(player_) + 1",
         "SDL_EVENT_JOYSTICK_BUTTON_DOWN", "SDL_EVENT_JOYSTICK_AXIS_MOTION",
-        "ev.jbutton.which", "ev.jaxis.which", "SDL_GetTicks() < captureAt_ + 180",
+        "ev.jbutton.which", "ev.jaxis.which", "IsActivatorPress(ev, owners)",
     ):
         assert required in options, f"missing Stage13 capture behavior: {required}"
     assert "AssignFromInstance(" in cpp and "AssignKeyboard(" in cpp
