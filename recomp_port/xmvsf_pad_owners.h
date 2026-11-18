@@ -215,8 +215,19 @@ private:
             hasAny = true;
             if (value == "none" || (value.size() > 2 && value[1] == ':'))
                 rawBindings_[p][size_t(i)] = ParseRaw(value);
-            else if (slots_[p].mode == "gamepad")
-                bindings.pad[p][i] = recomp::PadFromText(value);
+            else if (slots_[p].mode == "gamepad") {
+                // 87.443 stored SDL semantic names in this same profile
+                // section. Migrate to the physical raw binding only when
+                // we have the actual connected gamepad for this player.
+                const recomp::PadInput mapped = recomp::PadFromText(value);
+                bindings.pad[p][i] = mapped;
+                if (const Device *d = Assigned(p)) {
+                    const RawBind physical =
+                        FromSDLGamepad(d->gamepad, mapped.button, mapped.axis);
+                    if (physical.type != 'n')
+                        rawBindings_[p][size_t(i)] = physical;
+                }
+            }
         }
         if (hasAny)
             std::fprintf(stderr, "XMVSF 87.443 P%d remembered input profile %s\n",
