@@ -289,7 +289,7 @@ struct Font {
 };
 
 class Menu {
-    friend class TexturedMenu; // 87.441: use already decoded source art.
+    friend class TexturedMenu; // 87.441: reuse already decoded artwork.
     static constexpr int W = 960, H = 540;
     bool enabled_ = false;
     bool visible_ = false;
