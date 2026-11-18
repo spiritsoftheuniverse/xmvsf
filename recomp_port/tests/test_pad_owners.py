@@ -22,7 +22,7 @@ def main():
     # Regression for 87.443's "found 3" failure: render-call suffixes
     # elsewhere are not a valid global replacement anchor. Emulate the
     # pre-ownership Options render with extra matching suffixes outside
-    # that one rendering block. The patch must change only the scoped call.
+    # that one rendering invocation. The patch must change only that call.
     old_call = (
         "                homeTextures.RenderOptions(presenter.Renderer(), SDL_GetTicks(),\n"
         "                                           options, g_bindings, Table(), gamepads);"
@@ -35,6 +35,16 @@ def main():
     duplicate_suffix = "                                           options, g_bindings, Table(), gamepads);"
     already_elsewhere = text.count(duplicate_suffix)
     synthetic = text.replace(new_call, old_call, 1)
+    # The 87.444 release failed because it assumed the exact surrounding
+    # "if (options.Active())" comment and nearby home-menu block. Deliberately
+    # change that layout without changing the unique function call.
+    old_layout = (
+        "        if (options.Active()) { // XMVSF_RECOMP_OPTIONS_87_442: three native tabs"
+    )
+    if old_layout in synthetic:
+        synthetic = synthetic.replace(
+            old_layout, "        if (options.Active()) { /* custom local layout */", 1
+        )
     # Preserve the pre-existing call suffixes in the user's local
     # checkout. Add only enough decoys to reproduce at least 3 matches.
     required_decoys = max(0, 2 - already_elsewhere)
