@@ -1,56 +1,70 @@
-# Native XMVSF menu port — 87.435 (first slice)
+# XMVSF native front end — 87.436 (source-art presentation)
 
-This is the beginning of the **real SDL3 application migration**, not a standalone
-external launcher. The program displays an Arcade / Training / Versus / Options
-menu before the ROM is ticked, using the recomp's existing pixel presenter and
-the same SDL3 keyboard/gamepad input loop.
+The real XMVSF front end now renders in CPS-2 Recomp's **SDL3 native
+window and pixel presenter**, not an additional SDL launcher. The preserved
+FBNeo reference in `dev/stable/buildtree/src/burner/sdl/xmvsf_stage14_boot.h`
+is the source of the composition: a 960x540 logical canvas, original
+logo alpha-crop, proportional native SF2 glyphs (large and small),
+selected white / unselected dim, centered rows and unchanged menu positions.
 
-The original SDL2 design is in
-`dev/stable/buildtree/src/burner/sdl/xmvsf_stage14_boot.h`.
-This slice reproduces the top-level choices and interaction *without* importing
-FBNeo's renderer, SDL2 code or build artifacts.
+**Source art is NOT exported again:** `_art/logo.png`, `_art/logo_II.png`,
+`_art/sf2font.png`, `_art/sf2fontsmall.png` and `_art/menuanimation.gif` are
+loaded from the repository's existing `_art/` folder at runtime. The
+animated GIF retains its frame timing, center-cover crop, 30% brightness,
+and 36-second hue rotation. Source images stay untouched; only in-memory
+pictures are animated. Fallback text exists if image assets cannot be found.
 
-## User-visible behavior
+The menu is shown in the recomp's **existing window**, on startup and via
+Esc / gamepad menu input; while shown, no game ticks are executed.
 
-- **ARCADE:** Reset to the original arcade rules, let the native board run.
-- **TRAINING:** Enter the recomp's existing working session via
-  `cps2recomp::session::StartSession`. Our Training options will be ported next.
-- **VERSUS:** Bring up the original local two-player game with free play
-  enabled. Both players must use Start; this does **not yet** reproduce our
-  dedicated Versus stage/character-selection lifecycle.
-- **OPTIONS:** Open the currently functional recomp menu; on exit return
-  to our main menu. This is not yet a port of our complete Game / Graphics /
-  Controller tabs and does not yet expose remapping in-game.
+## Current actions
 
-Menu input: keyboard arrows + Enter/Space, or D-pad + A. Esc / gamepad
-menu toggles the XMVSF home screen. F1 while on the home screen opens the
-original recomp settings for diagnostics. Escape hatch:
-`XMVSF_RECOMP_HOME_OFF=1` disables this frontend to diagnose upstream.
+- **ARCADE:** native V2 arcade mode, with its original rules (reset).
+- **TRAINING:** starts the existing recomp training session; custom training
+  configuration still awaits porting.
+- **VERSUS:** initial *local arcade two-player* mode with free play (both
+  players join with Start); our complete dedicated versus setup is not yet
+  restored.
+- **OPTIONS:** currently opens the existing recomp settings as a temporary
+  bridge. Native Game / Graphics / Controller UI remains a follow-up.
 
-## Build mechanism
+Navigation uses both keyboard and gamepad: arrows / D-pad, Enter or Space / A.
+Esc returns to the home menu, and F1 there opens the original recomp diagnostics.
+Use `XMVSF_RECOMP_HOME_OFF=1` when comparing against untouched upstream.
 
-Upstream is pinned as the `recomp/` Git submodule. Do **not** edit upstream
-in GitHub and expect it to be in this project's branch. Instead, the root
-`RECOMP_BUILD.bat` runs `python3 ../recomp_port/apply_menu.py`
-while inside `recomp/`. The script adds
-`recomp/port/xmvsf_home.h` and applies anchored, idempotent source
-changes to `recomp/port/frontend_sdl.cpp`. It refuses unknown upstream
-layouts rather than applying an unsafe patch. The affected recomp working
-tree will show local modifications; that's deliberate. Nothing touches
-`main`, `Stable`, `BUILD_TEST.bat`, or FBNeo.
+## Building and storage
 
-All recomp source changes are retained as portable sources in
-`recomp_port/`; the submodule remains pinned and can be refreshed later.
-The build log remains `test/build_logs/RECOMP_BUILD.log`. There are no
-GitHub Actions.
+Upstream source is still pinned under the `recomp/` Git submodule. This repo
+owns **only** `recomp_port/xmvsf_home.h`, the pinned image decoder under
+`recomp_port/vendor/stb_image.h`, and the deterministic
+`recomp_port/apply_menu.py` installer. The installer copies those two
+headers into the submodule working tree and updates only the known menu
+hooks in `recomp/port/frontend_sdl.cpp`; it is idempotent and fails closed
+when upstream anchors differ. The upgraded 87.435 menu is handled without
+resetting the submodule, so local translated code, ROMs, and build caches remain.
 
-## Next slices
+Image decoding uses stb_image v2.32 (upstream nothings/stb, public domain/MIT)
+for **PNG and animated GIF**; it is compiled into one translation unit.
+No SDL3_image or new runtime DLL is required.
 
-1. Port our existing pixel-accurate glyph atlas, logo, animation and menu audio
-   (in isolation from SDL2).
-2. Port the Game / Graphics / Controller tabs with persistent device bindings.
-3. Replace upstream training/versus setup flows with our state machines.
-4. Preserve the shared SDL3 window through each transition.
+Pull only this branch into your separate worktree:
 
-Not verified with a Windows build yet. The batch performs its normal Ninja
-compilation; source-only inspection does not establish compile or play success.
+```powershell
+git -C F:\xmvsf-recomp fetch origin feature/recomp-v2-foundation
+git -C F:\xmvsf-recomp merge --ff-only FETCH_HEAD
+F:\xmvsf-recomp\RECOMP_BUILD.bat
+F:\xmvsf-recomp\RECOMP_RUN.bat
+```
+
+For a fast patch sanity test (no Windows compilation required):
+`python3 recomp_port/tests/check_patch.py`. The actual SDL3 executable must
+still be built locally; this commit has not been verified by a Windows build.
+
+No GitHub Actions. No edits to `main`, Stable, FBNeo builds, or ROM binaries.
+
+## Remaining presentation work
+
+Menu movement/selection audio; source-authored full intro/reveal timing;
+accurate Game/Graphics/Controller tabs with persistence; and our dedicated
+Versus/Training lifecycle. These should be ported as **separate functional
+modules**, not more version-specific hooks.

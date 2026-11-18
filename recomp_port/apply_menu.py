@@ -153,10 +153,37 @@ def main() -> int:
         print(f"XMVSF native menu installed: {TARGET}")
     else:
         print("XMVSF native menu already installed (no source rewrite)")
+    # Versioned 87.436 upgrade: applies even when 87.435 already changed the
+    # pinned submodule. Preserve user changes everywhere else.
+    old_render = '''            home.Draw(homePicture);
+            presenter.Show(homePicture.data(), 384, 224, menuWhere, nullptr, false);'''
+    new_render = '''            home.Draw(homePicture, SDL_GetTicks());
+            // Original Stage14 menu uses its own 960x540 canvas. Preserve the
+            // 16:9 composition in the current window without stretching.
+            const float fitHome = std::max(0.001f, std::min(float(width) / 960.0f, float(height) / 540.0f));
+            const SDL_FRect homeWhere{(float(width) - 960.0f * fitHome) * 0.5f,
+                                      (float(height) - 540.0f * fitHome) * 0.5f,
+                                      960.0f * fitHome, 540.0f * fitHome};
+            presenter.Show(homePicture.data(), 960, 540, homeWhere, nullptr, false);'''
+    installed = TARGET.read_text(encoding="utf-8")
+    if old_render in installed:
+        upgraded = installed.replace(old_render, new_render, 1)
+        TARGET.write_text(upgraded, encoding="utf-8")
+        print("XMVSF 87.436 native 960x540 presentation upgraded")
+    elif new_render not in installed:
+        raise RuntimeError("unknown native menu render block; refusing to overwrite")
     body = SOURCE.read_text(encoding="utf-8")
     if not HEADER.exists() or HEADER.read_text(encoding="utf-8") != body:
         HEADER.write_text(body, encoding="utf-8")
         print(f"XMVSF menu drawing header updated: {HEADER}")
+    # Keep upstream linked as a pinned submodule, and copy our own third-party
+    # decoder into it only for local compilation (no extra SDL3_image package).
+    decoder_src = ROOT / "recomp_port" / "vendor" / "stb_image.h"
+    decoder_dst = ROOT / "recomp" / "port" / "xmvsf_stb_image.h"
+    decoder = decoder_src.read_bytes()
+    if not decoder_dst.exists() or decoder_dst.read_bytes() != decoder:
+        decoder_dst.write_bytes(decoder)
+        print(f"XMVSF menu decoder installed: {decoder_dst}")
     return 0
 
 if __name__ == "__main__":
