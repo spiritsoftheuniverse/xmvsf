@@ -27,6 +27,53 @@ def replace_once(source: str, old: str, new: str, name: str) -> str:
     return source.replace(old, new, 1)
 
 
+# Exact code emitted by 87.442. The 87.437 installer previously injected
+# a fresh audio hook before "if (home.Visible())" on every unsuccessful
+# build. The 87.442 installer then wrapped that new suffix in another
+# identical Options branch. Recover ONLY those exact generated blocks.
+OPTIONS_DRAW_BLOCK = '''        if (options.Active()) { // XMVSF_RECOMP_OPTIONS_87_442: three native tabs
+            if (presenter.Renderer()) {
+                presenter.UseClassicMenuCanvas(true);
+                homeTextures.RenderOptions(presenter.Renderer(), SDL_GetTicks(),
+                                           options, g_bindings, Table(), gamepads);
+            }
+            SDL_Delay(8);
+            nextFrame = SDL_GetTicksNS();
+            continue;
+        }
+'''
+OPTIONS_AUDIO_LINE = (
+    '        homeAudio.Step(home.Visible() || options.Active()); // '
+    'XMVSF_RECOMP_OPTIONS_87_442\n'
+)
+
+
+def recover_repeated_options(text: str) -> str:
+    """Collapse known duplicate generated code; preserve unknown source.
+
+    Keep the last complete audio+render pair, closest to the home menu.
+    Removing a pair also removes its duplicate audio Step, preserving the
+    original music timing rather than leaving stale calls on every frame.
+    """
+    draw_count = text.count(OPTIONS_DRAW_BLOCK)
+    if draw_count <= 1:
+        return text
+    # Verify these are exactly the blocks emitted by our own 87.442
+    # installer. An unknown hand-edited block is never deleted.
+    paired = OPTIONS_AUDIO_LINE + OPTIONS_DRAW_BLOCK
+    pair_count = text.count(paired)
+    if pair_count != draw_count:
+        raise RuntimeError(
+            f"87.446 found {draw_count} generated Options blocks but only "
+            f"{pair_count} matching audio/render pairs. Refusing unsafe cleanup."
+        )
+    fixed = text.replace(paired, "", pair_count - 1)
+    assert fixed.count(OPTIONS_DRAW_BLOCK) == 1
+    assert fixed.count(paired) == 1
+    print(f"XMVSF 87.446: removed {pair_count - 1} repeated Options/audio branches")
+    return fixed
+
+
 def patch(text: str) -> str:
     text = replace_once(
         text,
@@ -176,7 +223,7 @@ def main() -> int:
                 or 'xmvsf_home::OptionsPanel options;' not in before
                 or 'homeTextures.RenderOptions(' not in before):
             raise RuntimeError("87.446 incomplete Options integration; refusing to reinstall over unknown source")
-        updated = before
+        updated = recover_repeated_options(before)
     else:
         updated = patch(before)
     content = SOURCE.read_bytes()
