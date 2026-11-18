@@ -5,7 +5,7 @@
 set -euo pipefail
 BUILD_WALL_START=$SECONDS
 # Batch sets the version once at launch, before native compilation begins.
-XMVSF_BUILD_VERSION="${XMVSF_TEST_VERSION:-87.429}"
+XMVSF_BUILD_VERSION="${XMVSF_TEST_VERSION:-87.430}"
 XMVSF_BUILD_TAG="${XMVSF_BUILD_VERSION//./_}"
 PROJECT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
@@ -862,6 +862,12 @@ if ! LC_ALL=C grep -aFq -- "XM87.428 HUD_SHOCK_VISUAL_START" "$BUILT"; then
   exit 2
 fi
 echo "TEST 87.428 song phase02+27 unchanged; HUD fade starts native 04>06+23."
+# TEST 87.430: pre-hide only, independent from the song and shock cues.
+if ! LC_ALL=C grep -aFq -- "XM87.430 HUD_EARLY_PRIME" "$BUILT"; then
+  echo "ERROR: TEST 87.430 native pre-shock HUD concealment not linked." >&2
+  exit 2
+fi
+echo "TEST 87.430 source-qualified HUD now primes at first precombat phase."
 # Hash-compare before publishing: a no-op build must NOT overwrite TEST.
 built_sha="$(sha256sum "$BUILT" | cut -d ' ' -f 1)"
 mkdir -p "$PROJECT/runtime/stable"

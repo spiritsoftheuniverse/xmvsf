@@ -12,6 +12,7 @@
 #include "xm20_vs_early_phase.h"
 #include "xm20_vs_visual_anchor_422.h" // song only: phase-02 + 27
 #include "xm20_vs_shock_activation_428.h" // HUD fade only: phase-06 + 23
+#include "xm20_vs_pre_hide_430.h" // pre-hide existing HUD independently of song
 
 struct XM20VsTracker {
     unsigned int polls=0;
@@ -97,6 +98,22 @@ static inline void xm20VsCheck(int ready,int paused) {
     xm20Vs.p1Choice=p1Choice;
     xm20Vs.p2Choice=p2Choice;
 
+    // TEST 87.430: the old chooser-only pre-hide could be missed when
+    // the phase-02 visual anchor was seen first. Prime on the first
+    // observed precombat ROM phase instead, WITHOUT arming the song
+    // and WITHOUT changing 06+23's separately verified shock trigger.
+    const bool xm87430HudEnabled=XM87392::eligible(
+        BurnDrvGetTextA(DRV_NAME),XM87262Game::version4());
+    XM87392::Timeline& xm87430Hud=XM87392::timeline();
+    if(XM87430PreHide::shouldPrime(status,gameStep,xm87430HudEnabled,
+                                  xm87430Hud.primed,xm20Vs.combatNotified)){
+        const unsigned frame=(unsigned)GetCurrentFrame();
+        xm87430Hud.prepareForSong(frame); // conceal only; NO playback
+        std::fprintf(stderr,
+            "XM87.430 HUD_EARLY_PRIME frame=%u phase=%02X step=%04X song_unchanged=1 shock_gate_unchanged=1\n",
+            frame,status,gameStep);
+    }
+
     // TEST 87.426: user-selected wall position is frame 1678, 27
     // frames after FF5000 00->02 at 1651 (WRPC 00F1E4).
     // Trigger both the preloaded song request and 150f HUD delay
@@ -152,9 +169,9 @@ static inline void xm20VsCheck(int ready,int paused) {
             "VS_M68K_HANDOFF_0004_TO_INTERMEDIATE":
             "VS_M68K_HANDOFF_0004_TO_0008",status,p1ptr);
         xm20Vs.triggered=true;
-        // Preserve the approved HUD concealment prime at the original
-        // chooser->match handoff. Song at phase-02+27; separate HUD
-        // shock-activation frame now follows phase-06+23.
+        // Keep the chooser handoff as a secondary pre-hide path.
+        // Primary path is the first observed phase 02/04/06 (87.430).
+        // Song remains 02+27; shock reveal remains 06+23.
         if(XM87392::eligible(BurnDrvGetTextA(DRV_NAME),
                              XM87262Game::version4()))
             XM87392::timeline().prepareForSong((unsigned)GetCurrentFrame());

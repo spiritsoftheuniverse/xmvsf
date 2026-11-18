@@ -3,6 +3,7 @@
 #include "../../stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_392_hud_shock.h"
 #include "../../stable/buildtree/src/burner/sdl/xm20_vs_visual_anchor_422.h"
 #include "../../stable/buildtree/src/burner/sdl/xm20_vs_shock_activation_428.h"
+#include "../../stable/buildtree/src/burner/sdl/xm20_vs_pre_hide_430.h"
 #include <cassert>
 #include <cstdint>
 #include <cstdio>
@@ -110,6 +111,33 @@ int main(){
     assert(!interrupted.observe(2u,100u));
     assert(!interrupted.observe(4u,115u));
     assert(!interrupted.observe(2u,140u)); // no second match edge
+    // TEST 87.430: pre-hide must not wait for music or the phase-06
+    // shock-reveal trigger, even if the chooser handoff was missed.
+    using XM87430PreHide::shouldPrime;
+    assert(shouldPrime(2u,8u,true,false,false)); // phase02 first frame
+    assert(shouldPrime(4u,8u,true,false,false)); // late observer fallback
+    assert(shouldPrime(6u,8u,true,false,false)); // until 06+23
+    assert(!shouldPrime(2u,4u,true,false,false)); // still choosing
+    assert(!shouldPrime(0u,8u,true,false,false)); // no selection mask
+    assert(!shouldPrime(8u,8u,true,false,false)); // no combat restart
+    assert(!shouldPrime(2u,8u,false,false,false)); // V3 never masked
+    assert(!shouldPrime(2u,8u,true,true,false)); // already concealed
+    assert(!shouldPrime(6u,8u,true,false,true)); // past match end
+    Timeline earlierConceal;
+    if(shouldPrime(2u,8u,true,earlierConceal.primed,false))
+        earlierConceal.prepareForSong(1400u);
+    assert(earlierConceal.primed && !earlierConceal.armed);
+    assert(earlierConceal.step(1400u)==0u);
+    assert(earlierConceal.step(1426u)==0u); // no music yet
+    earlierConceal.beginAtCapturedPosition(1427u); // song unchanged
+    assert(earlierConceal.start==1427u && earlierConceal.capturedAnchor);
+    assert(earlierConceal.step(1450u)==0u); // waiting for shock
+    assert(earlierConceal.step(1474u)==0u);
+    earlierConceal.activateShockAtVisualFrame(1475u);
+    assert(earlierConceal.step(1475u)==1u);
+    assert(earlierConceal.step(1504u)==30u);
+    assert(earlierConceal.start==1427u); // early pre-hide never moves song
+
     // TEST 87.428: screenshot F1475 ST06, native 04->06 at F1452.
     // The exact 23-frame native offset controls visual fade activation.
     // Distinct from XM87422VisualAnchor::Gate used above. Do not

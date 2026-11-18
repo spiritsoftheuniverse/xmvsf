@@ -1,3 +1,31 @@
+# TEST 87.430 — Guarantee HUD concealment before the shock
+
+USER-APPROVED TIMING IS FROZEN: the Versus song still starts at native
+phase 02+27; the HUD reveal still activates at native 04->06+23
+(F1475 in the user's corresponding F6 capture), completing its
+existing 30-frame reveal afterward. No code inside either timing
+gate was changed.
+
+Problem: older pre-hide initialization relied on a chooser-edge
+callback, which can be missed or superseded by visual song anchoring.
+Before that callback the timeline is not primed and step() returns
+30 (HUD fully visible). 87.430 primes concealment on the first
+observed native match step 0008 during phases 02/04/06, independent
+of audio, loading and shock activation. It does NOT start the song.
+
+All 87.417 ROM-source-specific pre-fight masking stays intact to
+protect the Versus logo boxes and the forest; the full priority7
+classifier remains scoped to phases 06/08. SDL stun HUD uses the
+same primed timeline. The change neither broadens tile filters nor
+adds framebuffer rectangles. Runtime log marker
+`XM87.430 HUD_EARLY_PRIME` identifies when early concealment armed.
+
+Local HUD regression test asserts pre-song invisibility, unchanged
+song phase gate, unchanged 04->06+23 activation, and no rearm after
+combat. Local Windows visual validation is required to verify the
+observed early HUD components are source-classified; no Windows
+build was run remotely.
+
 # TEST 87.428 — Explicit shock activation at screenshot F1475
 
 The user's F6 screenshot `XMVSF_native_20261117_185307_f000001475_000001.png`
