@@ -151,7 +151,7 @@ void Presenter::Show(const uint32_t *pixels, int width, int height, const SDL_FR
     static constexpr int W = 960, H = 540;''',
         "give texture renderer access to the original source assets",
     )
-    if '"TEST 87.442"' not in home:
+    if '"TEST 87.442"' not in home and '"TEST 87.443"' not in home:
         home = replace_exact(
             home,
             '''"TEST 87.440"''',
@@ -165,7 +165,13 @@ def main() -> int:
     for path in (FRONTEND, PRESENT_H, PRESENT_CPP, HOME):
         if not path.exists(): raise RuntimeError(f"missing pinned source: {path}")
         original[path] = path.read_text(encoding="utf-8")
-    updated = patch(original)  # checks every anchor before writing anything
+    # The newer frontend keeps the classic textured renderer, but changes
+    # its shutdown/order. Don't reinsert 87.441 blocks into 87.443.
+    if "XMVSF_RECOMP_PAD_OWNER_87_443" in original[FRONTEND]:
+        assert "XMVSF_RECOMP_MENU_TEXTURES_87_441" in original[FRONTEND]
+        updated = original
+    else:
+        updated = patch(original)  # checks every anchor before writing anything
     content = SOURCE.read_bytes()
     for path in original:
         if original[path] != updated[path]:
