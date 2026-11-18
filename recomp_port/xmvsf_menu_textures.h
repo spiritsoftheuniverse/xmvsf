@@ -1,0 +1,203 @@
+// 87.441 — source-texture menu compositor (SDL3 equivalent of our SDL2 menu).
+// No 960x540 CPU Blit/Cover pass, and no full-screen texture upload per frame.
+// Source artwork stays in xmvsf_home::Menu; only layers are uploaded to SDL.
+#pragma once
+#include "xmvsf_home.h"
+#include <SDL3/SDL.h>
+#include <algorithm>
+#include <array>
+#include <cmath>
+#include <cstdint>
+#include <cstdio>
+
+namespace port::xmvsf_home {
+
+class TexturedMenu {
+    Menu &menu_;
+    SDL_Renderer *renderer_ = nullptr;
+    SDL_Texture *background_ = nullptr;
+    SDL_Texture *logo_ = nullptr;
+    SDL_Texture *logoII_ = nullptr;
+    SDL_Texture *largeFont_ = nullptr;
+    SDL_Texture *smallFont_ = nullptr;
+    int gifW_ = 0, gifH_ = 0;
+    int gifFrame_ = -1, gifHue_ = -1;
+    bool warned_ = false;
+
+    static SDL_Texture *MakeTexture(SDL_Renderer *r, const Image &img, bool streaming = false) {
+        if (!r || !img.Valid()) return nullptr;
+        SDL_Texture *tex = SDL_CreateTexture(r, SDL_PIXELFORMAT_ABGR8888,
+            streaming ? SDL_TEXTUREACCESS_STREAMING : SDL_TEXTUREACCESS_STATIC,
+            img.width, img.height);
+        if (!tex) return nullptr;
+        SDL_SetTextureScaleMode(tex, SDL_SCALEMODE_NEAREST);
+        SDL_SetTextureBlendMode(tex, SDL_BLENDMODE_BLEND);
+        if (!SDL_UpdateTexture(tex, nullptr, img.pixels.data(), img.width * 4)) {
+            SDL_DestroyTexture(tex);
+            return nullptr;
+        }
+        return tex;
+    }
+
+    static void Tint(SDL_Texture *texture, int brightness) {
+        if (!texture) return;
+        const Uint8 c = Uint8(std::clamp(brightness, 0, 255));
+        SDL_SetTextureColorMod(texture, c, c, c);
+    }
+
+    static void DrawTexture(SDL_Renderer *r, SDL_Texture *texture, Rect src, SDL_FRect dest) {
+        if (!r || !texture || src.w < 1 || src.h < 1 || dest.w < 1 || dest.h < 1) return;
+        SDL_FRect from{float(src.x), float(src.y), float(src.w), float(src.h)};
+        SDL_RenderTexture(r, texture, &from, &dest);
+    }
+
+    bool Init(SDL_Renderer *r) {
+        if (renderer_ == r) return largeFont_ && smallFont_ && logo_;
+        Release();
+        renderer_ = r;
+        logo_ = MakeTexture(r, menu_.logo_);
+        logoII_ = MakeTexture(r, menu_.logoII_);
+        largeFont_ = MakeTexture(r, menu_.large_.sheet);
+        smallFont_ = MakeTexture(r, menu_.small_.sheet);
+        if (!menu_.backdrop_.frames.empty()) {
+            const Image &first = menu_.backdrop_.frames.front();
+            background_ = MakeTexture(r, first, true);
+            gifW_ = first.width;
+            gifH_ = first.height;
+            gifFrame_ = -1;
+            gifHue_ = -1;
+            Tint(background_, 77);
+        }
+        if (!logo_ || !largeFont_ || !smallFont_) {
+            if (!warned_) {
+                std::fprintf(stderr,
+                    "XMVSF 87.441: texture menu unavailable (%s); CPU compatibility fallback\n",
+                    SDL_GetError());
+                warned_ = true;
+            }
+            return false;
+        }
+        std::fprintf(stderr,
+            "XMVSF 87.441: hardware menu textures ready (logo, glyph atlases, GIF %dx%d)\n",
+            gifW_, gifH_);
+        return true;
+    }
+
+    void GlyphText(SDL_Renderer *r, const Font &font, SDL_Texture *texture,
+                   const char *s, int anchorX, int top, float scale,
+                   int brightness, int alignment) {
+        if (!r || !texture || !s) return;
+        int x = anchorX;
+        if (alignment == 1) x -= int(font.Measure(s) * scale / 2 + .5f);
+        else if (alignment == 2) x -= int(font.Measure(s) * scale + .5f);
+        Tint(texture, brightness);
+        int pen = 0;
+        for (const unsigned char *p = reinterpret_cast<const unsigned char *>(s); *p; ++p) {
+            const unsigned ch = *p < 128 ? *p : 32;
+            const Font::Glyph &glyph = font.glyphs[ch];
+            if (ch >= 33 && ch <= 126 && glyph.rect.w > 0) {
+                const SDL_FRect dest{
+                    float(x + int(pen * scale + .5f)), float(top),
+                    float(std::max(1, int(glyph.rect.w * scale + .5f))),
+                    float(std::max(1, int(glyph.rect.h * scale + .5f)))
+                };
+                DrawTexture(r, texture, glyph.rect, dest);
+            }
+            pen += glyph.advance;
+        }
+        Tint(texture, 255);
+    }
+
+    void DrawLogo(SDL_Renderer *r, uint64_t now) {
+        const Rect crop = VisibleBounds(menu_.logo_);
+        if (crop.w < 1 || crop.h < 1) return;
+        // The original Stage14 MainLayout target — no forced new aspect ratio.
+        const float scale = std::min(544.0f / crop.w, 289.0f / crop.h);
+        const int drawnW = int(crop.w * scale + .5f);
+        const int drawnH = int(crop.h * scale + .5f);
+        const int x = 208 + (544 - drawnW) / 2;
+        const int y = 51 + (289 - drawnH) / 2;
+        const int light = std::clamp(246 + int(9.0 * std::sin(
+                         double(now % 1600) * 6.28318530718 / 1600.0)), 220, 255);
+        Tint(logo_, light);
+        DrawTexture(r, logo_, crop,
+                    {float(x), float(y), float(drawnW), float(drawnH)});
+        if (logoII_ && menu_.logoII_.Valid()) {
+            // Shared 400x300 original art canvas, no independent auto-fit.
+            const int fullX = x - int(crop.x * scale + .5f);
+            const int fullY = y - int(crop.y * scale + .5f);
+            Tint(logoII_, light);
+            DrawTexture(r, logoII_,
+                {0, 0, menu_.logoII_.width, menu_.logoII_.height},
+                {float(fullX), float(fullY),
+                 float(int(menu_.logoII_.width * scale + .5f)),
+                 float(int(menu_.logoII_.height * scale + .5f))});
+        }
+    }
+
+    void DrawBackground(SDL_Renderer *r, uint64_t now) {
+        if (!background_ || menu_.backdrop_.frames.empty()) return;
+        const Image &frame = menu_.backdrop_.At(now);
+        if (!frame.Valid()) return;
+        const int frameNo = menu_.backdrop_.shownFrame;
+        const int hueNo = menu_.backdrop_.shownHue;
+        if (frameNo != gifFrame_ || hueNo != gifHue_) {
+            gifFrame_ = frameNo;
+            gifHue_ = hueNo;
+            // Only the current original GIF frame/hue is uploaded at 12.5Hz,
+            // never the entire 960x540 composed menu.
+            SDL_UpdateTexture(background_, nullptr,
+                              frame.pixels.data(), frame.width * 4);
+        }
+        const double cover = std::max(960.0 / frame.width, 540.0 / frame.height);
+        const int cropW = std::clamp(int(960.0 / cover + .5), 1, frame.width);
+        const int cropH = std::clamp(int(540.0 / cover + .5), 1, frame.height);
+        DrawTexture(r, background_,
+            {(frame.width - cropW) / 2, (frame.height - cropH) / 2, cropW, cropH},
+            {0, 0, 960, 540});
+    }
+
+public:
+    explicit TexturedMenu(Menu &menu) : menu_(menu) {}
+    TexturedMenu(const TexturedMenu &) = delete;
+    TexturedMenu &operator=(const TexturedMenu &) = delete;
+    ~TexturedMenu() { Release(); }
+    bool Renderable(SDL_Renderer *r, bool classic) const {
+        return classic && r && menu_.Visible() && std::getenv("XMVSF_MENU_CPU_FALLBACK") == nullptr;
+    }
+
+    void Release() {
+        for (SDL_Texture *texture : {background_, logo_, logoII_, largeFont_, smallFont_})
+            if (texture) SDL_DestroyTexture(texture);
+        background_ = logo_ = logoII_ = largeFont_ = smallFont_ = nullptr;
+        renderer_ = nullptr;
+        gifW_ = gifH_ = 0;
+        gifFrame_ = gifHue_ = -1;
+    }
+
+    bool Render(SDL_Renderer *renderer, uint64_t now) {
+        if (!renderer || !menu_.Visible() || !Init(renderer)) return false;
+        SDL_SetRenderDrawColor(renderer, 8, 16, 36, 255);
+        SDL_RenderClear(renderer);
+        DrawBackground(renderer, now);
+        DrawLogo(renderer, now);
+        static constexpr std::array<const char *, 4> rows{
+            "ARCADE", "TRAINING", "VERSUS", "OPTIONS"
+        };
+        for (int i = 0; i < 4; ++i) {
+            GlyphText(renderer, menu_.large_, largeFont_, rows[size_t(i)],
+                      489, 347 + i * 31, 1.35f,
+                      menu_.selection_ == i ? 255 : 80, 1);
+        }
+        GlyphText(renderer, menu_.small_, smallFont_,
+                  "A SELECT   B / ESC BACK", 489, 495, 1.375f, 235, 1);
+        GlyphText(renderer, menu_.small_, smallFont_,
+                  "ESC TO RETURN", 18, 522, 1.08f, 185, 0);
+        GlyphText(renderer, menu_.small_, smallFont_,
+                  "TEST 87.441", 942, 522, 1.08f, 185, 2);
+        SDL_RenderPresent(renderer);
+        return true;
+    }
+};
+
+} // namespace port::xmvsf_home
