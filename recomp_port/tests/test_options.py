@@ -92,15 +92,16 @@ def main():
     src = OPTIONS.read_text(encoding="utf-8")
     art = DRAW.read_text(encoding="utf-8")
     actions = BIND.read_text(encoding="utf-8")
-    assert any(version in HOME.read_text(encoding="utf-8") for version in ("TEST 87.442", "TEST 87.443", "TEST 87.444", "TEST 87.445", "TEST 87.446", "TEST 87.447"))
+    assert any(version in HOME.read_text(encoding="utf-8") for version in ("TEST 87.442", "TEST 87.443", "TEST 87.444", "TEST 87.445", "TEST 87.446", "TEST 87.447", "TEST 87.448"))
     assert '"GAME VERSION : V2"' in src
     assert '"TOURNAMENT : NOT PORTED"' in src
     assert "SetFeature(\"free_play\"" in src
     assert "SetFeatureValue(\"board_difficulty\"" in src
     assert "SetFeatureValue(\"board_speed\"" in src
-    assert "recomp::Ini ini(file);" in src
-    assert "ini.save()" in src
-    assert "b = candidate;" in src
+    ownersSource = (ROOT / "recomp_port" / "xmvsf_pad_owners.h").read_text(encoding="utf-8")
+    assert "recomp::Ini ini(file);" in ownersSource
+    assert "ini.save()" in ownersSource
+    assert "SaveRaw(" in ownersSource and "AssignFromInstance(" in ownersSource
     assert "SDL_EVENT_GAMEPAD_BUTTON_DOWN" in src
     assert "SDL_EVENT_GAMEPAD_AXIS_MOTION" in src
     assert "SDL_EVENT_KEY_DOWN" in src
@@ -110,17 +111,26 @@ def main():
         assert "owners.DeviceName" in src
     else:
         assert "SDL_GetGamepadName" in src
-    assert "BindingSection(false, p)" in src
-    assert "BindingSection(true, p)" in src
+    assert "BindingSection(false, p)" in ownersSource
+    assert "SaveKeyboardMap(" in ownersSource
     assert "SDL_SetWindowSize" in src
     assert "SDL_MaximizeWindow" in src
     assert "SDL_SetWindowFullscreen" in src
+    assert "editPad_" not in src, "original input UI must have no keyboard/gamepad toggle"
+    assert "owners.AssignNext(" not in src, "original device assignment must be event capture"
+    assert "owners.VisibleActions(player_) + 1" in src
+    assert "const int deviceY = 156 + (296 - groupHeight) / 2;" in art
+    assert "const int inputY = deviceY + 16 + 12;" in art
+    assert "options.ControlRow() == i + 1" in art
+    assert "owners.AssignKeyboard(" in ownersSource and "AssignFromInstance(" in ownersSource
+    assert "PhysicalForGamepadButton(" in ownersSource
+    assert "SDL_GetJoystickName(js)" in ownersSource
     assert "RenderOptions(" in art
     assert "SDL_RenderPresent(renderer);" in art
     assert "SDL_SCALEMODE_NEAREST" in art
     assert "struct BoundTable" in actions and "using recomp::Bindings" in actions
     assert module.SOURCE.read_bytes() == module.OPTIONS.read_bytes()
-    print("XMVSF 87.442: native tabs / V2 / SDL inputs / INI / GPU assets: PASS (source)")
+    print("XMVSF 87.448: original device/keyboard capture, V2 tabs, INI profiles and GPU assets: PASS (source)")
 
 if __name__ == "__main__":
     main()
