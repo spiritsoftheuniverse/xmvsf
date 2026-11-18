@@ -163,6 +163,11 @@ public:
             musicAt_ = 0;
             moveAt_ = kIdle;
             if (visible) selectAt_ = kIdle;
+            else {
+                // Cold-boot voice/stinger must never resume on a menu return.
+                crashAt_ = kIdle;
+                welcomeAt_ = kIdle;
+            }
         }
         if (!visible && selectAt_ == kIdle) return;
         const bool playMenuMusic = visible &&
