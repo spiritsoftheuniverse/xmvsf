@@ -1,4 +1,4 @@
-# XMVSF native front end — 87.447 (Options audio-state reconciliation)
+# XMVSF native front end — 87.448 (original Stage13 input capture restored)
 
 The real XMVSF front end now renders in CPS-2 Recomp's **SDL3 native
 window and pixel presenter**, not an additional SDL launcher. The preserved
@@ -33,6 +33,46 @@ Esc / gamepad menu input; while shown, no game ticks are executed.
 Navigation uses both keyboard and gamepad: arrows / D-pad, Enter or Space / A.
 Esc returns to the home menu, and F1 there opens our Options. Shift+F1 opens the original recomp diagnostics.
 Use `XMVSF_RECOMP_HOME_OFF=1` when comparing against untouched upstream.
+
+## 87.448 Restore the original SDL2 Stage13 controller assignment UX
+
+The temporary 87.442/87.443 device-cycling and EDIT INPUT switch are
+removed. Source of truth:
+`dev/stable/buildtree/src/burner/sdl/xmvsf_stage13_controls.h`
+and `xmvsf_stage14_boot.h` (Controller tab, capture, graphics/layout).
+
+**Device row (row zero):** press A/Enter to arm capture; press a key
+to assign the original P1/P2 keyboard profile, or press a physical
+button on any connected stick/gamepad to assign that exact SDL instance.
+If the device was assigned to the other player, the whole player
+configuration and its customized physical binding profile are swapped.
+No cycling between KEYBOARD and GAMEPAD modes.
+
+**Action rows:** after assignment press A/Enter on LP, MP, HP, LK,
+MK, HK, 3P, 3K, COIN or START to capture the next key, physical
+button or positive joystick axis. Keyboard mode exposes 14 actions,
+including LEFT, RIGHT, UP and DOWN; controller mode exposes the first
+10, with directional input taken from its stick/hat. The raw physical
+index is displayed as BUTTON N, AXIS N or KEY name, not a semantic
+Xbox button label. The original control column is dynamically centered,
+with 12 native pixels between the device caption and first input.
+
+Keyboard defaults are copied from Stage13:
+P1 = J K L / U I O / H Y / 5 Enter / A D W S.
+P2 = KP1 KP2 KP3 / KP4 KP5 KP6 / KP7 KP8 / KP0 KP Enter /
+Left Right Up Down.
+
+Both mapped SDL3 gamepads and unmapped raw sticks use physical button
+bindings (SDL_GetGamepadBindings resolves a mapped pad to joystick
+indices); existing 87.443 semantic profiles migrate when available.
+Persisted GUID, name, ordinal, serial (if exposed) and saved per-device
+action profiles remain in the existing recomp settings.ini. Reconnection
+uses live SDL instance first and GUID/name fallback. The SDL3 game input
+loop now avoids mixing the generic gamepad/keyboard mappings with an
+explicitly assigned controller's physical profile.
+
+The stable 87.441 SDL source-texture renderer, 87.447 single menu audio
+stream, and 87.443 one-press menu gating are unchanged.
 
 ## 87.447 Fix buzzing on entry into Options
 
@@ -91,8 +131,8 @@ No hold-repeat in the home menu, Options, or upstream diagnostics. One
 key/button press moves one row, then requires release before the next
 move. The native gameplay button-hold and charge logic are unchanged.
 
-The Controller tab now has separate DEVICE ASSIGNMENT and EDIT INPUT
-rows, followed by all 14 original actions. Each P1/P2 slot can select
+The Controller tab uses press-to-capture on the single DEVICE row, then
+10 physical actions (or 14 Keyboard actions). Each P1/P2 slot can select
 a particular connected controller by SDL instance ID and save its GUID,
 serial when available, ordinal, and the actual Windows/SDL joystick
 name. Reconnecting restores that controller's saved action profile
