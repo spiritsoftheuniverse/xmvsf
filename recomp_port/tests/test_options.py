@@ -22,9 +22,15 @@ def main():
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     original = (PORT / "frontend_sdl.cpp").read_text(encoding="utf-8")
-    first = module.patch(original)
-    assert first == original, "options installer should have already run"
-    assert module.patch(first) == first, "not idempotent"
+    # 87.443 supersedes the 87.442 Options handlers. Its installer
+    # intentionally preserves the newer native source on repeated builds.
+    if "XMVSF_RECOMP_PAD_OWNER_87_443" in original:
+        assert "XMVSF_RECOMP_OPTIONS_87_442" in original
+        first = original
+    else:
+        first = module.patch(original)
+        assert first == original, "options installer should have already run"
+        assert module.patch(first) == first, "not idempotent"
     assert "XMVSF_RECOMP_OPTIONS_87_442" in first
     assert "homeTextures.RenderOptions" in first
     assert "options.Press(" in first
@@ -37,7 +43,7 @@ def main():
     src = OPTIONS.read_text(encoding="utf-8")
     art = DRAW.read_text(encoding="utf-8")
     actions = BIND.read_text(encoding="utf-8")
-    assert "TEST 87.442" in HOME.read_text(encoding="utf-8")
+    assert any(version in HOME.read_text(encoding="utf-8") for version in ("TEST 87.442", "TEST 87.443"))
     assert '"GAME VERSION : V2"' in src
     assert '"TOURNAMENT : NOT PORTED"' in src
     assert "SetFeature(\"free_play\"" in src
