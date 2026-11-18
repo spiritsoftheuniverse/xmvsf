@@ -137,6 +137,21 @@ def patch(files: dict[Path, str]) -> dict[Path, str]:
         // (blended all over: the picture as it is, fitted smoothly)''',
         "bypass sharp-plus-linear intermediate texture",
     )
+    # A recreated SDL_Renderer does not retain the previous logical canvas.
+    cpp = substitute(
+        cpp,
+        '''    m_width = m_height = m_enlargedBy = 0;
+}
+
+void Presenter::Size''',
+        '''    m_width = m_height = m_enlargedBy = 0;
+    m_classicLogicalMenu = false; // XMVSF_RECOMP_CLASSIC_87_440
+}
+
+void Presenter::Size''',
+        "clear logical presentation on renderer close",
+    )
+
     return {FRONTEND: frontend, PRESENT: cpp, PRESENT_H: header}
 
 
