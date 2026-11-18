@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
-"""87.443: explicit SDL3 P1/P2 ownership and one-press-one-menu-step.
+"""87.445: explicit SDL3 P1/P2 ownership and one-press-one-menu-step.
 
 Source-only anchored patch after 87.442 Options. Never modifies ROMs,
 resets the user's submodule, or invalidates the 87.441 renderer design.
 """
 from __future__ import annotations
 from pathlib import Path
+import re
 import sys
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -110,35 +111,36 @@ def patch(code: str) -> str:
                     menuPressed, window, g_bindings, Table(),
                     port.opt.settingsPath, owners);''',
         "Controller device selector")
-    # 87.444: The generic continuation line occurs multiple times in some
-    # locally patched frontends. Anchor the complete rendering invocation
-    # to the one Options page, and leave other calls entirely untouched.
-    render_begin = (
-        "        if (options.Active()) { // XMVSF_RECOMP_OPTIONS_87_442: three native tabs\n"
+    # 87.445: match the *function invocation* (including name and args),
+    # not its surrounding menu layout or the non-unique line of arguments.
+    # Formatting/whitespace may differ between existing generated frontends.
+    # Other occurrences of "options, g_bindings, Table(), gamepads" stay intact.
+    old_call = re.compile(
+        r"(\bhomeTextures\s*\.\s*RenderOptions\s*\(\s*"
+        r"presenter\s*\.\s*Renderer\s*\(\s*\)\s*,\s*"
+        r"SDL_GetTicks\s*\(\s*\)\s*,\s*"
+        r"options\s*,\s*g_bindings\s*,\s*"
+        r"Table\s*\(\s*\)\s*,\s*)"
+        r"gamepads(\s*\)\s*;)"
     )
-    render_end = (
-        "        if (home.Visible()) { // XMVSF_RECOMP_HOME_87_435: present our menu"
+    new_call = re.compile(
+        r"\bhomeTextures\s*\.\s*RenderOptions\s*\(\s*"
+        r"presenter\s*\.\s*Renderer\s*\(\s*\)\s*,\s*"
+        r"SDL_GetTicks\s*\(\s*\)\s*,\s*"
+        r"options\s*,\s*g_bindings\s*,\s*"
+        r"Table\s*\(\s*\)\s*,\s*owners\s*\)\s*;"
     )
-    old_render = (
-        "                homeTextures.RenderOptions(presenter.Renderer(), SDL_GetTicks(),\n"
-        "                                           options, g_bindings, Table(), gamepads);"
-    )
-    new_render = (
-        "                homeTextures.RenderOptions(presenter.Renderer(), SDL_GetTicks(),\n"
-        "                                           options, g_bindings, Table(), owners);"
-    )
-    begin = code.find(render_begin)
-    finish = code.find(render_end, begin + len(render_begin)) if begin >= 0 else -1
-    if begin < 0 or finish < 0 or code.count(render_begin) != 1:
-        raise RuntimeError("87.444 cannot uniquely locate the native Options renderer; source untouched")
-    section = code[begin:finish]
-    if new_render not in section:
-        count = section.count(old_render)
-        if count != 1:
-            raise RuntimeError(
-                f"87.444 Options render call: expected one complete invocation in Options block, found {count}; source untouched"
-            )
-        code = code[:begin] + section.replace(old_render, new_render, 1) + code[finish:]
+    old_count = len(old_call.findall(code))
+    new_count = len(new_call.findall(code))
+    if old_count == 1 and new_count == 0:
+        code = old_call.sub(lambda m: m.group(1) + "owners" + m.group(2), code, count=1)
+    elif old_count == 0 and new_count == 1:
+        pass  # already upgraded
+    else:
+        raise RuntimeError(
+            f"87.445 expected one Options RenderOptions call; "
+            f"old={old_count}, new={new_count}; source untouched"
+        )
     code = once(code,
         '''    homeTextures.Release();
     homeAudio.Close();
@@ -157,7 +159,7 @@ def main() -> int:
     updated = patch(original)  # all anchors verified before writing
     if updated != original:
         TARGET.write_text(updated, encoding="utf-8")
-        print("XMVSF 87.443: persistent P1/P2 routing and press-edge menu installed")
+        print("XMVSF 87.445: persistent P1/P2 routing and press-edge menu installed")
     blob = SRC.read_bytes()
     if not OUT.is_file() or OUT.read_bytes() != blob:
         OUT.write_bytes(blob)
@@ -167,5 +169,5 @@ def main() -> int:
 if __name__ == "__main__":
     try: sys.exit(main())
     except Exception as err:
-        print("XMVSF 87.443 controller patch FAILED:", err, file=sys.stderr)
+        print("XMVSF 87.445 controller patch FAILED:", err, file=sys.stderr)
         sys.exit(1)
