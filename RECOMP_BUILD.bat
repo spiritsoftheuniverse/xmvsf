@@ -80,6 +80,23 @@ if errorlevel 1 (
   goto :fail
 )
 
+REM 87.442: native Game/Graphics/Controller tabs, real SDL3 remapping,
+REM persisted INI bindings, and the current recomp Game version V2.
+"%BASH%" -c "python3 ../recomp_port/apply_options.py"
+if errorlevel 1 (
+  echo ERROR: XMVSF native Options integration failed. No build performed.
+  popd
+  goto :fail
+)
+
+REM Check the old menu renderer and new input hooks before warm Ninja build.
+"%BASH%" -c "python3 ../recomp_port/tests/test_options.py"
+if errorlevel 1 (
+  echo ERROR: XMVSF Options regression failed. No build performed.
+  popd
+  goto :fail
+)
+
 REM Default is FAST once configured. It only recompiles changed C++ objects.
 REM refresh explicitly regenerates M68000 translation and reconfigures CMake.
 if /I "%~1"=="refresh" goto :refresh
