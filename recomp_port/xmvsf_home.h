@@ -1,4 +1,4 @@
-// XMVSF native menu presentation, v87.436.
+// XMVSF native menu presentation, v87.437.
 // Adapted from this repository's Stage14 layout and XMGlyph bitmap atlas rules.
 // Draws into the native CPS-2 Recomp pixel presenter; no SDL2 or SDL_image dependency.
 #pragma once
@@ -351,6 +351,7 @@ public:
     }
     bool Enabled() const { return enabled_; }
     bool Visible() const { return visible_; }
+    int Selection() const { return selection_; }
     void Open() { if (enabled_) visible_ = true; }
     void Hide() { visible_ = false; }
     void Toggle() { if (enabled_) visible_ = !visible_; }
@@ -391,7 +392,7 @@ public:
 
         Text(pixels, "A SELECT   B / ESC BACK", 489, 495, true, 1.375f, 235);
         Text(pixels, "ESC TO RETURN", 18, 522, true, 1.08f, 185, 0);
-        Text(pixels, "TEST 87.436", 942, 522, true, 1.08f, 185, 2);
+        Text(pixels, "TEST 87.437", 942, 522, true, 1.08f, 185, 2);
     }
 };
 
