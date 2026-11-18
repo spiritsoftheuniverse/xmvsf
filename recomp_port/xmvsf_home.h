@@ -1,4 +1,4 @@
-// XMVSF native menu presentation, v87.443 (persistent controller owners and edge-only menu input).
+// XMVSF native menu presentation, v87.444 (controller installer scoped fix).
 // Adapted from this repository's Stage14 layout and XMGlyph bitmap atlas rules.
 // Draws into the native CPS-2 Recomp pixel presenter; no SDL2 or SDL_image dependency.
 #pragma once
@@ -393,7 +393,7 @@ public:
 
         Text(pixels, "A SELECT   B / ESC BACK", 489, 495, true, 1.375f, 235);
         Text(pixels, "ESC TO RETURN", 18, 522, true, 1.08f, 185, 0);
-        Text(pixels, "TEST 87.443", 942, 522, true, 1.08f, 185, 2);
+        Text(pixels, "TEST 87.444", 942, 522, true, 1.08f, 185, 2);
     }
 };
 
