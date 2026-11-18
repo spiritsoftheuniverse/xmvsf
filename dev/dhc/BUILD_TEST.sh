@@ -5,7 +5,7 @@
 set -euo pipefail
 BUILD_WALL_START=$SECONDS
 # Batch sets the version once at launch, before native compilation begins.
-XMVSF_BUILD_VERSION="${XMVSF_TEST_VERSION:-87.431}"
+XMVSF_BUILD_VERSION="${XMVSF_TEST_VERSION:-87.432}"
 XMVSF_BUILD_TAG="${XMVSF_BUILD_VERSION//./_}"
 PROJECT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
@@ -875,6 +875,13 @@ if ! LC_ALL=C grep -aFq -- "XM87.431 HUD_DITHER_ZERO_IMMEDIATE" "$BUILT"; then
   exit 2
 fi
 echo "TEST 87.431 native HUD dither zero before visual shock linked."
+# TEST 87.432: verify widened but geometry/scenery-scoped source path,
+# and bounded native phase-02/04 source inventory for any remaining leaks.
+if ! LC_ALL=C grep -aFq -- "XM87.432 PRE_SHOCK_OAM" "$BUILT"; then
+  echo "ERROR: TEST 87.432 phase02/04 source inventory not linked." >&2
+  exit 2
+fi
+echo "TEST 87.432 pre-shock sprite source coverage and diagnostic linked."
 # Hash-compare before publishing: a no-op build must NOT overwrite TEST.
 built_sha="$(sha256sum "$BUILT" | cut -d ' ' -f 1)"
 mkdir -p "$PROJECT/runtime/stable"

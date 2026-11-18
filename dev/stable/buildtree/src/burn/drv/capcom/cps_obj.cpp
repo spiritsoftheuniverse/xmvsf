@@ -1529,6 +1529,24 @@ if(!xm8725FighterObject && XM8725::Enabled() &&
                  xm8745LivePhase,(unsigned)GetCurrentFrame(),(unsigned)v,
                  (unsigned)a&31u,(unsigned)n,x,y,bx,by);
         }
+        // 87.431 makes dither=0 before shock, but ONLY objects admitted
+        // here can be erased. Collect bounded real OAM source evidence
+        // during 02/04, since the uploaded 87.431.zip F10 OAM file had
+        // zero native-tag rows. This does not write to guest memory.
+        if(xm87394HudEligible && !xm8651SpriteCaptureActive &&
+           (xm8745LivePhase==2 || xm8745LivePhase==4) &&
+           ((unsigned)v==7u || (unsigned)v==0u) &&
+           x>=-20 && x<388 && y>=-32 && y<56 &&
+           (unsigned)n>=80000u && (unsigned)n<110501u){
+            static unsigned sourceRows02=0u,sourceRows04=0u;
+            unsigned& rows=xm8745LivePhase==2?sourceRows02:sourceRows04;
+            if(rows++<112u)
+                std::fprintf(stderr,
+                    "XM87.432 PRE_SHOCK_OAM phase=%02X f=%u pri=%u pal=%u tile=%u x=%d y=%d size=%dx%d mask=%d step=%u\n",
+                    xm8745LivePhase,(unsigned)GetCurrentFrame(),(unsigned)v,
+                    (unsigned)a&31u,(unsigned)n,x,y,bx,by,
+                    int(xm87392NativeSource),xm87392Step);
+        }
         const bool xm87392HudTile=xm87392NativeSource &&
             xm87392Step<XM87392::RevealFrames;
         if(xm87392HudTile && xm8651SpriteCaptureActive){

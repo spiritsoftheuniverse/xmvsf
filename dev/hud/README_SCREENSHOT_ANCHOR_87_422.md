@@ -1,3 +1,30 @@
+# TEST 87.432 — Expand precombat HUD sources, not the zero dither
+
+The user's phase-04 screenshot shows the NEW HERO headers, portraits
+and TIME artwork still visible while the health bar is suppressed.
+87.431's paintStep correctly sends zero to selected sprites, but
+87.417's phase-02/04 source routing excluded everything except
+HP strips, tiny clock numeral objects and portrait border blocks.
+
+87.432 adds source-bounded top labels, outer-edge portrait palettes
+12/15 and upper-clock artwork to the phase-02/04 mask. It keeps the
+forest/scenery veto, 87.417 big introductory logo/title blocks and
+scenery palettes excluded. The screenshot and uploaded 87.431 F10
+trace establish phase 04 at frame 1363, 14 frames after 02->04
+(1349). The zip has no OAM sprite rows because no tag was captured,
+so the exact native label tile IDs remain unverified.
+
+To avoid another guessed tile family, the native renderer emits
+bounded `XM87.432 PRE_SHOCK_OAM` lines with the actual tile, palette,
+dimensions, x/y and mask decision for phases 02 and 04. A failure
+to conceal additional glyphs can be diagnosed from those actual
+source records instead of again broadening arbitrary priority-7
+objects. This telemetry does not depend on an F10 tag.
+
+Do not change phase02+27 audio, phase06+23 shock trigger, 30-frame
+dither art, key 8/9, or stage-scene rendering. This checkpoint
+requires Windows build and visual validation.
+
 # TEST 87.431 — Force existing step-zero invisibility in the painter
 
 This is NOT another attempt to schedule the concealment with a chooser,

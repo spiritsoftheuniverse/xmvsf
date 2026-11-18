@@ -211,6 +211,21 @@ int main(){
     withoutCue.activateShockAtVisualFrame(1475u);
     assert(!withoutCue.visualShockActive);
     assert(withoutCue.step(1475u)==0u);
+    // 87.432 restores tightly scoped source classes omitted from
+    // phase-02/04 after 87.417. Zero dither must hit NEW HERO text,
+    // portrait artwork and the non-numeral clock source.
+    assert(objectForPhase(2,7,3,89500,50,0,5,1)); // left top header
+    assert(objectForPhase(4,7,3,89500,260,0,5,1)); // right top header
+    assert(objectForPhase(4,7,1,89500,174,0,2,1)); // center time word
+    assert(objectForPhase(4,0,1,95000,160,8,4,2)); // clock face atlas
+    assert(objectForPhase(2,7,12,90200,0,0,6,4)); // left edge portrait
+    assert(objectForPhase(4,7,15,90200,352,0,6,4)); // right edge portrait
+    assert(!objectForPhase(2,7,3,89500,32,0,3,3)); // old logo box
+    assert(!objectForPhase(4,7,3,89500,32,32,3,3)); // lower logo box
+    assert(!objectForPhase(2,7,3,89500,165,16,5,2)); // centered title
+    assert(!objectForPhase(2,7,3,109100,50,0,2,1)); // forest family
+    assert(!objectForPhase(4,7,25,89500,50,0,2,1)); // scenery palette
+    assert(!objectForPhase(4,7,3,89500,50,0,5,1,false,true)); // caller veto
     // 87.416 shock-only comprehensive top HUD from native priority 7.
     // Source-level key 9 remains separate and is tested below.
     // 87.414 transition shock: strict source/tile + documented name regions.
