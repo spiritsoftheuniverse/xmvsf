@@ -1,4 +1,4 @@
-// XMVSF native Options v87.448: real SDL3 input mappings and settings hooks.
+// XMVSF native Options v87.451: Stage13 capture with a release-based input gate.
 // This is the old Game / Graphics / Controller organization, not recomp's menu.
 // Values marked NOT PORTED are intentionally inert. No ROM writes or patches.
 #pragma once
@@ -13,6 +13,7 @@
 #include "../recomp-common/menu.h"
 #include "xmvsf_window.h"
 #include "xmvsf_pad_owners.h"
+#include "xmvsf_capture_lifecycle.h"
 #include "../recomp-common/settings.h"
 #include "../runtime/game.h"
 
@@ -22,8 +23,14 @@ class OptionsPanel {
     bool visible_ = false;
     int tab_ = 0, gameRow_ = 0, graphicsRow_ = 0;
     int player_ = 0, controlRow_ = 0;
-    bool capture_ = false;
-    uint64_t captureAt_ = 0, suppressUntil_ = 0;
+    CaptureLifecycle lifecycle_{};
+    struct Activator {
+        enum class Type { Keyboard, Gamepad, Joystick } type;
+        SDL_JoystickID instance = 0;
+        int input = -1;
+    };
+    std::vector<Activator> activators_;
+    std::string captureHint_;
     std::string notice_;
     uint64_t noticeUntil_ = 0;
     static constexpr std::array<int, 14> kActionOrder{{
@@ -40,13 +47,98 @@ class OptionsPanel {
     }
     void ChangeTab(int direction) {
         tab_ = (tab_ + 3 + (direction > 0 ? 1 : 2)) % 3;
-        capture_ = false;
+        lifecycle_.Reset();
+        activators_.clear();
+        captureHint_.clear();
     }
     void Finished(bool saved, const std::string &success,
                   const std::string &failure = "SAVE FAILED") {
-        capture_ = false;
-        suppressUntil_ = SDL_GetTicks() + 350;
+        lifecycle_.Finish(); // A fresh menu press requires confirm/back release.
+        activators_.clear();
+        captureHint_.clear();
         Notice(saved ? success : failure, 1800);
+    }
+
+    void CancelCapture(const char *reason) {
+        lifecycle_.Cancel();
+        activators_.clear();
+        captureHint_.clear();
+        Notice(reason, 1700);
+    }
+    void BeginCapture(const PadOwners &owners, const BoundTable &table) {
+        activators_.clear();
+        captureHint_.clear();
+        const bool *keys = SDL_GetKeyboardState(nullptr);
+        if (keys) {
+            if (keys[SDL_SCANCODE_RETURN] && !(SDL_GetModState() & SDL_KMOD_ALT))
+                activators_.push_back({Activator::Type::Keyboard, 0, SDL_SCANCODE_RETURN});
+            if (keys[SDL_SCANCODE_SPACE])
+                activators_.push_back({Activator::Type::Keyboard, 0, SDL_SCANCODE_SPACE});
+        }
+        for (const auto &d : owners.Devices()) {
+            if (d.gamepad && SDL_GetGamepadButton(d.gamepad, SDL_GAMEPAD_BUTTON_SOUTH))
+                activators_.push_back({Activator::Type::Gamepad, d.instance,
+                                       SDL_GAMEPAD_BUTTON_SOUTH});
+            if (d.raw && d.joystick) {
+                for (int button = 0, n = SDL_GetNumJoystickButtons(d.joystick); button < n; ++button)
+                    if (owners.IsRawMenuConfirmPhysical(d.instance, button) &&
+                        SDL_GetJoystickButton(d.joystick, button))
+                        activators_.push_back({Activator::Type::Joystick, d.instance, button});
+            }
+        }
+        (void)table; // ownership source is the real, current SDL state
+        lifecycle_.Arm(SDL_GetTicks(), !activators_.empty());
+    }
+    void ObserveActivatorRelease(const SDL_Event &ev) {
+        for (auto it = activators_.begin(); it != activators_.end();) {
+            const bool released =
+                (ev.type == SDL_EVENT_KEY_UP &&
+                 it->type == Activator::Type::Keyboard &&
+                 int(ev.key.scancode) == it->input) ||
+                (ev.type == SDL_EVENT_GAMEPAD_BUTTON_UP &&
+                 it->type == Activator::Type::Gamepad &&
+                 ev.gbutton.which == it->instance &&
+                 int(ev.gbutton.button) == it->input) ||
+                (ev.type == SDL_EVENT_JOYSTICK_BUTTON_UP &&
+                 it->type == Activator::Type::Joystick &&
+                 ev.jbutton.which == it->instance &&
+                 int(ev.jbutton.button) == it->input);
+            if (released) it = activators_.erase(it);
+            else ++it;
+        }
+        if (activators_.empty())
+            lifecycle_.ActivatorReleased();
+    }
+    bool IsActivatorPress(const SDL_Event &ev, const PadOwners &owners) const {
+        if (!lifecycle_.AwaitingActivatorRelease()) return false;
+        for (const auto &a : activators_) {
+            if (a.type == Activator::Type::Keyboard &&
+                ev.type == SDL_EVENT_KEY_DOWN &&
+                int(ev.key.scancode) == a.input) return true;
+            if (a.type == Activator::Type::Gamepad && ev.type == SDL_EVENT_GAMEPAD_BUTTON_DOWN &&
+                ev.gbutton.which == a.instance && int(ev.gbutton.button) == a.input) return true;
+            if (a.type == Activator::Type::Joystick && ev.type == SDL_EVENT_JOYSTICK_BUTTON_DOWN &&
+                ev.jbutton.which == a.instance && int(ev.jbutton.button) == a.input) return true;
+            if (a.type == Activator::Type::Gamepad && ev.type == SDL_EVENT_JOYSTICK_BUTTON_DOWN &&
+                ev.jbutton.which == a.instance &&
+                owners.IsMappedConfirmPhysical(a.instance, int(ev.jbutton.button))) return true;
+        }
+        return false;
+    }
+    bool ConfirmOrBackHeld(const PadOwners &owners, const BoundTable &table) const {
+        const bool *keys = SDL_GetKeyboardState(nullptr);
+        if (keys && (keys[SDL_SCANCODE_RETURN] || keys[SDL_SCANCODE_SPACE] ||
+                     keys[SDL_SCANCODE_BACKSPACE])) return true;
+        for (const auto &d : owners.Devices())
+            if (d.gamepad && (SDL_GetGamepadButton(d.gamepad, SDL_GAMEPAD_BUTTON_SOUTH) ||
+                              SDL_GetGamepadButton(d.gamepad, SDL_GAMEPAD_BUTTON_EAST)))
+                return true;
+        return (owners.RawMenu(table) & (recomp::kMenuConfirm | recomp::kMenuBack)) != 0;
+    }
+    void TickCapture(const PadOwners &owners, const BoundTable &table) {
+        if (lifecycle_.Expired(SDL_GetTicks()))
+            CancelCapture("CAPTURE TIMED OUT - PRESS A TO RETRY");
+        lifecycle_.MenuButtons(ConfirmOrBackHeld(owners, table));
     }
 
     void StoreInput(PadOwners &owners, recomp::Bindings &bindings,
@@ -85,23 +177,31 @@ class OptionsPanel {
 
 public:
     bool Active() const { return visible_; }
-    bool Capturing() const { return visible_ && capture_; }
+    bool Capturing() const { return visible_ && lifecycle_.Capturing(); }
     int Tab() const { return tab_; }
     int GameRow() const { return gameRow_; }
     int GraphicsRow() const { return graphicsRow_; }
     int Player() const { return player_; }
     int ControlRow() const { return controlRow_; }
     const char *Message() const {
-        if (Capturing()) return controlRow_ == 0
-              ? "PRESS KEY OR DEVICE BUTTON"
-              : "PRESS KEY OR CONTROLLER BUTTON";
+        if (Capturing()) {
+            if (!captureHint_.empty()) return captureHint_.c_str();
+            if (lifecycle_.AwaitingActivatorRelease())
+                return "RELEASE A / ENTER, THEN PRESS NEW INPUT";
+            return controlRow_ == 0 ? "PRESS KEY OR DEVICE BUTTON"
+                                    : "PRESS KEY OR CONTROLLER BUTTON";
+        }
         return SDL_GetTicks() < noticeUntil_ ? notice_.c_str() : "";
     }
     void Open() {
-        visible_ = true; capture_ = false; tab_ = 0; suppressUntil_ = SDL_GetTicks() + 160;
+        visible_ = true; lifecycle_.Reset(); activators_.clear();
+        captureHint_.clear(); tab_ = 0;
         Notice("Q / E OR LB / RB TO CHANGE TABS", 2200);
     }
-    void Close() { visible_ = false; capture_ = false; }
+    void Close() {
+        visible_ = false; lifecycle_.Reset();
+        activators_.clear(); captureHint_.clear();
+    }
     static constexpr int ActionCount() { return 14; }
     static constexpr int TableIndex(int row) { return kActionOrder[size_t(row)]; }
     static const char *ActionTitle(int row) { return kActionTitles[size_t(row)]; }
