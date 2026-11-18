@@ -5,6 +5,7 @@ Runs against a TEMP COPY of the user's local upstream frontend, never writes
 to the real submodule, build cache, or Stable/TEST binaries.
 """
 from pathlib import Path
+import ast
 import importlib.util
 import shutil
 import tempfile
@@ -60,6 +61,27 @@ def main():
         assert (sandbox / "recomp" / "port" / "xmvsf_window.h").read_bytes() == WINDOW.read_bytes()
         assert module.main() == 0
         assert clone.read_bytes() == first, "installer is not idempotent"
+        # Simulate the precise, already-installed 87.438 frontend in a
+        # sandbox and ensure 87.439 reverses only its six added blocks.
+        tree = ast.parse(SCRIPT.read_text(encoding="utf-8"))
+        restore = next(n for n in tree.body if isinstance(n, ast.FunctionDef)
+                       and n.name == "restore_87_438")
+        rule_assignment = next(n for n in restore.body
+                               if isinstance(n, ast.Assign) and
+                               any(isinstance(t, ast.Name) and t.id == "perf_updates"
+                                   for t in n.targets))
+        rules = ast.literal_eval(rule_assignment.value)
+        assert len(rules) == 6
+        altered = clone.read_text(encoding="utf-8")
+        for old, changed, label in rules:
+            assert altered.count(old) == 1, f"87.438 simulation anchor: {label}"
+            altered = altered.replace(old, changed, 1)
+        assert "XMVSF_RECOMP_HOME_87_438: pixel-perfect menu viewport" in altered
+        clone.write_text(altered, encoding="utf-8")
+        assert module.main() == 0, "87.438 -> 87.437 rollback failed"
+        assert clone.read_bytes() == first, "87.438 rollback did not restore exact 87.437 frontend"
+        assert module.main() == 0
+        assert clone.read_bytes() == first, "rollback did not stay idempotent"
     print("XMVSF 87.439 installer: PASS (87.438 graphics rollback) (isolated, idempotent, window + audio + assets)")
 
 if __name__ == "__main__":
