@@ -1,0 +1,3 @@
+[submodule "recomp"]
+	path = recomp
+	url = https://github.com/tmcleroy/cps2recomp.git
