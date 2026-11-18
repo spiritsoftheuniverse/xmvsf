@@ -53,6 +53,15 @@ if errorlevel 1 (
   goto :fail
 )
 
+REM Reuse our old SDL2 rendering policy through SDL3's accelerated 2D renderer.
+REM Bypasses recomp's custom GPU sampler/intermediate smoother for XMVSF only.
+"%BASH%" -c "python3 ../recomp_port/apply_classic_renderer.py"
+if errorlevel 1 (
+  echo ERROR: XMVSF classic renderer patch failed. Existing build is untouched.
+  popd
+  goto :fail
+)
+
 REM Default is FAST once configured. It only recompiles changed C++ objects.
 REM refresh explicitly regenerates M68000 translation and reconfigures CMake.
 if /I "%~1"=="refresh" goto :refresh
