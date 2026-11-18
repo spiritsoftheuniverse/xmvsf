@@ -1,4 +1,4 @@
-# XMVSF native front end — 87.443 (persistent controller ownership and one-step menu)
+# XMVSF native front end — 87.446 (idempotent Options recovery)
 
 The real XMVSF front end now renders in CPS-2 Recomp's **SDL3 native
 window and pixel presenter**, not an additional SDL launcher. The preserved
@@ -33,6 +33,30 @@ Esc / gamepad menu input; while shown, no game ticks are executed.
 Navigation uses both keyboard and gamepad: arrows / D-pad, Enter or Space / A.
 Esc returns to the home menu, and F1 there opens our Options. Shift+F1 opens the original recomp diagnostics.
 Use `XMVSF_RECOMP_HOME_OFF=1` when comparing against untouched upstream.
+
+## 87.446 recover repeated Options/audio hooks
+
+Repeated failed 87.443–87.445 builds exposed an installer lifecycle bug:
+the 87.437 upgrade kept reinserting its earlier audio-step hook after
+87.442 had already replaced that hook. The 87.442 installer then inserted
+another complete native Options draw block before the unchanged home
+rendering block. Repeated runs could accumulate six copies.
+
+The 87.446 build now:
+- Suppresses the old 87.437 upgrade when 87.442 Options already exists.
+- Makes the 87.442 Options installer skip reinsertion when its installed
+  include, controller and drawing hooks are already present.
+- Recovers *only* complete identical 87.442-generated audio/draw blocks
+  to one, with a safe alternative for interleaved generated audio hooks.
+- Refuses cleanup if any duplicate Options block differs from the known
+  emitted source. No Git reset, submodule rewrite, cache deletion, or
+  change to the confirmed 87.441 source-texture presentation.
+- Validates six-copy recovery, interleaved audio, source protection, and
+  second-run idempotence via tests/test_options.py before local Ninja.
+
+The 87.443 ownership installer should now find exactly one active
+Options rendering invocation. The actual Windows compilation and hardware
+capture still require verification on the user's system.
 
 ## 87.443 strict input edges and physical controller profiles
 
