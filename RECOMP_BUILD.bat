@@ -89,6 +89,21 @@ if errorlevel 1 (
   goto :fail
 )
 
+REM 87.443: lock menu navigation to rising input edges, and bind P1/P2
+REM to remembered physical devices (including raw HID arcade joysticks).
+"%BASH%" -c "python3 ../recomp_port/apply_pad_owners.py"
+if errorlevel 1 (
+  echo ERROR: XMVSF controller ownership patch failed. No build performed.
+  popd
+  goto :fail
+)
+"%BASH%" -c "python3 ../recomp_port/tests/test_pad_owners.py"
+if errorlevel 1 (
+  echo ERROR: XMVSF ownership/press-edge regression failed.
+  popd
+  goto :fail
+)
+
 REM Check the old menu renderer and new input hooks before warm Ninja build.
 "%BASH%" -c "python3 ../recomp_port/tests/test_options.py"
 if errorlevel 1 (
