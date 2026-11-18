@@ -1,4 +1,4 @@
-# XMVSF native front end — 87.448 (original Stage13 input capture restored)
+# XMVSF native front end — 87.449 (controller installer second-pass fix)
 
 The real XMVSF front end now renders in CPS-2 Recomp's **SDL3 native
 window and pixel presenter**, not an additional SDL launcher. The preserved
@@ -33,6 +33,28 @@ Esc / gamepad menu input; while shown, no game ticks are executed.
 Navigation uses both keyboard and gamepad: arrows / D-pad, Enter or Space / A.
 Esc returns to the home menu, and F1 there opens our Options. Shift+F1 opens the original recomp diagnostics.
 Use `XMVSF_RECOMP_HOME_OFF=1` when comparing against untouched upstream.
+
+## 87.449 Make the controller installer safe on repeat builds
+
+The 87.448 build successfully installed the final Stage13 input capture
+frontend, but tests/test_pad_owners.py then called the installer a
+second time to verify idempotence. The original 87.443 gameplay-loop
+replacement no longer appeared because the later 87.448 physical
+routing upgrade had already transformed it. The installer incorrectly
+rejected this fully installed state with "route native game actions by
+owned controller ... found 0", stopping before Ninja.
+
+The installer now validates the **final** 87.448 hooks first and
+returns the source unchanged when already installed. Only the uniquely
+identified Options RenderOptions call can be reconciled in that state.
+The historical patch path remains available for first installations and
+older frontend upgrades. Incomplete or ambiguous source fails closed.
+
+The regression test now includes a complete-final-source fixture,
+a second invocation, a missing-marker fixture, and the existing
+duplicate-render-tail fixture. This is a source-only change, retaining
+the 87.441 renderer, 87.447 audio fix, saved controller profiles, and
+warm incremental compilation. No submodule reset or cache clearing.
 
 ## 87.448 Restore the original SDL2 Stage13 controller assignment UX
 
