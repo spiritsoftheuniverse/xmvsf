@@ -36,7 +36,14 @@ def main():
     assert "SDL_SCALEMODE_NEAREST" in tex
     assert "SDL_PIXELFORMAT_ABGR8888" in tex
     assert "SDL_RenderTexture" in tex and "SDL_RenderPresent" in tex
-    assert "SDL_UpdateTexture(background_, nullptr" in tex
+    # Whitespace-independent: the SDL3 renderer uses both normal and intro
+    # background uploads. A Python source assertion must not require
+    # formatting such as a space after the comma.
+    import re
+    background_upload = re.compile(
+        r"\bSDL_UpdateTexture\s*\(\s*background_\s*,\s*nullptr\s*,"
+    )
+    assert background_upload.search(tex), "no SDL3 background texture upload"
     assert "XMVSF_MENU_CPU_FALLBACK" in tex
     assert "friend class TexturedMenu" in home
     assert any(version in home for version in ("TEST 87.441", "TEST 87.442", "TEST 87.443", "TEST 87.444", "TEST 87.445", "TEST 87.446", "TEST 87.447", "TEST 87.448", "TEST 87.449", "TEST 87.450", "TEST 87.451", "TEST 87.452"))
