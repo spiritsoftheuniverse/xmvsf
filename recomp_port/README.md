@@ -1,4 +1,4 @@
-# XMVSF native front end — 87.442 (native Options + live input remapping)
+# XMVSF native front end — 87.443 (persistent controller ownership and one-step menu)
 
 The real XMVSF front end now renders in CPS-2 Recomp's **SDL3 native
 window and pixel presenter**, not an additional SDL launcher. The preserved
@@ -33,6 +33,35 @@ Esc / gamepad menu input; while shown, no game ticks are executed.
 Navigation uses both keyboard and gamepad: arrows / D-pad, Enter or Space / A.
 Esc returns to the home menu, and F1 there opens our Options. Shift+F1 opens the original recomp diagnostics.
 Use `XMVSF_RECOMP_HOME_OFF=1` when comparing against untouched upstream.
+
+## 87.443 strict input edges and physical controller profiles
+
+No hold-repeat in the home menu, Options, or upstream diagnostics. One
+key/button press moves one row, then requires release before the next
+move. The native gameplay button-hold and charge logic are unchanged.
+
+The Controller tab now has separate DEVICE ASSIGNMENT and EDIT INPUT
+rows, followed by all 14 original actions. Each P1/P2 slot can select
+a particular connected controller by SDL instance ID and save its GUID,
+serial when available, ordinal, and the actual Windows/SDL joystick
+name. Reconnecting restores that controller's saved action profile
+without silently shifting another controller into its player slot.
+
+The name displayed is obtained from SDL_GetJoystickName first, as in
+our working SDL2 setup (so SDL's reported Fighter PI appears as such).
+Unmapped raw joysticks can be explicitly assigned and their raw
+buttons, hats and axes captured. Standard mapped gamepads retain the
+recomp's per-button and trigger handling. Unclaimed devices still
+support additional P3/P4 recomp co-op roles.
+
+The device identity and mapping profiles are persisted through
+recomp::Ini in the existing work/xmvsf/settings.ini; existing keyboard
+and gamepad mappings stay valid. Identical GUID devices are protected
+by retaining both live player instances before reconnect matching.
+
+See PAD_OWNERS_87_443.md for implementation, exact profile rules and
+limits. The source patch and regression checks are committed but the
+Windows build and physical Fighter PI detection must still be tested.
 
 ## 87.442 native Game / Graphics / Controller Options
 
