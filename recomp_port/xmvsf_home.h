@@ -1,4 +1,4 @@
-// XMVSF native menu presentation, v87.437.
+// XMVSF native menu presentation, v87.438.
 // Adapted from this repository's Stage14 layout and XMGlyph bitmap atlas rules.
 // Draws into the native CPS-2 Recomp pixel presenter; no SDL2 or SDL_image dependency.
 #pragma once
@@ -192,7 +192,7 @@ struct Backdrop {
         }
         stbi_image_free(raw);
         stbi_image_free(delays);
-        std::fprintf(stderr, "XMVSF 87.436 native menu: GIF %dx%d frames=%d loop=%dms\n",
+        std::fprintf(stderr, "XMVSF 87.438 native menu: GIF %dx%d frames=%d loop=%dms\n",
                      w, h, count, cycleMs);
     }
     const Image &At(uint64_t now) {
@@ -306,7 +306,7 @@ class Menu {
         small_.Load("sf2fontsmall.png", 8);
         backdrop_.Load();
         if (!logo_.Valid() || !large_.sheet.Valid() || !small_.sheet.Valid()) {
-            std::fprintf(stderr, "XMVSF 87.436 menu: source art missing; check ../_art or XMVSF_MENU_ASSETS\n");
+            std::fprintf(stderr, "XMVSF 87.438 menu: source art missing; check ../_art or XMVSF_MENU_ASSETS\n");
             warned_ = true;
         }
     }
@@ -332,17 +332,19 @@ class Menu {
         const Rect source = VisibleBounds(logo_);
         if (source.w < 1 || source.h < 1) return;
         // Source-native alpha bounds. Port of MainLayout::LogoX/Y/W/H.
-        const float scale = std::min(544.0f / source.w, 289.0f / source.h);
-        const int drawnW = int(source.w * scale + .5f), drawnH = int(source.h * scale + .5f);
+        // Integer source pixels only. Fractional logo enlargement caused
+        // irregular 1/2-pixel steps in the final window image.
+        const int scale = std::max(1, std::min(544 / source.w, 289 / source.h));
+        const int drawnW = source.w * scale, drawnH = source.h * scale;
         const int x = 208 + (544 - drawnW) / 2, y = 51 + (289 - drawnH) / 2;
-        const int fullX = x - int(source.x * scale + .5f);
-        const int fullY = y - int(source.y * scale + .5f);
+        const int fullX = x - source.x * scale;
+        const int fullY = y - source.y * scale;
         const int pulse = std::clamp(246 + int(9.0 * std::sin(double(atMs % 1600) * 6.28318530718 / 1600.0)), 220, 255);
         Blit(pixels, W, H, logo_, source, {x, y, drawnW, drawnH}, pulse);
         // II was authored separately on the exact same full source canvas.
         if (logoII_.Valid())
             Blit(pixels, W, H, logoII_, {0, 0, logoII_.width, logoII_.height},
-                 {fullX, fullY, int(logoII_.width * scale + .5f), int(logoII_.height * scale + .5f)}, pulse);
+                 {fullX, fullY, logoII_.width * scale, logoII_.height * scale}, pulse);
     }
 
 public:
@@ -387,12 +389,12 @@ public:
         Logo(pixels, atMs);
         static constexpr std::array<const char *, 4> names = {"ARCADE", "TRAINING", "VERSUS", "OPTIONS"};
         for (int i = 0; i < 4; ++i)
-            Text(pixels, names[size_t(i)], 489, 347 + i * 31, false, 1.35f,
+            Text(pixels, names[size_t(i)], 489, 347 + i * 31, false, 2.0f,
                  i == selection_ ? 255 : 80);
 
-        Text(pixels, "A SELECT   B / ESC BACK", 489, 495, true, 1.375f, 235);
-        Text(pixels, "ESC TO RETURN", 18, 522, true, 1.08f, 185, 0);
-        Text(pixels, "TEST 87.437", 942, 522, true, 1.08f, 185, 2);
+        Text(pixels, "A SELECT   B / ESC BACK", 489, 495, true, 2.0f, 235);
+        Text(pixels, "ESC TO RETURN", 18, 522, true, 1.0f, 185, 0);
+        Text(pixels, "TEST 87.438", 942, 522, true, 1.0f, 185, 2);
     }
 };
 
