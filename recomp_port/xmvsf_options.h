@@ -113,72 +113,72 @@ public:
                      PadOwners &owners) {
         if (!visible_) return false;
         if (capture_) {
+            // Stage13 capture is driven by the NEXT physical event.
+            // The A/Enter that selected this field must not itself become
+            // the assigned device or binding. Never react to key repeats.
             if (ev.type == SDL_EVENT_KEY_DOWN && !ev.key.repeat) {
-                if (ev.key.scancode == SDL_SCANCODE_ESCAPE) {
-                    capture_ = false; suppressUntil_ = SDL_GetTicks() + 250;
-                    Notice("CAPTURE CANCELLED"); return true;
-                }
-                if (ev.key.scancode == SDL_SCANCODE_DELETE ||
-                    ev.key.scancode == SDL_SCANCODE_BACKSPACE) {
-                    if (PadMode() && owners.Raw(player_)) SaveRaw(owners, table, file, {});
-                    else Save(bindings, table, file, SDL_SCANCODE_UNKNOWN, {}, owners);
+                const SDL_Scancode key = ev.key.scancode;
+                if (key == SDL_SCANCODE_ESCAPE) {
+                    capture_ = false;
+                    suppressUntil_ = SDL_GetTicks() + 250;
+                    Notice("CAPTURE CANCELLED", 1500);
                     return true;
                 }
-                if (!PadMode() && SDL_GetTicks() >= captureAt_ + 180 &&
-                    ev.key.scancode != SDL_SCANCODE_UNKNOWN &&
-                    ev.key.scancode != SDL_SCANCODE_F1 &&
-                    ev.key.scancode != SDL_SCANCODE_F2 &&
-                    ev.key.scancode != SDL_SCANCODE_F9 &&
-                    ev.key.scancode != SDL_SCANCODE_F11 &&
-                    ev.key.scancode != SDL_SCANCODE_F12) {
-                    Save(bindings, table, file, ev.key.scancode, {}, owners);
-                }
+                if (SDL_GetTicks() < captureAt_ + 180) return true;
+                // Reserve diagnostics exactly as in our SDL2 frontend.
+                if (key == SDL_SCANCODE_UNKNOWN || key == SDL_SCANCODE_F9 ||
+                    key == SDL_SCANCODE_F10 || key == SDL_SCANCODE_F12) return true;
+                if (controlRow_ == 0)
+                    StoreDevice(owners, bindings, table, file, 0, true);
+                else
+                    StoreInput(owners, bindings, table, file, {'k', int(key), 0});
                 return true;
             }
-            SDL_Gamepad *assignedGamepad = PadMode() ? owners.Gamepad(player_) : nullptr;
-            const bool selectedPad = assignedGamepad != nullptr;
-            if (selectedPad && ev.type == SDL_EVENT_GAMEPAD_BUTTON_DOWN &&
-                ev.gbutton.which == SDL_GetGamepadID(assignedGamepad) &&
-                SDL_GetTicks() >= captureAt_ + 180) {
-                Save(bindings, table, file, SDL_SCANCODE_UNKNOWN,
-                     {int(ev.gbutton.button), -1}, owners);
-                return true;
+            if (SDL_GetTicks() < captureAt_ + 180) {
+                return ev.type == SDL_EVENT_GAMEPAD_BUTTON_DOWN ||
+                       ev.type == SDL_EVENT_JOYSTICK_BUTTON_DOWN ||
+                       ev.type == SDL_EVENT_JOYSTICK_AXIS_MOTION ||
+                       ev.type == SDL_EVENT_JOYSTICK_HAT_MOTION;
             }
-            if (selectedPad && ev.type == SDL_EVENT_GAMEPAD_AXIS_MOTION &&
-                ev.gaxis.which == SDL_GetGamepadID(assignedGamepad) &&
-                (ev.gaxis.axis == SDL_GAMEPAD_AXIS_LEFT_TRIGGER ||
-                 ev.gaxis.axis == SDL_GAMEPAD_AXIS_RIGHT_TRIGGER) &&
-                ev.gaxis.value >= 24000 && SDL_GetTicks() >= captureAt_ + 180) {
-                Save(bindings, table, file, SDL_SCANCODE_UNKNOWN,
-                     {-1, int(ev.gaxis.axis)}, owners);
-                return true;
-            }
-            // A Fighter PI may be a genuine SDL joystick rather than an
-            // XInput gamepad. Capture its physical button/hat/axis numbers.
-            SDL_Joystick *raw = PadMode() ? owners.RawJoystick(player_) : nullptr;
-            const SDL_JoystickID id = raw ? SDL_GetJoystickID(raw) : 0;
-            if (id && SDL_GetTicks() >= captureAt_ + 180) {
-                if (ev.type == SDL_EVENT_JOYSTICK_BUTTON_DOWN &&
-                    ev.jbutton.which == id) {
-                    SaveRaw(owners, table, file, {'b', int(ev.jbutton.button), 0});
+            if (controlRow_ == 0) {
+                // Pressing a physical BUTTON on any device owns that exact
+                // SDL instance. If it belongs to the other player, SWAP
+                // their entire saved player configurations (Stage13).
+                if (ev.type == SDL_EVENT_JOYSTICK_BUTTON_DOWN) {
+                    StoreDevice(owners, bindings, table, file,
+                                ev.jbutton.which, false);
                     return true;
                 }
-                if (ev.type == SDL_EVENT_JOYSTICK_HAT_MOTION &&
-                    ev.jhat.which == id && ev.jhat.value != SDL_HAT_CENTERED) {
-                    SaveRaw(owners, table, file,
-                            {'h', int(ev.jhat.hat), int(ev.jhat.value)});
+                if (ev.type == SDL_EVENT_GAMEPAD_BUTTON_DOWN) {
+                    StoreDevice(owners, bindings, table, file,
+                                ev.gbutton.which, false);
                     return true;
                 }
-                if (ev.type == SDL_EVENT_JOYSTICK_AXIS_MOTION &&
-                    ev.jaxis.which == id &&
-                    (ev.jaxis.value >= 24000 || ev.jaxis.value <= -24000)) {
-                    SaveRaw(owners, table, file,
-                            {'a', int(ev.jaxis.axis), ev.jaxis.value > 0 ? 1 : -1});
+            } else {
+                // Only the controller currently owned by this player can
+                // change their per-action physical binding.
+                const SDL_JoystickID owner = owners.AssignedInstance(player_);
+                if (owner && ev.type == SDL_EVENT_JOYSTICK_BUTTON_DOWN &&
+                    ev.jbutton.which == owner) {
+                    StoreInput(owners, bindings, table, file,
+                               {'b', int(ev.jbutton.button), 0});
+                    return true;
+                }
+                if (owner && ev.type == SDL_EVENT_JOYSTICK_AXIS_MOTION &&
+                    ev.jaxis.which == owner && ev.jaxis.value > 20000) {
+                    StoreInput(owners, bindings, table, file,
+                               {'a', int(ev.jaxis.axis), 1});
+                    return true;
+                }
+                if (owner && ev.type == SDL_EVENT_JOYSTICK_HAT_MOTION &&
+                    ev.jhat.which == owner && ev.jhat.value != SDL_HAT_CENTERED) {
+                    StoreInput(owners, bindings, table, file,
+                               {'h', int(ev.jhat.hat), int(ev.jhat.value)});
                     return true;
                 }
             }
-            // Prevent keyboard/pad events from reaching gameplay while a
-            // field waits for input; SDL_QUIT still passes through.
+            // Suppress navigation until capture finishes; don't route
+            // events to the game while editing, but allow SDL_QUIT.
             return ev.type == SDL_EVENT_KEY_DOWN ||
                    ev.type == SDL_EVENT_GAMEPAD_BUTTON_DOWN ||
                    ev.type == SDL_EVENT_GAMEPAD_AXIS_MOTION ||
