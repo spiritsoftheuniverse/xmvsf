@@ -1,4 +1,4 @@
-# XMVSF native front end — 87.441 (source textures, accelerated SDL renderer)
+# XMVSF native front end — 87.442 (native Options + live input remapping)
 
 The real XMVSF front end now renders in CPS-2 Recomp's **SDL3 native
 window and pixel presenter**, not an additional SDL launcher. The preserved
@@ -25,12 +25,41 @@ Esc / gamepad menu input; while shown, no game ticks are executed.
 - **VERSUS:** initial *local arcade two-player* mode with free play (both
   players join with Start); our complete dedicated versus setup is not yet
   restored.
-- **OPTIONS:** currently opens the existing recomp settings as a temporary
-  bridge. Native Game / Graphics / Controller UI remains a follow-up.
+- **OPTIONS:** opens our native Game / Graphics / Controller tabs, drawn
+  with the 87.441 source-texture renderer. Supported settings and controls
+  update real recomp features, windows and input bindings. Unported legacy
+  features are clearly inactive, not fake toggles.
 
 Navigation uses both keyboard and gamepad: arrows / D-pad, Enter or Space / A.
-Esc returns to the home menu, and F1 there opens the original recomp diagnostics.
+Esc returns to the home menu, and F1 there opens our Options. Shift+F1 opens the original recomp diagnostics.
 Use `XMVSF_RECOMP_HOME_OFF=1` when comparing against untouched upstream.
+
+## 87.442 native Game / Graphics / Controller Options
+
+The old generic recomp menu has been removed from the **normal Options
+navigation**. The in-game screen now uses the original tab organization,
+navigation conventions and SF2 bitmap fonts on the existing accelerated
+960x540 renderer. Press F1 or choose OPTIONS; use Q/E, Tab/Shift+Tab
+or LB/RB to cycle tabs. Esc/B returns to the home menu.
+
+- **GAME:** GAME VERSION displays V2; Tournament, Double Feature and
+  Dizzy Bar are visibly NOT PORTED and have no fake implementation.
+  Free Play uses the real SetFeature hook. Difficulty and game speed
+  use the native board features and persist until next board reset.
+- **GRAPHICS:** six original size presets, fullscreen fit and maximize
+  operate on the actual SDL3 window; Ctrl sizing shortcuts remain.
+- **CONTROLLER:** P1/P2 selection, keyboard/gamepad editing, original
+  LP/MP/HP/LK/MK/HK/3P/3K/COIN/START/LEFT/RIGHT/UP/DOWN order, direct
+  SDL scancode/gamepad button/trigger capture, live g_bindings updates,
+  conflict cleanup and persistent settings.ini through recomp::Ini.
+  The connected SDL gamepad names appear where available. Physical pad
+  ownership by durable GUID is not yet implemented; the recomp still
+  assigns pads by connected order.
+
+Only Shift+F1 from the home menu retains the upstream settings/diagnostic
+view for engineering purposes. See OPTIONS_87_442.md for exact hooks,
+limits and controls. No changes to 87.441's hardware renderer or original
+Stable and main branches.
 
 ## 87.441 true SDL source-texture menu
 
@@ -161,6 +190,6 @@ No GitHub Actions. No edits to `main`, Stable, FBNeo builds, or ROM binaries.
 ## Remaining presentation work
 
 Source-authored full intro/reveal timing;
-accurate Game/Graphics/Controller tabs with persistence; and our dedicated
+durable pad-identity assignment, unported mode toggles, and our dedicated
 Versus/Training lifecycle. These should be ported as **separate functional
 modules**, not more version-specific hooks.
