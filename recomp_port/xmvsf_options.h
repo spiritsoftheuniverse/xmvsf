@@ -1,4 +1,4 @@
-// XMVSF native Options v87.443: real SDL3 input mappings and settings hooks.
+// XMVSF native Options v87.448: real SDL3 input mappings and settings hooks.
 // This is the old Game / Graphics / Controller organization, not recomp's menu.
 // Values marked NOT PORTED are intentionally inert. No ROM writes or patches.
 #pragma once
@@ -22,7 +22,6 @@ class OptionsPanel {
     bool visible_ = false;
     int tab_ = 0, gameRow_ = 0, graphicsRow_ = 0;
     int player_ = 0, controlRow_ = 0;
-    std::array<bool, 2> editPad_{{false, true}};
     bool capture_ = false;
     uint64_t captureAt_ = 0, suppressUntil_ = 0;
     std::string notice_;
@@ -43,66 +42,45 @@ class OptionsPanel {
         tab_ = (tab_ + 3 + (direction > 0 ? 1 : 2)) % 3;
         capture_ = false;
     }
-    void Save(recomp::Bindings &b, const BoundTable &table,
-              const std::string &file, SDL_Scancode key, recomp::PadInput pad,
-              PadOwners &owners) {
-        const int action = kActionOrder[size_t(controlRow_ - 2)];
-        const bool isPad = editPad_[size_t(player_)];
-        if (file.empty()) {
-            Notice("SETTINGS FILE IS UNAVAILABLE"); capture_ = false; return;
-        }
-        // Stage changes first. Never say SAVED or alter live bindings if
-        // writing settings.ini failed. Existing non-input settings remain.
-        recomp::Bindings candidate = b;
-        if (isPad) {
-            candidate.pad[player_][action] = pad;
-            if (pad.button >= 0 || pad.axis >= 0) {
-                for (int i = 0; i < table.table.count; ++i)
-                    if (i != action && candidate.pad[player_][i] == pad)
-                        candidate.pad[player_][i] = {};
-            }
-        } else {
-            candidate.key[player_][action] = key;
-            if (key != SDL_SCANCODE_UNKNOWN) {
-                // One physical key must never unintentionally drive both
-                // players, or two actions on the same player.
-                for (int p = 0; p < table.table.players; ++p)
-                    for (int i = 0; i < table.table.count; ++i)
-                        if ((p != player_ || i != action) && candidate.key[p][i] == key)
-                            candidate.key[p][i] = SDL_SCANCODE_UNKNOWN;
-            }
-        }
-        recomp::Ini ini(file);
-        ini.load();
-        // Write only changed fields, retaining comments and all other keys.
-        for (int p = 0; p < table.table.players; ++p) {
-            for (int i = 0; i < table.table.count; ++i) {
-                if (candidate.key[p][i] != b.key[p][i]) {
-                    ini.set(recomp::BindingSection(false, p), table.table.actions[i].name,
-                            recomp::KeyText(candidate.key[p][i]));
-                }
-                if (candidate.pad[p][i] != b.pad[p][i]) {
-                    ini.set(recomp::BindingSection(true, p), table.table.actions[i].name,
-                            recomp::PadText(candidate.pad[p][i]));
-                }
-            }
-        }
-        if (isPad) owners.PopulateProfile(ini, player_, candidate, table);
-        if (!ini.save()) {
-            Notice("COULD NOT SAVE INPUT SETTINGS"); capture_ = false; return;
-        }
-        b = candidate; // live immediately; no game reset or relaunch
+    void Finished(bool saved, const std::string &success,
+                  const std::string &failure = "SAVE FAILED") {
         capture_ = false;
         suppressUntil_ = SDL_GetTicks() + 350;
-        Notice("INPUT SAVED");
+        Notice(saved ? success : failure, 1800);
     }
-    void SaveRaw(PadOwners &owners, const BoundTable &table,
-                 const std::string &file, PadOwners::RawBind bind) {
-        const int action = kActionOrder[size_t(controlRow_ - 2)];
-        const bool saved = owners.SaveRaw(player_, action, bind, file, table);
-        capture_ = false;
-        suppressUntil_ = SDL_GetTicks() + 350;
-        Notice(saved ? "RAW INPUT SAVED" : "COULD NOT SAVE RAW INPUT");
+
+    void StoreInput(PadOwners &owners, recomp::Bindings &bindings,
+                    const BoundTable &table, const std::string &file,
+                    PadOwners::RawBind binding) {
+        if (controlRow_ < 1) return;
+        const int a = kActionOrder[size_t(controlRow_ - 1)];
+        if (owners.Keyboard(player_)) {
+            if (binding.type != 'k') return;
+            Finished(owners.SaveKeyboardAction(player_, a,
+                         static_cast<SDL_Scancode>(binding.index),
+                         file, bindings, table),
+                     "PLAYER " + std::to_string(player_ + 1) +
+                         " " + kActionTitles[size_t(controlRow_ - 1)] + " KEY SAVED");
+        } else {
+            Finished(owners.SaveRaw(player_, a, binding, file, table),
+                     "PLAYER " + std::to_string(player_ + 1) +
+                         " " + kActionTitles[size_t(controlRow_ - 1)] + " SAVED");
+        }
+    }
+
+    void StoreDevice(PadOwners &owners, recomp::Bindings &bindings,
+                     const BoundTable &table, const std::string &file,
+                     SDL_JoystickID instance, bool keyboard) {
+        bool swapped = false;
+        const bool saved = keyboard
+             ? owners.AssignKeyboard(player_, file, bindings, table)
+             : owners.AssignFromInstance(player_, instance, file, bindings,
+                                          table, swapped);
+        Finished(saved,
+            "PLAYER " + std::to_string(player_ + 1) +
+               (keyboard ? " KEYBOARD SAVED" :
+                  (swapped ? " SLOT SWAPPED" : " CONTROLLER SAVED")),
+            "CONTROLLER ASSIGNMENT SAVE FAILED");
     }
 
 public:
@@ -113,10 +91,10 @@ public:
     int GraphicsRow() const { return graphicsRow_; }
     int Player() const { return player_; }
     int ControlRow() const { return controlRow_; }
-    bool PadMode() const { return editPad_[size_t(player_)]; }
     const char *Message() const {
-        if (Capturing()) return PadMode() ? "PRESS GAMEPAD BUTTON / TRIGGER - ESC CANCEL"
-                                         : "PRESS ANY KEY - DELETE CLEARS - ESC CANCEL";
+        if (Capturing()) return controlRow_ == 0
+              ? "PRESS KEY OR DEVICE BUTTON"
+              : "PRESS KEY OR CONTROLLER BUTTON";
         return SDL_GetTicks() < noticeUntil_ ? notice_.c_str() : "";
     }
     void Open() {
