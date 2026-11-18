@@ -110,10 +110,35 @@ def patch(code: str) -> str:
                     menuPressed, window, g_bindings, Table(),
                     port.opt.settingsPath, owners);''',
         "Controller device selector")
-    code = once(code,
-        '''                                           options, g_bindings, Table(), gamepads);''',
-        '''                                           options, g_bindings, Table(), owners);''',
-        "show assigned OS name and profile")
+    # 87.444: The generic continuation line occurs multiple times in some
+    # locally patched frontends. Anchor the complete rendering invocation
+    # to the one Options page, and leave other calls entirely untouched.
+    render_begin = (
+        "        if (options.Active()) { // XMVSF_RECOMP_OPTIONS_87_442: three native tabs\n"
+    )
+    render_end = (
+        "        if (home.Visible()) { // XMVSF_RECOMP_HOME_87_435: present our menu"
+    )
+    old_render = (
+        "                homeTextures.RenderOptions(presenter.Renderer(), SDL_GetTicks(),\n"
+        "                                           options, g_bindings, Table(), gamepads);"
+    )
+    new_render = (
+        "                homeTextures.RenderOptions(presenter.Renderer(), SDL_GetTicks(),\n"
+        "                                           options, g_bindings, Table(), owners);"
+    )
+    begin = code.find(render_begin)
+    finish = code.find(render_end, begin + len(render_begin)) if begin >= 0 else -1
+    if begin < 0 or finish < 0 or code.count(render_begin) != 1:
+        raise RuntimeError("87.444 cannot uniquely locate the native Options renderer; source untouched")
+    section = code[begin:finish]
+    if new_render not in section:
+        count = section.count(old_render)
+        if count != 1:
+            raise RuntimeError(
+                f"87.444 Options render call: expected one complete invocation in Options block, found {count}; source untouched"
+            )
+        code = code[:begin] + section.replace(old_render, new_render, 1) + code[finish:]
     code = once(code,
         '''    homeTextures.Release();
     homeAudio.Close();
