@@ -166,7 +166,13 @@ def main() -> int:
     if not SOURCE.exists():
         raise RuntimeError(f"missing Options implementation {SOURCE}")
     before = FRONTEND.read_text(encoding="utf-8")
-    updated = patch(before)
+    # 87.443 changes the Options event signatures and controller ownership.
+    # It is an upgrade, not a reason to reapply the older hooks a second time.
+    if "XMVSF_RECOMP_PAD_OWNER_87_443" in before:
+        assert "XMVSF_RECOMP_OPTIONS_87_442" in before
+        updated = before
+    else:
+        updated = patch(before)
     content = SOURCE.read_bytes()
     # Install only after the complete source patch has been validated.
     if updated != before:
