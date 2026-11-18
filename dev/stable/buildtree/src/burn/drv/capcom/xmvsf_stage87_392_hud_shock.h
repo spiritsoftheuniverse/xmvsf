@@ -267,43 +267,8 @@ inline bool verifiedTransitionHud(unsigned priority,unsigned palette,
     return topHudObject(priority,palette,tile,x,y,wide,tall,
                         false,false,true);
 }
-// TEST 87.432: only the PHASE-02/04 source gap is changed. The accepted
-// 04->06+23 activation and all 30 dither frames are untouched.
-// Phase-02/04 uses narrow upper-HUD SOURCE footprints, never all P7.
-inline bool verifiedPrecombatUpperHud(unsigned priority,unsigned palette,
-                                      unsigned tile,int x,int y,
-                                      unsigned wide,unsigned tall,
-                                      bool portrait){
-    if(!wide || !tall || x>=384 || x+int(wide*16u)<=0 ||
-       y>=56 || y+int(tall*16u)<=0)return false;
-    // Time includes lettering/face that isn't always the 87808..87831
-    // 2x2 numeral; scope by native palette and upper center clock bounds.
-    if(priority==0u)
-        return palette==1u && x>=128 && x<256 && y>=-16 &&
-               wide<=4u && tall<=4u;
-    if(priority!=7u)return false;
-    if(verifiedHpStrip(priority,palette,tile,x,y,wide,tall) ||
-       portraitBackdrop(priority,palette,tile,x,y))return true;
-    if(palette>=25u || tile<80000u || tile>=100000u ||
-       y< -48 || (tile>=109000u && tile<=110500u))return false;
-    // Portrait artwork has distinct palette-12/15 ink at the physical
-    // outermost character positions; don't suppress central VS wall art.
-    if((portrait || palette==12u || palette==15u) &&
-       (x<=8 || x>=352) && y<=32 && wide<=9u && tall<=5u)
-        return true;
-    // Native NEW HERO headers and TIME lettering reside at the very top.
-    // Deliberately reject large/low-position intro/logo blocks. In
-    // particular 3-row tiles at y=0 and 2-row tiles at y=16/32 stay
-    // untouched, preserving the 87.417 transition-wall regression guards.
-    if(y>=-16 && y<=12 && tall<=2u && wide<=9u){
-        const bool left=x>=40 && x<144;
-        const bool right=x>=240 && x<360;
-        const bool clock=x>=144 && x<240 && wide<=4u;
-        return left || right || clock;
-    }
-    return false;
-}
-
+// TEST 87.433: phase02/04 and phase06/08 must share the same
+// source classifier; paintStep=0 is the initial shock-dither value.
 // TEST 87.416: shock-only coverage, derived from the earlier complete
 // priority-7 native HUD stream. This is deliberately NOT used by key 9
 // (XM87412::nativeHud continues using topHudObject unchanged).
@@ -315,12 +280,7 @@ inline bool shockHudSource(int phase,unsigned priority,unsigned palette,
     if(scenery || !Timeline::mayMaskNativeHud(phase) ||
        !wide || !tall || x>=384 || x+int(wide*16u)<=0 ||
        y>=56 || y+int(tall*16u)<=0)return false;
-    // 87.417's strict HP-only phase-02/04 routing omitted the portrait
-    // artwork, NEW HERO labels and clock art even when dither STEP=0.
-    // Keep the approved scenery veto and the geometric intro-wall guards.
-    if(phase==2 || phase==4)
-        return verifiedPrecombatUpperHud(priority,palette,tile,
-                                         x,y,wide,tall,portrait);
+    // No early-phase source filter. Use the shock path at dither=0.
     if(priority==0u){
         // Time/clock uses priority 0, palette 1. Earlier source whitelists
         // caught the digits but left its adjacent clock graphics visible.
@@ -331,9 +291,8 @@ inline bool shockHudSource(int phase,unsigned priority,unsigned palette,
     if(priority!=7u || palette>=25u || y< -48 ||
        (tile>=109000u && tile<=110500u))return false;
     if(topHudObject(priority,palette,tile,x,y,wide,tall,
-                    portrait,false,phase==2 || phase==4))return true;
-    // Entire native priority-7 HUD on combat phases 06/08. This must
-    // never be evaluated for the 02/04 tiled VS transition above.
+                    portrait,false,false))return true;
+    // Source eligibility stays identical through the shock.
     if(wide<=9u && tall<=5u)return true;
     // Long multi-cell names including Wolverine; no stage-sized panels.
     return wide<=16u && tall<=3u &&

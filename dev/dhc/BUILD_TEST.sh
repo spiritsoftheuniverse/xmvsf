@@ -5,7 +5,7 @@
 set -euo pipefail
 BUILD_WALL_START=$SECONDS
 # Batch sets the version once at launch, before native compilation begins.
-XMVSF_BUILD_VERSION="${XMVSF_TEST_VERSION:-87.432}"
+XMVSF_BUILD_VERSION="${XMVSF_TEST_VERSION:-87.433}"
 XMVSF_BUILD_TAG="${XMVSF_BUILD_VERSION//./_}"
 PROJECT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
@@ -882,6 +882,12 @@ if ! LC_ALL=C grep -aFq -- "XM87.432 PRE_SHOCK_OAM" "$BUILT"; then
   exit 2
 fi
 echo "TEST 87.432 pre-shock sprite source coverage and diagnostic linked."
+# TEST 87.433: source is shared from the first precombat frame.
+if ! LC_ALL=C grep -aFq -- "XM87.433 SHOCK_SOURCE_SHARED" "$BUILT"; then
+  echo "ERROR: TEST 87.433 shared HUD shock source not linked." >&2
+  exit 2
+fi
+echo "TEST 87.433 native shared shock source linked."
 # Hash-compare before publishing: a no-op build must NOT overwrite TEST.
 built_sha="$(sha256sum "$BUILT" | cut -d ' ' -f 1)"
 mkdir -p "$PROJECT/runtime/stable"

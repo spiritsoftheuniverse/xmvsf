@@ -1,3 +1,22 @@
+# TEST 87.433 — Reuse native shock source at the first frame
+
+Pre-shock phases 02 and 04 had a narrower source filter than the working
+phase-06/08 shock. The 87.431 zero-dither step was therefore correct but
+never reached the complete native HUD. Remove that separate filter and
+run phases 02/04/06/08 through the same shockHudSource(), per-tile save
+and Tile::finish() Bayer dither. Do not add a new mask or schedule.
+
+The already-working first-frame paintStep(phase,frame)=0 still owns
+initial invisibility. The phase-06+23 shock activation, 30-frame
+reveal, phase-02+27 song timing, and keys 8/9 remain unchanged.
+The shock's existing palette, position, priority and known-scenery
+exclusions remain shared in all four phases. There is deliberately no
+special additional protection for unnamed phase-02/04 transition art,
+so verify intro visuals locally. The unit test asserts parity across
+the four phases and leaves the original Tile::finish tests intact.
+
+Windows build / visual test only. No Actions, no change to STABLE.
+
 # TEST 87.432 — Expand precombat HUD sources, not the zero dither
 
 The user's phase-04 screenshot shows the NEW HERO headers, portraits

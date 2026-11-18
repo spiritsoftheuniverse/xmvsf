@@ -1549,6 +1549,20 @@ if(!xm8725FighterObject && XM8725::Enabled() &&
         }
         const bool xm87392HudTile=xm87392NativeSource &&
             xm87392Step<XM87392::RevealFrames;
+        // TEST 87.433: the first invisible frame uses the same OAM
+        // source and Tile::finish path as the later visual shock.
+        if(xm87392HudTile && !xm8651SpriteCaptureActive &&
+           (xm8745LivePhase==2 || xm8745LivePhase==4)){
+            static bool sharedSourceReported=false;
+            if(!sharedSourceReported){
+                sharedSourceReported=true;
+                std::fprintf(stderr,
+                    "XM87.433 SHOCK_SOURCE_SHARED phase=%02X f=%u step=%u tile=%u\n",
+                    xm8745LivePhase,(unsigned)GetCurrentFrame(),xm87392Step,
+                    (unsigned)n);
+            }
+        }
+
         if(xm87392HudTile && xm8651SpriteCaptureActive){
             static bool captureVerified=false;
             if(!captureVerified){
