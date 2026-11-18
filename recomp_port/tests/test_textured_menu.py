@@ -38,6 +38,8 @@ def main():
     assert "friend class TexturedMenu" in home
     assert "TEST 87.441" in home
     assert "FitPicture(width, height" in front
+    assert "homeTextures.Release();" in front
+    assert "homeAudio.Close();" in front
     print("87.441 source-texture menu patch: anchors, idempotence, fallback PASS")
 
 if __name__ == "__main__":
