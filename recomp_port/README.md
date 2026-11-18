@@ -1,4 +1,4 @@
-# XMVSF native front end — 87.449 (controller installer second-pass fix)
+# XMVSF native front end — 87.450 (controller preflight before installation)
 
 The real XMVSF front end now renders in CPS-2 Recomp's **SDL3 native
 window and pixel presenter**, not an additional SDL launcher. The preserved
@@ -33,6 +33,31 @@ Esc / gamepad menu input; while shown, no game ticks are executed.
 Navigation uses both keyboard and gamepad: arrows / D-pad, Enter or Space / A.
 Esc returns to the home menu, and F1 there opens our Options. Shift+F1 opens the original recomp diagnostics.
 Use `XMVSF_RECOMP_HOME_OFF=1` when comparing against untouched upstream.
+
+## 87.450 Repair Python regex and execute the installer before writing
+
+The 87.449 idempotence repair introduced an unbalanced Python regex:
+`r"gamepads(\\s*\\)\\s*;"`. It opened a capture group and never
+closed it, so `re.compile` raised `unterminated subpattern at position
+177` before Ninja could start. The exact fixed capture is
+`r"gamepads(\\s*\\)\\s*;)"`. It preserves group 1 (the call's
+argument prefix) and group 2 (the closing parenthesis/semicolon).
+
+The real regex has been executed with Python against old/new
+`homeTextures.RenderOptions` calls, including repeat matching and
+unrelated call tails.
+
+**Build change:** `tests/test_pad_owners_preflight.py` now runs
+before `apply_pad_owners.py` and reads the already generated
+`recomp/port/frontend_sdl.cpp`. It executes the real controller
+patch in memory, then executes it again against its own output.
+Both calls must succeed and the second must be identical.
+No controller-file writes occur until this preflight passes.
+
+The 87.441 source-texture renderer, 87.447 audio fix and Stage13
+controller input behavior are unchanged. The first Windows compilation
+still needs to occur locally; Python regex/preflight verification
+does not constitute a successful C++ build.
 
 ## 87.449 Make the controller installer safe on repeat builds
 
