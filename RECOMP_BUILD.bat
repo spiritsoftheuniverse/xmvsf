@@ -44,6 +44,15 @@ set "LOG=%PROJECT%\test\build_logs\RECOMP_BUILD.log"
 pushd "%PROJECT%\recomp"
 if errorlevel 1 goto :fail
 
+REM Apply our original XMVSF menu as an SDL3-native overlay within the pinned recomp.
+REM The installer is idempotent: Ninja only rebuilds files whose contents changed.
+"%BASH%" -c "python3 ../recomp_port/apply_menu.py"
+if errorlevel 1 (
+  echo ERROR: XMVSF menu source integration failed. Upstream may have changed.
+  popd
+  goto :fail
+)
+
 REM Default is FAST once configured. It only recompiles changed C++ objects.
 REM refresh explicitly regenerates M68000 translation and reconfigures CMake.
 if /I "%~1"=="refresh" goto :refresh
