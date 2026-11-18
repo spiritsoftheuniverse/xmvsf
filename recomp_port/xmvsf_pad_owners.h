@@ -464,6 +464,141 @@ public:
         const int index = routed_[p];
         return index >= 0 ? index + 2 : 0;
     }
+    // Original SDL2 Stage13 interaction:
+    // Selecting DEVICE arms capture. The next physical joystick button
+    // assigns that controller, or the next ordinary key selects Keyboard.
+    // No cycling between types or a separate EDIT INPUT row.
+    static void SaveSlot(recomp::Ini &ini, int p, const Slot &s) {
+        const std::string sec = SlotSection(p);
+        ini.set(sec, "mode", s.mode);
+        ini.set(sec, "guid", s.guid);
+        ini.set(sec, "name", s.name);
+        ini.set(sec, "serial", s.serial);
+        ini.set(sec, "ordinal", std::to_string(s.ordinal));
+        ini.set(sec, "name_ordinal", std::to_string(s.nameOrdinal));
+        ini.set(sec, "profile", s.profile);
+    }
+    static void SaveKeyboardMap(recomp::Ini &ini, int p,
+                                const recomp::Bindings &bindings,
+                                const BoundTable &table) {
+        for (int a = 0; a < table.table.count; ++a)
+            ini.set(recomp::BindingSection(false, p),
+                    table.table.actions[a].name, recomp::KeyText(bindings.key[p][a]));
+    }
+
+    bool AssignKeyboard(int p, const std::string &file, recomp::Bindings &bindings,
+                        const BoundTable &table) {
+        if (p < 0 || p >= kPlayers || file.empty()) return false;
+        Slot candidate{};
+        candidate.configured = true;
+        candidate.mode = "keyboard";
+        recomp::Bindings next = bindings;
+        if (!Keyboard(p)) {
+            // These are the EXACT two non-overlapping Stage13 starters,
+            // not the recomp's initial arrow/A-S-D layouts.
+            constexpr SDL_Scancode k1[14] = {
+                SDL_SCANCODE_J, SDL_SCANCODE_K, SDL_SCANCODE_L,
+                SDL_SCANCODE_U, SDL_SCANCODE_I, SDL_SCANCODE_O,
+                SDL_SCANCODE_H, SDL_SCANCODE_Y, SDL_SCANCODE_5, SDL_SCANCODE_RETURN,
+                SDL_SCANCODE_A, SDL_SCANCODE_D, SDL_SCANCODE_W, SDL_SCANCODE_S
+            };
+            constexpr SDL_Scancode k2[14] = {
+                SDL_SCANCODE_KP_1, SDL_SCANCODE_KP_2, SDL_SCANCODE_KP_3,
+                SDL_SCANCODE_KP_4, SDL_SCANCODE_KP_5, SDL_SCANCODE_KP_6,
+                SDL_SCANCODE_KP_7, SDL_SCANCODE_KP_8, SDL_SCANCODE_KP_0, SDL_SCANCODE_KP_ENTER,
+                SDL_SCANCODE_LEFT, SDL_SCANCODE_RIGHT,
+                SDL_SCANCODE_UP, SDL_SCANCODE_DOWN
+            };
+            constexpr int actions[14] = {4, 5, 6, 7, 8, 9, 12, 13, 11, 10, 2, 3, 0, 1};
+            for (int i = 0; i < 14; ++i)
+                next.key[p][actions[i]] = (p ? k2 : k1)[i];
+        }
+        recomp::Ini ini(file);
+        ini.load();
+        SaveSlot(ini, p, candidate);
+        SaveKeyboardMap(ini, p, next, table);
+        if (!ini.save()) return false;
+        slots_[p] = std::move(candidate);
+        bindings = next;
+        profileInstance_[p] = 0;
+        loadedProfile_[p].clear();
+        Route();
+        return true;
+    }
+
+    bool SaveKeyboardAction(int p, int action, SDL_Scancode key,
+                            const std::string &file, recomp::Bindings &bindings,
+                            const BoundTable &table) {
+        if (!Keyboard(p) || action < 0 || action >= table.table.count ||
+            file.empty() || key == SDL_SCANCODE_UNKNOWN) return false;
+        recomp::Ini ini(file);
+        ini.load();
+        ini.set(recomp::BindingSection(false, p), table.table.actions[action].name,
+                recomp::KeyText(key));
+        if (!ini.save()) return false;
+        bindings.key[p][action] = key;
+        return true;
+    }
+
+    bool AssignFromInstance(int p, SDL_JoystickID id, const std::string &file,
+                            recomp::Bindings &bindings, const BoundTable &table,
+                            bool &swapped) {
+        swapped = false;
+        if (p < 0 || p >= kPlayers || !id || file.empty()) return false;
+        const Device *source = nullptr;
+        for (const Device &d : devices_) if (d.instance == id) {
+            source = &d; break;
+        }
+        if (!source) return false;
+        const Device d = *source; // Route() will rebuild the devices vector
+        Slot chosen{};
+        chosen.configured = true;
+        chosen.mode = d.raw ? "raw" : "gamepad";
+        chosen.guid = d.guid;
+        chosen.serial = d.serial;
+        chosen.name = d.name;
+        chosen.ordinal = d.ordinal;
+        chosen.nameOrdinal = d.nameOrdinal;
+        chosen.profile = ProfileKey(d);
+        chosen.live = d.instance;
+        // Preserve an older profile after GUID changes, just like Stage13.
+        if (slots_[p].configured && SameIdentity(slots_[p], d) &&
+            !slots_[p].profile.empty()) chosen.profile = slots_[p].profile;
+
+        auto upcoming = slots_;
+        auto maps = rawBindings_;
+        recomp::Bindings next = bindings;
+        const int other = 1 - p;
+        if (upcoming[other].configured && SameIdentity(upcoming[other], d)) {
+            // Stage13 swaps BOTH entire slots, with their customized maps.
+            std::swap(upcoming[p], upcoming[other]);
+            std::swap(maps[p], maps[other]);
+            std::swap(next.key[p], next.key[other]);
+            std::swap(next.pad[p], next.pad[other]);
+            upcoming[p] = chosen;
+            swapped = true;
+        } else {
+            upcoming[p] = chosen;
+        }
+        recomp::Ini ini(file);
+        ini.load();
+        SaveSlot(ini, p, upcoming[p]);
+        if (swapped) {
+            SaveSlot(ini, other, upcoming[other]);
+            SaveKeyboardMap(ini, p, next, table);
+            SaveKeyboardMap(ini, other, next, table);
+        }
+        if (!ini.save()) return false;
+        slots_ = upcoming;
+        rawBindings_ = maps;
+        bindings = next;
+        profileInstance_ = {{0, 0}}; // profiles reloaded on the next Refresh
+        loadedProfile_ = {};
+        Route();
+        RefreshPhysicalProfiles(bindings, table);
+        return true;
+    }
+
     // 0: unassigned; 1: keyboard; 2+: actual live devices.
     bool AssignNext(int p, const std::string &path, recomp::Bindings &bindings,
                     const BoundTable &table, std::string &message) {
