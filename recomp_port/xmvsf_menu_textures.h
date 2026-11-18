@@ -227,28 +227,33 @@ public:
             center("CTRL + / - RESIZE   CTRL + BACKSPACE MAXIMIZE", 480, 480, 1.3f, 135);
         } else {
             center("LEFT / RIGHT PAGE", 480, 109, 1.7f, 145);
+            const int visible = owners.VisibleActions(options.Player());
+            // Direct port of Stage14's dynamic centered input column:
+            // 16-pixel device caption, then exactly 12 physical pixels to
+            // the binding sheet, then 18 pixels between binding rows.
+            const int groupHeight = 16 + 12 + 16 + (visible - 1) * 18;
+            const int deviceY = 156 + (296 - groupHeight) / 2;
+            const int inputY = deviceY + 16 + 12;
             const std::string device = options.DeviceLabel(owners);
-            // Name from SDL_GetJoystickName, not a generic XInput mapping.
-            center(device.substr(0, 55).c_str(), 480, 123, 1.55f,
-                   options.ControlRow() == 0 ? 255 : 138);
-            const std::string editor = options.EditLabel(owners);
-            center(editor.c_str(), 480, 150, 1.6f,
-                   options.ControlRow() == 1 ? 255 : 115);
+            center(device.substr(0, 55).c_str(), 480, deviceY, 1.65f,
+                   options.ControlRow() == 0 ? 255 : 120);
             const float scale = 1.64f;
             int widest = 0;
             std::array<std::string, 14> labels;
-            for (int i = 0; i < 14; ++i) {
+            for (int i = 0; i < visible; ++i) {
                 labels[size_t(i)] = options.BindingLabel(i, bindings, table, owners);
                 widest = std::max(widest, int(menu_.small_.Measure(labels[size_t(i)].c_str()) * scale));
             }
-            const int startX = std::max(108, (960 - widest) / 2);
-            for (int i = 0; i < 14; ++i) {
-                const int intensity = options.ControlRow() == i + 2 ? 255 : 98;
-                left(labels[size_t(i)].c_str(), startX, 177 + i * 19,
+            const int startX = (960 - widest) / 2;
+            for (int i = 0; i < visible; ++i) {
+                const int intensity = options.ControlRow() == i + 1 ? 255 : 92;
+                left(labels[size_t(i)].c_str(), startX, inputY + i * 18,
                      scale, intensity);
             }
-            center("PLAYER 1", 375, 479, 1.6f, options.Player() == 0 ? 255 : 105);
-            center("PLAYER 2", 585, 479, 1.6f, options.Player() == 1 ? 255 : 105);
+            center("<", 275, 490, 1.65f, 138);
+            center("PLAYER 1", 375, 490, 1.6f, options.Player() == 0 ? 255 : 105);
+            center("PLAYER 2", 585, 490, 1.6f, options.Player() == 1 ? 255 : 105);
+            center(">", 685, 490, 1.65f, 138);
         }
         const char *notice = options.Message();
         if (*notice) {
