@@ -19,6 +19,29 @@ def main():
     spec.loader.exec_module(patcher)
     text = (PORT / "frontend_sdl.cpp").read_text(encoding="utf-8")
     assert patcher.patch(text) == text, "device router did not install idempotently"
+    # Regression for 87.443's "found 3" failure: render-call suffixes
+    # elsewhere are not a valid global replacement anchor. Emulate the
+    # pre-ownership Options render with extra matching suffixes outside
+    # that one rendering block. The patch must change only the scoped call.
+    old_call = (
+        "                homeTextures.RenderOptions(presenter.Renderer(), SDL_GetTicks(),\n"
+        "                                           options, g_bindings, Table(), gamepads);"
+    )
+    new_call = (
+        "                homeTextures.RenderOptions(presenter.Renderer(), SDL_GetTicks(),\n"
+        "                                           options, g_bindings, Table(), owners);"
+    )
+    assert text.count(new_call) == 1, "expected exactly one native Options renderer"
+    synthetic = text.replace(new_call, old_call, 1)
+    duplicate_suffix = "                                           options, g_bindings, Table(), gamepads);"
+    # Two independent occurrences duplicate the old broad anchor. They
+    # are outside the Options renderer and must remain unchanged.
+    synthetic += "\n// 87.444 fixture\n" + duplicate_suffix + "\n" + duplicate_suffix + "\n"
+    assert synthetic.count(duplicate_suffix) == 3
+    repaired = patcher.patch(synthetic)
+    assert repaired.count(new_call) == 1
+    assert repaired.count(duplicate_suffix) == 2
+    assert patcher.patch(repaired) == repaired
     assert (PORT / "xmvsf_pad_owners.h").read_bytes() == SOURCE.read_bytes()
     for needed in (
         "previousMenuButtons = menuNow", "menuNow & ~previousMenuButtons",
@@ -55,8 +78,8 @@ def main():
         "const int count = tab_ == 0 ? 7 : tab_ == 1 ? 8 : 16"
     ):
         assert needed in options, f"missing Options hook: {needed}"
-    assert "TEST 87.443" in HOME.read_text(encoding="utf-8")
-    assert "TEST 87.443" in RENDER.read_text(encoding="utf-8")
+    assert "TEST 87.444" in HOME.read_text(encoding="utf-8")
+    assert "TEST 87.444" in RENDER.read_text(encoding="utf-8")
     assert "SDL_SCALEMODE_NEAREST" in RENDER.read_text(encoding="utf-8")
     prev = 0
     edge = []
@@ -64,7 +87,7 @@ def main():
         edge.append(current & ~prev)
         prev = current
     assert edge == [4, 0, 0, 0, 4]
-    print("XMVSF 87.443: press edges, P1/P2, OS device names, remembered profiles and raw HID: PASS (source)")
+    print("XMVSF 87.444: anchored renderer fix + press edges, P1/P2, OS device names, remembered profiles and raw HID: PASS (source)")
 
 if __name__ == "__main__":
     main()
