@@ -23,6 +23,108 @@ def replace_once(text: str, old: str, new: str, label: str) -> str:
         raise RuntimeError(f"{label}: expected one upstream anchor, found {count}; refusing unsafe patch")
     return text.replace(old, new, 1)
 
+def restore_87_438():
+    """Undo only the v87.438 generated frontend edits, without git reset.
+
+    The submodule is user-owned locally. Refuse unknown/partial layouts and
+    preserve their uncommitted source, ROMs, and Ninja build cache.
+    """
+    if not TARGET.exists():
+        return
+    existing = TARGET.read_text(encoding="utf-8")
+    if "XMVSF_RECOMP_HOME_87_438: pixel-perfect menu viewport" not in existing:
+        return
+    perf_updates = [
+        (
+            '    std::vector<uint32_t> homePicture;\n',
+            '    std::vector<uint32_t> homeSourcePixels;\n'
+            '    std::vector<uint32_t> homePicture;\n'
+            '    uint64_t homeArtStep = ~uint64_t(0);\n'
+            '    int homeShownSelection = -1, homeShownDivisor = -1;\n',
+            '87.438 menu frame cache',
+        ),
+        (
+            '    SDL_Window *window = makeWindow(!preset.empty(), carried ? &placed : nullptr, 0, windowHeight, port.opt.fullscreen);\n',
+            '    SDL_Window *window = makeWindow(!preset.empty(), carried ? &placed : nullptr, 0, windowHeight, port.opt.fullscreen);\n'
+            '    // XMVSF_RECOMP_HOME_87_438: an exact 960x540 (2x base) menu by default.\n'
+            '    // Leave explicitly restored, fullscreen, and test-run windows unchanged.\n'
+            '    if (window && !std::strcmp(GAME_ID, "xmvsf") && port.opt.frames == 0 &&\n'
+            '        !port.net && MultiGame().empty() && !std::getenv("XMVSF_RECOMP_HOME_OFF") &&\n'
+            '        !carried && !port.opt.fullscreen) SDL_SetWindowSize(window, 960, 540);\n',
+            '87.438 menu initial window',
+        ),
+        (
+            '        presenter.SetVsync(FeatureOn("display_vsync")); // (the Display page',
+            '        presenter.SetVsync(home.Visible() ? false : FeatureOn("display_vsync")); // (the Display page',
+            '87.438 avoid vsync stalls while dragging the menu',
+        ),
+        (
+            '        presenter.SetScaling(DisplayScaling());\n',
+            '        // XMVSF_RECOMP_HOME_87_438: no 4:3 horizontal distortion / mixed-size pixels.\n'
+            '        // The 384x224 scene remains native; only the output shape changes.\n'
+            '        const Shape xmShape = home.Enabled() ? Shape::SquarePixels : DisplayShape();\n'
+            '        const Scaling xmScaling = home.Enabled() ? Scaling::WholePixels : DisplayScaling();\n'
+            '        presenter.SetScaling(xmScaling);\n',
+            '87.438 pixel-sharp scaling',
+        ),
+        (
+            '        const SDL_FRect where = turned ? FitPicture(width, height, Video::kHeight, port.ShownWidth(), DisplayShape(), DisplayScaling())\n'
+            '                                       : FitPicture(width, height, shapeColumns, Video::kHeight, DisplayShape(), DisplayScaling());\n'
+            '        const SDL_FRect menuWhere = turned ? FitPicture(width, height, port.ShownWidth(), Video::kHeight, DisplayShape(), DisplayScaling()) : where;\n',
+            '        const SDL_FRect where = turned ? FitPicture(width, height, Video::kHeight, port.ShownWidth(), xmShape, xmScaling)\n'
+            '                                       : FitPicture(width, height, shapeColumns, Video::kHeight, xmShape, xmScaling);\n'
+            '        const SDL_FRect menuWhere = turned ? FitPicture(width, height, port.ShownWidth(), Video::kHeight, xmShape, xmScaling) : where;\n',
+            '87.438 square-pixel CPS-2 viewport',
+        ),
+        (
+            '''            home.Draw(homePicture, SDL_GetTicks());
+            // Original Stage14 menu uses its own 960x540 canvas. Preserve the
+            // 16:9 composition in the current window without stretching.
+            const float fitHome = std::max(0.001f, std::min(float(width) / 960.0f, float(height) / 540.0f));
+            const SDL_FRect homeWhere{(float(width) - 960.0f * fitHome) * 0.5f,
+                                      (float(height) - 540.0f * fitHome) * 0.5f,
+                                      960.0f * fitHome, 540.0f * fitHome};
+            presenter.Show(homePicture.data(), 960, 540, homeWhere, nullptr, false);
+            SDL_Delay(8);''',
+            '''            // XMVSF_RECOMP_HOME_87_438: pixel-perfect menu viewport.
+            // Recompose the expensive 960x540 GIF/logo/font canvas at most
+            // every 80ms, or immediately when the selection changes.
+            const uint64_t uiTime = SDL_GetTicks();
+            const uint64_t artStep = uiTime / 80;
+            const int shownRow = home.Selection();
+            if (homeSourcePixels.empty() || artStep != homeArtStep || shownRow != homeShownSelection) {
+                home.Draw(homeSourcePixels, uiTime);
+                homeArtStep = artStep;
+                homeShownSelection = shownRow;
+                homeShownDivisor = -1;
+            }
+            const auto pixelView = xmvsf_home::MenuViewport(width, height);
+            if (homeShownDivisor != pixelView.divisor || homePicture.empty()) {
+                xmvsf_home::DownsampleHome(homeSourcePixels, homePicture, pixelView);
+                homeShownDivisor = pixelView.divisor;
+            }
+            if (!homePicture.empty()) {
+                const SDL_FRect homeWhere{float(pixelView.x), float(pixelView.y),
+                                          float(pixelView.w), float(pixelView.h)};
+                presenter.Show(homePicture.data(), pixelView.sourceW,
+                               pixelView.sourceH, homeWhere, nullptr, false);
+            }
+            // Smaller upload and lower idle refresh pressure during OS window moves.
+            SDL_Delay(24);''',
+            '87.438 cached native menu render',
+        ),
+    ]
+    restored = existing
+    for old, changed, label in perf_updates:
+        count = restored.count(changed)
+        if count != 1:
+            raise RuntimeError(f"87.439 rollback {label}: expected 1 exact 87.438 block, found {count}; no file written")
+        restored = restored.replace(changed, old, 1)
+    if "XMVSF_RECOMP_HOME_87_438" in restored:
+        raise RuntimeError("87.439 rollback incomplete; refusing to write partial source")
+    TARGET.write_text(restored, encoding="utf-8")
+    print("87.439: restored native frontend_sdl.cpp to exact 87.437 presentation")
+
 def main() -> int:
     if not TARGET.exists():
         print(f"ERROR: missing upstream source: {TARGET}", file=sys.stderr)
@@ -153,6 +255,8 @@ def main() -> int:
         print(f"XMVSF native menu installed: {TARGET}")
     else:
         print("XMVSF native menu already installed (no source rewrite)")
+    # Local 87.438 edits survive a Git branch rollback unless explicitly undone.
+    restore_87_438()
     # Versioned 87.436 upgrade: applies even when 87.435 already changed the
     # pinned submodule. Preserve user changes everywhere else.
     old_render = '''            home.Draw(homePicture);
