@@ -31,6 +31,22 @@ def main():
         "                homeTextures.RenderOptions(presenter.Renderer(), SDL_GetTicks(),\n"
         "                                           options, g_bindings, Table(), owners);"
     )
+    # 87.449: first installation (87.443) is followed by the physical
+    # gameplay edits (87.448). The next build must recognize the *finished*
+    # source; replaying its intermediate loop anchor made the second-pass
+    # regression test crash even though the installer had succeeded.
+    installed_fixture = (
+        patcher.OWNER_INCLUDE + "\n" +
+        "\n".join(patcher.FINAL_HOOKS) + "\n" + new_call + "\n"
+    )
+    assert patcher._finished_frontend(installed_fixture) == installed_fixture
+    assert patcher.patch(installed_fixture) == installed_fixture
+    downgraded_render = installed_fixture.replace(new_call, old_call, 1)
+    assert patcher.patch(downgraded_render) == installed_fixture
+    partial_fixture = installed_fixture.replace(
+        "owners.Refresh(gamepads, g_bindings, Table());", "", 1
+    )
+    assert patcher._finished_frontend(partial_fixture) is None
     assert text.count(new_call) == 1, "expected exactly one native Options renderer"
     duplicate_suffix = "                                           options, g_bindings, Table(), gamepads);"
     already_elsewhere = text.count(duplicate_suffix)
