@@ -1,4 +1,4 @@
-# XMVSF native front end — 87.452 (original cinematic logo and palette pulses)
+# XMVSF native front end — 87.453 (pixel-crisp II numeral on SDL3)
 
 The real XMVSF front end now renders in CPS-2 Recomp's **SDL3 native
 window and pixel presenter**, not an additional SDL launcher. The preserved
@@ -33,6 +33,12 @@ Esc / gamepad menu input; while shown, no game ticks are executed.
 Navigation uses both keyboard and gamepad: arrows / D-pad, Enter or Space / A.
 Esc returns to the home menu, and F1 there opens our Options. Shift+F1 opens the original recomp diagnostics.
 Use `XMVSF_RECOMP_HOME_OFF=1` when comparing against untouched upstream.
+
+## 87.453 — nearest-neighbor filtering for all II textures
+The final II numeral and all four stroke textures now explicitly use
+`SDL_SCALEMODE_NEAREST` in their shared SDL3 upload helper, matching the
+main logo pixel filter. The logo preflight checks this exact helper and both
+callers, so a future regression fails before compilation.
 
 ## 87.452 — original Stage 87.235 logo reveal and ongoing palette pulsation
 
