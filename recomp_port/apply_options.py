@@ -62,12 +62,25 @@ def recover_repeated_options(text: str) -> str:
     # installer. An unknown hand-edited block is never deleted.
     paired = OPTIONS_AUDIO_LINE + OPTIONS_DRAW_BLOCK
     pair_count = text.count(paired)
-    if pair_count != draw_count:
-        raise RuntimeError(
-            f"87.446 found {draw_count} generated Options blocks but only "
-            f"{pair_count} matching audio/render pairs. Refusing unsafe cleanup."
-        )
-    fixed = text.replace(paired, "", pair_count - 1)
+    if pair_count == draw_count:
+        fixed = text.replace(paired, "", pair_count - 1)
+    else:
+        # A previous reinstallation may have separated otherwise identical
+        # generated audio and draw snippets. Remove only these verified 87.442
+        # generated statements, then place one original audio step directly
+        # ahead of the remaining exact draw block. Never touch any modified
+        # or additional RenderOptions invocation.
+        total_calls = text.count("homeTextures.RenderOptions(")
+        audio_count = text.count(OPTIONS_AUDIO_LINE)
+        if total_calls != draw_count or audio_count < 1:
+            raise RuntimeError(
+                f"87.446 cannot safely recover Options duplicates: "
+                f"known_blocks={draw_count}, render_calls={total_calls}, "
+                f"known_audio_lines={audio_count}; source untouched"
+            )
+        fixed = text.replace(OPTIONS_DRAW_BLOCK, "", draw_count - 1)
+        fixed = fixed.replace(OPTIONS_AUDIO_LINE, "")
+        fixed = fixed.replace(OPTIONS_DRAW_BLOCK, paired, 1)
     assert fixed.count(OPTIONS_DRAW_BLOCK) == 1
     assert fixed.count(paired) == 1
     print(f"XMVSF 87.446: removed {pair_count - 1} repeated Options/audio branches")
