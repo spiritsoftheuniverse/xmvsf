@@ -1,4 +1,4 @@
-# XMVSF native front end — 87.451 (capture activator/deactivator integrity)
+# XMVSF native front end — 87.452 (original cinematic logo and palette pulses)
 
 The real XMVSF front end now renders in CPS-2 Recomp's **SDL3 native
 window and pixel presenter**, not an additional SDL launcher. The preserved
@@ -33,6 +33,45 @@ Esc / gamepad menu input; while shown, no game ticks are executed.
 Navigation uses both keyboard and gamepad: arrows / D-pad, Enter or Space / A.
 Esc returns to the home menu, and F1 there opens our Options. Shift+F1 opens the original recomp diagnostics.
 Use `XMVSF_RECOMP_HOME_OFF=1` when comparing against untouched upstream.
+
+## 87.452 — original Stage 87.235 logo reveal and ongoing palette pulsation
+
+The native recomp startup now uses the **original SDL2/FBNeo source timing**,
+adapted to existing SDL3 textures and the current one-stream menu mixer. All
+artwork remains in `_art/` and both sound cues remain in `audio/`; no
+ROMs, generated M68k files, or upstream submodule commits are changed.
+
+| Cold-boot time | Source behavior |
+| --- | --- |
+| 0 ms | White/spectral background strobe; play `crash.wav` and `xmvsf_welcome.wav` together |
+| 1,000 ms | Base title appears and resolves from white/hue dither over 1,000 ms |
+| 2,000 ms | Four source-aligned `logo_II_A/B/C/D.png` strokes, 10 frames each at 60 Hz, with tip sparks |
+| 2,667 ms | Finished II logo, original menu music starts, SF2 font menu reveals over 500 ms |
+| 3,167 ms | All menu inputs unlocked; steady animated backdrop and logo effects remain |
+
+After the reveal, the **original color-selective pulses persist**: orange,
+yellow, and green breathing; purple source-pixel vapor/dither and short
+vibration bursts affecting the VS center and extended shadow. This replaces
+the recomp's former uniform brightness sine wave. All color transformations
+start from original decoded PNGs; they never accumulate over prior effects.
+
+The reveal runs **once on cold boot**, not every time the player returns from
+combat. The original authored II stroke exports share the 400×300 pixel
+canvas and retain their direction and alignment. Recomp GPU textures and
+the original Settings/Controller page, gameplay logic, and input
+configuration remain independent. The CPU fallback remains available as
+before, but the complete effects run through the normal accelerated renderer.
+
+Source ports: `xmvsf_intro_timeline.h`, `xmvsf_palette_fx.h`,
+`xmvsf_ii_strikes.h`, plus `xmvsf_menu_audio.h` and
+`xmvsf_menu_textures.h`. `apply_menu.py` copies the new headers to
+the local `recomp/port` during normal builds. The build script runs
+`tests/test_logo_intro.py` **before Ninja**, checking assets, SDL3 source
+hooks, compiled C++ timing assertions, and helper installation. This is
+a local preflight, **not evidence that the Windows SDL3 binary or audio
+has already been tested**. Continue using `RECOMP_BUILD.bat` (warm
+incremental Ninja; no `refresh` needed for these source-only edits)
+then `RECOMP_RUN.bat`.
 
 ## 87.451 Correct the capture activator/deactivator state
 
