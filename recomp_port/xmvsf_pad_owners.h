@@ -134,8 +134,11 @@ private:
         char type = 0, extra = 0;
         if (std::sscanf(s.c_str(), "%c:%d:%d%c", &type, &index, &dir, &extra) != 3)
             return b;
-        if ((type == 'b' || type == 'a' || type == 'h' || type == 'k') &&
-            index >= 0 && index <= 63 && dir >= -32768 && dir <= 32768)
+        const bool validKeyboard = type == 'k' &&
+            index >= 0 && index < SDL_SCANCODE_COUNT;
+        const bool validPhysical = (type == 'b' || type == 'a' || type == 'h') &&
+            index >= 0 && index < 128;
+        if ((validKeyboard || validPhysical) && dir >= -32768 && dir <= 32768)
             return RawBind{type, index, dir};
         return b;
     }
