@@ -3,6 +3,7 @@
 // All assets are loaded from the original repository; no copies committed.
 #pragma once
 #include <SDL3/SDL.h>
+#include "xmvsf_intro_timeline.h"
 #include <algorithm>
 #include <array>
 #include <cstddef>
@@ -23,6 +24,9 @@ inline std::string SoundPath(const char *file) {
     roots.emplace_back("../FBNeo/assets/xmvsf");
     roots.emplace_back("FBNeo/assets/xmvsf");
     roots.emplace_back("../../FBNeo/assets/xmvsf");
+    roots.emplace_back("../audio");
+    roots.emplace_back("audio");
+    roots.emplace_back("../../audio");
     for (std::string root : roots) {
         if (!root.empty() && root.back() != '/' && root.back() != '\\')
             root.push_back('/');
@@ -77,9 +81,10 @@ class MenuAudio {
     static constexpr int kQueueLimit = kRate * 4 / 10; // 100 ms at stereo S16
     static constexpr size_t kIdle = size_t(-1);
 
-    SoundClip music_, movement_, selection_;
+    SoundClip music_, movement_, selection_, crash_, welcome_;
     SDL_AudioStream *stream_ = nullptr;
     size_t musicAt_ = 0, moveAt_ = kIdle, selectAt_ = kIdle;
+    size_t crashAt_ = kIdle, welcomeAt_ = kIdle;
     bool wasVisible_ = false;
 
     static int16_t Clip16(int x) {
@@ -108,7 +113,11 @@ public:
         music_.Load("xmvsfMenu.wav");
         movement_.Load("menu_movement1.wav");
         selection_.Load("menu_selection1.wav");
-        if (music_.Empty() && movement_.Empty() && selection_.Empty()) return;
+        // Original v87.235 simultaneous boot crash + "X-Men vs Street Fighter II" voice.
+        crash_.Load("crash.wav");
+        welcome_.Load("xmvsf_welcome.wav");
+        if (music_.Empty() && movement_.Empty() && selection_.Empty() &&
+            crash_.Empty() && welcome_.Empty()) return;
         const SDL_AudioSpec spec{SDL_AUDIO_S16, 2, kRate};
         stream_ = SDL_OpenAudioDeviceStream(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK,
                                             &spec, nullptr, nullptr);
@@ -137,6 +146,16 @@ public:
     // On menu exit the music queue is purged immediately, but the selection
     // effect is allowed to finish; there is never menu music over combat.
     void Step(bool visible) {
+        // The same monotonic epoch drives SDL3 audio and the animated textures.
+        // Start at the first visible menu frame, never on the return from a match.
+        auto &boot = XM87235Intro::State();
+        if (visible && !boot.started) {
+            boot.Start(SDL_GetTicks());
+            if (!crash_.Empty()) crashAt_ = 0;
+            if (!welcome_.Empty()) welcomeAt_ = 0;
+            std::fprintf(stderr, "XMVSF 87.452 INTRO_BEGIN t=0 crash=%d voice=%d\n",
+                         !crash_.Empty(), !welcome_.Empty());
+        }
         if (!stream_) return;
         if (visible != wasVisible_) {
             SDL_ClearAudioStream(stream_);
@@ -155,8 +174,18 @@ public:
             bool active = false;
             for (int frame = 0; frame < kBlock; ++frame) {
                 int left = 0, right = 0;
-                if (visible && !music_.Empty()) {
+                if (visible && boot.Elapsed(SDL_GetTicks()) >= XM87235Intro::MenuStart &&
+                    !music_.Empty()) {
                     AddFrame(music_, musicAt_, left, right, 72, true);
+                    active = true;
+                }
+                // Both cues start from the beginning of the original 0ms lead-in.
+                if (visible && crashAt_ != kIdle) {
+                    AddFrame(crash_, crashAt_, left, right, 100, false);
+                    active = true;
+                }
+                if (visible && welcomeAt_ != kIdle) {
+                    AddFrame(welcome_, welcomeAt_, left, right, 100, false);
                     active = true;
                 }
                 if (moveAt_ != kIdle) {
