@@ -349,7 +349,9 @@ def main() -> int:
         decoder_dst.write_bytes(decoder)
         print(f"XMVSF menu decoder installed: {decoder_dst}")
     # Source-owned SDL3 mixer/window controls are local to the recomp worktree.
-    for filename in ("xmvsf_menu_audio.h", "xmvsf_window.h"):
+    for filename in ("xmvsf_menu_audio.h", "xmvsf_window.h",
+                     "xmvsf_intro_timeline.h", "xmvsf_palette_fx.h",
+                     "xmvsf_ii_strikes.h"):
         source = ROOT / "recomp_port" / filename
         target = ROOT / "recomp" / "port" / filename
         bytes_ = source.read_bytes()
