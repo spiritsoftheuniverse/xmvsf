@@ -64,7 +64,7 @@ def main():
     )[0]
     require(upload, "SDL_SetTextureScaleMode(tex,SDL_SCALEMODE_NEAREST);",
             "sharp II pixels on all textures")
-    require(strokes, "final_=upload(renderer_,full);", "final numeral uses upload")
+    require(strokes, "final_=upload(renderer_,originalFinalRGBA_);", "final numeral uses upload")
     require(strokes, "p.texture=upload(renderer_,p.pixels);", "animated strokes use upload")
     # The final numeral shares the source-space transform, clock and cadence.
     # Check the actual function body; an unrelated reference is not sufficient.
