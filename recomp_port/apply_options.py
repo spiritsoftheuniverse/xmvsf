@@ -166,10 +166,16 @@ def main() -> int:
     if not SOURCE.exists():
         raise RuntimeError(f"missing Options implementation {SOURCE}")
     before = FRONTEND.read_text(encoding="utf-8")
-    # 87.443 changes the Options event signatures and controller ownership.
-    # It is an upgrade, not a reason to reapply the older hooks a second time.
-    if "XMVSF_RECOMP_PAD_OWNER_87_443" in before:
-        assert "XMVSF_RECOMP_OPTIONS_87_442" in before
+    # 87.446: native Options is already installed as soon as its include
+    # marker exists, whether or not a later controller upgrade succeeded.
+    # The legacy renderer insertion contained its own old anchor; replaying
+    # it after the older 87.437 audio hook rewrote the surrounding text
+    # accumulated duplicate Options branches in each failed build.
+    if "XMVSF_RECOMP_OPTIONS_87_442" in before:
+        if ('#include "xmvsf_options.h" // XMVSF_RECOMP_OPTIONS_87_442' not in before
+                or 'xmvsf_home::OptionsPanel options;' not in before
+                or 'homeTextures.RenderOptions(' not in before):
+            raise RuntimeError("87.446 incomplete Options integration; refusing to reinstall over unknown source")
         updated = before
     else:
         updated = patch(before)
