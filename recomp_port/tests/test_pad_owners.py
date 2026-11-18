@@ -32,15 +32,18 @@ def main():
         "                                           options, g_bindings, Table(), owners);"
     )
     assert text.count(new_call) == 1, "expected exactly one native Options renderer"
-    synthetic = text.replace(new_call, old_call, 1)
     duplicate_suffix = "                                           options, g_bindings, Table(), gamepads);"
-    # Two independent occurrences duplicate the old broad anchor. They
-    # are outside the Options renderer and must remain unchanged.
-    synthetic += "\n// 87.444 fixture\n" + duplicate_suffix + "\n" + duplicate_suffix + "\n"
-    assert synthetic.count(duplicate_suffix) == 3
+    already_elsewhere = text.count(duplicate_suffix)
+    synthetic = text.replace(new_call, old_call, 1)
+    # Preserve the pre-existing call suffixes in the user's local
+    # checkout. Add only enough decoys to reproduce at least 3 matches.
+    required_decoys = max(0, 2 - already_elsewhere)
+    synthetic += "\n// 87.444 fixture\n" + (duplicate_suffix + "\n") * required_decoys
+    total_suffixes = synthetic.count(duplicate_suffix)
+    assert total_suffixes >= 3
     repaired = patcher.patch(synthetic)
     assert repaired.count(new_call) == 1
-    assert repaired.count(duplicate_suffix) == 2
+    assert repaired.count(duplicate_suffix) == total_suffixes - 1
     assert patcher.patch(repaired) == repaired
     assert (PORT / "xmvsf_pad_owners.h").read_bytes() == SOURCE.read_bytes()
     for needed in (
