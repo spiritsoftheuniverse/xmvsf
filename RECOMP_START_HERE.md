@@ -14,7 +14,7 @@ git submodule update --init --recursive
 
 For source inspection, start with `recomp/games/xmvsf/src/game.cpp`, `recomp/games/xmvsf/src/xmvsf.h`, `recomp/games/xmvsf/src/engine.cpp`, `recomp/fight/`, `recomp/video/`, and `recomp/runtime/`.
 
-For a local XMVSF recomp build, follow `recomp/docs/BUILDING.md`. Required: a compatible owned XMVSF Europe 961004 ROM set with key, MSYS2 UCRT64 toolchain, SDL3, CMake (>=3.28), Ninja, zlib and Python. Upstream's documented workflow is:
+For a local XMVSF recomp build, follow `recomp/docs/BUILDING.md`. Required: a compatible owned XMVSF Europe 961004 ROM set with key, MSYS2 UCRT64 toolchain, SDL3, CMake (>=3.28), Ninja, zlib and Python. Use `RECOMP_BUILD.bat` from the root for first build and fast incremental changes. It uses Ninja directly on warm builds. Use `RECOMP_BUILD.bat refresh` only after changing recompiler inputs, game configuration or source registration. `RECOMP_RUN.bat` starts the existing EXE without compiling again. Upstream's full discovery workflow (not part of routine builds) is:
 
 ```sh
 cd recomp
