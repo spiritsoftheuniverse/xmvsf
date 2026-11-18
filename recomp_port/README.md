@@ -1,4 +1,4 @@
-# XMVSF native front end — 87.440
+# XMVSF native front end — 87.441 (source textures, accelerated SDL renderer)
 
 The real XMVSF front end now renders in CPS-2 Recomp's **SDL3 native
 window and pixel presenter**, not an additional SDL launcher. The preserved
@@ -31,6 +31,29 @@ Esc / gamepad menu input; while shown, no game ticks are executed.
 Navigation uses both keyboard and gamepad: arrows / D-pad, Enter or Space / A.
 Esc returns to the home menu, and F1 there opens the original recomp diagnostics.
 Use `XMVSF_RECOMP_HOME_OFF=1` when comparing against untouched upstream.
+
+## 87.441 true SDL source-texture menu
+
+Our older 87.435-87.440 recomp menu was CPU-composited: a 960x540
+software buffer was rebuilt every presentation frame, including the
+GIF, logo, and font glyphs, then uploaded as one image. The working
+SDL2 menu instead draws separate textures directly through an accelerated
+renderer. Version 87.441 now follows that original behavior through SDL3,
+using the same PNG/GIF assets and 960x540 logical canvas.
+
+The new compositor creates a texture for the logo, II, two font atlases,
+and GIF backdrop; only the GIF's changed source frame/hue is uploaded.
+No full-menu CPU compositor is used normally. On Windows, Direct3D11
+is preferred for the SDL 2D backend, with a fallback to SDL default.
+The native gameplay video path is unchanged.
+
+On shutdown, menu textures and the menu WAV mixer are explicitly
+released before the renderer/window and SDL_Quit, fixing the old
+resource-lifetime mismatch.
+
+Diagnostic switches: XMVSF_MENU_CPU_FALLBACK=1 for old CPU menu, or
+XMVSF_RECOMP_CLASSIC_OFF=1 for upstream GPU output. Neither needs a
+recompile. See MENU_TEXTURES_87_441.md.
 
 ## 87.440 SDL2-style renderer port
 
