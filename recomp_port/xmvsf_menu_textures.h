@@ -3,6 +3,7 @@
 // Source artwork stays in xmvsf_home::Menu; only layers are uploaded to SDL.
 #pragma once
 #include "xmvsf_home.h"
+#include "xmvsf_options.h"
 #include <SDL3/SDL.h>
 #include <algorithm>
 #include <array>
@@ -175,6 +176,87 @@ public:
         gifFrame_ = gifHue_ = -1;
     }
 
+    // Original OPTIONS page layout; draws source bitmap-font textures,
+    // never a CPU-composited frame. Called while the normal home menu hides.
+    bool RenderOptions(SDL_Renderer *renderer, uint64_t now, const OptionsPanel &options,
+                       const recomp::Bindings &bindings, const BoundTable &table,
+                       const std::vector<SDL_Gamepad *> &gamepads) {
+        if (!renderer || !options.Active() || !Init(renderer)) return false;
+        SDL_SetRenderDrawColor(renderer, 8, 16, 36, 255);
+        SDL_RenderClear(renderer);
+        DrawBackground(renderer, now);
+
+        const auto center = [&](const char *str, int x, int y,
+                                float scale, int bright, bool large = false) {
+            GlyphText(renderer, large ? menu_.large_ : menu_.small_,
+                      large ? largeFont_ : smallFont_, str, x, y,
+                      scale, bright, 1);
+        };
+        const auto left = [&](const char *str, int x, int y, float scale, int bright) {
+            GlyphText(renderer, menu_.small_, smallFont_, str, x, y,
+                      scale, bright, 0);
+        };
+        center("OPTIONS", 480, 23, 2.8f, 190, true);
+        left("LB/Q", 88, 76, 1.8f, 138);
+        static constexpr const char *tabs[] = {"GAME", "GRAPHICS", "CONTROLLER"};
+        constexpr int tabX[] = {292, 472, 677};
+        for (int i = 0; i < 3; ++i) {
+            const int brightness = options.Tab() == i ? 255 : 86;
+            center(tabs[i], tabX[i], 76, 2.0f, brightness);
+            if (i == options.Tab()) {
+                SDL_SetRenderDrawColor(renderer, 149, 111, 69, 255);
+                const SDL_FRect underline{float(tabX[i] - 54), 99.0f, 108.0f, 2.0f};
+                SDL_RenderFillRect(renderer, &underline);
+            }
+        }
+        center("RB/E", 863, 76, 1.8f, 138);
+        if (options.Tab() == 0) {
+            for (int i = 0; i < 7; ++i) {
+                const std::string label = options.GameLabel(i);
+                const bool unavailable = i >= 1 && i <= 3;
+                const int brightness = unavailable ? 96 : i == options.GameRow() ? 255 : 92;
+                center(label.c_str(), 480, 142 + i * 45, 1.85f, brightness);
+            }
+            center("BOARD SETTINGS TAKE EFFECT ON RESTART", 480, 480, 1.35f, 131);
+        } else if (options.Tab() == 1) {
+            for (int i = 0; i < 8; ++i) {
+                const std::string label = options.GraphicsLabel(i);
+                center(label.c_str(), 480, 140 + i * 40, 1.75f,
+                       i == options.GraphicsRow() ? 255 : 90);
+            }
+            center("CTRL + / - RESIZE   CTRL + BACKSPACE MAXIMIZE", 480, 480, 1.3f, 135);
+        } else {
+            center("LEFT / RIGHT PAGE", 480, 109, 1.7f, 145);
+            const std::string device = options.DeviceLabel(gamepads);
+            // Device names are hardware-supplied and can be very long.
+            center(device.substr(0, 44).c_str(), 480, 137, 1.68f,
+                   options.ControlRow() == 0 ? 255 : 138);
+            const float scale = 1.64f;
+            int widest = 0;
+            std::array<std::string, 14> labels;
+            for (int i = 0; i < 14; ++i) {
+                labels[size_t(i)] = options.BindingLabel(i, bindings, table);
+                widest = std::max(widest, int(menu_.small_.Measure(labels[size_t(i)].c_str()) * scale));
+            }
+            const int startX = std::max(108, (960 - widest) / 2);
+            for (int i = 0; i < 14; ++i) {
+                const int intensity = options.ControlRow() == i + 1 ? 255 : 98;
+                left(labels[size_t(i)].c_str(), startX, 169 + i * 20,
+                     scale, intensity);
+            }
+            center("PLAYER 1", 375, 479, 1.6f, options.Player() == 0 ? 255 : 105);
+            center("PLAYER 2", 585, 479, 1.6f, options.Player() == 1 ? 255 : 105);
+        }
+        const char *notice = options.Message();
+        if (*notice) {
+            center(notice, 480, 462, 1.45f, options.Capturing() ? 255 : 173);
+        }
+        center("A SELECT   B / ESC BACK", 480, 511, 1.5f, 176);
+        left("TEST 87.442", 834, 523, 1.05f, 160);
+        SDL_RenderPresent(renderer);
+        return true;
+    }
+
     bool Render(SDL_Renderer *renderer, uint64_t now) {
         if (!renderer || !menu_.Visible() || !Init(renderer)) return false;
         SDL_SetRenderDrawColor(renderer, 8, 16, 36, 255);
@@ -194,7 +276,7 @@ public:
         GlyphText(renderer, menu_.small_, smallFont_,
                   "ESC TO RETURN", 18, 522, 1.08f, 185, 0);
         GlyphText(renderer, menu_.small_, smallFont_,
-                  "TEST 87.441", 942, 522, 1.08f, 185, 2);
+                  "TEST 87.442", 942, 522, 1.08f, 185, 2);
         SDL_RenderPresent(renderer);
         return true;
     }
