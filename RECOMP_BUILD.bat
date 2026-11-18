@@ -80,11 +80,11 @@ if errorlevel 1 (
   goto :fail
 )
 
-REM 87.452: exercise the original cold-boot clock and verify that each
+REM 87.454: exercise the original cold-boot clock and verify that each
 REM frame/palette/audio hook was installed before touching the Ninja cache.
 "%BASH%" -c "python3 ../recomp_port/tests/test_logo_intro.py"
 if errorlevel 1 (
-  echo ERROR: XMVSF 87.452 logo intro integrity preflight FAILED. No build performed.
+  echo ERROR: XMVSF 87.454 logo intro integrity preflight FAILED. No build performed.
   popd
   goto :fail
 )
