@@ -5,7 +5,7 @@
 set -euo pipefail
 BUILD_WALL_START=$SECONDS
 # Batch sets the version once at launch, before native compilation begins.
-XMVSF_BUILD_VERSION="${XMVSF_TEST_VERSION:-87.433}"
+XMVSF_BUILD_VERSION="${XMVSF_TEST_VERSION:-87.434}"
 XMVSF_BUILD_TAG="${XMVSF_BUILD_VERSION//./_}"
 PROJECT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
@@ -888,6 +888,11 @@ if ! LC_ALL=C grep -aFq -- "XM87.433 SHOCK_SOURCE_SHARED" "$BUILT"; then
   exit 2
 fi
 echo "TEST 87.433 native shared shock source linked."
+if ! LC_ALL=C grep -aFq -- "XM87.434 HUD_PROVENANCE" "$BUILT"; then
+  echo "ERROR: TEST 87.434 read-only M68K/OAM provenance not linked." >&2
+  exit 2
+fi
+echo "TEST 87.434 read-only native HUD provenance linked."
 # Hash-compare before publishing: a no-op build must NOT overwrite TEST.
 built_sha="$(sha256sum "$BUILT" | cut -d ' ' -f 1)"
 mkdir -p "$PROJECT/runtime/stable"

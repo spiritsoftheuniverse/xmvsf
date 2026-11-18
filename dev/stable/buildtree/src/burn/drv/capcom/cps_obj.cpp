@@ -84,6 +84,9 @@ struct ObjFrame {
 	UINT8* Obj;
 	INT32 nCount;
 	XM8717::Source xm8717Sources[0x400]; // metadata parallel to compressed OBJ list
+    // TEST 87.434: real bank/slot survives compression and drawing delay.
+    unsigned short xm87434RawSlot[0x400]={};
+    unsigned char xm87434SourceBank=0;
 	// 87.306: native camera sampled along with THIS sprite-buffer list.
 	bool xmStage05CameraValid=false;
 	int xmStage05CameraX=0,xmStage05CameraY=256;
@@ -247,6 +250,7 @@ INT32 CpsObjGet()
 	pof = of + nGetNext;
 
 	pof->nCount = 0;
+    pof->xm87434SourceBank=(unsigned char)((nCpsObjectBank^1)&1);
 	pof->xmStage05CameraValid=false;
 	// The CPS2 native stage scroll belonging to THIS sprite list.
 	if(Cps==2 && CpsRamFF &&
@@ -313,6 +317,8 @@ INT32 CpsObjGet()
 
 		// Okay - this sprite is active:
 		memcpy(po, pg, 8); // copy it over
+        if(Cps==2 && pof->nCount<0x400)
+            pof->xm87434RawSlot[pof->nCount]=(unsigned short)i;
 		// XM87.17: Preserve the source bank + original slot through compression.
 		// CpsObjGet() skips blanks, so output slot is NOT raw object-RAM slot.
 		if (Cps==2 && XM8717::enabled) {
@@ -650,8 +656,17 @@ static void XM8717DrawAudit(const ObjFrame* pof,unsigned compressedIndex,
     // priority-7 graphics that the older trace discarded as HUD.
     static const bool fullCapture=[](){const char* v=std::getenv("XM8722_CAPTURE_ALL_OBJECTS");
         return v && v[0]=='1' && v[1]=='\0';}();
-    if(!XM8717::enabled || compressedIndex>=0x400u || xm8658GameStatus!=8 ||
-       (!fullCapture && priority!=5u && priority!=6u))return;
+    static const bool hudProvenance=[](){
+        const char* v=std::getenv("XM87434_HUD_PROVENANCE");
+        return v && v[0]=='1' && v[1]=='\0';
+    }();
+    // Read-only opening observation, not a new HUD object classifier.
+    const int phase=CpsRamFF?int(CpsRamFF[0x5001u]):xm8658GameStatus;
+    const bool opening=hudProvenance &&
+        (phase==2 || phase==4 || phase==6 || phase==8);
+    if(!XM8717::enabled || compressedIndex>=0x400u ||
+       (!opening && xm8658GameStatus!=8) ||
+       (!opening && !fullCapture && priority!=5u && priority!=6u))return;
     struct Recorder {
         FILE* fp=nullptr;
         unsigned long long rows=0;
@@ -661,7 +676,7 @@ static void XM8717DrawAudit(const ObjFrame* pof,unsigned compressedIndex,
                 fp=std::fopen(path,"wb");
                 if(fp){
                     std::setvbuf(fp,nullptr,_IOFBF,256*1024);
-                    std::fprintf(fp,"frame\tcompressed_index\tpriority\tpalette\ttile\tx\ty\twriter_pc\tsource_a0\tsource_frame\towner\tcurrent_grade\twidth\theight\traw_attr\tsource_valid\tsource_age\n");
+                    std::fprintf(fp,"frame\tcompressed_index\tpriority\tpalette\ttile\tx\ty\twriter_pc\tsource_a0\tsource_frame\towner\tcurrent_grade\twidth\theight\traw_attr\tsource_valid\tsource_age\tphase\tstage\traw_bank\traw_slot\n");
                     std::fprintf(stderr,"XM87.19 COMBAT_SOURCE_TRACE opened: %s\n",path);
                 }
             }
@@ -671,11 +686,14 @@ static void XM8717DrawAudit(const ObjFrame* pof,unsigned compressedIndex,
     static Recorder recorder;
     if(!recorder.fp || recorder.rows>=2000000ull)return;
     const auto& src=pof->xm8717Sources[compressedIndex];
-    std::fprintf(recorder.fp,"%u\t%u\t%u\t%u\t%u\t%d\t%d\t%06X\t%06X\t%u\t%u\t%s\t%u\t%u\t%04X\t%u\t%d\n",
+    std::fprintf(recorder.fp,"%u\t%u\t%u\t%u\t%u\t%d\t%d\t%06X\t%06X\t%u\t%u\t%s\t%u\t%u\t%04X\t%u\t%d\t%02X\t%u\t%u\t%u\n",
         frame,compressedIndex,priority,palette,tile,x,y,
         (unsigned)src.pc,(unsigned)src.a0,(unsigned)src.frame,(unsigned)src.owner,
         grade,width,height,rawAttr&0xffffu,(unsigned)src.valid,
-        src.valid && frame>=src.frame?int(frame-src.frame):-1);
+        src.valid && frame>=src.frame?int(frame-src.frame):-1,
+        phase,CpsRamFF?((unsigned)CpsRamFF[0x5113u^1u]&15u):0u,
+        (unsigned)pof->xm87434SourceBank,
+        (unsigned)pof->xm87434RawSlot[compressedIndex]);
     if((++recorder.rows%4096ull)==0ull)std::fflush(recorder.fp);
 }
 

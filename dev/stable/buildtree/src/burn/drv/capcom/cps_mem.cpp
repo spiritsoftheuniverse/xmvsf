@@ -104,6 +104,8 @@ static FILE* xm8716SpriteWrites = NULL;
 static unsigned long long xm8716WriteRecords = 0;
 static unsigned long long xm8716SkippedRecords = 0;
 static unsigned xm8716TraceStartFrame = ~0u;
+// TEST 87.434: read-only M68K OBJ write inventory. Never a paint rule.
+static bool xm87434HudProvenance=false;
 static const unsigned long long xm8716RecordLimit = 1500000ull;
 static inline bool XM8716TraceEnabled() { return xm8716SpriteWrites != NULL; }
 static inline unsigned XM8716SpriteOffset(UINT32 address) { return address & 0x1fffu; }
@@ -116,7 +118,13 @@ static void XM8716ObserveSpriteWrite(UINT32 address, unsigned size, UINT32 value
   // Emit only when the write covers the attribute word (+6 / +7).
   const unsigned off=XM8716SpriteOffset(address);
   const unsigned inSlot = off & 7u;
-  if (inSlot > 7u || (inSlot + size <= 6u)) return;
+  // Log ALL 8-byte OBJ record fields during the opening: the old
+  // attribute-only trace cannot prove ownership if X/Y/tile is reused.
+  const unsigned phase=CpsRamFF?(unsigned)CpsRamFF[0x5000u^1u]:255u;
+  const bool opening=xm87434HudProvenance &&
+      (phase==2u || phase==4u || phase==6u || phase==8u);
+  const bool attributeWrite=(inSlot+size>6u);
+  if(!opening && !attributeWrite)return;
   const unsigned frame=(unsigned)GetCurrentFrame();
   if (xm8716TraceStartFrame == ~0u) xm8716TraceStartFrame=frame;
   const unsigned slot=off >> 3;
@@ -135,7 +143,7 @@ static void XM8716ObserveSpriteWrite(UINT32 address, unsigned size, UINT32 value
   const UINT32 a5=XM8716TraceEnabled()?SekDbgGetRegister(SEK_REG_A5):0u;
   // XM87.17: record real source address for the exact bank and raw slot.
   // This metadata follows only the sprite write; never changes emulated RAM.
-  if (XM8717::enabled) {
+  if (XM8717::enabled && attributeWrite) {
     auto& rec=XM8717::slots[nCpsObjectBank&1][slot];
     rec.pc=pc; rec.a0=a0; rec.frame=frame;
     rec.owner=XM8717::Owner(a0);rec.valid=1u;
@@ -482,6 +490,11 @@ INT32 CpsMemInit()
 	XM8716CloseSpriteTrace();
 	xm8716WriteRecords=xm8716SkippedRecords=0;
 	xm8716TraceStartFrame=~0u;
+    const char* xm87434Mode=std::getenv("XM87434_HUD_PROVENANCE");
+    xm87434HudProvenance=Cps==2 && xm87434Mode &&
+        xm87434Mode[0]=='1' && xm87434Mode[1]=='\0';
+    if(xm87434HudProvenance)
+        std::fprintf(stderr,"XM87.434 HUD_PROVENANCE all-field native M68K OAM writer audit\n");
 	const char* xm8717Path=std::getenv("XM8717_DRAW_PROVENANCE_FILE");
 	// XM87.18: source tags are needed by the source-first body mask during
 	// normal xmvsfu combat. Other CPS2 games keep their original direct mapping.

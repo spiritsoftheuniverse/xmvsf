@@ -1,11 +1,11 @@
 @echo off
-REM XMVSF TEST 87.433 - use the identical shock source before the shock
+REM XMVSF TEST 87.434 - read-only M68K and OAM provenance capture
 setlocal EnableExtensions DisableDelayedExpansion
 for %%I in ("%~dp0.") do set "PROJECT=%%~fI"
 set "MSYSTEM=UCRT64"
 set "PATH=C:\msys64\ucrt64\bin;C:\msys64\usr\bin;%PATH%"
 set "XMVSF_PROJECT=%PROJECT%"
-set "XMVSF_TEST_VERSION=87.433"
+set "XMVSF_TEST_VERSION=87.434"
 REM Derived from XMVSF_TEST_VERSION; must match BUILD_TEST.bat.
 set "XMVSF_TEST_TAG=%XMVSF_TEST_VERSION:.=_%"
 REM All TEST diagnostics track the same version as the launched executable.
@@ -35,8 +35,8 @@ set "CLEAN_RIP_MODE=%~2"
 REM The 68000 program dumper runs independently of full native stage
 REM frame/tilemap telemetry. Default trace mode stays lightweight.
 if /I "%CLEAN_RIP_MODE%"=="trace" set "XM87203_STAGE_CAPTURE_ENABLE=0"
-if defined CLEAN_RIP_MODE if /I not "%CLEAN_RIP_MODE%"=="clean" if /I not "%CLEAN_RIP_MODE%"=="trace" (
-  echo ERROR: Unknown second argument. Use clean or trace for MVC1 source capture.
+if defined CLEAN_RIP_MODE if /I not "%CLEAN_RIP_MODE%"=="clean" if /I not "%CLEAN_RIP_MODE%"=="trace" if /I not "%CLEAN_RIP_MODE%"=="provenance" (
+  echo ERROR: Unknown second argument. Use clean or trace for MVC1, provenance for XMVSF.
   goto :fail
 )
 if /I "%SOURCE_ROM%"=="xmvsfu" if /I "%CLEAN_RIP_MODE%"=="clean" (
@@ -44,7 +44,11 @@ if /I "%SOURCE_ROM%"=="xmvsfu" if /I "%CLEAN_RIP_MODE%"=="clean" (
   goto :fail
 )
 if /I "%SOURCE_ROM%"=="xmvsfu" if /I "%CLEAN_RIP_MODE%"=="trace" (
-  echo ERROR: Motorola 68000 source sprite tracing is scoped to MVC1 only.
+  echo ERROR: Use RUN_TEST.bat xmvsfu provenance for XMVSF HUD tracing.
+  goto :fail
+)
+if /I "%CLEAN_RIP_MODE%"=="provenance" if /I not "%SOURCE_ROM%"=="xmvsfu" (
+  echo ERROR: HUD provenance is only for RUN_TEST.bat xmvsfu provenance.
   goto :fail
 )
 if /I not "%SOURCE_ROM:~0,4%"=="mvsc" if /I not "%SOURCE_ROM%"=="xmvsfu" (
@@ -92,6 +96,24 @@ if not exist "%OBSROOT%" mkdir "%OBSROOT%"
 if not exist "%OBSROOT%" (
   echo ERROR: Cannot create current TEST observer log directory.
   goto :fail
+)
+REM TEST 87.434: native opening M68K writer to buffered OAM provenance.
+REM Explicit invocation only: RUN_TEST.bat xmvsfu provenance
+set "XM87434_HUD_PROVENANCE=0"
+set "XM8716_SPRITE_WRITES_FILE="
+set "XM8717_DRAW_PROVENANCE_FILE="
+if /I "%SOURCE_ROM%"=="xmvsfu" if /I "%CLEAN_RIP_MODE%"=="provenance" (
+  if not exist "%OBSROOT%\hud_provenance" mkdir "%OBSROOT%\hud_provenance"
+  if not exist "%OBSROOT%\hud_provenance" (
+    echo ERROR: Could not create HUD provenance capture folder.
+    goto :fail
+  )
+  set "XM87434_HUD_PROVENANCE=1"
+  set "XM8716_SPRITE_WRITES_FILE=%OBSROOT%\hud_provenance\m68k_oam_writes.tsv"
+  set "XM8717_DRAW_PROVENANCE_FILE=%OBSROOT%\hud_provenance\oam_drawn.tsv"
+  set "XM8722_CAPTURE_ALL_OBJECTS=1"
+  echo HUD provenance capture: test\%XMVSF_TEST_VERSION%\observer\hud_provenance
+  echo Copy both TSVs before another provenance run (files will be replaced).
 )
 REM 87.391: dedicated, persistent Reaper Sigma graphics/clock diagnostics.
 REM The game is normally launched from FBNeo below; writing this file
