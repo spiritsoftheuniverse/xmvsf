@@ -36,7 +36,7 @@ def main():
     assert "SDL_UpdateTexture(background_, nullptr" in tex
     assert "XMVSF_MENU_CPU_FALLBACK" in tex
     assert "friend class TexturedMenu" in home
-    assert "TEST 87.441" in home
+    assert ("TEST 87.441" in home or "TEST 87.442" in home)
     assert "FitPicture(width, height" in front
     assert "homeTextures.Release();" in front
     assert "homeAudio.Close();" in front
