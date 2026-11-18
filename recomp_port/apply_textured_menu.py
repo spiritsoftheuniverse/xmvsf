@@ -151,7 +151,7 @@ void Presenter::Show(const uint32_t *pixels, int width, int height, const SDL_FR
     static constexpr int W = 960, H = 540;''',
         "give texture renderer access to the original source assets",
     )
-    if not any(label in home for label in ('"TEST 87.442"', '"TEST 87.443"', '"TEST 87.444"', '"TEST 87.445"', '"TEST 87.446"', '"TEST 87.447"')):
+    if not any(label in home for label in ('"TEST 87.442"', '"TEST 87.443"', '"TEST 87.444"', '"TEST 87.445"', '"TEST 87.446"', '"TEST 87.447"', '"TEST 87.448"')):
         home = replace_exact(
             home,
             '''"TEST 87.440"''',
