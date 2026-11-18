@@ -43,7 +43,7 @@ def main():
     src = OPTIONS.read_text(encoding="utf-8")
     art = DRAW.read_text(encoding="utf-8")
     actions = BIND.read_text(encoding="utf-8")
-    assert any(version in HOME.read_text(encoding="utf-8") for version in ("TEST 87.442", "TEST 87.443", "TEST 87.444"))
+    assert any(version in HOME.read_text(encoding="utf-8") for version in ("TEST 87.442", "TEST 87.443", "TEST 87.444", "TEST 87.445"))
     assert '"GAME VERSION : V2"' in src
     assert '"TOURNAMENT : NOT PORTED"' in src
     assert "SetFeature(\"free_play\"" in src
