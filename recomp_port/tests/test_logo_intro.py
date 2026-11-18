@@ -42,6 +42,9 @@ def main():
     require(mixer, 'crash_.Load("crash.wav")', "crash cue")
     require(mixer, 'welcome_.Load("xmvsf_welcome.wav")', "announcer cue")
     require(mixer, "XM87235Intro::MenuStart", "delayed menu music")
+    require(mixer, "crashAt_ = kIdle;", "cold-only crash lifecycle")
+    require(mixer, "welcomeAt_ = kIdle;", "cold-only announcer lifecycle")
+    require(mixer, "const bool playMenuMusic = visible", "one audio-clock sample per buffer batch")
     require(input_menu, "XM87235Intro::State().InputAllowed(SDL_GetTicks())", "input gate")
     for name in ("logo_II_A.png","logo_II_B.png","logo_II_C.png","logo_II_D.png"):
         require(strokes,name,"original stroke asset")
