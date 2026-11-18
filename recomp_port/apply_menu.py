@@ -274,7 +274,7 @@ def main() -> int:
         upgraded = installed.replace(old_render, new_render, 1)
         TARGET.write_text(upgraded, encoding="utf-8")
         print("XMVSF 87.436 native 960x540 presentation upgraded")
-    elif new_render not in installed:
+    elif new_render not in installed and "XMVSF_RECOMP_MENU_TEXTURES_87_441" not in installed:
         raise RuntimeError("unknown native menu render block; refusing to overwrite")
     # 87.437: native SDL3 window hotkeys + menu PCM mixer. Apply to both
     # already-patched 87.436 worktrees and freshly initialized submodules.
