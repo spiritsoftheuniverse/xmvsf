@@ -30,6 +30,21 @@ def main():
     assert cleaned.count(module.OPTIONS_DRAW_BLOCK) == 1
     assert cleaned.count(module.OPTIONS_AUDIO_LINE) == 1
     assert module.recover_repeated_options(cleaned) == cleaned
+    # 87.447: mixing the old home-only audio step with the new combined
+    # home/Options step flips visibility false/true every Options frame.
+    # The mixer then repeatedly clears and rewinds the music: audible buzz.
+    old_audio = module.LEGACY_AUDIO_LINE
+    active_audio = module.OPTIONS_AUDIO_LINE
+    audio_fixture = ("prefix\n" + old_audio * 6 + active_audio * 3 +
+                     "options render\n")
+    normalized = module.normalize_menu_audio_steps(audio_fixture)
+    assert normalized.count(active_audio) == 1
+    assert old_audio not in normalized
+    assert module.normalize_menu_audio_steps(normalized) == normalized
+    promoted = module.normalize_menu_audio_steps(old_audio * 4 + "tail\n")
+    assert promoted.count(active_audio) == 1
+    assert old_audio not in promoted
+    assert module.normalize_menu_audio_steps(promoted) == promoted
     assert cleaned.startswith("begin\n") and cleaned.endswith("        if (home.Visible()) {\n")
     # Partial legacy rewrites can separate the generated audio line from
     # the generated render block. They must still be normalized exactly.
@@ -50,6 +65,12 @@ def main():
     else:
         raise AssertionError("custom-modified Options blocks must be preserved")
     original = (PORT / "frontend_sdl.cpp").read_text(encoding="utf-8")
+    assert original.count(module.OPTIONS_AUDIO_LINE) == 1, (
+        "native Options must pump exactly one menu music stream per frontend iteration"
+    )
+    assert module.LEGACY_AUDIO_LINE not in original, (
+        "legacy home-only audio hook conflicts with active Options and rewinds audio"
+    )
     # 87.443 supersedes the 87.442 Options handlers. Its installer
     # intentionally preserves the newer native source on repeated builds.
     if "XMVSF_RECOMP_PAD_OWNER_87_443" in original:
