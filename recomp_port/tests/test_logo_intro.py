@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""87.452 original XMVSF cold-boot logo timeline and SDL3 integration preflight.
+"""87.454 original XMVSF cold-boot logo timeline and SDL3 integration preflight.
 
 Run before Ninja; never regenerates M68000 translation or modifies generated code.
 """
@@ -33,12 +33,13 @@ def main():
     require(source, "XMMenuColor::logoPalettePulse(", "rendered logo pulse")
     require(source, "XMMenuColor::introLogoDither(", "rendered intro logo")
     require(source, "XMMenuColor::backgroundHue(", "rendered intro background")
-    require(source, "iiPainter_.draw(", "II animation")
+    require(source, "iiPainter_.draw(r, now, elapsed, cinematic, canvas);",
+            "synchronized II pixel pulse clock")
     require(source, "RevealFonts(reveal)", "menu reveal")
     require(source, "DrawBackground(SDL_Renderer *r, std::uint64_t now, float introStrength = 0.0f)",
             "Options compatibility")
     require(source, "iiPainter_.release()", "SDL renderer shutdown")
-    require(source, "TEST 87.453", "recomp version")
+    require(source, "TEST 87.454", "recomp version")
     require(mixer, 'crash_.Load("crash.wav")', "crash cue")
     require(mixer, 'welcome_.Load("xmvsf_welcome.wav")', "announcer cue")
     require(mixer, "XM87235Intro::MenuStart", "delayed menu music")
@@ -65,6 +66,25 @@ def main():
             "sharp II pixels on all textures")
     require(strokes, "final_=upload(renderer_,full);", "final numeral uses upload")
     require(strokes, "p.texture=upload(renderer_,p.pixels);", "animated strokes use upload")
+    # The final numeral shares the source-space transform, clock and cadence.
+    # Check the actual function body; an unrelated reference is not sufficient.
+    pulse = strokes.split("void updateFinal(std::uint64_t now){", 1)[1].split(
+        "static void renderRect(", 1
+    )[0]
+    require(strokes, '#include "xmvsf_palette_fx.h"', "shared palette transform")
+    require(strokes, "originalFinalRGBA_=full;", "immutable original numeral pixels")
+    require(pulse, "XMMenuColor::logoPalettePulse(originalFinalRGBA_,pulsedFinalRGBA_,",
+            "II uses original pixels with the same pulse as the title")
+    require(pulse, "CanvasWidth,CanvasHeight,static_cast<Uint32>(now)",
+            "II uses same SDL clock")
+    require(pulse, "SDL_UpdateTexture(final_,nullptr,pulsedFinalRGBA_.data(),CanvasWidth*4)",
+            "colorized final numeral is uploaded")
+    require(pulse, "now-lastFinalTick_<80u", "matching 80-ms pulse cadence")
+    require(strokes, "updateFinal(now);", "active II pulse draw hook")
+    require(strokes, "originalFinalRGBA_.clear();pulsedFinalRGBA_.clear();",
+            "II texture reset")
+    require(strokes, "SDL_SetTextureScaleMode(tex,SDL_SCALEMODE_NEAREST);",
+            "II nearest filtering preserved")
 
     test = r"""
 #include "xmvsf_intro_timeline.h"
@@ -99,7 +119,7 @@ int main() {
         subprocess.run(["g++","-std=c++17","-Wall","-Wextra","-Werror",
                         "-I",str(PORT),str(src),"-o",str(exe)],check=True)
         subprocess.run([str(exe)],check=True)
-    print("XMVSF 87.453: intro timeline C++ and source-effect preflight PASS")
+    print("XMVSF 87.454: intro timeline C++ and source-effect preflight PASS")
 
 if __name__ == "__main__":
     main()
