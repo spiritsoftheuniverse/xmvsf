@@ -1,4 +1,29 @@
-# XMVSF native front end — 87.463 (gentle first-entry music curve)
+# XMVSF native front end — 87.464 (curl-noise film edge finishing)
+
+## 87.464 — animated entrance dither at both screen edges
+
+The scrolling character panels emerge from the **top and bottom edges**
+with about **20% visible ordered-dither pixels at the first screen row**.
+The mask gradually opens across each outer **108px** (20% of the
+960×540 canvas height) and is fully open across the middle.
+
+The effect uses the perpendicular gradient (curl) of an advected,
+two-octave smoothly interpolated noise field. Its motion follows
+each film column's scrolling direction, with a stable per-panel
+ordinal seed: no random per-frame jumps or reset when panels recycle.
+The moving 8×8 Bayer pattern is applied to **both** the colored
+rainbow backing and the full-opacity character silhouettes; no
+extra opacity multiplier is applied to the characters.
+
+Each slot reuses cached SDL3 textures, now including a dynamic masked
+portrait. F6's same-timestamp offscreen capture and visible rendering
+reuse the cached mask; all textures are released at menu shutdown.
+The standalone C++ edge helper is regression-tested during the local
+build preflight, and the installer syncs it to `recomp/port`.
+Existing rainbow color mix, 60% film alpha, 2x blob tiles, scrolling,
+menu text reveal, and one-time music entrance remain unchanged.
+
+## 87.463 — soft menu music entrance, never on song loops
 
 ## 87.463 — soft menu music entrance, never on song loops
 
