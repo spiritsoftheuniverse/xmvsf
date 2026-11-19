@@ -22,13 +22,7 @@ if not exist "%SDL3_CMAKE%" (
 REM Prefer the correct UCRT64 package discovery, never a stray Windows or MINGW64 SDL3.
 set "SDL3_DIR=%UCRT_PREFIX%\lib\cmake\SDL3"
 set "CMAKE_PREFIX_PATH=%UCRT_PREFIX%"
-if not exist "%PROJECT%\recomp\Makefile" (
-  echo Fetching pinned upstream source submodule...
-  where git.exe >nul 2>nul
-  if errorlevel 1 (echo ERROR: Git not found.& goto :fail)
-  git -C "%PROJECT%" submodule update --init --recursive
-  if errorlevel 1 (echo ERROR: Recomp checkout failed.& goto :fail)
-)
+
 if not exist "%PROJECT%\recomp\Makefile" (
   echo ERROR: Recomp source missing.
   goto :fail
