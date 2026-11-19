@@ -1,9 +1,21 @@
-# XMVSF native front end — 87.455 (masked X-Men / SF menu film)
+# XMVSF native front end — 87.456 (gapped X-Men / SF film with clipped portraits)
 
 Python installers, version checks, and local build requirements are
 specified in [PYTHON_PATCHING_RULES.md](PYTHON_PATCHING_RULES.md).
 
-## 87.455 — looping menu film
+## 87.456 — separate film and portrait layers; 96-pixel gaps
+
+The 260×453 film pieces now repeat every 549 vertical pixels, leaving a
+full 96-pixel clear margin between consecutive shapes. The red and blue
+trapezoid pixels render first; portraits then render as separately masked,
+nearest-neighbor SDL textures. The mask is sourced directly from each film
+PNG's alpha, and portraits begin 78 pixels below the top of the complete
+source panel. Original character RGBA channel order is preserved. X-Men
+scroll downward on the left and Street Fighter upward on the right.
+Only the local renderer and film preflight changed; no ROM or build-cache
+changes are required.
+
+## 87.455 — initial looping menu film
 
 The left X-Men and right Street Fighter trapezoid films are prepared
 from `_art/menu` once per SDL renderer, then scrolled independently.

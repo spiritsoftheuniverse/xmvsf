@@ -82,10 +82,10 @@ if errorlevel 1 (
   goto :fail
 )
 
-REM 87.455: film image/loop preflight before any Ninja compile.
+REM 87.456: assert 96px panel gaps, correct alpha and loop math before Ninja.
 "%BASH%" -c "python3 ../recomp_port/tests/test_menu_film.py"
 if errorlevel 1 (
-  echo ERROR: XMVSF 87.455 menu film integrity failed. No build performed.
+  echo ERROR: XMVSF 87.456 menu film integrity failed. No build performed.
   popd
   goto :fail
 )
