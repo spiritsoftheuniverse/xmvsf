@@ -172,7 +172,13 @@ def main() -> None:
     assert "0x3c6ef372fe94f82bULL" in film
     # The dithering mask is applied inside the composited rainbow layer,
     # and the original panel/portrait reveal path remains unchanged.
-    assert "kBayer[(y & 3) * 4 + (x & 3)] >= reveal" in film
+    # The live renderer keeps Bayer pixels with threshold < reveal;
+    # the curl-noise edge gate is ANDed with that exact same check.
+    assert (
+        "kBayer[(y & 3) * 4 + (x & 3)] < reveal &&\n"
+        "                    FilmEdgeDither::Visible("
+    ) in film
+    assert "kBayer[(y & 3) * 4 + (x & 3)] >= reveal" not in film
     assert "ApplyReveal(xmen_, reveal)" in film
     assert "ApplyReveal(streetFighter_, reveal)" in film
     assert "column.order[size_t((ordinal % count + count) % count)]" in film
