@@ -3,6 +3,7 @@
 from __future__ import annotations
 import importlib.util
 from pathlib import Path
+from version_guard import require_matching_versions
 
 ROOT = Path(__file__).resolve().parents[2]
 PORT = ROOT / "recomp" / "port"
@@ -128,8 +129,11 @@ def main():
     assert "SDL_SCANCODE_J" in cpp and "SDL_SCANCODE_KP_1" in cpp
     assert "if (player >= 2 || !owners.Physical(player))" in text
     assert "if (p >= 2 || !owners.Physical(p))" in text
-    assert "TEST 87.454" in HOME.read_text(encoding="utf-8")
-    assert "TEST 87.454" in RENDER.read_text(encoding="utf-8")
+    require_matching_versions(
+        HOME.read_text(encoding="utf-8"),
+        RENDER.read_text(encoding="utf-8"),
+        minimum=(87, 454),
+    )
     assert "SDL_SCALEMODE_NEAREST" in RENDER.read_text(encoding="utf-8")
     prev = 0
     edge = []
