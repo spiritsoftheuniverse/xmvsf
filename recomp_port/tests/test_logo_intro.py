@@ -39,7 +39,7 @@ def main():
     require(source, "DrawBackground(SDL_Renderer *r, std::uint64_t now, float introStrength = 0.0f)",
             "Options compatibility")
     require(source, "iiPainter_.release()", "SDL renderer shutdown")
-    require(source, "TEST 87.454", "recomp version")
+    require(source, "TEST 87.455", "recomp version")
     require(mixer, 'crash_.Load("crash.wav")', "crash cue")
     require(mixer, 'welcome_.Load("xmvsf_welcome.wav")', "announcer cue")
     require(mixer, "XM87235Intro::MenuStart", "delayed menu music")
