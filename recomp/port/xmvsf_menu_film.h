@@ -1,12 +1,14 @@
-// XMVSF 87.460: closer, twice-fast, shuffled films with post-text Bayer dither.
+// XMVSF 87.461: tiled 50/50 rainbow films with per-panel pan and hue cycling.
 #pragma once
 #include "xmvsf_home.h"
 #include <SDL3/SDL.h>
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstdint>
 #include <cstdio>
 #include <initializer_list>
+#include <limits>
 #include <numeric>
 #include <random>
 #include <string>
@@ -19,19 +21,33 @@ class MenuFilmStrips {
     // 80px closer than the previous +16px spacing: 64px overlap.
     static constexpr int kMargin = 16, kGap = -64, kPortraitTop = 78;
     static constexpr double kSpeedPixelsPerSecond = 20.0;
+    static constexpr std::uint64_t kFxRefreshMs = 75u;
+    // Seven slot textures per column avoid per-frame create/destroy churn.
+    static constexpr uint8_t kBayer[16] = {
+        0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7
+    };
+    struct FxCache {
+        SDL_Texture *texture = nullptr;
+        std::int64_t ordinal = std::numeric_limits<std::int64_t>::min();
+        std::uint64_t lastUpdate = 0;
+        int reveal = -1;
+        bool failed = false;
+    };
     struct Column {
         Image shape;
         SDL_Texture *plain = nullptr;
         std::vector<SDL_Texture *> portraits;
         std::vector<Image> portraitImages;
         std::vector<size_t> order; // shuffled only at load; stable across frames
+        std::array<FxCache, 7> fx;
         int x = 0;
         int revealLevel = -1;
         bool scrollDown = false;
     };
     SDL_Renderer *renderer_ = nullptr;
     Column xmen_, streetFighter_;
-    std::vector<uint32_t> ditherPixels_;
+    Image rainbow_;
+    std::vector<uint32_t> ditherPixels_, rainbowPixels_;
 
     static SDL_Texture *Upload(SDL_Renderer *renderer, const Image &image) {
         if (!renderer || !image.Valid()) return nullptr;
@@ -155,7 +171,7 @@ class MenuFilmStrips {
             pixels = ditherPixels_.data();
         }
         if (!SDL_UpdateTexture(texture, nullptr, pixels, source.width * 4)) {
-            std::fprintf(stderr, "XMVSF 87.460 film dither upload failed: %s\n",
+            std::fprintf(stderr, "XMVSF 87.461 film dither upload failed: %s\n",
                          SDL_GetError());
         }
     }
@@ -176,7 +192,7 @@ class MenuFilmStrips {
         column.scrollDown = down;
         column.shape = LoadPng(shapeFile);
         if (!column.shape.Valid()) {
-            std::fprintf(stderr, "XMVSF 87.460 menu film missing or invalid: %s\n",
+            std::fprintf(stderr, "XMVSF 87.461 menu film missing or invalid: %s\n",
                          shapeFile);
             return;
         }
@@ -184,7 +200,7 @@ class MenuFilmStrips {
         column.plain = Upload(renderer_, column.shape);
         const Rect safe = SafePortraitArea(column.shape);
         if (safe.w < 1 || safe.h < 1) {
-            std::fprintf(stderr, "XMVSF 87.460 portrait safe area unavailable: %s\n",
+            std::fprintf(stderr, "XMVSF 87.461 portrait safe area unavailable: %s\n",
                          shapeFile);
             return;
         }
@@ -193,7 +209,7 @@ class MenuFilmStrips {
                 prefix + " (" + std::to_string(i) + ").png";
             const Image person = LoadPng(filename.c_str());
             if (!person.Valid()) {
-                std::fprintf(stderr, "XMVSF 87.460 missing portrait: %s\n",
+                std::fprintf(stderr, "XMVSF 87.461 missing portrait: %s\n",
                              filename.c_str());
                 continue;
             }
@@ -202,7 +218,7 @@ class MenuFilmStrips {
             if (texture) {
                 column.portraitImages.push_back(std::move(clipped));
                 column.portraits.push_back(texture);
-            } else std::fprintf(stderr, "XMVSF 87.460 portrait upload failed: %s\n",
+            } else std::fprintf(stderr, "XMVSF 87.461 portrait upload failed: %s\n",
                                 SDL_GetError());
         }
         column.order.resize(column.portraits.size());
@@ -211,11 +227,142 @@ class MenuFilmStrips {
         // before the cycle repeats; no per-frame random flicker.
         std::mt19937 random(std::random_device{}());
         std::shuffle(column.order.begin(), column.order.end(), random);
-        std::fprintf(stderr, "XMVSF 87.460 %s film: %zu shuffled portraits at x=%d\n",
+        std::fprintf(stderr, "XMVSF 87.461 %s film: %zu shuffled portraits at x=%d\n",
                      prefix, column.portraits.size(), column.x);
     }
 
-    void DrawColumn(const Column &column, std::uint64_t now, int reveal) const {
+    // Stable per-panel motion: never reroll when a slot wraps or F6
+    // renders the same frame twice. Distinct hash seeds per XM/SF column.
+    static std::uint64_t Hash(std::uint64_t x) {
+        x += 0x9e3779b97f4a7c15ULL;
+        x = (x ^ (x >> 30)) * 0xbf58476d1ce4e5b9ULL;
+        x = (x ^ (x >> 27)) * 0x94d049bb133111ebULL;
+        return x ^ (x >> 31);
+    }
+    struct PanelMotion {
+        int dx, dy;
+        double panSpeed, hueSpeed, huePhase;
+    };
+    static PanelMotion Motion(bool down, std::int64_t ordinal) {
+        constexpr int directions[8][2] = {
+            {1, 0}, {-1, 0}, {0, 1}, {0, -1},
+            {1, 1}, {-1, 1}, {1, -1}, {-1, -1}
+        };
+        const std::uint64_t seed = Hash(std::uint64_t(ordinal) ^
+            (down ? 0xa5a5e7d37fa7c15bULL : 0x3c6ef372fe94f82bULL));
+        const int direction = int(seed & 7u);
+        return {directions[direction][0], directions[direction][1],
+                18.0 + double((seed >> 8) % 33u),
+                35.0 + double((seed >> 20) % 76u),
+                double((seed >> 37) % 360u)};
+    }
+    static int Wrap(int x, int size) {
+        const int rem = x % size;
+        return rem < 0 ? rem + size : rem;
+    }
+
+    // Approximate hue rotation with one 3x3 matrix per panel update,
+    // rather than doing trigonometry separately for every texture pixel.
+    static std::array<float, 9> HueMatrix(double degrees) {
+        const double angle = std::fmod(degrees, 360.0) *
+                             (3.14159265358979323846 / 180.0);
+        const float c = float(std::cos(angle)), s = float(std::sin(angle));
+        return {
+            .213f + .787f*c - .213f*s, .715f - .715f*c - .715f*s,
+            .072f - .072f*c + .928f*s,
+            .213f - .213f*c + .143f*s, .715f + .285f*c + .140f*s,
+            .072f - .072f*c - .283f*s,
+            .213f - .213f*c - .787f*s, .715f - .715f*c + .715f*s,
+            .072f + .928f*c + .072f*s
+        };
+    }
+
+    // Blend red/blue source plate 50/50 with tiled, moving rainbowblobs.
+    // Preserve the *source trapezoid alpha* as the output alpha: rainbow
+    // never bleeds outside the mask even when its UVs pan.
+    bool UpdateRainbow(Column &column, FxCache &cache,
+                       std::int64_t ordinal, std::uint64_t now, int reveal) {
+        if (!rainbow_.Valid() || !column.shape.Valid() || cache.failed)
+            return false;
+        if (!cache.texture) {
+            cache.texture = SDL_CreateTexture(renderer_, SDL_PIXELFORMAT_ABGR8888,
+                SDL_TEXTUREACCESS_STREAMING, column.shape.width, column.shape.height);
+            if (!cache.texture) {
+                cache.failed = true;
+                std::fprintf(stderr, "XMVSF 87.461 rainbow texture create: %s\n",
+                             SDL_GetError());
+                return false;
+            }
+            SDL_SetTextureBlendMode(cache.texture, SDL_BLENDMODE_BLEND);
+            SDL_SetTextureScaleMode(cache.texture, SDL_SCALEMODE_NEAREST);
+        }
+        // F6's offscreen compositor and the on-screen draw can share
+        // identical textures without rebuilding them twice per frame.
+        if (cache.ordinal == ordinal && cache.reveal == reveal &&
+            now >= cache.lastUpdate && now - cache.lastUpdate < kFxRefreshMs)
+            return true;
+
+        const PanelMotion motion = Motion(column.scrollDown, ordinal);
+        const double seconds = double(now) / 1000.0;
+        const double directionScale = (motion.dx && motion.dy) ? .7071067811865476 : 1.0;
+        const double travel = seconds * motion.panSpeed * directionScale;
+        const int panX = int(std::floor(std::fmod(travel * motion.dx,
+                                                 double(rainbow_.width))));
+        const int panY = int(std::floor(std::fmod(travel * motion.dy,
+                                                 double(rainbow_.height))));
+        const auto hue = HueMatrix(motion.huePhase + seconds * motion.hueSpeed);
+        const auto byte = [](float v) {
+            return std::uint32_t(std::clamp(int(std::lround(v)), 0, 255));
+        };
+        const int w = column.shape.width, h = column.shape.height;
+        rainbowPixels_.resize(size_t(w) * size_t(h));
+        for (int y = 0; y < h; ++y) {
+            const int ry = Wrap(y + panY, rainbow_.height);
+            for (int x = 0; x < w; ++x) {
+                const size_t at = size_t(y) * size_t(w) + size_t(x);
+                const std::uint32_t plate = column.shape.pixels[at];
+                const unsigned maskAlpha = plate >> 24;
+                if (!maskAlpha || kBayer[(y & 3) * 4 + (x & 3)] >= reveal) {
+                    rainbowPixels_[at] = 0u;
+                    continue;
+                }
+                const int rx = Wrap(x + panX, rainbow_.width);
+                const std::uint32_t blob = rainbow_.pixels[
+                    size_t(ry) * size_t(rainbow_.width) + size_t(rx)];
+                const float r = float(blob & 255u),
+                            g = float((blob >> 8) & 255u),
+                            b = float((blob >> 16) & 255u);
+                const std::uint32_t rr = byte(hue[0]*r + hue[1]*g + hue[2]*b);
+                const std::uint32_t gg = byte(hue[3]*r + hue[4]*g + hue[5]*b);
+                const std::uint32_t bb = byte(hue[6]*r + hue[7]*g + hue[8]*b);
+                // Full-alpha rainbow -> 128/255 rainbow, 127/255 plate.
+                // Partial-alpha rainbow retains proportionally more plate.
+                const unsigned rainbowWeight = ((blob >> 24) + 1u) / 2u;
+                const unsigned baseWeight = 255u - rainbowWeight;
+                const std::uint32_t mixedR =
+                    ((plate & 255u)*baseWeight + rr*rainbowWeight + 127u)/255u;
+                const std::uint32_t mixedG =
+                    (((plate >> 8)&255u)*baseWeight + gg*rainbowWeight + 127u)/255u;
+                const std::uint32_t mixedB =
+                    (((plate >> 16)&255u)*baseWeight + bb*rainbowWeight + 127u)/255u;
+                rainbowPixels_[at] = (maskAlpha << 24) | (mixedB << 16) |
+                                     (mixedG << 8) | mixedR;
+            }
+        }
+        if (!SDL_UpdateTexture(cache.texture, nullptr,
+                               rainbowPixels_.data(), w*4)) {
+            cache.failed = true;
+            std::fprintf(stderr, "XMVSF 87.461 rainbow upload failed: %s\n",
+                         SDL_GetError());
+            return false;
+        }
+        cache.ordinal = ordinal;
+        cache.reveal = reveal;
+        cache.lastUpdate = now;
+        return true;
+    }
+
+    void DrawColumn(Column &column, std::uint64_t now, int reveal) {
         if (!column.shape.Valid() || reveal == 0) return;
         // 453px panels at 389px pitch: 64px overlap (80px nearer).
         const int step = column.shape.height + kGap;
@@ -229,10 +376,16 @@ class MenuFilmStrips {
             if (y >= kCanvasHeight || y + column.shape.height <= 0) continue;
             const SDL_FRect dest{float(column.x), float(y),
                                  float(column.shape.width), float(column.shape.height)};
-            if (column.plain) SDL_RenderTexture(renderer_, column.plain, nullptr, &dest);
+            const std::int64_t ordinal = std::int64_t(slot) +
+                (column.scrollDown ? -cycles : cycles);
+            FxCache &cache = column.fx[size_t(slot + 2)];
+            if (UpdateRainbow(column, cache, ordinal, now, reveal)) {
+                SDL_RenderTexture(renderer_, cache.texture, nullptr, &dest);
+            } else if (column.plain) {
+                // No rainbow asset? Keep the old red/blue panels and Bayer.
+                if (column.plain) SDL_RenderTexture(renderer_, column.plain, nullptr, &dest);
+            }
             if (!column.portraits.empty()) {
-                const std::int64_t ordinal = std::int64_t(slot) +
-                    (column.scrollDown ? -cycles : cycles);
                 const auto count = std::int64_t(column.portraits.size());
                 SDL_Texture *portrait =
                     column.portraits[column.order[size_t((ordinal % count + count) % count)]];
@@ -241,6 +394,10 @@ class MenuFilmStrips {
         }
     }
     static void Clear(Column &column) {
+        for (FxCache &cache : column.fx) {
+            if (cache.texture) SDL_DestroyTexture(cache.texture);
+            cache = {};
+        }
         for (SDL_Texture *texture : column.portraits)
             if (texture) SDL_DestroyTexture(texture);
         column.portraits.clear();
@@ -261,12 +418,22 @@ public:
         Clear(xmen_);
         Clear(streetFighter_);
         ditherPixels_.clear();
+        rainbowPixels_.clear();
+        rainbow_ = {};
         renderer_ = nullptr;
     }
     void Init(SDL_Renderer *renderer) {
         if (!renderer || renderer_ == renderer) return;
         Release();
         renderer_ = renderer;
+        rainbow_ = LoadPng("menu/rainbowblobs.png");
+        if (!rainbow_.Valid()) {
+            std::fprintf(stderr, "XMVSF 87.461: _art/menu/rainbowblobs.png "
+                                 "missing; using red/blue film only\n");
+        } else {
+            std::fprintf(stderr, "XMVSF 87.461: rainbowblobs %dx%d loaded\n",
+                         rainbow_.width, rainbow_.height);
+        }
         LoadColumn(xmen_, "menu/menufilmL.png", "xm", true);
         LoadColumn(streetFighter_, "menu/menufilm.png", "sf", false);
     }
