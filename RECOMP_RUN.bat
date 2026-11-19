@@ -13,6 +13,13 @@ if not exist "%PROJECT%\recomp\rom\xmvsf" (
   goto :fail
 )
 if not exist "%PROJECT%\recomp\work\xmvsf" mkdir "%PROJECT%\recomp\work\xmvsf"
+REM 87.459: F6 screenshots always go to repo-root/screenshots.
+set "XMVSF_SCREENSHOT_DIR=%PROJECT%\screenshots"
+if not exist "%XMVSF_SCREENSHOT_DIR%" mkdir "%XMVSF_SCREENSHOT_DIR%"
+if not exist "%XMVSF_SCREENSHOT_DIR%" (
+  echo ERROR: Could not create "%XMVSF_SCREENSHOT_DIR%".
+  goto :fail
+)
 pushd "%PROJECT%\recomp"
 if errorlevel 1 goto :fail
 echo Starting pinned XMVSF recomp. No rebuild or translation step.

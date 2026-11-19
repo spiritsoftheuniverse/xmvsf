@@ -427,7 +427,11 @@ int RunWindowed(Port &port) {
     xmvsf_home::Menu home(homeEnabled);
     xmvsf_home::MenuAudio homeAudio(homeEnabled);
     xmvsf_home::TexturedMenu homeTextures(home);
-    xmvsf_home::NativeCapture nativeCapture(port.PlayerFolder() + "screenshots/");
+    // Always write F6 PNGs to the repo's screenshots folder, never to
+    // the EEPROM/player directory. RECOMP_RUN.bat supplies its absolute path.
+    const char *f6Folder = std::getenv("XMVSF_SCREENSHOT_DIR");
+    xmvsf_home::NativeCapture nativeCapture(
+        f6Folder && *f6Folder ? f6Folder : "../screenshots/");
     xmvsf_home::OptionsPanel options; // XMVSF_RECOMP_OPTIONS_87_442
     xmvsf_home::PadOwners owners; // XMVSF_RECOMP_PAD_OWNER_87_443
     owners.Init(port.opt.settingsPath);
@@ -608,7 +612,8 @@ int RunWindowed(Port &port) {
                 } else if (multi && !port.menu.IsOpen() && ev.key.scancode == SDL_SCANCODE_N && !ev.key.repeat) {
                     port.Key('n');
                 } else if (ev.key.scancode == SDL_SCANCODE_F5 || ev.key.scancode == SDL_SCANCODE_F9) {
-                    // F5 keeps the game in the slot, F9 goes back to it; F6 / F7: the slot before, the next
+                    // F5 saves the current slot; F9 restores it. F6 captures
+                    // native screenshots; F7 changes the save slot.
                     if (!port.menu.IsOpen()) {
                         quickState(ev.key.scancode == SDL_SCANCODE_F5);
                     }
@@ -1035,8 +1040,12 @@ int RunWindowed(Port &port) {
         const double pace = port.paused ? 1.0 : static_cast<double>(rate.frames) / rate.ticks;
         const bool ran = port.Tick();
         if (nativeCapture.Pending()) {
-            nativeCapture.Consume();
-            port.Screenshot(); // existing native 384x224/active native-width framebuffer
+            // One native game-frame screenshot, at its actual source pixel
+            // width and 224 rows. F12 continues to use Port::Screenshot().
+            std::vector<uint32_t> nativeGamePixels;
+            port.Shown(nativeGamePixels);
+            nativeCapture.SavePixels("gameplay", nativeGamePixels.data(),
+                                     port.ShownWidth(), Video::kHeight);
         }
 
         if (audio && silent != (port.menu.muted || audioLog)) {

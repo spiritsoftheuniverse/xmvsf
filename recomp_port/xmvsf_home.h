@@ -1,4 +1,4 @@
-// XMVSF native menu presentation, v87.458 (F6 native screenshot for every menu and game).
+// XMVSF native menu presentation, v87.459 (repo-root F6 screenshots for all screens).
 // Adapted from this repository's Stage14 layout and XMGlyph bitmap atlas rules.
 // Draws into the native CPS-2 Recomp pixel presenter; no SDL2 or SDL_image dependency.
 #pragma once
@@ -403,7 +403,7 @@ public:
 
         Text(pixels, "A SELECT   B / ESC BACK", 489, 495, true, 1.375f, 235);
         Text(pixels, "ESC TO RETURN", 18, 522, true, 1.08f, 185, 0);
-        Text(pixels, "TEST 87.458", 942, 522, true, 1.08f, 185, 2);
+        Text(pixels, "TEST 87.459", 942, 522, true, 1.08f, 185, 2);
     }
 };
 

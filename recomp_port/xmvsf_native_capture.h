@@ -1,4 +1,4 @@
-// XMVSF 87.458: F6 native pixel capture for home/Options/arcade menus.
+// XMVSF 87.459: F6 snapshots go to repo-root/screenshots for every screen.
 #pragma once
 
 #include "png_write.h"
@@ -26,10 +26,29 @@ class NativeCapture {
     }
 
 public:
-    explicit NativeCapture(std::string folder) : folder_(std::move(folder)) {}
-    void Request() { requested_ = true; }
+    explicit NativeCapture(std::string folder) : folder_(std::move(folder)) {
+        // Show the fixed destination immediately; no F6 or hidden player
+        // folder is required just to establish where screenshots will be.
+        std::error_code error;
+        std::filesystem::path path = std::filesystem::absolute(
+            std::filesystem::u8path(folder_), error);
+        if (!error) {
+            folder_ = path.generic_string();
+            if (!folder_.empty() && folder_.back() != '/') folder_ += '/';
+        }
+        std::filesystem::create_directories(std::filesystem::u8path(folder_), error);
+        if (error) std::fprintf(stderr, "F6 screenshots: folder error: %s (%s)\n",
+                                folder_.c_str(), error.message().c_str());
+        else std::fprintf(stderr, "F6 screenshots folder: %s\n", folder_.c_str());
+        std::fflush(stderr);
+    }
+    void Request() {
+        requested_ = true;
+        std::fprintf(stderr, "F6 capture requested -> %s\n", folder_.c_str());
+        std::fflush(stderr);
+    }
     bool Pending() const { return requested_; }
-    void Consume() { requested_ = false; } // Native gameplay uses Port::Screenshot().
+    void Consume() { requested_ = false; }
 
     // Save exactly the given source pixels. Never include window scaling,
     // desktop chrome, presentation letterbox bars or shader output.
