@@ -48,6 +48,13 @@ def main() -> None:
         sample(87, 454), sample(87, 454), minimum=(87, 455)
     ))
 
+    # Legacy installer migrations may match one old version, but must never
+    # maintain a list of all later versions to skip migration.
+    textured_installer = (PORT / "apply_textured_menu.py").read_text(encoding="utf-8")
+    assert "if not any(label in home for label in" not in textured_installer, (
+        "renderer installer is pinned to an obsolete build version list"
+    )
+
     # AST inspection, not a fragile substring test: ban literal TEST N.N
     # constants anywhere in test Python code. Feature tests must use
     # require_matching_versions / require_minimum_version instead.
