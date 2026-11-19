@@ -1,4 +1,4 @@
-// XMVSF 87.456: 96px-separated X-Men / SF menu films with clean alpha masks.
+// XMVSF 87.457: 16px film gaps; contain-fit alpha bounds inside the trapezoid.
 #pragma once
 #include "xmvsf_home.h"
 #include <SDL3/SDL.h>
@@ -13,7 +13,7 @@
 namespace port::xmvsf_home {
 class MenuFilmStrips {
     static constexpr int kCanvasWidth = 960, kCanvasHeight = 540;
-    static constexpr int kMargin = 16, kGap = 96, kPortraitTop = 78;
+    static constexpr int kMargin = 16, kGap = 16, kPortraitTop = 78;
     static constexpr double kSpeedPixelsPerSecond = 10.0;
     struct Column {
         Image shape;
@@ -39,41 +39,85 @@ class MenuFilmStrips {
         return texture;
     }
 
-    // Mask only the portrait. Render the original red/blue film underneath
-    // as a separate texture so transparent character regions retain color.
-    // Film alpha is authoritative: no portrait pixel may escape the trapezoid.
-    // Art begins at y=78 in the absolute 260x453 source-image coordinates.
-    static Image MaskPortrait(const Image &film, const Image &portrait) {
+    // Find the widest full-width vertical band inside the *actual* film alpha.
+    // This avoids cropping heads against the trapezoid's sloped top/bottom.
+    // The 78px original top inset remains the minimum possible starting row.
+    static constexpr int kPortraitInset = 8;
+    static Rect SafePortraitArea(const Image &film) {
+        if (!film.Valid() || film.width <= 2 * kPortraitInset ||
+            film.height <= kPortraitTop + 2 * kPortraitInset) return {};
+        const int left = kPortraitInset;
+        const int right = film.width - kPortraitInset;
+        int runStart = -1, bestStart = -1, bestLength = 0;
+        for (int y = kPortraitTop; y <= film.height; ++y) {
+            bool fullWidth = y < film.height;
+            if (fullWidth) {
+                for (int x = left; x < right; ++x) {
+                    if ((film.pixels[size_t(y) * size_t(film.width) +
+                                     size_t(x)] >> 24) < 240u) {
+                        fullWidth = false;
+                        break;
+                    }
+                }
+            }
+            if (fullWidth && runStart < 0) runStart = y;
+            else if (!fullWidth && runStart >= 0) {
+                const int length = y - runStart;
+                if (length > bestLength) {
+                    bestStart = runStart;
+                    bestLength = length;
+                }
+                runStart = -1;
+            }
+        }
+        if (bestStart < 0 || bestLength <= 2 * kPortraitInset) return {};
+        const int top = std::max(kPortraitTop + kPortraitInset,
+                                 bestStart + kPortraitInset);
+        const int bottom = bestStart + bestLength - kPortraitInset;
+        return bottom > top ? Rect{left, top, right - left, bottom - top} : Rect{};
+    }
+
+    // Source alpha bounds remove transparent padding (rather than cropping
+    // the head with cover-scaling). Contain-fit the *whole opaque portrait*
+    // within the film's guaranteed-visible rectangle, then keep its RGBA
+    // and apply the original trapezoid alpha as an extra clipping mask.
+    static Image MaskPortrait(const Image &film, const Image &portrait,
+                              Rect safe) {
         Image out;
-        if (!film.Valid() || !portrait.Valid() || film.height <= kPortraitTop)
+        if (!film.Valid() || !portrait.Valid() || safe.w < 1 || safe.h < 1)
             return out;
-        const int w = film.width;
-        const int h = film.height;
-        const int areaH = h - kPortraitTop;
-        out.width = w;
-        out.height = h;
-        out.pixels.assign(size_t(w) * size_t(h), 0u);
-        const double scale = std::max(double(w) / portrait.width,
-                                      double(areaH) / portrait.height);
-        for (int y = kPortraitTop; y < h; ++y) {
-            const int sy = std::clamp(int(std::floor(
-                (double(y - kPortraitTop) + 0.5 - double(areaH) * 0.5) / scale +
-                double(portrait.height) * 0.5)), 0, portrait.height - 1);
-            for (int x = 0; x < w; ++x) {
-                const size_t at = size_t(y) * size_t(w) + size_t(x);
+        out.width = film.width;
+        out.height = film.height;
+        out.pixels.assign(size_t(out.width) * size_t(out.height), 0u);
+        const Rect visible = VisibleBounds(portrait);
+        if (visible.w < 1 || visible.h < 1) return out;
+
+        const double scale = std::min(double(safe.w) / double(visible.w),
+                                      double(safe.h) / double(visible.h));
+        const int drawW = std::clamp(int(std::floor(double(visible.w) * scale + 0.5)),
+                                    1, safe.w);
+        const int drawH = std::clamp(int(std::floor(double(visible.h) * scale + 0.5)),
+                                    1, safe.h);
+        const int dstX = safe.x + (safe.w - drawW) / 2;
+        const int dstY = safe.y + (safe.h - drawH) / 2;
+        for (int y = 0; y < drawH; ++y) {
+            const int sy = visible.y + std::clamp(
+                int(std::floor((double(y) + 0.5) / scale)), 0, visible.h - 1);
+            const int dy = dstY + y;
+            for (int x = 0; x < drawW; ++x) {
+                const int sx = visible.x + std::clamp(
+                    int(std::floor((double(x) + 0.5) / scale)), 0, visible.w - 1);
+                const int dx = dstX + x;
+                const size_t at = size_t(dy) * size_t(film.width) + size_t(dx);
                 const unsigned maskAlpha = film.pixels[at] >> 24;
                 if (maskAlpha == 0u) continue;
-                const int sx = std::clamp(int(std::floor(
-                    (double(x) + 0.5 - double(w) * 0.5) / scale +
-                    double(portrait.width) * 0.5)), 0, portrait.width - 1);
                 const uint32_t person = portrait.pixels[
                     size_t(sy) * size_t(portrait.width) + size_t(sx)];
                 const unsigned portraitAlpha = person >> 24;
                 if (portraitAlpha == 0u) continue;
                 const unsigned clippedAlpha =
                     (maskAlpha * portraitAlpha + 127u) / 255u;
-                // Image::pixels is packed 0xAABBGGRR. Preserve RGB exactly;
-                // manipulating channels as 0xAARRGGBB swaps red and blue.
+                // Image::pixels is 0xAABBGGRR, NOT 0xAARRGGBB.
                 out.pixels[at] = (person & 0x00ffffffu) |
                                  (uint32_t(clippedAlpha) << 24);
             }
@@ -86,33 +130,39 @@ class MenuFilmStrips {
         column.scrollDown = down;
         column.shape = LoadPng(shapeFile);
         if (!column.shape.Valid()) {
-            std::fprintf(stderr, "XMVSF 87.455 menu film missing or invalid: %s\n",
+            std::fprintf(stderr, "XMVSF 87.457 menu film missing or invalid: %s\n",
                          shapeFile);
             return;
         }
         column.x = down ? kMargin : kCanvasWidth - kMargin - column.shape.width;
         column.plain = Upload(renderer_, column.shape);
+        const Rect safe = SafePortraitArea(column.shape);
+        if (safe.w < 1 || safe.h < 1) {
+            std::fprintf(stderr, "XMVSF 87.457 portrait safe area unavailable: %s\n",
+                         shapeFile);
+            return;
+        }
         for (int i = 1; i <= 9; ++i) {
             const std::string filename = std::string("menu/characters/") +
                 prefix + " (" + std::to_string(i) + ").png";
             const Image person = LoadPng(filename.c_str());
             if (!person.Valid()) {
-                std::fprintf(stderr, "XMVSF 87.455 missing portrait: %s\n",
+                std::fprintf(stderr, "XMVSF 87.457 missing portrait: %s\n",
                              filename.c_str());
                 continue;
             }
-            SDL_Texture *texture = Upload(renderer_, MaskPortrait(column.shape, person));
+            SDL_Texture *texture = Upload(renderer_, MaskPortrait(column.shape, person, safe));
             if (texture) column.portraits.push_back(texture);
-            else std::fprintf(stderr, "XMVSF 87.455 portrait upload failed: %s\n",
+            else std::fprintf(stderr, "XMVSF 87.457 portrait upload failed: %s\n",
                               SDL_GetError());
         }
-        std::fprintf(stderr, "XMVSF 87.455 %s film: %zu portraits at x=%d\n",
+        std::fprintf(stderr, "XMVSF 87.457 %s film: %zu portraits at x=%d\n",
                      prefix, column.portraits.size(), column.x);
     }
 
     void DrawColumn(const Column &column, std::uint64_t now) const {
         if (!column.shape.Valid()) return;
-        // Positive gap, never an overlap: 453px film + 96px blank = 549px pitch.
+        // Match the 16px horizontal screen margin vertically: 453+16 = 469px pitch.
         const int step = column.shape.height + kGap;
         const double distance = double(now) * (kSpeedPixelsPerSecond / 1000.0);
         const std::int64_t cycles = std::int64_t(std::floor(distance / double(step)));
