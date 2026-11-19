@@ -48,10 +48,20 @@ def main():
         "owners.Refresh(gamepads, g_bindings, Table());", "", 1
     )
     assert patcher._finished_frontend(partial_fixture) is None
-    assert text.count(new_call) == 1, "expected exactly one native Options renderer"
+    # 87.458: offscreen capture uses the SAME clock value as the visible
+    # Options draw. Only the visible draw ends with owners); the F6
+    # snapshot invocation has owners, false); and is not a duplicate.
+    live_call = (
+        "                homeTextures.RenderOptions(presenter.Renderer(), menuTick,\n"
+        "                                           options, g_bindings, Table(), owners);"
+    )
+    assert text.count(live_call) == 1, "expected one visible native Options renderer"
+    assert text.count("options, g_bindings, Table(), owners, false);") == 1, (
+        "F6 capture must retain one separate Options no-present render"
+    )
     duplicate_suffix = "                                           options, g_bindings, Table(), gamepads);"
     already_elsewhere = text.count(duplicate_suffix)
-    synthetic = text.replace(new_call, old_call, 1)
+    synthetic = text.replace(live_call, old_call, 1)
     # The 87.444 release failed because it assumed the exact surrounding
     # "if (options.Active())" comment and nearby home-menu block. Deliberately
     # change that layout without changing the unique function call.
@@ -70,6 +80,7 @@ def main():
     assert total_suffixes >= 3
     repaired = patcher.patch(synthetic)
     assert repaired.count(new_call) == 1
+    assert repaired.count("options, g_bindings, Table(), owners, false);") == 1
     assert repaired.count(duplicate_suffix) == total_suffixes - 1
     assert patcher.patch(repaired) == repaired
     assert (PORT / "xmvsf_pad_owners.h").read_bytes() == SOURCE.read_bytes()

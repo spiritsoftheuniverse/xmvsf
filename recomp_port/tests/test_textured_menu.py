@@ -30,7 +30,11 @@ def main():
     home = first[PORT / "xmvsf_home.h"]
     tex = SOURCE.read_text(encoding="utf-8")
     assert "xmvsf_home::TexturedMenu homeTextures(home)" in front
-    assert "homeTextures.Render(presenter.Renderer(), SDL_GetTicks())" in front
+    # F6 captures and the visible menu use the same sampled clock; don't pin
+    # the test to the former inline SDL_GetTicks() argument.
+    assert "const uint64_t menuTick = SDL_GetTicks();" in front
+    assert "homeTextures.Render(presenter.Renderer(), menuTick)" in front
+    assert "homeTextures.Render(presenter.Renderer(), menuTick, false)" in front
     assert "presenter.UseClassicMenuCanvas(true)" in front
     assert 'SDL_CreateRenderer(window, "direct3d11")' in present
     assert "SDL_LOGICAL_PRESENTATION_LETTERBOX" in present

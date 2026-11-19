@@ -33,10 +33,15 @@ OWNER_INCLUDE = '#include "xmvsf_pad_owners.h" // XMVSF_RECOMP_PAD_OWNER_87_443'
 
 
 def _reconcile_render_call(code: str) -> str:
+    # Older menus sampled SDL_GetTicks() inline; F6 native capture now
+    # shares a single menuTick between the capture and visible frame.
+    # The offscreen call ends in ", false)" and must NOT count as the
+    # regular render invocation.
+    tick = r"(?:SDL_GetTicks\s*\(\s*\)|menuTick)"
     old = re.compile(
         r"(\bhomeTextures\s*\.\s*RenderOptions\s*\(\s*"
         r"presenter\s*\.\s*Renderer\s*\(\s*\)\s*,\s*"
-        r"SDL_GetTicks\s*\(\s*\)\s*,\s*"
+        tick + r"\s*,\s*"
         r"options\s*,\s*g_bindings\s*,\s*"
         r"Table\s*\(\s*\)\s*,\s*)"
         r"gamepads(\s*\)\s*;)"
@@ -44,7 +49,7 @@ def _reconcile_render_call(code: str) -> str:
     new = re.compile(
         r"\bhomeTextures\s*\.\s*RenderOptions\s*\(\s*"
         r"presenter\s*\.\s*Renderer\s*\(\s*\)\s*,\s*"
-        r"SDL_GetTicks\s*\(\s*\)\s*,\s*"
+        tick + r"\s*,\s*"
         r"options\s*,\s*g_bindings\s*,\s*"
         r"Table\s*\(\s*\)\s*,\s*owners\s*\)\s*;"
     )
