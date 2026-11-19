@@ -1,0 +1,661 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// Copyright (C) 2026 Tommy McLeroy. Part of cps2recomp.
+
+#include "romset.h"
+
+#include "kabuki.h"
+
+#include "cps2crypt.h"
+
+#include <zlib.h>
+
+#include <algorithm>
+#include <filesystem>
+
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <sstream>
+
+namespace cps2recomp {
+
+namespace {
+    // A path given as UTF-8 text, as every path here is (the launcher's, and the game's from its command line). Windows
+    // reads a narrow path in the system's code page instead, so a folder named with an accent (é, ã, ç) is opened by
+    // its wide name there (#223).
+    std::filesystem::path PathOf(const std::string &text) {
+#ifdef __cpp_char8_t
+        return std::filesystem::path(std::u8string(text.begin(), text.end()));
+#else
+        return std::filesystem::u8path(text);
+#endif
+    }
+    FILE *OpenRead(const std::string &path) {
+#ifdef _WIN32
+        return _wfopen(PathOf(path).wstring().c_str(), L"rb");
+#else
+        return fopen(path.c_str(), "rb");
+#endif
+    }
+
+    RomFile ParseFile(const std::string &item) {
+        const size_t colon = item.find(':');
+        RomFile file;
+        file.name = item.substr(0, colon);
+        if (colon != std::string::npos) {
+            char *end;
+            file.crc = static_cast<uint32_t>(strtoul(item.c_str() + colon + 1, &end, 16));
+            file.highFirst = strcmp(end, "/be") == 0;
+        }
+        return file;
+    }
+
+    // "name:crc name:crc ...", where a word may join several files with '+' (RomFile::parts)
+    std::vector<RomFile> ParseFiles(const char *text) {
+        std::vector<RomFile> files;
+        std::istringstream in(text);
+        std::string item;
+        while (in >> item) {
+            if (item.find('+') == std::string::npos) {
+                files.push_back(ParseFile(item));
+                continue;
+            }
+            RomFile joined;
+            for (size_t at = 0; at <= item.size();) {
+                const size_t plus = std::min(item.find('+', at), item.size());
+                joined.parts.push_back(ParseFile(item.substr(at, plus - at)));
+                at = plus + 1;
+            }
+            joined.name = joined.parts[0].name;
+            files.push_back(joined);
+        }
+        return files;
+    }
+
+    bool ReadWhole(const std::string &path, std::vector<uint8_t> &data) {
+        FILE *f = OpenRead(path);
+        if (!f) {
+            return false;
+        }
+        fseek(f, 0, SEEK_END);
+        const long size = ftell(f);
+        fseek(f, 0, SEEK_SET);
+        data.resize(size > 0 ? static_cast<size_t>(size) : 0);
+        const size_t got = fread(data.data(), 1, data.size(), f);
+        fclose(f);
+        return got == data.size();
+    }
+
+    // A zip file: its list of files, and one of them unpacked
+    struct Zip {
+        struct Entry {
+            std::string name;
+            uint32_t crc = 0, packed = 0, size = 0, offset = 0;
+            uint16_t method = 0;
+        };
+        std::string path;
+        std::vector<Entry> entries;
+
+        static uint32_t Le32(const uint8_t *p) {
+            return p[0] | (p[1] << 8) | (p[2] << 16) | (static_cast<uint32_t>(p[3]) << 24);
+        }
+        static uint16_t Le16(const uint8_t *p) {
+            return static_cast<uint16_t>(p[0] | (p[1] << 8));
+        }
+        bool Open(const std::string &file) {
+            path = file;
+            FILE *f = OpenRead(file);
+            if (!f) {
+                return false;
+            }
+            // The directory is at the end, after a record that says where
+            fseek(f, 0, SEEK_END);
+            const long size = ftell(f);
+            const long tailSize = std::min<long>(size, 65536 + 22);
+            std::vector<uint8_t> tail(static_cast<size_t>(tailSize));
+            fseek(f, size - tailSize, SEEK_SET);
+            bool ok = fread(tail.data(), 1, tail.size(), f) == tail.size();
+            long end = -1;
+            for (long at = tailSize - 22; ok && at >= 0; at--) {
+                if (Le32(&tail[at]) == 0x06054B50) {
+                    end = at;
+                    break;
+                }
+            }
+            if (end < 0) {
+                fclose(f);
+                return false;
+            }
+            const uint32_t count = Le16(&tail[end + 10]), dirSize = Le32(&tail[end + 12]), dirAt = Le32(&tail[end + 16]);
+            std::vector<uint8_t> dir(dirSize);
+            fseek(f, dirAt, SEEK_SET);
+            ok = fread(dir.data(), 1, dir.size(), f) == dir.size();
+            fclose(f);
+            size_t at = 0;
+            for (uint32_t n = 0; ok && n < count && at + 46 <= dir.size() && Le32(&dir[at]) == 0x02014B50; n++) {
+                Entry e;
+                e.method = Le16(&dir[at + 10]);
+                e.crc = Le32(&dir[at + 16]);
+                e.packed = Le32(&dir[at + 20]);
+                e.size = Le32(&dir[at + 24]);
+                e.offset = Le32(&dir[at + 42]);
+                const size_t nameLen = Le16(&dir[at + 28]);
+                if (at + 46 + nameLen > dir.size()) {
+                    break;
+                }
+                e.name.assign(reinterpret_cast<const char *>(&dir[at + 46]), nameLen);
+                entries.push_back(e);
+                at += 46 + nameLen + Le16(&dir[at + 30]) + Le16(&dir[at + 32]);
+            }
+            return ok;
+        }
+        bool Read(const Entry &e, std::vector<uint8_t> &data) const {
+            FILE *f = OpenRead(path);
+            if (!f) {
+                return false;
+            }
+            uint8_t local[30];
+            fseek(f, e.offset, SEEK_SET);
+            bool ok = fread(local, 1, 30, f) == 30 && Le32(local) == 0x04034B50;
+            std::vector<uint8_t> packed(e.packed);
+            if (ok) {
+                fseek(f, e.offset + 30 + Le16(&local[26]) + Le16(&local[28]), SEEK_SET);
+                ok = fread(packed.data(), 1, packed.size(), f) == packed.size();
+            }
+            fclose(f);
+            if (!ok) {
+                return false;
+            }
+            if (e.method == 0) {
+                data = std::move(packed);
+                return data.size() == e.size;
+            }
+            if (e.method != 8) {
+                return false;
+            }
+            data.resize(e.size);
+            z_stream z = {};
+            if (inflateInit2(&z, -MAX_WBITS) != Z_OK) {
+                return false;
+            }
+            z.next_in = packed.data();
+            z.avail_in = static_cast<uInt>(packed.size());
+            z.next_out = data.data();
+            z.avail_out = static_cast<uInt>(data.size());
+            const int result = inflate(&z, Z_FINISH);
+            inflateEnd(&z);
+            return result == Z_STREAM_END && z.total_out == e.size;
+        }
+    };
+
+    // Where the set's files are looked for: zips first (by checksum), then loose files in a folder (by name)
+    struct Places {
+        std::vector<Zip> zips;
+        std::string folder;
+    };
+
+    bool ReadFile(const Places &places, const RomFile &file, std::vector<uint8_t> &data, std::string &error) {
+        for (const Zip &zip : places.zips) {
+            for (const Zip::Entry &e : zip.entries) {
+                const size_t slash = e.name.find_last_of('/');
+                const std::string base = slash == std::string::npos ? e.name : e.name.substr(slash + 1);
+                if (file.crc ? e.crc == file.crc : base == file.name) {
+                    if (zip.Read(e, data) &&
+                        (!file.crc || static_cast<uint32_t>(crc32(0, data.data(), static_cast<uInt>(data.size()))) == file.crc)) {
+                        return true;
+                    }
+                    error = "could not unpack " + e.name + " from " + zip.path;
+                    return false;
+                }
+            }
+        }
+        if (places.folder.empty()) {
+            char crc[16];
+            snprintf(crc, sizeof(crc), "%08x", file.crc);
+            error = "the set has no " + file.name + (file.crc ? std::string(" (CRC32 ") + crc + ")" : std::string()) +
+                    " (it may be in the parent set's zip, which should be beside this one)";
+            return false;
+        }
+        const std::string path = places.folder + "/" + file.name;
+        if (!ReadWhole(path, data)) {
+            error = "missing file: " + path;
+            return false;
+        }
+        const uint32_t crc = static_cast<uint32_t>(crc32(0, data.data(), static_cast<uInt>(data.size())));
+        if (file.crc && crc != file.crc) {
+            char text[160];
+            snprintf(text, sizeof(text), "%s is not the file this port is made from (CRC32 %08x, expected %08x)",
+                     file.name.c_str(), crc, file.crc);
+            error = text;
+            return false;
+        }
+        return true;
+    }
+
+    // The graphics ROMs' address lines are wired in a shuffled order; this undoes it for one bank
+    // (the same recursive swap as MAME's cps2 driver)
+    void Unshuffle(uint64_t *buf, size_t len) {
+        if (len == 2) {
+            return;
+        }
+        len /= 2;
+        Unshuffle(buf, len);
+        Unshuffle(buf + len, len);
+        for (size_t i = 0; i < len / 2; i++) {
+            const uint64_t t = buf[len / 2 + i];
+            buf[len / 2 + i] = buf[len + i];
+            buf[len + i] = t;
+        }
+    }
+
+    // The key file: ten 16-bit words, bit-reversed and rotated (as MAME reads it)
+    bool DecodeKey(const std::vector<uint8_t> &file, RomSet &set) {
+        if (file.size() < 20) {
+            return false;
+        }
+        uint16_t decoded[10] = {};
+        for (int b = 0; b < 10 * 16; b++) {
+            const int bit = (317 - b) % 160;
+            if ((file[bit / 8] >> ((bit ^ 7) % 8)) & 1) {
+                decoded[b / 16] |= (0x8000 >> (b % 16));
+            }
+        }
+        set.key[0] = (static_cast<uint32_t>(decoded[0]) << 16) | decoded[1];
+        set.key[1] = (static_cast<uint32_t>(decoded[2]) << 16) | decoded[3];
+        set.encryptedEnd = (((~decoded[9] & 0x3FFu) << 14) | 0x3FFF) + 1;
+        return true;
+    }
+} // namespace
+
+bool MakeGfxTable(const Board &board, GfxTable &table) {
+    table.on = false;
+    if (board.gfxMap.empty()) {
+        return true;
+    }
+    for (const GfxRange &range : board.gfxMap) {
+        if (range.start % GfxTable::kStep || (range.end + 1) % GfxTable::kStep || range.end / GfxTable::kStep >= GfxTable::kEntries) {
+            return false;
+        }
+    }
+    static const uint8_t kKinds[4] = {GfxRange::kObjects, GfxRange::kScroll1, GfxRange::kScroll2, GfxRange::kScroll3};
+    for (int kind = 0; kind < 4; kind++) {
+        for (uint32_t entry = 0; entry < GfxTable::kEntries; entry++) {
+            table.base[kind][entry] = -1;
+            table.mask[kind][entry] = 0;
+            const uint32_t unit = entry * GfxTable::kStep;
+            // (the first range that has it, as the board model's MapTile takes it)
+            for (const GfxRange &range : board.gfxMap) {
+                if ((range.kinds & kKinds[kind]) && unit >= range.start && unit <= range.end) {
+                    uint32_t base = 0;
+                    for (unsigned b = 0; b < range.bank; b++) {
+                        base += board.gfxBanks[b];
+                    }
+                    table.base[kind][entry] = static_cast<int32_t>(base);
+                    table.mask[kind][entry] = board.gfxBanks[range.bank] - 1;
+                    break;
+                }
+            }
+        }
+    }
+    table.on = true;
+    return true;
+}
+
+bool ParseGfxMap(const char *text, Board &board) {
+    board.gfxMap.clear();
+    std::fill(std::begin(board.gfxBanks), std::end(board.gfxBanks), 0u);
+    std::istringstream words(text);
+    std::string word;
+    unsigned banks = 0;
+    while (words >> word && word != "|") {
+        if (banks == 4) {
+            return false;
+        }
+        board.gfxBanks[banks++] = static_cast<uint32_t>(strtoul(word.c_str(), nullptr, 16));
+    }
+    while (words >> word) {
+        GfxRange range;
+        unsigned long start, end, bank;
+        char kind[16];
+        if (sscanf(word.c_str(), "%15[a-z0-9]:%lx-%lx:%lu", kind, &start, &end, &bank) != 4 || bank >= banks || end < start) {
+            return false;
+        }
+        const std::string name = kind;
+        range.kinds = name == "objects" ? GfxRange::kObjects
+                      : name == "scroll1" ? GfxRange::kScroll1
+                      : name == "scroll2" ? GfxRange::kScroll2
+                      : name == "scroll3" ? GfxRange::kScroll3
+                                          : 0;
+        if (!range.kinds) {
+            return false;
+        }
+        range.start = static_cast<uint32_t>(start);
+        range.end = static_cast<uint32_t>(end);
+        range.bank = static_cast<unsigned>(bank);
+        board.gfxMap.push_back(range);
+    }
+    return true;
+}
+
+RomList ParseRomList(const char *program, const char *graphics, const char *soundProgram, const char *samples,
+                     const char *key, const char *set, const char *parent, const char *board, const char *cpsB, const char *others) {
+    RomList list;
+    {
+        // ("cps1", or "cps1-classic": a CPS-1 with no QSound; and "pairs=N" after it: Board::programPairs)
+        std::istringstream words(board);
+        std::string word;
+        words >> word;
+        list.board.cps1 = word == "cps1" || word == "cps1-classic";
+        list.board.qsound = word != "cps1-classic";
+        while (words >> word) {
+            if (word.rfind("pairs=", 0) == 0) {
+                list.board.programPairs = atoi(word.c_str() + 6);
+            }
+        }
+    }
+    if (list.board.cps1) {
+        // (cps_b: layer control, four priority masks, palette control, three enable bits; hex bytes; and, for a chip
+        // with an ID register, its offset and value)
+        unsigned values[11];
+        int count = 0;
+        for (const char *at = cpsB; *at && count < 11;) {
+            char *end;
+            const unsigned long value = strtoul(at, &end, 16);
+            if (end == at) {
+                break;
+            }
+            values[count++] = static_cast<unsigned>(value);
+            at = end;
+        }
+        if (count == 11) {
+            list.board.idRegister = static_cast<uint8_t>(values[9]);
+            list.board.idValue = static_cast<uint16_t>(values[10]);
+        }
+        if (count >= 9) {
+            list.board.layerControl = static_cast<uint8_t>(values[0]);
+            for (int n = 0; n < 4; n++) {
+                list.board.priority[n] = static_cast<uint8_t>(values[1 + n]);
+            }
+            list.board.paletteControl = static_cast<uint8_t>(values[5]);
+            for (int n = 0; n < 3; n++) {
+                list.board.enable[n] = static_cast<uint8_t>(values[6 + n]);
+            }
+        }
+    }
+    list.set = set;
+    list.parent = parent;
+    list.program = ParseFiles(program);
+    if (graphics[0] == '@') {
+        char *end;
+        list.graphicsBase = strtoul(graphics + 1, &end, 16);
+        graphics = end;
+    }
+    list.graphics = ParseFiles(graphics);
+    list.soundProgram = ParseFiles(soundProgram);
+    list.samples = ParseFiles(samples);
+    list.key = ParseFiles(key);
+    // (others: "set | name | program | key", " || " between two)
+    const std::string all = others ? others : "";
+    for (size_t at = 0; at < all.size();) {
+        const size_t end = std::min(all.find(" || ", at), all.size());
+        std::vector<std::string> parts;
+        for (size_t from = at; from <= end;) {
+            const size_t bar = std::min(all.find('|', from), end);
+            std::string part = all.substr(from, bar - from);
+            part.erase(0, part.find_first_not_of(' '));
+            part.erase(part.find_last_not_of(' ') + 1);
+            parts.push_back(part);
+            from = bar + 1;
+        }
+        if (parts.size() == 4 && !parts[0].empty()) {
+            list.others.push_back({parts[0], parts[1], ParseFiles(parts[2].c_str()), ParseFiles(parts[3].c_str())});
+        }
+        at = end + 4;
+    }
+    return list;
+}
+
+bool LoadRomSet(const std::string &path, const RomList &list, RomSet &set, std::string &error) {
+    std::vector<uint8_t> data;
+    Places folder;
+    {
+        std::error_code missing;
+        const std::filesystem::file_status info = std::filesystem::status(PathOf(path), missing);
+        if (missing || !std::filesystem::exists(info)) {
+            error = "there is no " + path;
+            return false;
+        }
+        std::vector<std::string> zips;
+        std::string beside;
+        if (std::filesystem::is_directory(info)) {
+            folder.folder = path;
+            beside = path;
+        } else {
+            zips.push_back(path);
+            const size_t slash = path.find_last_of("/\\");
+            beside = slash == std::string::npos ? "." : path.substr(0, slash);
+        }
+        std::vector<std::string> names = {list.set, list.parent};
+        for (const RomList::Other &other : list.others) {
+            names.push_back(other.set);
+        }
+        for (const std::string &name : names) {
+            if (!name.empty() && beside + "/" + name + ".zip" != path) {
+                zips.push_back(beside + "/" + name + ".zip");
+            }
+        }
+        for (size_t n = 0; n < zips.size(); n++) {
+            Zip zip;
+            if (zip.Open(zips[n])) {
+                folder.zips.push_back(std::move(zip));
+            } else if (n == 0 && folder.folder.empty()) {
+                error = path + " is not a zip file";
+                return false;
+            }
+        }
+    }
+
+    // Program: the files hold each 16-bit word low byte first; the set's own, else one of its others' (the first
+    // whose files are all there), with its key
+    auto readProgram = [&](const std::vector<RomFile> &program, const std::vector<RomFile> &key, std::string &why) {
+        set.program.clear();
+        for (size_t n = 0; n < program.size(); n++) {
+            if (!program[n].parts.empty()) {
+                why = "game.cfg: the program's files are not joined with '+' (a pair of byte-wide files: board's pairs=N)";
+                return false;
+            }
+            if (!ReadFile(folder, program[n], data, why)) {
+                return false;
+            }
+            if (static_cast<int>(n) < 2 * list.board.programPairs) {
+                // (a pair: this file's bytes are the words' even ones, the next file's the odd ones)
+                std::vector<uint8_t> odd;
+                if (n + 1 >= program.size() || !ReadFile(folder, program[n + 1], odd, why)) {
+                    return false;
+                }
+                for (size_t i = 0; i < data.size() && i < odd.size(); i++) {
+                    set.program.push_back(data[i]);
+                    set.program.push_back(odd[i]);
+                }
+                n++;
+                continue;
+            }
+            for (size_t i = 0; i + 1 < data.size(); i += 2) {
+                set.program.push_back(data[program[n].highFirst ? i : i + 1]);
+                set.program.push_back(data[program[n].highFirst ? i + 1 : i]);
+            }
+        }
+
+        if (list.board.cps1) {
+            return true;
+        }
+        if (key.empty() || !ReadFile(folder, key[0], data, why) || !DecodeKey(data, set)) {
+            if (why.empty()) {
+                why = "the key file is not a CPS-2 key";
+            }
+            return false;
+        }
+        return true;
+    };
+    // (the set the zip or folder chosen is named for comes first: mvscj.zip is that set, even with the set's own zip
+    // beside it, which a collection of split sets keeps the files they share in)
+    std::string chosen = path;
+    while (!chosen.empty() && (chosen.back() == '/' || chosen.back() == '\\')) {
+        chosen.pop_back();
+    }
+    chosen = chosen.substr(chosen.find_last_of("/\\") + 1);
+    if (chosen.size() > 4 && chosen.compare(chosen.size() - 4, 4, ".zip") == 0) {
+        chosen.resize(chosen.size() - 4);
+    }
+    std::vector<const RomList::Other *> order;
+    for (const RomList::Other &other : list.others) {
+        if (other.set == chosen) {
+            order.insert(order.begin(), &other);
+        } else {
+            order.push_back(&other);
+        }
+    }
+    auto take = [&](const RomList::Other &other) {
+        std::string why;
+        if (!readProgram(other.program, other.key, why)) {
+            return false;
+        }
+        set.set = other.set;
+        set.name = other.name;
+        return true;
+    };
+    set.set = list.set;
+    if (order.empty() || order[0]->set != chosen || !take(*order[0])) {
+        if (!readProgram(list.program, list.key, error)) {
+            if (std::none_of(order.begin(), order.end(), [&](const RomList::Other *other) { return take(*other); })) {
+                return false; // (what was missing of the set's own)
+            }
+            error.clear();
+        }
+    }
+
+    set.board = list.board;
+    if (list.board.cps1) {
+        set.opcodes = set.program; // (a CPS-1's program is not enciphered)
+    }
+    if (!list.board.cps1) {
+        const size_t words = set.program.size() / 2;
+        std::vector<uint16_t> in(words), out(words);
+        for (size_t i = 0; i < words; i++) {
+            in[i] = static_cast<uint16_t>((set.program[i * 2] << 8) | set.program[i * 2 + 1]);
+        }
+        DecryptProgram(in.data(), out.data(), words, set.key, 0, set.encryptedEnd / 2);
+        set.opcodes.resize(set.program.size());
+        for (size_t i = 0; i < words; i++) {
+            set.opcodes[i * 2] = static_cast<uint8_t>(out[i] >> 8);
+            set.opcodes[i * 2 + 1] = static_cast<uint8_t>(out[i]);
+        }
+    }
+
+    // Graphics: four files side by side make 64-bit words, two bytes from each; or eight joined files, one byte from
+    // each
+    set.graphics.assign(list.graphicsBase, 0);
+    for (size_t group = 0; group < list.graphics.size();) {
+        if (!list.graphics[group].parts.empty()) {
+            const std::vector<RomFile> &parts = list.graphics[group].parts;
+            if (parts.size() != 8) {
+                error = "game.cfg: the graphics join files only in eights";
+                return false;
+            }
+            std::vector<uint8_t> files[8];
+            for (int n = 0; n < 8; n++) {
+                if (!ReadFile(folder, parts[n], files[n], error)) {
+                    return false;
+                }
+                if (files[n].size() != files[0].size()) {
+                    error = "graphics files of different sizes";
+                    return false;
+                }
+            }
+            const size_t base = set.graphics.size();
+            set.graphics.resize(base + files[0].size() * 8);
+            for (size_t i = 0; i < files[0].size(); i++) {
+                for (int n = 0; n < 8; n++) {
+                    set.graphics[base + i * 8 + n] = files[n][i];
+                }
+            }
+            group++;
+            continue;
+        }
+        if (group + 3 >= list.graphics.size()) {
+            break; // (as before: a group of four not finished is left out)
+        }
+        for (size_t n = 1; n < 4; n++) {
+            if (!list.graphics[group + n].parts.empty()) {
+                error = "game.cfg: eight joined graphics files in the middle of a group of four";
+                return false;
+            }
+        }
+        std::vector<uint8_t> files[4];
+        for (int n = 0; n < 4; n++) {
+            if (!ReadFile(folder, list.graphics[group + n], files[n], error)) {
+                return false;
+            }
+            if (files[n].size() != files[0].size()) {
+                error = "graphics files of different sizes";
+                return false;
+            }
+        }
+        const size_t base = set.graphics.size();
+        set.graphics.resize(base + files[0].size() * 4);
+        for (size_t i = 0; i + 1 < files[0].size(); i += 2) {
+            for (int n = 0; n < 4; n++) {
+                set.graphics[base + i * 4 + n * 2] = files[n][i];
+                set.graphics[base + i * 4 + n * 2 + 1] = files[n][i + 1];
+            }
+        }
+        group += 4;
+    }
+    if (!list.board.cps1) { // (a CPS-2's graphics ROMs have their tiles in another order)
+        const size_t bank = 0x200000;
+        std::vector<uint64_t> words(bank / 8);
+        for (size_t at = 0; at + bank <= set.graphics.size(); at += bank) {
+            memcpy(words.data(), &set.graphics[at], bank);
+            Unshuffle(words.data(), bank / 8);
+            memcpy(&set.graphics[at], words.data(), bank);
+        }
+    }
+
+    set.soundProgram.clear();
+    for (const RomFile &file : list.soundProgram) {
+        if (!ReadFile(folder, file, data, error)) {
+            return false;
+        }
+        set.soundProgram.insert(set.soundProgram.end(), data.begin(), data.end());
+    }
+
+    // A CPS-1's sound program is enciphered (Kabuki): its key is worked out from the program itself (kabuki.h). The
+    // classic CPS-1's is not
+    set.soundOpcodes.clear();
+    if (list.board.cps1 && list.board.qsound) {
+        KabukiKey kabuki;
+        if (set.soundProgram.size() < 0x8000 || !FindKabukiKey(set.soundProgram.data(), set.soundProgram.size(), kabuki)) {
+            error = "the sound program's cipher could not be worked out (is it the right ROM set?)";
+            return false;
+        }
+        set.soundOpcodes.resize(0x8000);
+        std::vector<uint8_t> plain(0x8000);
+        KabukiDecode(set.soundProgram.data(), 0x8000, kabuki, set.soundOpcodes.data(), plain.data());
+        std::copy(plain.begin(), plain.end(), set.soundProgram.begin());
+    }
+
+    // Samples: on a CPS-2, 16-bit words low byte first, like the program; on a CPS-1, bytes as they are
+    set.samples.clear();
+    for (const RomFile &file : list.samples) {
+        if (!ReadFile(folder, file, data, error)) {
+            return false;
+        }
+        for (size_t i = 0; i + 1 < data.size(); i += 2) {
+            set.samples.push_back(data[list.board.cps1 ? i : i + 1]);
+            set.samples.push_back(data[list.board.cps1 ? i + 1 : i]);
+        }
+    }
+    return true;
+}
+
+} // namespace cps2recomp

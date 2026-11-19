@@ -1,0 +1,29 @@
+__pycache__/
+.DS_Store
+build/
+/work
+# never commit game data or anything derived from it
+rom/
+*.zip
+*.key
+*.state
+state*.bin
+frame_data.csv
+
+@'
+/build/
+/work/
+/rom/
+/screenshots/
+/*.exe
+/*.dll
+/*.log
+*.obj
+*.o
+*.a
+*.pdb
+*.ilk
+__pycache__/
+'@ | Set-Content -Encoding ascii "F:\xmvsf-recomp\recomp\.gitignore"
+/test/
+/.github/

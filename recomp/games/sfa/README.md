@@ -1,0 +1,220 @@
+# Street Fighter Alpha Recomp
+
+> Part of **[CPS-2 Recomp](../../README.md)**: one download and one launcher for every CPS-2 game this
+> project has ported. This page is about Street Fighter Alpha; the [main page](../../README.md) says how to
+> download and play.
+
+An unofficial native PC port of the arcade game *Street Fighter Alpha: Warriors' Dreams* (Capcom, 1995, CPS-2
+board) for macOS, Linux (Steam Deck included) and Windows, made by static recompilation.
+
+It has everything the other fighting games here have: a full **training mode** (hit boxes, frame data and a frame
+meter, input display, combo and stun readouts, a dummy that records, replays and guards), the **alternative modes**
+(attract mode, the stage and model viewers, survival, endless battle, ring out), **widescreen**, **custom colours**
+with a colour editor, the **hidden characters** with no code, and the features every game shares: free play, straight
+to the title, the board's operator settings, cheats, save states, run-ahead, arcade timing, a custom soundtrack.
+
+> **Beta.** The game plays from start to ending and its code is checked instruction by instruction, but it has
+> been played on few machines and controllers yet. Expect rough edges, and please
+> [report what you find](#feedback-and-contributing).
+
+**No game files are included.** You need your own copy of the game: the arcade ROM set `sfa` (Europe, 950727)
+with its key file, from a board you own. **Only the sets named below work.** This project cannot help you get one.
+
+This project is not affiliated with, endorsed by, or sponsored by Capcom. *Street Fighter* is a trademark of
+Capcom Co., Ltd.
+
+![The title screen](../../docs/screenshots/sfa/title.png)
+
+![Ryu's fireball against Sagat, at the reclining Buddha](../../docs/screenshots/sfa/fight.png)
+
+![Training mode: hit boxes, frame data and the frame meter, the input display, the combo and stun readouts](../../docs/screenshots/sfa/training.png)
+
+## What it is
+
+The game's 68000 program is translated ahead of time into C++ and compiled into the port, and so is its sound
+CPU's (Capcom's sound driver 1.05A). The routines widescreen changes (the camera's place and keeping the players inside
+the picture) are rewritten by hand as readable C++, each checked call by call against the game's own code. What the
+program expects of the board (its video, the QSound chip, the sound
+CPU and its registers, the settings memory) is code written for this project, not an emulator. Every translated
+block is checked against an interpreter of the same program ([how it was made](PROGRESS.md)).
+
+- Plays with a keyboard, a gamepad or an arcade stick; every key and button can be changed, for each player, in the
+  launcher. Two more can be given a key or a button: all three punches at once, and all three kicks. In the collection
+  it can have a layout of its own, apart from the other games'.
+- An in-game menu (Esc or `F1`; on a gamepad, the left stick's click or Start and Select together) with the
+  training mode and the other modes, save states, speed (1/8 to 8x), the cheats,
+  every feature, and a Reset all options row.
+- **Zoom**: hold the left stick's click and press the left shoulder to zoom in on player 1's fighter, the right
+  shoulder for player 2's (keyboard: hold Left Shift and press Q or E). Each press for the same player goes a size
+  up, 1.25x, 1.5x, 1.75x and 2x (the model viewer's sizes: at 2x the top of a tall fighter is off the screen), then
+  back to the whole picture; a press for the other player looks at that one instead. The fighter is kept in the
+  middle all the while (past the stage's ends is black); with the click (or Left Shift) still held, the d-pad or
+  the stick (the arrows) moves the camera to frame it as you like, until the zoom is off or looks at the other fighter. The size eases from one
+  to the next, it is said at the bottom for a few seconds, and outside a fight the picture is whole again. The
+  game's own health bars are zoomed with it; the port's own text (a mode's score, the training display) is not.
+  With the left stick's click held, the right stick's click (keyboard: Left Shift and W) keeps **both fighters** in
+  the picture instead: the camera as close as shows both whole, tight when they are close and wide when they are
+  apart (2x at most, the whole picture at least), kept inside the stage; again for the whole picture. The left
+  stick's click alone still opens the menu, when it is let go.
+- **Rapid fire** (Game page): a button held down is pressed again and again, fifteen times a second, for the first
+  button or for all of them; the first press is seen at once.
+- **Pure** plays exactly as the board does. **Enhanced** (the default) adds free play and your own
+  [character colours](#custom-colours). Every other feature is a switch of its own.
+- **Straight to the title** (Game page): at a start or a reset, everything before the title (the board's start,
+  the warning, the notices and the introduction) runs unseen; with a coin in or free play, the picture comes back
+  with the title that asks for Start.
+- The board's operator settings (difficulty, damage level, timer speed, game speed, rounds and the rest) on the
+  Board page (launcher's Features, in-game menu), each as the board is set unless you choose; or the game's own
+  test menu from the in-game menu.
+- Cheats: no damage (each player), one-hit knockouts, infinite time.
+- **Hidden characters** (Game page): Akuma, M. Bison and Dan with no code. Hold Start as you choose Ryu for Akuma,
+  Sagat for M. Bison, or Ken for Dan; the button still chooses the colours.
+- **Arcade timing** (Game page, off unless chosen): the processor run as on the arcade board, so the game slows
+  down where and as much as the board does. [More →](../../docs/TIMING.md)
+- **Run-ahead** (Game page): what you press seen a frame or two sooner than on the board, with the game running
+  exactly as without it.
+- **A custom soundtrack**: your own music in place of the board's, with the board's sound effects and voices: a
+  folder of music plays as a playlist (in order or shuffled), or files named for the game's songs replace those
+  songs. The `songs.txt` the game writes in the soundtrack folder names the music: each character's theme, the
+  introduction, player select, versus, the winner's, a new challenger, continue, every ending, the staff rolls, game
+  over and the ranking.
+  [How →](../../docs/SOUNDTRACK.md)
+- Your ROM set is only ever read. Settings, save states and the board's settings memory go in your own user folder, or beside the launcher in [portable mode](../../docs/LAUNCHER.md#portable-mode).
+
+## Training mode
+
+"Alternative modes" at the top of the in-game menu has a Training mode page: Start goes straight to the character
+choice with two players (player 1's controls choose for both) and into a fight with no clock that nobody loses, and
+the page holds the aids below.
+
+| Feature | What it does |
+| --- | --- |
+| Hit boxes | The boxes the game itself tests: where a player can be hit (blue), attacks (red; orange for things thrown), pushing boxes (green) |
+| Frame data and frame meter | Startup, active and recovery of each move and the advantage after a hit or a guarded hit, counted in the game's own steps; a row of cells for each player, one a step; optionally every move written to `frame_data.csv` beside the settings |
+| Input display | What each player presses and for how long, in numpad notation from the player's side |
+| Combo readout | Hits and damage of a combo, the round's best |
+| Stun readout | How much stun each player has built up, against how much stuns them |
+| Health and gauge refills | Health comes back when a player has not been hit for a moment; both super combo gauges kept full |
+| The dummy | Stands, crouches, jumps; guards (always, after a hit, at random); records and replays in three slots (one, or any at random), and can answer with a recording after guarding or being hit |
+| Start over | The round as it began, in the middle or a corner, sides swapped or not (Backspace, or a gamepad's left shoulder) |
+| Stage | Any of the thirteen stages, or the game's own choice |
+| Stop, step, slow | Stop the game, go on a frame at a time, or play at a half, a quarter or an eighth of the speed |
+
+Ryu's standing jab, for one: startup 4, active 4, recovery 5.
+
+## Alternative modes
+
+The in-game menu's first row, "Alternative modes", has ways of playing and watching the game that the board does not
+have. Each has a page with a Start row and its own choices, and runs until another is started or the menu's Reset game.
+
+| Mode | What it does |
+| --- | --- |
+| Training mode | A fight with no clock that nobody loses, and the aids above |
+| Attract mode | The game's own show on a loop: everything, the introduction only (without its fights), or one demonstration fight after another |
+| Stage viewer | Any of the thirteen stages with nobody on it and no panel, scrolled with the stick or by itself, with any tune; "Infinite" scrolls through every stage in turn |
+| Model viewer | One character by itself, on a stage or on plain white or black, from a quarter of its size to 25 times. It stands and moves with your controls, or goes through any of its animations (named A0, B12, C3... as the game's own lists number them; left and right step through them), over and over or all of them one after another (Play all), at full speed or in slow motion |
+| Colour editor | Change a character's colours while you watch: [custom colours](#custom-colours) |
+| Survival | One computer opponent after another on the health you have left. How many can you beat? |
+| Endless battle | Two fighters the game plays, for as long as you like, with no clock, on one stage, on stages that fade one into another, or on a floor that scrolls through them all. Touch the controls to take a fighter over |
+| Ring out | No knock-outs. Knock your opponent over the end of the stage (it is thrown into the air, as by a knock-down, and falls through the floor), then jump down after it and land on the next stage |
+| Ball battle | A ball game. A line splits the stage and each fighter keeps to a half; hit the big ball with your attacks (harder attacks send it faster, and where you strike it decides the angle: under it for a lob, over it for a spike) past the other fighter and off their end for a point. Three hits in a row make a power shot; the ball makes whoever it hits reel or fall unless they block, and the fighters can hit each other too (nobody loses health). First to 3, 5 or 10, against the CPU (easy, medium or hard) or player 2; the whole court in a 16:9 frame, or a camera that follows the play ([more](../../docs/COURT.md)) |
+
+## Widescreen
+
+![Widescreen: Ryu and Ken at the night market (Ken's stage), more of the stage on each side](../../docs/screenshots/sfa/widescreen.png)
+
+A switch on the launcher's first page, under "Full screen" (and on the in-game menu's Display page). Fights are shown
+and played in 16:9: the picture is 512 columns wide where the board's is 384, at the same height and with everything
+the same size, so there is a third more of the stage in view.
+
+It is **off unless you switch it on**, in every preset, because it changes how the game plays:
+
+- The players can go to the wide picture's edges, so they can stand further apart than on the board. The stage's own
+  ends are where they were.
+- The camera stops 64 short of where it did, so that the picture ends where the stage does.
+- The bars and the gauges stay in the middle. Everything that is not a fight keeps the board's 4:3.
+
+With it off the game is exactly the board's. Nothing here stretches the picture: the extra columns are the game's own
+stage art, which the board already holds and never showed, and on all thirteen stages they are painted to the camera's
+ends.
+
+**Invisible walls**, on the Display page, keeps the 16:9 picture and plays the game exactly as the board does: the
+players are stopped where the board's picture ends, by walls that are not seen, and the camera goes as far as the
+board's. Near a stage's end the view stays on the stage, so the play area is then to one side of the wide picture. The
+game's memory is the same as with widescreen off, frame for frame (`make GAME=sfa check-widescreen` compares it along
+the ladder).
+
+## Custom colours
+
+Give any character colours of your own: change them in the game's colour editor (Alternative modes), or bring files
+someone else made.
+
+- **The colour editor** shows the character with a panel at the right, worked with player 1's controls: the
+  character, background, size and animation; the **set** (by the button that chooses the character: a punch (P) or a
+  kick (K)); the **line** (the character's own colours, or one of seven lines for its effects); each colour's red,
+  green and blue; random colours; saving a set to the character's library and loading it into any set. Changes show
+  at once and are saved as you go. To play in them, choose the character with the button of the set you changed.
+- **Files**: `palettes/<Character>.txt` in the game's data folder (one section a set, a line of 16 colours a
+  palette), or a `sfz.06` changed with PalMod. "Write the game's colours" writes the game's own to start from.
+
+## The board's settings
+
+The Board page has the nine settings of the test menu's Configuration, each "As the board is set" unless chosen.
+A choice is what the test menu would have set; the board's settings memory itself is not changed, and the test
+menu shows the board's own values.
+
+| Setting | Choices | The board's own (a new board) |
+| --- | --- | --- |
+| Difficulty | Easy, Normal, Hard 1 to 5, Expert | Normal |
+| Damage level | Low, Normal, High, Maximum | Normal |
+| Timer speed | Slow, Normal, Fast, Fastest | Normal |
+| Game speed | Normal, Turbo 1, Turbo 2, Free select | Free select |
+| Max round | 1, 3 or 5 rounds | 3 rounds |
+| Event | Off, one match (and no continue) | Off |
+| Automatic | Off, Free select (the automatic guard) | Off |
+| Continue | Off, On | On |
+| Demo sound | Off, On | On |
+
+## What you need
+
+- The ROM set `sfa` (*Street Fighter Alpha: Warriors' Dreams*, Europe 950727): `sfa.zip` or a folder with the set's
+  files, including `sfa.key`. The launcher checks every file by checksum and tells you which is missing or different.
+  The same release's other sets work too, each as the board plays in its region: `sfzbr1` (Brazil 950727). Other
+  revisions are refused: the port is made from this program, and its features use addresses found in it.
+- One of: macOS 13 or later (Apple silicon or Intel); Linux x86_64 or SteamOS; Windows 10 or 11, 64-bit.
+- A gamepad or stick with six buttons is recommended (and one more for Start, for the hidden characters).
+
+## Playing
+
+Street Fighter Alpha comes with [CPS-2 Recomp](../../README.md#getting-started): open its launcher and show it your ROM set
+(drop `sfa.zip` or its folder on the window, or choose the folder you keep your sets in), then press **Play**
+beside Street Fighter Alpha. From a terminal, `cps2recomp-launcher --play sfa` starts it straight away; the game's
+own program (`sfa`, beside the launcher) runs by itself too: `sfa --help` lists what it takes.
+
+While playing, Esc or `F1` (on a gamepad, the left stick's click, or Start and Select together) opens the in-game
+menu. Only the menu's "Quit game" row (or closing the window) ends the game.
+
+## Building from source
+
+With your own ROM set in `rom/sfa/` (ignored by Git), CMake, Ninja, SDL 3 and Python 3,
+from the repository's top:
+
+```sh
+make GAME=sfa            # twice the first time
+make GAME=sfa explore    # once, about six minutes: finds the game's code by made-up play and translates it
+make GAME=sfa run
+make GAME=sfa check FRAMES=40000 MOVIE=games/sfa/movies/ladder.txt
+```
+
+[docs/BUILDING.md](../../docs/BUILDING.md) has every platform, the checks and the release builds, and
+[PROGRESS.md](PROGRESS.md) what was found about the game and what is next.
+
+## Feedback and contributing
+
+Bug reports and pull requests are welcome: see [CONTRIBUTING.md](../../CONTRIBUTING.md) for the rules (above all:
+nothing from the game, ever).
+
+## License and credits
+
+GPL-3.0-only (see [LICENSE](../../LICENSE)); [THIRD_PARTY_NOTICES.md](../../THIRD_PARTY_NOTICES.md) lists what comes
+from other projects. The repository holds no game data and nothing derived from it.

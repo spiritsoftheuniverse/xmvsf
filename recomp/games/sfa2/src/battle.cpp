@@ -1,0 +1,117 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// Copyright (C) 2026 Tommy McLeroy
+//
+// Street Fighter Alpha 2: the fighting modes of the menu's "Alternative modes" page (survival, the endless battle,
+// the ring out) are the toolkit's (fight/battle.h); this says where the game keeps what they need.
+#include "battle.h"
+#include "modes.h"
+
+#include "all_guests.h"
+
+#include <iterator>
+
+namespace cps2recomp {
+
+bool AttackInRange(M68K &c, uint32_t player); // guard.cpp
+bool CanTag(int player); // livetag.cpp
+void TagIn(int player, int character, int colours);
+bool TaggedIn(int player);
+void TagDifficulty(int level);
+void TagOffStage(int player, bool off);
+void TagUntouchable(int player);
+uint16_t TagCall(int character);
+
+namespace {
+    using namespace sfa2;
+
+    // The characters fought with and against: the eighteen (the other forms of six of them are left to the
+    // menu's own choices)
+    constexpr int kFighters = kStages;
+    constexpr uint32_t kCameraX = At(0xFF8290), kCameraY = At(0xFF8294);
+    constexpr uint32_t kHalfWidth = 0x12A, kPlayersIn = At(0xFF80A8), kSpeedUp = 0x44;
+    constexpr int kPlayerRecords = 4;
+
+    // The panel and the stage's pieces: everything but the fighters
+    bool NotTheFighters(uint32_t tile, uint16_t attributes) {
+        const unsigned set = attributes & 0x1F;
+        return ThePanel(tile, attributes) || set >= 27 || set < 11;
+    }
+} // namespace
+
+void RegisterBattle() {
+    battle::Description d;
+    d.result = At(0xFF810C);
+    d.cameraX = kCameraX;
+    d.cameraY = kCameraY;
+    d.player1 = kPlayer1;
+    d.playerSize = kPlayerSize;
+    d.playerRecords = kPlayerRecords;
+    d.thrown = kThrown;
+    d.thrownSize = kThrownSize;
+    d.thrownRecords = kThrownRecords;
+    d.active = kActive;
+    d.x = kX;
+    d.y = kY;
+    d.character = kCharacter;
+    d.colours = kColourChoice;
+    d.random = At(0xFF80AE); // (01975A)
+    d.randomNext = battle::CapcomRandomNext;
+    d.computer = kComputer;
+    d.control = kControl;
+    d.controlOwn = kControlOwn;
+    d.halfWidth = kHalfWidth;
+    d.health = kHealth;
+    d.healthCeiling = kHealthShown;
+    d.healthFull = kHealthFull;
+    d.healthBack = 0x18; // (a sixth of it all)
+    d.ceilingShown = true;
+    d.stages = kStages;
+    d.stageToRound = 2000; // (about 1,900, and a few)
+    d.characterSpan = kFighters;
+    d.choosable = [](int) { return true; };
+    d.rosterNumber = [](int choice) { return choice >= 1 && choice <= kFighters ? choice - 1 : -1; };
+    d.fighterChoices = {"Random"};
+    d.fighterChoices.insert(d.fighterChoices.end(), std::begin(kCharacterNames), std::begin(kCharacterNames) + kFighters);
+    d.tuneOff = kTuneOff;
+    d.inGame = [] { return Ram16(kMode) == 2; };
+    d.choosing = [] { return Ram16(kMode) == 2 && Ram16(kGameStep) == kGameChoosing && Ram8(kPlayersIn) == 3; };
+    d.toRound = [](Machine &machine, int32_t &frames, bool choose) { return ToRound(machine, frames, choose); };
+    d.playSound = PlaySound;
+    d.wanted = Wanted;
+    d.cameraAt = CameraAt;
+    d.endModes = EndModes;
+    d.stageViewer = StageViewer;
+    d.wideSide = WideSide;
+    d.wideMargin = WideMargin;
+    d.wideEnds = WideEnds;
+    d.notTheStage = NotTheStage;
+    d.thePanel = ThePanel;
+    d.notTheFighters = NotTheFighters;
+    // (the players' own objects are in their colour sets: +0D, player 1's from 16, player 2's from 11, five each)
+    d.playerSets = [](int n) { return 0x1Fu << (Ram8(Player(n) + kColourSet) & 0x1F); };
+    d.inAir = [](uint32_t player) { return Ram8(player + kInAir) != 0; };
+    d.atJumpTop = [](uint32_t player) { return Ram8(player + kInAir) && static_cast<int32_t>(Ram32(player + kSpeedUp)) <= 0; };
+    d.teams = true;
+    d.teamLinesY = 0.19f; // (under the bars and the names)
+    // (no entrances: a team battle's fighters begin ready, livetag.cpp's TagEntrance; one health bar is all the game has)
+    d.difficulty = TagDifficulty;
+    d.attackComing = [](Machine &machine, int side) { return AttackInRange(machine.cpu, Player(side)); };
+    d.computerPlaysModes = true; // (the game's computer plays the tag style and the ring out itself: the modes' tactics, computer.cpp)
+    d.difficultyNow = [] { return static_cast<int>(Ram8(At(0xFF80BE))); }; // (the game's copy of the board's, taken as a game begins)
+    d.canTag = CanTag;
+    d.tagIn = TagIn;
+    d.taggedIn = TaggedIn;
+    d.offStage = TagOffStage;
+    d.untouchable = TagUntouchable;
+    d.tagCall = TagCall;
+    d.downSound = 0x00A8; // (the announcer's at a knock-out: queued a few frames after every one seen)
+    d.speedX = 0x40;
+    d.speedY = kSpeedUp;
+    d.floor = kGround;
+    d.meter = kSpecialGauge; // (the super combo gauge, which the setting up leaves as it was)
+    d.meterSize = 2;
+    battle::Register(d);
+    battle::RegisterTeamTag(0.25f);
+}
+
+} // namespace cps2recomp

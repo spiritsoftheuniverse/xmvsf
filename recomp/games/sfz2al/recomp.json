@@ -1,0 +1,14 @@
+{
+  "$schema": "https://recomp.fyi/schema/v1.json",
+  "game": "Street Fighter Zero 2 Alpha",
+  "system": "Arcade",
+  "type": "recomp",
+  "original": {"region": "Asia", "revision": "960826"},
+  "project": "Street Fighter Zero 2 Alpha Recomp",
+  "status": "beta",
+  "targets": ["Windows", "Linux", "macOS", "Steam Deck"],
+  "toolchain": "cps2recomp",
+  "approach": "Static recompilation of the CPS-2 board's 68000 and Z80 programs to C++, on its own CPS-2 machine with no emulator; built from Street Fighter Alpha 2's readable sources",
+  "maintainers": [{"name": "tmcleroy", "link": "https://github.com/tmcleroy"}],
+  "tags": ["CPS-2", "fighting", "training mode"]
+}

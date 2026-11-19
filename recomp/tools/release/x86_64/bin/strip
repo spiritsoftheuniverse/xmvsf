@@ -1,0 +1,4 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-3.0-only
+# Copyright (C) 2026 Tommy McLeroy. Part of cps2recomp.
+exec x86_64-linux-gnu-strip "$@"

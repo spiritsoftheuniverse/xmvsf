@@ -1,0 +1,6 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-3.0-only
+# Copyright (C) 2026 Tommy McLeroy. Part of cps2recomp.
+#
+# The processor to build for: x86_64 (the compiler itself runs on arm64).
+/usr/bin/uname "$@" | sed "s/aarch64/x86_64/g"

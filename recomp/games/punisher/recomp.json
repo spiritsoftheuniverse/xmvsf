@@ -1,0 +1,14 @@
+{
+  "$schema": "https://recomp.fyi/schema/v1.json",
+  "game": "The Punisher",
+  "system": "Arcade",
+  "type": "recomp",
+  "original": {"region": "USA", "revision": "930422"},
+  "project": "The Punisher Recomp",
+  "status": "beta",
+  "targets": ["Windows", "Linux", "macOS", "Steam Deck"],
+  "toolchain": "cps2recomp",
+  "approach": "Static recompilation of the CPS-1 board's 68000 and Z80 programs to C++, on its own CPS-1 machine with no emulator",
+  "maintainers": [{"name": "tmcleroy", "link": "https://github.com/tmcleroy"}],
+  "tags": ["CPS-1", "beat-'em-up", "QSound"]
+}

@@ -1,0 +1,13 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-3.0-only
+# Copyright (C) 2026 Tommy McLeroy. Part of cps2recomp.
+#
+# cargo for x86_64 Linux (CARGO_BUILD_TARGET): a build also copies its libraries to <target dir>/release/, where a
+# build for the system it runs on puts them (tools/librashader.sh takes them from there).
+/usr/bin/cargo "$@" || exit $?
+case " $* " in *" build "*)
+    d=${CARGO_TARGET_DIR:-target}
+    if [ -d "$d/$CARGO_BUILD_TARGET/release" ]; then
+        mkdir -p "$d/release" && find "$d/$CARGO_BUILD_TARGET/release" -maxdepth 1 -type f -name "*.so" -exec cp -p {} "$d/release/" \;
+    fi ;;
+esac

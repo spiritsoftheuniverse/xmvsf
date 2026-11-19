@@ -1,0 +1,10 @@
+# cps2recomp input movie: frame player1 player2 (pressed bits, hex)
+# a training session (Start from the menu): player 1 chooses for both, then walks to the left end and then the right
+0 0000 0000
+1200 0010 0000
+1206 0000 0000
+1300 0010 0000
+1306 0000 0000
+2100 0002 0000
+2700 0001 0000
+3900 0000 0000

@@ -1,0 +1,632 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Scene Diorama</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<!--
+  SPDX-License-Identifier: GPL-3.0-only
+  Copyright (C) 2026 Tommy McLeroy. Part of cps2recomp.
+
+  The scene diorama (issue #380): a scene, a clip or a whole stage saved by the game (docs/FEATURES.md, Scene export;
+  docs/MODES.md, Stage viewer) shown as cut-outs at their own depths, to turn, pull apart and photograph. Open the
+  saved folder (or drop it on the page); nothing leaves the browser. Served over http it also takes ?src=<folder URL>.
+
+  Depth: each layer is put further back and made larger by as much, so that from the front (Game view) the picture is
+  the game's exactly, at any spread. A whole stage's layers go back by their parallax pace (stage.json): a layer that
+  moves at p of the camera's pace sits where a real one would, 1/p - 1 of the camera's distance behind the front.
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: the picture fills the window; a side panel of controls (a sheet at the bottom on a phone); a timeline for clips. */
+:root {
+  --ground: #0f1119;      /* the viewing room */
+  --panel: #171a25;
+  --panel-raised: #20243300;
+  --line: #2b3042;
+  --ink: #e8e4da;
+  --ink-soft: #9ea3b5;
+  --marquee: #f2b134;     /* the cabinet marquee's yellow: the one accent */
+  --marquee-ink: #1a1405;
+  --cool: #79a7d9;        /* scroll screens' tag */
+  --warm: #e08a6b;        /* objects' tag */
+  --display: "Chakra Petch", "Arial Narrow", system-ui, sans-serif;
+  --body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { height: 100%; }
+body { margin: 0; background: var(--ground); color: var(--ink); font: 14px/1.45 var(--body); overflow: hidden; }
+#stage { position: fixed; inset: 0; }
+#stage canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+
+#panel {
+  position: fixed; top: 0; bottom: 0; left: 0; width: 300px; z-index: 5;
+  background: var(--panel); border-right: 1px solid var(--line);
+  padding-block: calc(14px + env(safe-area-inset-top, 0px)) calc(14px + env(safe-area-inset-bottom, 0px));
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: 16px;
+  overflow-y: auto; display: flex; flex-direction: column; gap: 18px;
+}
+body.no-ui #panel, body.no-ui #timeline, body.no-ui #hint { display: none; }
+h1 { font: 700 20px/1.1 var(--display); letter-spacing: 0.04em; text-transform: uppercase; margin: 0; }
+h1 span { color: var(--marquee); }
+.sub { color: var(--ink-soft); font-size: 12.5px; margin: 4px 0 0; }
+h2 { font: 600 11.5px/1 var(--display); letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-soft); margin: 0 0 8px; }
+section { display: flex; flex-direction: column; gap: 8px; }
+
+button, select, .file {
+  font: 500 13px var(--body); color: var(--ink); background: #232838; border: 1px solid var(--line);
+  border-radius: 6px; padding: 7px 10px; cursor: pointer;
+}
+button:hover, .file:hover { border-color: #46506c; }
+button:focus-visible, select:focus-visible, input:focus-visible, .file:focus-within { outline: 2px solid var(--marquee); outline-offset: 2px; }
+button.primary, .file { background: var(--marquee); color: var(--marquee-ink); border-color: var(--marquee); font-weight: 600; }
+.file { display: inline-flex; justify-content: center; position: relative; }
+.file input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.row > * { flex: 1 1 auto; }
+select { width: 100%; }
+
+label.slider { display: grid; grid-template-columns: 1fr auto; gap: 2px 8px; font-size: 13px; }
+label.slider input { grid-column: 1 / -1; width: 100%; accent-color: var(--marquee); }
+label.slider output { font: 12px var(--mono); color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+label.check { display: flex; gap: 8px; align-items: center; font-size: 13px; cursor: pointer; }
+label.check input { accent-color: var(--marquee); }
+
+#layers { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+#layers li { display: grid; grid-template-columns: auto 1fr auto; gap: 8px; align-items: center; padding: 5px 6px; border-radius: 5px; }
+#layers li:hover { background: #1f2331; }
+#layers li.off .name { color: var(--ink-soft); text-decoration: line-through; }
+#layers .name { font: 13px var(--mono); min-width: 0; overflow-wrap: anywhere; cursor: pointer; }
+#layers .tag { font: 11px var(--mono); padding: 1px 6px; border-radius: 3px; color: var(--ground); }
+#layers .tag.scroll { background: var(--cool); }
+#layers .tag.objects { background: var(--warm); }
+#layers .solo { padding: 2px 6px; font-size: 11px; }
+.meta { font: 12px var(--mono); color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+
+#timeline {
+  position: fixed; left: 300px; right: 0; bottom: 0; z-index: 4;
+  display: flex; gap: 10px; align-items: center;
+  padding-block: 10px calc(10px + env(safe-area-inset-bottom, 0px));
+  padding-left: 16px; padding-right: max(16px, env(safe-area-inset-right, 0px));
+  background: linear-gradient(to top, rgba(15,17,25,0.94), rgba(15,17,25,0));
+}
+#timeline input[type=range] { flex: 1; accent-color: var(--marquee); min-width: 0; }
+#timeline select, #timeline button { width: auto; flex: 0 0 auto; }
+#timeline .meta { min-width: 9ch; text-align: right; }
+
+#hint {
+  position: fixed; top: calc(12px + env(safe-area-inset-top, 0px)); right: max(16px, env(safe-area-inset-right, 0px)); z-index: 4;
+  font: 12px var(--mono); color: var(--ink-soft); background: rgba(23,26,37,0.85); border: 1px solid var(--line);
+  padding: 6px 10px; border-radius: 6px; max-width: 46ch;
+}
+#scan { position: fixed; inset: 0; z-index: 2; pointer-events: none;
+  background: repeating-linear-gradient(to bottom, transparent 0 2px, rgba(0,0,0,0.32) 2px 3px); }
+#drop { position: fixed; inset: 0; z-index: 20; display: grid; place-items: center; background: rgba(15,17,25,0.85);
+  border: 3px dashed var(--marquee); font: 600 22px var(--display); letter-spacing: 0.06em; text-transform: uppercase; }
+#empty { position: fixed; inset: 0 0 0 300px; display: grid; place-items: center; text-align: center; padding: 24px; color: var(--ink-soft); }
+#empty p { max-width: 44ch; margin: 6px auto; }
+#empty strong { color: var(--ink); font: 600 18px var(--display); letter-spacing: 0.05em; text-transform: uppercase; }
+#progress { font: 12px var(--mono); color: var(--marquee); }
+
+#shot { position: fixed; inset: 0; z-index: 30; background: rgba(8,9,14,0.92); display: grid; place-items: center; padding: 24px; }
+#shot figure { margin: 0; display: flex; flex-direction: column; gap: 10px; align-items: center; max-width: 100%; max-height: 100%; }
+#shot img { max-width: 100%; max-height: calc(100vh - 140px); image-rendering: pixelated; border: 1px solid var(--line); }
+#shot figcaption { color: var(--ink-soft); font-size: 13px; text-align: center; }
+
+@media (max-width: 720px) {
+  #panel { top: auto; width: auto; right: 0; max-height: 46%; border-right: 0; border-top: 1px solid var(--line);
+    padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+  #timeline { left: 0; bottom: 46%; }
+  #empty { inset: 0 0 46% 0; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+</head>
+<body>
+<div id="stage"></div>
+
+<aside id="panel" aria-label="Diorama controls">
+  <header>
+    <h1>Scene <span>Diorama</span></h1>
+    <p class="sub">A saved scene, clip or whole stage as cut-outs at their own depths.</p>
+  </header>
+
+  <section>
+    <label class="file" for="pick">Open a saved folder…<input id="pick" type="file" webkitdirectory directory multiple></label>
+    <select id="which" hidden aria-label="Saved scene to show"></select>
+    <div id="progress" role="status"></div>
+    <div class="meta" id="about"></div>
+  </section>
+
+  <section>
+    <h2>Depth</h2>
+    <label class="slider">Spread <output id="spreadOut">1.00</output>
+      <input id="spread" type="range" min="0" max="3" step="0.01" value="1"></label>
+    <label class="check" id="paceRow" hidden><input id="byPace" type="checkbox" checked> By parallax pace (whole stage)</label>
+    <button id="truePace" hidden title="Spread 1: from Game view, moving across the stage shows the game's own parallax">Game's parallax</button>
+    <label class="slider" id="panRow" hidden>Camera across the stage <output id="panOut">0</output>
+      <input id="pan" type="range" min="-1" max="1" step="0.001" value="0"></label>
+  </section>
+
+  <section>
+    <h2>Layers <span class="meta">back to front</span></h2>
+    <ul id="layers"></ul>
+  </section>
+
+  <section>
+    <h2>Look</h2>
+    <label class="slider">Shadows <output id="shadowOut">0.35</output>
+      <input id="shadow" type="range" min="0" max="0.9" step="0.01" value="0.35"></label>
+    <label class="slider">Haze on far layers <output id="hazeOut">0.00</output>
+      <input id="haze" type="range" min="0" max="1" step="0.01" value="0"></label>
+    <label class="check"><input id="backdrop" type="checkbox" checked> The board's backdrop colour behind</label>
+    <label class="check"><input id="crt" type="checkbox"> Scanlines</label>
+  </section>
+
+  <section>
+    <h2>Camera</h2>
+    <div class="row">
+      <button id="viewGame" title="F">Game view</button>
+      <button id="viewAngle">Three-quarter</button>
+      <button id="viewSide">Side</button>
+    </div>
+    <label class="check"><input id="spin" type="checkbox"> Turn slowly</label>
+  </section>
+
+  <section>
+    <h2>Photo</h2>
+    <div class="row">
+      <select id="shotSize" aria-label="Photo size"><option value="1">1x window</option><option value="2" selected>2x</option><option value="4">4x</option></select>
+      <button class="primary" id="takeShot">Take photo</button>
+    </div>
+    <button id="hideUi" title="H">Hide controls (H)</button>
+  </section>
+
+  <p class="meta">Drag to turn, right-drag or two fingers to move, wheel or pinch to zoom.
+    Space plays a clip; ← → step a frame.</p>
+</aside>
+
+<div id="timeline" hidden>
+  <button id="play" aria-label="Play">▶</button>
+  <input id="frame" type="range" min="1" max="1" value="1" aria-label="Frame">
+  <select id="rate" aria-label="Speed"><option value="1">1x</option><option value="0.5">½x</option><option value="0.25">¼x</option><option value="0.0625">1/16x</option></select>
+  <span class="meta" id="frameOut">1 / 1</span>
+</div>
+
+<div id="empty">
+  <div>
+    <strong>Open a scene</strong>
+    <p>In the game, Shift+F12 saves a scene and Ctrl+F12 a clip (Game › Scene export); the Stage viewer's
+      Save whole stage saves a stage. Open the folder it made in <code>exports/scenes</code> or <code>exports/stages</code>, or drop it here.</p>
+  </div>
+</div>
+<div id="scan" hidden></div>
+<div id="hint" hidden></div>
+<div id="drop" hidden>Drop the saved folder</div>
+<div id="shot" hidden><figure><img id="shotImg" alt="Photo of the diorama"><figcaption>Right-click or long-press the picture to save it. <button id="shotClose">Close</button></figcaption></figure></div>
+
+<script>window.addEventListener('error', (e) => { const p = document.getElementById('progress'); if (p) p.textContent = 'Error: ' + e.message; });
+window.addEventListener('unhandledrejection', (e) => { const p = document.getElementById('progress'); if (p) p.textContent = 'Error: ' + (e.reason && e.reason.message || e.reason); });</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+const $ = (id) => document.getElementById(id);
+const FOV = 30;
+
+// ---------- the renderer ----------
+const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+$('stage').appendChild(renderer.domElement);
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(FOV, 1, 1, 100000);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.12;
+const root = new THREE.Group();
+scene.add(root);
+const roomColour = new THREE.Color('#0f1119');
+scene.background = roomColour;
+
+// ---------- what is shown ----------
+let doc = null;        // the scene.json / stage.json
+let kind = 'scene';    // scene | clip | stage
+let layers = [];       // { info, mesh, shadow, textures[] (a clip's, per frame), on }
+let frames = 1, frameAt = 0, playing = false, playClock = 0;
+let backdropMesh = null;
+let panAt = 0; // (the camera moved across the stage, Camera across the stage)
+let W = 384, H = 224, D = 1;  // the picture's size, and the camera's distance in Game view
+
+// The camera's distance in Game view: as far as shows all of the picture in the window. Every layer is placed for an
+// eye there (layout), so the window's shape changing places them again.
+// (the part of the window the panel leaves: the picture is centred and fitted there, Free)
+function free() {
+  const w = window.innerWidth, h = window.innerHeight;
+  if (document.body.classList.contains('no-ui')) return { w, h, x: 0, y: 0 };
+  const panel = $('panel').getBoundingClientRect();
+  if (w > 720) return { w: w - panel.width, h, x: panel.width / 2, y: 0 };
+  return { w, h: h - panel.height, x: 0, y: -panel.height / 2 };
+}
+function gameDistance() {
+  const t = Math.tan(THREE.MathUtils.degToRad(FOV / 2));
+  const f = free(), w = window.innerWidth, h = window.innerHeight;
+  return Math.max((H / 2) / t * (h / f.h), (W / 2) / (t * (w / h)) * (w / f.w)) * 1.04;
+}
+
+// Where layer n goes back, before the spread: by its pace (a whole stage's), else evenly
+function baseDepth(n) {
+  const info = layers[n].info;
+  if (kind === 'stage' && $('byPace').checked && typeof info.pace === 'number') {
+    const pace = Math.max(0.05, Math.min(1, info.pace));
+    return D * (1 / pace - 1);
+  }
+  const step = Math.max(W, H) * 0.12;
+  return (layers.length - 1 - n) * step;
+}
+
+function layout() {
+  const spread = Number($('spread').value);
+  D = gameDistance();
+  let farthest = 0;
+  layers.forEach((l, n) => {
+    const depth = baseDepth(n) * spread;
+    const grow = (D + depth) / D;           // as much larger as it is further: the front view stays the game's
+    const info = l.info;
+    // its rectangle in the picture (a stage's layers have their own place; the rest fill it), about the middle
+    const x = (info.x ?? 0) + (info.width ?? W) / 2 - W / 2;
+    const y = H / 2 - ((info.y ?? 0) + (info.height ?? H) / 2);
+    l.mesh.position.set(x * grow, y * grow, -depth);
+    l.mesh.scale.set(grow, grow, 1);
+    l.shadow.position.set(x * grow + 3 * grow, y * grow - 3 * grow, -depth - 0.5 - spread * 2);
+    l.shadow.scale.set(grow, grow, 1);
+    farthest = Math.max(farthest, depth);
+  });
+  if (backdropMesh) {
+    const depth = farthest + Math.max(W, H) * 0.08 * Math.max(spread, 0.02) + 2;
+    const grow = (D + depth) / D;
+    backdropMesh.position.set(0, 0, -depth);
+    backdropMesh.scale.set(W * grow * 1.002, H * grow * 1.002, 1);
+    backdropMesh.visible = $('backdrop').checked;
+  }
+  const haze = Number($('haze').value);
+  scene.fog = haze > 0 ? new THREE.Fog(roomColour, D, D + (farthest + 1) * (1.05 - haze) * 2.2) : null;
+  $('spreadOut').value = spread.toFixed(2);
+  $('hazeOut').value = haze.toFixed(2);
+}
+
+function applyLook() {
+  const shadow = Number($('shadow').value);
+  layers.forEach((l, n) => {
+    l.shadow.material.opacity = shadow;
+    l.shadow.visible = l.on && shadow > 0 && n > 0;
+    l.mesh.visible = l.on;
+  });
+  $('scan').hidden = !$('crt').checked;
+  $('shadowOut').value = shadow.toFixed(2);
+}
+
+function texture(image) {
+  const t = new THREE.Texture(image);
+  t.magFilter = THREE.NearestFilter;
+  t.minFilter = THREE.NearestFilter;
+  t.generateMipmaps = false;
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.needsUpdate = true;
+  return t;
+}
+const blank = (() => { const c = document.createElement('canvas'); c.width = c.height = 1; return texture(c); })();
+
+function clear() {
+  for (const l of layers) {
+    l.mesh.geometry.dispose(); l.mesh.material.dispose(); l.shadow.material.dispose();
+    for (const t of l.textures) if (t !== blank) t.dispose();
+  }
+  root.clear();
+  layers = [];
+  backdropMesh = null;
+}
+
+// ---------- reading a saved folder ----------
+// A source gives a file of the folder by its path in it: a picked or dropped folder's files, or a URL's
+function filesSource(files) {
+  const byPath = new Map();
+  for (const f of files) byPath.set((f.webkitRelativePath || f.relPath || f.name).replace(/\\/g, '/'), f);
+  // the saved scenes in it: each scene.json / stage.json, by its folder
+  const found = [...byPath.keys()].filter((p) => /(^|\/)(scene|stage)\.json$/.test(p)).sort();
+  return found.map((jsonPath) => {
+    const dir = jsonPath.slice(0, jsonPath.lastIndexOf('/') + 1);
+    return {
+      name: dir.replace(/\/$/, '').split('/').pop() || jsonPath,
+      json: jsonPath.split('/').pop(),
+      get: async (rel) => { const f = byPath.get(dir + rel); return f ? f : null; },
+    };
+  });
+}
+function urlSource(base) {
+  if (!base.endsWith('/')) base += '/';
+  return {
+    name: decodeURIComponent(base.replace(/\/$/, '').split('/').pop()),
+    json: null,
+    get: async (rel) => { const r = await fetch(base + rel.split('/').map(encodeURIComponent).join('/')); return r.ok ? r.blob() : null; },
+  };
+}
+function sampleSource(sample) {
+  return { name: sample.name, json: sample.json, get: async (rel) => {
+    const uri = sample.files[rel]; if (!uri) return null;
+    const comma = uri.indexOf(','), bytes = atob(uri.slice(comma + 1)), out = new Uint8Array(bytes.length);
+    for (let i = 0; i < bytes.length; i++) out[i] = bytes.charCodeAt(i);
+    return new Blob([out], { type: uri.slice(5, uri.indexOf(';')) });
+  } };
+}
+
+async function bitmap(blob) { return blob ? createImageBitmap(blob, { imageOrientation: 'flipY', premultiplyAlpha: 'none' }) : null; }
+
+let sources = [];
+let loading = false; // (nothing drawn meanwhile: the pictures load sooner)
+async function show(source) {
+  loading = true;
+  try { await open(source); } finally { loading = false; }
+}
+async function open(source) {
+  $('progress').textContent = 'Opening…';
+  let jsonBlob = null, jsonName = source.json;
+  for (const name of jsonName ? [jsonName] : ['scene.json', 'stage.json']) {
+    jsonBlob = await source.get(name);
+    if (jsonBlob) { jsonName = name; break; }
+  }
+  if (!jsonBlob) { $('progress').textContent = 'No scene.json or stage.json in that folder.'; return; }
+  doc = JSON.parse(await jsonBlob.text());
+  kind = doc.kind === 'stage' ? 'stage' : doc.kind === 'clip' ? 'clip' : 'scene';
+  W = doc.width; H = doc.height; D = gameDistance();
+  clear();
+  playing = false; frameAt = 0;
+  const list = (doc.layers || []).filter((l) => kind === 'clip' ? l.folder : l.file);
+  frames = kind === 'clip' ? doc.frames : 1;
+  // a clip's frames: which layers each has
+  const has = kind === 'clip' ? (doc.frameList || []).map((f) => new Set(f.layers)) : null;
+  // every layer's pictures (a clip's, every frame's), eight at a time
+  let loaded = 0; const total = list.length * frames;
+  const all = list.map(() => new Array(frames).fill(blank));
+  const jobs = [];
+  list.forEach((info, k) => { for (let n = 1; n <= frames; n++) {
+    if (kind !== 'clip' || (has && has[n - 1] && has[n - 1].has(info.name))) {
+      jobs.push({ k, n, rel: kind === 'clip' ? `${info.folder}/${String(n).padStart(4, '0')}.png` : info.file });
+    } else loaded++;
+  } });
+  let next = 0;
+  await Promise.all(Array.from({ length: 8 }, async () => {
+    while (next < jobs.length) {
+      const job = jobs[next++];
+      const bm = await bitmap(await source.get(job.rel));
+      if (bm) all[job.k][job.n - 1] = texture(bm);
+      if (++loaded % 12 === 0 || loaded === total) $('progress').textContent = `Loading ${loaded} / ${total}`;
+    }
+  }));
+  for (const [k, info] of list.entries()) {
+    const textures = all[k];
+    const w = info.width ?? W, h = info.height ?? H;
+    const geo = new THREE.PlaneGeometry(w, h);
+    const mat = new THREE.MeshBasicMaterial({ map: textures[0], alphaTest: 0.5, side: THREE.DoubleSide });
+    const mesh = new THREE.Mesh(geo, mat);
+    const shadowMat = new THREE.MeshBasicMaterial({ map: textures[0], color: 0x000000, transparent: true, opacity: 0.35, depthWrite: false, side: THREE.DoubleSide });
+    const shadow = new THREE.Mesh(geo, shadowMat);
+    root.add(shadow); root.add(mesh);
+    layers.push({ info, mesh, shadow, textures, on: true });
+  }
+  // the board's backdrop
+  const backdrop = new THREE.Color(doc.backdrop || '#000000');
+  backdropMesh = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ color: backdrop }));
+  root.add(backdropMesh);
+
+  $('progress').textContent = '';
+  $('empty').hidden = true;
+  $('paceRow').hidden = $('panRow').hidden = $('truePace').hidden = kind !== 'stage';
+  $('timeline').hidden = kind !== 'clip';
+  $('frame').max = frames; $('frame').value = 1;
+  $('pan').value = 0; panAt = 0; $('panOut').value = 0;
+  // (a whole stage's true depths go far back: shown a third as deep to begin with, on nothing)
+  $('spread').value = kind === 'stage' ? 0.3 : 1;
+  $('backdrop').checked = kind !== 'stage';
+  const what = kind === 'stage' ? `Whole stage${doc.stage ? ': ' + doc.stage : ''}` : kind === 'clip' ? `Clip, ${frames} frames` : `Scene, frame ${doc.frame ?? ''}`;
+  $('about').textContent = `${what} · ${W}×${H} · ${layers.length} layers`;
+  listLayers();
+  layout(); applyLook(); setFrame(0);
+  view('angle');
+}
+
+function listLayers() {
+  const ul = $('layers'); ul.textContent = '';
+  layers.forEach((l, n) => {
+    const li = document.createElement('li');
+    const box = document.createElement('input'); box.type = 'checkbox'; box.checked = l.on; box.id = `layer-${n}`;
+    box.setAttribute('aria-label', `Show ${l.info.name}`);
+    box.onchange = () => { l.on = box.checked; li.classList.toggle('off', !l.on); applyLook(); };
+    const name = document.createElement('label'); name.className = 'name'; name.htmlFor = box.id;
+    name.textContent = l.info.name;
+    if (typeof l.info.pace === 'number') name.title = `pace ${l.info.pace}`;
+    const right = document.createElement('span'); right.className = 'row'; right.style.flex = '0 0 auto';
+    const tag = document.createElement('span'); tag.className = `tag ${l.info.kind}`;
+    tag.textContent = l.info.kind === 'scroll' ? `${l.info.tile}px` : 'obj';
+    const solo = document.createElement('button'); solo.className = 'solo'; solo.textContent = 'Solo';
+    solo.title = 'Show this layer alone (again: all)';
+    solo.onclick = () => {
+      const alone = layers.every((o, m) => o.on === (m === n));
+      layers.forEach((o, m) => { o.on = alone || m === n; });
+      listLayers(); applyLook();
+    };
+    right.append(tag, solo);
+    li.append(box, name, right);
+    li.classList.toggle('off', !l.on);
+    ul.append(li);
+  });
+}
+
+function setFrame(n) {
+  frameAt = (n + frames) % frames;
+  for (const l of layers) {
+    const t = l.textures[frameAt] || blank;
+    l.mesh.material.map = t; l.shadow.material.map = t;
+    l.mesh.material.needsUpdate = l.shadow.material.needsUpdate = true;
+  }
+  $('frame').value = frameAt + 1;
+  $('frameOut').textContent = `${frameAt + 1} / ${frames}`;
+  const f = doc && doc.frameList && doc.frameList[frameAt];
+  if (f && f.backdrop && backdropMesh) backdropMesh.material.color.set(f.backdrop);
+}
+
+// ---------- the camera ----------
+function view(which) {
+  if (which === 'game') {
+    controls.target.set(panAt, 0, 0);
+    camera.position.set(panAt, 0, D);
+  } else {
+    // the angle views: all of the diorama (its layers shown) in the picture, from its middle
+    const box = new THREE.Box3();
+    for (const l of layers) if (l.on) box.expandByObject(l.mesh);
+    if (box.isEmpty()) box.setFromCenterAndSize(new THREE.Vector3(), new THREE.Vector3(W, H, 1));
+    const middle = box.getCenter(new THREE.Vector3()), size = box.getSize(new THREE.Vector3());
+    const reach = 0.5 * Math.hypot(size.x, size.y * 1.4, size.z) / Math.sin(THREE.MathUtils.degToRad(FOV / 2)) * 0.68;
+    const way = which === 'side' ? new THREE.Vector3(0.93, 0.14, 0.34) : new THREE.Vector3(0.5, 0.24, 0.83);
+    controls.target.copy(middle);
+    camera.position.copy(middle).addScaledVector(way.normalize(), reach);
+  }
+  camera.up.set(0, 1, 0);
+  camera.lookAt(controls.target);
+  controls.update();
+}
+$('viewGame').onclick = () => view('game');
+$('viewAngle').onclick = () => view('angle');
+$('viewSide').onclick = () => view('side');
+
+function resize() {
+  const w = window.innerWidth, h = window.innerHeight;
+  renderer.setSize(w, h, false);
+  camera.aspect = w / h;
+  const f = free(); // (the picture's middle at the free part's)
+  camera.setViewOffset(w, h, -f.x, -f.y, w, h);
+  camera.updateProjectionMatrix();
+  if (layers.length) layout();
+}
+window.addEventListener('resize', resize); resize();
+
+// ---------- controls ----------
+for (const id of ['spread', 'haze', 'byPace', 'backdrop']) $(id).addEventListener('input', layout);
+// across a whole stage: the camera itself moved, so the layers' depths make the parallax (at spread 1 by pace, the game's)
+$('pan').addEventListener('input', () => {
+  const to = Number($('pan').value) * W * 0.4;
+  camera.position.x += to - panAt; controls.target.x += to - panAt;
+  panAt = to; $('panOut').value = Math.round(to);
+});
+for (const id of ['shadow', 'crt']) $(id).addEventListener('input', applyLook);
+$('frame').addEventListener('input', () => { playing = false; $('play').textContent = '▶'; setFrame(Number($('frame').value) - 1); });
+$('play').onclick = () => { playing = !playing; $('play').textContent = playing ? '❚❚' : '▶'; $('play').setAttribute('aria-label', playing ? 'Pause' : 'Play'); };
+$('truePace').onclick = () => { $('byPace').checked = true; $('spread').value = 1; layout(); view('game'); };
+$('hideUi').onclick = () => { document.body.classList.add('no-ui'); resize(); };
+window.addEventListener('keydown', (e) => {
+  if (e.target.matches('input[type=text], select')) return;
+  if (e.key === 'h' || e.key === 'H') { document.body.classList.toggle('no-ui'); resize(); }
+  else if (e.key === 'f' || e.key === 'F') view('game');
+  else if (e.key === ' ' && kind === 'clip') { e.preventDefault(); $('play').click(); }
+  else if (e.key === 'ArrowRight' && kind === 'clip') { playing = false; setFrame(frameAt + 1); }
+  else if (e.key === 'ArrowLeft' && kind === 'clip') { playing = false; setFrame(frameAt - 1); }
+  else if (e.key === 'Escape') { document.body.classList.remove('no-ui'); $('shot').hidden = true; resize(); }
+});
+
+// a photo: drawn again at the size chosen, shown to save (and saved, where the page may)
+$('takeShot').onclick = () => {
+  const scale = Number($('shotSize').value);
+  const before = renderer.getPixelRatio();
+  renderer.setPixelRatio(scale);
+  renderer.setSize(window.innerWidth, window.innerHeight, false);
+  renderer.render(scene, camera);
+  let url = renderer.domElement.toDataURL('image/png');
+  if ($('crt').checked) { // (the scanlines over it, as on the screen)
+    const c = document.createElement('canvas'); c.width = renderer.domElement.width; c.height = renderer.domElement.height;
+    const g = c.getContext('2d'); g.drawImage(renderer.domElement, 0, 0);
+    g.fillStyle = 'rgba(0,0,0,0.32)';
+    const pitch = 3 * scale; for (let y = 2 * scale; y < c.height; y += pitch) g.fillRect(0, y, c.width, scale);
+    url = c.toDataURL('image/png');
+  }
+  renderer.setPixelRatio(before);
+  resize();
+  $('shotImg').src = url; $('shot').hidden = false;
+  try { const a = document.createElement('a'); a.href = url; a.download = `diorama ${new Date().toISOString().slice(0, 19).replace(/:/g, '.')}.png`; a.click(); } catch (e) { /* (the picture is shown to save) */ }
+};
+$('shotClose').onclick = () => { $('shot').hidden = true; };
+
+// opening: a picked folder, a dropped one, ?src=, or the sample a page may carry
+async function openFiles(files) {
+  sources = filesSource(files);
+  const which = $('which'); which.textContent = '';
+  if (!sources.length) { $('progress').textContent = 'No scene.json or stage.json in that folder.'; return; }
+  sources.forEach((s, n) => { const o = document.createElement('option'); o.value = n; o.textContent = s.name; which.append(o); });
+  which.hidden = sources.length < 2;
+  await show(sources[0]);
+}
+$('pick').addEventListener('change', (e) => openFiles([...e.target.files]));
+$('which').addEventListener('change', (e) => show(sources[Number(e.target.value)]));
+
+async function entryFiles(entry, path = '') {
+  if (entry.isFile) return new Promise((ok) => entry.file((f) => { f.relPath = path + f.name; ok([f]); }, () => ok([])));
+  const reader = entry.createReader(); const out = [];
+  for (;;) {
+    const batch = await new Promise((ok) => reader.readEntries(ok, () => ok([])));
+    if (!batch.length) break;
+    for (const e of batch) out.push(...await entryFiles(e, path + entry.name + '/'));
+  }
+  return out;
+}
+let dragDepth = 0;
+window.addEventListener('dragenter', (e) => { e.preventDefault(); dragDepth++; $('drop').hidden = false; });
+window.addEventListener('dragleave', () => { if (--dragDepth <= 0) { dragDepth = 0; $('drop').hidden = true; } });
+window.addEventListener('dragover', (e) => e.preventDefault());
+window.addEventListener('drop', async (e) => {
+  e.preventDefault(); dragDepth = 0; $('drop').hidden = true;
+  const items = [...(e.dataTransfer.items || [])].map((i) => i.webkitGetAsEntry && i.webkitGetAsEntry()).filter(Boolean);
+  const files = [];
+  for (const entry of items) files.push(...await entryFiles(entry));
+  if (!files.length) files.push(...e.dataTransfer.files);
+  openFiles(files);
+});
+
+// (a page can carry examples: window.DIORAMA_SAMPLES, each {name, json, files: {path: data URI}})
+const src = new URLSearchParams(location.search).get('src');
+if (src) show(urlSource(src));
+else if (window.DIORAMA_SAMPLES && window.DIORAMA_SAMPLES.length) {
+  sources = window.DIORAMA_SAMPLES.map(sampleSource);
+  const which = $('which'); which.textContent = '';
+  sources.forEach((s, n) => { const o = document.createElement('option'); o.value = n; o.textContent = `Example: ${s.name}`; which.append(o); });
+  which.hidden = sources.length < 2;
+  show(sources[0]);
+  $('hint').textContent = 'Showing examples saved from Street Fighter Alpha 3. Open your own saved folder on the left.';
+  $('hint').hidden = false;
+}
+
+// ---------- each frame ----------
+let last = performance.now();
+renderer.setAnimationLoop((now) => {
+  if (loading) { last = now; return; }
+  const dt = Math.min(0.1, (now - last) / 1000); last = now;
+  if (playing && kind === 'clip') {
+    playClock += dt * (doc.fps || 59.637) * Number($('rate').value);
+    while (playClock >= 1) { playClock -= 1; setFrame(frameAt + 1); }
+  }
+  controls.autoRotate = $('spin').checked; controls.autoRotateSpeed = 0.6;
+  controls.update();
+  renderer.render(scene, camera);
+});
+</script>
+</body>
+</html>
