@@ -74,6 +74,14 @@ if errorlevel 1 (
   goto :fail
 )
 
+REM 87.455: film image/loop preflight before any Ninja compile.
+"%BASH%" -c "python3 ../recomp_port/tests/test_menu_film.py"
+if errorlevel 1 (
+  echo ERROR: XMVSF 87.455 menu film integrity failed. No build performed.
+  popd
+  goto :fail
+)
+
 REM 87.454: exercise the original cold-boot clock and verify that each
 REM frame/palette/audio hook was installed before touching the Ninja cache.
 "%BASH%" -c "python3 ../recomp_port/tests/test_logo_intro.py"
