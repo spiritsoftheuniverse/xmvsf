@@ -1,4 +1,19 @@
-# XMVSF native front end — 87.462 (meteor-visible translucent film panels)
+# XMVSF native front end — 87.463 (gentle first-entry music curve)
+
+## 87.463 — soft menu music entrance, never on song loops
+
+The menu theme `xmvsfMenu.wav` still enters at the existing original
+menu music cue. Its initial gain is **34%** (audible immediately),
+then increases with a smoothstep curve to the existing **72%**
+target over **280ms**. The envelope is evaluated from actual PCM sample
+counts, avoiding irregularities from window redraws and F6 captures.
+
+The envelope saturates after one initial entrance. Subsequent song
+loops and reentering the menu after gameplay immediately retain the
+normal 72% music gain. The menu movement/select cues, initial
+crash/voice cues, and audio queue limits are unaffected.
+
+## 87.462 — translucent film, stronger team colors, larger rainbow blobs
 
 ## 87.462 — translucent film, stronger team colors, larger rainbow blobs
 

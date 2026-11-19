@@ -47,6 +47,40 @@ def main():
     require(mixer, "crashAt_ = kIdle;", "cold-only crash lifecycle")
     require(mixer, "welcomeAt_ = kIdle;", "cold-only announcer lifecycle")
     require(mixer, "const bool playMenuMusic = visible", "one audio-clock sample per buffer batch")
+    # 87.463: music starts audibly at 34% and curves to 72% over
+    # 280ms. Crucially, this sample counter does not reset when
+    # musicAt_ loops or the menu returns from gameplay.
+    assert (LOCAL / "xmvsf_menu_audio.h").read_text(encoding="utf-8") == mixer
+    for fragment in (
+        "kMusicNormalGain = 72", "kMusicInitialGain = 34",
+        "kMusicAttackFrames = kRate * 28 / 100",
+        "bool musicEntranceStarted_ = false;",
+        "size_t musicEntranceFrames_ = 0;",
+        "static int MusicEntranceGain(size_t elapsedFrames)",
+        "t * t * (3u * n - 2u * t)",
+        "musicEntranceStarted_ = true;",
+        "const int gain = MusicEntranceGain(musicEntranceFrames_);",
+        "AddFrame(music_, musicAt_, left, right, gain, true);",
+        "if (musicEntranceFrames_ < kMusicAttackFrames)",
+        "++musicEntranceFrames_;",
+    ):
+        require(mixer, fragment, "one-time music gain curve")
+    assert "musicEntranceFrames_ = 0;" in mixer
+    step = mixer.split("void Step(bool visible)", 1)[1]
+    assert "musicEntranceFrames_ = 0;" not in step, (
+        "music fade must NEVER restart after an audio loop or menu return"
+    )
+    assert "musicEntranceStarted_ = false;" not in step
+    def gain(frame):
+        duration = 48000 * 28 // 100
+        if frame >= duration:
+            return 72
+        return 34 + 38 * (frame * frame * (3 * duration - 2 * frame)) // duration**3
+    assert gain(0) == 34
+    assert 34 < gain(48000 * 14 // 100) < 72
+    assert gain(48000 * 28 // 100) == 72
+    assert gain(48000 * 100) == 72
+    assert all(gain(i) <= gain(i+1) for i in range(0, 13440, 60))
     require(input_menu, "XM87235Intro::State().InputAllowed(SDL_GetTicks())", "input gate")
     for name in ("logo_II_A.png","logo_II_B.png","logo_II_C.png","logo_II_D.png"):
         require(strokes,name,"original stroke asset")
@@ -120,7 +154,7 @@ int main() {
         subprocess.run(["g++","-std=c++17","-Wall","-Wextra","-Werror",
                         "-I",str(PORT),str(src),"-o",str(exe)],check=True)
         subprocess.run([str(exe)],check=True)
-    print("XMVSF 87.454: intro timeline C++ and source-effect preflight PASS")
+    print("XMVSF 87.463: intro timeline, one-time 280ms audible music curve and no loop reset PASS")
 
 if __name__ == "__main__":
     main()
