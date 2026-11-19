@@ -363,7 +363,7 @@ public:
             center(notice, 480, 462, 1.45f, options.Capturing() ? 255 : 173);
         }
         center("A SELECT   B / ESC BACK", 480, 511, 1.5f, 176);
-        left("TEST 87.459", 834, 523, 1.05f, 160);
+        left("TEST 87.460", 834, 523, 1.05f, 160);
         if (present) SDL_RenderPresent(renderer);
         return true;
     }
@@ -384,7 +384,12 @@ public:
             channel(36.0f+219.0f*backgroundStrength),255);
         SDL_RenderClear(renderer);
         DrawBackground(renderer,now,backgroundStrength);
-        films_.Draw(renderer, now);
+        // The text finishes its 500ms dither at TotalMs. Only then
+        // reveal the panels, using the same 4x4 source-pixel Bayer mask.
+        const int filmReveal = !clock.started ? 16 :
+            std::clamp(int(XM87235Intro::progress(
+                elapsed, XM87235Intro::TotalMs, XM87235Intro::MenuMs) * 16.0f), 0, 16);
+        films_.Draw(renderer, now, filmReveal);
         if (elapsed >= XM87235Intro::LogoStart) DrawLogo(renderer,now,elapsed,cinematic);
         if (elapsed < XM87235Intro::MenuStart) {
             if (present) SDL_RenderPresent(renderer);
@@ -408,7 +413,7 @@ public:
         GlyphText(renderer, menu_.small_, captionFont,
                   "ESC TO RETURN", 18, 522, 1.08f, 185, 0);
         GlyphText(renderer, menu_.small_, captionFont,
-                  "TEST 87.459", 942, 522, 1.08f, 185, 2);
+                  "TEST 87.460", 942, 522, 1.08f, 185, 2);
         if (present) SDL_RenderPresent(renderer);
         return true;
     }

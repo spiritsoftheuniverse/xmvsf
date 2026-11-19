@@ -1,4 +1,4 @@
-// XMVSF 87.457: 16px film gaps; contain-fit alpha bounds inside the trapezoid.
+// XMVSF 87.460: closer, twice-fast, shuffled films with post-text Bayer dither.
 #pragma once
 #include "xmvsf_home.h"
 #include <SDL3/SDL.h>
@@ -7,23 +7,31 @@
 #include <cstdint>
 #include <cstdio>
 #include <initializer_list>
+#include <numeric>
+#include <random>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace port::xmvsf_home {
 class MenuFilmStrips {
     static constexpr int kCanvasWidth = 960, kCanvasHeight = 540;
-    static constexpr int kMargin = 16, kGap = 16, kPortraitTop = 78;
-    static constexpr double kSpeedPixelsPerSecond = 10.0;
+    // 80px closer than the previous +16px spacing: 64px overlap.
+    static constexpr int kMargin = 16, kGap = -64, kPortraitTop = 78;
+    static constexpr double kSpeedPixelsPerSecond = 20.0;
     struct Column {
         Image shape;
         SDL_Texture *plain = nullptr;
         std::vector<SDL_Texture *> portraits;
+        std::vector<Image> portraitImages;
+        std::vector<size_t> order; // shuffled only at load; stable across frames
         int x = 0;
+        int revealLevel = -1;
         bool scrollDown = false;
     };
     SDL_Renderer *renderer_ = nullptr;
     Column xmen_, streetFighter_;
+    std::vector<uint32_t> ditherPixels_;
 
     static SDL_Texture *Upload(SDL_Renderer *renderer, const Image &image) {
         if (!renderer || !image.Valid()) return nullptr;
@@ -125,12 +133,50 @@ class MenuFilmStrips {
         return out;
     }
 
+    // Match the text compositor's 4x4 Bayer ordering exactly. Update
+    // texture pixels only when the 16-step intro phase changes; ordinary
+    // gameplay/menu rendering does not read back or re-upload anything.
+    void UploadDither(SDL_Texture *texture, const Image &source, int level) {
+        if (!texture || !source.Valid()) return;
+        constexpr uint8_t bayer[16] = {
+            0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5
+        };
+        const uint32_t *pixels = source.pixels.data();
+        if (level < 16) {
+            ditherPixels_.resize(source.pixels.size());
+            for (int y = 0; y < source.height; ++y) {
+                for (int x = 0; x < source.width; ++x) {
+                    const size_t at = size_t(y) * size_t(source.width) + size_t(x);
+                    const uint32_t pixel = source.pixels[at];
+                    ditherPixels_[at] = bayer[(y & 3) * 4 + (x & 3)] < level ?
+                        pixel : (pixel & 0x00ffffffu);
+                }
+            }
+            pixels = ditherPixels_.data();
+        }
+        if (!SDL_UpdateTexture(texture, nullptr, pixels, source.width * 4)) {
+            std::fprintf(stderr, "XMVSF 87.460 film dither upload failed: %s\n",
+                         SDL_GetError());
+        }
+    }
+
+    void ApplyReveal(Column &column, int level) {
+        level = std::clamp(level, 0, 16);
+        if (column.revealLevel == level) return;
+        column.revealLevel = level;
+        if (level == 0) return; // DrawColumn suppresses invisible films.
+        UploadDither(column.plain, column.shape, level);
+        for (size_t i = 0; i < column.portraits.size(); ++i) {
+            UploadDither(column.portraits[i], column.portraitImages[i], level);
+        }
+    }
+
     void LoadColumn(Column &column, const char *shapeFile,
                     const char *prefix, bool down) {
         column.scrollDown = down;
         column.shape = LoadPng(shapeFile);
         if (!column.shape.Valid()) {
-            std::fprintf(stderr, "XMVSF 87.457 menu film missing or invalid: %s\n",
+            std::fprintf(stderr, "XMVSF 87.460 menu film missing or invalid: %s\n",
                          shapeFile);
             return;
         }
@@ -138,7 +184,7 @@ class MenuFilmStrips {
         column.plain = Upload(renderer_, column.shape);
         const Rect safe = SafePortraitArea(column.shape);
         if (safe.w < 1 || safe.h < 1) {
-            std::fprintf(stderr, "XMVSF 87.457 portrait safe area unavailable: %s\n",
+            std::fprintf(stderr, "XMVSF 87.460 portrait safe area unavailable: %s\n",
                          shapeFile);
             return;
         }
@@ -147,27 +193,37 @@ class MenuFilmStrips {
                 prefix + " (" + std::to_string(i) + ").png";
             const Image person = LoadPng(filename.c_str());
             if (!person.Valid()) {
-                std::fprintf(stderr, "XMVSF 87.457 missing portrait: %s\n",
+                std::fprintf(stderr, "XMVSF 87.460 missing portrait: %s\n",
                              filename.c_str());
                 continue;
             }
-            SDL_Texture *texture = Upload(renderer_, MaskPortrait(column.shape, person, safe));
-            if (texture) column.portraits.push_back(texture);
-            else std::fprintf(stderr, "XMVSF 87.457 portrait upload failed: %s\n",
-                              SDL_GetError());
+            Image clipped = MaskPortrait(column.shape, person, safe);
+            SDL_Texture *texture = Upload(renderer_, clipped);
+            if (texture) {
+                column.portraitImages.push_back(std::move(clipped));
+                column.portraits.push_back(texture);
+            } else std::fprintf(stderr, "XMVSF 87.460 portrait upload failed: %s\n",
+                                SDL_GetError());
         }
-        std::fprintf(stderr, "XMVSF 87.457 %s film: %zu portraits at x=%d\n",
+        column.order.resize(column.portraits.size());
+        std::iota(column.order.begin(), column.order.end(), size_t(0));
+        // Fisher-Yates by std::shuffle. Each loaded character appears once
+        // before the cycle repeats; no per-frame random flicker.
+        std::mt19937 random(std::random_device{}());
+        std::shuffle(column.order.begin(), column.order.end(), random);
+        std::fprintf(stderr, "XMVSF 87.460 %s film: %zu shuffled portraits at x=%d\n",
                      prefix, column.portraits.size(), column.x);
     }
 
-    void DrawColumn(const Column &column, std::uint64_t now) const {
-        if (!column.shape.Valid()) return;
-        // Match the 16px horizontal screen margin vertically: 453+16 = 469px pitch.
+    void DrawColumn(const Column &column, std::uint64_t now, int reveal) const {
+        if (!column.shape.Valid() || reveal == 0) return;
+        // 453px panels at 389px pitch: 64px overlap (80px nearer).
         const int step = column.shape.height + kGap;
         const double distance = double(now) * (kSpeedPixelsPerSecond / 1000.0);
         const std::int64_t cycles = std::int64_t(std::floor(distance / double(step)));
         const float phase = float(std::fmod(distance, double(step)));
-        for (int slot = -1; slot <= 4; ++slot) {
+        // Downward scroll can show the bottom 64px of slot -2 at rollover.
+        for (int slot = -2; slot <= 4; ++slot) {
             const int y = int(std::floor(double(slot * step) +
                                   (column.scrollDown ? double(phase) : -double(phase))));
             if (y >= kCanvasHeight || y + column.shape.height <= 0) continue;
@@ -179,7 +235,7 @@ class MenuFilmStrips {
                     (column.scrollDown ? -cycles : cycles);
                 const auto count = std::int64_t(column.portraits.size());
                 SDL_Texture *portrait =
-                    column.portraits[size_t((ordinal % count + count) % count)];
+                    column.portraits[column.order[size_t((ordinal % count + count) % count)]];
                 if (portrait) SDL_RenderTexture(renderer_, portrait, nullptr, &dest);
             }
         }
@@ -188,6 +244,9 @@ class MenuFilmStrips {
         for (SDL_Texture *texture : column.portraits)
             if (texture) SDL_DestroyTexture(texture);
         column.portraits.clear();
+        column.portraitImages.clear();
+        column.order.clear();
+        column.revealLevel = -1;
         if (column.plain) SDL_DestroyTexture(column.plain);
         column.plain = nullptr;
         column.shape = {};
@@ -201,6 +260,7 @@ public:
     void Release() {
         Clear(xmen_);
         Clear(streetFighter_);
+        ditherPixels_.clear();
         renderer_ = nullptr;
     }
     void Init(SDL_Renderer *renderer) {
@@ -210,11 +270,13 @@ public:
         LoadColumn(xmen_, "menu/menufilmL.png", "xm", true);
         LoadColumn(streetFighter_, "menu/menufilm.png", "sf", false);
     }
-    void Draw(SDL_Renderer *renderer, std::uint64_t now) {
+    void Draw(SDL_Renderer *renderer, std::uint64_t now, int reveal) {
         if (!renderer) return;
         Init(renderer);
-        DrawColumn(xmen_, now);
-        DrawColumn(streetFighter_, now);
+        ApplyReveal(xmen_, reveal);
+        ApplyReveal(streetFighter_, reveal);
+        DrawColumn(xmen_, now, reveal);
+        DrawColumn(streetFighter_, now, reveal);
     }
 };
 } // namespace port::xmvsf_home
