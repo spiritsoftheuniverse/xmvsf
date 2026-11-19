@@ -1,6 +1,7 @@
-// XMVSF 87.462: translucent red/blue-dominant panels, 2x tiled rainbow, opaque portraits.
+// XMVSF 87.464: animated curl-noise edge dither for backing and portrait.
 #pragma once
 #include "xmvsf_home.h"
+#include "xmvsf_film_edge_dither.h"
 #include <SDL3/SDL.h>
 #include <algorithm>
 #include <array>
@@ -34,10 +35,13 @@ class MenuFilmStrips {
     };
     struct FxCache {
         SDL_Texture *texture = nullptr;
+        SDL_Texture *edgePortrait = nullptr;
         std::int64_t ordinal = std::numeric_limits<std::int64_t>::min();
         std::uint64_t lastUpdate = 0;
+        int screenY = std::numeric_limits<int>::min();
         int reveal = -1;
         bool failed = false;
+        bool portraitFailed = false;
     };
     struct Column {
         Image shape;
@@ -53,7 +57,8 @@ class MenuFilmStrips {
     SDL_Renderer *renderer_ = nullptr;
     Column xmen_, streetFighter_;
     Image rainbow_;
-    std::vector<uint32_t> ditherPixels_, rainbowPixels_;
+    std::vector<uint32_t> ditherPixels_, rainbowPixels_, edgePortraitPixels_;
+    std::vector<uint8_t> edgeMaskPixels_;
 
     static SDL_Texture *Upload(SDL_Renderer *renderer, const Image &image) {
         if (!renderer || !image.Valid()) return nullptr;
@@ -177,7 +182,7 @@ class MenuFilmStrips {
             pixels = ditherPixels_.data();
         }
         if (!SDL_UpdateTexture(texture, nullptr, pixels, source.width * 4)) {
-            std::fprintf(stderr, "XMVSF 87.462 film dither upload failed: %s\n",
+            std::fprintf(stderr, "XMVSF 87.464 film dither upload failed: %s\n",
                          SDL_GetError());
         }
     }
@@ -198,7 +203,7 @@ class MenuFilmStrips {
         column.scrollDown = down;
         column.shape = LoadPng(shapeFile);
         if (!column.shape.Valid()) {
-            std::fprintf(stderr, "XMVSF 87.462 menu film missing or invalid: %s\n",
+            std::fprintf(stderr, "XMVSF 87.464 menu film missing or invalid: %s\n",
                          shapeFile);
             return;
         }
@@ -210,7 +215,7 @@ class MenuFilmStrips {
         }
         const Rect safe = SafePortraitArea(column.shape);
         if (safe.w < 1 || safe.h < 1) {
-            std::fprintf(stderr, "XMVSF 87.462 portrait safe area unavailable: %s\n",
+            std::fprintf(stderr, "XMVSF 87.464 portrait safe area unavailable: %s\n",
                          shapeFile);
             return;
         }
@@ -219,7 +224,7 @@ class MenuFilmStrips {
                 prefix + " (" + std::to_string(i) + ").png";
             const Image person = LoadPng(filename.c_str());
             if (!person.Valid()) {
-                std::fprintf(stderr, "XMVSF 87.462 missing portrait: %s\n",
+                std::fprintf(stderr, "XMVSF 87.464 missing portrait: %s\n",
                              filename.c_str());
                 continue;
             }
@@ -228,7 +233,7 @@ class MenuFilmStrips {
             if (texture) {
                 column.portraitImages.push_back(std::move(clipped));
                 column.portraits.push_back(texture);
-            } else std::fprintf(stderr, "XMVSF 87.462 portrait upload failed: %s\n",
+            } else std::fprintf(stderr, "XMVSF 87.464 portrait upload failed: %s\n",
                                 SDL_GetError());
         }
         column.order.resize(column.portraits.size());
@@ -237,7 +242,7 @@ class MenuFilmStrips {
         // before the cycle repeats; no per-frame random flicker.
         std::mt19937 random(std::random_device{}());
         std::shuffle(column.order.begin(), column.order.end(), random);
-        std::fprintf(stderr, "XMVSF 87.462 %s film: %zu shuffled portraits at x=%d\n",
+        std::fprintf(stderr, "XMVSF 87.464 %s film: %zu shuffled portraits at x=%d\n",
                      prefix, column.portraits.size(), column.x);
     }
 
@@ -292,50 +297,69 @@ class MenuFilmStrips {
     // at unchanged source opacity. The trapezoid still masks every pixel.
     // Wrapping at 2x tile dimensions magnifies blobs without stretching
     // or introducing seams as each panel moves in its own direction.
+    // Compose the existing 75/25 team/rainbow backdrop and one temporary
+    // per-slot portrait texture through the SAME curl-advection Bayer mask.
+    // A panel is ~20% visible at y=0/539, fully visible inside y=108..431.
     bool UpdateRainbow(Column &column, FxCache &cache,
-                       std::int64_t ordinal, std::uint64_t now, int reveal) {
-        if (!rainbow_.Valid() || !column.shape.Valid() || cache.failed)
-            return false;
+                       std::int64_t ordinal, std::uint64_t now,
+                       int reveal, int screenY) {
+        if (!column.shape.Valid() || cache.failed) return false;
         if (!cache.texture) {
             cache.texture = SDL_CreateTexture(renderer_, SDL_PIXELFORMAT_ABGR8888,
                 SDL_TEXTUREACCESS_STREAMING, column.shape.width, column.shape.height);
             if (!cache.texture) {
                 cache.failed = true;
-                std::fprintf(stderr, "XMVSF 87.462 rainbow texture create: %s\n",
+                std::fprintf(stderr, "XMVSF 87.464 backing mask create: %s\n",
                              SDL_GetError());
                 return false;
             }
             SDL_SetTextureBlendMode(cache.texture, SDL_BLENDMODE_BLEND);
             SDL_SetTextureScaleMode(cache.texture, SDL_SCALEMODE_NEAREST);
         }
-        // F6's offscreen compositor and the on-screen draw can share
-        // identical textures without rebuilding them twice per frame.
+        // F6 draws twice at the same time: do not regenerate masks if the
+        // frame, screen position, portrait ordinal and reveal are unchanged.
         if (cache.ordinal == ordinal && cache.reveal == reveal &&
-            now >= cache.lastUpdate && now - cache.lastUpdate < kFxRefreshMs)
-            return true;
+            cache.screenY == screenY && now >= cache.lastUpdate &&
+            now - cache.lastUpdate < kFxRefreshMs) return true;
 
         const PanelMotion motion = Motion(column.scrollDown, ordinal);
         const double seconds = double(now) / 1000.0;
         const double directionScale = (motion.dx && motion.dy) ? .7071067811865476 : 1.0;
         const double travel = seconds * motion.panSpeed * directionScale;
-        const int panX = int(std::floor(std::fmod(travel * motion.dx,
-                                                 double(rainbow_.width * kRainbowScale))));
-        const int panY = int(std::floor(std::fmod(travel * motion.dy,
-                                                 double(rainbow_.height * kRainbowScale))));
+        const int panX = rainbow_.Valid() ? int(std::floor(std::fmod(
+            travel * motion.dx, double(rainbow_.width * kRainbowScale)))) : 0;
+        const int panY = rainbow_.Valid() ? int(std::floor(std::fmod(
+            travel * motion.dy, double(rainbow_.height * kRainbowScale)))) : 0;
         const auto hue = HueMatrix(motion.huePhase + seconds * motion.hueSpeed);
         const auto byte = [](float v) {
             return std::uint32_t(std::clamp(int(std::lround(v)), 0, 255));
         };
         const int w = column.shape.width, h = column.shape.height;
         rainbowPixels_.resize(size_t(w) * size_t(h));
+        edgeMaskPixels_.resize(size_t(w) * size_t(h));
         for (int y = 0; y < h; ++y) {
-            const int ry = Wrap(y + panY, rainbow_.height * kRainbowScale) / kRainbowScale;
+            const int ry = rainbow_.Valid() ?
+                Wrap(y + panY, rainbow_.height * kRainbowScale) / kRainbowScale : 0;
             for (int x = 0; x < w; ++x) {
                 const size_t at = size_t(y) * size_t(w) + size_t(x);
                 const std::uint32_t plate = column.shape.pixels[at];
                 const unsigned maskAlpha = plate >> 24;
-                if (!maskAlpha || kBayer[(y & 3) * 4 + (x & 3)] >= reveal) {
+                // Reuse the film's post-text 4x4 Bayer reveal; superimpose
+                // a motion-aware 8x8 curl-dither at the actual screen edge.
+                const bool visible = maskAlpha != 0u &&
+                    kBayer[(y & 3) * 4 + (x & 3)] < reveal &&
+                    FilmEdgeDither::Visible(column.x + x, screenY + y, now,
+                                            column.scrollDown, ordinal);
+                edgeMaskPixels_[at] = visible ? 1u : 0u;
+                if (!visible) {
                     rainbowPixels_[at] = 0u;
+                    continue;
+                }
+                const unsigned backingAlpha =
+                    (maskAlpha * unsigned(kBackingAlpha) + 127u) / 255u;
+                if (!rainbow_.Valid()) {
+                    // Missing rainbow art still gets the moving edge mask.
+                    rainbowPixels_[at] = (backingAlpha << 24) | (plate & 0x00ffffffu);
                     continue;
                 }
                 const int rx = Wrap(x + panX, rainbow_.width * kRainbowScale) / kRainbowScale;
@@ -347,8 +371,6 @@ class MenuFilmStrips {
                 const std::uint32_t rr = byte(hue[0]*r + hue[1]*g + hue[2]*b);
                 const std::uint32_t gg = byte(hue[3]*r + hue[4]*g + hue[5]*b);
                 const std::uint32_t bb = byte(hue[6]*r + hue[7]*g + hue[8]*b);
-                // 100%-alpha rainbow -> 64/255 rainbow + 191/255 team
-                // color. Translucent rainbow pixels contribute even less.
                 const unsigned rainbowWeight =
                     ((blob >> 24) * kRainbowMaxWeight + 127u) / 255u;
                 const unsigned baseWeight = 255u - rainbowWeight;
@@ -358,23 +380,52 @@ class MenuFilmStrips {
                     (((plate >> 8)&255u)*baseWeight + gg*rainbowWeight + 127u)/255u;
                 const std::uint32_t mixedB =
                     (((plate >> 16)&255u)*baseWeight + bb*rainbowWeight + 127u)/255u;
-                // Multiply ONLY the backing opacity by the film alpha:
-                // the meteor scene shows through; portrait alpha is intact.
-                const unsigned backingAlpha =
-                    (maskAlpha * unsigned(kBackingAlpha) + 127u) / 255u;
                 rainbowPixels_[at] = (backingAlpha << 24) | (mixedB << 16) |
                                      (mixedG << 8) | mixedR;
             }
         }
-        if (!SDL_UpdateTexture(cache.texture, nullptr,
-                               rainbowPixels_.data(), w*4)) {
+        if (!SDL_UpdateTexture(cache.texture, nullptr, rainbowPixels_.data(), w * 4)) {
             cache.failed = true;
-            std::fprintf(stderr, "XMVSF 87.462 rainbow upload failed: %s\n",
+            std::fprintf(stderr, "XMVSF 87.464 backing mask upload: %s\n",
                          SDL_GetError());
             return false;
         }
+
+        // Preserve full character source alpha. This is not the 60%-opacity
+        // backing: only individual pixels selected by the edge dither vanish.
+        if (!column.portraitImages.empty() && !cache.portraitFailed) {
+            if (!cache.edgePortrait) {
+                cache.edgePortrait = SDL_CreateTexture(renderer_,
+                    SDL_PIXELFORMAT_ABGR8888, SDL_TEXTUREACCESS_STREAMING, w, h);
+                if (cache.edgePortrait) {
+                    SDL_SetTextureScaleMode(cache.edgePortrait, SDL_SCALEMODE_NEAREST);
+                    SDL_SetTextureBlendMode(cache.edgePortrait, SDL_BLENDMODE_BLEND);
+                } else {
+                    cache.portraitFailed = true;
+                    std::fprintf(stderr, "XMVSF 87.464 portrait mask create: %s\n",
+                                 SDL_GetError());
+                }
+            }
+            if (cache.edgePortrait && !cache.portraitFailed) {
+                const auto count = std::int64_t(column.portraitImages.size());
+                const size_t id = column.order[
+                    size_t((ordinal % count + count) % count)];
+                const Image &original = column.portraitImages[id];
+                edgePortraitPixels_.resize(original.pixels.size());
+                for (size_t at = 0; at < original.pixels.size(); ++at)
+                    edgePortraitPixels_[at] = edgeMaskPixels_[at] ?
+                        original.pixels[at] : 0u;
+                if (!SDL_UpdateTexture(cache.edgePortrait, nullptr,
+                                       edgePortraitPixels_.data(), w * 4)) {
+                    cache.portraitFailed = true;
+                    std::fprintf(stderr, "XMVSF 87.464 portrait mask upload: %s\n",
+                                 SDL_GetError());
+                }
+            }
+        }
         cache.ordinal = ordinal;
         cache.reveal = reveal;
+        cache.screenY = screenY;
         cache.lastUpdate = now;
         return true;
     }
@@ -396,15 +447,14 @@ class MenuFilmStrips {
             const std::int64_t ordinal = std::int64_t(slot) +
                 (column.scrollDown ? -cycles : cycles);
             FxCache &cache = column.fx[size_t(slot + 2)];
-            if (UpdateRainbow(column, cache, ordinal, now, reveal)) {
-                SDL_RenderTexture(renderer_, cache.texture, nullptr, &dest);
-            } else if (column.plain) {
-                // No rainbow asset? Keep the old red/blue panels and Bayer.
-                if (column.plain) SDL_RenderTexture(renderer_, column.plain, nullptr, &dest);
-            }
+            const bool masked = UpdateRainbow(column, cache, ordinal, now, reveal, y);
+            if (masked) SDL_RenderTexture(renderer_, cache.texture, nullptr, &dest);
+            else if (column.plain)
+                SDL_RenderTexture(renderer_, column.plain, nullptr, &dest);
             if (!column.portraits.empty()) {
                 const auto count = std::int64_t(column.portraits.size());
-                SDL_Texture *portrait =
+                SDL_Texture *portrait = masked && cache.edgePortrait &&
+                    !cache.portraitFailed ? cache.edgePortrait :
                     column.portraits[column.order[size_t((ordinal % count + count) % count)]];
                 if (portrait) SDL_RenderTexture(renderer_, portrait, nullptr, &dest);
             }
@@ -413,6 +463,7 @@ class MenuFilmStrips {
     static void Clear(Column &column) {
         for (FxCache &cache : column.fx) {
             if (cache.texture) SDL_DestroyTexture(cache.texture);
+            if (cache.edgePortrait) SDL_DestroyTexture(cache.edgePortrait);
             cache = {};
         }
         for (SDL_Texture *texture : column.portraits)
@@ -436,6 +487,8 @@ public:
         Clear(streetFighter_);
         ditherPixels_.clear();
         rainbowPixels_.clear();
+        edgePortraitPixels_.clear();
+        edgeMaskPixels_.clear();
         rainbow_ = {};
         renderer_ = nullptr;
     }
@@ -445,10 +498,10 @@ public:
         renderer_ = renderer;
         rainbow_ = LoadPng("menu/rainbowblobs.png");
         if (!rainbow_.Valid()) {
-            std::fprintf(stderr, "XMVSF 87.462: _art/menu/rainbowblobs.png "
+            std::fprintf(stderr, "XMVSF 87.464: _art/menu/rainbowblobs.png "
                                  "missing; using red/blue film only\n");
         } else {
-            std::fprintf(stderr, "XMVSF 87.462: rainbowblobs %dx%d loaded\n",
+            std::fprintf(stderr, "XMVSF 87.464: rainbowblobs %dx%d loaded\n",
                          rainbow_.width, rainbow_.height);
         }
         LoadColumn(xmen_, "menu/menufilmL.png", "xm", true);
