@@ -1,4 +1,4 @@
-// XMVSF menu audio v87.437: a single independent SDL3 stream for the three
+// XMVSF menu audio v87.463: sample-accurate first-entrance music attack; three
 // existing WAV assets, with bounded queueing and no FBNeo/SDL2 dependencies.
 // All assets are loaded from the original repository; no copies committed.
 #pragma once
@@ -80,12 +80,32 @@ class MenuAudio {
     static constexpr int kBlock = 512;
     static constexpr int kQueueLimit = kRate * 4 / 10; // 100 ms at stereo S16
     static constexpr size_t kIdle = size_t(-1);
+    // A gentle one-time attack: audible from the first sample, then
+    // smoothly reaches the established 72% music level in 280ms.
+    static constexpr int kMusicNormalGain = 72;
+    static constexpr int kMusicInitialGain = 34;
+    static constexpr size_t kMusicAttackFrames = kRate * 28 / 100;
 
     SoundClip music_, movement_, selection_, crash_, welcome_;
     SDL_AudioStream *stream_ = nullptr;
     size_t musicAt_ = 0, moveAt_ = kIdle, selectAt_ = kIdle;
     size_t crashAt_ = kIdle, welcomeAt_ = kIdle;
     bool wasVisible_ = false;
+    bool musicEntranceStarted_ = false; // deliberately NOT reset at WAV loop
+    size_t musicEntranceFrames_ = 0;    // deliberately NOT reset on menu return
+
+    // Smoothstep (zero slope at full level). Saturates permanently so
+    // every later WAV loop and subsequent menu visit plays at normal gain.
+    static int MusicEntranceGain(size_t elapsedFrames) {
+        if (elapsedFrames >= kMusicAttackFrames) return kMusicNormalGain;
+        const std::uint64_t t = std::uint64_t(elapsedFrames);
+        const std::uint64_t n = std::uint64_t(kMusicAttackFrames);
+        const std::uint64_t smoothNumerator = t * t * (3u * n - 2u * t);
+        const std::uint64_t smoothDenominator = n * n * n;
+        return kMusicInitialGain + int(
+            std::uint64_t(kMusicNormalGain - kMusicInitialGain) *
+            smoothNumerator / smoothDenominator);
+    }
 
     static int16_t Clip16(int x) {
         return int16_t(std::clamp(x, -32768, 32767));
@@ -182,7 +202,13 @@ public:
             for (int frame = 0; frame < kBlock; ++frame) {
                 int left = 0, right = 0;
                 if (playMenuMusic && !music_.Empty()) {
-                    AddFrame(music_, musicAt_, left, right, 72, true);
+                    // The envelope is tied to the initial music entrance,
+                    // never to musicAt_ (which rewinds each loop or return).
+                    if (!musicEntranceStarted_) musicEntranceStarted_ = true;
+                    const int gain = MusicEntranceGain(musicEntranceFrames_);
+                    AddFrame(music_, musicAt_, left, right, gain, true);
+                    if (musicEntranceFrames_ < kMusicAttackFrames)
+                        ++musicEntranceFrames_;
                     active = true;
                 }
                 // Both cues start from the beginning of the original 0ms lead-in.
