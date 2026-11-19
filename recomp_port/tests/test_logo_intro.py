@@ -5,6 +5,7 @@ Run before Ninja; never regenerates M68000 translation or modifies generated cod
 """
 from __future__ import annotations
 from pathlib import Path
+from version_guard import require_matching_versions
 import subprocess
 import tempfile
 
@@ -39,7 +40,7 @@ def main():
     require(source, "DrawBackground(SDL_Renderer *r, std::uint64_t now, float introStrength = 0.0f)",
             "Options compatibility")
     require(source, "iiPainter_.release()", "SDL renderer shutdown")
-    require(source, "TEST 87.455", "recomp version")
+    require_matching_versions(input_menu, source, minimum=(87, 454))
     require(mixer, 'crash_.Load("crash.wav")', "crash cue")
     require(mixer, 'welcome_.Load("xmvsf_welcome.wav")', "announcer cue")
     require(mixer, "XM87235Intro::MenuStart", "delayed menu music")

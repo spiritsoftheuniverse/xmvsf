@@ -3,6 +3,7 @@
 from __future__ import annotations
 import importlib.util
 from pathlib import Path
+from version_guard import require_matching_versions
 
 ROOT = Path(__file__).resolve().parents[2]
 INSTALL = ROOT / "recomp_port" / "apply_textured_menu.py"
@@ -46,7 +47,7 @@ def main():
     assert background_upload.search(tex), "no SDL3 background texture upload"
     assert "XMVSF_MENU_CPU_FALLBACK" in tex
     assert "friend class TexturedMenu" in home
-    assert any(version in home for version in ("TEST 87.441", "TEST 87.442", "TEST 87.443", "TEST 87.444", "TEST 87.445", "TEST 87.446", "TEST 87.447", "TEST 87.448", "TEST 87.449", "TEST 87.450", "TEST 87.451", "TEST 87.452", "TEST 87.453", "TEST 87.454", "TEST 87.455"))
+    require_matching_versions(home, tex, minimum=(87, 441))
     assert "FitPicture(width, height" in front
     assert "homeTextures.Release();" in front
     assert "homeAudio.Close();" in front
