@@ -91,10 +91,10 @@ if errorlevel 1 (
   goto :fail
 )
 
-REM 87.460: assert 389px film pitch, randomized order and post-text Bayer before Ninja.
+REM 87.461: assert rainbowblobs, masked 50/50 per-panel hue/pan, dither before Ninja.
 "%BASH%" -c "python3 ../recomp_port/tests/test_menu_film.py"
 if errorlevel 1 (
-  echo ERROR: XMVSF 87.460 menu film integrity failed. No build performed.
+  echo ERROR: XMVSF 87.461 menu film integrity failed. No build performed.
   popd
   goto :fail
 )

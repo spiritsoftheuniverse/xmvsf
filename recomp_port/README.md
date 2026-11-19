@@ -1,4 +1,30 @@
-# XMVSF native front end — 87.460 (shuffled, overlapping films after text)
+# XMVSF native front end — 87.461 (masked moving rainbow film strips)
+
+## 87.461 — living rainbow film strip backing
+
+The home film columns now load `_art/menu/rainbowblobs.png`.
+For each visible 260×453 trapezoid, the original red/blue backing
+contributes approximately **50%** of its color and an independently
+moving, hue-rotating tile of `rainbowblobs` contributes the other
+**50%**. The original backing's alpha is the final mask: the rainbow
+never draws outside the trapezoid. Portraits are still fully visible
+above the background blend.
+
+Each physically scrolling panel receives a stable hashed motion
+direction, pan speed, hue speed, and starting hue. RGB hues cycle
+continuously. The tiles wrap on both axes. Animated panel textures are
+cached and refreshed at a 75ms cadence (or on Bayer reveal changes),
+without creating or destroying textures each frame. F6's offscreen and
+visible draws reuse each panel texture. The previously established
+80px-closer spacing, 2x scroll speed, random character order, and
+post-text dither remain unchanged.
+
+The file is a required authored runtime image, checked by the film
+preflight. If it cannot be loaded at runtime, the original red/blue
+backing is rendered instead. No ROM data or generated translation is
+changed.
+
+## 87.460 — film strips: tighter, faster, and sequenced after text
 
 ## 87.460 — film strips: tighter, faster, and sequenced after text
 
