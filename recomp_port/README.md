@@ -1,4 +1,14 @@
-# XMVSF native front end — 87.454 (Roman II shares main logo color pulses)
+# XMVSF native front end — 87.455 (masked X-Men / SF menu film)
+
+Python installers, version checks, and local build requirements are
+specified in [PYTHON_PATCHING_RULES.md](PYTHON_PATCHING_RULES.md).
+
+## 87.455 — looping menu film
+
+The left X-Men and right Street Fighter trapezoid films are prepared
+from `_art/menu` once per SDL renderer, then scrolled independently.
+Feature preflights run before Ninja; a passing source test is not a
+substitute for an actual Windows build and in-game inspection.
 
 The real XMVSF front end now renders in CPS-2 Recomp's **SDL3 native
 window and pixel presenter**, not an additional SDL launcher. The preserved
