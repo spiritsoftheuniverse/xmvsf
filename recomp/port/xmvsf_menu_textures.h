@@ -3,6 +3,7 @@
 // Source artwork stays in xmvsf_home::Menu; only layers are uploaded to SDL.
 #pragma once
 #include "xmvsf_home.h"
+#include "xmvsf_menu_film.h"
 #include "xmvsf_options.h"
 #include "xmvsf_ii_strikes.h"
 #include "xmvsf_palette_fx.h"
@@ -29,6 +30,7 @@ class TexturedMenu {
     SDL_Texture *smallFont_ = nullptr;
     SDL_Texture *revealLarge_ = nullptr, *revealSmall_ = nullptr;
     XM87235II::Painter iiPainter_;
+    MenuFilmStrips films_;
     std::vector<Uint8> originalLogoRGBA_, pulsedLogo_, introLogo_;
     std::vector<Uint8> backgroundOriginalRGBA_, introBackground_;
     std::vector<uint32_t> largeRevealPixels_, smallRevealPixels_;
@@ -90,6 +92,7 @@ class TexturedMenu {
             gifHue_ = -1;
             Tint(background_, 77);
         }
+        films_.Init(r);
         if (!logo_ || !largeFont_ || !smallFont_) {
             if (!warned_) {
                 std::fprintf(stderr,
@@ -259,6 +262,7 @@ public:
     }
 
     void Release() {
+        films_.Release();
         iiPainter_.release();
         for (SDL_Texture *texture : {background_, logo_, logoII_, largeFont_, smallFont_, revealLarge_, revealSmall_})
             if (texture) SDL_DestroyTexture(texture);
@@ -359,7 +363,7 @@ public:
             center(notice, 480, 462, 1.45f, options.Capturing() ? 255 : 173);
         }
         center("A SELECT   B / ESC BACK", 480, 511, 1.5f, 176);
-        left("TEST 87.454", 834, 523, 1.05f, 160);
+        left("TEST 87.455", 834, 523, 1.05f, 160);
         SDL_RenderPresent(renderer);
         return true;
     }
@@ -380,6 +384,7 @@ public:
             channel(36.0f+219.0f*backgroundStrength),255);
         SDL_RenderClear(renderer);
         DrawBackground(renderer,now,backgroundStrength);
+        films_.Draw(renderer, now);
         if (elapsed >= XM87235Intro::LogoStart) DrawLogo(renderer,now,elapsed,cinematic);
         if (elapsed < XM87235Intro::MenuStart) {
             SDL_RenderPresent(renderer);
@@ -403,7 +408,7 @@ public:
         GlyphText(renderer, menu_.small_, captionFont,
                   "ESC TO RETURN", 18, 522, 1.08f, 185, 0);
         GlyphText(renderer, menu_.small_, captionFont,
-                  "TEST 87.454", 942, 522, 1.08f, 185, 2);
+                  "TEST 87.455", 942, 522, 1.08f, 185, 2);
         SDL_RenderPresent(renderer);
         return true;
     }
