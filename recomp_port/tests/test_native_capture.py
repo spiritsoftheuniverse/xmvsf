@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""87.458 read-only preflight: F6 captures each native UI/game source."""
+"""87.459 F6 native captures go to root/screenshots for every screen."""
 from __future__ import annotations
 
 from pathlib import Path
@@ -22,6 +22,7 @@ def main() -> None:
     front = (PORT / "frontend_sdl.cpp").read_text(encoding="utf-8")
     main_cpp = (PORT / "main.cpp").read_text(encoding="utf-8")
     installer = (CANONICAL / "apply_textured_menu.py").read_text(encoding="utf-8")
+    run = (ROOT / "RECOMP_RUN.bat").read_text(encoding="utf-8")
 
     # Real menu pixels are captured offscreen *before* presenting; both
     # target switch and readback must exist. No OS/desktop screenshots.
@@ -59,17 +60,31 @@ def main() -> None:
     assert "nativeCapture.SaveMenu(presenter.Renderer(), \"options\"" in front
     assert 'nativeCapture.SavePixels("home-fallback", homePicture.data(), 960, 540)' in front
     assert 'nativeCapture.SavePixels("ingame-menu", menuPicture.data(),' in front
-    assert "port.Screenshot(); // existing native" in front
-    assert "nativeCapture.Consume();" in front
+    assert "port.Shown(nativeGamePixels);" in front
+    assert 'nativeCapture.SavePixels("gameplay", nativeGamePixels.data(),' in front
+    assert "port.ShownWidth(), Video::kHeight);" in front
+    assert 'port.PlayerFolder() + "screenshots/"' not in front
+    assert 'std::getenv("XMVSF_SCREENSHOT_DIR")' in front
+    assert 'f6Folder && *f6Folder ? f6Folder : "../screenshots/"' in front
 
-    # The upstream gameplay screenshot is already native, using the actual
-    # frame width and 224 rows. The in-game menu has its own larger buffer.
+    # The launcher establishes the *absolute* repository root regardless of
+    # where EEPROM/settings data are located; it also creates the folder at
+    # start, so users can locate screenshots before pressing F6.
+    assert 'set "XMVSF_SCREENSHOT_DIR=%PROJECT%\\screenshots"' in run
+    assert 'mkdir "%XMVSF_SCREENSHOT_DIR%"' in run
+    assert "std::filesystem::create_directories" in capture
+    assert "F6 screenshots folder:" in capture
+    assert "F6 capture requested ->" in capture
+
+    # F12 is intentionally unchanged and still uses its original player
+    # folder, while F6 gameplay goes through NativeCapture::SavePixels.
     game_capture = main_cpp.split("bool Port::Screenshot()", 1)[1].split("\n}\n", 1)[0]
+    assert 'PlayerFolder() + "screenshots/"' in game_capture
     assert "Shown(shown)" in game_capture
     assert "WritePng(path.c_str(), shown.data()," in game_capture
     assert "ShownWidth()), Video::kHeight" in game_capture
     assert 'CAPTURE_HEADER.write_bytes(capture_content)' in installer
-    print("XMVSF 87.458 F6: native home, Options, ingame-menu and gameplay capture hooks PASS")
+    print("XMVSF 87.459 F6: root/screenshots, home, Options, ingame-menu, game PASS")
 
 
 if __name__ == "__main__":

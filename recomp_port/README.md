@@ -1,10 +1,27 @@
-# XMVSF native front end — 87.458 (F6 native-resolution screenshot capture)
+# XMVSF native front end — 87.459 (F6 saves to root/screenshots)
+
+## 87.459 — single F6 screenshot destination
+
+Run `RECOMP_RUN.bat`: it immediately creates
+`F:\\xmvsf-recomp\\screenshots\\` and supplies that absolute folder to
+the game as `XMVSF_SCREENSHOT_DIR`. Press **F6** on the home menu,
+Options, the in-game menu, or during gameplay. All F6 PNGs go into
+this **one repository-root folder**, never the player's
+`recomp/work/xmvsf/` folder.
+
+The program prints the capture folder at startup and logs an F6
+request and the saved PNG path (or a failure). Gameplay F6 takes the
+native pixels directly from `Port::Shown()` and saves through the same
+writer as every menu. F12 retains its original screenshot destination.
+When launching manually without the batch file, F6 defaults to
+`../screenshots/` relative to the game's working directory.
+
+## 87.458 — F6 native-resolution screenshot capture
 
 ## 87.458 — F6 capture from every screen
 
 Press **F6** once to save the currently visible menu or game state as a
-PNG in the same **screenshots/** folder used by the existing F12 gameplay
-capture. The exact path and pixel dimensions are printed in the console.
+PNG in the **repository-root screenshots/** folder (different from F12). The exact path and pixel dimensions are printed in the console.
 
 - **Home / film strip menu:** captures the actual SDL3 compositor to a
   960×540 offscreen target, including the scrolling character panels,
@@ -14,8 +31,8 @@ capture. The exact path and pixel dimensions are printed in the console.
 - **In-game game-settings menu:** saves its original `menuPicture`
   pixel buffer at its generated dimensions (commonly 896×672), with no
   postprocessing or desktop pixels.
-- **Gameplay:** uses `Port::Screenshot()` for the true native game
-  framebuffer (`ShownWidth() × 224`, ordinarily 384×224).
+- **Gameplay:** uses the native `Port::Shown()` pixels and the same
+  root-folder writer as the menus (`ShownWidth() × 224`, ordinarily 384×224).
 - **F6** is no longer previous save slot. **F7** is next slot and
   **Shift+F7** is previous; **F12** keeps its gameplay-only capture.
 
