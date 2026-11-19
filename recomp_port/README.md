@@ -1,4 +1,24 @@
-# XMVSF native front end — 87.461 (masked moving rainbow film strips)
+# XMVSF native front end — 87.462 (meteor-visible translucent film panels)
+
+## 87.462 — translucent film, stronger team colors, larger rainbow blobs
+
+Only the **red/blue panel backing** is made translucent: it renders at
+**60% opacity**, allowing the MVC meteor animation to remain visible
+through the film. Each **character portrait stays at its original
+opacity** on top, with its existing trapezoid clipping mask and
+post-text Bayer reveal preserved.
+
+The background color blend now favors the team color at **75% red/blue**
+and **25% rainbow** (at most, where rainbow pixels are fully opaque).
+The `rainbowblobs.png` tiles sample at **2× their previous size**, with
+the wrap period doubled in X and Y, preserving seamless directional
+panning and independent per-panel hue cycling. The fallback red/blue
+backdrop uses the same 60% opacity if the rainbow image is missing.
+
+Previous 389-pixel panel spacing, 20px/sec scrolling, character shuffle,
+and native F6 screenshot destination remain unchanged.
+
+## 87.461 — living rainbow film strip backing
 
 ## 87.461 — living rainbow film strip backing
 
