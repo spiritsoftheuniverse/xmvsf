@@ -90,6 +90,26 @@ def normalize_menu_audio_steps(text: str) -> str:
 
 
 
+def is_complete_f6_options_pair(text: str) -> bool:
+    """Recognize the two *intentional* 87.458+ Options draws.
+
+    A native F6 screenshot renders into an offscreen texture without
+    presenting; the second invocation renders to the visible window.
+    Reject extra calls or changed/partial branches; never delete either.
+    """
+    return (
+        text.count("homeTextures.RenderOptions(") == 2
+        and text.count('nativeCapture.SaveMenu(presenter.Renderer(), "options"') == 1
+        and text.count("const uint64_t menuTick = SDL_GetTicks();") >= 1
+        and text.count("return homeTextures.RenderOptions(") == 1
+        and text.count("options, g_bindings, Table(), owners, false);") == 1
+        and text.count("options, g_bindings, Table(), owners);") == 1
+        and "if (nativeCapture.Pending()) {" in text
+        and "presenter.UseClassicMenuCanvas(true);" in text
+        and OPTIONS_DRAW_BLOCK not in text
+    )
+
+
 def recover_repeated_options(text: str) -> str:
     """Collapse known duplicate generated code; preserve unknown source.
 
@@ -99,6 +119,10 @@ def recover_repeated_options(text: str) -> str:
     """
     draw_count = text.count(OPTIONS_DRAW_BLOCK)
     total_calls = text.count("homeTextures.RenderOptions(")
+    if is_complete_f6_options_pair(text):
+        # The source is newer than the legacy 87.442 generated block.
+        # Two calls are required; no deduplication should run here.
+        return text
     if total_calls > 1 and total_calls != draw_count:
         raise RuntimeError(
             f"87.446 saw {total_calls} Options rendering calls but only "

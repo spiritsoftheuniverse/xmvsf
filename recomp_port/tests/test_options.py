@@ -65,7 +65,30 @@ def main():
         pass
     else:
         raise AssertionError("custom-modified Options blocks must be preserved")
+    # 87.458 F6: two Options rendering calls are required, not duplicates.
+    # One offscreen capture is no-present, the other is the visible draw.
     original = (PORT / "frontend_sdl.cpp").read_text(encoding="utf-8")
+    assert module.is_complete_f6_options_pair(original), (
+        "F6 Options capture and visible draw must each occur exactly once"
+    )
+    assert module.recover_repeated_options(original) == original, (
+        "already-installed F6 Options branch must be idempotent"
+    )
+    for broken in (
+        original.replace("owners, false);", "owners, true);", 1),
+        original.replace("owners, false);", "gamepads, false);", 1),
+        original + "\n// unrecognized third Options call\nhomeTextures.RenderOptions();\n",
+    ):
+        assert broken != original, "fixture must actually alter the source"
+        assert not module.is_complete_f6_options_pair(broken)
+        try:
+            module.recover_repeated_options(broken)
+        except RuntimeError:
+            pass
+        else:
+            raise AssertionError(
+                "incomplete or extra F6 Options calls must remain protected"
+            )
     assert original.count(module.OPTIONS_AUDIO_LINE) == 1, (
         "native Options must pump exactly one menu music stream per frontend iteration"
     )
