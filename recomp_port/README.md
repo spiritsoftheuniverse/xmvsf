@@ -1,7 +1,17 @@
-# XMVSF native front end — 87.456 (gapped X-Men / SF film with clipped portraits)
+# XMVSF native front end — 87.457 (alpha-safe portraits, 16px film spacing)
 
 Python installers, version checks, and local build requirements are
 specified in [PYTHON_PATCHING_RULES.md](PYTHON_PATCHING_RULES.md).
+
+## 87.457 — 16-pixel gaps and head-safe portrait fitting
+
+Panel spacing now matches the 16-pixel menu side margin. The 260×453
+trapezoids advance every 469 pixels. Every character is fitted from its
+visible alpha bounds into the film's full-alpha safe interior with eight
+pixels of inner padding. Contain-fit avoids the previous cover-crop
+that hid character heads against the sloped film edges. The original
+film alpha still clips the resulting portrait. Both columns share the
+same path; scroll directions are unchanged.
 
 ## 87.456 — separate film and portrait layers; 96-pixel gaps
 

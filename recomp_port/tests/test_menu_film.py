@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""87.456: verify film gap, alpha mask, and infinite scroll continuity."""
+"""87.457: verify 16px margin, safe alpha bounds, and scroll continuity."""
 from pathlib import Path
 import struct
 
@@ -29,7 +29,10 @@ def main() -> None:
     installer = INSTALLER.read_text(encoding="utf-8")
     assert film == (ROOT / "recomp" / "port" / "xmvsf_menu_film.h").read_text(encoding="utf-8")
     for requirement in (
-        "kGap = 96", "kPortraitTop = 78", "kMargin = 16",
+        "kGap = 16", "kPortraitTop = 78", "kMargin = 16",
+        "kPortraitInset = 8", "static Rect SafePortraitArea(",
+        "const Rect visible = VisibleBounds(portrait)",
+        "const double scale = std::min(", "MaskPortrait(column.shape, person, safe)",
         "kSpeedPixelsPerSecond = 10.0", "menu/menufilmL.png",
         "menu/menufilm.png", '"xm", true', '"sf", false',
         "SDL_SCALEMODE_NEAREST", "column.shape.height + kGap",
@@ -51,19 +54,18 @@ def main() -> None:
     assert 'FILM_SOURCE = ROOT / "recomp_port" / "xmvsf_menu_film.h"' in installer
     assert "FILM_HEADER.write_bytes(film_content)" in installer
 
-    # 453px high films have a true 96px transparent vertical margin.
-    step = 453 + 96
-    assert step == 549
+    # 453px film plus 16px clear gap, like the side margin.
+    step = 453 + 16
+    assert step == 469
     assert 960 - 16 - 260 == 684
     assert "kOverlap" not in film
     assert "Compose(" not in film
     for down in (False, True):
-        for phase in (0, 1, 96, 273, 548):
+        for phase in (0, 1, 16, 117, 468):
             panels = [slot * step + (phase if down else -phase)
                       for slot in range(-2, 5)]
-            assert all(panels[i + 1] - (panels[i] + 453) == 96
+            assert all(panels[i + 1] - (panels[i] + 453) == 16
                        for i in range(len(panels) - 1)), (down, phase)
-        # The same character must occupy the same Y across phase rollover.
         for slot in range(-1, 6):
             before_y = slot * step + (step if down else -step)
             next_slot = slot + (1 if down else -1)
@@ -73,13 +75,23 @@ def main() -> None:
             after_index = next_slot + (-1 if down else 1)
             assert before_index == after_index
 
-    # The portrait RGB is not altered or channel-swapped; film and portrait
-    # alpha combine only at the pixel boundary, preserving true transparency.
-    assert (255 * 255 + 127) // 255 == 255
-    assert (255 * 0 + 127) // 255 == 0
-    assert (128 * 128 + 127) // 255 == 64
+    # Contain-fit the opaque alpha bounds rather than cover-cropping heads.
+    # The source film's 240+ alpha band is y=92..360; with 8px inset it
+    # provides a safe 244x253 placement rectangle at (8,100).
+    safe_x, safe_y, safe_w, safe_h = 8, 100, 244, 253
+    for source_w, source_h in ((200, 400), (800, 120), (128, 512),
+                               (512, 512), (260, 453)):
+        scale = min(safe_w / source_w, safe_h / source_h)
+        drawn_w = max(1, min(safe_w, int(source_w * scale + 0.5)))
+        drawn_h = max(1, min(safe_h, int(source_h * scale + 0.5)))
+        dst_x = safe_x + (safe_w - drawn_w) // 2
+        dst_y = safe_y + (safe_h - drawn_h) // 2
+        assert dst_x >= safe_x and dst_y >= safe_y
+        assert dst_x + drawn_w <= safe_x + safe_w
+        assert dst_y + drawn_h <= safe_y + safe_h
+    assert "std::max(double(w) / portrait.width" not in film
     assert "(person & 0x00ffffffu)" in film
-    print("XMVSF 87.456 film: 18 portraits, 96px gaps, alpha, wrap PASS")
+    print("XMVSF 87.457 film: 18 portraits, 16px gaps, safe alpha fit PASS")
 
 if __name__ == "__main__":
     main()
