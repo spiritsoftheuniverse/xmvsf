@@ -1,4 +1,4 @@
-// XMVSF native menu presentation, v87.455 (looping masked menu film).
+// XMVSF native menu presentation, v87.456 (film strip spacing and portrait alpha).
 // Adapted from this repository's Stage14 layout and XMGlyph bitmap atlas rules.
 // Draws into the native CPS-2 Recomp pixel presenter; no SDL2 or SDL_image dependency.
 #pragma once
@@ -403,7 +403,7 @@ public:
 
         Text(pixels, "A SELECT   B / ESC BACK", 489, 495, true, 1.375f, 235);
         Text(pixels, "ESC TO RETURN", 18, 522, true, 1.08f, 185, 0);
-        Text(pixels, "TEST 87.455", 942, 522, true, 1.08f, 185, 2);
+        Text(pixels, "TEST 87.456", 942, 522, true, 1.08f, 185, 2);
     }
 };
 

@@ -363,7 +363,7 @@ public:
             center(notice, 480, 462, 1.45f, options.Capturing() ? 255 : 173);
         }
         center("A SELECT   B / ESC BACK", 480, 511, 1.5f, 176);
-        left("TEST 87.455", 834, 523, 1.05f, 160);
+        left("TEST 87.456", 834, 523, 1.05f, 160);
         SDL_RenderPresent(renderer);
         return true;
     }
@@ -408,7 +408,7 @@ public:
         GlyphText(renderer, menu_.small_, captionFont,
                   "ESC TO RETURN", 18, 522, 1.08f, 185, 0);
         GlyphText(renderer, menu_.small_, captionFont,
-                  "TEST 87.455", 942, 522, 1.08f, 185, 2);
+                  "TEST 87.456", 942, 522, 1.08f, 185, 2);
         SDL_RenderPresent(renderer);
         return true;
     }
