@@ -91,10 +91,10 @@ if errorlevel 1 (
   goto :fail
 )
 
-REM 87.457: assert 16px gaps, safe portrait contain-fit and wrap before Ninja.
+REM 87.460: assert 389px film pitch, randomized order and post-text Bayer before Ninja.
 "%BASH%" -c "python3 ../recomp_port/tests/test_menu_film.py"
 if errorlevel 1 (
-  echo ERROR: XMVSF 87.457 menu film integrity failed. No build performed.
+  echo ERROR: XMVSF 87.460 menu film integrity failed. No build performed.
   popd
   goto :fail
 )

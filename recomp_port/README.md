@@ -1,4 +1,23 @@
-# XMVSF native front end — 87.459 (F6 saves to root/screenshots)
+# XMVSF native front end — 87.460 (shuffled, overlapping films after text)
+
+## 87.460 — film strips: tighter, faster, and sequenced after text
+
+Both 260×453 film columns are spaced **80 source pixels closer**
+than before. Their new 389px pitch overlaps tapered panels by 64px.
+The original 16px horizontal edge margin is unchanged. Scrolling is
+**20px/sec** instead of 10px/sec; X-Men continue downward and
+Street Fighter upward.
+
+At load time, each column shuffles the nine characters into a random
+non-repeating order, which stays stable during frames and cycles.
+The film backing and portraits remain completely hidden until the main
+menu text finishes its 500ms Bayer reveal. They then dither in with
+the **same 4×4 source-pixel Bayer pattern** over a subsequent 500ms.
+The normal renderer updates texture pixels only when the dither step
+changes and restores original alpha after the intro. No changes to
+native F6 screenshot capture or screenshot destination.
+
+## 87.459 — single F6 screenshot destination
 
 ## 87.459 — single F6 screenshot destination
 
