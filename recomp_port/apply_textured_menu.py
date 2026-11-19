@@ -16,6 +16,8 @@ PRESENT_CPP = PORT / "present.cpp"
 HOME = PORT / "xmvsf_home.h"
 SOURCE = ROOT / "recomp_port" / "xmvsf_menu_textures.h"
 HEADER = PORT / "xmvsf_menu_textures.h"
+FILM_SOURCE = ROOT / "recomp_port" / "xmvsf_menu_film.h"
+FILM_HEADER = PORT / "xmvsf_menu_film.h"
 MARK = "XMVSF_RECOMP_MENU_TEXTURES_87_441"
 
 def replace_exact(text: str, old: str, new: str, label: str) -> str:
@@ -173,6 +175,7 @@ def main() -> int:
     else:
         updated = patch(original)  # checks every anchor before writing anything
     content = SOURCE.read_bytes()
+    film_content = FILM_SOURCE.read_bytes()
     for path in original:
         if original[path] != updated[path]:
             path.write_text(updated[path], encoding="utf-8")
@@ -180,6 +183,9 @@ def main() -> int:
     if not HEADER.is_file() or HEADER.read_bytes() != content:
         HEADER.write_bytes(content)
         print(f"87.441 original-style SDL renderer: {HEADER}")
+    if not FILM_HEADER.is_file() or FILM_HEADER.read_bytes() != film_content:
+        FILM_HEADER.write_bytes(film_content)
+        print(f"87.455 looping menu film: {FILM_HEADER}")
     return 0
 
 if __name__ == "__main__":
