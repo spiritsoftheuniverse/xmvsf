@@ -73,6 +73,15 @@ if errorlevel 1 (
   goto :fail
 )
 
+REM 87.458: verify F6 native snapshots for home, Options, ingame UI, gameplay.
+REM Source-only preflight; do not regenerate 68k translation or clear caches.
+"%BASH%" -c "python3 ../recomp_port/tests/test_native_capture.py"
+if errorlevel 1 (
+  echo ERROR: XMVSF F6 native capture integrity failed. No build performed.
+  popd
+  goto :fail
+)
+
 REM Fail early if the three source installers disagree or an SDL integration hook
 REM is missing. Source-only test; zero M68k translation or build-cache impact.
 "%BASH%" -c "python3 ../recomp_port/tests/test_textured_menu.py"

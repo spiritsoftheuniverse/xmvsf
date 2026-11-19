@@ -1,4 +1,31 @@
-# XMVSF native front end — 87.457 (alpha-safe portraits, 16px film spacing)
+# XMVSF native front end — 87.458 (F6 native-resolution screenshot capture)
+
+## 87.458 — F6 capture from every screen
+
+Press **F6** once to save the currently visible menu or game state as a
+PNG in the same **screenshots/** folder used by the existing F12 gameplay
+capture. The exact path and pixel dimensions are printed in the console.
+
+- **Home / film strip menu:** captures the actual SDL3 compositor to a
+  960×540 offscreen target, including the scrolling character panels,
+  logo, background, and selections, without window scaling.
+- **Game / Graphics / Controller Options:** captures the real options
+  renderer at 960×540, including the selected row and active remapping UI.
+- **In-game game-settings menu:** saves its original `menuPicture`
+  pixel buffer at its generated dimensions (commonly 896×672), with no
+  postprocessing or desktop pixels.
+- **Gameplay:** uses `Port::Screenshot()` for the true native game
+  framebuffer (`ShownWidth() × 224`, ordinarily 384×224).
+- **F6** is no longer previous save slot. **F7** is next slot and
+  **Shift+F7** is previous; **F12** keeps its gameplay-only capture.
+
+Screenshots do not affect ROMs, game saves, or existing build caches. Home
+and Options captures render once into a native offscreen SDL texture on
+the requested frame, then display the usual frame normally. The local
+`test_native_capture.py` verifies all state hooks before Ninja.
+
+Windows SDL3 rendering still needs a local runtime check; these are source
+preflight assertions, not evidence of an executable test pass.
 
 Python installers, version checks, and local build requirements are
 specified in [PYTHON_PATCHING_RULES.md](PYTHON_PATCHING_RULES.md).
