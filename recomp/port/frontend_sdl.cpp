@@ -9,6 +9,7 @@
 #include "xmvsf_menu_audio.h" // XMVSF_RECOMP_HOME_87_437
 #include "xmvsf_window.h"
 #include "xmvsf_menu_textures.h" // XMVSF_RECOMP_MENU_TEXTURES_87_441
+#include "xmvsf_native_capture.h" // XMVSF_NATIVE_CAPTURE_87_458
 #include "xmvsf_options.h" // XMVSF_RECOMP_OPTIONS_87_442
 #include "xmvsf_pad_owners.h" // XMVSF_RECOMP_PAD_OWNER_87_443
 #include "../fight/session.h"
@@ -426,6 +427,7 @@ int RunWindowed(Port &port) {
     xmvsf_home::Menu home(homeEnabled);
     xmvsf_home::MenuAudio homeAudio(homeEnabled);
     xmvsf_home::TexturedMenu homeTextures(home);
+    xmvsf_home::NativeCapture nativeCapture(port.PlayerFolder() + "screenshots/");
     xmvsf_home::OptionsPanel options; // XMVSF_RECOMP_OPTIONS_87_442
     xmvsf_home::PadOwners owners; // XMVSF_RECOMP_PAD_OWNER_87_443
     owners.Init(port.opt.settingsPath);
@@ -522,6 +524,13 @@ int RunWindowed(Port &port) {
             chatOpen(false); // (the match over, or waited for again)
         }
         while (SDL_PollEvent(&ev)) {
+            // F6 captures the next rendered frame, regardless of home,
+            // Options, in-game menu, gameplay, chat, or button assignment.
+            if (ev.type == SDL_EVENT_KEY_DOWN &&
+                ev.key.scancode == SDL_SCANCODE_F6) {
+                if (!ev.key.repeat) nativeCapture.Request();
+                continue;
+            }
             if (touch.Event(ev)) {
                 continue;
             }
@@ -603,8 +612,10 @@ int RunWindowed(Port &port) {
                     if (!port.menu.IsOpen()) {
                         quickState(ev.key.scancode == SDL_SCANCODE_F5);
                     }
-                } else if (ev.key.scancode == SDL_SCANCODE_F6 || ev.key.scancode == SDL_SCANCODE_F7) {
-                    port.menu.SetSlot(port.menu.Slot() + (ev.key.scancode == SDL_SCANCODE_F7 ? 1 : -1));
+                } else if (ev.key.scancode == SDL_SCANCODE_F7) {
+                    // F6 is reserved for native screenshots. Shift+F7 keeps
+                    // the previous save-state slot shortcut available.
+                    port.menu.SetSlot(port.menu.Slot() + ((ev.key.mod & SDL_KMOD_SHIFT) ? -1 : 1));
                 } else if (!port.menu.IsOpen() && ev.key.scancode == SDL_SCANCODE_P && !ev.key.repeat) {
                     port.Key('p'); // stops the game, and starts it again
                 } else if (!port.menu.IsOpen() && ev.key.scancode == SDL_SCANCODE_O) {
@@ -945,8 +956,19 @@ int RunWindowed(Port &port) {
         if (options.Active()) { // XMVSF_RECOMP_OPTIONS_87_442: three native tabs
             if (presenter.Renderer()) {
                 presenter.UseClassicMenuCanvas(true);
-                homeTextures.RenderOptions(presenter.Renderer(), SDL_GetTicks(),
+                const uint64_t menuTick = SDL_GetTicks();
+                if (nativeCapture.Pending()) {
+                    nativeCapture.SaveMenu(presenter.Renderer(), "options", [&]() {
+                        return homeTextures.RenderOptions(
+                            presenter.Renderer(), menuTick,
+                            options, g_bindings, Table(), owners, false);
+                    });
+                }
+                homeTextures.RenderOptions(presenter.Renderer(), menuTick,
                                            options, g_bindings, Table(), owners);
+            } else if (nativeCapture.Pending()) {
+                nativeCapture.Consume();
+                std::fprintf(stderr, "F6 native capture: Options renderer unavailable\n");
             }
             SDL_Delay(8);
             nextFrame = SDL_GetTicksNS();
@@ -957,8 +979,16 @@ int RunWindowed(Port &port) {
             // matching our original SDL2 frontend. No CPU full-menu blending.
             if (homeTextures.Renderable(presenter.Renderer(), xmvsfClassic)) {
                 presenter.UseClassicMenuCanvas(true);
-                if (!homeTextures.Render(presenter.Renderer(), SDL_GetTicks())) {
+                const uint64_t menuTick = SDL_GetTicks();
+                if (nativeCapture.Pending()) {
+                    nativeCapture.SaveMenu(presenter.Renderer(), "home", [&]() {
+                        return homeTextures.Render(presenter.Renderer(), menuTick, false);
+                    });
+                }
+                if (!homeTextures.Render(presenter.Renderer(), menuTick)) {
                     home.Draw(homePicture, SDL_GetTicks());
+                    if (nativeCapture.Pending())
+                        nativeCapture.SavePixels("home-fallback", homePicture.data(), 960, 540);
                     const float fallbackScale = std::max(0.001f, std::min(
                         float(width) / 960.0f, float(height) / 540.0f));
                     const SDL_FRect fallbackRect{
@@ -969,6 +999,8 @@ int RunWindowed(Port &port) {
                 }
             } else {
                 home.Draw(homePicture, SDL_GetTicks());
+                if (nativeCapture.Pending())
+                    nativeCapture.SavePixels("home-fallback", homePicture.data(), 960, 540);
                 const float fallbackScale = std::max(0.001f, std::min(
                     float(width) / 960.0f, float(height) / 540.0f));
                 const SDL_FRect fallbackRect{
@@ -988,6 +1020,9 @@ int RunWindowed(Port &port) {
                 menuPicture = menuBase;
                 port.menu.Draw(menuPicture.data(), static_cast<int>(menuWidth), static_cast<int>(menuHeight));
             }
+            if (nativeCapture.Pending())
+                nativeCapture.SavePixels("ingame-menu", menuPicture.data(),
+                                         static_cast<int>(menuWidth), static_cast<int>(menuHeight));
             // (not through a shader: the menu is drawn three times the board's size, and is not the game's picture)
             presenter.Show(menuPicture.data(), static_cast<int>(menuWidth), static_cast<int>(menuHeight), menuWhere, nullptr, false);
             SDL_Delay(8);
@@ -999,6 +1034,10 @@ int RunWindowed(Port &port) {
         const auto rate = port.menu.GameRate();
         const double pace = port.paused ? 1.0 : static_cast<double>(rate.frames) / rate.ticks;
         const bool ran = port.Tick();
+        if (nativeCapture.Pending()) {
+            nativeCapture.Consume();
+            port.Screenshot(); // existing native 384x224/active native-width framebuffer
+        }
 
         if (audio && silent != (port.menu.muted || audioLog)) {
             silent = port.menu.muted || audioLog;

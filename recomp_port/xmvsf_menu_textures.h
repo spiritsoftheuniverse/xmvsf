@@ -283,7 +283,7 @@ public:
     // never a CPU-composited frame. Called while the normal home menu hides.
     bool RenderOptions(SDL_Renderer *renderer, uint64_t now, const OptionsPanel &options,
                        const recomp::Bindings &bindings, const BoundTable &table,
-                       const PadOwners &owners) {
+                       const PadOwners &owners, bool present = true) {
         if (!renderer || !options.Active() || !Init(renderer)) return false;
         SDL_SetRenderDrawColor(renderer, 8, 16, 36, 255);
         SDL_RenderClear(renderer);
@@ -363,12 +363,12 @@ public:
             center(notice, 480, 462, 1.45f, options.Capturing() ? 255 : 173);
         }
         center("A SELECT   B / ESC BACK", 480, 511, 1.5f, 176);
-        left("TEST 87.457", 834, 523, 1.05f, 160);
-        SDL_RenderPresent(renderer);
+        left("TEST 87.458", 834, 523, 1.05f, 160);
+        if (present) SDL_RenderPresent(renderer);
         return true;
     }
 
-    bool Render(SDL_Renderer *renderer, uint64_t now) {
+    bool Render(SDL_Renderer *renderer, uint64_t now, bool present = true) {
         if (!renderer || !menu_.Visible() || !Init(renderer)) return false;
         const auto &clock = XM87235Intro::State();
         const std::uint32_t elapsed = clock.Elapsed(now);
@@ -387,7 +387,7 @@ public:
         films_.Draw(renderer, now);
         if (elapsed >= XM87235Intro::LogoStart) DrawLogo(renderer,now,elapsed,cinematic);
         if (elapsed < XM87235Intro::MenuStart) {
-            SDL_RenderPresent(renderer);
+            if (present) SDL_RenderPresent(renderer);
             return true;
         }
         const int reveal = cinematic ?
@@ -408,8 +408,8 @@ public:
         GlyphText(renderer, menu_.small_, captionFont,
                   "ESC TO RETURN", 18, 522, 1.08f, 185, 0);
         GlyphText(renderer, menu_.small_, captionFont,
-                  "TEST 87.457", 942, 522, 1.08f, 185, 2);
-        SDL_RenderPresent(renderer);
+                  "TEST 87.458", 942, 522, 1.08f, 185, 2);
+        if (present) SDL_RenderPresent(renderer);
         return true;
     }
 };

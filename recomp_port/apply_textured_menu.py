@@ -18,6 +18,8 @@ SOURCE = ROOT / "recomp_port" / "xmvsf_menu_textures.h"
 HEADER = PORT / "xmvsf_menu_textures.h"
 FILM_SOURCE = ROOT / "recomp_port" / "xmvsf_menu_film.h"
 FILM_HEADER = PORT / "xmvsf_menu_film.h"
+CAPTURE_SOURCE = ROOT / "recomp_port" / "xmvsf_native_capture.h"
+CAPTURE_HEADER = PORT / "xmvsf_native_capture.h"
 MARK = "XMVSF_RECOMP_MENU_TEXTURES_87_441"
 
 def replace_exact(text: str, old: str, new: str, label: str) -> str:
@@ -178,6 +180,7 @@ def main() -> int:
         updated = patch(original)  # checks every anchor before writing anything
     content = SOURCE.read_bytes()
     film_content = FILM_SOURCE.read_bytes()
+    capture_content = CAPTURE_SOURCE.read_bytes()
     for path in original:
         if original[path] != updated[path]:
             path.write_text(updated[path], encoding="utf-8")
@@ -188,6 +191,9 @@ def main() -> int:
     if not FILM_HEADER.is_file() or FILM_HEADER.read_bytes() != film_content:
         FILM_HEADER.write_bytes(film_content)
         print(f"87.455 looping menu film: {FILM_HEADER}")
+    if not CAPTURE_HEADER.is_file() or CAPTURE_HEADER.read_bytes() != capture_content:
+        CAPTURE_HEADER.write_bytes(capture_content)
+        print(f"87.458 F6 native capture: {CAPTURE_HEADER}")
     return 0
 
 if __name__ == "__main__":
