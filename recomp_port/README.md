@@ -1,5 +1,28 @@
-# XMVSF native front end — 87.467 (Training startup handoff)
+# XMVSF native front end — 87.468 (character-select noise reveal and Ogg song)
 
+## 87.468 — native character selection noise-pixel reveal
+
+Choosing a native Training stage captures the **actual last 960×540 stage-picker
+frame** from the SDL3 texture renderer, including the moving character film
+and selected pink/blue outline. The ROM still auto-boots invisibly (87.467).
+When native character selection becomes active, the complete live game
+picture is revealed **pixel by pixel over 580 ms**, by replacing opaque
+pixels of that captured stage frame with new game pixels, using the
+existing curl-noise and Bayer vocabulary. There is no black interstitial
+screen, alpha blend, ROM tile filtering, or character-select input freeze.
+
+The already-authored `audio/music/characterselect.ogg` is associated with
+the ROM's existing player-select song `0x02` through
+`audio/music/soundtrack.ini`, using the recomp's own Ogg decoder and
+soundtrack playback. When a Training session starts, the local track is
+enabled only if no other custom soundtrack was configured. Normal
+Arcade/Versus restores the previous settings; unmatched songs play from
+the board's normal QSound program.
+
+The overlay is full physical-window size and keeps the stage menu's 16:9
+letterbox in ultrawide, while native game rendering happens underneath.
+Only the source and SDL3 visuals are changed. ROM folders, original music,
+film-strip implementation, and local build cache are left unchanged.
 ## 87.467 — hide ROM disclaimer on Training entry
 
 After selecting a native stage, the SDL3 frontend retains the last displayed

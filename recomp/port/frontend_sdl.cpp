@@ -10,6 +10,7 @@
 #include "xmvsf_window.h"
 #include "xmvsf_menu_textures.h" // XMVSF_RECOMP_MENU_TEXTURES_87_441
 #include "xmvsf_stage_picker.h" // XMVSF_RECOMP_STAGES_87_455
+#include "xmvsf_select_reveal.h" // XMVSF_RECOMP_SELECT_REVEAL_87_468
 #include "xmvsf_native_capture.h" // XMVSF_NATIVE_CAPTURE_87_458
 #include "xmvsf_options.h" // XMVSF_RECOMP_OPTIONS_87_442
 #include "xmvsf_pad_owners.h" // XMVSF_RECOMP_PAD_OWNER_87_443
@@ -429,6 +430,8 @@ int RunWindowed(Port &port) {
     xmvsf_home::MenuAudio homeAudio(homeEnabled);
     xmvsf_home::TexturedMenu homeTextures(home);
     xmvsf_home::StagePicker stagePicker; // XMVSF_RECOMP_STAGES_87_455
+    xmvsf_home::SelectReveal selectReveal;
+    bool trainingSelectSongOverride = false;
     int stageBeforeTraining = -1; // restore the former stage when Arcade/Versus starts
     bool stageLeftHeld = false, stageRightHeld = false;
     // Always write F6 PNGs to the repo's screenshots folder, never to
@@ -459,6 +462,10 @@ int RunWindowed(Port &port) {
     // while it was held: then it was the zoom's)
     bool stickWaiting = false;
     auto toggleMenu = [&]() {
+        if (selectReveal.Active()) {
+            selectReveal.Cancel();
+            presenter.SetOverlay(nullptr, 0, 0);
+        }
         if (port.net) {
             // (online: no menu, the game goes on for both players; Esc gives up a wait, and in a match asks whether to
             // leave it: Port::leaving)
@@ -879,6 +886,27 @@ int RunWindowed(Port &port) {
                         if (stageBeforeTraining < 0)
                             stageBeforeTraining = FeatureSetting(session::kStageFeature);
                         SetFeatureForNow(session::kStageFeature, stagePicker.Selected() + 1);
+                        // Capture this exact last visible stage-picker frame
+                        // before resetting the ROM. The film and pixel box remain.
+                        if (presenter.Renderer()) {
+                            const uint64_t at = SDL_GetTicks();
+                            if (!selectReveal.Capture(presenter.Renderer(), at, [&]() {
+                                    return homeTextures.RenderStagePicker(
+                                        presenter.Renderer(), at, stagePicker, false);
+                                })) {
+                                std::fprintf(stderr, "87.468: no stage capture, normal select presentation\n");
+                            }
+                        }
+                        // The native ROM asks for song 02 at character select.
+                        // Use our existing Ogg only when no custom soundtrack
+                        // was configured; all other songs remain native.
+                        if (!trainingSelectSongOverride && !FeatureValue("custom_soundtrack") &&
+                            port.opt.soundtrack.empty() &&
+                            std::filesystem::is_regular_file("../audio/music/characterselect.ogg")) {
+                            port.opt.soundtrack = "../audio/music";
+                            SetFeatureForNow("custom_soundtrack", 1);
+                            trainingSelectSongOverride = true;
+                        }
                         homeAudio.Select();
                         session::StartSession(*port.machine);
                         stagePicker.Close();
@@ -895,6 +923,11 @@ int RunWindowed(Port &port) {
                         SetFeatureForNow(session::kStageFeature, stageBeforeTraining);
                         stageBeforeTraining = -1;
                     }
+                    if (trainingSelectSongOverride) {
+                        SetFeatureForNow("custom_soundtrack", 0);
+                        port.opt.soundtrack.clear();
+                        trainingSelectSongOverride = false;
+                    }
                     EndSessionFeatures();
                     port.machine->Reset();
                     home.Hide();
@@ -906,6 +939,11 @@ int RunWindowed(Port &port) {
                     if (stageBeforeTraining >= 0) {
                         SetFeatureForNow(session::kStageFeature, stageBeforeTraining);
                         stageBeforeTraining = -1;
+                    }
+                    if (trainingSelectSongOverride) {
+                        SetFeatureForNow("custom_soundtrack", 0);
+                        port.opt.soundtrack.clear();
+                        trainingSelectSongOverride = false;
                     }
                     // First slice: original two-player local arcade with free play;
                     // both players press Start. Full selection lifecycle comes next.
@@ -1125,6 +1163,18 @@ int RunWindowed(Port &port) {
             nextFrame = SDL_GetTicksNS();
             continue;
         }
+        if (selectReveal.Active()) {
+            // This starts only after 87.467's hidden fast boot is finished.
+            // The new native character select keeps updating below the
+            // opaque/transparent noise mask; no gameplay timing changes.
+            if (selectReveal.Frame(SDL_GetTicks())) {
+                presenter.SetOverlay(selectReveal.Pixels(),
+                                     selectReveal.Width(), selectReveal.Height());
+            } else {
+                presenter.SetOverlay(touchPicture.empty() ? nullptr : touchPicture.data(),
+                                     touchWidth, touchHeight);
+            }
+        }
         if (nativeCapture.Pending()) {
             // One native game-frame screenshot, at its actual source pixel
             // width and 224 rows. F12 continues to use Port::Screenshot().
@@ -1290,6 +1340,7 @@ int RunWindowed(Port &port) {
     }
     // XMVSF_RECOMP_MENU_TEXTURES_87_441: release SDL objects before
     // upstream closes the renderer/window and calls SDL_Quit.
+    selectReveal.Cancel();
     stagePicker.Release(); // before SDL3 renderer shutdown
     homeTextures.Release();
     homeAudio.Close();

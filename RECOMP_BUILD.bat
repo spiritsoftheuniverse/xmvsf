@@ -181,6 +181,14 @@ if errorlevel 1 (
   goto :fail
 )
 
+REM 87.468: validate full-screen noise reveal and existing characterselect Ogg.
+"%BASH%" -c "python3 ../recomp_port/tests/test_select_reveal.py"
+if errorlevel 1 (
+  echo ERROR: XMVSF 87.468 selection reveal regression failed. No build performed.
+  popd
+  goto :fail
+)
+
 REM Default is FAST once configured. It only recompiles changed C++ objects.
 REM refresh explicitly regenerates M68000 translation and reconfigures CMake.
 if /I "%~1"=="refresh" goto :refresh
