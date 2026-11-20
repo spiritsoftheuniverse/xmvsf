@@ -1,4 +1,4 @@
-// XMVSF 87.480: bounded, compact F10 native M68K/selection/OAM diagnostics.
+// XMVSF 87.481: bounded, compact F10 native M68K/selection/OAM diagnostics.
 // Diagnostic observations only. No emulated RAM/ROM writes, no timing overrides.
 // A capture sees every REAL emulated frame, even while SDL3 skips presentation.
 #pragma once
@@ -183,6 +183,9 @@ public:
                                   before_.phase != post.phase ||
                                   before_.cursor != post.cursor ||
                                   before_.picks != post.picks;
+        const uint8_t *objects = machine.ObjectsToCome();
+        const int bank = (objects && !machine.objectRam.empty()) ?
+            static_cast<int>((objects - machine.objectRam.data()) / 0x2000) : -1;
         if ((framesSeen_ % 8u == 0u) || stateChanged) {
         std::fprintf(frames_, "%llu\t%llu\t%04X\t%04X\t%04X\t%04X\t%04X\t%04X\t"
                                   "%04X\t%04X\t%02X\t%02X\t"
@@ -200,9 +203,6 @@ public:
         HexBytes(frames_, before_.records.data(), before_.records.size());
         std::fputc('\t', frames_);
         HexBytes(frames_, post.records.data(), post.records.size());
-        const uint8_t *objects = machine.ObjectsToCome();
-        const int bank = (objects && !machine.objectRam.empty()) ?
-            static_cast<int>((objects - machine.objectRam.data()) / 0x2000) : -1;
         std::fprintf(frames_,
             "\t%06X\t%06X\t%04X\t%llu\t%u\t%u\t%u\t%u\t%u\t%04X\t%d\n",
             pcBefore_ & 0xFFFFFFu, machine.cpu.pc & 0xFFFFFFu,
