@@ -1116,6 +1116,15 @@ int RunWindowed(Port &port) {
         const auto rate = port.menu.GameRate();
         const double pace = port.paused ? 1.0 : static_cast<double>(rate.frames) / rate.ticks;
         const bool ran = port.Tick();
+        // XMVSF_RECOMP_TRAINING_ENTRY_87_467: fast boot runs up to 120
+        // native frames per Tick. Keep the last stage-picker presentation
+        // until character select; never display the ROM's disclaimer/title.
+        // This guard applies to Training only, not Arcade or Versus.
+        if (session::EnteringTraining()) {
+            port.machine->audio.clear();
+            nextFrame = SDL_GetTicksNS();
+            continue;
+        }
         if (nativeCapture.Pending()) {
             // One native game-frame screenshot, at its actual source pixel
             // width and 224 rows. F12 continues to use Port::Screenshot().

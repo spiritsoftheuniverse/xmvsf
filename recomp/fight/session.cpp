@@ -89,9 +89,13 @@ namespace {
         uint16_t &one = machine.players[0], &two = machine.players[1];
         const bool press = g_bootFrames % 16 < 6;
         one = two = 0;
-        if (Ram8(m.playersIn) == 3 || ++g_bootFrames > kBootMost) {
+        // Two joined players can still be on a startup/disclaimer screen.
+        // Wait for actual character selection before revealing game frames.
+        if (modes::Choosing() || ++g_bootFrames > kBootMost) {
             g_boot = false;
             SetFastForward(false);
+        } else if (Ram8(m.playersIn) == 3) {
+            // Joined: hold no buttons until the native game enters selection.
         } else if (Ram8(m.credits) < 2 && !FeatureOn("free_play")) {
             one = press ? kCoin : 0;
         } else if (m.startsTogether) {
@@ -213,6 +217,10 @@ bool InSession() {
     return FeatureOn("training_mode");
 }
 
+bool EnteringTraining() {
+    return g_boot && InSession();
+}
+
 int WantedStage() {
     const int wanted = modes::Wanted().stage;
     if (wanted) {
@@ -249,6 +257,11 @@ fight::Doing Now(int player) {
 }
 
 void BeforeFrame(Machine &machine) {
+    // Don't carry a pending Training auto-boot into Arcade/Versus.
+    if (g_boot && !InSession()) {
+        g_boot = false;
+        SetFastForward(false);
+    }
     if (g_boot) {
         Boot(machine);
         return;

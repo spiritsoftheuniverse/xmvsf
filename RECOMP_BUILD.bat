@@ -172,6 +172,15 @@ if errorlevel 1 (
   goto :fail
 )
 
+REM 87.467: validate Training boot skips the disclaimer until character select.
+REM Source-only, independent of the ROM or regenerated M68K translation.
+"%BASH%" -c "python3 ../recomp_port/tests/test_training_entry.py"
+if errorlevel 1 (
+  echo ERROR: XMVSF 87.467 Training entry regression failed. No build performed.
+  popd
+  goto :fail
+)
+
 REM Default is FAST once configured. It only recompiles changed C++ objects.
 REM refresh explicitly regenerates M68000 translation and reconfigures CMake.
 if /I "%~1"=="refresh" goto :refresh

@@ -123,6 +123,8 @@ void Register(const Description &description);
 void StartSession(Machine &machine);
 // A session is on
 bool InSession();
+// True only while Training is auto-advancing to its native character-select screen.
+bool EnteringTraining();
 // The stage the machine that is running is to fight on, for the game's choice of stage (0: the game's choice):
 // what a mode wants (alternative.h), else the player's choice on the menu's Stage page (kStageFeature), in a session or
 // out of one

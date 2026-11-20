@@ -1,4 +1,20 @@
-# XMVSF native front end — 87.466 (film strip + Training stage select)
+# XMVSF native front end — 87.467 (Training startup handoff)
+
+## 87.467 — hide ROM disclaimer on Training entry
+
+After selecting a native stage, the SDL3 frontend retains the last displayed
+thumbnail selection frame while the existing native Training auto-boot runs in
+fast-forward (up to 120 emulated frames per Port::Tick). The ROM's disclaimer,
+title and credit screens are *not presented*. Training only becomes visible
+once `modes::Choosing()` detects the actual character-selection state, not
+merely the two-player join state. Once both players have joined, the boot
+helper sends no extra Start inputs. Its existing 4,000-frame fallback still
+prevents a stuck transition.
+
+The guard does not affect regular Arcade/Versus, film strips, or stage assets.
+Leaving Training cancels any unfinished auto-boot. Source-only regression
+checks run before Ninja; the ROM directory and build cache are never modified
+by this patch.
 
 ## 87.466 — film-strip and Training stage selector unified
 
