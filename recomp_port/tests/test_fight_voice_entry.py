@@ -2,6 +2,8 @@
 """87.469: guard one-shot Fight! voice timing and the Training reveal handoff."""
 from pathlib import Path
 from version_guard import require_matching_versions
+import shutil
+import subprocess
 
 ROOT = Path(__file__).resolve().parents[2]
 SRC = ROOT / "recomp_port"
@@ -39,6 +41,12 @@ def main() -> None:
     assert "selectReveal.Capture(" in FRONT
     assert 'port.opt.soundtrack = "../audio/music";' in FRONT
     assert require_matching_versions(HOME, TEXTURES, minimum=(87, 469)) >= (87, 469)
+    # A syntax-only C++ compilation catches SDL3 signature/stream errors
+    # without starting Ninja or writing any binary or ROM files.
+    compiler = shutil.which("g++")
+    assert compiler, "UCRT64 g++ required for Fight voice SDL3 smoke"
+    smoke = ROOT / "recomp_port/tests/test_fight_voice_smoke.cpp"
+    subprocess.run([compiler, "-std=c++20", "-fsyntax-only", str(smoke)], check=True)
     print("XMVSF 87.469 Fight! on stage confirm, complete before character select PASS")
 
 if __name__ == "__main__":
