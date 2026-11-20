@@ -1,4 +1,5 @@
 // XMVSF 87.455: Training stage thumbnail picker for the SDL3 recomp front end.
+// XMVSF_RECOMP_STAGES_87_455: shared runtime/source installer marker.
 // Original stage IDs are 0..10 at FF5113. XMVSF2 previews are deliberately
 // not passed to the native/guest stage selector until their renderers are ported.
 #pragma once
