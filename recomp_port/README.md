@@ -1,4 +1,15 @@
-# XMVSF native front end — 87.472 (F10 native M68K selection/OAM capture)
+# XMVSF native front end — 87.473 (F10 smoke-test compatibility repair)
+
+## 87.473 — source-only F10 smoke test warning policy
+
+The standalone g++ preflight previously used blanket `-Werror`, which
+made unrelated unused-parameter warnings in the original Z80/M68K bus
+headers fatal on MSYS2 UCRT64. It now adds
+`-Wno-error=unused-parameter` after `-Werror`: warnings are visible, but
+pre-existing stub parameters no longer stop the build. Actual C++ errors
+and other warning categories are still fatal. The M68K capture, ROMs,
+selection behavior, film strip, and original headers are untouched.
+
 
 ## 87.472 — F10 native M68K selection/OAM capture
 
