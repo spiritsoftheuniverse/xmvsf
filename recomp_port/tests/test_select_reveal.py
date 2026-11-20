@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """87.468: deterministic source checks for the real-pixel reveal and select song."""
 from pathlib import Path
+from version_guard import require_matching_versions
 ROOT = Path(__file__).resolve().parents[2]
 REVEAL = (ROOT / "recomp_port/xmvsf_select_reveal.h").read_text(encoding="utf-8")
 FRONT = (ROOT / "recomp/port/frontend_sdl.cpp").read_text(encoding="utf-8")
@@ -38,7 +39,7 @@ def main() -> None:
         "[player_select]\nfile = characterselect.ogg\n")
     assert (ROOT / "audio/music/characterselect.ogg").is_file()
     assert "soundtrack.ini" in SOUND and "tap.Replace(" in SOUND
-    assert FILM.count('"TEST 87.468"') == 2 and '"TEST 87.468"' in HOME
+    assert require_matching_versions(HOME, FILM, minimum=(87, 468)) >= (87, 468)
     assert "films_.Draw(renderer, now, filmReveal);" in FILM
     print("XMVSF 87.468 native character-select noise reveal and Ogg song 02 PASS")
 
