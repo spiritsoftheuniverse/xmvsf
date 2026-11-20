@@ -213,7 +213,7 @@ if errorlevel 1 (
   goto :fail
 )
 
-REM 87.473: syntax-check F10 native M68K capture without failing on upstream unused parameters.
+REM 87.480: syntax-check bounded F10 native M68K capture without upstream unused-parameter failures.
 REM Diagnostic only; no local ROMs, save states or generated M68K modified.
 "%BASH%" -c "python3 ../recomp_port/tests/test_f10_m68k_capture.py"
 if errorlevel 1 (
