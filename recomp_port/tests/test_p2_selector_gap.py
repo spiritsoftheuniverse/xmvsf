@@ -26,7 +26,7 @@ def main():
     assert "tile >= bytes / 128u" in helper
     assert "const unsigned pen =" in helper
     assert "pen != 15u" in helper
-    assert "const unsigned kP2" in helper
+    assert "constexpr unsigned kP2" in helper
     assert "mask & ~kP2" in helper
     assert "#include \"selector_pen.h\"" in VIDEO
     assert "#include \"selector_pen.h\"" in NATIVE
