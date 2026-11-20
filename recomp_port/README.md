@@ -1,4 +1,30 @@
-# XMVSF native front end — 87.479 (restore selector animation and audio)
+# XMVSF native front end — 87.480 (compact F10 capture)
+
+## 87.480 — compact F10 diagnostics, no directory explosion
+
+F10 uses one reusable directory: `screenshots/f10_m68k/latest/` by
+default (or `XMVSF_M68K_CAPTURE_DIR/latest/` when configured). A new F10
+recording **replaces** the five prior files in `latest`; it never creates
+another timestamped session. Older timestamped folders from previous versions
+are left untouched so nothing is silently deleted.
+
+The capture ends at **900 emulated frames or 512 KiB total output**,
+whichever happens first. Selection frames are sampled every eight native
+frames and immediately on native state changes. OAM is sampled every six
+frames/state change, with **separate snapshots for each of the two object
+banks**. Unused zero-tile slots and duplicate bank snapshots are suppressed.
+Per-sample, per-file and overall caps stop object-delta and selection-write
+bursts. Repeated controller-panel writes are not stored.
+
+Full object-bus writes are **off by default**. To record a bounded raw
+object-write trace, launch the game with `XMVSF_F10_RAW_OAM=1` in the
+environment. Normal F10 captures still provide the smaller
+`frames.tsv`, `hooks.tsv`, `oam_delta.tsv` and
+`selection_ram_writes.tsv` observations. F10 never modifies native game
+memory or speed. This change is diagnostic-only and does not fix the
+Apocalypse stage itself.
+
+## 87.479 — native selection output must never be skipped
 
 ## 87.479 — native selection output must never be skipped
 
