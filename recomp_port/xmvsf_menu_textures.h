@@ -3,6 +3,7 @@
 // Source artwork stays in xmvsf_home::Menu; only layers are uploaded to SDL.
 #pragma once
 #include "xmvsf_home.h"
+#include "xmvsf_stage_picker.h" // XMVSF_RECOMP_STAGES_87_455
 #include "xmvsf_options.h"
 #include "xmvsf_ii_strikes.h"
 #include "xmvsf_palette_fx.h"
@@ -275,6 +276,21 @@ public:
         gifFrame_ = gifHue_ = -1;
     }
 
+    // Training stage selector: the existing animated menu remains visible but dimmed.
+    // No backdrop plate; only source PNG thumbnails and a 3px flickering pixel outline.
+    bool RenderStagePicker(SDL_Renderer *renderer, uint64_t now, StagePicker &picker) {
+        if (!renderer || !picker.Active() || !Init(renderer)) return false;
+        SDL_SetRenderDrawColor(renderer, 8, 16, 36, 255);
+        SDL_RenderClear(renderer);
+        DrawBackground(renderer, now);
+        SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
+        SDL_SetRenderDrawColor(renderer, 0, 3, 12, 172);
+        SDL_RenderFillRect(renderer, nullptr);
+        if (!picker.Draw(renderer, now)) return false;
+        SDL_RenderPresent(renderer);
+        return true;
+    }
+
     // Original OPTIONS page layout; draws source bitmap-font textures,
     // never a CPU-composited frame. Called while the normal home menu hides.
     bool RenderOptions(SDL_Renderer *renderer, uint64_t now, const OptionsPanel &options,
@@ -403,7 +419,7 @@ public:
         GlyphText(renderer, menu_.small_, captionFont,
                   "ESC TO RETURN", 18, 522, 1.08f, 185, 0);
         GlyphText(renderer, menu_.small_, captionFont,
-                  "TEST 87.454", 942, 522, 1.08f, 185, 2);
+                  "TEST 87.455", 942, 522, 1.08f, 185, 2);
         SDL_RenderPresent(renderer);
         return true;
     }
