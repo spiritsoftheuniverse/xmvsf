@@ -432,6 +432,7 @@ int RunWindowed(Port &port) {
     xmvsf_home::StagePicker stagePicker; // XMVSF_RECOMP_STAGES_87_455
     xmvsf_home::SelectReveal selectReveal;
     bool trainingSelectSongOverride = false;
+    bool trainingWaitingFight = false; // 87.469: stage image holds until the voice finishes
     int stageBeforeTraining = -1; // restore the former stage when Arcade/Versus starts
     bool stageLeftHeld = false, stageRightHeld = false;
     // Always write F6 PNGs to the repo's screenshots folder, never to
@@ -462,6 +463,7 @@ int RunWindowed(Port &port) {
     // while it was held: then it was the zoom's)
     bool stickWaiting = false;
     auto toggleMenu = [&]() {
+        trainingWaitingFight = false; // explicit menu navigation cancels a pending reveal hold
         if (selectReveal.Active()) {
             selectReveal.Cancel();
             presenter.SetOverlay(nullptr, 0, 0);
@@ -907,7 +909,12 @@ int RunWindowed(Port &port) {
                             SetFeatureForNow("custom_soundtrack", 1);
                             trainingSelectSongOverride = true;
                         }
-                        homeAudio.Select();
+                        // Sound "Fight!" on THIS level-confirm edge, not when
+                        // the native character-select picture appears.
+                        // A dedicated output stream survives homeAudio.Step(false).
+                        trainingWaitingFight = homeAudio.Fight(!port.menu.muted && !audioLog);
+                        if (!trainingWaitingFight && !port.menu.muted && !audioLog)
+                            homeAudio.Select(); // missing WAV/device: retain button feedback
                         session::StartSession(*port.machine);
                         stagePicker.Close();
                         home.Hide();
@@ -1162,6 +1169,18 @@ int RunWindowed(Port &port) {
             port.machine->audio.clear();
             nextFrame = SDL_GetTicksNS();
             continue;
+        }
+        if (trainingWaitingFight) {
+            // The ROM is already at character select, but the previous
+            // stage screen stays visible until the 1-second cue has finished.
+            // Do not restart Fight! or cut it on the first select frame.
+            if (homeAudio.FightPlaying()) {
+                port.machine->audio.clear();
+                SDL_Delay(8);
+                nextFrame = SDL_GetTicksNS();
+                continue;
+            }
+            trainingWaitingFight = false;
         }
         if (selectReveal.Active()) {
             // This starts only after 87.467's hidden fast boot is finished.

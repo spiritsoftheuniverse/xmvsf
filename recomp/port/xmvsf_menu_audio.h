@@ -1,4 +1,4 @@
-// XMVSF menu audio v87.463: sample-accurate first-entrance music attack; three
+// XMVSF menu audio v87.469: isolated one-shot Fight voice on Training stage confirm;
 // existing WAV assets, with bounded queueing and no FBNeo/SDL2 dependencies.
 // All assets are loaded from the original repository; no copies committed.
 #pragma once
@@ -86,8 +86,12 @@ class MenuAudio {
     static constexpr int kMusicInitialGain = 34;
     static constexpr size_t kMusicAttackFrames = kRate * 28 / 100;
 
-    SoundClip music_, movement_, selection_, crash_, welcome_;
+    SoundClip music_, movement_, selection_, crash_, welcome_, fight_;
     SDL_AudioStream *stream_ = nullptr;
+    // Separate one-shot stream: the 87.463 menu music queue is cleared on
+    // exit, so mixing "Fight!" into it would cut off the voice immediately.
+    SDL_AudioStream *fightStream_ = nullptr;
+    uint64_t fightUntil_ = 0;
     size_t musicAt_ = 0, moveAt_ = kIdle, selectAt_ = kIdle;
     size_t crashAt_ = kIdle, welcomeAt_ = kIdle;
     bool wasVisible_ = false;
@@ -136,8 +140,9 @@ public:
         // Original v87.235 simultaneous boot crash + "X-Men vs Street Fighter II" voice.
         crash_.Load("crash.wav");
         welcome_.Load("xmvsf_welcome.wav");
+        fight_.Load("fight!.wav"); // existing 48kHz stereo voice from audio/
         if (music_.Empty() && movement_.Empty() && selection_.Empty() &&
-            crash_.Empty() && welcome_.Empty()) return;
+            crash_.Empty() && welcome_.Empty() && fight_.Empty()) return;
         const SDL_AudioSpec spec{SDL_AUDIO_S16, 2, kRate};
         stream_ = SDL_OpenAudioDeviceStream(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK,
                                             &spec, nullptr, nullptr);
@@ -146,6 +151,15 @@ public:
             return;
         }
         SDL_ResumeAudioStreamDevice(stream_);
+        if (!fight_.Empty()) {
+            fightStream_ = SDL_OpenAudioDeviceStream(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK,
+                                                    &spec, nullptr, nullptr);
+            if (fightStream_) {
+                SDL_ResumeAudioStreamDevice(fightStream_);
+            } else {
+                std::fprintf(stderr, "XMVSF 87.469 Fight voice device: %s\n", SDL_GetError());
+            }
+        }
     }
 
     MenuAudio(const MenuAudio &) = delete;
@@ -155,8 +169,29 @@ public:
     // Called explicitly before the native frontend invokes SDL_Quit.
     // Destructor remains idempotent if it runs afterward.
     void Close() {
+        if (fightStream_) SDL_DestroyAudioStream(fightStream_);
+        fightStream_ = nullptr;
+        fightUntil_ = 0;
         if (stream_) SDL_DestroyAudioStream(stream_);
         stream_ = nullptr;
+    }
+
+    // One-shot at Training stage CONFIRM, never at character-select reveal.
+    // Queue the full existing WAV separately, so Step(false)'s menu
+    // SDL_ClearAudioStream cannot truncate its last syllable.
+    bool Fight(bool audible = true) {
+        if (!audible || !fightStream_ || fight_.Empty()) return false;
+        if (!SDL_ClearAudioStream(fightStream_)) return false;
+        const int bytes = static_cast<int>(fight_.samples.size() * sizeof(int16_t));
+        if (!SDL_PutAudioStreamData(fightStream_, fight_.samples.data(), bytes))
+            return false;
+        constexpr uint64_t kDeviceTailMs = 100; // finish any audio already sent to the device
+        const uint64_t durationMs = (fight_.Frames() * 1000 + kRate - 1) / kRate;
+        fightUntil_ = SDL_GetTicks() + durationMs + kDeviceTailMs;
+        return true;
+    }
+    bool FightPlaying() const {
+        return fightUntil_ && SDL_GetTicks() < fightUntil_;
     }
 
     void Move() { if (!movement_.Empty()) moveAt_ = 0; }

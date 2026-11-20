@@ -189,6 +189,14 @@ if errorlevel 1 (
   goto :fail
 )
 
+REM 87.469: confirm stage-selected Fight cue finishes BEFORE character select.
+"%BASH%" -c "python3 ../recomp_port/tests/test_fight_voice_entry.py"
+if errorlevel 1 (
+  echo ERROR: XMVSF 87.469 Fight voice timing preflight failed. No build performed.
+  popd
+  goto :fail
+)
+
 REM Default is FAST once configured. It only recompiles changed C++ objects.
 REM refresh explicitly regenerates M68000 translation and reconfigures CMake.
 if /I "%~1"=="refresh" goto :refresh

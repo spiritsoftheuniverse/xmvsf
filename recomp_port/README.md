@@ -1,4 +1,25 @@
-# XMVSF native front end — 87.468 (character-select noise reveal and Ogg song)
+# XMVSF native front end — 87.469 (Training stage Fight voice handoff)
+
+## 87.469 — move "Fight!" voice to level confirmation
+
+The one-second existing `audio/fight!.wav` now plays **once at the
+Training stage-confirm edge**, instead of being triggered when the ROM
+character-select screen is revealed. This uses its own SDL3 audio stream
+rather than the menu music/movement/selection mixer: that stream clears
+queued menu audio whenever the menu disappears, which previously made
+long cues prone to an abrupt truncation.
+
+The confirmed stage image stays on screen during the existing hidden
+fast-forward boot. If native character select is ready before the voice
+finishes, the game waits on the existing stage image for the remaining
+WAV duration plus a short output-device tail. It then resumes game frames,
+starts the character-selection reveal, and lets song 0x02 use the Ogg
+mapping added in 87.468. No second "Fight!" event is fired at select.
+
+If `fight!.wav` is unavailable or audio is muted, the hold is skipped
+and the normal menu confirmation feedback remains available. A source
+preflight verifies stage-confirm-only playback, stream separation, and
+handoff ordering. Neither ROM files nor build caches are modified.
 
 ## 87.468 — native character selection noise-pixel reveal
 
