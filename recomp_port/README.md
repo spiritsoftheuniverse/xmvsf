@@ -19,15 +19,15 @@ Esc / gamepad menu input; while shown, no game ticks are executed.
 
 ## 87.456 — exact thumbnails imported from menu-film-strip
 
-All **18 PNGs** have been copied directly from \`feature/menu-film-strip\` into
-\`recomp-local\` preserving their original Git blobs. All are 150x150.
-The first eleven are **\`_art/stagethumbs/0.png\` through \`10.png\`**, matching
+All **18 PNGs** have been copied directly from `feature/menu-film-strip` into
+`recomp-local` preserving their original Git blobs. All are 150x150.
+The first eleven are **`_art/stagethumbs/0.png` through `10.png`**, matching
 the stage byte index exactly (0 Apocalypse's lair through 10 shopping mall).
 The seven XMVSF2 thumbnails are the explicitly named files in this order:
 
-\`01_wilystage.png\`, \`02_finaldestination.png\`, \`03_guilestage.png\`,
-\`04_sigmastage.png\`, \`05_akumastage.png\`, \`06_ryustage.png\`,
-\`07_boomerstage.png\`, all under \`_art/stagethumbs/xmvsf2/\`.
+`01_wilystage.png`, `02_finaldestination.png`, `03_guilestage.png`,
+`04_sigmastage.png`, `05_akumastage.png`, `06_ryustage.png`,
+`07_boomerstage.png`, all under `_art/stagethumbs/xmvsf2/`.
 
 No runtime directory discovery, alphabetical sorting assumptions or source
 asset renaming is used. Missing thumbnails are a **local preflight failure**.
