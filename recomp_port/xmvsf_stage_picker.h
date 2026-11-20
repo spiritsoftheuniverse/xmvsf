@@ -1,4 +1,4 @@
-// XMVSF 87.455: Training stage thumbnail picker for the SDL3 recomp front end.
+// XMVSF 87.456: source-indexed 18-stage thumbnail picker for the SDL3 recomp front end.
 // XMVSF_RECOMP_STAGES_87_455: shared runtime/source installer marker.
 // Original stage IDs are 0..10 at FF5113. XMVSF2 previews are deliberately
 // not passed to the native/guest stage selector until their renderers are ported.
@@ -7,13 +7,10 @@
 #include <SDL3/SDL.h>
 #include <algorithm>
 #include <array>
-#include <cctype>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
-#include <filesystem>
 #include <string>
-#include <system_error>
 #include <utility>
 #include <vector>
 
@@ -64,35 +61,6 @@ private:
         entries_.push_back(std::move(e));
     }
 
-    static std::vector<std::string> ExtraFiles() {
-        std::vector<std::string> files;
-        std::vector<std::filesystem::path> roots;
-        if (const char *base = std::getenv("XMVSF_MENU_ASSETS"); base && *base)
-            roots.emplace_back(base);
-        roots.emplace_back("../_art");
-        roots.emplace_back("_art");
-        roots.emplace_back("../../_art");
-        for (const auto &root : roots) {
-            const auto dir = root / "stagethumbs" / "xmvsf2";
-            std::error_code error;
-            if (!std::filesystem::is_directory(dir, error)) continue;
-            for (std::filesystem::directory_iterator it(dir, error), end;
-                 !error && it != end; it.increment(error)) {
-                if (!it->is_regular_file(error)) continue;
-                std::string ext = it->path().extension().string();
-                std::transform(ext.begin(), ext.end(), ext.begin(), [](unsigned char c) {
-                    return static_cast<char>(std::tolower(c));
-                });
-                if (ext == ".png") files.push_back(it->path().filename().string());
-            }
-            // Choose one asset root; don't duplicate entries across cwd fallbacks.
-            break;
-        }
-        std::sort(files.begin(), files.end());
-        if (files.size() > kExtras) files.resize(kExtras);
-        return files;
-    }
-
     void Load() {
         entries_.clear();
         const std::array<const char *, kOriginals> names{{
@@ -101,29 +69,27 @@ private:
             "Manhattan at night", "The refinery", "The space base",
             "The TV studio", "The shopping mall"
         }};
-        // Explicit 0..10 order: native stage byte FF5113 and src/xmvsf.h.
-        const std::array<const char *, kOriginals> artwork{{
-            "Apocalypse_Now_XvsSF.png", "Showdown_in_the_Park_XvsSF.png",
-            "Death_Valley_XvsSF.png", "The_Cataract_XvsSF.png",
-            "The_Temple_of_Fists_XvsSF.png", "On_The_Hilltop_XvsSF.png",
-            "Manhattan_XvsSF.png", "Raging_Inferno_XvsSF.png",
-            "Code_Red_XvsSF.png", "Dead_or_Live_the_show_XvsSF.png",
-            "Mall_Mayhem_XvsSF.png"
-        }};
+        // The user-indexed 0.png..10.png correspond exactly to native
+        // stage byte FF5113. No name heuristics or alphabetical reordering.
         for (int i = 0; i < kOriginals; ++i)
-            Add(names[size_t(i)], std::string("stagethumbs/") + artwork[size_t(i)]);
-        const auto files = ExtraFiles();
-        for (const std::string &file : files) {
-            const std::string name = std::filesystem::path(file).stem().string();
-            Add(name, std::string("stagethumbs/xmvsf2/") + file);
-        }
-        for (int i = static_cast<int>(files.size()); i < kExtras; ++i)
-            Add("XMVSF2 " + std::to_string(i + 1), "");
+            Add(names[size_t(i)], std::string("stagethumbs/") + std::to_string(i) + ".png");
+
+        // Seven XMVSF2 thumbnails from feature/menu-film-strip. Fixed order.
+        const std::array<const char *, kExtras> extraFiles{{
+            "01_wilystage.png", "02_finaldestination.png", "03_guilestage.png",
+            "04_sigmastage.png", "05_akumastage.png", "06_ryustage.png",
+            "07_boomerstage.png"
+        }};
+        const std::array<const char *, kExtras> extraNames{{
+            "Wily Stage", "Final Destination", "Guile Stage",
+            "Sigma Stage", "Akuma Stage", "Ryu Stage", "Boomer Stage"
+        }};
+        for (int i = 0; i < kExtras; ++i)
+            Add(extraNames[size_t(i)], std::string("stagethumbs/xmvsf2/") + extraFiles[size_t(i)]);
         labels_.Load("sf2fontsmall.png", 8);
         int ready = 0;
         for (int i = 0; i < kCount; ++i) ready += entries_[size_t(i)].image.Valid() ? 1 : 0;
-        std::fprintf(stderr, "XMVSF 87.455 stage picker: %d/18 images, %zu/7 XMVSF2 filenames\n",
-                     ready, files.size());
+        std::fprintf(stderr, "XMVSF 87.456 stage picker: %d/18 images loaded (11 native + 7 XMVSF2 previews)\n", ready);
     }
 
     void Text(SDL_Renderer *r, const std::string &str, int anchorX, int y,
