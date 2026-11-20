@@ -1,4 +1,15 @@
-# XMVSF native front end — 87.474 (visible F10 M68K capture status)
+# XMVSF native front end — 87.475 (F10 preflight regression repair)
+
+## 87.475 — F10 source assertion follows actual call site
+
+87.474 refactored the F10 handler to cache `Capture::Get()` in a local
+reference `f10`, then invoke `f10.Toggle(...)`. Both the old capture
+preflight and the new status preflight still asserted that the previous
+direct call expression existed. That was a false failure: the handler
+still invokes Toggle. Both tests now check the local reference and
+its actual Toggle invocation. No game logic or capture behavior changed.
+
+
 
 ## 87.474 — in-window recording indicator for F10
 

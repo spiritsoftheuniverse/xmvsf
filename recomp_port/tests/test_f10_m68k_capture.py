@@ -40,7 +40,8 @@ def main():
     ):
         assert token in header, f"missing native F10 observation: {token}"
     assert 'ev.key.scancode == SDL_SCANCODE_F10' in front
-    assert 'xmvsf_f10::Capture::Get().Toggle(*port.machine,' in front
+    assert 'auto &f10 = xmvsf_f10::Capture::Get();' in front
+    assert 'f10.Toggle(*port.machine,' in front
     assert 'xmvsf_f10::Capture::Get().Stop("frontend shutdown")' in front
     assert front.index("ev.key.scancode == SDL_SCANCODE_F10") < front.index("if (touch.Event(ev))")
     assert 'void (*objectWriteProbe)(const Machine &, int bank, uint32_t busAddress)' in machine
@@ -60,7 +61,7 @@ def main():
     assert "if (g_fastP1Tail &&" in sess and "g_p1AutoFrames > 240" in sess
     assert "homeAudio.Fight(!port.menu.muted && !audioLog)" in front
     assert "films_.Draw(renderer, now, filmReveal);" in tex
-    assert require_matching_versions(home, tex, minimum=(87, 473)) >= (87, 472)
+    assert require_matching_versions(home, tex, minimum=(87, 475)) >= (87, 472)
     assert "python3 ../recomp_port/tests/test_f10_m68k_capture.py" in bat
     compiler = shutil.which("g++")
     assert compiler, "UCRT64 g++ needed to compile F10 observer preflight"
@@ -82,7 +83,7 @@ def main():
         command.extend(["-I", str(directory)])
     command.append(str(smoke))
     subprocess.run(command, check=True)
-    print("XMVSF 87.473 F10 native M68K + original select/OAM observations PASS")
+    print("XMVSF 87.475 F10 native M68K + original select/OAM observations PASS")
 
 if __name__ == "__main__":
     main()

@@ -32,13 +32,14 @@ def main():
     assert 'presenter.SetF10Status(f10Recording, f10Label);' in front
     assert 'SDL_SetWindowTitle(window, f10Title.c_str());' in front
     assert "ev.key.scancode == SDL_SCANCODE_F10" in front
-    assert "xmvsf_f10::Capture::Get().Toggle(*port.machine," in front
+    assert "auto &f10 = xmvsf_f10::Capture::Get();" in front
+    assert "f10.Toggle(*port.machine," in front
     assert "session::CompletingP1Selection()" in front
     assert "selectReveal.Frame(SDL_GetTicks())" in front
     assert "homeAudio.Fight(!port.menu.muted && !audioLog)" in front
     assert "films_.Draw(renderer, now, filmReveal);" in textures
-    assert require_matching_versions(home, textures, minimum=(87, 474)) >= (87, 474)
-    print("XMVSF 87.474 F10 visible REC/FRAMES, SAVED/FAILED, title PASS")
+    assert require_matching_versions(home, textures, minimum=(87, 475)) >= (87, 474)
+    print("XMVSF 87.475 F10 visible REC/FRAMES, SAVED/FAILED, title PASS")
 
 if __name__ == "__main__":
     main()
