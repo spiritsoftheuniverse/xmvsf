@@ -570,11 +570,16 @@ int RunWindowed(Port &port) {
             switch (ev.type) {
             case SDL_EVENT_QUIT: running = false; break;
             case SDL_EVENT_KEY_DOWN:
-                if (stagePicker.Active() && !ev.key.repeat &&
-                    (ev.key.scancode == SDL_SCANCODE_ESCAPE || ev.key.scancode == SDL_SCANCODE_AC_BACK ||
-                     ev.key.scancode == SDL_SCANCODE_F1)) {
-                    stagePicker.Close(); // do not invoke upstream pause or Settings
-                    break;
+                if (stagePicker.Active()) {
+                    // Navigation is handled by the edge-filtered menu poll below.
+                    // In particular, Backspace must NOT reach port.Key('k') / restart.
+                    if (!ev.key.repeat &&
+                        (ev.key.scancode == SDL_SCANCODE_ESCAPE ||
+                         ev.key.scancode == SDL_SCANCODE_AC_BACK ||
+                         ev.key.scancode == SDL_SCANCODE_F1)) {
+                        stagePicker.Close(); // Escape/F1 return to HOME
+                    }
+                    break; // no gameplay/debug key side effects while picking
                 }
                 if (home.Enabled() && !ev.key.repeat &&
                     xmvsf_home::WindowShortcut(window, ev.key.scancode, ev.key.mod)) {
