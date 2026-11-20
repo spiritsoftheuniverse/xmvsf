@@ -37,6 +37,10 @@ def main() -> None:
                   'g_choosingTwo ? g_heldOver & held : held', 'g_p1AutoFrames % 12 == 4',
                   'g_p1AutoFrames > 240', 'machine.players[0] |= kPunch1;'):
         assert token in before, token
+    # Avoid a late stall if P2 Dummy 2 finishes ahead of P1's native mode/speed.
+    assert before.count('autoConfirmP1();') == 2
+    assert 'if (earlyOwner && d.chosen && !d.chosen(0)) autoConfirmP1();' in before
+    assert 'if (!RunningAhead() && ++g_p1AutoFrames > 240)' in before
     assert G.index('ChoosingBeforeFrame(machine);') < G.index('session::BeforeFrame(machine);')
     assert 'session::StartSession(*port.machine);' in F
     assert 'if (session::EnteringTraining()) {' in F
