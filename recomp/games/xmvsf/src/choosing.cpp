@@ -7,6 +7,7 @@
 // the character changed as the game takes it.
 #include "xmvsf.h"
 #include "session.h"
+#include "alternative.h"
 
 namespace cps2recomp {
 
@@ -35,6 +36,10 @@ namespace {
 } // namespace
 
 void ChoosingBeforeFrame(Machine &machine) {
+    // Preserve the native P1 selector. Suppress only P2's original
+    // palette-27 pen 10-12 tiles while Training chooses both teams.
+    // This is a renderer setting, not selection RAM or a guessed rectangle.
+    machine.video.hideP2Selector = session::InSession() && modes::Choosing();
     for (int n = 0; n < 2; n++) {
         g_start[n] = (machine.players[n] & kStart) != 0;
     }

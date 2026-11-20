@@ -2,6 +2,7 @@
 // Copyright (C) 2026 Tommy McLeroy. Part of cps2recomp.
 
 #include "native_render.h"
+#include "selector_pen.h"
 
 #include "../runtime/state.h"
 
@@ -98,7 +99,8 @@ void Raster::Objects(const ObjectList &list, const PictureOptions &options) {
                     t.entryTile = code;
                     t.attributes = attr;
                     t.shift = static_cast<int16_t>(options.object ? options.object(code, attr, i / 4) : 0);
-                    t.hidden = options.hideObject && options.hideObject(code, attr);
+                    t.hidden = (options.hideObject && options.hideObject(code, attr)) ||
+                               (options.hideP2Selector && IsP2SelectorTile(m_graphics, m_graphicsSize, t.tile, attr));
                     m_tiles.push_back(t);
                 }
             }
@@ -132,7 +134,8 @@ void Raster::Objects(const ObjectList &list, const PictureOptions &options) {
                 t.entryTile = code;
                 t.attributes = attr;
                 t.shift = static_cast<int16_t>(options.object ? options.object(code, attr, i / 4) : 0);
-                t.hidden = options.hideObject && options.hideObject(code, attr);
+                t.hidden = (options.hideObject && options.hideObject(code, attr)) ||
+                           (options.hideP2Selector && IsP2SelectorTile(m_graphics, m_graphicsSize, t.tile, attr));
                 t.extra = list.fromExtra[i / 4] != 0;
                 t.marks = static_cast<uint8_t>((options.panelObject && options.panelObject(code, attr) ? kPanelPixel : 0) |
                                                (options.markFront && (x & 0x1000) ? kFrontPixel : 0));
@@ -275,7 +278,7 @@ void Raster::DrawObjects(int rasterLine, const Layers &layers, const PictureOpti
                          const uint32_t *masks, uint8_t *marks) const {
     const int xOffset = 64 - layers.xOffset, yOffset = 16 - layers.yOffset;
     for (const ObjectTile &t : m_tiles) {
-        if (options.hideObject && options.hideObject(t.entryTile, t.attributes)) {
+        if (t.hidden || (options.hideObject && options.hideObject(t.entryTile, t.attributes))) {
             continue;
         }
         int x = t.x, y = t.y;
@@ -378,7 +381,7 @@ void Raster::LineCps1(int line, const Layers &layers, const uint8_t *videoRam, c
             const int xShift = options.side - kFirstColumn;
             uint8_t claimed[kMaxWidth] = {};
             for (const ObjectTile &t : m_tiles) {
-                if (options.hideObject && options.hideObject(t.entryTile, t.attributes)) {
+                if (t.hidden || (options.hideObject && options.hideObject(t.entryTile, t.attributes))) {
                     continue;
                 }
                 const int sy = t.y;

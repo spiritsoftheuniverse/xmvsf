@@ -79,6 +79,9 @@ public:
     // attributes (the colour set is the low five bits). A game that can tell its players' objects from its
     // stage's can show one without the other. Not part of a save state: who sets it keeps it set.
     bool (*hideObject)(uint32_t tile, uint16_t attributes) = nullptr;
+    // XMVSF Training: suppress only the original P2 selector pen tiles
+    // while retaining the ROM's native selection input and P1 visuals.
+    bool hideP2Selector = false;
     // For a game's own sources that put pictures together: the picture's pixels that an object is drawn at
     // have their top byte set (0x80 and the object's colour set, 0-31), the others clear, so that a picture
     // of the objects alone can be laid over another picture, and one object's pixels told from another's.
@@ -149,6 +152,7 @@ public:
         o.tile = wide.tile;
         o.fillHoles = wide.fillHoles;
         o.hideObject = hideObject;
+        o.hideP2Selector = hideP2Selector;
         o.objectsTaken = objectsTaken;
         o.markObjects = markObjects;
         o.markLayers = markLayers;

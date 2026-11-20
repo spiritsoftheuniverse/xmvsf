@@ -42,6 +42,7 @@ namespace {
     uint8_t g_p1Accepted = 0;        // 87.470: confirmed native P1 picks, max two
     unsigned g_p1AutoFrames = 0;     // real-button pulses for native mode/speed
     bool g_p1AutoFallback = false;  // return control to P1 if native selection stalls
+    bool g_fastP1Tail = false;      // hide/fast-forward native P1 mode+speed tail
 
     uint32_t Player(int n) {
         return d.playerAt ? d.playerAt(n) : d.player1 + static_cast<uint32_t>(n) * d.playerSize;
@@ -217,6 +218,7 @@ void StartSession(Machine &machine) {
     g_p1Accepted = 0;
     g_p1AutoFrames = 0;
     g_p1AutoFallback = false;
+    g_fastP1Tail = false;
     g_choosingTwo = false;
     g_heldOver = 0;
     SetFastForward(true);
@@ -228,6 +230,9 @@ bool InSession() {
 
 bool EnteringTraining() {
     return g_boot && InSession();
+}
+bool CompletingP1Selection() {
+    return InSession() && g_fastP1Tail;
 }
 
 // From XMVSF's actual 00B1E8 accepted-character hook, not cursor animation.
@@ -241,7 +246,9 @@ void CharacterAccepted(int player) {
         g_heldOver = 0;
         g_p1AutoFrames = 0;
         g_p1AutoFallback = false;
-        std::fprintf(stderr, "XMVSF 87.470 P2_DUMMY_OWNER p1_second_accepted=1\n");
+        g_fastP1Tail = true;
+        SetFastForward(true); // native P1 mode/speed steps, no visible delay
+        std::fprintf(stderr, "XMVSF 87.471 P2_DUMMY_OWNER native_second_pick fast_tail=1\n");
     }
 }
 
@@ -290,6 +297,13 @@ void BeforeFrame(Machine &machine) {
         Boot(machine);
         return;
     }
+    if (g_fastP1Tail &&
+        (!InSession() || !modes::Choosing() || (d.chosen && d.chosen(0)))) {
+        // Never fast-forward past the native ready-to-select P2 state.
+        g_fastP1Tail = false;
+        SetFastForward(false);
+        std::fprintf(stderr, "XMVSF 87.471 P2_DUMMY_READY native_p1_tail_complete\n");
+    }
     const bool trainingChoosing = InSession() && modes::Choosing();
     const bool earlyOwner = trainingChoosing && d.handoffAfterSecondPick &&
                             g_p1Accepted == 2 && !g_p1AutoFallback;
@@ -298,7 +312,9 @@ void BeforeFrame(Machine &machine) {
     auto autoConfirmP1 = [&]() {
         if (!RunningAhead() && ++g_p1AutoFrames > 240) {
             g_p1AutoFallback = true;
-            std::fprintf(stderr, "XMVSF 87.470 P1_AUTO_CONFIRM fallback after 240 frames\n");
+            g_fastP1Tail = false;
+            SetFastForward(false);
+            std::fprintf(stderr, "XMVSF 87.471 P1_AUTO_CONFIRM fallback after 240 frames\n");
         }
         if (!g_p1AutoFallback) {
             machine.players[0] &= kCoin;
@@ -414,6 +430,13 @@ void Frame(Machine &machine) {
 
 void State(Archive &ar) {
     ar.Mark(0x5452414E); // TRAN
+    // The Training input owner also belongs to rollback/run-ahead state.
+    ar.Pod(g_p1Accepted);
+    ar.Pod(g_p1AutoFrames);
+    ar.Pod(g_p1AutoFallback);
+    ar.Pod(g_fastP1Tail);
+    ar.Pod(g_choosingTwo);
+    ar.Pod(g_heldOver);
     if (d.framesFirstInState) {
         g_frames.Serialize(ar);
         g_dummy.Serialize(ar);

@@ -126,6 +126,9 @@ void StartSession(Machine &machine);
 bool InSession();
 // True only while Training is auto-advancing to its native character-select screen.
 bool EnteringTraining();
+// Hidden native P1 mode/speed confirmation between P1's second pick and
+// the first actionable dummy selector; SDL3 keeps the last picture.
+bool CompletingP1Selection();
 // Called from the native accepted-character routine (XMVSF 00B1E8).
 void CharacterAccepted(int player);
 // The stage the machine that is running is to fight on, for the game's choice of stage (0: the game's choice):

@@ -1,4 +1,28 @@
-# XMVSF native front end — 87.470 (native P1-to-hidden-P2 handoff)
+# XMVSF native front end — 87.471 (native hidden P2 cursor and zero-gap handoff)
+
+## 87.471 — actual hidden P2 cursor and zero-gap native handoff
+
+87.470 handed the controls to P2 too early, before the ROM finished
+the P1 mode/speed selection, and it never suppressed P2's visible
+selector. 87.471 corrects both.
+
+On native P1 character acceptance two (`00B1E8`) the remaining
+P1 mode/speed selection runs in existing native FastForward slices,
+with intermediate frames and audio unpresented. The source image
+stays on screen until P1's choosing record really reaches
+`kChoosingDone`; P1 then controls Dummy 1 immediately. A 240-frame
+fallback avoids getting stuck in a differing ROM. P1's held
+confirmation remains suppressed on the first dummy frame.
+
+The **actual native P2 cursor**, and only its palette 27 outline
+tiles, is suppressed in Training. A shared exact four-planar CPS2
+graphics decoder checks the cursor's verified native pens 10-12
+and rejects any tiles with other opaque ink. The same predicate
+applies to the board CPU, native CPU and GPU renderers so graphics
+are not guessed or hidden with screen rectangles, color-keying,
+or unstable screen-pixel filters. P1's selector, portraits, stages
+and gameplay are untouched. Normal Arcade/Versus are unaffected.
+The source test also compiles and exercises the classifier locally.
 
 ## 87.470 — immediate native P1-to-dummy P2 takeover
 

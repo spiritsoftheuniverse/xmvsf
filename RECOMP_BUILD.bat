@@ -205,6 +205,14 @@ if errorlevel 1 (
   goto :fail
 )
 
+REM 87.471: verify native P2 cursor pen suppression and invisible immediate handoff.
+"%BASH%" -c "python3 ../recomp_port/tests/test_p2_selector_gap.py"
+if errorlevel 1 (
+  echo ERROR: XMVSF 87.471 hidden P2 selector / instant handoff regression failed.
+  popd
+  goto :fail
+)
+
 REM Default is FAST once configured. It only recompiles changed C++ objects.
 REM refresh explicitly regenerates M68000 translation and reconfigures CMake.
 if /I "%~1"=="refresh" goto :refresh
