@@ -2,6 +2,8 @@
 """87.468: deterministic source checks for the real-pixel reveal and select song."""
 from pathlib import Path
 from version_guard import require_matching_versions
+import shutil
+import subprocess
 ROOT = Path(__file__).resolve().parents[2]
 REVEAL = (ROOT / "recomp_port/xmvsf_select_reveal.h").read_text(encoding="utf-8")
 FRONT = (ROOT / "recomp/port/frontend_sdl.cpp").read_text(encoding="utf-8")
@@ -41,6 +43,13 @@ def main() -> None:
     assert "soundtrack.ini" in SOUND and "tap.Replace(" in SOUND
     assert require_matching_versions(HOME, FILM, minimum=(87, 468)) >= (87, 468)
     assert "films_.Draw(renderer, now, filmReveal);" in FILM
+    # Use the installed SDL3 development headers to catch compile errors
+    # before the expensive game recompile. -fsyntax-only writes no binary.
+    compiler = shutil.which("g++")
+    assert compiler, "UCRT64 g++ is required for 87.468 SDL3 source smoke"
+    smoke = ROOT / "recomp_port/tests/test_select_reveal_smoke.cpp"
+    subprocess.run([compiler, "-std=c++20", "-Wall", "-Wextra", "-Werror",
+                    "-fsyntax-only", str(smoke)], check=True)
     print("XMVSF 87.468 native character-select noise reveal and Ogg song 02 PASS")
 
 if __name__ == "__main__":
