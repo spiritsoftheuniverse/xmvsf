@@ -9,6 +9,7 @@
 #include "xmvsf_menu_audio.h" // XMVSF_RECOMP_HOME_87_437
 #include "xmvsf_window.h"
 #include "xmvsf_menu_textures.h" // XMVSF_RECOMP_MENU_TEXTURES_87_441
+#include "xmvsf_stage_picker.h" // XMVSF_RECOMP_STAGES_87_455
 #include "xmvsf_options.h" // XMVSF_RECOMP_OPTIONS_87_442
 #include "xmvsf_pad_owners.h" // XMVSF_RECOMP_PAD_OWNER_87_443
 #include "../fight/session.h"
@@ -426,6 +427,9 @@ int RunWindowed(Port &port) {
     xmvsf_home::Menu home(homeEnabled);
     xmvsf_home::MenuAudio homeAudio(homeEnabled);
     xmvsf_home::TexturedMenu homeTextures(home);
+    xmvsf_home::StagePicker stagePicker; // XMVSF_RECOMP_STAGES_87_455
+    int stageBeforeTraining = -1; // restore the former stage when Arcade/Versus starts
+    bool stageLeftHeld = false, stageRightHeld = false;
     xmvsf_home::OptionsPanel options; // XMVSF_RECOMP_OPTIONS_87_442
     xmvsf_home::PadOwners owners; // XMVSF_RECOMP_PAD_OWNER_87_443
     owners.Init(port.opt.settingsPath);
@@ -457,6 +461,10 @@ int RunWindowed(Port &port) {
             } else {
                 port.leaving = !port.leaving;
             }
+            return;
+        }
+        if (stagePicker.Active()) {
+            stagePicker.Close(); // shortcut/back returns to HOME, never hides the game
             return;
         }
         if (options.Active()) {
@@ -562,6 +570,12 @@ int RunWindowed(Port &port) {
             switch (ev.type) {
             case SDL_EVENT_QUIT: running = false; break;
             case SDL_EVENT_KEY_DOWN:
+                if (stagePicker.Active() && !ev.key.repeat &&
+                    (ev.key.scancode == SDL_SCANCODE_ESCAPE || ev.key.scancode == SDL_SCANCODE_AC_BACK ||
+                     ev.key.scancode == SDL_SCANCODE_F1)) {
+                    stagePicker.Close(); // do not invoke upstream pause or Settings
+                    break;
+                }
                 if (home.Enabled() && !ev.key.repeat &&
                     xmvsf_home::WindowShortcut(window, ev.key.scancode, ev.key.mod)) {
                     break; // native window shortcut, not an arcade input
@@ -629,6 +643,9 @@ int RunWindowed(Port &port) {
                 }
                 break;
             case SDL_EVENT_GAMEPAD_BUTTON_DOWN:
+                if (stagePicker.Active() && Shoulder(ev.gbutton.button)) {
+                    break; // selector LB/RB; must not trigger in-game restart or zoom
+                }
                 if (!port.menu.IsOpen() && Shoulder(ev.gbutton.button) && ZoomHeld(SDL_GetGamepadFromID(ev.gbutton.which))) {
                     port.zoom.Press(ev.gbutton.button == SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER ? 1 : 0);
                     stickWaiting = false;
@@ -818,22 +835,57 @@ int RunWindowed(Port &port) {
             if (both) {
                 menuPressed = 0;
             }
+            bool stageLeftNow = stagePicker.Active() && keys[SDL_SCANCODE_Q];
+            bool stageRightNow = stagePicker.Active() && keys[SDL_SCANCODE_E];
+            if (stagePicker.Active()) {
+                for (SDL_Gamepad *gp : gamepads) {
+                    stageLeftNow |= SDL_GetGamepadButton(gp, SDL_GAMEPAD_BUTTON_LEFT_SHOULDER);
+                    stageRightNow |= SDL_GetGamepadButton(gp, SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER);
+                }
+            }
+            const bool stageLeftEdge = !both && stageLeftNow && !stageLeftHeld;
+            const bool stageRightEdge = !both && stageRightNow && !stageRightHeld;
+            stageLeftHeld = stageLeftNow;
+            stageRightHeld = stageRightNow;
             if (home.Visible()) { // XMVSF_RECOMP_HOME_87_435: main choices in the native SDL3 loop
+                if (stagePicker.Active()) {
+                    const auto stageAction = stagePicker.Press(menuPressed, stageLeftEdge, stageRightEdge);
+                    if (stageAction == xmvsf_home::StagePicker::Action::Move) homeAudio.Move();
+                    if (stageAction == xmvsf_home::StagePicker::Action::Back) homeAudio.Select();
+                    if (stageAction == xmvsf_home::StagePicker::Action::Confirm) {
+                        // Stage feature 1..11 maps to native 0..10 at FF5113.
+                        // No INI write. Do not let training's stage leak into later modes.
+                        if (stageBeforeTraining < 0)
+                            stageBeforeTraining = FeatureSetting(session::kStageFeature);
+                        SetFeatureForNow(session::kStageFeature, stagePicker.Selected() + 1);
+                        homeAudio.Select();
+                        session::StartSession(*port.machine);
+                        stagePicker.Close();
+                        home.Hide();
+                    }
+                } else {
                 const int oldMenuRow = home.Selection();
                 const xmvsf_home::Action choice = home.Press(menuPressed);
                 if (home.Selection() != oldMenuRow) homeAudio.Move();
                 if (choice != xmvsf_home::Action::None) homeAudio.Select();
                 switch (choice) {
                 case xmvsf_home::Action::Arcade:
+                    if (stageBeforeTraining >= 0) {
+                        SetFeatureForNow(session::kStageFeature, stageBeforeTraining);
+                        stageBeforeTraining = -1;
+                    }
                     EndSessionFeatures();
                     port.machine->Reset();
                     home.Hide();
                     break;
                 case xmvsf_home::Action::Training:
-                    session::StartSession(*port.machine);
-                    home.Hide();
+                    stagePicker.Open(); // select before training resets the machine
                     break;
                 case xmvsf_home::Action::Versus:
+                    if (stageBeforeTraining >= 0) {
+                        SetFeatureForNow(session::kStageFeature, stageBeforeTraining);
+                        stageBeforeTraining = -1;
+                    }
                     // First slice: original two-player local arcade with free play;
                     // both players press Start. Full selection lifecycle comes next.
                     EndSessionFeatures();
@@ -855,6 +907,7 @@ int RunWindowed(Port &port) {
                     }
                     break;
                 case xmvsf_home::Action::None: break;
+                }
                 }
                 heldAtClose = previousPad;
             } else if (options.Active()) {
@@ -947,6 +1000,15 @@ int RunWindowed(Port &port) {
                 presenter.UseClassicMenuCanvas(true);
                 homeTextures.RenderOptions(presenter.Renderer(), SDL_GetTicks(),
                                            options, g_bindings, Table(), owners);
+            }
+            SDL_Delay(8);
+            nextFrame = SDL_GetTicksNS();
+            continue;
+        }
+        if (stagePicker.Active()) { // XMVSF_RECOMP_STAGES_87_455: no game Tick while choosing
+            if (presenter.Renderer()) {
+                presenter.UseClassicMenuCanvas(true);
+                homeTextures.RenderStagePicker(presenter.Renderer(), SDL_GetTicks(), stagePicker);
             }
             SDL_Delay(8);
             nextFrame = SDL_GetTicksNS();
@@ -1156,6 +1218,7 @@ int RunWindowed(Port &port) {
     }
     // XMVSF_RECOMP_MENU_TEXTURES_87_441: release SDL objects before
     // upstream closes the renderer/window and calls SDL_Quit.
+    stagePicker.Release(); // destroy thumb textures before SDL renderer closes
     homeTextures.Release();
     homeAudio.Close();
     owners.Close(); // 87.443 raw SDL_Joystick resources before SDL_Quit.
