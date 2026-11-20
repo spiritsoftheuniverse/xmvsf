@@ -1,4 +1,20 @@
-# XMVSF native front end — 87.477 (FBNeo Stage17 accepted-count port)
+# XMVSF native front end — 87.478 (fix namespace collision in Training)
+
+## 87.478 — compile repair from local Windows build log
+
+The 87.477 helper incorrectly created `cps2recomp::xmvsf`, shadowing
+XMVSF's original GLOBAL `::xmvsf` namespace when compiling
+`games/xmvsf/src/training.cpp`. Consequently `Player`, `kPlayer1`,
+`kChoosing`, and dozens of other existing global XMVSF symbols became
+unresolvable; the new callback was not itself the underlying failure.
+
+Keep the FBNeo-derived `FF5183` accepted-count handoff unchanged. The
+helper now extends the global `namespace xmvsf`, matching `xmvsf.h`.
+The compiled selector smoke test includes a same-scope namespace lookup
+regression to prevent silently reintroducing this exact C++ collision.
+No ROM, gameplay state, or selection routing modifications.
+
+
 
 ## 87.477 — use the already-working FBNeo Training handoff
 

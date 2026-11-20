@@ -1,4 +1,4 @@
-// XMVSF 87.477: canonical, ROM-backed P1 team-selection milestone.
+// XMVSF 87.478: FBNeo-proven P1 accept counter in the ORIGINAL global xmvsf namespace.
 //
 // FBNeo's working Stage17 (87.68) reads FF5183, the P1 ROM-accepted
 // character count. It routes P1's physical controller to P2 when it
@@ -11,8 +11,8 @@
 // This helper receives that byte from native RAM. Only Training uses
 // it for P1->P2 controller ownership; no RAM write or ROM patch.
 #pragma once
-namespace cps2recomp::xmvsf {
+namespace xmvsf {
 inline constexpr bool NativeP1TeamAccepted(unsigned acceptedCount) {
     return acceptedCount == 2u;
 }
-} // namespace cps2recomp::xmvsf
+} // namespace xmvsf

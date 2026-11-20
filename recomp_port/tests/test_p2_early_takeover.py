@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""87.477 Training acceptance: FBNeo 87.68 FF5183, confirmed by F10."""
+"""87.478 FBNeo FF5183 acceptance and regression against nested namespace."""
 from pathlib import Path
 from version_guard import require_matching_versions
 ROOT = Path(__file__).resolve().parents[2]
@@ -18,6 +18,8 @@ def main():
     assert "d.secondPickCommitted = [] {" in tr
     assert "xmvsf::NativeP1TeamAccepted(Ram8(kChoosing + 3u))" in tr
     assert "static_assert(kChoosing + 3u == 0xFF5183u);" in tr
+    assert "namespace xmvsf {" in accepted
+    assert "namespace cps2recomp::xmvsf" not in accepted
     assert "acceptedCount == 2u" in accepted
     assert "FF5183" in accepted
     assert "d.secondPickCommitted && d.secondPickCommitted()" in s
@@ -31,7 +33,7 @@ def main():
     assert "if (session::EnteringTraining()) {" in f
     assert "if (session::CompletingP1Selection()) {" in f
     assert "films_.Draw(renderer, now, filmReveal);" in textures
-    assert require_matching_versions(src("recomp_port/xmvsf_home.h"), textures, minimum=(87,477)) >= (87,476)
-    print("XMVSF 87.477 FBNeo FF5183 native accepted-count Training handoff PASS")
+    assert require_matching_versions(src("recomp_port/xmvsf_home.h"), textures, minimum=(87,478)) >= (87,476)
+    print("XMVSF 87.478 FBNeo FF5183 native accepted-count Training handoff PASS")
 if __name__ == "__main__":
     main()

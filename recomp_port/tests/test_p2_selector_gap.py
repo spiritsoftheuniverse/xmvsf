@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""87.477 FBNeo accepted count and native OAM selector regression."""
+"""87.478 FBNeo accepted count and namespace-safe OAM regression."""
 from pathlib import Path
 from version_guard import require_matching_versions
 import shutil, subprocess, tempfile
@@ -14,6 +14,7 @@ def main():
     front = src("recomp/port/frontend_sdl.cpp")
     home, tex = src("recomp_port/xmvsf_home.h"), src("recomp_port/xmvsf_menu_textures.h")
     assert "IsP2SelectionObject" in helper and "(attributes & 0x001Fu) == 0x001Bu" in helper
+    assert "namespace xmvsf {" in phase and "namespace cps2recomp::xmvsf" not in phase
     assert "acceptedCount == 2u" in phase
     assert '#include "selector_oam.h"' in video and '#include "selector_oam.h"' in native
     assert "hideP2Selector && native_video::IsP2SelectionObject(attr)" in video
@@ -29,7 +30,7 @@ def main():
     assert "if (session::EnteringTraining()) {" in front
     assert "if (session::CompletingP1Selection()) {" in front
     assert "films_.Draw(renderer, now, filmReveal);" in tex
-    assert require_matching_versions(home, tex, minimum=(87,477)) >= (87,476)
+    assert require_matching_versions(home, tex, minimum=(87,478)) >= (87,476)
     cc = shutil.which("g++")
     assert cc, "MSYS2 UCRT64 g++ is required"
     smoke = ROOT/"recomp_port/tests/test_p2_selector_ink.cpp"
@@ -38,6 +39,6 @@ def main():
         subprocess.run([cc, "-std=c++20", "-Wall", "-Wextra", "-Werror",
                         str(smoke), "-o", str(exe)], check=True)
         subprocess.run([str(exe)], check=True)
-    print("XMVSF 87.477 FBNeo accepted-count and F10 native OAM selector PASS")
+    print("XMVSF 87.478 FBNeo accepted-count and F10 native OAM selector PASS")
 if __name__ == "__main__":
     main()
