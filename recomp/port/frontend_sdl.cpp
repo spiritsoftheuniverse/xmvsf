@@ -1042,7 +1042,7 @@ int RunWindowed(Port &port) {
         }
 
         // Recording feedback survives native frame skipping, SDL menu
-        // navigation, and the automatic 3,600-frame capture stop.
+        // navigation, and the automatic compact capture stop (900 frames / size cap).
         const bool f10Recording = xmvsf_f10::Capture::Get().Active();
         if (f10PreviousActive && !f10Recording) {
             f10Notice = "F10 SAVED"; // auto-stop, not an F10 key press
