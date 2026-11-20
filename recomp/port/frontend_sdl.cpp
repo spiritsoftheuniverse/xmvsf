@@ -1165,10 +1165,15 @@ int RunWindowed(Port &port) {
         // native frames per Tick. Keep the last stage-picker presentation
         // until character select; never display the ROM's disclaimer/title.
         // This guard applies to Training only, not Arcade or Versus.
-        if (session::EnteringTraining() || session::CompletingP1Selection()) {
-            // Both startup and post-P1 selection tails run unseen.
-            // Preserve the last presented selection pixels and skip its
-            // native countdown/mode/speed gap entirely.
+        if (session::EnteringTraining()) {
+            // The original 87.467 startup guard stays independently tested.
+            port.machine->audio.clear();
+            nextFrame = SDL_GetTicksNS();
+            continue;
+        }
+        if (session::CompletingP1Selection()) {
+            // A second, Training-only fast-forward phase: don't display
+            // the native mode/speed countdown after P1's second pick.
             port.machine->audio.clear();
             nextFrame = SDL_GetTicksNS();
             continue;
