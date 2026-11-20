@@ -197,18 +197,18 @@ if errorlevel 1 (
   goto :fail
 )
 
-REM 87.478: use original global xmvsf namespace for FBNeo Stage17 FF5183 handoff.
+REM 87.479: accepted-count input handoff without hiding native selection video/audio.
 "%BASH%" -c "python3 ../recomp_port/tests/test_p2_early_takeover.py"
 if errorlevel 1 (
-  echo ERROR: XMVSF 87.478 FBNeo-verified second-pick takeover regression failed. No build performed.
+  echo ERROR: XMVSF 87.479 FBNeo handoff and native AV regression failed. No build performed.
   popd
   goto :fail
 )
 
-REM 87.476: F10 verified P2 OAM palette 27 rather than pixel pens.
+REM 87.479: restore ROM-native selector OAM frames and flicker.
 "%BASH%" -c "python3 ../recomp_port/tests/test_p2_selector_gap.py"
 if errorlevel 1 (
-  echo ERROR: XMVSF 87.478 native OAM P2 selector / instant handoff regression failed.
+  echo ERROR: XMVSF 87.479 native selector rendering / instant handoff regression failed.
   popd
   goto :fail
 )

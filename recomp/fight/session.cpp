@@ -309,17 +309,17 @@ void BeforeFrame(Machine &machine) {
     // Neither the single B1E8 hook nor a guessed phase is authoritative.
     const bool nativeSecondPick = trainingChoosing && d.handoffAfterSecondPick &&
                                   d.secondPickCommitted && d.secondPickCommitted();
-    if (nativeSecondPick && !g_fastP1Tail && !g_p1AutoFallback &&
+    if (nativeSecondPick && !g_p1AutoFallback &&
         !g_choosingTwo && !RunningAhead()) {
+        // 87.479: transfer input only. Never accelerate or skip P1's
+        // real selection animation and audio after FF5183 reaches two.
         g_heldOver = 0;
         g_p1AutoFrames = 0;
-        g_fastP1Tail = true;
-        SetFastForward(true); // accelerate native 04/06 tail; stop at phase 07
-        std::fprintf(stderr, "XMVSF 87.477 P2_DUMMY_OWNER FF5183_ACCEPTED_2 fast_tail=1\n");
+        std::fprintf(stderr, "XMVSF 87.479 P2_DUMMY_OWNER FF5183_ACCEPTED_2 normal_av=1\n");
     }
     const bool earlyOwner = nativeSecondPick && !g_p1AutoFallback;
-    // Keep P1's native mode/speed choices progressing even if Dummy 2 has
-    // already been selected before those choices finish.
+    // Keep P1's native mode/speed choices progressing at normal video
+    // and audio rate even when the dummy selector becomes available.
     auto autoConfirmP1 = [&]() {
         if (!RunningAhead() && ++g_p1AutoFrames > 240) {
             g_p1AutoFallback = true;

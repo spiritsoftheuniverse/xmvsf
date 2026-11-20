@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""87.478 FBNeo FF5183 acceptance and regression against nested namespace."""
+"""87.479 FBNeo FF5183 ownership with normal native selection AV."""
 from pathlib import Path
 from version_guard import require_matching_versions
 ROOT = Path(__file__).resolve().parents[2]
@@ -24,16 +24,23 @@ def main():
     assert "FF5183" in accepted
     assert "d.secondPickCommitted && d.secondPickCommitted()" in s
     assert "const bool earlyOwner = nativeSecondPick && !g_p1AutoFallback;" in s
-    assert "SetFastForward(true); // accelerate native 04/06 tail" in s
-    assert "if (g_fastP1Tail &&" in s and "(d.chosen && d.chosen(0))" in s
+    before = s.split("void BeforeFrame(Machine &machine) {", 1)[1].split("void Frame(Machine &machine)", 1)[0]
+    assert "SetFastForward(true)" not in before, "no second-pick fast-forward"
+    assert "g_fastP1Tail = true;" not in before, "no hidden P1 tail"
+    assert "FF5183_ACCEPTED_2 normal_av=1" in before
     assert "g_p1AutoFrames > 240" in s
     assert "machine.players[1] = (machine.players[1] & (kStart | kCoin)) | (held & ~heldOver);" in s
     assert "g_choosingTwo ? g_heldOver & held : (held & kAllButtons)" in s
     assert "(!d.chosen || !d.chosen(1))" in s
     assert "if (session::EnteringTraining()) {" in f
-    assert "if (session::CompletingP1Selection()) {" in f
+    assert "session::CompletingP1Selection()" not in f
+    assert "if (session::EnteringTraining()) {" in f
+    after_tick = f.split("const bool ran = port.Tick();", 1)[1]
+    assert "if (trainingWaitingFight)" in after_tick
+    selection_interval = after_tick.split("if (trainingWaitingFight)", 1)[0]
+    assert "port.machine->audio.clear();" not in selection_interval.split("if (session::EnteringTraining()) {", 1)[1].split("continue;", 1)[1]
     assert "films_.Draw(renderer, now, filmReveal);" in textures
-    assert require_matching_versions(src("recomp_port/xmvsf_home.h"), textures, minimum=(87,478)) >= (87,476)
-    print("XMVSF 87.478 FBNeo FF5183 native accepted-count Training handoff PASS")
+    assert require_matching_versions(src("recomp_port/xmvsf_home.h"), textures, minimum=(87,479)) >= (87,476)
+    print("XMVSF 87.479 FBNeo FF5183 input-only handoff, native AV preserved PASS")
 if __name__ == "__main__":
     main()

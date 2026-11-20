@@ -2,7 +2,6 @@
 // Copyright (C) 2026 Tommy McLeroy. Part of cps2recomp.
 
 #include "native_render.h"
-#include "selector_oam.h"
 
 #include "../runtime/state.h"
 
@@ -99,8 +98,7 @@ void Raster::Objects(const ObjectList &list, const PictureOptions &options) {
                     t.entryTile = code;
                     t.attributes = attr;
                     t.shift = static_cast<int16_t>(options.object ? options.object(code, attr, i / 4) : 0);
-                    t.hidden = (options.hideObject && options.hideObject(code, attr)) ||
-                               (options.hideP2Selector && IsP2SelectionObject(attr));
+                    t.hidden = (options.hideObject && options.hideObject(code, attr));
                     m_tiles.push_back(t);
                 }
             }
@@ -134,8 +132,7 @@ void Raster::Objects(const ObjectList &list, const PictureOptions &options) {
                 t.entryTile = code;
                 t.attributes = attr;
                 t.shift = static_cast<int16_t>(options.object ? options.object(code, attr, i / 4) : 0);
-                t.hidden = (options.hideObject && options.hideObject(code, attr)) ||
-                           (options.hideP2Selector && IsP2SelectionObject(attr));
+                t.hidden = (options.hideObject && options.hideObject(code, attr));
                 t.extra = list.fromExtra[i / 4] != 0;
                 t.marks = static_cast<uint8_t>((options.panelObject && options.panelObject(code, attr) ? kPanelPixel : 0) |
                                                (options.markFront && (x & 0x1000) ? kFrontPixel : 0));

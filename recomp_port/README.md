@@ -1,4 +1,29 @@
-# XMVSF native front end — 87.478 (fix namespace collision in Training)
+# XMVSF native front end — 87.479 (restore selector animation and audio)
+
+## 87.479 — native selection output must never be skipped
+
+87.477 turned on fast-forward as soon as P1's verified native
+`FF5183` count reached two. The frontend then called
+`port.machine->audio.clear()` and `continue` every UI frame
+while `session::CompletingP1Selection()` was true. This created
+the reported second-character freeze/last-frame jump and the
+silent character-select music interval. The ROM kept advancing,
+but the intermediate native audio/pictures were never presented.
+
+87.479 keeps the FBNeo-proven FF5183 input-owner handoff while
+removing second-selection fast-forward and its frontend AV gate.
+P1's native mode/speed steps still auto-confirm at normal speed.
+Training *startup* FF and Fight voice remain unchanged.
+
+The 87.476 palette-27 OAM filter hid selector frames as well.
+Remove the filter from both CPU/native renderers and disable
+`hideP2Selector` in Training. Show the ROM's native flicker and
+animations intact rather than indiscriminately hiding palette 27.
+Both native cursors may be visible before handoff; future
+P2-specific masking requires actual object identity rather than
+palette alone.
+
+
 
 ## 87.478 — compile repair from local Windows build log
 

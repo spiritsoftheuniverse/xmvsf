@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""87.478 FBNeo accepted count and namespace-safe OAM regression."""
+"""87.479 native selector sprites and flicker retained without palette suppression."""
 from pathlib import Path
 from version_guard import require_matching_versions
 import shutil, subprocess, tempfile
@@ -16,21 +16,25 @@ def main():
     assert "IsP2SelectionObject" in helper and "(attributes & 0x001Fu) == 0x001Bu" in helper
     assert "namespace xmvsf {" in phase and "namespace cps2recomp::xmvsf" not in phase
     assert "acceptedCount == 2u" in phase
-    assert '#include "selector_oam.h"' in video and '#include "selector_oam.h"' in native
-    assert "hideP2Selector && native_video::IsP2SelectionObject(attr)" in video
-    assert native.count("options.hideP2Selector && IsP2SelectionObject(attr)") == 2
+    # Keep the predicate as diagnostic metadata; DO NOT use it to hide
+    # native selector objects. The broad filter destroyed cursor frames.
+    assert '#include "selector_oam.h"' not in video + native
+    assert "IsP2SelectionObject(" not in video + native
     assert "IsP2SelectorTile" not in video + native
+    assert "if (hideObject && hideObject(code, attr)) {" in video
+    assert native.count("t.hidden = (options.hideObject && options.hideObject(code, attr));") == 2
     assert "bool hideP2Selector = false;" in records and "bool hideP2Selector = false;" in vh
     assert "o.hideP2Selector = hideP2Selector;" in vh
-    assert "machine.video.hideP2Selector = session::InSession() && modes::Choosing();" in choosing
+    assert "machine.video.hideP2Selector = false;" in choosing
     assert "d.secondPickCommitted && d.secondPickCommitted()" in session
     assert "g_p1Accepted == 2" not in session
     assert "g_p1AutoFrames > 240" in session
     assert native.count("if (t.hidden || (options.hideObject &&") == 2
     assert "if (session::EnteringTraining()) {" in front
-    assert "if (session::CompletingP1Selection()) {" in front
+    assert "session::CompletingP1Selection()" not in front
+    assert "SetFastForward(true); // accelerate native 04/06 tail" not in session
     assert "films_.Draw(renderer, now, filmReveal);" in tex
-    assert require_matching_versions(home, tex, minimum=(87,478)) >= (87,476)
+    assert require_matching_versions(home, tex, minimum=(87,479)) >= (87,476)
     cc = shutil.which("g++")
     assert cc, "MSYS2 UCRT64 g++ is required"
     smoke = ROOT/"recomp_port/tests/test_p2_selector_ink.cpp"
@@ -39,6 +43,6 @@ def main():
         subprocess.run([cc, "-std=c++20", "-Wall", "-Wextra", "-Werror",
                         str(smoke), "-o", str(exe)], check=True)
         subprocess.run([str(exe)], check=True)
-    print("XMVSF 87.478 FBNeo accepted-count and F10 native OAM selector PASS")
+    print("XMVSF 87.479 native cursor draw and flicker restored PASS")
 if __name__ == "__main__":
     main()

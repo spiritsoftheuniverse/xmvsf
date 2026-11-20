@@ -2,7 +2,6 @@
 // Copyright (C) 2026 Tommy McLeroy. Part of cps2recomp.
 
 #include "video.h"
-#include "selector_oam.h"
 
 #include "../runtime/state.h"
 
@@ -225,8 +224,7 @@ void Video::DrawObjects(int rasterLine, uint16_t *pens, uint8_t *priority, const
         const unsigned level = (x >> 13) & 7;
         const uint32_t code = m_objects[i + 2] + ((y & 0x6000u) << 3);
         const uint16_t attr = m_objects[i + 3];
-        if ((hideObject && hideObject(code, attr)) ||
-            (hideP2Selector && native_video::IsP2SelectionObject(attr))) {
+        if (hideObject && hideObject(code, attr)) {
             continue;
         }
         if (attr & 0x80) {

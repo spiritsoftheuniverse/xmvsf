@@ -1224,13 +1224,6 @@ int RunWindowed(Port &port) {
             nextFrame = SDL_GetTicksNS();
             continue;
         }
-        if (session::CompletingP1Selection()) {
-            // A second, Training-only fast-forward phase: don't display
-            // the native mode/speed countdown after P1's second pick.
-            port.machine->audio.clear();
-            nextFrame = SDL_GetTicksNS();
-            continue;
-        }
         if (trainingWaitingFight) {
             // The ROM is already at character select, but the previous
             // stage screen stays visible until the 1-second cue has finished.

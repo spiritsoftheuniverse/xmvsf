@@ -41,9 +41,9 @@ namespace {
 } // namespace
 
 void ChoosingBeforeFrame(Machine &machine) {
-    // F10 identified the actual P2 selector OAM palette 0x1B (27).
-    // Filter these objects in Training only; no ROM or OAM RAM mutations.
-    machine.video.hideP2Selector = session::InSession() && modes::Choosing();
+    // 87.479: draw the ROM's original selector frames and flicker.
+    // A palette-27 blanket OAM filter hid real P1/P2 cursor pixels.
+    machine.video.hideP2Selector = false;
     for (int n = 0; n < 2; n++) {
         g_start[n] = (machine.players[n] & kStart) != 0;
     }

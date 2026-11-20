@@ -34,7 +34,8 @@ def main():
     assert "ev.key.scancode == SDL_SCANCODE_F10" in front
     assert "auto &f10 = xmvsf_f10::Capture::Get();" in front
     assert "f10.Toggle(*port.machine," in front
-    assert "session::CompletingP1Selection()" in front
+    assert "session::CompletingP1Selection()" not in front
+    assert "if (session::EnteringTraining()) {" in front
     assert "selectReveal.Frame(SDL_GetTicks())" in front
     assert "homeAudio.Fight(!port.menu.muted && !audioLog)" in front
     assert "films_.Draw(renderer, now, filmReveal);" in textures
