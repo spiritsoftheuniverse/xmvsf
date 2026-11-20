@@ -73,14 +73,19 @@ def patch(code: str) -> str:
                 if (home.Enabled() && !ev.key.repeat &&
 ''',
         '''            case SDL_EVENT_KEY_DOWN:
-                if (stagePicker.Active() && !ev.key.repeat &&
-                    (ev.key.scancode == SDL_SCANCODE_ESCAPE || ev.key.scancode == SDL_SCANCODE_AC_BACK ||
-                     ev.key.scancode == SDL_SCANCODE_F1)) {
-                    stagePicker.Close(); // do not invoke upstream pause or Settings
-                    break;
+                if (stagePicker.Active()) {
+                    // Navigation is handled by the edge-filtered menu poll below.
+                    // In particular, Backspace must NOT reach port.Key('k') / restart.
+                    if (!ev.key.repeat &&
+                        (ev.key.scancode == SDL_SCANCODE_ESCAPE ||
+                         ev.key.scancode == SDL_SCANCODE_AC_BACK ||
+                         ev.key.scancode == SDL_SCANCODE_F1)) {
+                        stagePicker.Close(); // Escape/F1 return to HOME
+                    }
+                    break; // no gameplay/debug key side effects while picking
                 }
                 if (home.Enabled() && !ev.key.repeat &&
-''', "escape")
+''', "keyboard event isolation")
     code = one(code,
         '''            case SDL_EVENT_GAMEPAD_BUTTON_DOWN:
                 if (!port.menu.IsOpen() && Shoulder(ev.gbutton.button) && ZoomHeld(SDL_GetGamepadFromID(ev.gbutton.which))) {
