@@ -13,7 +13,7 @@
 #include "marvel.h"
 #include "session.h"
 #include "xmvsf.h"
-#include "select_phase.h" // real F10 P1 03->04 second pick
+#include "select_accept.h" // FBNeo Stage17, ROM P1 accept counter FF5183
 
 namespace cps2recomp {
 
@@ -62,7 +62,11 @@ void RegisterTraining() {
     d.chosen = [](int n) { return Ram8(kChoosing + static_cast<uint32_t>(n) * kChoosingSize) >= kChoosingDone; };
     d.handoffAfterSecondPick = true;
     d.secondPickCommitted = [] {
-        return xmvsf::NativeP1SecondPickCommitted(Ram8(kChoosing));
+        // Verified in FBNeo Stage17 (87.68) and independently confirmed
+        // by the uploaded F10 native capture: FF5183 0->1->2.
+        // Do not infer accept count from phase or a second 00B1E8 hook.
+        static_assert(kChoosing + 3u == 0xFF5183u);
+        return xmvsf::NativeP1TeamAccepted(Ram8(kChoosing + 3u));
     };
     d.panelHeld = marvel::PanelHeld;
     d.facingLeft = marvel::FacingLeft;

@@ -197,10 +197,10 @@ if errorlevel 1 (
   goto :fail
 )
 
-REM 87.476: F10 verified native P1 phase 03->04 team handoff.
+REM 87.477: FBNeo Stage17 87.68 verified FF5183 accepted-count handoff.
 "%BASH%" -c "python3 ../recomp_port/tests/test_p2_early_takeover.py"
 if errorlevel 1 (
-  echo ERROR: XMVSF 87.476 native second-pick P2 takeover regression failed. No build performed.
+  echo ERROR: XMVSF 87.477 FBNeo-verified second-pick takeover regression failed. No build performed.
   popd
   goto :fail
 )
@@ -208,7 +208,7 @@ if errorlevel 1 (
 REM 87.476: F10 verified P2 OAM palette 27 rather than pixel pens.
 "%BASH%" -c "python3 ../recomp_port/tests/test_p2_selector_gap.py"
 if errorlevel 1 (
-  echo ERROR: XMVSF 87.476 native OAM P2 selector / instant handoff regression failed.
+  echo ERROR: XMVSF 87.477 native OAM P2 selector / instant handoff regression failed.
   popd
   goto :fail
 )

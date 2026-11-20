@@ -1,4 +1,31 @@
-# XMVSF native front end — 87.476 (F10 native selection evidence)
+# XMVSF native front end — 87.477 (FBNeo Stage17 accepted-count port)
+
+## 87.477 — use the already-working FBNeo Training handoff
+
+**Canonical source:** `dev/stable/buildtree/src/burner/sdl/xmvsf_stage17_auto.h`
+on `main` (`XM87.68 ROM_P1_ACCEPTED`). It reads byte `0xFF5183`
+and moves physical P1 control to P2 on accepted count **2**, without
+waiting for a released button or inferred phase. The matching
+`xmvsf_stage14_mode.h` routes SDL device 0 to game slot 1 and
+does not duplicate the input into slot 0. Only already-held
+face-button confirmations are blocked across the owner switch;
+directions are never globally latched.
+
+The uploaded recomp F10 session `xmvsf_f10_1795187918523_0`
+independently confirms that exact FF5183 byte: **0 to 1 on
+native frame 706**, **1 to 2 on native frame 763**. Both increments
+coincide with the ROM advancing P1's selection record. 87.476's
+phase-04/06 approximation is superseded. The on-screen F10 capture
+and P2 OAM display suppression remain unchanged.
+
+Recomp Training now reads `Ram8(kChoosing + 3u)` (compile-time
+verified to be FF5183) for the early handoff; it does not rely
+on two calls to `00B1E8`. Native auto-confirm/fast-forward
+and the existing 240-frame safety fallback remain. Do not
+claim runtime parity with FBNeo until a local Windows gameplay
+test passes; the sources use different host input plumbing.
+
+
 
 ## 87.476 — Training handoff and cursor identified by native capture
 

@@ -300,11 +300,13 @@ void BeforeFrame(Machine &machine) {
         // Never fast-forward past the native ready-to-select P2 state.
         g_fastP1Tail = false;
         SetFastForward(false);
-        std::fprintf(stderr, "XMVSF 87.476 P2_DUMMY_READY native_p1_tail_complete\n");
+        std::fprintf(stderr, "XMVSF 87.477 P2_DUMMY_READY native_p1_tail_complete\n");
     }
     const bool trainingChoosing = InSession() && modes::Choosing();
-    // 87.476: the actual native P1 second-pick transition is 03->04,
-    // 86 emulated frames before P1 reaches 07. The F10 hook fires once.
+    // 87.477: identical to FBNeo's proven Stage17 handoff (87.68):
+    // transfer when the ROM's FF5183 accepted-character count reaches 2.
+    // The F10 trace confirms 0->1 at 706 and 1->2 at frame 763.
+    // Neither the single B1E8 hook nor a guessed phase is authoritative.
     const bool nativeSecondPick = trainingChoosing && d.handoffAfterSecondPick &&
                                   d.secondPickCommitted && d.secondPickCommitted();
     if (nativeSecondPick && !g_fastP1Tail && !g_p1AutoFallback &&
@@ -313,7 +315,7 @@ void BeforeFrame(Machine &machine) {
         g_p1AutoFrames = 0;
         g_fastP1Tail = true;
         SetFastForward(true); // accelerate native 04/06 tail; stop at phase 07
-        std::fprintf(stderr, "XMVSF 87.476 P2_DUMMY_OWNER native_P1_phase04 fast_tail=1\n");
+        std::fprintf(stderr, "XMVSF 87.477 P2_DUMMY_OWNER FF5183_ACCEPTED_2 fast_tail=1\n");
     }
     const bool earlyOwner = nativeSecondPick && !g_p1AutoFallback;
     // Keep P1's native mode/speed choices progressing even if Dummy 2 has
@@ -323,7 +325,7 @@ void BeforeFrame(Machine &machine) {
             g_p1AutoFallback = true;
             g_fastP1Tail = false;
             SetFastForward(false);
-            std::fprintf(stderr, "XMVSF 87.476 P1_AUTO_CONFIRM fallback after 240 frames\n");
+            std::fprintf(stderr, "XMVSF 87.477 P1_AUTO_CONFIRM fallback after 240 frames\n");
         }
         if (!g_p1AutoFallback) {
             machine.players[0] &= kCoin;
@@ -340,7 +342,10 @@ void BeforeFrame(Machine &machine) {
         // Native P1 second character accepted: P1 now controls Dummy 1.
         // Never carry the selecting button/direction into the new owner.
         const uint16_t held = machine.players[0] & (kSticks | kAllButtons);
-        const uint16_t heldOver = g_choosingTwo ? g_heldOver & held : held;
+        // FBNeo Stage17 87.68: never hold D-pad/stick across owner
+        // transfer. Suppress only the face-button confirmation still
+        // held from P1's second selection until physical release.
+        const uint16_t heldOver = g_choosingTwo ? g_heldOver & held : (held & kAllButtons);
         if (!RunningAhead()) {
             g_heldOver = heldOver;
             g_choosingTwo = true;
