@@ -41,7 +41,11 @@ def main():
     assert "g_fastP1Tail = true;" in SESSION
     assert "SetFastForward(true); // native P1 mode/speed steps" in SESSION
     assert "bool CompletingP1Selection();" in API
-    assert "if (session::EnteringTraining() || session::CompletingP1Selection())" in FRONT
+    assert "if (session::EnteringTraining()) {" in FRONT
+    assert "if (session::CompletingP1Selection()) {" in FRONT
+    assert FRONT.index("if (session::EnteringTraining()) {") <
+           FRONT.index("if (session::CompletingP1Selection()) {") <
+           FRONT.index("selectReveal.Frame(SDL_GetTicks())")
     assert "g_fastP1Tail = false;" in SESSION
     assert "g_p1AutoFrames > 240" in SESSION
     assert "ar.Pod(g_p1Accepted);" in SESSION and "ar.Pod(g_fastP1Tail);" in SESSION
@@ -52,7 +56,7 @@ def main():
     assert compiler, "UCRT64 g++ required for source-native selector smoke"
     smoke = ROOT/"recomp_port/tests/test_p2_selector_ink.cpp"
     with tempfile.TemporaryDirectory(prefix="xmvsf_471_") as folder:
-        binary = Path(folder)/"selector_ink_test"
+        binary = Path(folder)/"selector_ink_test.exe"
         subprocess.run([compiler,"-std=c++20","-Wall","-Wextra","-Werror",
                         str(smoke),"-o",str(binary)],check=True)
         subprocess.run([str(binary)],check=True)
