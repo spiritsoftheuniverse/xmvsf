@@ -70,7 +70,8 @@ public:
         hooks_ = Open("hooks.tsv");
         writes_ = Open("oam_writes.tsv");
         oam_ = Open("oam_delta.tsv");
-        if (!frames_ || !hooks_ || !writes_ || !oam_) {
+        ramWrites_ = Open("selection_ram_writes.tsv");
+        if (!frames_ || !hooks_ || !writes_ || !oam_ || !ramWrites_) {
             CloseFiles();
             std::fprintf(stderr, "XMVSF F10: file open failed in %s\n",
                          folder_.string().c_str());
@@ -94,6 +95,9 @@ public:
         std::fprintf(writes_,
             "emu_frame\tcpu_cycles\tobject_bank\tbus_address\tobject_slot\t"
             "word_in_slot\twritten_word_after\tcpu_pc_observed\tcpu_instruction_field\tA0\tA4\n");
+        std::fprintf(ramWrites_,
+            "emu_frame\tcpu_cycles\tbus_address\tbytes\tvalue\t"
+            "cpu_pc_observed\tcpu_instruction_field\tD0\tD1\tA0\tA4\n");
         std::fprintf(oam_,
             "emu_frame\tobject_bank_next\tobject_slot\tx_word\ty_word\t"
             "tile_word\tattribute_word\tpalette\tobject_x_offset\tobject_y_offset\t"
@@ -106,6 +110,7 @@ public:
                 "frames.tsv: full native P1/P2 records before/after the frame, plus all input routing.\n"
                 "hooks.tsv: actual entry of the hooked ROM address 00B1E8; it does NOT prove acceptance succeeded.\n"
                 "oam_writes.tsv: real M68K writes to CPS2 object RAM via the 700000/708000 bus windows.\n"
+                "selection_ram_writes.tsv: bus writes to FF5180/FF51A0, FF50B0 picks, FF5100 state and FF5416 panels.\n"
                 "oam_delta.tsv: changed object slots in ObjectsToCome() (next-frame bank), not an inferred cursor.\n"
                 "Object-write cpu_pc_observed/cpu_instruction_field are actual CPU fields at the write;\n"
                 "translated-code PC is NOT guaranteed to identify the exact instruction which wrote the word.\n"
@@ -126,6 +131,7 @@ public:
         oldBank_ = -1;
         frameTag_ = machine.frame;
         machine.objectWriteProbe = &Capture::WriteHook;
+        machine.selectionRamWriteProbe = &Capture::SelectionWriteHook;
         std::fprintf(stderr, "XMVSF F10 M68K CAPTURE START: %s\n", folder_.string().c_str());
         return true;
     }
@@ -135,6 +141,8 @@ public:
         active_ = false;
         if (machine_ && machine_->objectWriteProbe == &Capture::WriteHook)
             machine_->objectWriteProbe = nullptr;
+        if (machine_ && machine_->selectionRamWriteProbe == &Capture::SelectionWriteHook)
+            machine_->selectionRamWriteProbe = nullptr;
         machine_ = nullptr;
         CloseFiles();
         std::fprintf(stderr,
@@ -207,6 +215,7 @@ public:
             std::fflush(hooks_);
             std::fflush(oam_);
             std::fflush(writes_);
+            std::fflush(ramWrites_);
         }
         if (framesSeen_ >= kMaxFrames) Stop("auto limit");
     }
@@ -268,13 +277,34 @@ private:
         return std::fopen((folder_ / name).string().c_str(), "wb");
     }
     void CloseFiles() {
-        for (FILE **f : {&frames_, &hooks_, &writes_, &oam_}) {
+        for (FILE **f : {&frames_, &hooks_, &writes_, &oam_, &ramWrites_}) {
             if (*f) std::fclose(*f);
             *f = nullptr;
         }
     }
     static void WriteHook(const Machine &machine, int bank, uint32_t address) {
         Get().ObjectWritten(machine, bank, address);
+    }
+    static void SelectionWriteHook(const Machine &machine, uint32_t address,
+                                   uint16_t value, unsigned bytes) {
+        Get().SelectionWritten(machine, address, value, bytes);
+    }
+    void SelectionWritten(const Machine &machine, uint32_t address,
+                          uint16_t value, unsigned bytes) {
+        if (!active_ || !ramWrites_ || RunningAhead()) return;
+        const uint32_t at = address & 0xFFFFFFu;
+        const bool selecting = at >= 0xFF5180u && at < 0xFF51C0u;
+        const bool picks = at >= 0xFF50B0u && at < 0xFF50B8u;
+        const bool phase = at >= 0xFF5100u && at < 0xFF5108u;
+        const bool panel = at >= 0xFF5416u && at < 0xFF541Au;
+        if (!selecting && !picks && !phase && !panel) return;
+        std::fprintf(ramWrites_,
+            "%llu\t%llu\t%06X\t%u\t%04X\t%06X\t%06X\t%08X\t%08X\t%08X\t%08X\n",
+            static_cast<unsigned long long>(frameTag_),
+            static_cast<unsigned long long>(machine.cpu.cycles),
+            at, bytes, value, machine.cpu.pc & 0xFFFFFFu,
+            machine.cpu.instruction & 0xFFFFFFu, machine.cpu.d[0],
+            machine.cpu.d[1], machine.cpu.a[0], machine.cpu.a[4]);
     }
     void ObjectWritten(const Machine &machine, int bank, uint32_t address) {
         if (!active_ || !writes_ || RunningAhead() || bank < 0 || bank > 1 ||
@@ -330,7 +360,8 @@ private:
     Selection before_;
     std::array<uint8_t, 0x2000> oldOam_{};
     std::filesystem::path folder_;
-    FILE *frames_ = nullptr, *hooks_ = nullptr, *writes_ = nullptr, *oam_ = nullptr;
+    FILE *frames_ = nullptr, *hooks_ = nullptr, *writes_ = nullptr;
+    FILE *oam_ = nullptr, *ramWrites_ = nullptr;
 };
 
 } // namespace cps2recomp::xmvsf_f10

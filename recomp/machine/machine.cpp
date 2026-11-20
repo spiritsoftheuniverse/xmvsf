@@ -563,6 +563,8 @@ uint8_t Machine::Read8(uint32_t address) {
 void Machine::Write16(uint32_t address, uint16_t value) {
     if (address >= 0xFF0000) {
         SetWord(&ram[address & 0xFFFE], value);
+        if (selectionRamWriteProbe)
+            selectionRamWriteProbe(*this, address & ~1u, value, 2);
         return;
     }
     if (address >= 0x900000 && address < 0x930000) {
@@ -576,6 +578,8 @@ void Machine::Write16(uint32_t address, uint16_t value) {
 void Machine::Write8(uint32_t address, uint8_t value) {
     if (address >= 0xFF0000) {
         ram[address & 0xFFFF] = value;
+        if (selectionRamWriteProbe)
+            selectionRamWriteProbe(*this, address, value, 1);
         return;
     }
     if (address >= 0x900000 && address < 0x930000) {

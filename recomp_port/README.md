@@ -11,7 +11,8 @@ The console prints the full capture folder. Files are written to
 
 (the same screenshots root used by F6, or the folder named in
 `XMVSF_M68K_CAPTURE_DIR`). One folder has `frames.tsv`,
-`hooks.tsv`, `oam_delta.tsv`, `oam_writes.tsv` and `README.txt`.
+`hooks.tsv`, `oam_delta.tsv`, `oam_writes.tsv`,
+`selection_ram_writes.tsv` and `README.txt`.
 Zip/upload that one folder for native phase and cursor ownership analysis.
 
 - `frames.tsv`: **every real emulated frame**, including invisible
@@ -28,6 +29,11 @@ Zip/upload that one folder for native phase and cursor ownership analysis.
   native code the observed PC is **not necessarily the exact writing
   instruction**, so writer ownership must be established from the
   sequence instead of invented.
+- `selection_ram_writes.tsv`: actual M68K bus writes to both native
+  selection records (`FF5180`/`FF51A0`), character picks, selection
+  game steps and the raw P1/P2 panel words. Each write includes the
+  observed CPU PC and register context; native translated-code PCs are
+  explicitly labelled observational, not inferred writer addresses.
 - `oam_delta.tsv`: initial raw next-frame CPS2 object list plus
   slot changes per native frame (X/Y/tile/attributes/palette and the
   object register offsets). No guesswork about palette-27 filtering;

@@ -15,6 +15,7 @@ def main():
     assert header == source("recomp_port/xmvsf_m68k_capture.h")
     front = source("recomp/port/frontend_sdl.cpp")
     machine = source("recomp/machine/machine.h")
+    machine_cpp = source("recomp/machine/machine.cpp")
     game = source("recomp/games/xmvsf/src/game.cpp")
     choosing = source("recomp/games/xmvsf/src/choosing.cpp")
     sess = source("recomp/fight/session.cpp")
@@ -27,6 +28,8 @@ def main():
         "void AfterRouting(", "void BeforeCpu(", "void AfterFrame(",
         "void AcceptHook(", "static void WriteHook(",
         "oam_writes.tsv", "oam_delta.tsv", "frames.tsv", "hooks.tsv",
+        "selection_ram_writes.tsv", "void SelectionWritten(",
+        "at >= 0xFF5180u && at < 0xFF51C0u", "selectionRamWriteProbe",
         "both_records_before_hex", "both_records_after_hex",
         "0x5180 + n * 0x20", "0x50B0", "0x5416", "0x5104",
         "machine.ObjectsToCome()", "frameTag_ = machine.frame",
@@ -42,6 +45,9 @@ def main():
     assert front.index("ev.key.scancode == SDL_SCANCODE_F10") < front.index("if (touch.Event(ev))")
     assert 'void (*objectWriteProbe)(const Machine &, int bank, uint32_t busAddress)' in machine
     assert 'if (objectWriteProbe) objectWriteProbe(*this, bank, address);' in machine
+    assert 'selectionRamWriteProbe' in machine
+    assert 'selectionRamWriteProbe(*this, address & ~1u, value, 2);' in machine_cpp
+    assert 'selectionRamWriteProbe(*this, address, value, 1);' in machine_cpp
     assert "xmvsf_f10::Capture::Get().BeforeRouting(machine);" in game
     assert "xmvsf_f10::Capture::Get().AfterRouting(machine);" in game
     assert "xmvsf_f10::Capture::Get().BeforeCpu(machine);" in game
