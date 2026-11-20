@@ -1,4 +1,4 @@
-// XMVSF 87.472: F10 native M68K/selection/OAM diagnostics.
+// XMVSF 87.480: bounded, compact F10 native M68K/selection/OAM diagnostics.
 // Diagnostic observations only. No emulated RAM/ROM writes, no timing overrides.
 // A capture sees every REAL emulated frame, even while SDL3 skips presentation.
 #pragma once
@@ -8,7 +8,6 @@
 #include "../runtime/game.h"
 
 #include <array>
-#include <chrono>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
@@ -44,29 +43,17 @@ public:
         const char *custom = std::getenv("XMVSF_M68K_CAPTURE_DIR");
         const fs::path root = custom && *custom ? fs::path(custom) :
             (fs::path(screenFolder) / "f10_m68k");
-        fs::create_directories(root, ec);
+        // A single reusable capture, not a new timestamped directory per keypress.
+        // F10 replaces "latest" on each new recording; old historical folders are not touched.
+        folder_ = root / "latest";
+        fs::create_directories(folder_, ec);
         if (ec) {
             std::fprintf(stderr, "XMVSF F10: cannot create %s: %s\n",
-                         root.string().c_str(), ec.message().c_str());
+                         folder_.string().c_str(), ec.message().c_str());
             return false;
         }
-        const auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(
-            std::chrono::system_clock::now().time_since_epoch()).count();
-        fs::path selected;
-        for (unsigned seq = 0; seq < 100; ++seq) {
-            const fs::path candidate = root /
-                ("xmvsf_f10_" + std::to_string(ms) + "_" + std::to_string(seq));
-            if (!fs::exists(candidate, ec)) {
-                if (fs::create_directory(candidate, ec)) selected = candidate;
-                break;
-            }
-        }
-        if (selected.empty()) {
-            std::fprintf(stderr, "XMVSF F10: cannot reserve capture folder in %s\n",
-                         root.string().c_str());
-            return false;
-        }
-        folder_ = selected;
+        const char *rawWrites = std::getenv("XMVSF_F10_RAW_OAM");
+        logRawWrites_ = rawWrites && std::strcmp(rawWrites, "1") == 0;
         frames_ = Open("frames.tsv");
         hooks_ = Open("hooks.tsv");
         writes_ = Open("oam_writes.tsv");
@@ -105,14 +92,15 @@ public:
             "p1_phase_after\tp2_phase_after\n");
         if (FILE *meta = Open("README.txt")) {
             std::fprintf(meta,
-                "XMVSF native M68K F10 capture, source version 87.472\n"
-                "Press F10 once to begin, again to stop; auto-stop after %u emulated frames.\n"
-                "Frames include invisible native fast-forward ticks (not SDL render ticks).\n"
-                "frames.tsv: full native P1/P2 records before/after the frame, plus all input routing.\n"
+                "XMVSF compact native M68K F10 capture, source version 87.480\n"
+                "F10 toggles capture; a new capture REPLACES the previous latest folder files.\n"
+                "Stops after %u emulated frames or 512 KiB of captured records.\n"
+                "Frames include invisible native fast-forward ticks, sampled every 8 frames and on selection-state changes.\n"
+                "frames.tsv: native P1/P2 selection records and input routing (sampled).\n"
                 "hooks.tsv: actual entry of the hooked ROM address 00B1E8; it does NOT prove acceptance succeeded.\n"
-                "oam_writes.tsv: real M68K writes to CPS2 object RAM via the 700000/708000 bus windows.\n"
-                "selection_ram_writes.tsv: bus writes to FF5180/FF51A0, FF50B0 picks, FF5100 state and FF5416 panels.\n"
-                "oam_delta.tsv: changed object slots in ObjectsToCome() (next-frame bank), not an inferred cursor.\n"
+                "oam_writes.tsv: DISABLED by default; set XMVSF_F10_RAW_OAM=1 for bounded raw bus writes.\n"
+                "selection_ram_writes.tsv: bounded selection, picks and game-state writes (not repetitive panel writes).\n"
+                "oam_delta.tsv: sampled active object changes, compared against each bank separately.\n"
                 "Object-write cpu_pc_observed/cpu_instruction_field are actual CPU fields at the write;\n"
                 "translated-code PC is NOT guaranteed to identify the exact instruction which wrote the word.\n"
                 "hex fields have no 0x prefix. Selection records are two 32-byte records at FF5180/FF51A0.\n"
@@ -127,11 +115,14 @@ public:
         framesSeen_ = 0;
         writesSeen_ = 0;
         droppedWrites_ = 0;
+        ramWritesSeen_ = droppedRamWrites_ = 0;
+        oamRowsSeen_ = droppedOamRows_ = 0;
+        ramThisFrame_ = 0;
         haveBefore_ = false;
-        haveOldOam_ = false;
-        oldBank_ = -1;
-        frameTag_ = machine.frame;
-        machine.objectWriteProbe = &Capture::WriteHook;
+        haveOldOam_[0] = haveOldOam_[1] = false;
+        frameTag_ = ramFrameTag_ = machine.frame;
+        // Do not attach the high-frequency object bus probe unless explicitly requested.
+        machine.objectWriteProbe = logRawWrites_ ? &Capture::WriteHook : nullptr;
         machine.selectionRamWriteProbe = &Capture::SelectionWriteHook;
         std::fprintf(stderr, "XMVSF F10 M68K CAPTURE START: %s\n", folder_.string().c_str());
         return true;
@@ -147,11 +138,15 @@ public:
         machine_ = nullptr;
         CloseFiles();
         std::fprintf(stderr,
-                     "XMVSF F10 M68K CAPTURE STOP (%s): %s / %llu frames, %llu writes, %llu dropped\n",
+                     "XMVSF F10 STOP (%s): %s / %llu frames, raw OAM %llu (dropped %llu), OAM deltas %llu (dropped %llu), selection writes %llu (dropped %llu)\n",
                      reason, folder_.string().c_str(),
                      static_cast<unsigned long long>(framesSeen_),
                      static_cast<unsigned long long>(writesSeen_),
-                     static_cast<unsigned long long>(droppedWrites_));
+                     static_cast<unsigned long long>(droppedWrites_),
+                     static_cast<unsigned long long>(oamRowsSeen_),
+                     static_cast<unsigned long long>(droppedOamRows_),
+                     static_cast<unsigned long long>(ramWritesSeen_),
+                     static_cast<unsigned long long>(droppedRamWrites_));
     }
 
     // Called immediately BEFORE and AFTER session::BeforeFrame, not once per
@@ -183,6 +178,12 @@ public:
         if (!active_ || !haveBefore_ || RunningAhead()) return;
         const Selection post = ReadSelection(machine);
         const auto training = session::SelectionDiagnostics();
+        const bool stateChanged = before_.gameStep != post.gameStep ||
+                                  before_.playersIn != post.playersIn ||
+                                  before_.phase != post.phase ||
+                                  before_.cursor != post.cursor ||
+                                  before_.picks != post.picks;
+        if ((framesSeen_ % 8u == 0u) || stateChanged) {
         std::fprintf(frames_, "%llu\t%llu\t%04X\t%04X\t%04X\t%04X\t%04X\t%04X\t"
                                   "%04X\t%04X\t%02X\t%02X\t"
                                   "%02X\t%02X\t%02X\t%02X\t"
@@ -209,16 +210,22 @@ public:
             static_cast<unsigned>(training.accepted), training.autoFrames,
             training.fastTail ? 1u : 0u, training.fallback ? 1u : 0u,
             training.dummyOwner ? 1u : 0u, training.heldOver, bank);
-        WriteOamDelta(machine, post, bank);
+        }
+        // Actual object updates need no per-write probe: observe the rendered
+        // next-frame bank every sixth native frame, plus state transitions.
+        if ((framesSeen_ % 6u == 0u) || stateChanged)
+            WriteOamDelta(machine, post, bank);
         haveBefore_ = false;
-        if (++framesSeen_ % 60u == 0u) {
+        ++framesSeen_;
+        if (framesSeen_ % 30u == 0u) {
             std::fflush(frames_);
             std::fflush(hooks_);
             std::fflush(oam_);
             std::fflush(writes_);
             std::fflush(ramWrites_);
         }
-        if (framesSeen_ >= kMaxFrames) Stop("auto limit");
+        if (BytesWritten() >= kMaxBytes) Stop("size limit");
+        else if (framesSeen_ >= kMaxFrames) Stop("frame limit");
     }
 
     // The genuine hooked 68000 routine: this event is an ENTRY, not a
@@ -237,8 +244,13 @@ public:
 
 private:
     Capture() = default;
-    static constexpr unsigned kMaxFrames = 3600; // one minute of native frames
-    static constexpr uint64_t kMaxWrites = 650000;
+    static constexpr unsigned kMaxFrames = 900; // at most 15 seconds at 60 native fps
+    static constexpr uint64_t kMaxBytes = 512u * 1024u; // combined output data budget
+    static constexpr uint64_t kMaxWrites = 750; // opt-in raw OAM only
+    static constexpr uint64_t kMaxRamWrites = 750;
+    static constexpr unsigned kMaxRamPerFrame = 6;
+    static constexpr uint64_t kMaxOamRows = 1800;
+    static constexpr unsigned kMaxOamPerSample = 32;
     struct Selection {
         uint16_t gameStep = 0;
         uint8_t playersIn = 0;
@@ -274,6 +286,15 @@ private:
             std::fputc(kHex[bytes[n] & 0xF], out);
         }
     }
+    uint64_t BytesWritten() const {
+        uint64_t total = 0;
+        for (FILE *f : {frames_, hooks_, writes_, oam_, ramWrites_}) {
+            if (!f) continue;
+            const long n = std::ftell(f);
+            if (n > 0) total += static_cast<uint64_t>(n);
+        }
+        return total;
+    }
     FILE *Open(const char *name) const {
         return std::fopen((folder_ / name).string().c_str(), "wb");
     }
@@ -297,8 +318,18 @@ private:
         const bool selecting = at >= 0xFF5180u && at < 0xFF51C0u;
         const bool picks = at >= 0xFF50B0u && at < 0xFF50B8u;
         const bool phase = at >= 0xFF5100u && at < 0xFF5108u;
-        const bool panel = at >= 0xFF5416u && at < 0xFF541Au;
-        if (!selecting && !picks && !phase && !panel) return;
+        // Panel words are rewritten every frame without useful selection events.
+        if (!selecting && !picks && !phase) return;
+        if (ramFrameTag_ != frameTag_) {
+            ramFrameTag_ = frameTag_;
+            ramThisFrame_ = 0;
+        }
+        if (ramWritesSeen_ >= kMaxRamWrites || ramThisFrame_ >= kMaxRamPerFrame) {
+            ++droppedRamWrites_;
+            return;
+        }
+        ++ramWritesSeen_;
+        ++ramThisFrame_;
         std::fprintf(ramWrites_,
             "%llu\t%llu\t%06X\t%u\t%04X\t%06X\t%06X\t%08X\t%08X\t%08X\t%08X\n",
             static_cast<unsigned long long>(frameTag_),
@@ -308,7 +339,7 @@ private:
             machine.cpu.d[1], machine.cpu.a[0], machine.cpu.a[4]);
     }
     void ObjectWritten(const Machine &machine, int bank, uint32_t address) {
-        if (!active_ || !writes_ || RunningAhead() || bank < 0 || bank > 1 ||
+        if (!active_ || !logRawWrites_ || !writes_ || RunningAhead() || bank < 0 || bank > 1 ||
             machine.objectRam.size() < 0x4000) return;
         if (writesSeen_ >= kMaxWrites) {
             ++droppedWrites_;
@@ -333,33 +364,49 @@ private:
         if (!oam_ || bank < 0 || bank > 1) return;
         const uint8_t *bytes = machine.ObjectsToCome();
         if (!bytes) return;
+        unsigned emitted = 0;
+        // CPS2 alternates two object banks. Comparing each against the other
+        // incorrectly reports the whole list as changed on every other frame.
+        const bool hadSnapshot = haveOldOam_[bank];
         for (unsigned slot = 0; slot < 1024; ++slot) {
             const uint8_t *p = bytes + slot * 8u;
-            if (haveOldOam_ && oldBank_ == bank &&
-                std::memcmp(oldOam_.data() + slot * 8u, p, 8u) == 0) continue;
+            const uint8_t *prior = oldOam_[bank].data() + slot * 8u;
+            if (hadSnapshot && std::memcmp(prior, p, 8u) == 0) continue;
+            const uint16_t tile = Word(p + 4);
+            // Preserve a disappearing object as well as a newly visible one;
+            // ignore unused zero-tile slots, including the first snapshot.
+            if (tile == 0 && (!hadSnapshot || Word(prior + 4) == 0)) continue;
+            if (emitted >= kMaxOamPerSample || oamRowsSeen_ >= kMaxOamRows) {
+                ++droppedOamRows_;
+                continue;
+            }
             const uint16_t x = Word(p), y = Word(p + 2);
-            const uint16_t tile = Word(p + 4), attributes = Word(p + 6);
+            const uint16_t attributes = Word(p + 6);
             std::fprintf(oam_, "%llu\t%d\t%u\t%04X\t%04X\t%04X\t%04X\t"
                                "%02X\t%04X\t%04X\t%02X\t%02X\n",
                          static_cast<unsigned long long>(frameTag_), bank, slot,
                          x, y, tile, attributes, attributes & 0x1Fu,
                          machine.objectRegs[4], machine.objectRegs[5],
                          post.phase[0], post.phase[1]);
+            ++emitted;
+            ++oamRowsSeen_;
         }
-        std::memcpy(oldOam_.data(), bytes, oldOam_.size());
-        oldBank_ = bank;
-        haveOldOam_ = true;
+        std::memcpy(oldOam_[bank].data(), bytes, oldOam_[bank].size());
+        haveOldOam_[bank] = true;
     }
 
     Machine *machine_ = nullptr;
-    bool active_ = false, haveBefore_ = false, haveOldOam_ = false;
+    bool active_ = false, haveBefore_ = false, logRawWrites_ = false;
+    bool haveOldOam_[2] = {false, false};
     uint64_t framesSeen_ = 0, writesSeen_ = 0, droppedWrites_ = 0;
-    uint64_t frameTag_ = 0;
+    uint64_t ramWritesSeen_ = 0, droppedRamWrites_ = 0;
+    uint64_t oamRowsSeen_ = 0, droppedOamRows_ = 0;
+    uint64_t frameTag_ = 0, ramFrameTag_ = 0;
+    unsigned ramThisFrame_ = 0;
     uint32_t pcBefore_ = 0;
     uint16_t raw_[2] = {}, routed_[2] = {}, final_[2] = {};
-    int oldBank_ = -1;
     Selection before_;
-    std::array<uint8_t, 0x2000> oldOam_{};
+    std::array<uint8_t, 0x2000> oldOam_[2]{};
     std::filesystem::path folder_;
     FILE *frames_ = nullptr, *hooks_ = nullptr, *writes_ = nullptr;
     FILE *oam_ = nullptr, *ramWrites_ = nullptr;
