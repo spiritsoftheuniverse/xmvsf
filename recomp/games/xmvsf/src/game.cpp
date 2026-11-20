@@ -10,6 +10,7 @@
 #include "session.h"
 #include "tag.h"
 #include "xmvsf.h"
+#include "../../../port/xmvsf_m68k_capture.h" // 87.472 native-frame F10 diagnostics
 
 namespace cps2recomp {
 
@@ -68,15 +69,19 @@ void RegisterGame() {
         tag::BeforeFrame(machine);
         BoardBeforeFrame(machine);
         ChoosingBeforeFrame(machine);
+        xmvsf_f10::Capture::Get().BeforeRouting(machine);
         marvel::WidescreenBeforeFrame(machine);
         session::BeforeFrame(machine);
+        xmvsf_f10::Capture::Get().AfterRouting(machine);
         modes::BeforeFrame(machine);
         BattleBeforeFrame(machine);
         colours::BeforeFrame(machine);
         marvel::ModelBeforeFrame(machine);
+        xmvsf_f10::Capture::Get().BeforeCpu(machine);
     };
     // (the training aids see what the frame did before the cheats put things back)
     TheGame().frame = [](Machine &machine) {
+        xmvsf_f10::Capture::Get().AfterFrame(machine);
         session::Frame(machine);
         modes::Frame(machine);
         BattleFrame(machine);

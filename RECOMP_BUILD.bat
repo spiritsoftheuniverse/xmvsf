@@ -213,6 +213,15 @@ if errorlevel 1 (
   goto :fail
 )
 
+REM 87.472: syntax-check F10 native M68K/selection/OAM capture and ownership.
+REM Diagnostic only; no local ROMs, save states or generated M68K modified.
+"%BASH%" -c "python3 ../recomp_port/tests/test_f10_m68k_capture.py"
+if errorlevel 1 (
+  echo ERROR: XMVSF 87.472 F10 M68K capture regression failed. No build performed.
+  popd
+  goto :fail
+)
+
 REM Default is FAST once configured. It only recompiles changed C++ objects.
 REM refresh explicitly regenerates M68000 translation and reconfigures CMake.
 if /I "%~1"=="refresh" goto :refresh

@@ -129,6 +129,14 @@ bool EnteringTraining();
 // Hidden native P1 mode/speed confirmation between P1's second pick and
 // the first actionable dummy selector; SDL3 keeps the last picture.
 bool CompletingP1Selection();
+// Read-only, diagnostic snapshot for F10; no gameplay state changes.
+struct SelectionDebug {
+    uint8_t accepted = 0;
+    unsigned autoFrames = 0;
+    bool fastTail = false, fallback = false, dummyOwner = false;
+    uint16_t heldOver = 0;
+};
+SelectionDebug SelectionDiagnostics();
 // Called from the native accepted-character routine (XMVSF 00B1E8).
 void CharacterAccepted(int player);
 // The stage the machine that is running is to fight on, for the game's choice of stage (0: the game's choice):

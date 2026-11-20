@@ -1,4 +1,42 @@
-# XMVSF native front end — 87.471 (native hidden P2 cursor and zero-gap handoff)
+# XMVSF native front end — 87.472 (F10 native M68K selection/OAM capture)
+
+## 87.472 — F10 native M68K selection/OAM capture
+
+Press **F10** on the character-select screen to START a capture, choose
+both P1 characters and try the dummy selector, then press **F10** again
+to STOP. Also auto-stops after 3,600 native frames (60 seconds at 60fps).
+The console prints the full capture folder. Files are written to
+
+`screenshots/f10_m68k/xmvsf_f10_<timestamp>_<sequence>/`
+
+(the same screenshots root used by F6, or the folder named in
+`XMVSF_M68K_CAPTURE_DIR`). One folder has `frames.tsv`,
+`hooks.tsv`, `oam_delta.tsv`, `oam_writes.tsv` and `README.txt`.
+Zip/upload that one folder for native phase and cursor ownership analysis.
+
+- `frames.tsv`: **every real emulated frame**, including invisible
+  fast-forward. P1/P2 selection phases and cursors before/after; both
+  raw 0x20-byte selection records; four chosen-character words; input
+  before Training redirects, immediately after its redirect, and
+  as presented to the CPU; game phase, panel words, M68K PC/SR/cycles;
+  the current Training handoff/auto-confirm flags and OAM bank.
+- `hooks.tsv`: genuine entry to the original 68000 `00B1E8` hook,
+  including PC, A4, D0, D1, cursor, phase and cycles. An *entry*
+  does not itself prove that a character has been accepted.
+- `oam_writes.tsv`: M68K object RAM writes, real bus address, bank,
+  object slot, value, observed PC/A0/A4 and CPU cycles. For translated
+  native code the observed PC is **not necessarily the exact writing
+  instruction**, so writer ownership must be established from the
+  sequence instead of invented.
+- `oam_delta.tsv`: initial raw next-frame CPS2 object list plus
+  slot changes per native frame (X/Y/tile/attributes/palette and the
+  object register offsets). No guesswork about palette-27 filtering;
+  the trace shows actual objects emitted by the ROM.
+
+F10 does not modify M68K behavior, hide sprites, inject input, or alter
+Training selection. Observations in speculative run-ahead frames are
+excluded from the capture; emulated fast-forward frames are included.
+Existing 87.471 logic remains unchanged to make failures reproducible.
 
 ## 87.471 — actual hidden P2 cursor and zero-gap native handoff
 

@@ -199,6 +199,9 @@ public:
     std::vector<uint8_t> ram;       // FF0000-FFFFFF
     std::vector<uint8_t> videoRam;  // 900000-92FFFF
     std::vector<uint8_t> objectRam; // two banks of 0x2000
+    // Optional, non-serialized, source-only M68K OAM write observer.
+    // A null callback preserves all normal CPS2 object-RAM behavior.
+    void (*objectWriteProbe)(const Machine &, int bank, uint32_t busAddress) = nullptr;
     // The object list the next frame's picture will be made from (the board takes it at the start of the
     // frame): 1024 entries of four big-endian words, as Video::LatchObjects reads them
     const uint8_t *ObjectsToCome() const {
@@ -263,6 +266,7 @@ private:
         }
     }
     void ObjectWritten(int bank, uint32_t address) {
+        if (objectWriteProbe) objectWriteProbe(*this, bank, address);
         if (m_extra && (address & 6) == 0) { // (an entry's first word)
             objectsFromExtra[bank][(address & 0x1FFE) / 8] = m_readExtra && cpu.cycles - m_readExtraAt < kExtraReadNear;
             m_readExtra = false;

@@ -12,6 +12,7 @@
 #include "xmvsf_stage_picker.h" // XMVSF_RECOMP_STAGES_87_455
 #include "xmvsf_select_reveal.h" // XMVSF_RECOMP_SELECT_REVEAL_87_468
 #include "xmvsf_native_capture.h" // XMVSF_NATIVE_CAPTURE_87_458
+#include "xmvsf_m68k_capture.h" // XMVSF_NATIVE_M68K_F10_87_472
 #include "xmvsf_options.h" // XMVSF_RECOMP_OPTIONS_87_442
 #include "xmvsf_pad_owners.h" // XMVSF_RECOMP_PAD_OWNER_87_443
 #include "../fight/session.h"
@@ -550,6 +551,15 @@ int RunWindowed(Port &port) {
             if (ev.type == SDL_EVENT_KEY_DOWN &&
                 ev.key.scancode == SDL_SCANCODE_F6) {
                 if (!ev.key.repeat) nativeCapture.Request();
+                continue;
+            }
+            // 87.472: F10 toggles a native M68K/OAM capture. This is independent
+            // of SDL presentation, so fast-forward/hidden selection is included.
+            if (ev.type == SDL_EVENT_KEY_DOWN &&
+                ev.key.scancode == SDL_SCANCODE_F10) {
+                if (!ev.key.repeat && homeEnabled && port.machine)
+                    xmvsf_f10::Capture::Get().Toggle(*port.machine,
+                        f6Folder && *f6Folder ? f6Folder : "../screenshots/");
                 continue;
             }
             if (touch.Event(ev)) {
@@ -1367,6 +1377,7 @@ int RunWindowed(Port &port) {
     }
     // XMVSF_RECOMP_MENU_TEXTURES_87_441: release SDL objects before
     // upstream closes the renderer/window and calls SDL_Quit.
+    xmvsf_f10::Capture::Get().Stop("frontend shutdown");
     selectReveal.Cancel();
     stagePicker.Release(); // before SDL3 renderer shutdown
     homeTextures.Release();

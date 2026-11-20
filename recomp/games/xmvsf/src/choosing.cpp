@@ -8,6 +8,7 @@
 #include "xmvsf.h"
 #include "session.h"
 #include "alternative.h"
+#include "../../../port/xmvsf_m68k_capture.h" // native accept-hook event, not inferred selection
 
 namespace cps2recomp {
 
@@ -25,6 +26,10 @@ namespace {
             return false;
         }
         const int n = record == kChoosing ? 0 : 1;
+        // Real M68K hook entry, before any P1/P2 selection changes.
+        // This does not assert that a character was actually committed.
+        xmvsf_f10::Capture::Get().AcceptHook(
+            c, n, record, Ram8(record), Ram16(record + kCursor));
         if (FeatureOn("hidden_characters") && g_start[n] && Ram16(record + kCursor) == kRyu) {
             SetRam16(record + kCursor, kAkuma);
         }

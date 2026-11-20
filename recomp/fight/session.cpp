@@ -234,6 +234,10 @@ bool EnteringTraining() {
 bool CompletingP1Selection() {
     return InSession() && g_fastP1Tail;
 }
+SelectionDebug SelectionDiagnostics() {
+    return {g_p1Accepted, g_p1AutoFrames, g_fastP1Tail,
+            g_p1AutoFallback, g_choosingTwo, g_heldOver};
+}
 
 // From XMVSF's actual 00B1E8 accepted-character hook, not cursor animation.
 void CharacterAccepted(int player) {
