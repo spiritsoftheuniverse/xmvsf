@@ -1,4 +1,24 @@
-# XMVSF native front end — 87.469 (Training stage Fight voice handoff)
+# XMVSF native front end — 87.470 (native P1-to-hidden-P2 handoff)
+
+## 87.470 — immediate native P1-to-dummy P2 takeover
+
+Native XMVSF `00B1E8` confirms each character pick. After P1's
+**second confirmed character**, Training hands directional/attack input to
+dummy P2 immediately on the next emulated frame, with no wait for P1's
+later mode/speed confirmation steps (native state `FF5180 >= 7`).
+The held second-P1 confirmation is not repeated on Dummy 1.
+
+Before P1 has accepted both characters, the P2 dummy input is gated to
+prevent early picks. After handoff, the native P1 mode/speed confirmations
+are sent as short real button pulses without overwriting RAM or skipping
+native selection states, alongside the user's live P2 selection inputs.
+A bounded 240-frame fallback restores manual P1 control if those native
+steps do not advance, rather than trapping the selection process.
+
+Only the input ownership and Training native choice hook change. This
+does not yet add a new P2 cursor drawing overlay or modify original OAM
+graphics. The 87.469 voice handoff, 87.468 select dither and film-strip
+effects remain intact. The new local source preflight runs before Ninja.
 
 ## 87.469 — move "Fight!" voice to level confirmation
 

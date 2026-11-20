@@ -197,6 +197,14 @@ if errorlevel 1 (
   goto :fail
 )
 
+REM 87.470: verify exact native P1-second-pick handoff to the hidden dummy selector.
+"%BASH%" -c "python3 ../recomp_port/tests/test_p2_early_takeover.py"
+if errorlevel 1 (
+  echo ERROR: XMVSF 87.470 early P2 dummy takeover regression failed. No build performed.
+  popd
+  goto :fail
+)
+
 REM Default is FAST once configured. It only recompiles changed C++ objects.
 REM refresh explicitly regenerates M68000 translation and reconfigures CMake.
 if /I "%~1"=="refresh" goto :refresh

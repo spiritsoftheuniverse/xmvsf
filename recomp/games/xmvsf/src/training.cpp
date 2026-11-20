@@ -59,6 +59,7 @@ void RegisterTraining() {
         return Ram8(kFight) == kFighting && clock > 0 && clock <= 0x99;
     };
     d.chosen = [](int n) { return Ram8(kChoosing + static_cast<uint32_t>(n) * kChoosingSize) >= kChoosingDone; };
+    d.handoffAfterSecondPick = true;
     d.panelHeld = marvel::PanelHeld;
     d.facingLeft = marvel::FacingLeft;
     d.moveStart = marvel::MoveStart;

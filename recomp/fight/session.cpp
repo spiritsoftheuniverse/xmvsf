@@ -11,6 +11,7 @@
 
 #include <algorithm>
 #include <cstdlib>
+#include <cstdio>
 
 namespace cps2recomp::session {
 
@@ -38,6 +39,9 @@ namespace {
     std::vector<HudBox> g_nextBoxes; // the hit boxes for the next picture
     bool g_choosingTwo = false;      // player 1's controls are choosing player 2's character
     uint16_t g_heldOver = 0;         //   and what it held as it chose for player 1, not passed on until let go
+    uint8_t g_p1Accepted = 0;        // 87.470: confirmed native P1 picks, max two
+    unsigned g_p1AutoFrames = 0;     // real-button pulses for native mode/speed
+    bool g_p1AutoFallback = false;  // return control to P1 if native selection stalls
 
     uint32_t Player(int n) {
         return d.playerAt ? d.playerAt(n) : d.player1 + static_cast<uint32_t>(n) * d.playerSize;
@@ -210,6 +214,11 @@ void StartSession(Machine &machine) {
     machine.Reset();
     g_boot = true;
     g_bootFrames = 0;
+    g_p1Accepted = 0;
+    g_p1AutoFrames = 0;
+    g_p1AutoFallback = false;
+    g_choosingTwo = false;
+    g_heldOver = 0;
     SetFastForward(true);
 }
 
@@ -219,6 +228,21 @@ bool InSession() {
 
 bool EnteringTraining() {
     return g_boot && InSession();
+}
+
+// From XMVSF's actual 00B1E8 accepted-character hook, not cursor animation.
+void CharacterAccepted(int player) {
+    if (player != 0 || !d.handoffAfterSecondPick || !InSession() ||
+        !modes::Choosing() || RunningAhead() || g_p1Accepted >= 2)
+        return;
+    ++g_p1Accepted;
+    if (g_p1Accepted == 2) {
+        g_choosingTwo = false; // latch the second-pick held buttons at takeover
+        g_heldOver = 0;
+        g_p1AutoFrames = 0;
+        g_p1AutoFallback = false;
+        std::fprintf(stderr, "XMVSF 87.470 P2_DUMMY_OWNER p1_second_accepted=1\n");
+    }
 }
 
 int WantedStage() {
@@ -266,18 +290,39 @@ void BeforeFrame(Machine &machine) {
         Boot(machine);
         return;
     }
-    if (InSession() && modes::Choosing() && d.chosen && d.chosen(0) && !d.chosen(1)) {
-        // Player 1 has chosen: its controls choose for player 2 (training with one set of controls). What was held as
-        // it chose is not passed on until let go, or the button that chose for player 1 would choose for player 2 at
-        // once. (Run-ahead's frames see this as it is and leave it: they are taken back.)
+    const bool trainingChoosing = InSession() && modes::Choosing();
+    const bool earlyOwner = trainingChoosing && d.handoffAfterSecondPick &&
+                            g_p1Accepted == 2 && !g_p1AutoFallback;
+    if (trainingChoosing && d.handoffAfterSecondPick && g_p1Accepted < 2) {
+        // P2 is present but its hidden dummy selector cannot be picked early.
+        machine.players[1] &= kStart | kCoin;
+    }
+    if (trainingChoosing && d.chosen && (earlyOwner || d.chosen(0)) && !d.chosen(1)) {
+        // Native P1 second character accepted: P1 now controls Dummy 1.
+        // Never carry the selecting button/direction into the new owner.
         const uint16_t held = machine.players[0] & (kSticks | kAllButtons);
         const uint16_t heldOver = g_choosingTwo ? g_heldOver & held : held;
         if (!RunningAhead()) {
             g_heldOver = heldOver;
             g_choosingTwo = true;
         }
-        machine.players[1] |= held & ~heldOver;
+        // Ignore stray physical P2 inputs: one deliberate owner for Training.
+        machine.players[1] = (machine.players[1] & (kStart | kCoin)) | (held & ~heldOver);
         machine.players[0] &= kStart | kCoin;
+        if (earlyOwner && !d.chosen(0)) {
+            // XMVSF's P1 choice state 7 also includes native mode/speed
+            // confirmations. Pulse real P1 punches for their default choices,
+            // concurrently with full dummy selection control. No RAM jump.
+            if (!RunningAhead() && ++g_p1AutoFrames > 240) {
+                g_p1AutoFallback = true;
+                std::fprintf(stderr, "XMVSF 87.470 P1_AUTO_CONFIRM fallback after 240 frames\n");
+            }
+            if (!g_p1AutoFallback) {
+                machine.players[0] &= kCoin;
+                if (g_p1AutoFrames > 2 && g_p1AutoFrames % 12 == 4)
+                    machine.players[0] |= kPunch1;
+            }
+        }
         return;
     }
     if (!RunningAhead()) {

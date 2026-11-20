@@ -6,6 +6,7 @@
 // character takes it, 00B1E8 on: the game itself gives Alpha Chun-Li for Chun-Li chosen with Start held, 00B1DA), with
 // the character changed as the game takes it.
 #include "xmvsf.h"
+#include "session.h"
 
 namespace cps2recomp {
 
@@ -26,6 +27,9 @@ namespace {
         if (FeatureOn("hidden_characters") && g_start[n] && Ram16(record + kCursor) == kRyu) {
             SetRam16(record + kCursor, kAkuma);
         }
+        // The actual ROM routine accepted this P1/P2 character. Training
+        // switches controller ownership after the second confirmed P1 pick.
+        session::CharacterAccepted(n);
         return false;
     }
 } // namespace

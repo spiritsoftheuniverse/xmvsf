@@ -66,6 +66,7 @@ struct Description {
     bool (*mayRefill)(int player) = nullptr;
     // A player has chosen its character (then player 1's controls choose for player 2)
     bool (*chosen)(int player) = nullptr;
+    bool handoffAfterSecondPick = false; // opt-in for native team second-pick event
     // What the game read off the panel for a player this frame, as Button bits, and whether the player faces left
     uint16_t (*panelHeld)(int player) = nullptr;
     bool (*facingLeft)(int player) = nullptr;
@@ -125,6 +126,8 @@ void StartSession(Machine &machine);
 bool InSession();
 // True only while Training is auto-advancing to its native character-select screen.
 bool EnteringTraining();
+// Called from the native accepted-character routine (XMVSF 00B1E8).
+void CharacterAccepted(int player);
 // The stage the machine that is running is to fight on, for the game's choice of stage (0: the game's choice):
 // what a mode wants (alternative.h), else the player's choice on the menu's Stage page (kStageFeature), in a session or
 // out of one
