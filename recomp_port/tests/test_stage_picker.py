@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""87.455: local source preflight for Training stage thumbnails and native routing."""
+"""87.456: local source preflight for Training stage thumbnails and native routing."""
 from __future__ import annotations
 
 import importlib.util
@@ -12,18 +12,15 @@ STAGES = RECOMP / "games/xmvsf/src/modes.cpp"
 NAMES = RECOMP / "games/xmvsf/src/xmvsf.h"
 FRONTEND = RECOMP / "port/frontend_sdl.cpp"
 
-ORIGINAL_FILES = (
-    "Apocalypse_Now_XvsSF.png",
-    "Showdown_in_the_Park_XvsSF.png",
-    "Death_Valley_XvsSF.png",
-    "The_Cataract_XvsSF.png",
-    "The_Temple_of_Fists_XvsSF.png",
-    "On_The_Hilltop_XvsSF.png",
-    "Manhattan_XvsSF.png",
-    "Raging_Inferno_XvsSF.png",
-    "Code_Red_XvsSF.png",
-    "Dead_or_Live_the_show_XvsSF.png",
-    "Mall_Mayhem_XvsSF.png",
+ORIGINAL_FILES = tuple(f"{i}.png" for i in range(11))
+EXTRA_FILES = (
+    "01_wilystage.png",
+    "02_finaldestination.png",
+    "03_guilestage.png",
+    "04_sigmastage.png",
+    "05_akumastage.png",
+    "06_ryustage.png",
+    "07_boomerstage.png",
 )
 
 
@@ -56,9 +53,12 @@ def main() -> int:
     assert "SetFeatureValue(session::kStageFeature, stagePicker.Selected() + 1)" not in frontend
     assert "XMVSF2 STAGE NOT PORTED TO RECOMP" in picker
     assert "RenderStagePicker(SDL_Renderer *renderer" in source_menu
+    assert 'std::to_string(i) + ".png"' in picker, "stage index filename mapping absent"
     for i, filename in enumerate(ORIGINAL_FILES):
         assert (ROOT / "_art/stagethumbs" / filename).is_file(), f"missing original thumbnail {i}: {filename}"
-        assert picker.count(f'"{filename}"') == 1, f"wrong thumb mapping for {i}: {filename}"
+    for i, filename in enumerate(EXTRA_FILES):
+        assert (ROOT / "_art/stagethumbs/xmvsf2" / filename).is_file(), f"missing XMVSF2 thumbnail {i}: {filename}"
+        assert picker.count(f'"{filename}"') == 1, f"XMVSF2 order not explicit at {i}: {filename}"
     spec = importlib.util.spec_from_file_location("apply_stage_picker", SRC / "apply_stage_picker.py")
     assert spec and spec.loader
     import sys
@@ -68,12 +68,8 @@ def main() -> int:
     spec.loader.exec_module(installer)
     assert installer.patch(frontend) == frontend, "stage installer not idempotent"
 
-    xmvsf2 = ROOT / "_art/stagethumbs/xmvsf2"
-    extra_pngs = sorted(xmvsf2.glob("*.png")) if xmvsf2.is_dir() else []
-    if len(extra_pngs) != 7:
-        print(f"XMVSF 87.455 NOTE: {len(extra_pngs)}/7 XMVSF2 thumbs committed; "
-              "missing art uses placeholders (not a build failure).")
-    print("XMVSF 87.455 stage picker source, original thumbs, routing and idempotence PASS")
+    assert 'XMVSF 87.456 stage picker' in picker
+    print("XMVSF 87.456: all 18 committed thumbnails, native stage mapping and idempotence PASS")
     return 0
 
 
