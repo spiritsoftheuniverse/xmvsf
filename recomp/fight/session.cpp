@@ -293,6 +293,19 @@ void BeforeFrame(Machine &machine) {
     const bool trainingChoosing = InSession() && modes::Choosing();
     const bool earlyOwner = trainingChoosing && d.handoffAfterSecondPick &&
                             g_p1Accepted == 2 && !g_p1AutoFallback;
+    // Keep P1's native mode/speed choices progressing even if Dummy 2 has
+    // already been selected before those choices finish.
+    auto autoConfirmP1 = [&]() {
+        if (!RunningAhead() && ++g_p1AutoFrames > 240) {
+            g_p1AutoFallback = true;
+            std::fprintf(stderr, "XMVSF 87.470 P1_AUTO_CONFIRM fallback after 240 frames\n");
+        }
+        if (!g_p1AutoFallback) {
+            machine.players[0] &= kCoin;
+            if (g_p1AutoFrames > 2 && g_p1AutoFrames % 12 == 4)
+                machine.players[0] |= kPunch1;
+        }
+    };
     if (trainingChoosing && d.handoffAfterSecondPick && g_p1Accepted < 2) {
         // P2 is present but its hidden dummy selector cannot be picked early.
         machine.players[1] &= kStart | kCoin;
@@ -309,22 +322,12 @@ void BeforeFrame(Machine &machine) {
         // Ignore stray physical P2 inputs: one deliberate owner for Training.
         machine.players[1] = (machine.players[1] & (kStart | kCoin)) | (held & ~heldOver);
         machine.players[0] &= kStart | kCoin;
-        if (earlyOwner && !d.chosen(0)) {
-            // XMVSF's P1 choice state 7 also includes native mode/speed
-            // confirmations. Pulse real P1 punches for their default choices,
-            // concurrently with full dummy selection control. No RAM jump.
-            if (!RunningAhead() && ++g_p1AutoFrames > 240) {
-                g_p1AutoFallback = true;
-                std::fprintf(stderr, "XMVSF 87.470 P1_AUTO_CONFIRM fallback after 240 frames\n");
-            }
-            if (!g_p1AutoFallback) {
-                machine.players[0] &= kCoin;
-                if (g_p1AutoFrames > 2 && g_p1AutoFrames % 12 == 4)
-                    machine.players[0] |= kPunch1;
-            }
-        }
+        if (earlyOwner && !d.chosen(0)) autoConfirmP1();
         return;
     }
+    // The dummy can finish its second character before P1's native
+    // mode/speed bookkeeping is done. Still finish P1 automatically.
+    if (earlyOwner && d.chosen && !d.chosen(0)) autoConfirmP1();
     if (!RunningAhead()) {
         g_choosingTwo = false;
     }
