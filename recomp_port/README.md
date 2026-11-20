@@ -1,4 +1,4 @@
-# XMVSF native front end — 87.454 (Roman II shares main logo color pulses)
+# XMVSF native front end — 87.455 (Training stage thumbnail picker)
 
 The real XMVSF front end now renders in CPS-2 Recomp's **SDL3 native
 window and pixel presenter**, not an additional SDL launcher. The preserved
@@ -17,11 +17,47 @@ pictures are animated. Fallback text exists if image assets cannot be found.
 The menu is shown in the recomp's **existing window**, on startup and via
 Esc / gamepad menu input; while shown, no game ticks are executed.
 
+## 87.455 — Training stage thumbnail selector
+
+The native SDL3 home menu's TRAINING row now opens a stage thumbnail picker
+instead of immediately starting the session. It shows a dimmed animated menu
+background without an opaque backplate, 150x150 source PNG thumbnails, and a
+3-pixel pink/blue flickering selection outline. Five columns by two rows (10
+thumbnails per page); D-pad/arrows navigate, LB/RB or Q/E changes pages,
+A/Enter selects, and B/Esc returns home. The 11 original stages appear first
+in the **ROM stage-byte order** (0..10 at 0xFF5113), followed by seven XMVSF2
+preview slots. Paths are _art/stagethumbs/*.png and, for the latter,
+_art/stagethumbs/xmvsf2/*.png, sorted by filename. The seven files are
+discovered at runtime, not renamed or rescaled on disk; missing files show
+the NO ART placeholder and a local-build warning.
+
+**Native routing:** the selector calls SetFeatureForNow(session::kStageFeature,
+chosen + 1), followed by session::StartSession, which resets into the chosen
+training stage using the existing StageChosen M68K hook at 0x00BAEA. This does
+not write settings.ini. Leaving Training for Arcade/Versus restores the former
+stage feature. No ROM, gameplay rules, character select, or guest-stage
+selection logic was modified.
+
+**Important:** the recomp's current source does not implement the seven
+XMVSF2 custom stage renderers or mappings. Those preview slots are displayed
+but intentionally cannot launch until matching stage implementations exist.
+Writing selection IDs 12..18 would accidentally choose the other-games' stage
+facility; doing so would misrepresent a stage as ported. This is explicitly
+guarded in the picker.
+
+Build locally with RECOMP_BUILD.bat and run with RECOMP_RUN.bat. The stage
+installer runs after the existing menu, controller and Options installers,
+checks all anchors and idempotence before writing, and
+tests/test_stage_picker.py checks original source artwork and the stage-hook
+contract before Ninja. No GitHub Actions or regenerate step is necessary for
+this source-only update (unless the normal build cache is absent).
+
 ## Current actions
 
 - **ARCADE:** native V2 arcade mode, with its original rules (reset).
-- **TRAINING:** starts the existing recomp training session; custom training
-  configuration still awaits porting.
+- **TRAINING:** opens the 18-slot stage thumbnail picker; selecting one of the
+  11 original stages starts training on it. The seven XMVSF2 slots are
+  previews until their actual stage renderers are ported.
 - **VERSUS:** initial *local arcade two-player* mode with free play (both
   players join with Start); our complete dedicated versus setup is not yet
   restored.
