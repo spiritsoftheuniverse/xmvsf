@@ -110,6 +110,12 @@ public:
     // `height` pixels, red in the low byte, each colour already multiplied by its alpha; stretched to the window.
     // None (nullptr) draws nothing over it. Not through a shader preset.
     void SetOverlay(const uint32_t *pixels, int width, int height);
+    // XMVSF 87.474: persistent on-screen F10 recording status. Applied
+    // AFTER the native video and its existing touch/transition overlay.
+    void SetF10Status(bool active, const std::string &message) {
+        m_f10Active = active;
+        m_f10Message = message;
+    }
 
     // For tests: the GPU path with no window. The picture is drawn into `outWidth` x `outHeight` at `where`
     // as Show would draw it, and read back. False (with the reason) where there is no GPU device.
@@ -144,6 +150,9 @@ private:
     int m_overlayTextureWidth = 0, m_overlayTextureHeight = 0;
     SDL_Texture *m_overlayRendered = nullptr;
     bool UploadOverlay(SDL_GPUCommandBuffer *commands);
+    void DrawF10Status(); // SDL3 2D presentation; window title covers other backends.
+    bool m_f10Active = false;
+    std::string m_f10Message;
     // SDL's renderer
     SDL_Renderer *m_renderer = nullptr;
     bool m_classicPixels = false, m_classicLogicalMenu = false;

@@ -434,6 +434,11 @@ int RunWindowed(Port &port) {
     xmvsf_home::SelectReveal selectReveal;
     bool trainingSelectSongOverride = false;
     bool trainingWaitingFight = false; // 87.469: stage image holds until the voice finishes
+    // F10 feedback is visual and independent of the diagnostic's file I/O.
+    bool f10PreviousActive = false;
+    std::string f10Notice;
+    uint64_t f10NoticeUntil = 0;
+    std::string f10LastTitle = title;
     int stageBeforeTraining = -1; // restore the former stage when Arcade/Versus starts
     bool stageLeftHeld = false, stageRightHeld = false;
     // Always write F6 PNGs to the repo's screenshots folder, never to
@@ -557,9 +562,22 @@ int RunWindowed(Port &port) {
             // of SDL presentation, so fast-forward/hidden selection is included.
             if (ev.type == SDL_EVENT_KEY_DOWN &&
                 ev.key.scancode == SDL_SCANCODE_F10) {
-                if (!ev.key.repeat && homeEnabled && port.machine)
-                    xmvsf_f10::Capture::Get().Toggle(*port.machine,
+                if (!ev.key.repeat && homeEnabled && port.machine) {
+                    auto &f10 = xmvsf_f10::Capture::Get();
+                    const bool wasRecording = f10.Active();
+                    f10.Toggle(*port.machine,
                         f6Folder && *f6Folder ? f6Folder : "../screenshots/");
+                    f10PreviousActive = f10.Active();
+                    if (wasRecording) {
+                        f10Notice = "F10 SAVED";
+                        f10NoticeUntil = SDL_GetTicks() + 3500;
+                    } else if (!f10.Active()) {
+                        f10Notice = "F10 FAILED";
+                        f10NoticeUntil = SDL_GetTicks() + 3500;
+                    } else {
+                        f10Notice.clear();
+                    }
+                }
                 continue;
             }
             if (touch.Event(ev)) {
@@ -1021,6 +1039,31 @@ int RunWindowed(Port &port) {
             for (int player = 0; player < Machine::kMaxPlayers; player++) {
                 port.pad[player] = pads[player] & ~heldAtClose;
             }
+        }
+
+        // Recording feedback survives native frame skipping, SDL menu
+        // navigation, and the automatic 3,600-frame capture stop.
+        const bool f10Recording = xmvsf_f10::Capture::Get().Active();
+        if (f10PreviousActive && !f10Recording) {
+            f10Notice = "F10 SAVED"; // auto-stop, not an F10 key press
+            f10NoticeUntil = SDL_GetTicks() + 3500;
+        }
+        f10PreviousActive = f10Recording;
+        if (!f10Recording && !f10Notice.empty() &&
+            SDL_GetTicks() >= f10NoticeUntil)
+            f10Notice.clear();
+        const std::string f10Label = f10Recording
+            ? "F10 REC  " +
+              std::to_string(xmvsf_f10::Capture::Get().FramesSeen()) + " FRAMES"
+            : f10Notice;
+        presenter.SetF10Status(f10Recording, f10Label);
+        const std::string f10Title = f10Recording
+            ? std::string(title) + " [F10 RECORDING]"
+            : (f10Notice.empty() ? std::string(title)
+                                 : std::string(title) + " [" + f10Notice + "]");
+        if (f10Title != f10LastTitle) {
+            SDL_SetWindowTitle(window, f10Title.c_str());
+            f10LastTitle = f10Title;
         }
 
         // The window takes the picture's shape again when that changes (widescreen, or the Display page's

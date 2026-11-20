@@ -1,4 +1,23 @@
-# XMVSF native front end — 87.473 (F10 smoke-test compatibility repair)
+# XMVSF native front end — 87.474 (visible F10 M68K capture status)
+
+## 87.474 — in-window recording indicator for F10
+
+F10 had only a console log, leaving no way to see whether capture
+was running during gameplay. The SDL3 2D compositor now draws a
+high-contrast **red F10 REC + native frame count** in the upper-left
+corner *after* the existing touch/noise overlay, without affecting
+rendered native pixels or the ROM. Press F10 again to show a green
+**F10 SAVED** notification for 3.5 seconds; a failed start shows
+**F10 FAILED**. The same messages appear in the native window title,
+even if a menu obscures the gameplay picture. Auto-stop at the
+original 3,600 native frame limit also produces the SAVED notice.
+
+The native capture files and game hooks from 87.472 are unchanged.
+The status drawing executes only in the SDL3 two-dimensional
+presenter (the default XMVSF classic renderer); alternate GPU/
+OpenGL renderers still show the state in the window title.
+
+
 
 ## 87.473 — source-only F10 smoke test warning policy
 

@@ -27,6 +27,7 @@ public:
     Capture(const Capture &) = delete;
     Capture &operator=(const Capture &) = delete;
     bool Active() const { return active_; }
+    uint64_t FramesSeen() const { return framesSeen_; }
 
     bool Toggle(Machine &machine, const std::string &screenFolder) {
         if (active_) {

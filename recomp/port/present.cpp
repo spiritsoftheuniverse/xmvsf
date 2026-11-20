@@ -365,6 +365,38 @@ bool Presenter::Upload(SDL_GPUCommandBuffer *commands, const uint32_t *pixels, i
     return true;
 }
 
+// XMVSF 87.474: foreground recording indicator drawn on the FINAL SDL3
+// frame, after the noise reveal and touch overlays. Does not touch
+// machine pixels, screenshots, video registers, or the 68K timeline.
+void Presenter::DrawF10Status() {
+    if (!m_renderer || m_f10Message.empty()) return;
+    float beforeX = 1.0f, beforeY = 1.0f;
+    SDL_GetRenderScale(m_renderer, &beforeX, &beforeY);
+    SDL_BlendMode beforeBlend = SDL_BLENDMODE_NONE;
+    SDL_GetRenderDrawBlendMode(m_renderer, &beforeBlend);
+    Uint8 beforeR = 255, beforeG = 255, beforeB = 255, beforeA = 255;
+    SDL_GetRenderDrawColor(m_renderer, &beforeR, &beforeG, &beforeB, &beforeA);
+    // Explicitly reset clip/viewport only where the Show() pipeline already
+    // owns the final output; never mutate the menu film-strip renderer.
+    constexpr float scale = 2.0f;
+    SDL_SetRenderScale(m_renderer, scale, scale);
+    SDL_SetRenderDrawBlendMode(m_renderer, SDL_BLENDMODE_BLEND);
+    const float panelW = 39.0f + 8.0f * static_cast<float>(m_f10Message.size());
+    const SDL_FRect panel = {8.0f, 8.0f, panelW, 23.0f};
+    SDL_SetRenderDrawColor(m_renderer, 12, 16, 22, 230);
+    SDL_RenderFillRect(m_renderer, &panel);
+    SDL_SetRenderDrawColor(m_renderer, m_f10Active ? 232 : 39,
+                          m_f10Active ? 54 : 172,
+                          m_f10Active ? 56 : 100, 255);
+    const SDL_FRect marker = {15.0f, 15.0f, 9.0f, 9.0f};
+    SDL_RenderFillRect(m_renderer, &marker);
+    SDL_SetRenderDrawColor(m_renderer, 246, 247, 249, 255);
+    SDL_RenderDebugText(m_renderer, 30.0f, 15.0f, m_f10Message.c_str());
+    SDL_SetRenderDrawColor(m_renderer, beforeR, beforeG, beforeB, beforeA);
+    SDL_SetRenderDrawBlendMode(m_renderer, beforeBlend);
+    SDL_SetRenderScale(m_renderer, beforeX, beforeY);
+}
+
 void Presenter::SetOverlay(const uint32_t *pixels, int width, int height) {
     if (!pixels) {
         m_overlayChanged = m_overlayChanged || !m_overlay.empty();
@@ -660,6 +692,7 @@ void Presenter::Show(const uint32_t *pixels, int width, int height, const SDL_FR
             draw(m_texture, 1.0f);
         }
         overlay();
+        DrawF10Status();
         SDL_RenderPresent(m_renderer);
         return;
     }
@@ -670,6 +703,7 @@ void Presenter::Show(const uint32_t *pixels, int width, int height, const SDL_FR
         SDL_RenderClear(m_renderer);
         draw(m_texture, 1);
         overlay();
+        DrawF10Status();
         SDL_RenderPresent(m_renderer);
         return;
     }
@@ -697,6 +731,7 @@ void Presenter::Show(const uint32_t *pixels, int width, int height, const SDL_FR
     SDL_RenderClear(m_renderer);
     draw(m_enlarged ? m_enlarged : m_texture, m_enlarged ? static_cast<float>(by) : 1.0f);
     overlay();
+    DrawF10Status();
     SDL_RenderPresent(m_renderer);
 }
 
