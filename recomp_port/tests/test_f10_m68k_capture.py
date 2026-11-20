@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""87.472 source and C++ syntax preflight for F10 native M68K capture."""
+"""87.480 source and C++ syntax preflight for bounded F10 native capture."""
 from pathlib import Path
 from version_guard import require_matching_versions
 import shutil
@@ -33,13 +33,26 @@ def main():
         "both_records_before_hex", "both_records_after_hex",
         "0x5180 + n * 0x20", "0x50B0", "0x5416", "0x5104",
         "machine.ObjectsToCome()", "frameTag_ = machine.frame",
-        "kMaxFrames = 3600", "kMaxWrites = 650000",
+        "kMaxFrames = 900", "kMaxWrites = 750",
+        "kMaxBytes = 512u * 1024u", "kMaxRamWrites = 750",
+        "kMaxOamRows = 1800", "kMaxOamPerSample = 32",
+        'root / "latest"', "XMVSF_F10_RAW_OAM",
+        "logRawWrites_ ? &Capture::WriteHook : nullptr",
+        "haveOldOam_[bank]", "const bool hadSnapshot = haveOldOam_[bank]",
+        "if ((framesSeen_ % 6u == 0u) || stateChanged)",
+        "if ((framesSeen_ % 8u == 0u) || stateChanged)",
+        'Stop("size limit")', "BytesWritten()",
+        "ramWritesSeen_ >= kMaxRamWrites",
         "if (!active_ || RunningAhead()) return;",
         "cpu.pc & 0xFFFFFFu", "machine.cpu.instruction",
         "std::fflush(hooks_)", "F10 M68K CAPTURE START",
     ):
         assert token in header, f"missing native F10 observation: {token}"
     assert 'ev.key.scancode == SDL_SCANCODE_F10' in front
+    assert "xmvsf_f10_" not in header, "timestamped F10 folders must not be created"
+    assert "650000" not in header, "unbounded raw OAM legacy cap must not return"
+    assert "const bool panel =" not in header, "per-frame panel write spam must not return"
+    assert "oldBank_" not in header, "cross-bank comparison must not return"
     assert 'auto &f10 = xmvsf_f10::Capture::Get();' in front
     assert 'f10.Toggle(*port.machine,' in front
     assert 'xmvsf_f10::Capture::Get().Stop("frontend shutdown")' in front
@@ -61,7 +74,7 @@ def main():
     assert "if (g_fastP1Tail &&" in sess and "g_p1AutoFrames > 240" in sess
     assert "homeAudio.Fight(!port.menu.muted && !audioLog)" in front
     assert "films_.Draw(renderer, now, filmReveal);" in tex
-    assert require_matching_versions(home, tex, minimum=(87, 475)) >= (87, 472)
+    assert require_matching_versions(home, tex, minimum=(87, 480)) >= (87, 480)
     assert "python3 ../recomp_port/tests/test_f10_m68k_capture.py" in bat
     compiler = shutil.which("g++")
     assert compiler, "UCRT64 g++ needed to compile F10 observer preflight"
@@ -83,7 +96,7 @@ def main():
         command.extend(["-I", str(directory)])
     command.append(str(smoke))
     subprocess.run(command, check=True)
-    print("XMVSF 87.475 F10 native M68K + original select/OAM observations PASS")
+    print("XMVSF 87.480 F10 compact bounded diagnostics and C++ smoke PASS")
 
 if __name__ == "__main__":
     main()
