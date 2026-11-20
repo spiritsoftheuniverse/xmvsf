@@ -1,4 +1,33 @@
-# XMVSF native front end — 87.464 (curl-noise film edge finishing)
+# XMVSF native front end — 87.466 (film strip + Training stage select)
+
+## 87.466 — film-strip and Training stage selector unified
+
+This is the integration branch: all 87.465 film-strip work remains (animated
+panels, rainbow backing, curl-noise top/bottom dither, audible song entry,
+SDL3/F6 native captures, controller fixes and their local tests).
+
+Selecting TRAINING now darkens the *same animated film background*, without
+a backplate, and displays 150×150 nearest-neighbor thumbnails in a 5×2 grid.
+The flickering pink/blue pixel outline follows D-pad/arrows; A/Enter selects;
+B/Esc returns; LB/RB or Q/E changes the 10-item pages.
+
+All original stage thumbnails are mapped explicitly from indexed
+`_art/stagethumbs/0.png` through `10.png`, followed by the 7 named
+`_art/stagethumbs/xmvsf2/` files (Wily, Final Destination, Guile, Sigma,
+Akuma, Ryu, Boomer). They were already present on this branch and all
+18 are required by the local build preflight. No image re-export occurs.
+
+Native stage choices set `session::kStageFeature` temporarily, then call
+`session::StartSession`; the existing M68K hook at `0x00BAEA` selects native
+stage IDs 0..10 via `0xFF5113`. Leaving Training for Arcade or Versus
+restores the prior stage setting. The seven XMVSF2 thumbnails display but
+are intentionally non-playable until their stage renderers are ported to
+recomp; this avoids incorrectly selecting guest stages.
+
+F6 captures also support the selector in the existing film/capture pipeline.
+The original tests plus stage-picker source, image, hook and idempotence
+checks run locally through `RECOMP_BUILD.bat`. No Actions or ROM changes;
+`main` is left untouched until the user merges this branch.
 
 ## 87.464 — animated entrance dither at both screen edges
 

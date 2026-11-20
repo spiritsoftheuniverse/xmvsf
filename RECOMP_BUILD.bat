@@ -157,6 +157,21 @@ if errorlevel 1 (
   goto :fail
 )
 
+REM 87.466: install the stage picker after film, Options and controller
+REM patches; preserve the existing film, F6 and input paths.
+"%BASH%" -c "python3 ../recomp_port/apply_stage_picker.py"
+if errorlevel 1 (
+  echo ERROR: XMVSF Training stage picker integration failed. No build performed.
+  popd
+  goto :fail
+)
+"%BASH%" -c "python3 ../recomp_port/tests/test_stage_picker.py"
+if errorlevel 1 (
+  echo ERROR: XMVSF Training stage picker regression failed. No build performed.
+  popd
+  goto :fail
+)
+
 REM Default is FAST once configured. It only recompiles changed C++ objects.
 REM refresh explicitly regenerates M68000 translation and reconfigures CMake.
 if /I "%~1"=="refresh" goto :refresh

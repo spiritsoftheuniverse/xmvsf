@@ -3,6 +3,7 @@
 // Source artwork stays in xmvsf_home::Menu; only layers are uploaded to SDL.
 #pragma once
 #include "xmvsf_home.h"
+#include "xmvsf_stage_picker.h" // XMVSF_RECOMP_STAGES_87_455
 #include "xmvsf_menu_film.h"
 #include "xmvsf_options.h"
 #include "xmvsf_ii_strikes.h"
@@ -279,6 +280,23 @@ public:
         gifFrame_ = gifHue_ = -1;
     }
 
+    // Dim the original film-strip menu, never replace its moving film.
+    // present=false is used by the existing F6 offscreen capture.
+    bool RenderStagePicker(SDL_Renderer *renderer, uint64_t now, StagePicker &picker,
+                           bool present = true) {
+        if (!renderer || !picker.Active() || !Init(renderer)) return false;
+        SDL_SetRenderDrawColor(renderer, 8, 16, 36, 255);
+        SDL_RenderClear(renderer);
+        DrawBackground(renderer, now);
+        films_.Draw(renderer, now, 16);
+        SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
+        SDL_SetRenderDrawColor(renderer, 0, 3, 12, 172);
+        SDL_RenderFillRect(renderer, nullptr);
+        if (!picker.Draw(renderer, now)) return false;
+        if (present) SDL_RenderPresent(renderer);
+        return true;
+    }
+
     // Original OPTIONS page layout; draws source bitmap-font textures,
     // never a CPU-composited frame. Called while the normal home menu hides.
     bool RenderOptions(SDL_Renderer *renderer, uint64_t now, const OptionsPanel &options,
@@ -363,7 +381,7 @@ public:
             center(notice, 480, 462, 1.45f, options.Capturing() ? 255 : 173);
         }
         center("A SELECT   B / ESC BACK", 480, 511, 1.5f, 176);
-        left("TEST 87.465", 834, 523, 1.05f, 160);
+        left("TEST 87.466", 834, 523, 1.05f, 160);
         if (present) SDL_RenderPresent(renderer);
         return true;
     }
@@ -413,7 +431,7 @@ public:
         GlyphText(renderer, menu_.small_, captionFont,
                   "ESC TO RETURN", 18, 522, 1.08f, 185, 0);
         GlyphText(renderer, menu_.small_, captionFont,
-                  "TEST 87.465", 942, 522, 1.08f, 185, 2);
+                  "TEST 87.466", 942, 522, 1.08f, 185, 2);
         if (present) SDL_RenderPresent(renderer);
         return true;
     }

@@ -44,7 +44,8 @@ def main() -> None:
     # present their capture targets to the visible window.
     assert "bool Render(SDL_Renderer *renderer, uint64_t now, bool present = true)" in menu
     assert "const PadOwners &owners, bool present = true)" in menu
-    assert menu.count("if (present) SDL_RenderPresent(renderer);") == 3
+    assert menu.count("if (present) SDL_RenderPresent(renderer);") == 4
+    assert "RenderStagePicker(SDL_Renderer *renderer" in menu
 
     # F6 is caught before chat and controller-remapping handling, never
     # downgraded into the old previous-slot action.
@@ -58,6 +59,7 @@ def main() -> None:
     assert "ev.key.mod & SDL_KMOD_SHIFT" in front
     assert "nativeCapture.SaveMenu(presenter.Renderer(), \"home\"" in front
     assert "nativeCapture.SaveMenu(presenter.Renderer(), \"options\"" in front
+    assert 'nativeCapture.SaveMenu(presenter.Renderer(), "stages"' in front
     assert 'nativeCapture.SavePixels("home-fallback", homePicture.data(), 960, 540)' in front
     assert 'nativeCapture.SavePixels("ingame-menu", menuPicture.data(),' in front
     assert "port.Shown(nativeGamePixels);" in front
