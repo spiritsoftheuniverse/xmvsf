@@ -1,4 +1,35 @@
-# XMVSF native front end — 87.475 (F10 preflight regression repair)
+# XMVSF native front end — 87.476 (F10 native selection evidence)
+
+## 87.476 — Training handoff and cursor identified by native capture
+
+The uploaded F10 session `xmvsf_f10_1795187918523_0`
+establishes the actual P1 native selection transitions:
+frame 705 P1 `01->02` (00B1E8 first-pick hook);
+frame 737 `02->03`; **frame 762 `03->04` (second pick)**;
+frame 803 `04->06`; frame 848 `06->07`.
+The previous input transfer did not begin until frame 849,
+**87 emulated frames after the actual second confirmation**.
+The old counter remained at 1 because 00B1E8 did not run
+for the second team pick.
+
+Training now routes input to P2 at the ROM-observed P1 phase
+04/06, fast-forwards the intervening native tail, and stops at
+native P1 phase 07. Original auto-confirm and its 240-native-frame
+fallback remain. No ROM or game RAM selection state is forced.
+
+In the same capture, the native P2 cursor group uses CPS-2
+OAM attribute palette `0x1B`. It moves as the P2 cursor moves
+(frame 850-851) and vanishes at P2 acceptance (903-904).
+CPU/native renderers suppress those OAM entries during Training
+selection instead of guessing planar pixel pens. P1 objects and
+other game modes are unaffected.
+
+The selection RAM write-specific TSV was empty: translated 68000
+code can bypass Machine::Write8/Write16. The full before/after
+native record trace supports the transition timing, **not**
+exact writer instruction provenance.
+
+
 
 ## 87.475 — F10 source assertion follows actual call site
 

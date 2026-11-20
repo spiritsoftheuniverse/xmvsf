@@ -33,17 +33,16 @@ namespace {
         if (FeatureOn("hidden_characters") && g_start[n] && Ram16(record + kCursor) == kRyu) {
             SetRam16(record + kCursor, kAkuma);
         }
-        // The actual ROM routine accepted this P1/P2 character. Training
-        // switches controller ownership after the second confirmed P1 pick.
+        // F10 proved this hook does not fire for P1's second team pick.
+        // It is logged; Training's handoff comes from native phase 03->04.
         session::CharacterAccepted(n);
         return false;
     }
 } // namespace
 
 void ChoosingBeforeFrame(Machine &machine) {
-    // Preserve the native P1 selector. Suppress only P2's original
-    // palette-27 pen 10-12 tiles while Training chooses both teams.
-    // This is a renderer setting, not selection RAM or a guessed rectangle.
+    // F10 identified the actual P2 selector OAM palette 0x1B (27).
+    // Filter these objects in Training only; no ROM or OAM RAM mutations.
     machine.video.hideP2Selector = session::InSession() && modes::Choosing();
     for (int n = 0; n < 2; n++) {
         g_start[n] = (machine.players[n] & kStart) != 0;

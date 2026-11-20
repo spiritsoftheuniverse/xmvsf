@@ -66,7 +66,8 @@ struct Description {
     bool (*mayRefill)(int player) = nullptr;
     // A player has chosen its character (then player 1's controls choose for player 2)
     bool (*chosen)(int player) = nullptr;
-    bool handoffAfterSecondPick = false; // opt-in for native team second-pick event
+    bool handoffAfterSecondPick = false; // opt-in for native team handoff
+    bool (*secondPickCommitted)() = nullptr; // actual second pick before chosen(0)
     // What the game read off the panel for a player this frame, as Button bits, and whether the player faces left
     uint16_t (*panelHeld)(int player) = nullptr;
     bool (*facingLeft)(int player) = nullptr;

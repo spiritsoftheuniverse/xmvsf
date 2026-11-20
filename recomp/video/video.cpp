@@ -2,7 +2,7 @@
 // Copyright (C) 2026 Tommy McLeroy. Part of cps2recomp.
 
 #include "video.h"
-#include "selector_pen.h"
+#include "selector_oam.h"
 
 #include "../runtime/state.h"
 
@@ -225,7 +225,8 @@ void Video::DrawObjects(int rasterLine, uint16_t *pens, uint8_t *priority, const
         const unsigned level = (x >> 13) & 7;
         const uint32_t code = m_objects[i + 2] + ((y & 0x6000u) << 3);
         const uint16_t attr = m_objects[i + 3];
-        if (hideObject && hideObject(code, attr)) {
+        if ((hideObject && hideObject(code, attr)) ||
+            (hideP2Selector && native_video::IsP2SelectionObject(attr))) {
             continue;
         }
         if (attr & 0x80) {
@@ -265,9 +266,6 @@ void Video::DrawObjects(int rasterLine, uint16_t *pens, uint8_t *priority, const
                     // (a plain block wraps within its row of sixteen tiles; flipped ones do not)
                     tile = (!flipX && !flipY) ? (code & ~0xFu) + ((code + cx) & 0xF) + 0x10 * cy : code + cx + 0x10 * cy;
                 }
-                if (hideP2Selector &&
-                    native_video::IsP2SelectorTile(graphics, graphicsSize, tile, attr))
-                    continue;
                 const uint32_t at = (tile * 128 + static_cast<uint32_t>(flipY ? 15 - line : line) * 8);
                 if (at + 8 > graphicsSize) {
                     continue;

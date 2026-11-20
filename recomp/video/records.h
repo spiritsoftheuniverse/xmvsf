@@ -67,7 +67,7 @@ namespace native_video {
         bool (*tile)(int which, int column, int row, int at, uint16_t &code, uint16_t &attributes) = nullptr;
         bool fillHoles = false;
         bool (*hideObject)(uint32_t tile, uint16_t attributes) = nullptr;
-        bool hideP2Selector = false; // native palette/pen identity, XMVSF Training
+        bool hideP2Selector = false; // native palette-27 OAM object identity, XMVSF Training
         void (*objectsTaken)(uint16_t *list, int &last) = nullptr;
         bool markObjects = false;
         unsigned markLayers = 0;

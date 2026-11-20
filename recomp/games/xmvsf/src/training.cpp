@@ -13,6 +13,7 @@
 #include "marvel.h"
 #include "session.h"
 #include "xmvsf.h"
+#include "select_phase.h" // real F10 P1 03->04 second pick
 
 namespace cps2recomp {
 
@@ -60,6 +61,9 @@ void RegisterTraining() {
     };
     d.chosen = [](int n) { return Ram8(kChoosing + static_cast<uint32_t>(n) * kChoosingSize) >= kChoosingDone; };
     d.handoffAfterSecondPick = true;
+    d.secondPickCommitted = [] {
+        return xmvsf::NativeP1SecondPickCommitted(Ram8(kChoosing));
+    };
     d.panelHeld = marvel::PanelHeld;
     d.facingLeft = marvel::FacingLeft;
     d.moveStart = marvel::MoveStart;

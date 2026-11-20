@@ -197,18 +197,18 @@ if errorlevel 1 (
   goto :fail
 )
 
-REM 87.470: verify exact native P1-second-pick handoff to the hidden dummy selector.
+REM 87.476: F10 verified native P1 phase 03->04 team handoff.
 "%BASH%" -c "python3 ../recomp_port/tests/test_p2_early_takeover.py"
 if errorlevel 1 (
-  echo ERROR: XMVSF 87.470 early P2 dummy takeover regression failed. No build performed.
+  echo ERROR: XMVSF 87.476 native second-pick P2 takeover regression failed. No build performed.
   popd
   goto :fail
 )
 
-REM 87.471: verify native P2 cursor pen suppression and invisible immediate handoff.
+REM 87.476: F10 verified P2 OAM palette 27 rather than pixel pens.
 "%BASH%" -c "python3 ../recomp_port/tests/test_p2_selector_gap.py"
 if errorlevel 1 (
-  echo ERROR: XMVSF 87.471 hidden P2 selector / instant handoff regression failed.
+  echo ERROR: XMVSF 87.476 native OAM P2 selector / instant handoff regression failed.
   popd
   goto :fail
 )
