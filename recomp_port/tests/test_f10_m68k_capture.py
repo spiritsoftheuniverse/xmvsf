@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""87.480 source and C++ syntax preflight for bounded F10 native capture."""
+"""87.481 source and C++ syntax preflight for bounded F10 native capture."""
 from pathlib import Path
 from version_guard import require_matching_versions
 import shutil
@@ -53,6 +53,12 @@ def main():
     assert "650000" not in header, "unbounded raw OAM legacy cap must not return"
     assert "const bool panel =" not in header, "per-frame panel write spam must not return"
     assert "oldBank_" not in header, "cross-bank comparison must not return"
+    bank_declaration = header.index("const int bank =")
+    frame_sample = header.index("if ((framesSeen_ % 8u == 0u) || stateChanged)")
+    oam_sample = header.index("WriteOamDelta(machine, post, bank);")
+    assert bank_declaration < frame_sample < oam_sample, (
+        "OAM bank must be declared outside sampled frame scope"
+    )
     assert 'auto &f10 = xmvsf_f10::Capture::Get();' in front
     assert 'f10.Toggle(*port.machine,' in front
     assert 'xmvsf_f10::Capture::Get().Stop("frontend shutdown")' in front
@@ -74,7 +80,7 @@ def main():
     assert "if (g_fastP1Tail &&" in sess and "g_p1AutoFrames > 240" in sess
     assert "homeAudio.Fight(!port.menu.muted && !audioLog)" in front
     assert "films_.Draw(renderer, now, filmReveal);" in tex
-    assert require_matching_versions(home, tex, minimum=(87, 480)) >= (87, 480)
+    assert require_matching_versions(home, tex, minimum=(87, 481)) >= (87, 481)
     assert "python3 ../recomp_port/tests/test_f10_m68k_capture.py" in bat
     compiler = shutil.which("g++")
     assert compiler, "UCRT64 g++ needed to compile F10 observer preflight"
@@ -96,7 +102,7 @@ def main():
         command.extend(["-I", str(directory)])
     command.append(str(smoke))
     subprocess.run(command, check=True)
-    print("XMVSF 87.480 F10 compact bounded diagnostics and C++ smoke PASS")
+    print("XMVSF 87.481 F10 compact bounded diagnostics and C++ smoke PASS")
 
 if __name__ == "__main__":
     main()
