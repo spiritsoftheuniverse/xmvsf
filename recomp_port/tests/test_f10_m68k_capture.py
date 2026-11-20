@@ -59,8 +59,20 @@ def main():
     compiler = shutil.which("g++")
     assert compiler, "UCRT64 g++ needed to compile F10 observer preflight"
     smoke = ROOT / "recomp_port/tests/test_f10_m68k_capture_smoke.cpp"
-    subprocess.run([compiler, "-std=c++20", "-Wall", "-Wextra",
-                    "-fsyntax-only", str(smoke)], check=True)
+    include_dirs = [
+        ROOT / "recomp/runtime",
+        ROOT / "recomp/machine",
+        ROOT / "recomp/fight",
+        ROOT / "recomp/video",
+        ROOT / "recomp/sound",
+        ROOT / "recomp/port",
+    ]
+    command = [compiler, "-std=c++20", "-Wall", "-Wextra", "-Werror",
+               "-fsyntax-only"]
+    for directory in include_dirs:
+        command.extend(["-I", str(directory)])
+    command.append(str(smoke))
+    subprocess.run(command, check=True)
     print("XMVSF 87.472 F10 native M68K + original select/OAM observations PASS")
 
 if __name__ == "__main__":
