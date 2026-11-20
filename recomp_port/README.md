@@ -1,4 +1,4 @@
-# XMVSF native front end — 87.455 (Training stage thumbnail picker)
+# XMVSF native front end — 87.456 (Training stage thumbnail picker)
 
 The real XMVSF front end now renders in CPS-2 Recomp's **SDL3 native
 window and pixel presenter**, not an additional SDL launcher. The preserved
@@ -17,6 +17,23 @@ pictures are animated. Fallback text exists if image assets cannot be found.
 The menu is shown in the recomp's **existing window**, on startup and via
 Esc / gamepad menu input; while shown, no game ticks are executed.
 
+## 87.456 — exact thumbnails imported from menu-film-strip
+
+All **18 PNGs** have been copied directly from \`feature/menu-film-strip\` into
+\`recomp-local\` preserving their original Git blobs. All are 150x150.
+The first eleven are **\`_art/stagethumbs/0.png\` through \`10.png\`**, matching
+the stage byte index exactly (0 Apocalypse's lair through 10 shopping mall).
+The seven XMVSF2 thumbnails are the explicitly named files in this order:
+
+\`01_wilystage.png\`, \`02_finaldestination.png\`, \`03_guilestage.png\`,
+\`04_sigmastage.png\`, \`05_akumastage.png\`, \`06_ryustage.png\`,
+\`07_boomerstage.png\`, all under \`_art/stagethumbs/xmvsf2/\`.
+
+No runtime directory discovery, alphabetical sorting assumptions or source
+asset renaming is used. Missing thumbnails are a **local preflight failure**.
+The seven XMVSF2 stage renderers are still unported in the recomp; pictures
+appear but their entries do not start the wrong guest stage.
+
 ## 87.455 — Training stage thumbnail selector
 
 The native SDL3 home menu's TRAINING row now opens a stage thumbnail picker
@@ -26,10 +43,9 @@ background without an opaque backplate, 150x150 source PNG thumbnails, and a
 thumbnails per page); D-pad/arrows navigate, LB/RB or Q/E changes pages,
 A/Enter selects, and B/Esc returns home. The 11 original stages appear first
 in the **ROM stage-byte order** (0..10 at 0xFF5113), followed by seven XMVSF2
-preview slots. Paths are _art/stagethumbs/*.png and, for the latter,
-_art/stagethumbs/xmvsf2/*.png, sorted by filename. The seven files are
-discovered at runtime, not renamed or rescaled on disk; missing files show
-the NO ART placeholder and a local-build warning.
+preview slots. Paths use numbered `0.png`–`10.png` for native stages
+and an explicit 7-file filename table for XMVSF2. All 18 assets are tracked
+on this branch and checked during the local build preflight.
 
 **Native routing:** the selector calls SetFeatureForNow(session::kStageFeature,
 chosen + 1), followed by session::StartSession, which resets into the chosen
