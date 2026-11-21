@@ -243,7 +243,7 @@ void Video::DrawObjects(int rasterLine, uint16_t *pens, uint8_t *priority, const
         const bool hudSource = hudShock &&
             XM87392::objectForPhase(hudShockPhase, level, attr & 0x1Fu, code,
                 sourceX, sourceY, static_cast<unsigned>(across),
-                static_cast<unsigned>(down), false, (attr & 0x1Fu) >= 0x1Au);
+                static_cast<unsigned>(down), false, false);
         if (hudSource && XM87392::verifiedTransitionHud(level, attr & 0x1Fu,
                  code, sourceX, sourceY, static_cast<unsigned>(across),
                  static_cast<unsigned>(down))) {
