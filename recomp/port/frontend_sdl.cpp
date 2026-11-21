@@ -1294,6 +1294,12 @@ int RunWindowed(Port &port) {
         // (the game's time to the screen's: under 1 slowed, over 1 faster than the board)
         const auto rate = port.menu.GameRate();
         const double pace = port.paused ? 1.0 : static_cast<double>(rate.frames) / rate.ticks;
+        // 87.492: source pixels are attributed in the actual native
+        // renderer, not guessed from OAM geometry after composition.
+        // Entirely dormant when F9 is off; does not affect game state.
+        if (port.machine)
+            port.machine->video.EnableInkInspection(
+                homeEnabled && graphicsInspector.Active());
         const bool ran = port.Tick();
         if (homeEnabled) {
             const std::uint64_t sequence = xmvsf_vs::Current().sequence;
