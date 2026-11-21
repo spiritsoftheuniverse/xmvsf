@@ -13,6 +13,7 @@
 #include "native.h"
 
 #include <cstdint>
+#include <array>
 #include <vector>
 
 namespace cps2recomp {
@@ -81,6 +82,11 @@ public:
         unsigned bank = 0;      // latched OAM bank; scroll uses 0
         int x = 0, y = 0, w = 0, h = 0;
         bool enabled = false;    // source enabled; not proof of visible ink
+        // 87.492: actual final OAM ink, sampled during the renderer's
+        // own per-pixel priority/HUD decisions (not inferred rectangles).
+        bool inkSampled = false;
+        unsigned visibleInkPixels = 0;
+        int inkLeft = 0, inkTop = 0, inkRight = -1, inkBottom = -1;
     };
     struct GraphicsInspection {
         std::vector<GraphicRecord> records;
@@ -89,6 +95,15 @@ public:
         unsigned objectBank = 0;
     };
     GraphicsInspection InspectGraphics() const;
+    // Called by the frontend when F9 is toggled, and once by the
+    // emulation frame before any scanline draws. This is diagnostics-
+    // only and is never serialized or used to suppress graphics.
+    void EnableInkInspection(bool on) { m_inkInspection = on; if (!on) m_inkReady = false; }
+    void BeginInkFrame();
+    void RecordInk(unsigned slot, int screenX, int screenY);
+    static void NativeInkCallback(void *user, unsigned slot, int x, int y) {
+        if (user) static_cast<Video *>(user)->RecordInk(slot, x, y);
+    }
     unsigned latchedObjectBank = 0; // set on actual CPS-2 OAM latch by Machine
 
     void Serialize(Archive &ar);
@@ -190,6 +205,10 @@ public:
         o.hudShockFrame = hudShockFrame;
         o.hudShockPhase = hudShockPhase;
         o.hudShockGameStep = hudShockGameStep;
+        if (m_inkReady) {
+            o.inkProbeUser = const_cast<Video *>(this);
+            o.inkProbe = &Video::NativeInkCallback;
+        }
         o.objectsTaken = objectsTaken;
         o.markObjects = markObjects;
         o.markLayers = markLayers;
@@ -216,6 +235,17 @@ private:
     size_t m_extraGraphicsSize = 0;
     uint16_t m_priorityControl = 0;
     int m_lastObject = -4;
+    // 87.492: source and pixel ownership from actual rendered OAM ink.
+    // At most one final owner per screen pixel, even when native and
+    // board renderers both run during a diagnostic comparison.
+    struct InkEvidence {
+        unsigned pixels = 0;
+        int left = 0, top = 0, right = -1, bottom = -1;
+    };
+    std::array<InkEvidence, 1024> m_objectInk{};
+    std::vector<std::int16_t> m_pixelOwner;
+    bool m_inkInspection = false;
+    bool m_inkReady = false;
 
     // (each in two forms: the board's own picture, with its width known to the compiler and nothing asked
     // about; and a wider or moved one. The first is as fast as it was before there was a second.)
