@@ -4,6 +4,7 @@
 // A fighting game's training session (session.h), made from Vampire Savior's, which every fighting game's was a copy
 // of but for where the game keeps things.
 #include "session.h"
+#include "../video/dummy_selector_sources.h" // 87.495 source-exact dummy display gate
 
 #include "battle.h"
 #include "alternative.h"
@@ -309,6 +310,12 @@ void BeforeFrame(Machine &machine) {
     // Neither the single B1E8 hook nor a guessed phase is authoritative.
     const bool nativeSecondPick = trainingChoosing && d.handoffAfterSecondPick &&
                                   d.secondPickCommitted && d.secondPickCommitted();
+    // The P1 controller already transfers to the dummy on FF5183=2.
+    // Conceal only the two source-verified lower selector OAM sets
+    // BEFORE that accepted-count transition, never other native art.
+    machine.video.hideP2Selector =
+        native_video::HideUntilDummySelection(
+            trainingChoosing && d.handoffAfterSecondPick, nativeSecondPick);
     if (nativeSecondPick && !g_p1AutoFallback &&
         !g_choosingTwo && !RunningAhead()) {
         // 87.479: transfer input only. Never accelerate or skip P1's
