@@ -1,4 +1,4 @@
-// XMVSF 87.482: the original FBNeo chooser->VS edge and HUD clock,
+// XMVSF 87.483: the original FBNeo chooser->VS edge and HUD clock,
 // shared by native game frames and SDL3. No ROM, input or timing writes.
 #pragma once
 #include "../../dev/stable/buildtree/src/burner/sdl/xm20_vs_early_phase.h"
