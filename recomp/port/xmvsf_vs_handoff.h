@@ -1,21 +1,30 @@
-// XMVSF 87.483: the original FBNeo chooser->VS edge and HUD clock,
+// XMVSF 87.484: original FBNeo full HUD shock, immediate F10 preview,
 // shared by native game frames and SDL3. No ROM, input or timing writes.
 #pragma once
 #include "../../dev/stable/buildtree/src/burner/sdl/xm20_vs_early_phase.h"
 #include "../../dev/stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_392_hud_shock.h"
 #include <cstdint>
 namespace cps2recomp::xmvsf_vs {
-// The F10 capture starts at emulated frame 1451: game step 0008,
-// both chooser records 07, and verified native ROM HP tiles 0x159B*.
-// The music's pre-combat 120f deadline must NEVER reveal HUD ink
-// before the original, drawable 08-state HUD actually arrives.
+// 87.484: F10's observed frame 1451 is the intended FIRST SHOCK FRAME,
+// not the beginning of another 120-frame hold. F10 is an explicit diagnostic
+// preview, while gameplay normally uses the first verified combat HUD ink.
 struct CombatHudClock {
     bool firstInkSeen = false;
     unsigned firstInkFrame = 0u;
+    bool preview = false;
 
     void Reset() {
         firstInkSeen = false;
         firstInkFrame = 0u;
+        preview = false;
+    }
+    void PreviewAt(unsigned frame) {
+        // The exact F10 down-edge is the start of the shock, no offset.
+        firstInkSeen = true;
+        firstInkFrame = frame;
+        preview = true;
+        std::fprintf(stderr,
+            "XMVSF 87.484 HUD_F10_SHOCK_START frame=%u step=1\n", frame);
     }
     void NativeInk(unsigned phase, unsigned frame) {
         if (phase != 8u || firstInkSeen ||
@@ -23,26 +32,25 @@ struct CombatHudClock {
         firstInkSeen = true;
         firstInkFrame = frame;
         std::fprintf(stderr,
-            "XMVSF 87.483 HUD_COMBAT_FIRST_INK frame=%u "
-            "native_status=08 source=verified_rom_hp\n", frame);
+            "XMVSF 87.484 HUD_COMBAT_FIRST_INK frame=%u step=1\n", frame);
     }
     unsigned Step(unsigned phase, unsigned frame) const {
-        const unsigned original = XM87392::timeline().step(frame);
-        if (!XM87392::timeline().primed) return original;
-        // Preserve all pre-combat invisibility, including early VS HUD art.
-        if (phase != 8u || !firstInkSeen || frame <= firstInkFrame)
+        const auto &clock = XM87392::timeline();
+        if (!clock.primed && !preview) return XM87392::RevealFrames;
+        // Keep the full top HUD hidden BEFORE the combat/preview edge.
+        if (phase != 8u || !firstInkSeen || frame < firstInkFrame)
             return 0u;
-        unsigned elapsed = frame - firstInkFrame;
-        if (elapsed > XM87392::RevealFrames)
-            elapsed = XM87392::RevealFrames;
-        // Both original requirements must be satisfied: first queued
-        // versus PCM +120f, AND actual verified live HUD ink.
-        return original < elapsed ? original : elapsed;
+        const unsigned elapsed = frame - firstInkFrame + 1u;
+        return elapsed < XM87392::RevealFrames ? elapsed
+                                               : XM87392::RevealFrames;
     }
 };
 inline CombatHudClock &CombatHud() {
     static CombatHudClock value;
     return value;
+}
+inline void PreviewShockAt(unsigned frame) {
+    CombatHud().PreviewAt(frame);
 }
 inline unsigned HudStep(unsigned phase, unsigned frame) {
     return CombatHud().Step(phase, frame);
