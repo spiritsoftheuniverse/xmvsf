@@ -1,4 +1,48 @@
-# XMVSF native front end — 87.488 (native graphics provenance, no tile filtering)
+# XMVSF native front end — 87.489 (F9 native graphics source inspector)
+
+## 87.489 — F9 indexed, data-driven native graphics inspector
+
+**F9 (gameplay):** toggles the on-screen source inspector. Default
+**HUD OAM** view identifies native latched sprite objects intersecting
+the upper 64 pixels (the HUD band) and draws source-attached bounding
+boxes with actual **OAM slot indices**. The source ledger at the
+bottom identifies each object's exact bank-local OAM byte offset
+(`OAM0+xxxx` or `OAM1+xxxx`), full ROM object tile code (`Txxxxx`),
+ROM graphics byte offset (`Gxxxxxxx`), palette, priority, screen
+coordinates, and size. OAM offsets are deliberately labelled
+bank-relative: the CPS2 alternates physical OAM banks, and printing
+a made-up static 68K bus address would be misleading.
+
+**F8:** cycles source categories **HUD OAM → ALL OAM → SCROLL 1 →
+SCROLL 2 → SCROLL 3**. **[ / ]** page through native records in
+groups of seven, with no wrap or input-repeat traps. Scroll-source
+pages show the exact native `0x9xxxxx` VRAM address of the scroll
+map entry, map index, graphics code, ROM byte offset, palette and
+on-screen tile bounds. A named HUD part is **not** guessed from
+the code or the picture; this is a labelable native object candidate.
+
+**F6 while F9 is on:** saves the **annotated** gameplay PNG, with
+the same source indices and ledger visible as in the window.
+It also saves the complete unmodified `.graphics.tsv` source
+inventory beside it. The onscreen inspector is a presentation-copy
+operation, before the ordinary SDL3 compositor. It does not modify
+the emulator's graphic buffers, graphics ROM, VRAM, OAM, HUD
+concealment, or song timing. SDL_GPU's direct-frame shortcut is
+temporarily bypassed while F9 is active to guarantee the inspector
+is present on screen (and in F6).
+
+**Original shortcuts:** F5 still saves the state; **Shift+F9**
+loads the state in XMVSF; other games retain their original F9.
+F10 is still diagnostic-only and F6 still takes native screenshots.
+The new pre-Ninja F6 preflight compiles and **executes** a C++ test
+of overlay toggling, source index preservation, HUD vs scroll modes,
+and bounded page navigation. No GitHub Actions.
+
+**Important:** boxes identify actual source records, not confirmed
+visible pixels; CPS2 priorities and occlusion can hide some of them.
+The next evidence-based step is to compare these indexed captures
+across frames and only then attach semantic HUD names or source
+suppression. No graphics source is currently denied by F9.
 
 ## 87.488 — find native graphic ownership before suppressing art
 
