@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""87.483: ensure shock waits for real 08-state HP ink, not VS audio alone."""
+"""87.484: assert F10 instant first reveal and complete original top HUD mask."""
 from pathlib import Path
 from version_guard import require_matching_versions
 import shutil
@@ -40,9 +40,11 @@ def main():
     assert "struct CombatHudClock" in bridge
     assert "if (phase != 8u || firstInkSeen" in bridge
     assert "if (phase != 8u || !firstInkSeen || frame <= firstInkFrame)" in bridge
-    assert "return original < elapsed ? original : elapsed;" in bridge
+    assert "return elapsed < XM87392::RevealFrames ? elapsed" in bridge
+    assert "void PreviewAt(unsigned frame)" in bridge
+    assert "inline void PreviewShockAt(unsigned frame)" in bridge
     assert "CombatHud().Reset();" in bridge
-    assert "XMVSF 87.483 HUD_COMBAT_FIRST_INK" in bridge
+    assert "XMVSF 87.484 HUD_F10_SHOCK_START" in bridge
     assert "startWithSong(static_cast<unsigned>(sequence_), frame)" in player
     assert "OpenDecoder(path)" in player and "SDL_PutAudioStreamData" in player
     assert "versusscreen.ogg" in player and "if (!frames)" in player
@@ -53,6 +55,8 @@ def main():
     assert "state.song == 0x02" in sound and "shared[1] == 0x05" in sound
     assert "port.machine->video.hudShock = homeEnabled;" in front
     assert "versusAudio.Start(sequence)" in front
+    assert "xmvsf_vs::PreviewShockAt(" in front
+    assert "if (!wasRecording && f10.Active()" in front
     assert "if (combat) {" in front and "versusAudio.Stop();" in front
     assert "port.machine->soundtrack.state.song = -1;" in front
     assert "if (music) SDL_ClearAudioStream(music);" in front
@@ -69,6 +73,8 @@ def main():
     assert "xmvsf_vs::HudStep(" in video
     assert "xmvsf_vs::NoteCombatHudInk(" in video
     assert "const bool liveHp = hudSource && level == 7u" in video
+    assert "static_cast<unsigned>(down), false, false);" in video
+    assert "(attr & 0x1Fu) >= 0x1Au);" not in video
     assert "if (shown && shockTile &&" in video
     assert "if (hudInk && shockTile) hudInk[px] = 1;" in video
     assert "void DrawObjects(" in video_h and "uint8_t *hudInk = nullptr" in video_h
@@ -83,11 +89,13 @@ def main():
     assert "xmvsf_vs::HudStep(" in native
     assert "xmvsf_vs::NoteCombatHudInk(" in native
     assert "const bool liveHp = hudSource && t.level == 7u" in native
+    assert "across, down, false, false);" in native
+    assert "(t.attributes & 0x1Fu) >= 0x1Au);" not in native
     assert "if (shown && shockTile &&" in native
     assert "uint8_t *hudInk = nullptr" in native_h
     assert "xmvsf_vs::Current().Observe(" in game
     assert "Ram16(xmvsf::kGameStep)" in game and "Ram8(xmvsf::kFight)" in game
-    assert require_matching_versions(home, render, minimum=(87, 483)) >= (87, 483)
+    assert require_matching_versions(home, render, minimum=(87, 484)) >= (87, 484)
     compiler = shutil.which("g++")
     assert compiler, "UCRT64 g++ is required before recomp build"
     include = [
@@ -106,13 +114,13 @@ def main():
     ):
         subprocess.run(base + [str(path)], check=True)
     # The compact smoke also RUNS the original FBNeo transition and clock.
-    with tempfile.TemporaryDirectory(prefix="xmvsf_vs_483_") as temp:
+    with tempfile.TemporaryDirectory(prefix="xmvsf_vs_484_") as temp:
         executable = Path(temp) / "vs_shock.exe"
         smoke = ROOT / "recomp_port/tests/test_vs_hud_shock_smoke.cpp"
         subprocess.run([compiler, "-std=c++20", str(smoke), "-o",
                         str(executable)], check=True)
         subprocess.run([str(executable)], check=True)
-    print("XMVSF 87.483 delayed native HP shock, original FBNeo 120+30, both renderers compile PASS")
+    print("XMVSF 87.484 F10 immediate shock, full original HUD source mask, both renderers compile PASS")
 
 if __name__ == "__main__":
     main()
