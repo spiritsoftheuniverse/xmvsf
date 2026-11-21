@@ -86,6 +86,7 @@ public:
     bool hudShock = false;
     unsigned hudShockFrame = 0;
     int hudShockPhase = -1;
+    unsigned hudShockGameStep = 0; // native FF5104, separate from FF5000 status
     // For a game's own sources that put pictures together: the picture's pixels that an object is drawn at
     // have their top byte set (0x80 and the object's colour set, 0-31), the others clear, so that a picture
     // of the objects alone can be laid over another picture, and one object's pixels told from another's.
@@ -160,6 +161,7 @@ public:
         o.hudShock = hudShock;
         o.hudShockFrame = hudShockFrame;
         o.hudShockPhase = hudShockPhase;
+        o.hudShockGameStep = hudShockGameStep;
         o.objectsTaken = objectsTaken;
         o.markObjects = markObjects;
         o.markLayers = markLayers;
