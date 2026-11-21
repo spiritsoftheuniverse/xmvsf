@@ -116,7 +116,7 @@ public:
                 machine.ram.size() > 0x5000u ?
                     static_cast<unsigned>(machine.ram[0x5000u]) : 0u);
             std::fprintf(meta,
-                "XMVSF compact native M68K F10 capture, source version 87.480\n"
+                "XMVSF compact native M68K F10 capture, source version 87.485\n"
                 "F10 toggles capture; a new capture REPLACES the previous latest folder files.\n"
                 "Stops after %u emulated frames or 512 KiB of captured records.\n"
                 "Frames include invisible native fast-forward ticks, sampled every 8 frames and on selection-state changes.\n"
