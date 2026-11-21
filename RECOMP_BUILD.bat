@@ -230,6 +230,15 @@ if errorlevel 1 (
   goto :fail
 )
 
+REM 87.482: compile-check the original FBNeo VS handoff, HUD shaderless
+REM raster path and M68K native observer before Ninja touches any build files.
+"%BASH%" -c "python3 ../recomp_port/tests/test_vs_hud_shock.py"
+if errorlevel 1 (
+  echo ERROR: XMVSF 87.482 native VS/HUD regression failed. No build performed.
+  popd
+  goto :fail
+)
+
 REM Default is FAST once configured. It only recompiles changed C++ objects.
 REM refresh explicitly regenerates M68000 translation and reconfigures CMake.
 if /I "%~1"=="refresh" goto :refresh
