@@ -6,7 +6,7 @@
 #ifndef GAME_ID
 #define GAME_ID "xmvsf"
 #endif
-#include "../xmvsf_native_capture.h"
+#include "../../recomp/port/xmvsf_native_capture.h" // actual build include tree contains png_write.h
 #include <cstdint>
 #include <string>
 #include <type_traits>
