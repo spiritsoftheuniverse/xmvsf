@@ -39,7 +39,7 @@ def main():
     assert "if (fight < 8u" in bridge
     assert "struct CombatHudClock" in bridge
     assert "if (phase != 8u || firstInkSeen" in bridge
-    assert "if (phase != 8u || !firstInkSeen || frame <= firstInkFrame)" in bridge
+    assert "if (phase != 8u || !firstInkSeen || frame < firstInkFrame)" in bridge
     assert "return elapsed < XM87392::RevealFrames ? elapsed" in bridge
     assert "void PreviewAt(unsigned frame)" in bridge
     assert "inline void PreviewShockAt(unsigned frame)" in bridge
