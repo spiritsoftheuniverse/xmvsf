@@ -11,6 +11,7 @@
 #include "tag.h"
 #include "xmvsf.h"
 #include "../../../port/xmvsf_m68k_capture.h" // 87.472 native-frame F10 diagnostics
+#include "../../../port/xmvsf_vs_handoff.h" // 87.482 original FBNeo match handoff
 
 namespace cps2recomp {
 
@@ -66,6 +67,8 @@ void RegisterGame() {
     RegisterBoard();
     RegisterMusic();
     TheGame().beforeFrame = [](Machine &machine) {
+        machine.video.hudShockFrame = static_cast<unsigned>(machine.frame);
+        machine.video.hudShockPhase = Ram8(xmvsf::kFight);
         tag::BeforeFrame(machine);
         BoardBeforeFrame(machine);
         ChoosingBeforeFrame(machine);
@@ -81,6 +84,13 @@ void RegisterGame() {
     };
     // (the training aids see what the frame did before the cheats put things back)
     TheGame().frame = [](Machine &machine) {
+        machine.video.hudShockFrame = static_cast<unsigned>(machine.frame);
+        machine.video.hudShockPhase = Ram8(xmvsf::kFight);
+        xmvsf_vs::Current().Observe(Ram16(xmvsf::kGameStep),
+            Ram8(xmvsf::kChoosing),
+            Ram8(xmvsf::kChoosing + xmvsf::kChoosingSize),
+            Ram8(xmvsf::kFight), static_cast<unsigned>(machine.frame),
+            Ram8(xmvsf::kPlaying) != 0 && machine.video.hudShock);
         xmvsf_f10::Capture::Get().AfterFrame(machine);
         session::Frame(machine);
         modes::Frame(machine);
