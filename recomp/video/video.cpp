@@ -57,6 +57,39 @@ void Video::Reset() {
     m_priorityControl = 0;
     m_lastObject = -4;
     latchedObjectBank = 0;
+    m_inkReady = false;
+    m_inkInspection = false;
+    m_pixelOwner.clear();
+    m_objectInk.fill({});
+}
+
+// 87.492: prepare the native source-ink probe exactly once per emulator
+// frame, BEFORE any board/native rasterizer draws a line. Leave graphics
+// ROM, object RAM, CPU state and actual pixel output untouched.
+void Video::BeginInkFrame() {
+    m_inkReady = m_inkInspection;
+    if (!m_inkReady) return;
+    m_objectInk.fill({});
+    m_pixelOwner.assign(static_cast<size_t>(kMaxWidth) * kHeight, -1);
+}
+
+void Video::RecordInk(unsigned slot, int x, int y) {
+    if (!m_inkReady || slot >= m_objectInk.size() || x < 0 ||
+        x >= Width() || x >= kMaxWidth || y < 0 || y >= kHeight) return;
+    const auto at = static_cast<size_t>(y) * kMaxWidth +
+                    static_cast<size_t>(x);
+    if (at >= m_pixelOwner.size() || m_pixelOwner[at] >= 0) return;
+    m_pixelOwner[at] = static_cast<std::int16_t>(slot);
+    InkEvidence &ink = m_objectInk[slot];
+    if (ink.pixels++ == 0) {
+        ink.left = ink.right = x;
+        ink.top = ink.bottom = y;
+    } else {
+        ink.left = std::min(ink.left, x);
+        ink.top = std::min(ink.top, y);
+        ink.right = std::max(ink.right, x);
+        ink.bottom = std::max(ink.bottom, y);
+    }
 }
 
 // 87.489 F9: decode genuine native object and scroll map records into
@@ -109,6 +142,17 @@ Video::GraphicsInspection Video::InspectGraphics() const {
         item.enabled = (m_extraGraphics && m_objectsFromExtra[i / 4])
             ? item.gfxOffset < m_extraGraphicsSize
             : item.gfxOffset < m_src.graphicsSize;
+        if (m_inkReady) {
+            const InkEvidence &ink = m_objectInk[static_cast<size_t>(i / 4)];
+            item.inkSampled = true;
+            item.visibleInkPixels = ink.pixels;
+            if (ink.pixels) {
+                item.inkLeft = ink.left;
+                item.inkTop = ink.top;
+                item.inkRight = ink.right;
+                item.inkBottom = ink.bottom;
+            }
+        }
         found.records.push_back(item);
     }
 
@@ -539,6 +583,9 @@ void Video::DrawObjects(int rasterLine, uint16_t *pens, uint8_t *priority, const
                             continue;
                         if (shown) {
                             pens[px] = static_cast<uint16_t>(colour + pen);
+                            if (m_inkReady)
+                                RecordInk(static_cast<unsigned>(i / 4),
+                                          px, rasterLine - kFirstLine);
                             if (hudInk && shockTile) hudInk[px] = 1;
                         }
                         if (marks && priority[px] != 31) {
