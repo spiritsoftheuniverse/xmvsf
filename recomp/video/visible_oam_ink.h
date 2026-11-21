@@ -49,6 +49,16 @@ public:
         return true;
     }
     const Evidence &At(unsigned slot) const { return entries_[slot]; }
+    // The same final native OAM pixel ownership used for the ink bounds.
+    // -1 means backdrop, scroll, suppressed/transparent ink or no probe.
+    // Read-only: F9's tint never modifies OAM, the owner map or game pixels.
+    int OwnerAt(int x, int y) const {
+        if (!valid_ || x < 0 || y < 0 || x >= width_ || y >= height_)
+            return -1;
+        const size_t at = static_cast<size_t>(y) *
+                          static_cast<size_t>(stride_) + static_cast<size_t>(x);
+        return at < owners_.size() ? static_cast<int>(owners_[at]) : -1;
+    }
 private:
     bool valid_ = false;
     int width_ = 0, height_ = 0, stride_ = 0;
