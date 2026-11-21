@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""87.492 F9 source-backed per-pixel visible OAM ink and native screenshots."""
+"""87.493 F4 pixel-owner tint of selected F9 OAM source; F6 annotated evidence."""
 from __future__ import annotations
 
 from pathlib import Path
@@ -98,7 +98,7 @@ def main() -> None:
                    check=True)
     # Test F9's real pixel presentation and index/view behavior in C++,
     # without matching source code spelling or touching a ROM.
-    with tempfile.TemporaryDirectory(prefix="xmvsf_f9_492_") as folder:
+    with tempfile.TemporaryDirectory(prefix="xmvsf_f9_493_") as folder:
         inspector_smoke = CANONICAL / "tests/test_graphics_inspector_smoke.cpp"
         executable = Path(folder) / "graphics_inspector.exe"
         subprocess.run([compiler, "-std=c++20", str(inspector_smoke),
@@ -109,7 +109,12 @@ def main() -> None:
         subprocess.run([compiler, "-std=c++20", str(ink_smoke),
                         "-o", str(ink_exe)], check=True)
         subprocess.run([str(ink_exe)], check=True)
-    print("XMVSF 87.492 native OAM visible-ink attribution and annotated F9 C++ behavior PASS")
+        tint_smoke = CANONICAL / "tests/test_source_tint_smoke.cpp"
+        tint_exe = Path(folder) / "source_tint.exe"
+        subprocess.run([compiler, "-std=c++20", str(tint_smoke),
+                        "-o", str(tint_exe)], check=True)
+        subprocess.run([str(tint_exe)], check=True)
+    print("XMVSF 87.493 F4 selected native ink tint, OAM ownership and F9 behavioral smoke PASS")
 
 
 if __name__ == "__main__":
