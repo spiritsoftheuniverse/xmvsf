@@ -1,4 +1,4 @@
-// 87.490 F9 compact graphics labels and source-isolated wall smoke.
+// 87.491 native wall signature follows slots/banks; F9 source vs visible roles.
 // The fake graphics records are only test fixtures. Runtime data
 // is supplied by Video::InspectGraphics from the real CPS2 records.
 #include "../../recomp/port/xmvsf_graphics_inspector.h"
@@ -10,8 +10,12 @@ using cps2recomp::Video;
 using cps2recomp::xmvsf_sources::IsWallBlock;
 static_assert(IsWallBlock({4, 0x1C60Au, 0x2318u, 7u, 4u, 3u}));
 static_assert(IsWallBlock({39, 0x1C60Au, 0x2318u, 7u, 4u, 3u}));
-static_assert(!IsWallBlock({3, 0x1C60Au, 0x2318u, 7u, 4u, 3u}));
-static_assert(!IsWallBlock({40, 0x1C60Au, 0x2318u, 7u, 4u, 3u}));
+// Capture frame 2014: bank 0 slots 4..39. Frame 816: bank 1 slots
+// 114..149. The object identity MUST work at both sets of slot indices.
+static_assert(IsWallBlock({3, 0x1C60Au, 0x2318u, 7u, 4u, 3u}));
+static_assert(IsWallBlock({40, 0x1C60Au, 0x2318u, 7u, 4u, 3u}));
+static_assert(IsWallBlock({114, 0x1C60Au, 0x2318u, 7u, 4u, 3u}));
+static_assert(IsWallBlock({149, 0x1C60Au, 0x2318u, 7u, 4u, 3u}));
 static_assert(!IsWallBlock({4, 0x1C60Bu, 0x2318u, 7u, 4u, 3u}));
 static_assert(!IsWallBlock({4, 0x1C60Au, 0x2319u, 7u, 4u, 3u}));
 static_assert(!IsWallBlock({4, 0x1C60Au, 0x2318u, 6u, 4u, 3u}));
@@ -40,8 +44,8 @@ int main() {
     // A real captured 64x48 wall/logo source is NOT a HUD object, even
     // though it intersects the top 64px band and has priority 7.
     auto wall = hud;
-    wall.index = 4u;
-    wall.sourceAddress = 0x20u;
+    wall.index = 114u; // verified relocated frame 816, bank 1
+    wall.sourceAddress = 0x390u;
     wall.tile = 0x1C60Au;
     wall.attributes = 0x2318u;
     wall.palette = 24u;
@@ -79,21 +83,27 @@ int main() {
     assert(source.records[0].index == 16u);
     assert(source.records[0].sourceAddress == 0x80u);
     view.NextMode();
-    assert(view.Mode() == 1u);
+    assert(view.Mode() == 1u); // new verified WALLS view
     std::fill(frame.begin(), frame.end(), 0x00112233u);
     view.Paint(frame, 384, 224, source, 1090);
     assert(frame[16u * 384u + 0u] != clean[16u * 384u + 0u]);
     view.NextMode();
-    assert(view.Mode() == 2u); // source layer 1
+    assert(view.Mode() == 2u); // ALL OAM, including wall object
+    view.NextMode();
+    assert(view.Mode() == 3u); // scroll 1 source map, not pixel owner
     std::fill(frame.begin(), frame.end(), 0x00112233u);
     view.Paint(frame, 384, 224, source, 1090);
-    assert(frame[32u * 384u + 60u] != clean[32u * 384u + 60u]);
+    assert(frame[32u * 384u + 60u] == clean[32u * 384u + 60u]);
     view.ChangePage(1);
     assert(view.Page() == 1u);
     view.ChangePage(1);
     assert(view.Page() == 1u); // last page clamps, never gets stuck
     view.ChangePage(-1);
     assert(view.Page() == 0u);
+    view.Toggle();
+    assert(!view.Active());
+    view.Toggle(true); // entry focuses WALLS when a matching OAM source exists
+    assert(view.Active() && view.Mode() == 1u);
     view.Toggle();
     assert(!view.Active());
     frame = clean;
