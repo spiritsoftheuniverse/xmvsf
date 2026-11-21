@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""87.489 F9 indexed native graphics inspector, annotated F6 source captures."""
+"""87.490 F9 compact native source labels and verified wall OAM exclusion."""
 from __future__ import annotations
 
 from pathlib import Path
@@ -98,13 +98,13 @@ def main() -> None:
                    check=True)
     # Test F9's real pixel presentation and index/view behavior in C++,
     # without matching source code spelling or touching a ROM.
-    with tempfile.TemporaryDirectory(prefix="xmvsf_f9_489_") as folder:
+    with tempfile.TemporaryDirectory(prefix="xmvsf_f9_490_") as folder:
         inspector_smoke = CANONICAL / "tests/test_graphics_inspector_smoke.cpp"
         executable = Path(folder) / "graphics_inspector.exe"
         subprocess.run([compiler, "-std=c++20", str(inspector_smoke),
                         "-o", str(executable)], check=True)
         subprocess.run([str(executable)], check=True)
-    print("XMVSF 87.489 F9 indexed native presentation and F6 sources C++ smoke PASS")
+    print("XMVSF 87.490 F9 compact source labels and native wall identity C++ smoke PASS")
 
 
 if __name__ == "__main__":
