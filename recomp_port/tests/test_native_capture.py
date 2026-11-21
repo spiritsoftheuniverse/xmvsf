@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
-"""87.459 F6 native captures go to root/screenshots for every screen."""
+"""87.488 F6 native captures and native OAM/scroll graphics-source probe."""
 from __future__ import annotations
 
 from pathlib import Path
+import shutil
+import subprocess
 
 ROOT = Path(__file__).resolve().parents[2]
 CANONICAL = ROOT / "recomp_port"
@@ -86,7 +88,14 @@ def main() -> None:
     assert "WritePng(path.c_str(), shown.data()," in game_capture
     assert "ShownWidth()), Video::kHeight" in game_capture
     assert 'CAPTURE_HEADER.write_bytes(capture_content)' in installer
-    print("XMVSF 87.459 F6: root/screenshots, home, Options, ingame-menu, game PASS")
+    # Compile actual typed interfaces. Don't assert source operators,
+    # whitespace or particular line text: those are brittle preflights.
+    compiler = shutil.which("g++")
+    assert compiler, "UCRT64 g++ required for F6 provenance API smoke"
+    smoke = CANONICAL / "tests/test_graphics_source_capture_smoke.cpp"
+    subprocess.run([compiler, "-std=c++20", "-fsyntax-only", str(smoke)],
+                   check=True)
+    print("XMVSF 87.488 F6 graphics source inventory API, all captures PASS")
 
 
 if __name__ == "__main__":
