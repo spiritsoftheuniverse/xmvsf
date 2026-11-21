@@ -1,4 +1,53 @@
-# XMVSF native front end — 87.490 (preserve native wall OAM; minimal F9)
+# XMVSF native front end — 87.491 (relocating OAM wall protection; honest F9 selectors)
+
+## 87.491 — fix actual missing wall object protection and F9 evidence
+
+The user's `screenshots.zip` contains both the original isolated
+blank wall boxes and later captures of a frame with **HUD and walls
+together**. A comparison of the native `f9_source` records exposes
+the precise regression in 87.490: the *same wall object identity*
+migrates from **bank 0, OAM slots 4–39** (frame 2014) to
+**bank 1, OAM slots 114–149** (frame 816). Both scenes contain exactly
+30 objects with full source tile `1C60A`, attribute `2318`,
+priority 7, palette 24, and 4×3 16px cells (64×48).
+Thus a slot 4–39 requirement was never a valid identity and
+explains why the actual concealed boxes were not protected after
+the game rearranged its object list.
+
+The wall exemption now uses **the full source OAM identity, without
+an OAM slot or bank gate**. Both renderers therefore exclude the
+corresponding *whole objects* from HUD-shock dither clipping,
+including while legitimate HUD OAM objects share the same frame.
+No graphics ROM data or native game RAM are edited, and no wall
+is hidden/removed or protected by a screen-space rectangle.
+The C++ smoke verifies source object identity at slots **4, 39,
+114, and 149** and rejects variants with different attributes,
+priority, code, or dimensions.
+
+F9's earlier "HUD" selection was simply any object rectangle that
+intersected the top 64 pixels. That was **not actual HUD identity**
+and produced floating boxes. Now the default HUD source group uses
+the same **native FBNeo HUD source classifier** as the renderer.
+**WALLS** is a separate, explicitly verified OAM source group,
+automatically selected when F9 is enabled during a frame containing
+the wall objects. F8 cycles HUD SOURCES, WALLS, ALL OAM, MAP 1, MAP 2,
+MAP 3. WALLS shows the full family of 30 source bounds in cyan and
+the current page's slots in yellow, with labels *touching* their own
+source rectangles rather than floating 10px above them.
+
+SCROLL MAP records are **source addresses, not proof that those map
+graphics survived priority or OAM occlusion**. F9 no longer draws
+scroll-map boxes as though they are visible image elements, and the
+compact badge explicitly says MAP ONLY. All actual addresses remain
+captured in the matching F6 `.graphics.tsv`; no new color matching,
+tile filters, speculative pixel-ownership assertions, or runtime
+F10 triggers were added.
+
+**Test scope:** the C++ pre-Ninja smoke checks wall relocation,
+HUD/WALL/ALL/MAP mode classification, page navigation, and that the
+scroll map view does not draw misleading floating object bounds.
+Windows compilation and real in-game protection still require local
+validation.
 
 ## 87.490 — preserve the captured native wall blocks, minimal F9 badge
 
