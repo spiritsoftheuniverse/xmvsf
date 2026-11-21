@@ -632,14 +632,28 @@ int RunWindowed(Port &port) {
             }
             if (ev.type == SDL_EVENT_KEY_DOWN && !ev.key.repeat &&
                 inspectInput && graphicsInspector.Active()) {
+                // F4 affects the diagnostic presentation copy ONLY.
+                // Ignore Alt+F4 and Ctrl+F4 OS/window shortcuts.
+                if (ev.key.scancode == SDL_SCANCODE_F4 &&
+                    !(ev.key.mod & (SDL_KMOD_ALT | SDL_KMOD_CTRL))) {
+                    graphicsInspector.ToggleTint();
+                    continue;
+                }
                 if (ev.key.scancode == SDL_SCANCODE_F8) {
                     graphicsInspector.NextMode();
                     continue;
                 }
                 if (ev.key.scancode == SDL_SCANCODE_LEFTBRACKET ||
                     ev.key.scancode == SDL_SCANCODE_RIGHTBRACKET) {
-                    graphicsInspector.ChangePage(
-                        ev.key.scancode == SDL_SCANCODE_RIGHTBRACKET ? 1 : -1);
+                    const int direction =
+                        ev.key.scancode == SDL_SCANCODE_RIGHTBRACKET ? 1 : -1;
+                    if (ev.key.mod & SDL_KMOD_SHIFT) {
+                        // Select individual visible OAM object within
+                        // the page; unshifted brackets still change pages.
+                        graphicsInspector.Select(direction);
+                    } else {
+                        graphicsInspector.ChangePage(direction);
+                    }
                     continue;
                 }
             }
