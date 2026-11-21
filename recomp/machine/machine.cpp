@@ -185,6 +185,9 @@ void Machine::RunFrame() {
     }
     video.wide.side = std::clamp(video.wide.side, 0, static_cast<int>(Video::kMaxSide));
     m_pictureWidth = video.Width();
+    // F9 evidence is sampled during THIS emulated frame, in whichever
+    // rasterizer actually draws it. No replay or extra draw pass.
+    video.BeginInkFrame();
     // (the panel drawn apart for the zoom: Unpanelled; not over a picture the game's sources put together with marks of
     // their own, nor while the records are checked against the board's lines)
     // (the panel's objects told from the rest when the object list is taken, at the end of the frame before, which is when
