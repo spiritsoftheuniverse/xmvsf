@@ -143,6 +143,9 @@ int main() {
     assert(frame[96u * 384u + 184u] ==
         port::xmvsf_home::source_tint::Magenta(clean[96u * 384u + 184u]));
     assert(frame[27u * 384u + 154u] == clean[27u * 384u + 154u]);
+    assert(frame[24u * 384u + 150u] == clean[24u * 384u + 150u]);
+    // F4 focus also removes other diagnostic bounding boxes,
+    // not only the other objects' pixel tints.
     view.Select(1); // fighter -> wall
     assert(view.SelectedInPage() == 2u);
     frame = clean;
