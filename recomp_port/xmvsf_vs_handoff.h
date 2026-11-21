@@ -1,4 +1,4 @@
-// XMVSF 87.485: original FBNeo full HUD timing; F10 stays diagnostic-only,
+// XMVSF 87.487: calibrated VS +180f full-HUD timing; F10 diagnostic only,
 // shared by native game frames and SDL3. No ROM, input or timing writes.
 #pragma once
 #include "../../dev/stable/buildtree/src/burner/sdl/xm20_vs_early_phase.h"
@@ -25,15 +25,23 @@ struct CombatHudClock {
         std::fprintf(stderr,
             "XMVSF 87.485 HUD_COMBAT_FIRST_INK frame=%u\n", frame);
     }
+    // Captured in one session: first VS PCM at frame 910, user-marked
+    // intended shock at frame 1090. The delay is RELATIVE to the real
+    // VS PCM start, not tied to F10 or to absolute frame 1090.
+    static constexpr unsigned kSongToShockFrames = 180u;
     unsigned Step(unsigned phase, unsigned frame) const {
-        const unsigned original = XM87392::timeline().step(frame);
-        if (!XM87392::timeline().primed) return original;
-        if (phase != 8u || !firstInkSeen || frame <= firstInkFrame)
+        const auto &clock = XM87392::timeline();
+        if (!clock.primed) return XM87392::RevealFrames;
+        // All native top-HUD sources are completely concealed beforehand.
+        if (phase != 8u || !firstInkSeen || !clock.armed)
             return 0u;
-        // This is the old FBNeo 120-frame PCM deadline, not a new
-        // wait started by F10, and not an invented global 1451 trigger.
-        const unsigned elapsed = frame - firstInkFrame;
-        return original < elapsed ? original : elapsed;
+        unsigned due = clock.start + kSongToShockFrames;
+        // If graphics become drawable late, conceal their first frame.
+        if (firstInkFrame >= due) due = firstInkFrame + 1u;
+        if (frame < due) return 0u;
+        const unsigned step = frame - due + 1u;
+        return step < XM87392::RevealFrames
+            ? step : XM87392::RevealFrames;
     }
 };
 inline CombatHudClock &CombatHud() {
