@@ -71,10 +71,8 @@ public:
         using recomp::text::Color;
         const recomp::text::Canvas cv{pixels.data(), width, height};
         const Color pale{210, 234, 241, 255};
-        const Color dim{77, 152, 173, 140};
         const Color gold{255, 203, 63, 255};
         const Color black{7, 14, 22, 225};
-        const Color muted{137, 191, 202, 255};
         std::vector<const Video::GraphicRecord *> matching;
         matching.reserve(snapshot.records.size());
         for (const auto &r : snapshot.records)
@@ -116,20 +114,22 @@ public:
             cv.Text(float(tx + 1), float(ty + 1), 1.0f, 0, gold, tag);
         }
 
-        // A compact, 24px native-pixel diagnostic strip. All the
+        // A small, left-aligned 24px native-pixel source badge. All the
         // verbose addresses remain in the paired F6 .graphics.tsv.
         // One REAL source record from the selected page is shown in
         // a crisp (1px dot) font; no tiny fractional-dot glyphs.
         const int panelTop = height - 24;
-        cv.Fill(0, float(panelTop), float(width), 24.0f, black);
-        cv.Fill(0, float(panelTop), float(width), 1.0f, gold);
+        const int panelWidth = std::min(width, 298);
+        cv.Fill(0, float(panelTop), float(panelWidth), 24.0f, black);
+        cv.Fill(0, float(panelTop), float(panelWidth), 1.0f, gold);
         const char *modeName[] = {
             "HUD", "ALL OAM", "SCROLL 1", "SCROLL 2", "SCROLL 3"
         };
         char text[96] = {};
         std::snprintf(text, sizeof(text),
-            "F9 %s %u/%u  F8 MODE  [ ] PAGE  F6 CAP",
-            modeName[mode_], page + 1u, pages);
+            "F9 %s %u/%u F%llu  F8 TYPE  [ ] PAGE",
+            modeName[mode_], page + 1u, pages,
+            static_cast<unsigned long long>(frame));
         cv.Text(3, float(panelTop + 2), 1.0f, 0, pale, text);
 
         if (start < stop) {
