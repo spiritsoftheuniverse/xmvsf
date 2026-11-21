@@ -73,11 +73,11 @@ if errorlevel 1 (
   goto :fail
 )
 
-REM 87.490: verify native F6 snapshots and execute the F9 C++ graphics
+REM 87.491: verify native F6 captures and bank-independent F9 wall identity
 REM inspector smoke before Ninja; do not regenerate M68K or clear caches.
 "%BASH%" -c "python3 ../recomp_port/tests/test_native_capture.py"
 if errorlevel 1 (
-  echo ERROR: XMVSF 87.490 F9 inspector / wall source C++ smoke failed. No build performed.
+  echo ERROR: XMVSF 87.491 F9 wall source / visual target C++ smoke failed. No build performed.
   popd
   goto :fail
 )
