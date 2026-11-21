@@ -157,7 +157,7 @@ if errorlevel 1 (
   goto :fail
 )
 
-REM 87.466: install the stage picker after film, Options and controller
+REM 87.487: install and smoke-test bounded stage navigation after controller
 REM patches; preserve the existing film, F6 and input paths.
 "%BASH%" -c "python3 ../recomp_port/apply_stage_picker.py"
 if errorlevel 1 (
@@ -167,7 +167,7 @@ if errorlevel 1 (
 )
 "%BASH%" -c "python3 ../recomp_port/tests/test_stage_picker.py"
 if errorlevel 1 (
-  echo ERROR: XMVSF Training stage picker regression failed. No build performed.
+  echo ERROR: XMVSF 87.487 stage navigation / thumbnails / installer smoke FAILED. No build performed.
   popd
   goto :fail
 )
@@ -189,10 +189,10 @@ if errorlevel 1 (
   goto :fail
 )
 
-REM 87.469: confirm stage-selected Fight cue finishes BEFORE character select.
+REM 87.487: confirm isolated Fight stream is stopped before character select.
 "%BASH%" -c "python3 ../recomp_port/tests/test_fight_voice_entry.py"
 if errorlevel 1 (
-  echo ERROR: XMVSF 87.469 Fight voice timing preflight failed. No build performed.
+  echo ERROR: XMVSF 87.487 Fight voice tail/stream preflight FAILED. No build performed.
   popd
   goto :fail
 )
@@ -230,11 +230,11 @@ if errorlevel 1 (
   goto :fail
 )
 
-REM 87.486: compile-check FBNeo VS/HUD and run behavioral C++ smoke
+REM 87.487: compile-check calibrated HUD +180f and run behavioral smoke
 REM raster path and M68K native observer before Ninja touches any build files.
 "%BASH%" -c "python3 ../recomp_port/tests/test_vs_hud_shock.py"
 if errorlevel 1 (
-  echo ERROR: XMVSF 87.486 native VS/HUD compile or behavioral regression failed. No build performed.
+  echo ERROR: XMVSF 87.487 native VS/HUD compile or +180f behavior FAILED. No build performed.
   popd
   goto :fail
 )
