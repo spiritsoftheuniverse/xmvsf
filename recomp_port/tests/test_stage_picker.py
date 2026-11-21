@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
-"""87.456: local source preflight for Training stage thumbnails and native routing."""
+"""87.487: native stage assets, installer integrity and runnable direction behavior."""
 from __future__ import annotations
 
 import importlib.util
 from pathlib import Path
+import shutil
+import subprocess
+import tempfile
 
 ROOT = Path(__file__).resolve().parents[2]
 SRC = ROOT / "recomp_port"
@@ -70,8 +73,19 @@ def main() -> int:
     spec.loader.exec_module(installer)
     assert installer.patch(frontend) == frontend, "stage installer not idempotent"
 
+    # Test the actual bounded movement/edge implementation, not spelling
+    # of operators or magic source-string fragments.
+    compiler = shutil.which("g++")
+    assert compiler, "UCRT64 g++ needed for stage direction behavior smoke"
+    with tempfile.TemporaryDirectory(prefix="xmvsf_stage_487_") as tmp:
+        exe = Path(tmp) / "stage_nav.exe"
+        smoke = SRC / "tests/test_stage_navigation_smoke.cpp"
+        subprocess.run([compiler, "-std=c++20", str(smoke), "-o",
+                        str(exe)], check=True)
+        subprocess.run([str(exe)], check=True)
+
     assert 'XMVSF 87.466 stage picker' in picker
-    print("XMVSF 87.466: all 18 committed thumbnails, native stage mapping and idempotence PASS")
+    print("XMVSF 87.487: 18 stage thumbnails, idempotence, reliable bounded directions PASS")
     return 0
 
 
