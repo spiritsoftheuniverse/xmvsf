@@ -42,6 +42,13 @@ namespace {
 } // namespace
 
 void Soundtrack::Request(uint8_t *shared, uint64_t frame) {
+    // XMVSF 87.482: consume only the native stage/VS song request.
+    // Byte 0x0F is the request-pending handshake (sound/driver.cpp).
+    // Do NOT send a music-stop command: that would also cut off song 02.
+    if (suppressXmvsfVsMusic && shared[0] == 0x00 && shared[1] == 0x04) {
+        shared[0x0F] = 0xFF;
+        return;
+    }
     static const bool log = getenv("CPS2RECOMP_SOUNDTRACK_LOG") != nullptr;
     if (log && (shared[0] == 0xFF || IsMusic(static_cast<uint16_t>((shared[0] << 8) | shared[1])))) {
         fprintf(stderr, "soundtrack: frame %llu %s %02X%02X %02X%02X%02X\n", static_cast<unsigned long long>(frame),
