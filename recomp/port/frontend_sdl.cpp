@@ -457,8 +457,8 @@ int RunWindowed(Port &port) {
     uint64_t f10NoticeUntil = 0;
     std::string f10LastTitle = title;
     int stageBeforeTraining = -1; // restore the former stage when Arcade/Versus starts
-    bool stageLeftHeld = false, stageRightHeld = false;
-    xmvsf_home::stage_nav::Edges stageDirectionEdges; // 87.487 separate stage-only input latch
+    xmvsf_home::stage_nav::Edges stageDirectionEdges; // 87.487 stage-only inputs
+    xmvsf_home::stage_nav::Edges stagePageEdges; // LB/RB, Q/E conflict recovery
     // Always write F6 PNGs to the repo's screenshots folder, never to
     // the EEPROM/player directory. RECOMP_RUN.bat supplies its absolute path.
     const char *f6Folder = std::getenv("XMVSF_SCREENSHOT_DIR");
@@ -935,10 +935,13 @@ int RunWindowed(Port &port) {
                     stageRightNow |= SDL_GetGamepadButton(gp, SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER);
                 }
             }
-            const bool stageLeftEdge = !both && stageLeftNow && !stageLeftHeld;
-            const bool stageRightEdge = !both && stageRightNow && !stageRightHeld;
-            stageLeftHeld = stageLeftNow;
-            stageRightHeld = stageRightNow;
+            unsigned stagePagesNow = 0u;
+            if (stageLeftNow) stagePagesNow |= xmvsf_home::stage_nav::Left;
+            if (stageRightNow) stagePagesNow |= xmvsf_home::stage_nav::Right;
+            const unsigned stagePagePressed = stagePageEdges.Press(
+                stagePagesNow, stagePicker.Active() && !both);
+            const bool stageLeftEdge = (stagePagePressed & xmvsf_home::stage_nav::Left) != 0u;
+            const bool stageRightEdge = (stagePagePressed & xmvsf_home::stage_nav::Right) != 0u;
             if (home.Visible()) { // XMVSF_RECOMP_HOME_87_435: main choices in the native SDL3 loop
                 if (stagePicker.Active()) {
                     const auto stageAction = stagePicker.Press(stagePressed, stageLeftEdge, stageRightEdge);
