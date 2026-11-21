@@ -318,7 +318,7 @@ void Raster::DrawObjects(int rasterLine, const Layers &layers, const PictureOpti
         const bool hudSource = options.hudShock &&
             XM87392::objectForPhase(options.hudShockPhase, t.level,
                 t.attributes & 0x1Fu, t.entryTile, sourceX, sourceY,
-                across, down, false, (t.attributes & 0x1Fu) >= 0x1Au);
+                across, down, false, false);
         if (hudSource && XM87392::verifiedTransitionHud(t.level,
                 t.attributes & 0x1Fu, t.entryTile, sourceX, sourceY,
                 across, down)) {
