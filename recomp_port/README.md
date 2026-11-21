@@ -20,11 +20,13 @@ interval and 30-native-frame top-HUD materialization, with the original
 first-source late-availability guard. Combat status FF5000=08 stops
 the VS one-shot.
 
-Recomp's CPS2 software renderer applies that same FBNeo classifier
-to real priority/palette/tile object entries and the same reveal
-mask and shine **per HUD ink pixel**. Hidden ink leaves the native
-stage and fighter colors beneath it intact; no screen-space black
-rectangle, no generalized palette filtering, no ROM/RAM changes.
+Both the default **native-video rasterizer** and the CPS2 board-reference
+renderer apply that same FBNeo classifier to verified ROM objects and the
+same reveal mask and shine **per actual HUD ink pixel**. The native renderer
+retains each original OAM entry's identity even after expanding it into
+16-pixel tiles. Hidden ink leaves the stage and fighter colors underneath
+intact. No screen-space blackout, generalized palette filtering,
+renderer fallback, ROM/RAM change, or GPU/SDL2 dependency.
 The subsystem remains scoped to native XMVSF's SDL3 front end.
 
 The `recomp_port/tests/test_vs_hud_shock.py` preflight compiles the
