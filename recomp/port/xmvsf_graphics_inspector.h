@@ -158,12 +158,16 @@ public:
         // the seven selected source slots. Do not overlay SCROLL boxes
         // onto graphics that may completely occlude those VRAM sources:
         // we have no per-pixel ownership proof for scroll records yet.
-        if (mode_ == 1u)
+        if (mode_ == 1u && !tintEnabled_)
             for (const auto *r : matching)
                 outline(*r, Color{80, 210, 205, 170});
         for (unsigned i = start; i < stop && mode_ < 3u; ++i) {
             const auto &r = *matching[i];
             const bool focused = i == focus;
+            // During F4 focus, remove every OTHER diagnostic box and tag:
+            // only the selected source's exact ink remains magenta, with
+            // one adjacent gold ID. The underlying game is untouched.
+            if (tintEnabled_ && !focused) continue;
             outline(r, focused ? gold : Color{72, 155, 175, 130});
             char tag[24] = {};
             if (r.kind == 0u)
