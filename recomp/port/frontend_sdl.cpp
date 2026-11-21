@@ -1239,10 +1239,18 @@ int RunWindowed(Port &port) {
             // Keep source Ogg one-shot; no restart on repeated frames.
             const bool combat = port.machine->ram.size() > 0x5000u &&
                                 port.machine->ram[0x5000u] == 0x08u;
-            if (combat) versusAudio.Stop();
-            else if (ran) versusAudio.Step(
-                static_cast<unsigned>(port.machine->frame),
-                port.menu.muted || audioLog);
+            if (combat) {
+                versusAudio.Stop();
+                // The native character theme takes over at combat. Never
+                // let selection song 02 leak back after the VS stream stops.
+                if (port.machine->soundtrack.state.song == 0x02) {
+                    port.machine->soundtrack.state.song = -1;
+                    if (music) SDL_ClearAudioStream(music);
+                }
+            } else if (ran) {
+                versusAudio.Step(static_cast<unsigned>(port.machine->frame),
+                                 port.menu.muted || audioLog);
+            }
         }
         // XMVSF_RECOMP_TRAINING_ENTRY_87_467: fast boot runs up to 120
         // native frames per Tick. Keep the last stage-picker presentation
