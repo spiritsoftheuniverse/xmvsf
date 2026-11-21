@@ -73,11 +73,11 @@ if errorlevel 1 (
   goto :fail
 )
 
-REM 87.491: verify native F6 captures and bank-independent F9 wall identity
+REM 87.492: verify per-OAM visible-pixel identity in both native renderers
 REM inspector smoke before Ninja; do not regenerate M68K or clear caches.
 "%BASH%" -c "python3 ../recomp_port/tests/test_native_capture.py"
 if errorlevel 1 (
-  echo ERROR: XMVSF 87.491 F9 wall source / visual target C++ smoke failed. No build performed.
+  echo ERROR: XMVSF 87.492 F9 native pixel attribution / C++ behavior FAILED. No build performed.
   popd
   goto :fail
 )
