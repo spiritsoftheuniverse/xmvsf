@@ -72,6 +72,10 @@ public:
         int32_t allStep = 0;
     };
     State state;
+    // 87.482: original XMVSF's stage interstitial (song 04) must not
+    // replace character select. Set only by the XMVSF SDL3 front end.
+    // Does not affect the board's effects, voices, or other games.
+    bool suppressXmvsfVsMusic = false;
 
     // The game has left a request (the shared memory's first sixteen bytes): looked at, and changed when it asks
     // for music the player has a file for
