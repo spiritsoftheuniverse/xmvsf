@@ -585,15 +585,6 @@ int RunWindowed(Port &port) {
                     f10.Toggle(*port.machine,
                         f6Folder && *f6Folder ? f6Folder : "../screenshots/");
                     f10PreviousActive = f10.Active();
-                    // 87.484: pressing F10 START is the shock's first
-                    // reveal frame, not a new 120f countdown. F10 STOP
-                    // never replays the effect.
-                    if (!wasRecording && f10.Active() &&
-                        port.machine->ram.size() > 0x5000u &&
-                        port.machine->ram[0x5000u] == 0x08u) {
-                        xmvsf_vs::PreviewShockAt(
-                            static_cast<unsigned>(port.machine->frame));
-                    }
                     if (wasRecording) {
                         f10Notice = "F10 SAVED";
                         f10NoticeUntil = SDL_GetTicks() + 3500;
