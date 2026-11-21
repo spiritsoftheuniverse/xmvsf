@@ -1232,8 +1232,17 @@ int RunWindowed(Port &port) {
             const std::uint64_t sequence = xmvsf_vs::Current().sequence;
             if (sequence != versusSeen) {
                 versusSeen = sequence;
-                if (versusAudio.Start(sequence) && music)
-                    SDL_ClearAudioStream(music);
+                const bool cueOpened = versusAudio.Start(sequence);
+                if (cueOpened) {
+                    if (music) SDL_ClearAudioStream(music);
+                } else {
+                    // If the audio device/file is unavailable, do not leave
+                    // the native HUD permanently masked. Keep the same
+                    // original 120+30 clock as an explicit fallback.
+                    XM87392::timeline().startWithSong(
+                        static_cast<unsigned>(sequence),
+                        static_cast<unsigned>(port.machine->frame));
+                }
             }
             // The exact original native FIGHT status ends VS playback.
             // Keep source Ogg one-shot; no restart on repeated frames.
