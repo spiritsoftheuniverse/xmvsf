@@ -12,7 +12,9 @@ overlapping sources make seven outlines hard to distinguish.
 toggles a **magenta tint for exactly one selected visible OAM
 source**. **Shift+[** selects the previous entry and **Shift+]**
 the next within the current seven-source page; **[** and **]**
-without Shift still change pages. F8 continues to cycle HUD INK,
+without Shift still change pages. **While F4 tint is on, the other
+diagnostic boxes and labels disappear** so the selected ink is easy
+to distinguish. F8 continues to cycle HUD INK,
 WALL INK, OAM INK, MAP 1, MAP 2, MAP 3. The focused entry has the
 gold outline and is the one named in the compact source badge.
 F4 alone while F9 is off does nothing; Alt+F4 is untouched.
