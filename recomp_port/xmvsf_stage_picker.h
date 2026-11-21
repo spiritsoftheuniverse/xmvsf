@@ -1,9 +1,10 @@
-// XMVSF 87.466: source-indexed 18-stage thumbnail picker for the SDL3 recomp front end.
+// XMVSF 87.487: bounded 18-stage picker, no 4-panel horizontal wrap.
 // XMVSF_RECOMP_STAGES_87_455: shared runtime/source installer marker.
 // Original stage IDs are 0..10 at FF5113. XMVSF2 previews are deliberately
 // not passed to the native/guest stage selector until their renderers are ported.
 #pragma once
 #include "xmvsf_home.h"
+#include "xmvsf_stage_nav.h"
 #include <SDL3/SDL.h>
 #include <algorithm>
 #include <array>
@@ -163,32 +164,27 @@ public:
             Close();
             return Action::Back;
         }
-        const int page = selected_ / kPageSize;
-        const int slot = selected_ % kPageSize;
-        if (pageLeft || pageRight) {
-            const int next = (page + 1) % 2;
-            selected_ = std::min(next * kPageSize + slot, kCount - 1);
+        const int pageTarget = stage_nav::Page(
+            selected_, pageLeft, pageRight, kCount, kPageSize);
+        if (pageTarget != selected_) {
+            selected_ = pageTarget;
             return Action::Move;
         }
-        const int start = page * kPageSize;
-        const int count = std::min(kPageSize, kCount - start);
-        int row = slot / kColumns, col = slot % kColumns;
-        if (input & (recomp::kMenuLeft | recomp::kMenuRight)) {
-            const int width = std::min(kColumns, count - row * kColumns);
-            const int delta = (input & recomp::kMenuRight) ? 1 : -1;
-            if (width > 0) col = (col + delta + width) % width;
-        } else if (input & (recomp::kMenuUp | recomp::kMenuDown)) {
-            const int nextRow = (row + 1) % 2;
-            if (count > nextRow * kColumns) {
-                row = nextRow;
-                col = std::min(col, count - row * kColumns - 1);
-            }
-        }
-        const int next = start + row * kColumns + col;
+        // An ambiguous/both-shoulders press is neutral. It cannot also
+        // cause an accidental directional step or confirm.
+        if (pageLeft || pageRight) return Action::None;
+        unsigned direction = 0u;
+        if (input & recomp::kMenuLeft) direction |= stage_nav::Left;
+        if (input & recomp::kMenuRight) direction |= stage_nav::Right;
+        if (input & recomp::kMenuUp) direction |= stage_nav::Up;
+        if (input & recomp::kMenuDown) direction |= stage_nav::Down;
+        const int next = stage_nav::Move(
+            selected_, direction, kCount, kPageSize, kColumns);
         if (next != selected_) {
             selected_ = next;
             return Action::Move;
         }
+        if (direction) return Action::None; // edge doesn't wrap or confirm
         if (input & recomp::kMenuConfirm)
             return Original() ? Action::Confirm : Action::Unavailable;
         return Action::None;
