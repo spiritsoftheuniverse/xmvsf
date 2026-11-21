@@ -5,10 +5,12 @@
 #if __has_include("../video/video.h")
 #include "../video/video.h"
 #include "../recomp-common/text.h"
+#include "xmvsf_source_identity.h" // verified native wall exclusion
 #else
 // Same canonical header also lives in recomp_port/ for installer parity.
 #include "../recomp/video/video.h"
 #include "../recomp/recomp-common/text.h"
+#include "xmvsf_source_identity.h" // mirrored standalone source identity
 #endif
 #include <algorithm>
 #include <cstdint>
@@ -26,8 +28,15 @@ class GraphicsInspector {
 
     static bool Matches(const cps2recomp::Video::GraphicRecord &r,
                         unsigned mode) {
-        if (mode == 0u)
-            return r.kind == 0u && r.y < 64 && r.y + r.h > 0;
+        if (mode == 0u) {
+            // An already-identified 4x3 wall block is never a HUD
+            // candidate. It remains visible in ALL OAM for inspection.
+            const bool wall = cps2recomp::xmvsf_sources::IsWallBlock({
+                r.index, r.tile, r.attributes, r.priority,
+                static_cast<unsigned>(r.w / 16), static_cast<unsigned>(r.h / 16)});
+            return r.kind == 0u && r.y < 64 &&
+                   r.y + r.h > 0 && !wall;
+        }
         if (mode == 1u) return r.kind == 0u;
         return r.kind == mode - 1u; // modes 2,3,4 -> scroll 1,2,3
     }
@@ -89,11 +98,8 @@ public:
             cv.Fill(float(r.x), float(r.y), 1.0f, float(r.h), c);
             cv.Fill(float(r.x + r.w - 1), float(r.y), 1.0f, float(r.h), c);
         };
-        // The HUD view deliberately shows every native HUD object index,
-        // but emphasizes the current page to keep the labels readable.
-        if (mode_ == 0u) {
-            for (const auto *r : matching) outline(*r, dim);
-        }
+        // Only the selected page is outlined; other sources stay in
+        // the original game picture and are recorded in the F6 TSV.
         for (unsigned i = start; i < stop; ++i) {
             const auto &r = *matching[i];
             outline(r, gold);
@@ -103,54 +109,50 @@ public:
             else
                 std::snprintf(tag, sizeof(tag), "%X", r.index);
             const int tx = std::clamp(r.x, 0, width - 36);
-            const int ty = std::clamp(r.y - 9, 0, height - 10);
+            const int ty = std::clamp(r.y - 10, 0, height - 11);
             cv.Fill(float(tx), float(ty), float(
-                std::min(36, int(recomp::text::TextWidth(tag, 0.76f) + 3))),
-                9.0f, black);
-            cv.Text(float(tx + 1), float(ty), .76f, 0, gold, tag);
+                std::min(36, int(recomp::text::TextWidth(tag, 1.0f) + 3))),
+                10.0f, black);
+            cv.Text(float(tx + 1), float(ty + 1), 1.0f, 0, gold, tag);
         }
 
-        // Indexed source ledger. It fits entirely in the original 224px
-        // arcade raster, so F6 captures the SAME labels as the live view.
-        const int panelTop = height - 91;
-        cv.Fill(0, float(panelTop), float(width), 91.0f, black);
+        // A compact, 24px native-pixel diagnostic strip. All the
+        // verbose addresses remain in the paired F6 .graphics.tsv.
+        // One REAL source record from the selected page is shown in
+        // a crisp (1px dot) font; no tiny fractional-dot glyphs.
+        const int panelTop = height - 24;
+        cv.Fill(0, float(panelTop), float(width), 24.0f, black);
         cv.Fill(0, float(panelTop), float(width), 1.0f, gold);
         const char *modeName[] = {
-            "HUD OAM", "ALL OAM", "SCROLL 1", "SCROLL 2", "SCROLL 3"
+            "HUD", "ALL OAM", "SCROLL 1", "SCROLL 2", "SCROLL 3"
         };
-        char text[192] = {};
+        char text[96] = {};
         std::snprintf(text, sizeof(text),
-            "F9 %s   PAGE %u/%u  F8 MODE  [ ] PAGE  F6 CAP",
+            "F9 %s %u/%u  F8 MODE  [ ] PAGE  F6 CAP",
             modeName[mode_], page + 1u, pages);
-        cv.Text(3, float(panelTop + 3), .85f, 0, pale, text);
-        for (unsigned i = start; i < stop; ++i) {
-            const auto &r = *matching[i];
-            if (r.kind == 0u) {
-                // OAM sourceAddress is explicitly BANK-LOCAL, not a
-                // guessed fixed 68K bus address for a DMA bank.
+        cv.Text(3, float(panelTop + 2), 1.0f, 0, pale, text);
+
+        if (start < stop) {
+            const auto &selected = *matching[start];
+            if (selected.kind == 0u) {
+                // OAM+ is bank-relative, not a fabricated bus address.
                 std::snprintf(text, sizeof(text),
-                    "%03u OAM%u+%04X T%05X G%07X P%02u Z%u XY%d,%d %dx%d",
-                    r.index, r.bank, r.sourceAddress, r.tile, r.gfxOffset,
-                    r.palette, r.priority, r.x, r.y, r.w, r.h);
+                    "#%u OAM%u+%04X  T%05X G%07X P%u Z%u",
+                    selected.index, selected.bank, selected.sourceAddress,
+                    selected.tile, selected.gfxOffset, selected.palette,
+                    selected.priority);
             } else {
-                // CPS scroll map source address IS an absolute 68K
-                // VRAM address; G is ROM graphics byte offset.
                 std::snprintf(text, sizeof(text),
-                    "%03X VRAM%06X T%04X G%07X P%02u XY%d,%d",
-                    r.index, r.sourceAddress, r.tile, r.gfxOffset,
-                    r.palette, r.x, r.y);
+                    "#%X VRAM%06X T%04X G%07X P%u",
+                    selected.index, selected.sourceAddress,
+                    selected.tile, selected.gfxOffset, selected.palette);
             }
-            cv.Text(3, float(panelTop + 13 + int(i - start) * 9),
-                    .80f, 0, i == start ? gold : pale, text);
+        } else {
+            std::snprintf(text, sizeof(text),
+                "NO SOURCES HERE  STEP %04X", snapshot.gameStep);
         }
-        if (matching.empty())
-            cv.Text(5, float(panelTop + 30), .9f, 0, pale,
-                "NO NATIVE SOURCE RECORDS IN THIS VIEW");
-        std::snprintf(text, sizeof(text),
-            "F%llu STEP%04X ST%02X B%u  T=TILE G=ROM-OFF P=PAL Z=PRIO | SOURCE",
-            static_cast<unsigned long long>(frame),
-            snapshot.gameStep, snapshot.fightStatus, snapshot.objectBank);
-        cv.Text(3, float(height - 12), .75f, 0, muted, text);
+        cv.Text(3, float(panelTop + 12), 1.0f, 0, gold, text);
+
     }
 };
 
