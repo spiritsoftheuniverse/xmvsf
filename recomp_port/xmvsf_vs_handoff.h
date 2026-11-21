@@ -1,30 +1,21 @@
-// XMVSF 87.484: original FBNeo full HUD shock, immediate F10 preview,
+// XMVSF 87.485: original FBNeo full HUD timing; F10 stays diagnostic-only,
 // shared by native game frames and SDL3. No ROM, input or timing writes.
 #pragma once
 #include "../../dev/stable/buildtree/src/burner/sdl/xm20_vs_early_phase.h"
 #include "../../dev/stable/buildtree/src/burn/drv/capcom/xmvsf_stage87_392_hud_shock.h"
 #include <cstdint>
 namespace cps2recomp::xmvsf_vs {
-// 87.484: F10's observed frame 1451 is the intended FIRST SHOCK FRAME,
-// not the beginning of another 120-frame hold. F10 is an explicit diagnostic
-// preview, while gameplay normally uses the first verified combat HUD ink.
+// The uploaded F10 capture only states when the debugger was pressed
+// (native frame 1451). It does NOT contain the earlier versus PCM
+// timestamp, so the precise relative delay is not derivable from it.
+// Keep the original FBNeo audio timeline until a paired timestamp exists.
 struct CombatHudClock {
     bool firstInkSeen = false;
     unsigned firstInkFrame = 0u;
-    bool preview = false;
 
     void Reset() {
         firstInkSeen = false;
         firstInkFrame = 0u;
-        preview = false;
-    }
-    void PreviewAt(unsigned frame) {
-        // The exact F10 down-edge is the start of the shock, no offset.
-        firstInkSeen = true;
-        firstInkFrame = frame;
-        preview = true;
-        std::fprintf(stderr,
-            "XMVSF 87.484 HUD_F10_SHOCK_START frame=%u step=1\n", frame);
     }
     void NativeInk(unsigned phase, unsigned frame) {
         if (phase != 8u || firstInkSeen ||
@@ -32,25 +23,28 @@ struct CombatHudClock {
         firstInkSeen = true;
         firstInkFrame = frame;
         std::fprintf(stderr,
-            "XMVSF 87.484 HUD_COMBAT_FIRST_INK frame=%u step=1\n", frame);
+            "XMVSF 87.485 HUD_COMBAT_FIRST_INK frame=%u\n", frame);
     }
     unsigned Step(unsigned phase, unsigned frame) const {
-        const auto &clock = XM87392::timeline();
-        if (!clock.primed && !preview) return XM87392::RevealFrames;
-        // Keep the full top HUD hidden BEFORE the combat/preview edge.
-        if (phase != 8u || !firstInkSeen || frame < firstInkFrame)
+        const unsigned original = XM87392::timeline().step(frame);
+        if (!XM87392::timeline().primed) return original;
+        if (phase != 8u || !firstInkSeen || frame <= firstInkFrame)
             return 0u;
-        const unsigned elapsed = frame - firstInkFrame + 1u;
-        return elapsed < XM87392::RevealFrames ? elapsed
-                                               : XM87392::RevealFrames;
+        // This is the old FBNeo 120-frame PCM deadline, not a new
+        // wait started by F10, and not an invented global 1451 trigger.
+        const unsigned elapsed = frame - firstInkFrame;
+        return original < elapsed ? original : elapsed;
     }
 };
 inline CombatHudClock &CombatHud() {
     static CombatHudClock value;
     return value;
 }
-inline void PreviewShockAt(unsigned frame) {
-    CombatHud().PreviewAt(frame);
+// Only used for source identity: FF5104 is the recorded native gameplay
+// step (0008 during F10); FF5000 is a DIFFERENT byte and must never be
+// silently conflated with it. Keep the transition's strict classifier.
+inline int HudObjectPhase(int phase, unsigned nativeGameStep) {
+    return nativeGameStep == 8u ? 8 : phase;
 }
 inline unsigned HudStep(unsigned phase, unsigned frame) {
     return CombatHud().Step(phase, frame);
