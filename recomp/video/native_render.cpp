@@ -315,8 +315,10 @@ void Raster::DrawObjects(int rasterLine, const Layers &layers, const PictureOpti
                               yOffset) & 0x3FF) - kFirstLine;
         const unsigned across = ((t.attributes >> 8) & 15u) + 1u;
         const unsigned down = ((t.attributes >> 12) & 15u) + 1u;
+        const int nativeHudPhase = xmvsf_vs::HudObjectPhase(
+            options.hudShockPhase, options.hudShockGameStep);
         const bool hudSource = options.hudShock &&
-            XM87392::objectForPhase(options.hudShockPhase, t.level,
+            XM87392::objectForPhase(nativeHudPhase, t.level,
                 t.attributes & 0x1Fu, t.entryTile, sourceX, sourceY,
                 across, down, false, false);
         if (hudSource && XM87392::verifiedTransitionHud(t.level,
@@ -325,7 +327,7 @@ void Raster::DrawObjects(int rasterLine, const Layers &layers, const PictureOpti
             XM87392::timeline().noteHudSource(options.hudShockFrame);
         }
         const unsigned hudStep = options.hudShock
-            ? xmvsf_vs::HudStep(static_cast<unsigned>(options.hudShockPhase), options.hudShockFrame)
+            ? xmvsf_vs::HudStep(static_cast<unsigned>(nativeHudPhase), options.hudShockFrame)
             : XM87392::RevealFrames;
         // The uploaded F10 frame 1451 has the real P1/P2 HP strips:
         // priority 7, palette 2/4, native 0x1598F..0x159B6 tile family.
@@ -344,7 +346,7 @@ void Raster::DrawObjects(int rasterLine, const Layers &layers, const PictureOpti
             if (pen != 15) {
                 const bool shown = !((mask >> (priority[px] & 0x1F)) & 1);
                 if (shown && liveHp)
-                    xmvsf_vs::NoteCombatHudInk(static_cast<unsigned>(options.hudShockPhase), options.hudShockFrame);
+                    xmvsf_vs::NoteCombatHudInk(static_cast<unsigned>(nativeHudPhase), options.hudShockFrame);
                 if (shown && shockTile &&
                     !XM87392::visible(px, rasterLine - kFirstLine, hudStep) &&
                     !XM87392::shineCore(px, rasterLine - kFirstLine, hudStep))
@@ -588,7 +590,7 @@ void Raster::Line(int line, const Layers &layers, const uint8_t *videoRam, const
                                   (raw & 0xFF00u) |
                                  ((raw >> 16) & 0xFFu);
             const uint32_t glow = XM87392::shineRGB(rgb, x, line,
-                xmvsf_vs::HudStep(static_cast<unsigned>(options.hudShockPhase), options.hudShockFrame));
+                xmvsf_vs::HudStep(static_cast<unsigned>(xmvsf_vs::HudObjectPhase(options.hudShockPhase, options.hudShockGameStep)), options.hudShockFrame));
             out[x] = (raw & 0xFF000000u) |
                      ((glow & 0xFFu) << 16) |
                        (glow & 0xFF00u) |
