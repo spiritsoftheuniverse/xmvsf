@@ -1321,8 +1321,26 @@ int RunWindowed(Port &port) {
             // width and 224 rows. F12 continues to use Port::Screenshot().
             std::vector<uint32_t> nativeGamePixels;
             port.Shown(nativeGamePixels);
-            nativeCapture.SavePixels("gameplay", nativeGamePixels.data(),
+            const bool f6Saved = nativeCapture.SavePixels("gameplay", nativeGamePixels.data(),
                                      port.ShownWidth(), Video::kHeight);
+            // 87.488: pair this exact F6 gameplay PNG with a read-only
+            // native OAM + CPS scroll-map inventory from the same frame.
+            // Never suppress pixels or infer sprite identities from colour.
+            if (f6Saved && homeEnabled && !nativeCapture.LastPath().empty()) {
+                std::filesystem::path sources =
+                    std::filesystem::u8path(nativeCapture.LastPath());
+                sources.replace_extension(".graphics.tsv");
+                if (port.machine->video.ExportGraphicsSources(
+                        sources.string().c_str(),
+                        static_cast<std::uint64_t>(port.machine->frame))) {
+                    std::fprintf(stderr,
+                        "F6 NATIVE GRAPHICS SOURCES SAVED: %s\n",
+                        sources.string().c_str());
+                } else {
+                    std::fprintf(stderr,
+                        "F6 graphics sources unavailable; PNG remains saved\n");
+                }
+            }
         }
 
         if (audio && silent != (port.menu.muted || audioLog)) {
