@@ -8,6 +8,7 @@
 
 #include <algorithm>
 #include <cstring>
+#include <cstdio>
 
 namespace cps2recomp {
 
@@ -54,6 +55,82 @@ void Video::Reset() {
     memset(m_objects, 0, sizeof(m_objects));
     m_priorityControl = 0;
     m_lastObject = -4;
+}
+
+// 87.488: inspect the native graphic SOURCES of a captured game frame.
+// It is deliberately independent of XM87392's HUD masks and never edits
+// ROM/RAM, object ownership, tile IDs, the renderer, or the visual clock.
+bool Video::ExportGraphicsSources(const char *path, std::uint64_t frame) const {
+    if (!path || !*path || !m_src.videoRam || !m_src.cpsA ||
+        !m_src.cpsB || !m_src.objectRegs) return false;
+    std::FILE *out = std::fopen(path, "wb");
+    if (!out) return false;
+    const unsigned control = m_src.cpsB[m_src.board.layerControl / 2];
+    const unsigned vcontrol = m_src.cpsA[kVideoControl];
+    std::fprintf(out, "# 87.488 F6 source audit. Current native RAM and LATCHED OAM, no filter.\n");
+    std::fprintf(out, "# Raster register changes may differ across scanlines; maps are potential sources, not proof of visible ink.\n");
+    std::fprintf(out, "registers\tframe\tlayer_control\tvideo_control\tpriority\tobj_x_offset\tobj_y_offset\tgame_step\tfight_status\n");
+    std::fprintf(out, "registers\t%llu\t%04X\t%04X\t%04X\t%04X\t%04X\t%04X\t%02X\n",
+        static_cast<unsigned long long>(frame), control, vcontrol, m_priorityControl,
+        m_src.objectRegs[kObjXOffset], m_src.objectRegs[kObjYOffset],
+        hudShockGameStep, hudShockPhase & 0xFF);
+    std::fprintf(out, "scroll\tframe\tlayer\tenabled\tx\ty\tmap_base\tmap_offset\ttile_px\tcol\trow\tcode\tattr\tpal\tscroll_x\tscroll_y\trow_scroll\n");
+    // Read every native 8-pixel sample from all three register-specified
+    // scroll maps. These are REAL source entries, not inferred image colours.
+    for (int which = 0; which < 3; ++which) {
+        const unsigned base = (static_cast<unsigned>(m_src.cpsA[kScroll1Base + which]) * 256u) & ~0x3FFFu & 0x3FFFFu;
+        const unsigned shift = 3u + static_cast<unsigned>(which);
+        const unsigned tilePx = 1u << shift;
+        const unsigned mapMask = 64u * tilePx - 1u;
+        const unsigned scrollY = m_src.cpsA[kScroll1X + 2 * which + 1];
+        const bool rowOn = which == 1 && (vcontrol & 1u);
+        const bool enabled = (layerMask & (1u << (which + 1))) &&
+            (control & (1u << (which + 1))) &&
+            (which == 0 || (vcontrol & (1u << (which + 1))));
+        for (int y = 0; y < kHeight; y += 8) {
+            const unsigned rasterY = static_cast<unsigned>(y + kFirstLine);
+            const unsigned row = ((rasterY + scrollY) & mapMask) >> shift;
+            const unsigned rowScroll = rowOn ? Word(&m_src.videoRam[
+                ((static_cast<unsigned>(m_src.cpsA[kOtherBase]) * 256u) & ~0x7FFu & 0x3FFFFu) +
+                (((rasterY + m_src.cpsA[kRowScrollOffset]) & 0x3FFu) * 2u)]) : 0u;
+            const int ownLeft = wide.side + wide.scroll[which] +
+                (rowOn && wide.rows ? wide.rows[(rasterY + m_src.cpsA[kRowScrollOffset]) & 0x3FFu] : 0);
+            const unsigned scrollX = static_cast<unsigned>(m_src.cpsA[kScroll1X + 2 * which]) + rowScroll;
+            const unsigned firstX = static_cast<unsigned>(kFirstColumn - ownLeft + static_cast<int>(scrollX)) & mapMask;
+            for (int x = 0; x < Width(); x += 8) {
+                const unsigned col = ((firstX + static_cast<unsigned>(x)) & mapMask) >> shift;
+                unsigned index = 0u;
+                if (which == 0) index = (row & 0x1Fu) + (col << 5) + ((row & 0x20u) << 6);
+                else if (which == 1) index = (row & 0x0Fu) + (col << 4) + ((row & 0x30u) << 6);
+                else index = (row & 0x07u) + (col << 3) + ((row & 0x38u) << 6);
+                const unsigned at = base + index * 4u;
+                const unsigned code = Word(&m_src.videoRam[at]);
+                const unsigned attr = Word(&m_src.videoRam[at + 2u]);
+                std::fprintf(out, "scroll\t%llu\t%d\t%d\t%d\t%d\t%05X\t%05X\t%u\t%u\t%u\t%04X\t%04X\t%02X\t%u\t%u\t%u\n",
+                    static_cast<unsigned long long>(frame), which + 1, int(enabled),
+                    x, y, base, at, tilePx, col, row, code, attr, attr & 31u,
+                    scrollX, scrollY, rowScroll);
+            }
+        }
+    }
+    std::fprintf(out, "oam\tframe\tslot\tx_word\ty_word\tcode\tattr\tpriority\tpalette\tscreen_x\tscreen_y\twide\ttall\trelative\textra\n");
+    for (int i = 0; i <= m_lastObject; i += 4) {
+        const unsigned xw = m_objects[i], yw = m_objects[i + 1];
+        const unsigned code = m_objects[i + 2] + ((yw & 0x6000u) << 3);
+        const unsigned attr = m_objects[i + 3];
+        const bool relative = (attr & 0x80u) != 0;
+        const unsigned sx = (xw + (relative ? m_src.objectRegs[kObjXOffset] : 0u) +
+                             kFirstColumn - m_src.objectRegs[kObjXOffset]) & 0x3FFu;
+        const unsigned sy = (yw + (relative ? m_src.objectRegs[kObjYOffset] : 0u) +
+                             kFirstLine - m_src.objectRegs[kObjYOffset]) & 0x3FFu;
+        std::fprintf(out, "oam\t%llu\t%d\t%04X\t%04X\t%05X\t%04X\t%u\t%u\t%d\t%d\t%u\t%u\t%d\t%d\n",
+            static_cast<unsigned long long>(frame), i / 4, xw, yw, code, attr,
+            (xw >> 13) & 7u, attr & 31u,
+            static_cast<int>(sx) - kFirstColumn, static_cast<int>(sy) - kFirstLine,
+            ((attr >> 8) & 15u) + 1u, ((attr >> 12) & 15u) + 1u,
+            int(relative), int(m_objectsFromExtra[i / 4] != 0));
+    }
+    return std::fclose(out) == 0;
 }
 
 // The palette in video RAM is up to six pages of 512 colours (objects, scroll 1-3, two for stars);
