@@ -15,6 +15,9 @@ def main():
     bridge = get("recomp_port/xmvsf_vs_handoff.h")
     player = get("recomp_port/xmvsf_versus_audio.h")
     video = get("recomp/video/video.cpp")
+    native = get("recomp/video/native_render.cpp")
+    native_h = get("recomp/video/native_render.h")
+    records = get("recomp/video/records.h")
     video_h = get("recomp/video/video.h")
     game = get("recomp/games/xmvsf/src/game.cpp")
     sound = get("recomp/machine/soundtrack.cpp")
@@ -60,6 +63,16 @@ def main():
     assert "if (shown && shockTile &&" in video
     assert "if (hudInk && shockTile) hudInk[px] = 1;" in video
     assert "void DrawObjects(" in video_h and "uint8_t *hudInk = nullptr" in video_h
+    assert "hudShockFrame = hudShockFrame;" in video_h
+    assert "hudShockPhase = hudShockPhase;" in video_h
+    assert "bool hudShock = false;" in records
+    assert "int16_t sourceX = 0, sourceY = 0;" in native_h
+    assert "t.sourceX = static_cast<int16_t>(x);" in native
+    assert "XM87392::objectForPhase(" in native
+    assert "XM87392::verifiedTransitionHud(" in native
+    assert "XM87392::shineRGB(" in native
+    assert "if (shown && shockTile &&" in native
+    assert "uint8_t *hudInk = nullptr" in native_h
     assert "xmvsf_vs::Current().Observe(" in game
     assert "Ram16(xmvsf::kGameStep)" in game and "Ram8(xmvsf::kFight)" in game
     assert require_matching_versions(home, render, minimum=(87, 482)) >= (87, 482)
@@ -75,6 +88,7 @@ def main():
         base += ["-I", str(path)]
     for path in (
         ROOT / "recomp/video/video.cpp",
+        ROOT / "recomp/video/native_render.cpp",
         ROOT / "recomp/games/xmvsf/src/game.cpp",
         ROOT / "recomp_port/tests/test_vs_hud_shock_smoke.cpp",
     ):
@@ -86,7 +100,7 @@ def main():
         subprocess.run([compiler, "-std=c++20", str(smoke), "-o",
                         str(executable)], check=True)
         subprocess.run([str(executable)], check=True)
-    print("XMVSF 87.482 FBNeo VS edge, 120+30 HUD shock, decoder, video and game compile PASS")
+    print("XMVSF 87.482 FBNeo VS, original 120+30 shock, BOTH video renderers and game compile PASS")
 
 if __name__ == "__main__":
     main()
