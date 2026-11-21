@@ -68,6 +68,9 @@ namespace native_video {
         bool fillHoles = false;
         bool (*hideObject)(uint32_t tile, uint16_t attributes) = nullptr;
         bool hideP2Selector = false; // native palette-27 OAM object identity, XMVSF Training
+        bool hudShock = false;       // 87.482: original FBNeo source HUD materialization
+        unsigned hudShockFrame = 0;
+        int hudShockPhase = -1;
         void (*objectsTaken)(uint16_t *list, int &last) = nullptr;
         bool markObjects = false;
         unsigned markLayers = 0;
