@@ -73,11 +73,11 @@ if errorlevel 1 (
   goto :fail
 )
 
-REM 87.458: verify F6 native snapshots for home, Options, ingame UI, gameplay.
-REM Source-only preflight; do not regenerate 68k translation or clear caches.
+REM 87.489: verify native F6 snapshots and execute the F9 C++ graphics
+REM inspector smoke before Ninja; do not regenerate M68K or clear caches.
 "%BASH%" -c "python3 ../recomp_port/tests/test_native_capture.py"
 if errorlevel 1 (
-  echo ERROR: XMVSF F6 native capture integrity failed. No build performed.
+  echo ERROR: XMVSF 87.489 F9 inspector / F6 graphics capture C++ smoke failed. No build performed.
   popd
   goto :fail
 )
