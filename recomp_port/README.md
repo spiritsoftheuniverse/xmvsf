@@ -1,4 +1,42 @@
-# XMVSF native front end — 87.485 (F10 remains diagnostic; native HUD classification)
+# XMVSF native front end — 87.487 (calibrated HUD shock, stage directions, audio handoff)
+
+## 87.487 — calibrated automatic HUD reveal; stage/input/audio corrections
+
+**Timing, now measured from the attached 87.485 F10 README:** the
+same emulator session reports VS PCM start frame **910**, verified HP
+frame **916**, and F10 marker at frame **1090**. Therefore the desired
+automatic first reveal frame is **VS PCM +180 native frames**. The
+previous recomp timer began revealing at +120, 60 frames too early.
+The recomps use their independent `CombatHudClock::kSongToShockFrames`
+of 180, without modifying the original FBNeo reference header and
+without using F10 as a gameplay trigger. Masking remains fully hidden
+until the deadline (and until verified native HP is drawable); the
+existing 30-frame Bayer/electric-blue/white shock follows. The visual
+HUD mask identity is unchanged from the user's working 87.486 build.
+
+**Stage directional correction:** Previous 5-column modulo wrapping
+moved from leftmost to rightmost, producing a visual four-panel
+movement opposite to the pressed direction. The stage grid now bounds
+all four directions at its edges. Its directional and LB/RB/Q/E
+events each have an independent stateful, conflict-safe press latch:
+simultaneous opposites and diagonals are neutral; releasing one
+opposing direction re-arms the remaining input. No fast auto-repeat,
+no changes to other menus' input policy. The new SDL-free
+`xmvsf_stage_nav.h` is mirrored; a compiled/run smoke exercises
+boundary, second-page, diagonal, conflict, release, and new-entry
+behavior.
+
+**Fight! tail:** the one-shot WAV is still played on level confirm,
+and the existing wait remains. At the exact switch to rendering
+character select, its isolated SDL3 audio device is muted, paused,
+and its remaining queue cleared. The next valid level-confirm cue
+resumes the device with normal gain. This prevents any buffered
+trailing syllable from bleeding over character select.
+
+**Build policy:** existing stage installer idempotence check updated
+for `stagePressed`; both stage/HUD regressions execute C++ behavior
+tests rather than matching operator characters. No GitHub Actions
+and no FBNeo Stable/TEST binaries touched.
 
 ## 87.485 — F10 is strictly a marker, never a shock trigger
 
