@@ -1,4 +1,32 @@
-# XMVSF native front end — 87.487 (calibrated HUD shock, stage directions, audio handoff)
+# XMVSF native front end — 87.488 (native graphics provenance, no tile filtering)
+
+## 87.488 — find native graphic ownership before suppressing art
+
+The F6 capture `xmvsf gameplay 2026-11-20 22.41.12.png`
+shows a repeated **64 × 48** X-Men vs Street Fighter logo pattern
+over part of the game picture. This exact repetition strongly
+suggests a reused graphic source (possibly one of the CPS tilemap
+scroll layers), but a raster screenshot alone cannot establish which
+CPS2 register, map, or OAM record owns it. Do **not** add logo tile-ID
+blacklists or screen-coordinate removals.
+
+On **every new gameplay F6 screenshot**, the recomp now also writes
+the **same-basename `.graphics.tsv`** in `screenshots/`. The report
+contains the actual latched OAM record slots (priority, 20-bit ROM
+tile code, palette, flips/extent and coordinates) and read-only 8px
+samples of the three CPS-A/CPS-B-selected scroll maps (layer enable,
+scroll offsets, map entry address, source code/attribute/palette).
+These records come from the live native renderer and video RAM, not
+a filter applied to the screenshot.
+
+The scroll map table lists *candidate source entries*, not verified
+visible pixel ownership, because CPS2 priority and mid-raster
+register changes can occlude them. Compare the repeated logo
+sample locations against the actual entries and scroll/layer control
+before selecting the **whole native source** to hide. No gameplay
+input, render, HUD shock, timing, native RAM, ROM or graphics has been
+changed in this revision. The F6 capture is diagnostic-only; F10
+remains separate and does not trigger any visual effect.
 
 ## 87.487 — calibrated automatic HUD reveal; stage/input/audio corrections
 
