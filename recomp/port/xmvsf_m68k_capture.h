@@ -6,6 +6,7 @@
 #include "../machine/machine.h"
 #include "../fight/session.h"
 #include "../runtime/game.h"
+#include "xmvsf_vs_handoff.h" // 87.485 read-only F10 vs native HUD clock correlation
 
 #include <array>
 #include <cstdint>
@@ -91,6 +92,29 @@ public:
             "tile_word\tattribute_word\tpalette\tobject_x_offset\tobject_y_offset\t"
             "p1_phase_after\tp2_phase_after\n");
         if (FILE *meta = Open("README.txt")) {
+            // F10 is never a gameplay trigger. Capture BOTH timestamps so
+            // the user's marker can be measured against the actual earlier
+            // versus song in the SAME emulator session, not guessed from a
+            // hard-coded global frame or a different match.
+            const auto &shock = XM87392::timeline();
+            const auto &ink = xmvsf_vs::CombatHud();
+            std::fprintf(meta,
+                "HUD_CALIBRATION f10_press_frame=%llu song_start_frame=%u "
+                "song_started=%u primed_frame=%u primed=%u "
+                "first_verified_hp_frame=%u verified_hp_seen=%u "
+                "song_elapsed_at_press=%lld "
+                "game_step_FF5104=%04X status_FF5000=%02X\\n",
+                static_cast<unsigned long long>(machine.frame),
+                shock.start, static_cast<unsigned>(shock.armed),
+                shock.primedAt, static_cast<unsigned>(shock.primed),
+                ink.firstInkFrame, static_cast<unsigned>(ink.firstInkSeen),
+                shock.armed ? static_cast<long long>(machine.frame) -
+                              static_cast<long long>(shock.start) : -1ll,
+                machine.ram.size() > 0x5105u ?
+                    static_cast<unsigned>((machine.ram[0x5104u] << 8) |
+                                           machine.ram[0x5105u]) : 0u,
+                machine.ram.size() > 0x5000u ?
+                    static_cast<unsigned>(machine.ram[0x5000u]) : 0u);
             std::fprintf(meta,
                 "XMVSF compact native M68K F10 capture, source version 87.480\n"
                 "F10 toggles capture; a new capture REPLACES the previous latest folder files.\n"
