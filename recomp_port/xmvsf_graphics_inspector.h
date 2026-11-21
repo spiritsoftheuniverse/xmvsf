@@ -171,7 +171,10 @@ public:
             else
                 std::snprintf(tag, sizeof(tag), "%X", r.index);
             const int tx = std::clamp(r.inkLeft, 0, width - 36);
-            const int ty = std::clamp(r.inkTop, 0, height - 11); // label touches actual ink
+            // Keep labels directly adjacent to the measured ink bounds,
+            // rather than painting them over small text and health bars.
+            const int ty = r.inkTop >= 10 ?
+                r.inkTop - 10 : std::min(height - 10, r.inkBottom + 1);
             cv.Fill(float(tx), float(ty), float(
                 std::min(36, int(recomp::text::TextWidth(tag, 1.0f) + 3))),
                 10.0f, black);
