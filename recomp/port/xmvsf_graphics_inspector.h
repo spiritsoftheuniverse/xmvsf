@@ -1,4 +1,4 @@
-// XMVSF 87.491: verified native wall source and honest F9 OAM/map modes.
+// XMVSF 87.492: identify actual drawn native ink, not floating source boxes.
 // Drawn ONLY over a copy of the rendered picture: not a ROM/VRAM/OAM
 // filter, not a gameplay trigger, and not a fabricated sprite identifier.
 #pragma once
@@ -86,8 +86,9 @@ public:
         matching.reserve(snapshot.records.size());
         for (const auto &r : snapshot.records)
             if (r.enabled && Matches(r, mode_, snapshot) &&
-                r.x < width && r.x + r.w > 0 &&
-                r.y < height && r.y + r.h > 0)
+                (r.kind != 0u ? (r.x < width && r.x + r.w > 0 &&
+                                 r.y < height && r.y + r.h > 0)
+                              : (r.inkSampled && r.visibleInkPixels > 0u)))
                 matching.push_back(&r);
 
         const unsigned pages = std::max(1u, static_cast<unsigned>(
@@ -99,11 +100,20 @@ public:
         const unsigned stop = std::min(
             static_cast<unsigned>(matching.size()), start + kPageSize);
 
+        // Ink bounds come from visible, nontransparent pixels surviving
+        // native scroll priority and the HUD dither. The original OAM
+        // source rectangle is only reported in TSV; NEVER paint it as
+        // visible art when it has no pixels in the final raster.
         auto outline = [&](const Video::GraphicRecord &r, Color c) {
-            cv.Fill(float(r.x), float(r.y), float(r.w), 1.0f, c);
-            cv.Fill(float(r.x), float(r.y + r.h - 1), float(r.w), 1.0f, c);
-            cv.Fill(float(r.x), float(r.y), 1.0f, float(r.h), c);
-            cv.Fill(float(r.x + r.w - 1), float(r.y), 1.0f, float(r.h), c);
+            if (!r.inkSampled || !r.visibleInkPixels) return;
+            const int x = r.inkLeft, y = r.inkTop;
+            const int w = r.inkRight - x + 1;
+            const int h = r.inkBottom - y + 1;
+            if (w <= 0 || h <= 0) return;
+            cv.Fill(float(x), float(y), float(w), 1.0f, c);
+            cv.Fill(float(x), float(y + h - 1), float(w), 1.0f, c);
+            cv.Fill(float(x), float(y), 1.0f, float(h), c);
+            cv.Fill(float(x + w - 1), float(y), 1.0f, float(h), c);
         };
         // WALLS are the specific previously concealed 64x48 source
         // objects. Show the entire family outline as a group and emphasize
@@ -121,8 +131,8 @@ public:
                 std::snprintf(tag, sizeof(tag), "#%u", r.index);
             else
                 std::snprintf(tag, sizeof(tag), "%X", r.index);
-            const int tx = std::clamp(r.x, 0, width - 36);
-            const int ty = std::clamp(r.y, 0, height - 11); // label touches its own source bounds
+            const int tx = std::clamp(r.inkLeft, 0, width - 36);
+            const int ty = std::clamp(r.inkTop, 0, height - 11); // label touches actual ink
             cv.Fill(float(tx), float(ty), float(
                 std::min(36, int(recomp::text::TextWidth(tag, 1.0f) + 3))),
                 10.0f, black);
@@ -152,10 +162,10 @@ public:
             if (selected.kind == 0u) {
                 // OAM+ is bank-relative, not a fabricated bus address.
                 std::snprintf(text, sizeof(text),
-                    "#%u OAM%u+%04X  T%05X G%07X P%u Z%u",
-                    selected.index, selected.bank, selected.sourceAddress,
-                    selected.tile, selected.gfxOffset, selected.palette,
-                    selected.priority);
+                    "#%u T%05X P%u Z%u INK%u OAM%u+%04X",
+                    selected.index, selected.tile, selected.palette,
+                    selected.priority, selected.visibleInkPixels,
+                    selected.bank, selected.sourceAddress);
             } else {
                 std::snprintf(text, sizeof(text),
                     "MAP ONLY #%X VRAM%06X T%04X P%u",
@@ -164,7 +174,8 @@ public:
             }
         } else {
             std::snprintf(text, sizeof(text),
-                "NO SOURCES HERE  STEP %04X", snapshot.gameStep);
+                mode_ < 3u ? "NO VISIBLE OAM INK (OR FRAME NOT SAMPLED)" :
+                              "NO SOURCE MAP ENTRIES");
         }
         cv.Text(3, float(panelTop + 12), 1.0f, 0, gold, text);
 
