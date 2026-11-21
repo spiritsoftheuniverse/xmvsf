@@ -458,6 +458,7 @@ int RunWindowed(Port &port) {
     std::string f10LastTitle = title;
     int stageBeforeTraining = -1; // restore the former stage when Arcade/Versus starts
     bool stageLeftHeld = false, stageRightHeld = false;
+    xmvsf_home::stage_nav::Edges stageDirectionEdges; // 87.487 separate stage-only input latch
     // Always write F6 PNGs to the repo's screenshots folder, never to
     // the EEPROM/player directory. RECOMP_RUN.bat supplies its absolute path.
     const char *f6Folder = std::getenv("XMVSF_SCREENSHOT_DIR");
@@ -910,6 +911,22 @@ int RunWindowed(Port &port) {
             if (both) {
                 menuPressed = 0;
             }
+            // Stage picker has its own directional edge and ambiguity
+            // handling, independent from HOME/Options button histories.
+            unsigned stageRaw = 0u;
+            if (menuNow & recomp::kMenuLeft) stageRaw |= xmvsf_home::stage_nav::Left;
+            if (menuNow & recomp::kMenuRight) stageRaw |= xmvsf_home::stage_nav::Right;
+            if (menuNow & recomp::kMenuUp) stageRaw |= xmvsf_home::stage_nav::Up;
+            if (menuNow & recomp::kMenuDown) stageRaw |= xmvsf_home::stage_nav::Down;
+            const unsigned stageDirection = stageDirectionEdges.Press(
+                stageRaw, stagePicker.Active() && !both);
+            unsigned stagePressed = menuPressed & ~(recomp::kMenuLeft |
+                recomp::kMenuRight | recomp::kMenuUp | recomp::kMenuDown);
+            if (stageDirection & xmvsf_home::stage_nav::Left) stagePressed |= recomp::kMenuLeft;
+            if (stageDirection & xmvsf_home::stage_nav::Right) stagePressed |= recomp::kMenuRight;
+            if (stageDirection & xmvsf_home::stage_nav::Up) stagePressed |= recomp::kMenuUp;
+            if (stageDirection & xmvsf_home::stage_nav::Down) stagePressed |= recomp::kMenuDown;
+
             bool stageLeftNow = stagePicker.Active() && keys[SDL_SCANCODE_Q];
             bool stageRightNow = stagePicker.Active() && keys[SDL_SCANCODE_E];
             if (stagePicker.Active()) {
@@ -924,7 +941,7 @@ int RunWindowed(Port &port) {
             stageRightHeld = stageRightNow;
             if (home.Visible()) { // XMVSF_RECOMP_HOME_87_435: main choices in the native SDL3 loop
                 if (stagePicker.Active()) {
-                    const auto stageAction = stagePicker.Press(menuPressed, stageLeftEdge, stageRightEdge);
+                    const auto stageAction = stagePicker.Press(stagePressed, stageLeftEdge, stageRightEdge);
                     if (stageAction == xmvsf_home::StagePicker::Action::Move) homeAudio.Move();
                     if (stageAction == xmvsf_home::StagePicker::Action::Back) homeAudio.Select();
                     if (stageAction == xmvsf_home::StagePicker::Action::Confirm) {
