@@ -69,6 +69,7 @@ void RegisterGame() {
     TheGame().beforeFrame = [](Machine &machine) {
         machine.video.hudShockFrame = static_cast<unsigned>(machine.frame);
         machine.video.hudShockPhase = Ram8(xmvsf::kFight);
+        machine.video.hudShockGameStep = Ram16(xmvsf::kGameStep);
         tag::BeforeFrame(machine);
         BoardBeforeFrame(machine);
         ChoosingBeforeFrame(machine);
@@ -86,6 +87,7 @@ void RegisterGame() {
     TheGame().frame = [](Machine &machine) {
         machine.video.hudShockFrame = static_cast<unsigned>(machine.frame);
         machine.video.hudShockPhase = Ram8(xmvsf::kFight);
+        machine.video.hudShockGameStep = Ram16(xmvsf::kGameStep);
         xmvsf_vs::Current().Observe(Ram16(xmvsf::kGameStep),
             Ram8(xmvsf::kChoosing),
             Ram8(xmvsf::kChoosing + xmvsf::kChoosingSize),
