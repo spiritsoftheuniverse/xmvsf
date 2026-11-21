@@ -41,9 +41,12 @@ def main():
     assert "suppressXmvsfVsMusic = false;" in sound_h
     assert "shared[0] == 0x00 && shared[1] == 0x04" in sound
     assert "shared[0x0F] = 0xFF;" in sound
+    assert "state.song == 0x02" in sound and "shared[1] == 0x05" in sound
     assert "port.machine->video.hudShock = homeEnabled;" in front
     assert "versusAudio.Start(sequence)" in front
-    assert "if (combat) versusAudio.Stop();" in front
+    assert "if (combat) {" in front and "versusAudio.Stop();" in front
+    assert "port.machine->soundtrack.state.song = -1;" in front
+    assert "if (music) SDL_ClearAudioStream(music);" in front
     assert "versusAudio.Step(" in front
     assert front.count("ensureSelectMusic();") == 3
     assert front.count("trainingSelectSongOverride = false;") >= 3
