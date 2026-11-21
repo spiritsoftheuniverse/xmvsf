@@ -1,4 +1,13 @@
-# XMVSF native front end — 87.493 (F4 native pixel-owner tint and individual F9 source selection)
+# XMVSF native front end — 87.494 (plain brackets select native OAM ink)
+
+## 87.494 — plain brackets directly select the source
+
+No Shift key required. While F9 is active, **[** and **]** move
+the highlighted source backward/forward. The selection automatically
+crosses seven-entry OAM page boundaries. In scroll-map modes, the
+same keys change pages (scroll records have no pixel owner). F4
+still tints only the selected OAM source; F8 still switches modes.
+All diagnostic operations remain presentation-only.
 
 ## 87.493 — F4 tint selected visible OAM ink, Shift+brackets pick
 
