@@ -97,6 +97,11 @@ public:
             const size_t frames = decoder_->Read(interleaved.data(), kChunk);
             if (!frames) {
                 ended_ = true; // never loop: FBNeo's actual VS one-shot
+                if (!started_) {
+                    started_ = true;
+                    XM87392::timeline().startWithSong(
+                        static_cast<unsigned>(sequence_), frame);
+                }
                 break;
             }
             for (size_t n = 0; n < frames; ++n) {
@@ -108,6 +113,10 @@ public:
             if (!SDL_PutAudioStreamData(stream_, stereo.data(),
                  static_cast<int>(frames * 2 * sizeof(float)))) {
                 std::fprintf(stderr, "XMVSF VS PCM queue failed: %s\n", SDL_GetError());
+                if (!started_) {
+                    XM87392::timeline().startWithSong(
+                        static_cast<unsigned>(sequence_), frame);
+                }
                 Stop();
                 return;
             }
