@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""87.486: F10 isolation, native HUD identity and executable shock-clock test."""
+"""87.487: calibrated automatic HUD timing, renderer smoke and F10 isolation."""
 from pathlib import Path
 from version_guard import require_matching_versions
 import shutil
@@ -42,7 +42,8 @@ def main():
     # Behavior is exercised by the compiled C++ smoke below. Do not
     # assert exact operator spelling/whitespace of implementation code.
     # Such source-text assertions have repeatedly blocked valid builds.
-    assert "return original < elapsed ? original : elapsed;" in bridge
+    # The actual 910 -> 1090 reveal offset is asserted by compiled C++
+    # behavior; do not compare operator text in Python (87.486 standard).
     assert "inline int HudObjectPhase(int phase, unsigned nativeGameStep)" in bridge
     assert "return nativeGameStep == 8u ? 8 : phase;" in bridge
     assert "void PreviewAt(unsigned frame)" not in bridge
@@ -112,7 +113,7 @@ def main():
     assert "xmvsf_vs::Current().Observe(" in game
     assert "Ram16(xmvsf::kGameStep)" in game and "Ram8(xmvsf::kFight)" in game
     assert game.count("machine.video.hudShockGameStep = Ram16(xmvsf::kGameStep);") == 2
-    assert require_matching_versions(home, render, minimum=(87, 486)) >= (87, 486)
+    assert require_matching_versions(home, render, minimum=(87, 487)) >= (87, 487)
     compiler = shutil.which("g++")
     assert compiler, "UCRT64 g++ is required before recomp build"
     include = [
@@ -131,13 +132,13 @@ def main():
     ):
         subprocess.run(base + [str(path)], check=True)
     # The compact smoke also RUNS the original FBNeo transition and clock.
-    with tempfile.TemporaryDirectory(prefix="xmvsf_vs_486_") as temp:
+    with tempfile.TemporaryDirectory(prefix="xmvsf_vs_487_") as temp:
         executable = Path(temp) / "vs_shock.exe"
         smoke = ROOT / "recomp_port/tests/test_vs_hud_shock_smoke.cpp"
         subprocess.run([compiler, "-std=c++20", str(smoke), "-o",
                         str(executable)], check=True)
         subprocess.run([str(executable)], check=True)
-    print("XMVSF 87.486 F10 independent, native HUD and compiled shock-clock behavior PASS")
+    print("XMVSF 87.487 F10 independent; automatic HUD shock +180 frames C++ behavior PASS")
 
 if __name__ == "__main__":
     main()
