@@ -250,7 +250,13 @@ void Video::DrawObjects(int rasterLine, uint16_t *pens, uint8_t *priority, const
             XM87392::timeline().noteHudSource(hudShockFrame);
         }
         const unsigned hudStep = hudShock
-            ? XM87392::timeline().step(hudShockFrame) : XM87392::RevealFrames;
+            ? xmvsf_vs::HudStep(static_cast<unsigned>(hudShockPhase), hudShockFrame) : XM87392::RevealFrames;
+        // The uploaded F10 frame 1451 has the real P1/P2 HP strips:
+        // priority 7, palette 2/4, native 0x1598F..0x159B6 tile family.
+        // Do not let unrelated timer/VS-screen art start the live shock.
+        const bool liveHp = hudSource && level == 7u &&
+            XM87392::verifiedTransitionHud(level, attr & 0x1Fu, code,
+                sourceX, sourceY, static_cast<unsigned>(across), static_cast<unsigned>(down));
         const bool shockTile = hudSource && hudStep < XM87392::RevealFrames;
         const uint32_t mask = masks[level] | 0x80000000u;
         // (what its pixels are marked as, where it is the front object: the panel's, or in front of the fighters)
@@ -297,6 +303,8 @@ void Video::DrawObjects(int rasterLine, uint16_t *pens, uint8_t *priority, const
                     const uint8_t pen = pixels[flipX ? 15 - k : k];
                     if (pen != 15) {
                         const bool shown = !((mask >> (priority[px] & 0x1F)) & 1);
+                        if (shown && liveHp)
+                            xmvsf_vs::NoteCombatHudInk(static_cast<unsigned>(hudShockPhase), hudShockFrame);
                         // Suppressed HUD ink leaves the real scroll/fighter ink
                         // and depth untouched, exactly FBNeo's per-tile restore.
                         if (shown && shockTile &&
@@ -634,7 +642,7 @@ void Video::RenderLineAs(int line, uint32_t *out) {
                                  (source & 0xFF00u) |
                                 ((source >> 16) & 0xFFu);
             const uint32_t light = XM87392::shineRGB(rgb, x, line,
-                XM87392::timeline().step(hudShockFrame));
+                xmvsf_vs::HudStep(static_cast<unsigned>(hudShockPhase), hudShockFrame));
             out[x] = (source & 0xFF000000u) |
                      ((light & 0xFFu) << 16) |
                       (light & 0xFF00u) |
