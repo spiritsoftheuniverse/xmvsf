@@ -1,4 +1,4 @@
-// 87.489 F9 native graphics ledger: behavioral overlay smoke.
+// 87.490 F9 compact graphics labels and source-isolated wall smoke.
 // The fake graphics records are only test fixtures. Runtime data
 // is supplied by Video::InspectGraphics from the real CPS2 records.
 #include "../../recomp/port/xmvsf_graphics_inspector.h"
