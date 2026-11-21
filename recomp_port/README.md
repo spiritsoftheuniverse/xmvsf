@@ -1,4 +1,31 @@
-# XMVSF native front end — 87.482 (FBNeo-native VS song and top HUD shock)
+# XMVSF native front end — 87.483 (native combat-HUD shock timing)
+
+## 87.483 — F10-calibrated native combat-HUD shock gate
+
+The uploaded compact F10 `latest.zip` begins at emulator frame **1451**,
+while `FF5104=0008`, both chooser phases are `07`, and object bank 0
+contains genuine upper HUD HP strip tiles (e.g. `0x159B5`,
+priority 7, palette 2 at native x=144, y=20). The capture starts
+**after** the 04-to-VS transition and does not contain the earlier first
+combat frame. It cannot establish an exact offset from combat entry to
+frame 1451, and the global 1451 frame must never be hard-coded.
+
+TEST 87.483 keeps `versusscreen.ogg` and the original FBNeo music
+120-frame hold unchanged but adds a separate visual guard in
+`xmvsf_vs_handoff.h`. Real native `FF5000=08` plus **a drawable,
+source-verified priority-7 HP pixel** now marks combat HUD availability.
+Until that point the HUD stays invisible. The first actual source
+frame remains hidden, then the unmodified white/electric-blue,
+8x8-Bayer shock materializes for 30 native frames, and only after
+both the original audio hold and live-HUD gate permit it.
+
+The gate is called in **both** the board and the default native
+software rasterizer *before* hidden-HUD pixels are suppressed,
+so it cannot deadlock waiting for an already masked first pixel.
+It resets on a new VS handoff, leaving gameplay, and round-ending
+0A/0C transitions. There is no F10-dependent trigger and no
+fixed session-frame delay. Local preflight checks these invariants
+and the original 87.482 behavior before Ninja.
 
 ## 87.482 — original FBNeo versus and HUD shock handoff
 
