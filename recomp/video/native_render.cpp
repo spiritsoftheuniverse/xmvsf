@@ -2,6 +2,7 @@
 // Copyright (C) 2026 Tommy McLeroy. Part of cps2recomp.
 
 #include "native_render.h"
+#include "dummy_selector_sources.h" // 87.495 exact paired dummy selector sources
 #include "../port/xmvsf_source_identity.h" // 87.490 native OAM wall exemption
 #include "../port/xmvsf_vs_handoff.h" // 87.482: shared original FBNeo HUD shock
 
@@ -137,6 +138,10 @@ void Raster::Objects(const ObjectList &list, const PictureOptions &options) {
                 t.attributes = attr;
                 t.shift = static_cast<int16_t>(options.object ? options.object(code, attr, i / 4) : 0);
                 t.hidden = (options.hideObject && options.hideObject(code, attr));
+                // GPU/recorded frame consumes these same expanded OAM tiles.
+                if (options.hideP2Selector &&
+                    IsTrainingDummySelectorSource(code, attr))
+                    t.hidden = true;
                 t.extra = list.fromExtra[i / 4] != 0;
                 t.marks = static_cast<uint8_t>((options.panelObject && options.panelObject(code, attr) ? kPanelPixel : 0) |
                                                (options.markFront && (x & 0x1000) ? kFrontPixel : 0));
@@ -282,6 +287,10 @@ void Raster::DrawObjects(int rasterLine, const Layers &layers, const PictureOpti
         if (t.hidden || (options.hideObject && options.hideObject(t.entryTile, t.attributes))) {
             continue;
         }
+        // Honor live gate changes even before the next OAM bank latch.
+        if (options.hideP2Selector &&
+            IsTrainingDummySelectorSource(t.entryTile, t.attributes))
+            continue;
         int x = t.x, y = t.y;
         if (t.relative) {
             x += layers.xOffset;
