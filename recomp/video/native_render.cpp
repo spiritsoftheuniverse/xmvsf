@@ -2,6 +2,7 @@
 // Copyright (C) 2026 Tommy McLeroy. Part of cps2recomp.
 
 #include "native_render.h"
+#include "../port/xmvsf_source_identity.h" // 87.490 native OAM wall exemption
 #include "../port/xmvsf_vs_handoff.h" // 87.482: shared original FBNeo HUD shock
 
 #include "../runtime/state.h"
@@ -317,7 +318,11 @@ void Raster::DrawObjects(int rasterLine, const Layers &layers, const PictureOpti
         const unsigned down = ((t.attributes >> 12) & 15u) + 1u;
         const int nativeHudPhase = xmvsf_vs::HudObjectPhase(
             options.hudShockPhase, options.hudShockGameStep);
-        const bool hudSource = options.hudShock &&
+        // Match the SAME entry-level OAM identity as the board renderer.
+        // No per-16px fragment or display-coordinate tile filtering.
+        const bool wallSource = xmvsf_sources::IsWallBlock({
+            t.entry, t.entryTile, t.attributes, t.level, across, down});
+        const bool hudSource = options.hudShock && !wallSource &&
             XM87392::objectForPhase(nativeHudPhase, t.level,
                 t.attributes & 0x1Fu, t.entryTile, sourceX, sourceY,
                 across, down, false, false);
