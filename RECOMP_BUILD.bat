@@ -205,10 +205,10 @@ if errorlevel 1 (
   goto :fail
 )
 
-REM 87.479: restore ROM-native selector OAM frames and flicker.
+REM 87.495: source-exact 13-piece selector groups; reveal only at the FF5183 dummy handoff.
 "%BASH%" -c "python3 ../recomp_port/tests/test_p2_selector_gap.py"
 if errorlevel 1 (
-  echo ERROR: XMVSF 87.479 native selector rendering / instant handoff regression failed.
+  echo ERROR: XMVSF 87.495 native Training dummy-selector source/phase regression failed.
   popd
   goto :fail
 )
