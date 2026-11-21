@@ -1,4 +1,55 @@
-# XMVSF native front end — 87.494 (plain brackets select native OAM ink)
+# XMVSF native front end — 87.495 (source-verified paired Training selector delay)
+
+## 87.495 — two native P2 selector object groups withheld until dummy control
+
+The user's **two annotated F6 captures** from November 21, 2026,
+00:53:17 and 00:53:27, are **the same native frame 1222**, inspected
+with different F9 selections, *not two independent animation frames*.
+The corresponding native `.graphics.tsv` identifies two complete,
+contiguous lower-right native OAM source groups (independent of
+current bank or slot numbering):
+
+- **Five objects, source slots 229–233**, OAM palette 27:
+  `1BB30/121B` (**INK249**),
+  `1BB28/011B`, `1BB23/001B`,
+  `1BB33/001B`, `1BB34/001B`
+- **Eight objects, source slots 234–241**, OAM palette 28:
+  `1BB25/121C` (**INK427**),
+  `1BB28/011C`, `1B819/003C`,
+  `1BB23/001C`, `1BB2C/001C`,
+  `1BB2D/001C`, `1BB2E/001C`,
+  `1BB2F/001C`
+
+The notation is the full OAM source tile and full 16-bit attribute
+word; the 249 and 427 are measured **ink pixel counts**, not source
+tile IDs. The new source predicate matches **exactly those thirteen
+observed source/attribute pairs**, rather than screening by palette,
+visibility count, object slot, rectangular screen position or
+graphics ROM fragments. Crucially, nearby palette-28 OAM slots
+242–247 (`1BAC0`, `1BAC3`, `1BAAF`, `1BAB1`,
+`1BAB6`, `1BB9A`) are not classified as the selector.
+One screenshot does **not** identify every possible animated
+replacement code; future captures can extend the list strictly by
+observed native evidence.
+
+In **Training character selection only**, these thirteen OAM objects
+are hidden until the already-established FBNeo Stage17 handoff:
+the native P1 team accepted count **FF5183 reaches 2**. They become
+visible when player one owns the dummy selection. This piggybacks
+the same `session::BeforeFrame` state as controller transfer,
+without advancing/rewriting ROM state, skipping native character
+animations, silencing audio, or modifying the selection input.
+Outside Training, all original sprites remain visible. The original
+ROM selection flicker and existing wall/HUD protection are unchanged.
+
+Both CPS2 CPU pixel rasterizer and native CPU/GPU tile-list rendering
+use the same exact predicate and the same Training-gated
+`hideP2Selector` value. The updated *pre-Ninja*
+`test_p2_selector_gap.py` compiles a C++ regression covering
+all thirteen positive source identities, the six adjacent
+palette-28 negatives, attribute-code near misses, and the
+handoff off/on truth table. The local Windows gameplay still
+requires verification; no live game was run here.
 
 ## 87.494 — plain brackets directly select the source
 
