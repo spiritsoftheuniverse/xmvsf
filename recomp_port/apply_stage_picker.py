@@ -27,7 +27,7 @@ def validated(text: str) -> bool:
         '#include "xmvsf_stage_picker.h" // ' + MARK,
         "xmvsf_home::StagePicker stagePicker;",
         "stagePicker.Open();",
-        "stagePicker.Press(menuPressed, stageLeftEdge, stageRightEdge)",
+        "stagePicker.Press(stagePressed, stageLeftEdge, stageRightEdge)",
         "SetFeatureForNow(session::kStageFeature, stagePicker.Selected() + 1);",
         "session::StartSession(*port.machine);",
         "homeTextures.RenderStagePicker(presenter.Renderer(), menuTick, stagePicker);",
