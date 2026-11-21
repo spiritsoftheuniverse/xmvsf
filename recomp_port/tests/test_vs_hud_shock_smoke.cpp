@@ -1,4 +1,4 @@
-// 87.484: F10 shock starts immediately, full top HUD object classifier.
+// 87.485: F10 is read-only; 0008 native game step selects full top HUD.
 #include "../../recomp/port/xmvsf_vs_handoff.h"
 #include "../../recomp/port/xmvsf_versus_audio.h"
 #include <cassert>
@@ -29,19 +29,21 @@ int main() {
     assert(!CombatHud().firstInkSeen);
     NoteCombatHudInk(8, 255); // first REAL native combat HP ink
     assert(CombatHud().firstInkSeen && CombatHud().firstInkFrame == 255);
-    assert(HudStep(8, 255) == 1); // no frame-0 hold
-    assert(HudStep(8, 256) == 2);
-    assert(HudStep(8, 269) == 15);
-    assert(HudStep(8, 284) == 30);
-    // F10 begins mid-combat: even if the first automatic shock
-    // completed, the very NEXT rendered frame is the new shock's
-    // FIRST reveal frame. Never add 120 frames at recording start.
-    PreviewShockAt(1451);
-    assert(HudStep(8, 1450) == 0);
-    assert(HudStep(8, 1451) == 1);
-    assert(HudStep(8, 1452) == 2);
-    assert(HudStep(8, 1480) == 30);
-    assert(HudStep(6, 1451) == 0);
+    assert(HudStep(8, 255) == 0); // first source frame hidden, not F10
+    assert(HudStep(8, 256) == 1);
+    assert(HudStep(8, 270) == 15);
+    assert(HudStep(8, 285) == 30);
+    // F10 is never passed into gameplay. Use the capture's actual
+    // FF5104=0008 to select the full original FBNeo top-HUD family,
+    // including the middle digits/portraits, not only HP strips.
+    assert(HudObjectPhase(2, 8) == 8);
+    assert(HudObjectPhase(4, 8) == 8);
+    assert(HudObjectPhase(2, 4) == 2);
+    assert(XM87392::objectForPhase(
+        HudObjectPhase(2, 8), 7, 3, 0x15BA9, 176, 0, 1, 1, false, false));
+    assert(!XM87392::objectForPhase(
+        HudObjectPhase(2, 4), 7, 3, 0x15BA9, 176, 0, 1, 1, false, false));
+    assert(!XM87392::verifiedTransitionHud(7, 3, 0x15BA9, 176, 0, 1, 1));
     state.Observe(8, 7, 7, 0x0a, 290, true);
     assert(!CombatHud().firstInkSeen);
     assert(!clock.primed);
