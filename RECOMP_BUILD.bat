@@ -73,11 +73,11 @@ if errorlevel 1 (
   goto :fail
 )
 
-REM 87.492: verify per-OAM visible-pixel identity in both native renderers
+REM 87.493: verify exact source-owner F4 tint and F9 C++ behavior tests
 REM inspector smoke before Ninja; do not regenerate M68K or clear caches.
 "%BASH%" -c "python3 ../recomp_port/tests/test_native_capture.py"
 if errorlevel 1 (
-  echo ERROR: XMVSF 87.492 F9 native pixel attribution / C++ behavior FAILED. No build performed.
+  echo ERROR: XMVSF 87.493 F9/F4 source-ink tint C++ behavioral smoke FAILED. No build performed.
   popd
   goto :fail
 )
