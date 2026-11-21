@@ -614,15 +614,17 @@ int RunWindowed(Port &port) {
                 // native capture if those wall sources are present now.
                 // This is an inspector VIEW choice, not a renderer filter.
                 bool hasWallSources = false;
-                const auto current = port.machine->video.InspectGraphics();
-                for (const auto &object : current.records) {
-                    if (object.kind != 0u) continue;
-                    if (xmvsf_sources::IsWallBlock({
-                            object.index, object.tile, object.attributes,
-                            object.priority, static_cast<unsigned>(object.w / 16),
-                            static_cast<unsigned>(object.h / 16)})) {
-                        hasWallSources = true;
-                        break;
+                if (port.machine) {
+                    const auto current = port.machine->video.InspectGraphics();
+                    for (const auto &object : current.records) {
+                        if (object.kind != 0u || !object.enabled) continue;
+                        if (xmvsf_sources::IsWallBlock({
+                                object.index, object.tile, object.attributes,
+                                object.priority, static_cast<unsigned>(object.w / 16),
+                                static_cast<unsigned>(object.h / 16)})) {
+                            hasWallSources = true;
+                            break;
+                        }
                     }
                 }
                 graphicsInspector.Toggle(hasWallSources);
