@@ -39,8 +39,10 @@ visible when player one owns the dummy selection. This piggybacks
 the same `session::BeforeFrame` state as controller transfer,
 without advancing/rewriting ROM state, skipping native character
 animations, silencing audio, or modifying the selection input.
-Outside Training, all original sprites remain visible. The original
-ROM selection flicker and existing wall/HUD protection are unchanged.
+Outside Training, all original sprites remain visible. The
+native selection animations keep advancing while the exact group is
+hidden; after handoff, their original flicker is visible again. The
+existing wall/HUD protection is unchanged.
 
 Both CPS2 CPU pixel rasterizer and native CPU/GPU tile-list rendering
 use the same exact predicate and the same Training-gated
