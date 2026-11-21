@@ -2,7 +2,11 @@
 // Uses ONLY the renderer's per-pixel source ownership. No tile-ID,
 // colour-key, screen rectangle or game/ROM/RAM modifications.
 #pragma once
+#if __has_include("../video/visible_oam_ink.h")
 #include "../video/visible_oam_ink.h"
+#else
+#include "../recomp/video/visible_oam_ink.h"
+#endif
 #include <algorithm>
 #include <cstdint>
 #include <vector>
