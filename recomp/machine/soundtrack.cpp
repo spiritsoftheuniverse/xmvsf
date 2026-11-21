@@ -49,6 +49,14 @@ void Soundtrack::Request(uint8_t *shared, uint64_t frame) {
         shared[0x0F] = 0xFF;
         return;
     }
+    // Stage setup can separately request "stop music". That command must
+    // not cut the character-select Ogg while its song 02 is still active.
+    // Ignore only music-stop, not all-sound-stop or individual SFX.
+    if (suppressXmvsfVsMusic && state.song == 0x02 &&
+        shared[0] == 0xFF && shared[1] == 0x05) {
+        shared[0x0F] = 0xFF;
+        return;
+    }
     static const bool log = getenv("CPS2RECOMP_SOUNDTRACK_LOG") != nullptr;
     if (log && (shared[0] == 0xFF || IsMusic(static_cast<uint16_t>((shared[0] << 8) | shared[1])))) {
         fprintf(stderr, "soundtrack: frame %llu %s %02X%02X %02X%02X%02X\n", static_cast<unsigned long long>(frame),
