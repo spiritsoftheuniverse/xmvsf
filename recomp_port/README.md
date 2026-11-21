@@ -1,4 +1,40 @@
-# XMVSF native front end — 87.484 (full top-HUD shock, no F10 delay)
+# XMVSF native front end — 87.485 (F10 remains diagnostic; native HUD classification)
+
+## 87.485 — F10 is strictly a marker, never a shock trigger
+
+**Correction:** 87.484's F10 -> `PreviewShockAt()` wiring was a
+misinterpretation of the requested timing and has been removed.
+Pressing F10 only toggles the existing bounded native M68K recorder.
+
+The supplied `latest.zip` begins at emulated frame **1451**, with
+`FF5104=0008` and visible priority-7 top HUD OAM, including timer
+sprite tile `0x15BA9` at (176,0). The ZIP contains no frame from
+the earlier versus PCM or the 04-to-VS handoff. **There is no
+measurable relative song-to-F10 offset in that file.** Accordingly
+no 1451 absolute-frame magic number or invented extra delay was
+put into gameplay.
+
+The source of the partial mask is a state-address conflation:
+`FF5104` (the native game step recorded at F10) and `FF5000`
+(the ROM fight status) are different. The video now records both,
+so `FF5104=0008` authorizes FBNeo's **entire upper native HUD**
+family, rather than the restricted 02/04 HP-only transition mask.
+This applies in both rasterizers and remains per-object/per-ink;
+the stage is never masked as a rectangular region.
+
+The F10 recorder's `README.txt` now writes a **read-only**
+`HUD_CALIBRATION` record with the user's pressed emulated frame,
+first versus audio frame, elapsed audio frames at the press,
+first verified HP frame, `FF5104` and `FF5000`.
+A capture made with this revision at the intended instant provides
+the missing paired timestamps needed to move the **automatic**
+shock timing precisely, without ever triggering it from F10.
+
+**Timing status:** 87.485 deliberately retains the original
+FBNeo music/visual timeline; the exact intended additional
+offset has not been computed from the insufficient 87.480 ZIP.
+Only F10 isolation, HUD coverage and future timestamp diagnostics
+are changed/validated by source inspection.
 
 ## 87.484 — exact F10 press is the first shock frame
 
