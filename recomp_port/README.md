@@ -1,4 +1,37 @@
-# XMVSF native front end — 87.480 (compact F10 capture)
+# XMVSF native front end — 87.482 (FBNeo-native VS song and top HUD shock)
+
+## 87.482 — original FBNeo versus and HUD shock handoff
+
+Uses FBNeo's existing `xm20_vs_early_phase.h` transition gate and
+`xmvsf_stage87_392_hud_shock.h` timeline, ROM-HUD source classifier,
+8x8 Bayer dither and original white/electric-blue traveling shine.
+The native FF5104 chooser-step transition from 04 to 05/06/07
+(fallback directly to 08 while not yet fighting) is the **only** VS cue.
+The last character/speed confirmation alone cannot trigger it.
+
+The original song 02 (`audio/music/characterselect.ogg`) is enabled
+for Training, Arcade and Versus when no custom soundtrack override was
+configured. Native stage/VS song request 04 is consumed on the XMVSF
+soundtrack path, leaving the selection music and sound effects running.
+At the actual M68K handoff, `versusscreen.ogg` plays ONCE through
+the existing SDL3 Ogg decoder; the select-song audio device is muted.
+The first queued versus PCM starts FBNeo's 120-native-frame hidden
+interval and 30-native-frame top-HUD materialization, with the original
+first-source late-availability guard. Combat status FF5000=08 stops
+the VS one-shot.
+
+Recomp's CPS2 software renderer applies that same FBNeo classifier
+to real priority/palette/tile object entries and the same reveal
+mask and shine **per HUD ink pixel**. Hidden ink leaves the native
+stage and fighter colors beneath it intact; no screen-space black
+rectangle, no generalized palette filtering, no ROM/RAM changes.
+The subsystem remains scoped to native XMVSF's SDL3 front end.
+
+The `recomp_port/tests/test_vs_hud_shock.py` preflight compiles the
+CPS2 raster renderer, XMVSF source hook and SDL3 helper, and executes
+the original 120+30 timing and handoff smoke before local Ninja build.
+Runtime audiovisual and device-start accuracy require the local
+Windows executable to be tested after `RECOMP_BUILD.bat`.
 
 ## 87.480 — compact F10 diagnostics, no directory explosion
 
