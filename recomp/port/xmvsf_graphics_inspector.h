@@ -63,10 +63,25 @@ public:
         if (active_) tintEnabled_ = !tintEnabled_;
     }
     void Select(int delta) {
-        if (!active_ || mode_ >= 3u) return; // scroll sources have no owner pixels
-        if (delta < 0 && selectedInPage_ > 0u) --selectedInPage_;
-        else if (delta > 0 && selectedInPage_ + 1u < pageItems_)
-            ++selectedInPage_;
+        if (!active_) return;
+        // Plain [ ] always work: OAM moves source-by-source, and
+        // automatically advances the seven-source page at its edge.
+        // Scroll maps have no ink owners, so brackets page those maps.
+        if (mode_ >= 3u) { ChangePage(delta); return; }
+        if (delta < 0) {
+            if (selectedInPage_ > 0u) --selectedInPage_;
+            else if (page_ > 0u) {
+                --page_;
+                // Paint() clamps to the actual item count on this page.
+                selectedInPage_ = kPageSize - 1u;
+            }
+        } else if (delta > 0) {
+            if (selectedInPage_ + 1u < pageItems_) ++selectedInPage_;
+            else if (page_ + 1u < pageCount_) {
+                ++page_;
+                selectedInPage_ = 0u;
+            }
+        }
     }
 
     void Toggle(bool focusWalls = false) {
@@ -207,7 +222,7 @@ public:
                 static_cast<unsigned long long>(frame));
         } else {
             std::snprintf(text, sizeof(text),
-                "F9 %s %u/%u F4:%s [ ]PG SH+[ ]OBJ",
+                "F9 %s %u/%u F4:%s [ ] PICK",
                 modeName[mode_], page + 1u, pages,
                 tintEnabled_ ? "ON" : "OFF");
         }
