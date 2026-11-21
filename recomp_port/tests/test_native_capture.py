@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""87.491 F9 verified wall-source targeting and bank-independent object protection."""
+"""87.492 F9 source-backed per-pixel visible OAM ink and native screenshots."""
 from __future__ import annotations
 
 from pathlib import Path
@@ -98,13 +98,18 @@ def main() -> None:
                    check=True)
     # Test F9's real pixel presentation and index/view behavior in C++,
     # without matching source code spelling or touching a ROM.
-    with tempfile.TemporaryDirectory(prefix="xmvsf_f9_491_") as folder:
+    with tempfile.TemporaryDirectory(prefix="xmvsf_f9_492_") as folder:
         inspector_smoke = CANONICAL / "tests/test_graphics_inspector_smoke.cpp"
         executable = Path(folder) / "graphics_inspector.exe"
         subprocess.run([compiler, "-std=c++20", str(inspector_smoke),
                         "-o", str(executable)], check=True)
         subprocess.run([str(executable)], check=True)
-    print("XMVSF 87.491 relocated wall OAM and source-verified F9 C++ behavior PASS")
+        ink_smoke = CANONICAL / "tests/test_visible_oam_ink_smoke.cpp"
+        ink_exe = Path(folder) / "visible_oam_ink.exe"
+        subprocess.run([compiler, "-std=c++20", str(ink_smoke),
+                        "-o", str(ink_exe)], check=True)
+        subprocess.run([str(ink_exe)], check=True)
+    print("XMVSF 87.492 native OAM visible-ink attribution and annotated F9 C++ behavior PASS")
 
 
 if __name__ == "__main__":
