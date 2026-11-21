@@ -78,6 +78,7 @@ void Video::RecordInk(unsigned slot, int x, int y) {
 // writes to RAM, changes to OAM, or shader interception.
 Video::GraphicsInspection Video::InspectGraphics() const {
     GraphicsInspection found;
+    if (m_inkReady && m_ink.Valid()) found.ownerInk = &m_ink;
     found.gameStep = hudShockGameStep;
     found.fightStatus = static_cast<unsigned>(hudShockPhase) & 0xFFu;
     found.objectBank = latchedObjectBank;
