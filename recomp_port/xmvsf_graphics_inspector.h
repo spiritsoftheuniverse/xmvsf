@@ -1,4 +1,4 @@
-// XMVSF 87.492: identify actual drawn native ink, not floating source boxes.
+// XMVSF 87.493: F4 tints a chosen visible OAM object using exact pixel ownership.
 // Drawn ONLY over a copy of the rendered picture: not a ROM/VRAM/OAM
 // filter, not a gameplay trigger, and not a fabricated sprite identifier.
 #pragma once
@@ -17,6 +17,7 @@
 #include <cstdio>
 #include <vector>
 #include "xmvsf_vs_handoff.h" // reuse the actual native ROM HUD-source classifier
+#include "xmvsf_source_tint.h" // selected source pixels only, never rectangles
 
 namespace port::xmvsf_home {
 
@@ -25,6 +26,9 @@ class GraphicsInspector {
     unsigned mode_ = 0; // HUD, verified WALLS, all OAM, scroll 1/2/3
     unsigned page_ = 0;
     unsigned pageCount_ = 1; // recomputed on each presented source snapshot
+    unsigned selectedInPage_ = 0u; // one visibly selected OAM object
+    unsigned pageItems_ = 0u;
+    bool tintEnabled_ = false; // F4 diagnostic-only presentation copy
     static constexpr unsigned kPageSize = 7u;
 
     static bool Wall(const cps2recomp::Video::GraphicRecord &r) {
@@ -53,19 +57,39 @@ public:
     bool Active() const { return active_; }
     unsigned Mode() const { return mode_; }
     unsigned Page() const { return page_; }
+    unsigned SelectedInPage() const { return selectedInPage_; }
+    bool TintEnabled() const { return tintEnabled_; }
+    void ToggleTint() {
+        if (active_) tintEnabled_ = !tintEnabled_;
+    }
+    void Select(int delta) {
+        if (!active_ || mode_ >= 3u) return; // scroll sources have no owner pixels
+        if (delta < 0 && selectedInPage_ > 0u) --selectedInPage_;
+        else if (delta > 0 && selectedInPage_ + 1u < pageItems_)
+            ++selectedInPage_;
+    }
 
     void Toggle(bool focusWalls = false) {
         active_ = !active_;
-        if (active_) { mode_ = focusWalls ? 1u : 0u;
-            page_ = 0u; pageCount_ = 1u; }
+        if (active_) {
+            mode_ = focusWalls ? 1u : 0u;
+            page_ = 0u; pageCount_ = 1u; pageItems_ = 0u;
+            selectedInPage_ = 0u; tintEnabled_ = false;
+        } else {
+            tintEnabled_ = false;
+        }
     }
     void NextMode() {
-        if (active_) { mode_ = (mode_ + 1u) % 6u; page_ = 0u; pageCount_ = 1u; }
+        if (active_) {
+            mode_ = (mode_ + 1u) % 6u;
+            page_ = 0u; pageCount_ = 1u; pageItems_ = 0u;
+            selectedInPage_ = 0u;
+        }
     }
     void ChangePage(int delta) {
         if (!active_) return;
-        if (delta < 0 && page_ > 0u) --page_;
-        else if (delta > 0 && page_ + 1u < pageCount_) ++page_;
+        if (delta < 0 && page_ > 0u) { --page_; selectedInPage_ = 0u; pageItems_ = 0u; }
+        else if (delta > 0 && page_ + 1u < pageCount_) { ++page_; selectedInPage_ = 0u; pageItems_ = 0u; }
     }
 
     // The 5x7 font and painting canvas are the recomp's own, with
@@ -99,6 +123,20 @@ public:
         const unsigned start = page * kPageSize;
         const unsigned stop = std::min(
             static_cast<unsigned>(matching.size()), start + kPageSize);
+        pageItems_ = stop - start;
+        selectedInPage_ = pageItems_ ? std::min(selectedInPage_, pageItems_ - 1u) : 0u;
+        const unsigned focus = start + selectedInPage_;
+
+        // F4 changes ONLY the displayed copy. The native recorder already
+        // knows exactly which OAM slot owns each surviving opaque pixel.
+        // Overlapping text/sprites, transparent holes, and all other
+        // sources inside the same rectangle remain unchanged.
+        if (tintEnabled_ && mode_ < 3u && focus < stop && snapshot.ownerInk) {
+            const auto &selected = *matching[focus];
+            source_tint::Paint(pixels, width, height, *snapshot.ownerInk,
+                selected.index, selected.inkLeft, selected.inkTop,
+                selected.inkRight, selected.inkBottom);
+        }
 
         // Ink bounds come from visible, nontransparent pixels surviving
         // native scroll priority and the HUD dither. The original OAM
@@ -125,7 +163,8 @@ public:
                 outline(*r, Color{80, 210, 205, 170});
         for (unsigned i = start; i < stop && mode_ < 3u; ++i) {
             const auto &r = *matching[i];
-            outline(r, gold);
+            const bool focused = i == focus;
+            outline(r, focused ? gold : Color{72, 155, 175, 130});
             char tag[24] = {};
             if (r.kind == 0u)
                 std::snprintf(tag, sizeof(tag), "#%u", r.index);
@@ -136,7 +175,8 @@ public:
             cv.Fill(float(tx), float(ty), float(
                 std::min(36, int(recomp::text::TextWidth(tag, 1.0f) + 3))),
                 10.0f, black);
-            cv.Text(float(tx + 1), float(ty + 1), 1.0f, 0, gold, tag);
+            cv.Text(float(tx + 1), float(ty + 1), 1.0f, 0,
+                focused ? gold : pale, tag);
         }
 
         // A small, left-aligned 24px native-pixel source badge. All the
@@ -152,18 +192,23 @@ public:
         };
         char text[96] = {};
         std::snprintf(text, sizeof(text),
-            "F9 %s %u/%u F%llu F8 TYPE [ ] PAGE",
+            mode_ >= 3u ? "F9 %s %u/%u F%llu MAP ONLY" :
+                           "F9 %s %u/%u F4 %s  SH+[ ] PICK",
             modeName[mode_], page + 1u, pages,
-            static_cast<unsigned long long>(frame));
+            // A map has no per-pixel OAM owner; clearly label it as such.
+            // Supply only the arguments expected by the chosen format.
+            mode_ >= 3u ? static_cast<unsigned long long>(frame) : 0ull,
+            mode_ >= 3u ? "" : (tintEnabled_ ? "ON" : "OFF"));
         cv.Text(3, float(panelTop + 2), 1.0f, 0, pale, text);
 
         if (start < stop) {
-            const auto &selected = *matching[start];
+            const auto &selected = *matching[focus];
             if (selected.kind == 0u) {
                 // OAM+ is bank-relative, not a fabricated bus address.
                 std::snprintf(text, sizeof(text),
-                    "#%u T%05X P%u Z%u INK%u OAM%u+%04X",
-                    selected.index, selected.tile, selected.palette,
+                    "%s#%u T%05X P%u Z%u INK%u OAM%u+%04X",
+                    tintEnabled_ ? "*" : ">", selected.index,
+                    selected.tile, selected.palette,
                     selected.priority, selected.visibleInkPixels,
                     selected.bank, selected.sourceAddress);
             } else {
