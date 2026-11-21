@@ -191,14 +191,19 @@ public:
             "HUD INK", "WALL INK", "OAM INK", "MAP 1", "MAP 2", "MAP 3"
         };
         char text[96] = {};
-        std::snprintf(text, sizeof(text),
-            mode_ >= 3u ? "F9 %s %u/%u F%llu MAP ONLY" :
-                           "F9 %s %u/%u F4 %s  SH+[ ] PICK",
-            modeName[mode_], page + 1u, pages,
-            // A map has no per-pixel OAM owner; clearly label it as such.
-            // Supply only the arguments expected by the chosen format.
-            mode_ >= 3u ? static_cast<unsigned long long>(frame) : 0ull,
-            mode_ >= 3u ? "" : (tintEnabled_ ? "ON" : "OFF"));
+        // Separate format calls: exact types/argument counts, no
+        // overloaded varargs from conditional formats.
+        if (mode_ >= 3u) {
+            std::snprintf(text, sizeof(text),
+                "F9 %s %u/%u F%llu MAP SOURCE ONLY",
+                modeName[mode_], page + 1u, pages,
+                static_cast<unsigned long long>(frame));
+        } else {
+            std::snprintf(text, sizeof(text),
+                "F9 %s %u/%u F4 TINT %s",
+                modeName[mode_], page + 1u, pages,
+                tintEnabled_ ? "ON" : "OFF");
+        }
         cv.Text(3, float(panelTop + 2), 1.0f, 0, pale, text);
 
         if (start < stop) {
