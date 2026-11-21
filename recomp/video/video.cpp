@@ -252,6 +252,24 @@ bool Video::ExportGraphicsSources(const char *path, std::uint64_t frame) const {
             ((attr >> 8) & 15u) + 1u, ((attr >> 12) & 15u) + 1u,
             int(relative), int(m_objectsFromExtra[i / 4] != 0));
     }
+    // A direct machine-readable companion to the F9 on-screen ledger.
+    // Source records and graphics ROM offsets are NOT semantic HUD names
+    // and do not by themselves prove that pixels survived occlusion.
+    const GraphicsInspection inspector = InspectGraphics();
+    std::fprintf(out,
+        "f9_source\tframe\tkind\tindex\tbank\tsource_address_or_bank_offset\t"
+        "gfx_tile\tgfx_rom_offset\tattr\tpriority\tpalette\t"
+        "screen_x\tscreen_y\tw\th\tenabled\n");
+    for (const GraphicRecord &item : inspector.records) {
+        std::fprintf(out,
+            "f9_source\t%llu\t%u\t%u\t%u\t%06X\t"
+            "%05X\t%07X\t%04X\t%u\t%u\t"
+            "%d\t%d\t%d\t%d\t%d\n",
+            static_cast<unsigned long long>(frame), item.kind, item.index,
+            item.bank, item.sourceAddress, item.tile, item.gfxOffset,
+            item.attributes, item.priority, item.palette,
+            item.x, item.y, item.w, item.h, int(item.enabled));
+    }
     return std::fclose(out) == 0;
 }
 
