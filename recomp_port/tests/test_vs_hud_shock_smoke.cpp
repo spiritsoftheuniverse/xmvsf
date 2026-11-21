@@ -1,4 +1,4 @@
-// 87.483: exact FBNeo 120+30 shock, held until true combat HP pixels.
+// 87.484: F10 shock starts immediately, full top HUD object classifier.
 #include "../../recomp/port/xmvsf_vs_handoff.h"
 #include "../../recomp/port/xmvsf_versus_audio.h"
 #include <cassert>
@@ -29,10 +29,19 @@ int main() {
     assert(!CombatHud().firstInkSeen);
     NoteCombatHudInk(8, 255); // first REAL native combat HP ink
     assert(CombatHud().firstInkSeen && CombatHud().firstInkFrame == 255);
-    assert(HudStep(8, 255) == 0); // first drawable HUD source hidden
-    assert(HudStep(8, 256) == 1); // shock front begins a frame later
-    assert(HudStep(8, 270) == 15);
-    assert(HudStep(8, 285) == 30);
+    assert(HudStep(8, 255) == 1); // no frame-0 hold
+    assert(HudStep(8, 256) == 2);
+    assert(HudStep(8, 269) == 15);
+    assert(HudStep(8, 284) == 30);
+    // F10 begins mid-combat: even if the first automatic shock
+    // completed, the very NEXT rendered frame is the new shock's
+    // FIRST reveal frame. Never add 120 frames at recording start.
+    PreviewShockAt(1451);
+    assert(HudStep(8, 1450) == 0);
+    assert(HudStep(8, 1451) == 1);
+    assert(HudStep(8, 1452) == 2);
+    assert(HudStep(8, 1480) == 30);
+    assert(HudStep(6, 1451) == 0);
     state.Observe(8, 7, 7, 0x0a, 290, true);
     assert(!CombatHud().firstInkSeen);
     assert(!clock.primed);
