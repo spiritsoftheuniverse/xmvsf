@@ -1298,6 +1298,7 @@ int RunWindowed(Port &port) {
                 nextFrame = SDL_GetTicksNS();
                 continue;
             }
+            homeAudio.FinishFight(); // no Fight! tail over character select
             trainingWaitingFight = false;
         }
         if (selectReveal.Active()) {
