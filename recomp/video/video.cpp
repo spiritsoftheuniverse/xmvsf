@@ -304,16 +304,19 @@ bool Video::ExportGraphicsSources(const char *path, std::uint64_t frame) const {
     std::fprintf(out,
         "f9_source\tframe\tkind\tindex\tbank\tsource_address_or_bank_offset\t"
         "gfx_tile\tgfx_rom_offset\tattr\tpriority\tpalette\t"
-        "screen_x\tscreen_y\tw\th\tenabled\n");
+        "screen_x\tscreen_y\tw\th\tenabled\tink_sampled\t"
+        "visible_ink_pixels\tink_left\tink_top\tink_right\tink_bottom\n");
     for (const GraphicRecord &item : inspector.records) {
         std::fprintf(out,
             "f9_source\t%llu\t%u\t%u\t%u\t%06X\t"
             "%05X\t%07X\t%04X\t%u\t%u\t"
-            "%d\t%d\t%d\t%d\t%d\n",
+            "%d\t%d\t%d\t%d\t%d\t%d\t%u\t%d\t%d\t%d\t%d\n",
             static_cast<unsigned long long>(frame), item.kind, item.index,
             item.bank, item.sourceAddress, item.tile, item.gfxOffset,
             item.attributes, item.priority, item.palette,
-            item.x, item.y, item.w, item.h, int(item.enabled));
+            item.x, item.y, item.w, item.h, int(item.enabled),
+            int(item.inkSampled), item.visibleInkPixels,
+            item.inkLeft, item.inkTop, item.inkRight, item.inkBottom);
     }
     return std::fclose(out) == 0;
 }
