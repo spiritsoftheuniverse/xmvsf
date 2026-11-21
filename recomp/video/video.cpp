@@ -2,6 +2,7 @@
 // Copyright (C) 2026 Tommy McLeroy. Part of cps2recomp.
 
 #include "video.h"
+#include "../port/xmvsf_vs_handoff.h" // 87.482: original FBNeo 120+30 HUD shock
 
 #include "../runtime/state.h"
 
@@ -214,7 +215,8 @@ void Video::DrawScroll(int which, int rasterLine, uint16_t *pens, uint8_t *prior
 // later entries of the list are in front. Drawn back to front here would need the scroll screens' marks
 // kept apart, so (as MAME does) they are drawn front to back and a pixel once claimed stays claimed.
 template <bool kWide>
-void Video::DrawObjects(int rasterLine, uint16_t *pens, uint8_t *priority, const uint32_t *masks, uint8_t *marks) {
+void Video::DrawObjects(int rasterLine, uint16_t *pens, uint8_t *priority, const uint32_t *masks,
+                        uint8_t *marks, uint8_t *hudInk) {
     const int xOffset = 64 - m_src.objectRegs[kObjXOffset];
     const int yOffset = 16 - m_src.objectRegs[kObjYOffset];
     const int width = kWide ? Width() : +kWidth;
@@ -234,6 +236,22 @@ void Video::DrawObjects(int rasterLine, uint16_t *pens, uint8_t *priority, const
         const int across = ((attr >> 8) & 0x0F) + 1, down = ((attr >> 12) & 0x0F) + 1;
         const bool flipX = attr & 0x20, flipY = attr & 0x40;
         const uint16_t colour = static_cast<uint16_t>((attr & 0x1F) * 16);
+        // The same native OAM classifier and first-source guard as FBNeo
+        // 87.399. These are screen-space coordinates, not world coordinates.
+        const int sourceX = ((x + xOffset) & 0x3FF) - kFirstColumn;
+        const int sourceY = ((y + yOffset) & 0x3FF) - kFirstLine;
+        const bool hudSource = hudShock &&
+            XM87392::objectForPhase(hudShockPhase, level, attr & 0x1Fu, code,
+                sourceX, sourceY, static_cast<unsigned>(across),
+                static_cast<unsigned>(down), false, (attr & 0x1Fu) >= 0x1Au);
+        if (hudSource && XM87392::verifiedTransitionHud(level, attr & 0x1Fu,
+                 code, sourceX, sourceY, static_cast<unsigned>(across),
+                 static_cast<unsigned>(down))) {
+            XM87392::timeline().noteHudSource(hudShockFrame);
+        }
+        const unsigned hudStep = hudShock
+            ? XM87392::timeline().step(hudShockFrame) : XM87392::RevealFrames;
+        const bool shockTile = hudSource && hudStep < XM87392::RevealFrames;
         const uint32_t mask = masks[level] | 0x80000000u;
         // (what its pixels are marked as, where it is the front object: the panel's, or in front of the fighters)
         const uint8_t mark = !marks ? 0 : static_cast<uint8_t>((panelObject && panelObject(code, attr) ? kPanelPixel : 0) |
@@ -279,8 +297,15 @@ void Video::DrawObjects(int rasterLine, uint16_t *pens, uint8_t *priority, const
                     const uint8_t pen = pixels[flipX ? 15 - k : k];
                     if (pen != 15) {
                         const bool shown = !((mask >> (priority[px] & 0x1F)) & 1);
+                        // Suppressed HUD ink leaves the real scroll/fighter ink
+                        // and depth untouched, exactly FBNeo's per-tile restore.
+                        if (shown && shockTile &&
+                            !XM87392::visible(px, rasterLine - kFirstLine, hudStep) &&
+                            !XM87392::shineCore(px, rasterLine - kFirstLine, hudStep))
+                            continue;
                         if (shown) {
                             pens[px] = static_cast<uint16_t>(colour + pen);
+                            if (hudInk && shockTile) hudInk[px] = 1;
                         }
                         if (marks && priority[px] != 31) {
                             marks[px] = static_cast<uint8_t>(mark & (shown ? 0xFF : ~kFrontPixel));
@@ -593,11 +618,28 @@ void Video::RenderLineAs(int line, uint32_t *out) {
     if (marking) {
         memset(marks, 0, sizeof(marks));
     }
+    uint8_t hudInk[kMaxWidth] = {};
     if (layerMask & 1) {
-        DrawObjects<kWide>(rasterLine, pens, priority, masks, marking ? marks : nullptr);
+        DrawObjects<kWide>(rasterLine, pens, priority, masks,
+                           marking ? marks : nullptr, hudInk);
     }
     for (int x = 0; x < width; x++) {
         out[x] = m_palette[pens[x]];
+        if (hudInk[x]) {
+            // FBNeo's shineRGB uses 00RRGGBB; recomp's output is
+            // 00BBGGRR. Swap endpoints, run the IDENTICAL color math,
+            // then swap back. Only actual HUD ink is tinted.
+            const uint32_t source = out[x];
+            const uint32_t rgb = ((source & 0xFFu) << 16) |
+                                 (source & 0xFF00u) |
+                                ((source >> 16) & 0xFFu);
+            const uint32_t light = XM87392::shineRGB(rgb, x, line,
+                XM87392::timeline().step(hudShockFrame));
+            out[x] = (source & 0xFF000000u) |
+                     ((light & 0xFFu) << 16) |
+                      (light & 0xFF00u) |
+                     ((light >> 16) & 0xFFu);
+        }
     }
     if (markFront) {
         // (in front: an object marked so, or a scroll screen's pixel an object of the fighters' level is behind)
