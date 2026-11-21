@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""87.485: F10-only diagnosis, native-step full HUD and original FBNeo clock."""
+"""87.486: F10 isolation, native HUD identity and executable shock-clock test."""
 from pathlib import Path
 from version_guard import require_matching_versions
 import shutil
@@ -112,7 +112,7 @@ def main():
     assert "xmvsf_vs::Current().Observe(" in game
     assert "Ram16(xmvsf::kGameStep)" in game and "Ram8(xmvsf::kFight)" in game
     assert game.count("machine.video.hudShockGameStep = Ram16(xmvsf::kGameStep);") == 2
-    assert require_matching_versions(home, render, minimum=(87, 485)) >= (87, 485)
+    assert require_matching_versions(home, render, minimum=(87, 486)) >= (87, 486)
     compiler = shutil.which("g++")
     assert compiler, "UCRT64 g++ is required before recomp build"
     include = [
@@ -131,13 +131,13 @@ def main():
     ):
         subprocess.run(base + [str(path)], check=True)
     # The compact smoke also RUNS the original FBNeo transition and clock.
-    with tempfile.TemporaryDirectory(prefix="xmvsf_vs_485_") as temp:
+    with tempfile.TemporaryDirectory(prefix="xmvsf_vs_486_") as temp:
         executable = Path(temp) / "vs_shock.exe"
         smoke = ROOT / "recomp_port/tests/test_vs_hud_shock_smoke.cpp"
         subprocess.run([compiler, "-std=c++20", str(smoke), "-o",
                         str(executable)], check=True)
         subprocess.run([str(executable)], check=True)
-    print("XMVSF 87.485 F10 independent, real FF5104 top HUD classifier, both renderers compile PASS")
+    print("XMVSF 87.486 F10 independent, native HUD and compiled shock-clock behavior PASS")
 
 if __name__ == "__main__":
     main()
