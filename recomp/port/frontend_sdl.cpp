@@ -7,6 +7,7 @@
 #include "bindings.h"
 #include "xmvsf_home.h" // XMVSF_RECOMP_HOME_87_435
 #include "xmvsf_menu_audio.h" // XMVSF_RECOMP_HOME_87_437
+#include "xmvsf_versus_audio.h" // 87.482: FBNeo native VS timing and one-shot song
 #include "xmvsf_window.h"
 #include "xmvsf_menu_textures.h" // XMVSF_RECOMP_MENU_TEXTURES_87_441
 #include "xmvsf_stage_picker.h" // XMVSF_RECOMP_STAGES_87_455
@@ -429,10 +430,26 @@ int RunWindowed(Port &port) {
                              MultiGame().empty() && std::getenv("XMVSF_RECOMP_HOME_OFF") == nullptr;
     xmvsf_home::Menu home(homeEnabled);
     xmvsf_home::MenuAudio homeAudio(homeEnabled);
+    xmvsf_home::VersusAudio versusAudio;
+    std::uint64_t versusSeen = 0;
+    // The request filter is XMVSF-only and music-only: native SFX remain.
+    port.machine->soundtrack.suppressXmvsfVsMusic = homeEnabled;
+    port.machine->video.hudShock = homeEnabled;
     xmvsf_home::TexturedMenu homeTextures(home);
     xmvsf_home::StagePicker stagePicker; // XMVSF_RECOMP_STAGES_87_455
     xmvsf_home::SelectReveal selectReveal;
     bool trainingSelectSongOverride = false;
+    const auto ensureSelectMusic = [&]() {
+        // Use the existing song-02 Ogg through the established custom
+        // soundtrack player in Training, Arcade and Versus alike.
+        if (!trainingSelectSongOverride && !FeatureValue("custom_soundtrack") &&
+            port.opt.soundtrack.empty() &&
+            std::filesystem::is_regular_file("../audio/music/characterselect.ogg")) {
+            port.opt.soundtrack = "../audio/music";
+            SetFeatureForNow("custom_soundtrack", 1);
+            trainingSelectSongOverride = true;
+        }
+    };
     bool trainingWaitingFight = false; // 87.469: stage image holds until the voice finishes
     // F10 feedback is visual and independent of the diagnostic's file I/O.
     bool f10PreviousActive = false;
@@ -930,13 +947,7 @@ int RunWindowed(Port &port) {
                         // The native ROM asks for song 02 at character select.
                         // Use our existing Ogg only when no custom soundtrack
                         // was configured; all other songs remain native.
-                        if (!trainingSelectSongOverride && !FeatureValue("custom_soundtrack") &&
-                            port.opt.soundtrack.empty() &&
-                            std::filesystem::is_regular_file("../audio/music/characterselect.ogg")) {
-                            port.opt.soundtrack = "../audio/music";
-                            SetFeatureForNow("custom_soundtrack", 1);
-                            trainingSelectSongOverride = true;
-                        }
+                        ensureSelectMusic();
                         // Sound "Fight!" on THIS level-confirm edge, not when
                         // the native character-select picture appears.
                         // A dedicated output stream survives homeAudio.Step(false).
@@ -964,6 +975,7 @@ int RunWindowed(Port &port) {
                         trainingSelectSongOverride = false;
                     }
                     EndSessionFeatures();
+                    ensureSelectMusic();
                     port.machine->Reset();
                     home.Hide();
                     break;
@@ -984,6 +996,7 @@ int RunWindowed(Port &port) {
                     // both players press Start. Full selection lifecycle comes next.
                     EndSessionFeatures();
                     SetFeature("free_play", true);
+                    ensureSelectMusic();
                     port.machine->Reset();
                     home.Hide();
                     break;
@@ -1114,6 +1127,7 @@ int RunWindowed(Port &port) {
         }
 
         homeAudio.Step(home.Visible() || options.Active()); // XMVSF_RECOMP_OPTIONS_87_442
+        if (home.Visible()) versusAudio.Stop();
         if (options.Active()) { // XMVSF_RECOMP_OPTIONS_87_442: three native tabs
             if (presenter.Renderer()) {
                 presenter.UseClassicMenuCanvas(true);
@@ -1214,6 +1228,22 @@ int RunWindowed(Port &port) {
         const auto rate = port.menu.GameRate();
         const double pace = port.paused ? 1.0 : static_cast<double>(rate.frames) / rate.ticks;
         const bool ran = port.Tick();
+        if (homeEnabled) {
+            const std::uint64_t sequence = xmvsf_vs::Current().sequence;
+            if (sequence != versusSeen) {
+                versusSeen = sequence;
+                if (versusAudio.Start(sequence) && music)
+                    SDL_ClearAudioStream(music);
+            }
+            // The exact original native FIGHT status ends VS playback.
+            // Keep source Ogg one-shot; no restart on repeated frames.
+            const bool combat = port.machine->ram.size() > 0x5000u &&
+                                port.machine->ram[0x5000u] == 0x08u;
+            if (combat) versusAudio.Stop();
+            else if (ran) versusAudio.Step(
+                static_cast<unsigned>(port.machine->frame),
+                port.menu.muted || audioLog);
+        }
         // XMVSF_RECOMP_TRAINING_ENTRY_87_467: fast boot runs up to 120
         // native frames per Tick. Keep the last stage-picker presentation
         // until character select; never display the ROM's disclaimer/title.
@@ -1308,8 +1338,13 @@ int RunWindowed(Port &port) {
                 }
             }
             if (music && !musicMade.empty()) {
-                if (musicSilent != (port.menu.muted || audioLog)) {
-                    musicSilent = port.menu.muted || audioLog;
+                // Keep song 02's decoder position, but mute it while the
+                // original FBNeo-timed VS cue owns the music channel.
+                const bool hideSelect = versusAudio.Active() &&
+                                        port.machine->soundtrack.state.song == 0x02;
+                const bool intendedSilent = port.menu.muted || audioLog || hideSelect;
+                if (musicSilent != intendedSilent) {
+                    musicSilent = intendedSilent;
                     SDL_SetAudioStreamGain(music, musicSilent ? 0.0f : 1.0f);
                 }
                 double waiting = SDL_GetAudioStreamQueued(music) / (8.0 * musicSpec.freq) / pace;
@@ -1393,6 +1428,7 @@ int RunWindowed(Port &port) {
     for (SDL_Gamepad *gp : gamepads) {
         SDL_CloseGamepad(gp);
     }
+    versusAudio.Stop();
     if (audio) {
         SDL_DestroyAudioStream(audio);
     }
