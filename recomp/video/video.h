@@ -11,6 +11,7 @@
 
 #include "../machine/romset.h"
 #include "native.h"
+#include "visible_oam_ink.h" // 87.492 diagnostic-only final visible OAM evidence
 
 #include <cstdint>
 #include <array>
@@ -235,15 +236,9 @@ private:
     size_t m_extraGraphicsSize = 0;
     uint16_t m_priorityControl = 0;
     int m_lastObject = -4;
-    // 87.492: source and pixel ownership from actual rendered OAM ink.
-    // At most one final owner per screen pixel, even when native and
-    // board renderers both run during a diagnostic comparison.
-    struct InkEvidence {
-        unsigned pixels = 0;
-        int left = 0, top = 0, right = -1, bottom = -1;
-    };
-    std::array<InkEvidence, 1024> m_objectInk{};
-    std::vector<std::int16_t> m_pixelOwner;
+    // 87.492: same source-ink evidence regardless of renderer path.
+    // The accumulator is independently behavior-tested in local C++.
+    native_video::VisibleOamInk m_ink;
     bool m_inkInspection = false;
     bool m_inkReady = false;
 
