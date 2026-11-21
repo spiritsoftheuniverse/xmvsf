@@ -72,6 +72,11 @@ namespace native_video {
         unsigned hudShockFrame = 0;
         int hudShockPhase = -1;
         unsigned hudShockGameStep = 0; // native FF5104 state
+        // 87.492: read-only pixel-owner probe for F9. Called only when
+        // an actual OAM pen survives scroll priority and HUD masking.
+        // The source is an OAM entry slot, not an arbitrary tile number.
+        void *inkProbeUser = nullptr;
+        void (*inkProbe)(void *user, unsigned slot, int screenX, int screenY) = nullptr;
         void (*objectsTaken)(uint16_t *list, int &last) = nullptr;
         bool markObjects = false;
         unsigned markLayers = 0;
