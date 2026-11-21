@@ -647,13 +647,10 @@ int RunWindowed(Port &port) {
                     ev.key.scancode == SDL_SCANCODE_RIGHTBRACKET) {
                     const int direction =
                         ev.key.scancode == SDL_SCANCODE_RIGHTBRACKET ? 1 : -1;
-                    if (ev.key.mod & SDL_KMOD_SHIFT) {
-                        // Select individual visible OAM object within
-                        // the page; unshifted brackets still change pages.
-                        graphicsInspector.Select(direction);
-                    } else {
-                        graphicsInspector.ChangePage(direction);
-                    }
+                    // 87.494: no Shift modifier. Brackets directly
+                    // select the visible OAM source, crossing pages at
+                    // their boundaries.
+                    graphicsInspector.Select(direction);
                     continue;
                 }
             }
