@@ -148,7 +148,7 @@ public:
         cv.Fill(0, float(panelTop), float(panelWidth), 24.0f, black);
         cv.Fill(0, float(panelTop), float(panelWidth), 1.0f, gold);
         const char *modeName[] = {
-            "HUD SRC", "WALLS", "ALL OAM", "MAP 1", "MAP 2", "MAP 3"
+            "HUD INK", "WALL INK", "OAM INK", "MAP 1", "MAP 2", "MAP 3"
         };
         char text[96] = {};
         std::snprintf(text, sizeof(text),
