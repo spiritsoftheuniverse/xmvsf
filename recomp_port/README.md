@@ -1,4 +1,37 @@
-# XMVSF native front end — 87.489 (F9 native graphics source inspector)
+# XMVSF native front end — 87.490 (preserve native wall OAM; minimal F9)
+
+## 87.490 — preserve the captured native wall blocks, minimal F9 badge
+
+The four captured `.graphics.tsv` files identify **30 native OAM
+objects**, slots 4–39, with full 20-bit source tile `0x1C60A`,
+attributes `0x2318`, level 7, palette 24, and a single source
+object extent of **4×3 16px cells (64×48 pixels)**. The repeated
+logo/wall artwork is therefore native OAM, not a scroll layer.
+
+These **whole source objects** are now excluded from the HUD-shock
+classifier in both native rasterizers, before the per-pixel dither
+clipping occurs. They are **not** removed, hidden, blacklisted as
+individual ROM tiles, or altered in RAM. The source check uses
+slot, full tile code, full attributes, priority and object extent.
+OAM bank is intentionally ignored because hardware banks switch
+across frames: this signature is the stable observed identity.
+
+F9 **HUD** mode excludes these confirmed walls as non-HUD;
+F8 **ALL OAM** still shows them for inspection. The old **91px
+full-width diagnostic ledger** is gone. Its replacement is a
+**24px-tall, 298px-wide maximum badge** with two lines of crisp
+integer-pixel font: source mode/page/frame and a single page
+source ID/address. Only the current page's source boxes are drawn.
+The complete detailed source records remain in F6's
+`.graphics.tsv` companion, so screen captures retain evidence
+without covering the gameplay.
+
+A compiled C++ smoke now tests the exact wall identity (positive
+and negative variants), removal from HUD-only inspection, continued
+visibility under ALL OAM inspection, and confirms the unused
+bottom-right viewport is no longer covered by the ledger.
+The existing +180f HUD reveal and F10 diagnostic-only operation
+have not been changed.
 
 ## 87.489 — F9 indexed, data-driven native graphics inspector
 
