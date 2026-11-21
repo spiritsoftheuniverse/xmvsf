@@ -55,6 +55,7 @@ void Video::Reset() {
     memset(m_objects, 0, sizeof(m_objects));
     m_priorityControl = 0;
     m_lastObject = -4;
+    latchedObjectBank = 0;
 }
 
 // 87.489 F9: decode genuine native object and scroll map records into
