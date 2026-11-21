@@ -1,4 +1,27 @@
-# XMVSF native front end — 87.483 (native combat-HUD shock timing)
+# XMVSF native front end — 87.484 (full top-HUD shock, no F10 delay)
+
+## 87.484 — exact F10 press is the first shock frame
+
+The `latest.zip` recording begins at native frame **1451**. That is
+the desired first visible shock frame, **not** the beginning of another
+120-frame hold. When the user starts an F10 capture during native
+combat (`FF5000=08`), the F10 down-edge now calls
+`xmvsf_vs::PreviewShockAt(machine.frame)` and resets the top-HUD
+reveal to **step 1 on that very first drawn frame**. Stopping F10
+does nothing to the shock. The original Bayer/white/blue 30-frame
+reveal is unchanged. The normal match-trigger path remains separate
+from the debug F10 preview; F10 is not required to play the game.
+
+The regression where only HP bars disappeared came from passing
+`palette >= 0x1A` as `scenery=true` to FBNeo's existing
+`objectForPhase` classifier, inadvertently rejecting HUD portrait
+graphics before its complete priority-7 HUD grouping was applied.
+Both the default native and board raster renderers now use the full
+original FBNeo HUD group (plus the ROM-verified timer), preserving
+the strict source-only behavior in phases 02/04.
+
+The local smoke verifies frames 1450/1451/1452 have reveal steps
+0/1/2, with full reveal at 1480, without a music countdown.
 
 ## 87.483 — F10-calibrated native combat-HUD shock gate
 
