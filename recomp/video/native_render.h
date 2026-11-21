@@ -32,6 +32,7 @@ namespace cps2recomp::native_video {
 // attributes: what a game's sources are asked of it)
 struct ObjectTile {
     int16_t x = 0, y = 0;
+    int16_t sourceX = 0, sourceY = 0; // original OAM entry, before per-tile offsets
     uint32_t tile = 0;
     uint16_t colour = 0; // (the first pen of its colour set)
     bool flipX = false, flipY = false, relative = false;
@@ -136,7 +137,7 @@ private:
     // (a CPS-1's line: Video::RenderLineCps1)
     void LineCps1(int line, const Layers &layers, const uint8_t *videoRam, const PictureOptions &options, uint32_t *out) const;
     void DrawObjects(int rasterLine, const Layers &layers, const PictureOptions &options, int width, uint16_t *pens, uint8_t *priority,
-                     const uint32_t *masks, uint8_t *marks = nullptr) const;
+                     const uint32_t *masks, uint8_t *marks = nullptr, uint8_t *hudInk = nullptr) const;
 
     const uint8_t *m_graphics = nullptr, *m_extraGraphics = nullptr;
     size_t m_graphicsSize = 0, m_extraGraphicsSize = 0;
