@@ -71,6 +71,7 @@ namespace native_video {
         bool hudShock = false;       // 87.482: original FBNeo source HUD materialization
         unsigned hudShockFrame = 0;
         int hudShockPhase = -1;
+        unsigned hudShockGameStep = 0; // native FF5104 state
         void (*objectsTaken)(uint16_t *list, int &last) = nullptr;
         bool markObjects = false;
         unsigned markLayers = 0;
