@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""87.479 native selector sprites and flicker retained without palette suppression."""
+"""87.495 exact 13-piece Training selector gate, with normal native flicker outside its scope."""
 from pathlib import Path
 from version_guard import require_matching_versions
 import shutil, subprocess, tempfile
@@ -16,11 +16,22 @@ def main():
     assert "IsP2SelectionObject" in helper and "(attributes & 0x001Fu) == 0x001Bu" in helper
     assert "namespace xmvsf {" in phase and "namespace cps2recomp::xmvsf" not in phase
     assert "acceptedCount == 2u" in phase
-    # Keep the predicate as diagnostic metadata; DO NOT use it to hide
-    # native selector objects. The broad filter destroyed cursor frames.
+    # The OLD palette-27 predicate is still diagnostic only, never a
+    # renderer filter. The new two-set source predicate is full tile+attr
+    # exact and gated only on Training's actual dummy handoff.
     assert '#include "selector_oam.h"' not in video + native
     assert "IsP2SelectionObject(" not in video + native
     assert "IsP2SelectorTile" not in video + native
+    assert '#include "dummy_selector_sources.h"' in video
+    assert '#include "dummy_selector_sources.h"' in native
+    assert "native_video::IsTrainingDummySelectorSource(code, attr)" in video
+    assert "IsTrainingDummySelectorSource(code, attr)" in native
+    assert "IsTrainingDummySelectorSource(t.entryTile, t.attributes)" in native
+    assert "native_video::HideUntilDummySelection(" in session
+    assert "machine.video.hideP2Selector =" in session
+    # Both OAM backends must exclude the 13 objects. The native tiles
+    # are also hidden at creation so GPU mode respects the same gate.
+    assert "t.hidden = true;" in native
     assert "if (hideObject && hideObject(code, attr)) {" in video
     assert native.count("t.hidden = (options.hideObject && options.hideObject(code, attr));") == 2
     assert "bool hideP2Selector = false;" in records and "bool hideP2Selector = false;" in vh
@@ -43,6 +54,6 @@ def main():
         subprocess.run([cc, "-std=c++20", "-Wall", "-Wextra", "-Werror",
                         str(smoke), "-o", str(exe)], check=True)
         subprocess.run([str(exe)], check=True)
-    print("XMVSF 87.479 native cursor draw and flicker restored PASS")
+    print("XMVSF 87.495 exact 13-object Training dummy selector group and original HUD/flicker safe PASS")
 if __name__ == "__main__":
     main()
