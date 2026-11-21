@@ -240,8 +240,10 @@ void Video::DrawObjects(int rasterLine, uint16_t *pens, uint8_t *priority, const
         // 87.399. These are screen-space coordinates, not world coordinates.
         const int sourceX = ((x + xOffset) & 0x3FF) - kFirstColumn;
         const int sourceY = ((y + yOffset) & 0x3FF) - kFirstLine;
+        const int nativeHudPhase = xmvsf_vs::HudObjectPhase(
+            hudShockPhase, hudShockGameStep);
         const bool hudSource = hudShock &&
-            XM87392::objectForPhase(hudShockPhase, level, attr & 0x1Fu, code,
+            XM87392::objectForPhase(nativeHudPhase, level, attr & 0x1Fu, code,
                 sourceX, sourceY, static_cast<unsigned>(across),
                 static_cast<unsigned>(down), false, false);
         if (hudSource && XM87392::verifiedTransitionHud(level, attr & 0x1Fu,
@@ -250,7 +252,7 @@ void Video::DrawObjects(int rasterLine, uint16_t *pens, uint8_t *priority, const
             XM87392::timeline().noteHudSource(hudShockFrame);
         }
         const unsigned hudStep = hudShock
-            ? xmvsf_vs::HudStep(static_cast<unsigned>(hudShockPhase), hudShockFrame) : XM87392::RevealFrames;
+            ? xmvsf_vs::HudStep(static_cast<unsigned>(nativeHudPhase), hudShockFrame) : XM87392::RevealFrames;
         // The uploaded F10 frame 1451 has the real P1/P2 HP strips:
         // priority 7, palette 2/4, native 0x1598F..0x159B6 tile family.
         // Do not let unrelated timer/VS-screen art start the live shock.
@@ -304,7 +306,7 @@ void Video::DrawObjects(int rasterLine, uint16_t *pens, uint8_t *priority, const
                     if (pen != 15) {
                         const bool shown = !((mask >> (priority[px] & 0x1F)) & 1);
                         if (shown && liveHp)
-                            xmvsf_vs::NoteCombatHudInk(static_cast<unsigned>(hudShockPhase), hudShockFrame);
+                            xmvsf_vs::NoteCombatHudInk(static_cast<unsigned>(nativeHudPhase), hudShockFrame);
                         // Suppressed HUD ink leaves the real scroll/fighter ink
                         // and depth untouched, exactly FBNeo's per-tile restore.
                         if (shown && shockTile &&
@@ -642,7 +644,7 @@ void Video::RenderLineAs(int line, uint32_t *out) {
                                  (source & 0xFF00u) |
                                 ((source >> 16) & 0xFFu);
             const uint32_t light = XM87392::shineRGB(rgb, x, line,
-                xmvsf_vs::HudStep(static_cast<unsigned>(hudShockPhase), hudShockFrame));
+                xmvsf_vs::HudStep(static_cast<unsigned>(xmvsf_vs::HudObjectPhase(hudShockPhase, hudShockGameStep)), hudShockFrame));
             out[x] = (source & 0xFF000000u) |
                      ((light & 0xFFu) << 16) |
                       (light & 0xFF00u) |
