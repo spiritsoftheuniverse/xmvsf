@@ -2,6 +2,7 @@
 // Copyright (C) 2026 Tommy McLeroy. Part of cps2recomp.
 
 #include "video.h"
+#include "../port/xmvsf_source_identity.h" // 87.490 native OAM wall exemption
 #include "../port/xmvsf_vs_handoff.h" // 87.482: original FBNeo 120+30 HUD shock
 
 #include "../runtime/state.h"
@@ -459,7 +460,13 @@ void Video::DrawObjects(int rasterLine, uint16_t *pens, uint8_t *priority, const
         const int sourceY = ((y + yOffset) & 0x3FF) - kFirstLine;
         const int nativeHudPhase = xmvsf_vs::HudObjectPhase(
             hudShockPhase, hudShockGameStep);
-        const bool hudSource = hudShock &&
+        // Preserve the complete 4x3 native wall objects identified by
+        // F9/F6 OAM source records; they are never HUD shock candidates.
+        const bool wallSource = xmvsf_sources::IsWallBlock({
+            static_cast<unsigned>(i / 4), code,
+            static_cast<unsigned>(attr), level,
+            static_cast<unsigned>(across), static_cast<unsigned>(down)});
+        const bool hudSource = hudShock && !wallSource &&
             XM87392::objectForPhase(nativeHudPhase, level, attr & 0x1Fu, code,
                 sourceX, sourceY, static_cast<unsigned>(across),
                 static_cast<unsigned>(down), false, false);
