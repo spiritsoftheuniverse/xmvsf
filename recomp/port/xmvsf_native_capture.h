@@ -18,6 +18,7 @@ namespace port::xmvsf_home {
 class NativeCapture {
     bool requested_ = false;
     std::string folder_;
+    std::string lastPath_; // F6 paired source-audit file base
 
     void Failed(const char *message) {
         requested_ = false;
@@ -43,11 +44,13 @@ public:
         std::fflush(stderr);
     }
     void Request() {
+        lastPath_.clear();
         requested_ = true;
         std::fprintf(stderr, "F6 capture requested -> %s\n", folder_.c_str());
         std::fflush(stderr);
     }
     bool Pending() const { return requested_; }
+    const std::string &LastPath() const { return lastPath_; }
     void Consume() { requested_ = false; }
 
     // Save exactly the given source pixels. Never include window scaling,
@@ -82,6 +85,7 @@ public:
             std::fprintf(stderr, "F6 native capture: could not write %s\n", path.c_str());
             return false;
         }
+        lastPath_ = path;
         std::fprintf(stderr, "F6 NATIVE SCREENSHOT SAVED: %s (%dx%d)\n",
                      path.c_str(), width, height);
         return true;
