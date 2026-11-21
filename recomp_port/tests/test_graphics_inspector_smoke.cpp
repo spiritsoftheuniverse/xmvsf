@@ -1,4 +1,4 @@
-// 87.492 F9 draws only measured visible native ink, not phantom OAM rectangles.
+// 87.493 F9 selects and tints one precisely-owned visible OAM object.
 // The fake graphics records are only test fixtures. Runtime data
 // is supplied by Video::InspectGraphics from the real CPS2 records.
 #include "../../recomp/port/xmvsf_graphics_inspector.h"
@@ -84,6 +84,15 @@ int main() {
         source.records.push_back(next);
     }
 
+    // Fixture is built from the real 87.492 owner-map type. Source
+    // rectangles overlap, but only actual recorded pixels can be tinted.
+    cps2recomp::native_video::VisibleOamInk owners;
+    owners.Begin(384, 224, 384);
+    assert(owners.Note(hud.index, 154, 27));
+    assert(owners.Note(fighter.index, 184, 96));
+    assert(owners.Note(wall.index, 20, 27));
+    source.ownerInk = &owners;
+
     GraphicsInspector view;
     std::vector<std::uint32_t> frame(384u * 224u, 0x00112233u);
     const auto clean = frame;
@@ -102,6 +111,19 @@ int main() {
     assert(source.records.size() == 13u);
     assert(source.records[0].index == 16u);
     assert(source.records[0].sourceAddress == 0x80u);
+    // F4: tint the explicitly selected object, not its bounding box
+    // and never any other OAM slot in the same image.
+    assert(!view.TintEnabled() && view.SelectedInPage() == 0u);
+    view.ToggleTint();
+    assert(view.TintEnabled());
+    frame = clean;
+    view.Paint(frame, 384, 224, source, 1090);
+    assert(frame[27u * 384u + 154u] ==
+        port::xmvsf_home::source_tint::Magenta(clean[27u * 384u + 154u]));
+    assert(frame[27u * 384u + 155u] == clean[27u * 384u + 155u]);
+    assert(frame[96u * 384u + 184u] == clean[96u * 384u + 184u]);
+    view.ToggleTint();
+    assert(!view.TintEnabled());
     view.NextMode();
     assert(view.Mode() == 1u); // new verified WALLS view
     std::fill(frame.begin(), frame.end(), 0x00112233u);
@@ -110,11 +132,39 @@ int main() {
     assert(frame[16u * 384u + 0u] == clean[16u * 384u + 0u]);
     view.NextMode();
     assert(view.Mode() == 2u); // ALL OAM, including wall object
+    frame = clean;
+    view.Paint(frame, 384, 224, source, 1090);
+    view.ToggleTint();
+    assert(view.TintEnabled());
+    view.Select(1); // from HUD to fighter, within this seven-entry page
+    assert(view.SelectedInPage() == 1u);
+    frame = clean;
+    view.Paint(frame, 384, 224, source, 1090);
+    assert(frame[96u * 384u + 184u] ==
+        port::xmvsf_home::source_tint::Magenta(clean[96u * 384u + 184u]));
+    assert(frame[27u * 384u + 154u] == clean[27u * 384u + 154u]);
+    view.Select(1); // fighter -> wall
+    assert(view.SelectedInPage() == 2u);
+    frame = clean;
+    view.Paint(frame, 384, 224, source, 1090);
+    assert(frame[27u * 384u + 20u] ==
+        port::xmvsf_home::source_tint::Magenta(clean[27u * 384u + 20u]));
+    view.Select(1); // clamp: no invisible fourth object to select
+    assert(view.SelectedInPage() == 2u);
+    view.Select(-1);
+    assert(view.SelectedInPage() == 1u);
+    view.ToggleTint();
+    assert(!view.TintEnabled());
     view.NextMode();
     assert(view.Mode() == 3u); // scroll 1 source map, not pixel owner
+    view.ToggleTint();
+    assert(view.TintEnabled());
+    view.Select(1); // scroll maps have no pixel ownership; no selection
+    assert(view.SelectedInPage() == 0u);
     std::fill(frame.begin(), frame.end(), 0x00112233u);
     view.Paint(frame, 384, 224, source, 1090);
     assert(frame[32u * 384u + 60u] == clean[32u * 384u + 60u]);
+    assert(frame[27u * 384u + 154u] == clean[27u * 384u + 154u]);
     view.ChangePage(1);
     assert(view.Page() == 1u);
     view.ChangePage(1);
@@ -125,6 +175,7 @@ int main() {
     assert(!view.Active());
     view.Toggle(true); // entry focuses WALLS when a matching OAM source exists
     assert(view.Active() && view.Mode() == 1u);
+    assert(!view.TintEnabled()); // F9 off/on resets diagnostic tint
     view.Toggle();
     assert(!view.Active());
     frame = clean;
