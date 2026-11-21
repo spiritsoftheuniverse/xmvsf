@@ -2,6 +2,7 @@
 // Copyright (C) 2026 Tommy McLeroy. Part of cps2recomp.
 
 #include "native_render.h"
+#include "../port/xmvsf_vs_handoff.h" // 87.482: shared original FBNeo HUD shock
 
 #include "../runtime/state.h"
 
@@ -116,6 +117,8 @@ void Raster::Objects(const ObjectList &list, const PictureOptions &options) {
                 ObjectTile t;
                 t.x = static_cast<int16_t>(x + tx * 16); // (the level's bits go with it, as the board's sum has them)
                 t.y = static_cast<int16_t>(y + ty * 16);
+                t.sourceX = static_cast<int16_t>(x);
+                t.sourceY = static_cast<int16_t>(y);
                 if (across == 1 && down == 1) {
                     t.tile = code;
                 } else {
@@ -272,7 +275,7 @@ void Raster::Overrides(int line, const Layers &layers, const uint8_t *videoRam, 
 // The objects' tiles, front to back: a pixel once an object's stays the front one's; whether it shows over the scroll
 // screens' pens there is by its level (masks)
 void Raster::DrawObjects(int rasterLine, const Layers &layers, const PictureOptions &options, int width, uint16_t *pens, uint8_t *priority,
-                         const uint32_t *masks, uint8_t *marks) const {
+                         const uint32_t *masks, uint8_t *marks, uint8_t *hudInk) const {
     const int xOffset = 64 - layers.xOffset, yOffset = 16 - layers.yOffset;
     for (const ObjectTile &t : m_tiles) {
         if (t.hidden || (options.hideObject && options.hideObject(t.entryTile, t.attributes))) {
@@ -303,6 +306,28 @@ void Raster::DrawObjects(int rasterLine, const Layers &layers, const PictureOpti
         uint8_t pixels[16];
         Unpack(&graphics[at], pixels);
         Unpack(&graphics[at + 4], pixels + 8);
+        // Retain entry-level identity after the native renderer expands
+        // multi-tile objects. The original HUD classifier must see the
+        // full ROM object, NOT each 16px fragment as an independent sprite.
+        const int sourceX = ((t.sourceX + (t.relative ? layers.xOffset : 0) +
+                              xOffset) & 0x3FF) - kFirstColumn;
+        const int sourceY = ((t.sourceY + (t.relative ? layers.yOffset : 0) +
+                              yOffset) & 0x3FF) - kFirstLine;
+        const unsigned across = ((t.attributes >> 8) & 15u) + 1u;
+        const unsigned down = ((t.attributes >> 12) & 15u) + 1u;
+        const bool hudSource = options.hudShock &&
+            XM87392::objectForPhase(options.hudShockPhase, t.level,
+                t.attributes & 0x1Fu, t.entryTile, sourceX, sourceY,
+                across, down, false, (t.attributes & 0x1Fu) >= 0x1Au);
+        if (hudSource && XM87392::verifiedTransitionHud(t.level,
+                t.attributes & 0x1Fu, t.entryTile, sourceX, sourceY,
+                across, down)) {
+            XM87392::timeline().noteHudSource(options.hudShockFrame);
+        }
+        const unsigned hudStep = options.hudShock
+            ? XM87392::timeline().step(options.hudShockFrame)
+            : XM87392::RevealFrames;
+        const bool shockTile = hudSource && hudStep < XM87392::RevealFrames;
         const uint32_t mask = masks[t.level] | 0x80000000u;
         for (int k = 0; k < 16; k++) {
             const int px = sx + k;
@@ -312,8 +337,13 @@ void Raster::DrawObjects(int rasterLine, const Layers &layers, const PictureOpti
             const uint8_t pen = pixels[t.flipX ? 15 - k : k];
             if (pen != 15) {
                 const bool shown = !((mask >> (priority[px] & 0x1F)) & 1);
+                if (shown && shockTile &&
+                    !XM87392::visible(px, rasterLine - kFirstLine, hudStep) &&
+                    !XM87392::shineCore(px, rasterLine - kFirstLine, hudStep))
+                    continue;
                 if (shown) {
                     pens[px] = static_cast<uint16_t>(t.colour + pen);
+                    if (hudInk && shockTile) hudInk[px] = 1;
                 }
                 if (marks && priority[px] != 31) {
                     marks[px] = static_cast<uint8_t>(t.marks & (shown ? 0xFF : ~kFrontPixel));
@@ -535,11 +565,27 @@ void Raster::Line(int line, const Layers &layers, const uint8_t *videoRam, const
     if (marking) {
         memset(marks, 0, sizeof(marks));
     }
+    uint8_t hudInk[kMaxWidth] = {};
     if (options.layerMask & 1) {
-        DrawObjects(rasterLine, layers, options, width, pens, priority, masks, marking ? marks : nullptr);
+        DrawObjects(rasterLine, layers, options, width, pens, priority, masks,
+                    marking ? marks : nullptr, hudInk);
     }
     for (int x = 0; x < width; x++) {
         out[x] = m_colours[pens[x]];
+        if (hudInk[x]) {
+            // Original FBNeo white/electric-blue traveling shine, converting
+            // between FBNeo's 00RRGGBB and recomp's 00BBGGRR channel order.
+            const uint32_t raw = out[x];
+            const uint32_t rgb = ((raw & 0xFFu) << 16) |
+                                  (raw & 0xFF00u) |
+                                 ((raw >> 16) & 0xFFu);
+            const uint32_t glow = XM87392::shineRGB(rgb, x, line,
+                XM87392::timeline().step(options.hudShockFrame));
+            out[x] = (raw & 0xFF000000u) |
+                     ((glow & 0xFFu) << 16) |
+                       (glow & 0xFF00u) |
+                     ((glow >> 16) & 0xFFu);
+        }
     }
     if (options.markFront) {
         // (in front: an object marked so, or a scroll screen's pixel an object of the fighters' level is behind)
