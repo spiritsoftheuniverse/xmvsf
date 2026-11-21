@@ -147,7 +147,7 @@ public:
             cv.Text(5, float(panelTop + 30), .9f, 0, pale,
                 "NO NATIVE SOURCE RECORDS IN THIS VIEW");
         std::snprintf(text, sizeof(text),
-            "FRAME %llu STEP %04X STATUS %02X OAM BANK %u | SOURCES, NOT PIXEL PROOF",
+            "F%llu STEP%04X ST%02X B%u  T=TILE G=ROM-OFF P=PAL Z=PRIO | SOURCE",
             static_cast<unsigned long long>(frame),
             snapshot.gameStep, snapshot.fightStatus, snapshot.objectBank);
         cv.Text(3, float(height - 12), .75f, 0, muted, text);
