@@ -63,6 +63,9 @@ public:
     }
     // One line of the picture (0..kHeight-1): Width() pixels with red in the low byte, then green, then blue
     void RenderLine(int line, uint32_t *out);
+    // 87.488: F6 read-only provenance: dump the actual native scroll-map
+    // records and latched OAM sources, never pixels/tile-colour filtering.
+    bool ExportGraphicsSources(const char *path, std::uint64_t frame) const;
     void Serialize(Archive &ar);
 
     // (for tools: which layers are drawn; bit 0 objects, bits 1-3 scroll screens 1-3)
