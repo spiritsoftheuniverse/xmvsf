@@ -358,6 +358,12 @@ void Raster::DrawObjects(int rasterLine, const Layers &layers, const PictureOpti
                     continue;
                 if (shown) {
                     pens[px] = static_cast<uint16_t>(t.colour + pen);
+                    // 87.492: report only an OAM pixel that actually
+                    // survived alpha, priority, native HUD concealment.
+                    // OAM entry identity survives 16px tile expansion.
+                    if (options.inkProbe)
+                        options.inkProbe(options.inkProbeUser, t.entry,
+                                         px, rasterLine - kFirstLine);
                     if (hudInk && shockTile) hudInk[px] = 1;
                 }
                 if (marks && priority[px] != 31) {
