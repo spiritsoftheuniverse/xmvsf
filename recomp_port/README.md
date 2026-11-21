@@ -1,4 +1,48 @@
-# XMVSF native front end — 87.491 (relocating OAM wall protection; honest F9 selectors)
+# XMVSF native front end — 87.492 (visible native OAM ink ownership and F9)
+
+## 87.492 — source-level visual evidence for all OAM graphics
+
+The 31 new user screenshots (`screenshots(1).zip`) cover native
+fight frames 3425–8183. Their source records include **6,464 OAM
+entries across 355 distinct source signatures**; appearances of
+the same source vary with animation, and raw OAM bounding rectangles
+are not evidence of rendered visible pixels. This is a sample of
+one fight/stage, **not** proof of semantic names for the full ROM.
+
+**F9 now samples visible OAM ink in the actual renderers.** The
+diagnostic-only `VisibleOamInk` ledger starts at the beginning of
+each emulated frame when F9 is on; it attributes a native pixel to
+its original OAM entry only after it survives transparency, native
+scroll priority and HUD concealment. The first renderer to report
+a screen pixel claims it so a simultaneous native/board video-check
+cannot double-count. This produces, per source, a count of actual
+native drawn pixels and a tight on-screen ink bounding box.
+
+F9 HUD, WALLS and ALL OAM modes now outline and label **only entries
+with measured visible ink**. Source-only records or objects hidden
+behind others no longer acquire misleading floating rectangles.
+The previously verified WALLS source-exemption signature is unchanged;
+the inspector never alters the game's graphics, ROM, VRAM, HUD
+timing, combat logic or F10 recorder. The compact F9 badge shows
+the selected source's actual `INK` count, slot and bank-relative
+address. The corresponding F6 TSV appends whether the pixels were
+measured, visible-ink count and exact min/max coordinates.
+
+This is the first graphics-wide source ownership pass, applicable
+to fighters, HUD elements, OAM effects and objects in **any native
+stage**. **Scroll 1–3 remain explicitly source-map only**, because
+their final per-pixel ownership after OAM overlap has not yet been
+measured; F9 must not claim to have proven their visible pixels.
+Unidentified assets likewise retain source indices rather than
+invented names.
+
+The new SDL-free `VisibleOamInk` C++ smoke executes per-pixel
+deduplication, overlapping OAM sources, real tight bounds, zero
+visible pixels for hidden candidates, shifted object slots, and
+frame reset. The F9 renderer smoke now requires source-derived
+visible ink rather than just a source bounding rectangle. Existing
+HUD concealment, wall immunity and stage select behavior are not
+modified. Windows full build/gameplay remain to be verified locally.
 
 ## 87.491 — fix actual missing wall object protection and F9 evidence
 
