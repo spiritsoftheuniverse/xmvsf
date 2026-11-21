@@ -21,6 +21,7 @@ class GraphicsInspector {
     bool active_ = false;
     unsigned mode_ = 0; // HUD OAM, all OAM, scroll 1/2/3
     unsigned page_ = 0;
+    unsigned pageCount_ = 1; // recomputed on each presented source snapshot
     static constexpr unsigned kPageSize = 7u;
 
     static bool Matches(const cps2recomp::Video::GraphicRecord &r,
@@ -38,22 +39,22 @@ public:
 
     void Toggle() {
         active_ = !active_;
-        if (active_) { mode_ = 0u; page_ = 0u; }
+        if (active_) { mode_ = 0u; page_ = 0u; pageCount_ = 1u; }
     }
     void NextMode() {
-        if (active_) { mode_ = (mode_ + 1u) % 5u; page_ = 0u; }
+        if (active_) { mode_ = (mode_ + 1u) % 5u; page_ = 0u; pageCount_ = 1u; }
     }
     void ChangePage(int delta) {
         if (!active_) return;
         if (delta < 0 && page_ > 0u) --page_;
-        else if (delta > 0 && page_ < 4096u) ++page_;
+        else if (delta > 0 && page_ + 1u < pageCount_) ++page_;
     }
 
     // The 5x7 font and painting canvas are the recomp's own, with
     // RGB-low-byte pixels (native Windowed and native F6 copies).
     void Paint(std::vector<std::uint32_t> &pixels, int width, int height,
                const cps2recomp::Video::GraphicsInspection &snapshot,
-               std::uint64_t frame) const {
+               std::uint64_t frame) {
         if (!active_ || width < 128 || height < 96 ||
             pixels.size() < static_cast<std::size_t>(width) *
                             static_cast<std::size_t>(height)) return;
@@ -75,7 +76,9 @@ public:
 
         const unsigned pages = std::max(1u, static_cast<unsigned>(
             (matching.size() + kPageSize - 1u) / kPageSize));
-        const unsigned page = page_ < pages ? page_ : pages - 1u;
+        pageCount_ = pages;
+        page_ = std::min(page_, pages - 1u);
+        const unsigned page = page_;
         const unsigned start = page * kPageSize;
         const unsigned stop = std::min(
             static_cast<unsigned>(matching.size()), start + kPageSize);
