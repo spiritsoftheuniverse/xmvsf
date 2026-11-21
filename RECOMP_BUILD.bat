@@ -230,11 +230,11 @@ if errorlevel 1 (
   goto :fail
 )
 
-REM 87.482: compile-check the original FBNeo VS handoff, HUD shaderless
+REM 87.486: compile-check FBNeo VS/HUD and run behavioral C++ smoke
 REM raster path and M68K native observer before Ninja touches any build files.
 "%BASH%" -c "python3 ../recomp_port/tests/test_vs_hud_shock.py"
 if errorlevel 1 (
-  echo ERROR: XMVSF 87.482 native VS/HUD regression failed. No build performed.
+  echo ERROR: XMVSF 87.486 native VS/HUD compile or behavioral regression failed. No build performed.
   popd
   goto :fail
 )
