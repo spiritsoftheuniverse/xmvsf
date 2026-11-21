@@ -57,6 +57,127 @@ void Video::Reset() {
     m_lastObject = -4;
 }
 
+// 87.489 F9: decode genuine native object and scroll map records into
+// labelled presentation candidates. NO screen pixel heuristics, filtering,
+// writes to RAM, changes to OAM, or shader interception.
+Video::GraphicsInspection Video::InspectGraphics() const {
+    GraphicsInspection found;
+    found.gameStep = hudShockGameStep;
+    found.fightStatus = static_cast<unsigned>(hudShockPhase) & 0xFFu;
+    found.objectBank = latchedObjectBank;
+    if (!m_src.videoRam || !m_src.cpsA || !m_src.cpsB ||
+        !m_src.objectRegs || !m_src.graphics) return found;
+    const auto *a = m_src.cpsA;
+    const auto *regs = m_src.objectRegs;
+    found.layerControl = m_src.cpsB[m_src.board.layerControl / 2u];
+    found.videoControl = a[kVideoControl];
+
+    // Native frame-latched CPS2 OAM: each 8-byte entry has a true slot
+    // identity and code. The bank is recorded separately because the
+    // physical OAM banks alternate. Never pass these IDs into hiding code.
+    for (int i = 0; i <= m_lastObject; i += 4) {
+        const unsigned xw = m_objects[i], yw = m_objects[i + 1];
+        const unsigned attr = m_objects[i + 3];
+        const unsigned code = m_objects[i + 2] + ((yw & 0x6000u) << 3);
+        const int across = static_cast<int>(((attr >> 8) & 0x0Fu) + 1u);
+        const int down = static_cast<int>(((attr >> 12) & 0x0Fu) + 1u);
+        const bool relative = (attr & 0x80u) != 0u;
+        const int ox = static_cast<int>(regs[kObjXOffset]);
+        const int oy = static_cast<int>(regs[kObjYOffset]);
+        const int px = ((static_cast<int>(xw) +
+                         (relative ? ox : 0) + 64 - ox) & 0x3FF) - kFirstColumn;
+        const int py = ((static_cast<int>(yw) +
+                         (relative ? oy : 0) + 16 - oy) & 0x3FF) - kFirstLine;
+        if (px >= Width() || px + across * 16 <= 0 ||
+            py >= kHeight || py + down * 16 <= 0) continue;
+        GraphicRecord item{};
+        item.kind = 0;
+        item.index = static_cast<unsigned>(i / 4);
+        item.sourceAddress = static_cast<unsigned>(i * 2); // bank-local byte offset
+        item.tile = code;
+        item.gfxOffset = code * 128u; // CPS2 object ROM byte offset
+        item.attributes = attr;
+        item.priority = (xw >> 13) & 7u;
+        item.palette = attr & 31u;
+        item.bank = latchedObjectBank;
+        item.x = px + wide.side;
+        item.y = py;
+        item.w = across * 16;
+        item.h = down * 16;
+        item.enabled = (m_extraGraphics && m_objectsFromExtra[i / 4])
+            ? item.gfxOffset < m_extraGraphicsSize
+            : item.gfxOffset < m_src.graphicsSize;
+        found.records.push_back(item);
+    }
+
+    // Native scroll-map entries, with actual VRAM addresses computed
+    // from CPS-A map base/scroll and CPS-B layer control.
+    for (int which = 0; which < 3; ++which) {
+        const unsigned shift = static_cast<unsigned>(3 + which);
+        const unsigned tileSize = 1u << shift;
+        const unsigned mapMask = (64u << shift) - 1u;
+        const unsigned base =
+            (static_cast<unsigned>(a[kScroll1Base + which]) * 256u) &
+            ~0x3FFFu & 0x3FFFFu;
+        const unsigned scrollY = a[kScroll1X + which * 2 + 1];
+        const bool rowOn = which == 1 && (found.videoControl & 1u);
+        const bool enabled = (layerMask & (1u << (which + 1))) &&
+            (found.layerControl & (1u << (which + 1))) &&
+            (which == 0 || (found.videoControl & (1u << (which + 1))));
+        const int yFirst = -static_cast<int>((kFirstLine + scrollY) & (tileSize - 1u));
+        for (int y = yFirst; y < kHeight; y += static_cast<int>(tileSize)) {
+            const unsigned rasterY = static_cast<unsigned>(y + kFirstLine);
+            const unsigned row = ((rasterY + scrollY) & mapMask) >> shift;
+            const unsigned rowOffset = (rasterY + a[kRowScrollOffset]) & 0x3FFu;
+            const unsigned otherBase =
+                (static_cast<unsigned>(a[kOtherBase]) * 256u) &
+                ~0x7FFu & 0x3FFFFu;
+            const unsigned rowScroll = rowOn ?
+                Word(&m_src.videoRam[otherBase + rowOffset * 2u]) : 0u;
+            const int ownLeft = wide.side + wide.scroll[which] +
+                (rowOn && wide.rows ? wide.rows[rowOffset] : 0);
+            const unsigned scrollX = static_cast<unsigned>(
+                a[kScroll1X + which * 2]) + rowScroll;
+            const unsigned firstX =
+                static_cast<unsigned>(kFirstColumn - ownLeft +
+                                      static_cast<int>(scrollX)) & mapMask;
+            const int xFirst = -static_cast<int>(firstX & (tileSize - 1u));
+            for (int x = xFirst; x < Width(); x += static_cast<int>(tileSize)) {
+                const unsigned col =
+                    ((firstX + static_cast<unsigned>(x)) & mapMask) >> shift;
+                unsigned index;
+                if (which == 0)
+                    index = (row & 31u) + (col << 5) + ((row & 32u) << 6);
+                else if (which == 1)
+                    index = (row & 15u) + (col << 4) + ((row & 48u) << 6);
+                else
+                    index = (row & 7u) + (col << 3) + ((row & 56u) << 6);
+                const unsigned at = base + index * 4u;
+                const unsigned code = Word(&m_src.videoRam[at]);
+                const unsigned attr = Word(&m_src.videoRam[at + 2u]);
+                GraphicRecord item{};
+                item.kind = static_cast<unsigned>(which + 1);
+                item.index = index;
+                item.sourceAddress = 0x900000u + at; // actual CPS2 VRAM byte address
+                item.tile = code;
+                item.gfxOffset = 0x800000u +
+                    (which == 0 ? code * 64u + ((col & 1u) ? 4u : 0u) :
+                     which == 1 ? code * 128u : (code & 0x3FFFu) * 512u);
+                item.attributes = attr;
+                item.palette = attr & 31u;
+                item.x = x;
+                item.y = y;
+                item.w = static_cast<int>(tileSize);
+                item.h = static_cast<int>(tileSize);
+                item.enabled = enabled &&
+                    item.gfxOffset < m_src.graphicsSize;
+                found.records.push_back(item);
+            }
+        }
+    }
+    return found;
+}
+
 // 87.488: inspect the native graphic SOURCES of a captured game frame.
 // It is deliberately independent of XM87392's HUD masks and never edits
 // ROM/RAM, object ownership, tile IDs, the renderer, or the visual clock.
