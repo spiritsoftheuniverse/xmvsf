@@ -162,8 +162,9 @@ int main() {
     assert(view.Mode() == 3u); // scroll 1 source map, not pixel owner
     view.ToggleTint();
     assert(view.TintEnabled());
-    view.Select(1); // scroll maps have no pixel ownership; no selection
+    view.Select(1); // scroll maps page directly with plain brackets
     assert(view.SelectedInPage() == 0u);
+    assert(view.Page() == 0u); // page count is updated by Paint below
     std::fill(frame.begin(), frame.end(), 0x00112233u);
     view.Paint(frame, 384, 224, source, 1090);
     assert(frame[32u * 384u + 60u] == clean[32u * 384u + 60u]);
