@@ -66,6 +66,31 @@ public:
     // 87.488: F6 read-only provenance: dump the actual native scroll-map
     // records and latched OAM sources, never pixels/tile-colour filtering.
     bool ExportGraphicsSources(const char *path, std::uint64_t frame) const;
+    // 87.489 F9: the actual source records for ON-SCREEN labels.
+    // Kind 0 = latched OAM object, 1-3 = CPS scroll map sources.
+    // These are source candidates, not claims about occluded pixel ink.
+    struct GraphicRecord {
+        unsigned kind = 0;
+        unsigned index = 0;      // OAM slot or source map entry index
+        unsigned sourceAddress = 0; // OAM bank-local byte offset; scroll = 0x900000 + VRAM offset
+        unsigned tile = 0;       // full ROM OAM code or native scroll tile code
+        unsigned gfxOffset = 0;  // byte offset into ROM graphics (before flip/row)
+        unsigned attributes = 0;
+        unsigned priority = 0;  // CPS object priority; scroll uses 0
+        unsigned palette = 0;
+        unsigned bank = 0;      // latched OAM bank; scroll uses 0
+        int x = 0, y = 0, w = 0, h = 0;
+        bool enabled = false;    // source enabled; not proof of visible ink
+    };
+    struct GraphicsInspection {
+        std::vector<GraphicRecord> records;
+        unsigned gameStep = 0, fightStatus = 0;
+        unsigned layerControl = 0, videoControl = 0;
+        unsigned objectBank = 0;
+    };
+    GraphicsInspection InspectGraphics() const;
+    unsigned latchedObjectBank = 0; // set on actual CPS-2 OAM latch by Machine
+
     void Serialize(Archive &ar);
 
     // (for tools: which layers are drawn; bit 0 objects, bits 1-3 scroll screens 1-3)
