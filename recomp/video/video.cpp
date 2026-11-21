@@ -2,6 +2,7 @@
 // Copyright (C) 2026 Tommy McLeroy. Part of cps2recomp.
 
 #include "video.h"
+#include "dummy_selector_sources.h" // 87.495 source-exact Training P2 selectors
 #include "../port/xmvsf_source_identity.h" // 87.490 native OAM wall exemption
 #include "../port/xmvsf_vs_handoff.h" // 87.482: original FBNeo 120+30 HUD shock
 
@@ -57,6 +58,7 @@ void Video::Reset() {
     m_priorityControl = 0;
     m_lastObject = -4;
     latchedObjectBank = 0;
+    hideP2Selector = false; // no stale mask across reset
     m_inkReady = false;
     m_inkInspection = false;
     m_ink.Disable();
@@ -476,6 +478,11 @@ void Video::DrawObjects(int rasterLine, uint16_t *pens, uint8_t *priority, const
         if (hideObject && hideObject(code, attr)) {
             continue;
         }
+        // Do not rely on palette or OAM slot: only the 13 documented
+        // source objects, and only before the Training dummy handoff.
+        if (hideP2Selector &&
+            native_video::IsTrainingDummySelectorSource(code, attr))
+            continue;
         if (attr & 0x80) {
             x += m_src.objectRegs[kObjXOffset];
             y += m_src.objectRegs[kObjYOffset];
