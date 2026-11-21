@@ -1,4 +1,4 @@
-// XMVSF menu audio v87.469: isolated one-shot Fight voice on Training stage confirm;
+// XMVSF menu audio v87.487: stop Fight voice device tail before character select;
 // existing WAV assets, with bounded queueing and no FBNeo/SDL2 dependencies.
 // All assets are loaded from the original repository; no copies committed.
 #pragma once
@@ -181,6 +181,10 @@ public:
     // SDL_ClearAudioStream cannot truncate its last syllable.
     bool Fight(bool audible = true) {
         if (!audible || !fightStream_ || fight_.Empty()) return false;
+        // A previous level-confirm cue may have been paused when native
+        // character select appeared. Restart with a clean, audible stream.
+        SDL_SetAudioStreamGain(fightStream_, 1.0f);
+        SDL_ResumeAudioStreamDevice(fightStream_);
         if (!SDL_ClearAudioStream(fightStream_)) return false;
         const int bytes = static_cast<int>(fight_.samples.size() * sizeof(int16_t));
         if (!SDL_PutAudioStreamData(fightStream_, fight_.samples.data(), bytes))
@@ -192,6 +196,16 @@ public:
     }
     bool FightPlaying() const {
         return fightUntil_ && SDL_GetTicks() < fightUntil_;
+    }
+    // On the character-select presentation boundary, stop even the
+    // hardware/device tail of the separate Fight! stream. Clearing only
+    // queued samples is insufficient when SDL already delivered a block.
+    void FinishFight() {
+        fightUntil_ = 0;
+        if (!fightStream_) return;
+        SDL_SetAudioStreamGain(fightStream_, 0.0f);
+        SDL_PauseAudioStreamDevice(fightStream_);
+        SDL_ClearAudioStream(fightStream_);
     }
 
     void Move() { if (!movement_.Empty()) moveAt_ = 0; }
