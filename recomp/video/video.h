@@ -91,6 +91,9 @@ public:
     };
     struct GraphicsInspection {
         std::vector<GraphicRecord> records;
+        // Nonowning pointer into this frame's source-backed pixel owner map.
+        // Stable until the next emulated frame; only used synchronously by F9.
+        const native_video::VisibleOamInk *ownerInk = nullptr;
         unsigned gameStep = 0, fightStatus = 0;
         unsigned layerControl = 0, videoControl = 0;
         unsigned objectBank = 0;
