@@ -40,6 +40,9 @@ int main() {
     state.Observe(5, 7, 7, 2, 301, true);
     assert(state.sequence == 2);
     assert(HudStep(8, 302) == 0);
+    // Captured first HP slot 16: x E0D0, y 2024, tile 59B5,
+    // attr 0002 -> resolved tile 0x159B5 at screen (144,20).
+    assert(XM87392::verifiedTransitionHud(7, 2, 0x159B5, 144, 20, 1, 1));
     assert(XM87392::verifiedTransitionHud(7, 2, 88417, 12, 20, 2, 2));
     assert(!XM87392::verifiedTransitionHud(7, 3, 50000, 12, 20, 2, 2));
     assert(!XM87392::visible(0, 0, 0));
