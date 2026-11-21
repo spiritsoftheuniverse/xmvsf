@@ -1,4 +1,44 @@
-# XMVSF native front end — 87.492 (visible native OAM ink ownership and F9)
+# XMVSF native front end — 87.493 (F4 native pixel-owner tint and individual F9 source selection)
+
+## 87.493 — F4 tint selected visible OAM ink, Shift+brackets pick
+
+The new `screenshots(2).zip` contains **63 timestamped gameplay
+F6/source-record pairs**, including the small **VS** text between
+portraits. The source-backed final-ink inspector is substantially more
+accurate than raw OAM rectangles. In full-screen OAM INK view, many
+overlapping sources make seven outlines hard to distinguish.
+
+**F9** enables the existing inspector. While F9 is on, **F4**
+toggles a **magenta tint for exactly one selected visible OAM
+source**. **Shift+[** selects the previous entry and **Shift+]**
+the next within the current seven-source page; **[** and **]**
+without Shift still change pages. F8 continues to cycle HUD INK,
+WALL INK, OAM INK, MAP 1, MAP 2, MAP 3. The focused entry has the
+gold outline and is the one named in the compact source badge.
+F4 alone while F9 is off does nothing; Alt+F4 is untouched.
+
+Tint application is **after** original game composition on the SDL3
+presentation **copy** and before the existing F9 outlines. It
+reads the **same renderer-produced per-pixel owner map** that
+87.492 uses to calculate visible OAM ink bounds. Only pixels where
+`OwnerAt(x,y)` matches the selected native OAM slot receive the
+magenta mix, with source luminance retained. Pixels of other OAM
+objects, transparent source holes, and scroll/backdrop inside the
+selected bounds remain unchanged. Small labels are immediately
+adjacent to rather than painted over the selected ink.
+
+**F6 with tint enabled** saves exactly what F9 currently shows,
+together with its standard native `.graphics.tsv`; the TSV remains
+unmodified numeric evidence of tile/slot/bank/address and ink counts,
+not a record of altered ROM graphics. Scroll-map modes are explicitly
+SOURCE ONLY because scroll ink ownership is not yet instrumented,
+and F4 never incorrectly tints a scroll map.
+
+The local pre-Ninja C++ test now exercises actual owner-map tint,
+overlap, transparent pixels, bounds, frame reset, F9 selection,
+and OAM vs. map modes, rather than matching Python source text.
+No gameplay controls, OAM, GPU source, emulator RAM, HUD shock,
+wall protection, F10 M68K, or existing native F6 destination changes.
 
 ## 87.492 — source-level visual evidence for all OAM graphics
 
