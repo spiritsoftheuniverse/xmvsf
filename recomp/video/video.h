@@ -82,6 +82,10 @@ public:
     // XMVSF Training: suppress only the original P2 selector pen tiles
     // while retaining the ROM's native selection input and P1 visuals.
     bool hideP2Selector = false;
+    // 87.482: native XMVSF upper-HUD shock, controlled only by its SDL3 front end.
+    bool hudShock = false;
+    unsigned hudShockFrame = 0;
+    int hudShockPhase = -1;
     // For a game's own sources that put pictures together: the picture's pixels that an object is drawn at
     // have their top byte set (0x80 and the object's colour set, 0-31), the others clear, so that a picture
     // of the objects alone can be laid over another picture, and one object's pixels told from another's.
@@ -186,7 +190,8 @@ private:
     template <bool kWide> void DrawScroll(int which, int rasterLine, uint16_t *pens, uint8_t *priority, uint8_t mark, uint8_t *high = nullptr);
     void RenderLineCps1(int line, uint32_t *out);
     void DrawObjectsCps1(int rasterLine, uint16_t *pens, const uint8_t *high, uint16_t *drawn = nullptr);
-    template <bool kWide> void DrawObjects(int rasterLine, uint16_t *pens, uint8_t *priority, const uint32_t *masks, uint8_t *marks = nullptr);
+    template <bool kWide> void DrawObjects(int rasterLine, uint16_t *pens, uint8_t *priority, const uint32_t *masks,
+                                           uint8_t *marks = nullptr, uint8_t *hudInk = nullptr);
 };
 
 } // namespace cps2recomp
