@@ -34,6 +34,14 @@ int main() {
     layer.sourceAddress = 0x904148u;
     layer.x = 60; layer.y = 32;
     source.records.push_back(layer);
+    // Nine distinct source map entries make two browsable seven-row pages.
+    for (unsigned n = 1; n <= 8u; ++n) {
+        auto next = layer;
+        next.index += n;
+        next.x += static_cast<int>(n) * 8;
+        next.sourceAddress += n * 4u;
+        source.records.push_back(next);
+    }
 
     GraphicsInspector view;
     std::vector<std::uint32_t> frame(384u * 224u, 0x00112233u);
@@ -45,7 +53,7 @@ int main() {
     view.Paint(frame, 384, 224, source, 1090);
     assert(frame != clean);
     assert(frame[20u * 384u + 144u] != clean[20u * 384u + 144u]);
-    assert(source.records.size() == 3u);
+    assert(source.records.size() == 11u);
     assert(source.records[0].index == 16u);
     assert(source.records[0].sourceAddress == 0x80u);
     view.NextMode();
@@ -57,6 +65,8 @@ int main() {
     assert(frame[32u * 384u + 60u] != clean[32u * 384u + 60u]);
     view.ChangePage(1);
     assert(view.Page() == 1u);
+    view.ChangePage(1);
+    assert(view.Page() == 1u); // last page clamps, never gets stuck
     view.ChangePage(-1);
     assert(view.Page() == 0u);
     view.Toggle();
