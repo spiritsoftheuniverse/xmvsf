@@ -207,7 +207,7 @@ public:
                 static_cast<unsigned long long>(frame));
         } else {
             std::snprintf(text, sizeof(text),
-                "F9 %s %u/%u F4 TINT %s",
+                "F9 %s %u/%u F4:%s [ ]PG SH+[ ]OBJ",
                 modeName[mode_], page + 1u, pages,
                 tintEnabled_ ? "ON" : "OFF");
         }
