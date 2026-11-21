@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
-"""87.488 F6 native captures and native OAM/scroll graphics-source probe."""
+"""87.489 F9 indexed native graphics inspector, annotated F6 source captures."""
 from __future__ import annotations
 
 from pathlib import Path
 import shutil
 import subprocess
+import tempfile
 
 ROOT = Path(__file__).resolve().parents[2]
 CANONICAL = ROOT / "recomp_port"
@@ -95,7 +96,15 @@ def main() -> None:
     smoke = CANONICAL / "tests/test_graphics_source_capture_smoke.cpp"
     subprocess.run([compiler, "-std=c++20", "-fsyntax-only", str(smoke)],
                    check=True)
-    print("XMVSF 87.488 F6 graphics source inventory API, all captures PASS")
+    # Test F9's real pixel presentation and index/view behavior in C++,
+    # without matching source code spelling or touching a ROM.
+    with tempfile.TemporaryDirectory(prefix="xmvsf_f9_489_") as folder:
+        inspector_smoke = CANONICAL / "tests/test_graphics_inspector_smoke.cpp"
+        executable = Path(folder) / "graphics_inspector.exe"
+        subprocess.run([compiler, "-std=c++20", str(inspector_smoke),
+                        "-o", str(executable)], check=True)
+        subprocess.run([str(executable)], check=True)
+    print("XMVSF 87.489 F9 indexed native presentation and F6 sources C++ smoke PASS")
 
 
 if __name__ == "__main__":
