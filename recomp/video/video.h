@@ -157,6 +157,9 @@ public:
         o.fillHoles = wide.fillHoles;
         o.hideObject = hideObject;
         o.hideP2Selector = hideP2Selector;
+        o.hudShock = hudShock;
+        o.hudShockFrame = hudShockFrame;
+        o.hudShockPhase = hudShockPhase;
         o.objectsTaken = objectsTaken;
         o.markObjects = markObjects;
         o.markLayers = markLayers;
