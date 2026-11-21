@@ -14,6 +14,7 @@
 #include "xmvsf_select_reveal.h" // XMVSF_RECOMP_SELECT_REVEAL_87_468
 #include "xmvsf_native_capture.h" // XMVSF_NATIVE_CAPTURE_87_458
 #include "xmvsf_m68k_capture.h" // XMVSF_NATIVE_M68K_F10_87_472
+#include "xmvsf_graphics_inspector.h" // XMVSF_F9_SOURCE_INSPECTOR_87_489
 #include "xmvsf_options.h" // XMVSF_RECOMP_OPTIONS_87_442
 #include "xmvsf_pad_owners.h" // XMVSF_RECOMP_PAD_OWNER_87_443
 #include "../fight/session.h"
@@ -431,6 +432,7 @@ int RunWindowed(Port &port) {
     xmvsf_home::Menu home(homeEnabled);
     xmvsf_home::MenuAudio homeAudio(homeEnabled);
     xmvsf_home::VersusAudio versusAudio;
+    xmvsf_home::GraphicsInspector graphicsInspector; // display-copy only
     std::uint64_t versusSeen = 0;
     // The request filter is XMVSF-only and music-only: native SFX remain.
     port.machine->soundtrack.suppressXmvsfVsMusic = homeEnabled;
@@ -598,6 +600,32 @@ int RunWindowed(Port &port) {
                 }
                 continue;
             }
+            // 87.489: F9 opens the read-only indexed native source
+            // inspector. F5 is still Save State, Shift+F9 is Load State,
+            // and F6/F10 retain their previous diagnostic functions.
+            // F8 changes source family; [ and ] page the 7-row ledger.
+            const bool inspectInput = homeEnabled && !port.typing &&
+                !home.Visible() && !stagePicker.Active() &&
+                !options.Active() && !port.menu.IsOpen();
+            if (ev.type == SDL_EVENT_KEY_DOWN && !ev.key.repeat &&
+                inspectInput && !(ev.key.mod & SDL_KMOD_SHIFT) &&
+                ev.key.scancode == SDL_SCANCODE_F9) {
+                graphicsInspector.Toggle();
+                continue;
+            }
+            if (ev.type == SDL_EVENT_KEY_DOWN && !ev.key.repeat &&
+                inspectInput && graphicsInspector.Active()) {
+                if (ev.key.scancode == SDL_SCANCODE_F8) {
+                    graphicsInspector.NextMode();
+                    continue;
+                }
+                if (ev.key.scancode == SDL_SCANCODE_LEFTBRACKET ||
+                    ev.key.scancode == SDL_SCANCODE_RIGHTBRACKET) {
+                    graphicsInspector.ChangePage(
+                        ev.key.scancode == SDL_SCANCODE_RIGHTBRACKET ? 1 : -1);
+                    continue;
+                }
+            }
             if (touch.Event(ev)) {
                 continue;
             }
@@ -686,9 +714,11 @@ int RunWindowed(Port &port) {
                 } else if (multi && !port.menu.IsOpen() && ev.key.scancode == SDL_SCANCODE_N && !ev.key.repeat) {
                     port.Key('n');
                 } else if (ev.key.scancode == SDL_SCANCODE_F5 || ev.key.scancode == SDL_SCANCODE_F9) {
-                    // F5 saves the current slot; F9 restores it. F6 captures
-                    // native screenshots; F7 changes the save slot.
-                    if (!port.menu.IsOpen()) {
+                    // F5 saves; Shift+F9 restores in XMVSF when F9 owns
+                    // the read-only source inspector. Other games retain F9.
+                    if (!port.menu.IsOpen() &&
+                        (ev.key.scancode == SDL_SCANCODE_F5 ||
+                         !homeEnabled || (ev.key.mod & SDL_KMOD_SHIFT))) {
                         quickState(ev.key.scancode == SDL_SCANCODE_F5);
                     }
                 } else if (ev.key.scancode == SDL_SCANCODE_F7) {
@@ -1316,11 +1346,18 @@ int RunWindowed(Port &port) {
                                      touchWidth, touchHeight);
             }
         }
+        cps2recomp::Video::GraphicsInspection graphicsSnapshot;
+        if (graphicsInspector.Active() && homeEnabled)
+            graphicsSnapshot = port.machine->video.InspectGraphics();
         if (nativeCapture.Pending()) {
             // One native game-frame screenshot, at its actual source pixel
             // width and 224 rows. F12 continues to use Port::Screenshot().
             std::vector<uint32_t> nativeGamePixels;
             port.Shown(nativeGamePixels);
+            if (graphicsInspector.Active() && homeEnabled) {
+                graphicsInspector.Paint(nativeGamePixels, port.ShownWidth(),
+                    Video::kHeight, graphicsSnapshot, port.machine->frame);
+            }
             const bool f6Saved = nativeCapture.SavePixels("gameplay", nativeGamePixels.data(),
                                      port.ShownWidth(), Video::kHeight);
             // 87.488: pair this exact F6 gameplay PNG with a read-only
@@ -1419,7 +1456,9 @@ int RunWindowed(Port &port) {
         // (--video gpu: the game's picture drawn on the GPU from the native records, with the readouts over it, when the
         // presenter draws with SDL_GPU and the GPU can draw the frame: gpu_picture.h; else the CPU's picture)
         bool drawn = false;
-        if (port.gpuWanted && presenter.UsesGpu() && !presenter.Shaded() && !turned && !port.FramedColumns()) {
+        if (!graphicsInspector.Active() && port.gpuWanted &&
+            presenter.UsesGpu() && !presenter.Shaded() &&
+            !turned && !port.FramedColumns()) {
             if (port.gpuPicture.Device() != presenter.Device()) {
                 port.gpuPicture.Close();
                 for (auto &g : port.guestPictures) {
@@ -1452,10 +1491,16 @@ int RunWindowed(Port &port) {
             // (the camera's zoom is a fighting game's: not with the picture turned)
             static std::vector<uint32_t> upright;
             port.Windowed(shown, zoomed);
+            if (graphicsInspector.Active() && homeEnabled)
+                graphicsInspector.Paint(shown, port.ShownWidth(), Video::kHeight,
+                                        graphicsSnapshot, port.machine->frame);
             TurnPicture(shown.data(), port.ShownWidth(), upright);
             presenter.Show(upright.data(), Video::kHeight, port.ShownWidth(), where, nullptr);
         } else if (!drawn) {
             const bool isZoomed = port.Windowed(shown, zoomed);
+            if (graphicsInspector.Active() && homeEnabled)
+                graphicsInspector.Paint(shown, port.ShownWidth(), Video::kHeight,
+                                        graphicsSnapshot, port.machine->frame);
             if (zoomed.columns) {
                 presenter.Show(shown.data(), zoomed.width, zoomed.height, where, nullptr); // (framed: Port::Framed)
             } else {
