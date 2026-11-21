@@ -103,7 +103,7 @@ public:
                 "song_started=%u primed_frame=%u primed=%u "
                 "first_verified_hp_frame=%u verified_hp_seen=%u "
                 "song_elapsed_at_press=%lld "
-                "game_step_FF5104=%04X status_FF5000=%02X\\n",
+                "game_step_FF5104=%04X status_FF5000=%02X\n",
                 static_cast<unsigned long long>(machine.frame),
                 shock.start, static_cast<unsigned>(shock.armed),
                 shock.primedAt, static_cast<unsigned>(shock.primed),
