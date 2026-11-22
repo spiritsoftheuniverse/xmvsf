@@ -16,6 +16,7 @@
 #include "../fight/battle.h"
 #include "../fight/tag.h"
 #include "../fight/guest_stages.h"
+#include "../model/model.h" // Palette Studio's opt-in headless native standing exporter
 #include "png_write.h"
 #include "present.h"
 #include "gpu_picture.h"
@@ -3533,6 +3534,7 @@ void Usage() {
             "                         4: both by their distance, the panel left as it is)\n"
             "  --fullscreen  --window (a window, after --fullscreen)  --mute  --unthrottled\n"
             "  --headless             no window, no sound, as fast as it goes\n"
+            "  --palette-sprites all|N  XMVSF only: headless native standing PNG export; N=0..18\n"
             "  --frames N             stop after N frames\n"
             "  --shot-every N:PFX     write PFX<frame>.png every N frames\n"
             "  --hash-log FILE        a line per frame with a hash of the game's state\n"
@@ -3651,6 +3653,9 @@ bool ParseArgs(int argc, char **argv, port::Options &o) {
         } else if (a == "--unthrottled") {
             o.unthrottled = true;
         } else if (a == "--headless") {
+            o.headless = true;
+        } else if (a == "--palette-sprites") {
+            o.paletteSprites = next();
             o.headless = true;
         } else if (a == "--frames") {
             o.frames = strtoull(next(), nullptr, 10);
@@ -3919,6 +3924,61 @@ int main(int argc, char **argv) {
     if (!p.Init(error)) {
         SayFailed(p.opt, argc == 1 ? error + "\n\nStart the game with its launcher (" GAME_ID "-launcher), which passes it your ROM set." : error);
         return 1;
+    }
+    // XMVSF Palette Studio: a deliberate, opt-in headless batch capture
+    // using the already-working Model viewer and its exact object-ink crop.
+    // This is never entered during a normal game, local preview or netplay.
+    if (!p.opt.paletteSprites.empty()) {
+        if (std::strcmp(GAME_ID, "xmvsf") != 0) {
+            fprintf(stderr, "--palette-sprites is only supported for XMVSF\\n");
+            return 2;
+        }
+        const auto &commands = TheGame().commands;
+        const auto command = std::find_if(commands.begin(), commands.end(),
+            [](const Command &c) {
+                return c.name && std::strcmp(c.name, "model_start") == 0 && c.run;
+            });
+        if (command == commands.end()) {
+            fprintf(stderr, "--palette-sprites: Model viewer entry missing\\n");
+            return 2;
+        }
+        const bool all = p.opt.paletteSprites == "all";
+        char *endNumber = nullptr;
+        const long selected = all ? 0L : std::strtol(p.opt.paletteSprites.c_str(), &endNumber, 10);
+        if (!all && (!endNumber || *endNumber || selected < 0 || selected >= 19)) {
+            fprintf(stderr, "--palette-sprites expects all or a character index 0..18\\n");
+            return 2;
+        }
+        const int first = all ? 0 : static_cast<int>(selected);
+        const int last = all ? 19 : first + 1;
+        int saved = 0;
+        for (int character = first; character < last; character++) {
+            SetFeatureForNow("model_character", character);
+            SetFeatureForNow("model_animation", 0);
+            SetFeatureForNow("model_size", 0);
+            // StartModel resets the machine, enters the desired stage and
+            // fast-forwards to the actual fighter standing in combat.
+            command->run(*p.machine);
+            bool ok = false;
+            for (unsigned frame = 0; frame < 10000u && !p.quit; frame++) {
+                if (!p.Tick()) continue;
+                if (model::On() && model::Seen() &&
+                    model::CharacterNumber() == character &&
+                    model::ExportStandingPng("exports")) {
+                    ok = true;
+                    saved++;
+                    break;
+                }
+            }
+            fprintf(stderr, "Palette Studio %d/19 %s: %s\\n",
+                    character + 1, p.opt.paletteSprites.c_str(),
+                    ok ? "EXPORTED" : "NOT DRAWN");
+            if (!ok && !all) break;
+        }
+        p.Finish();
+        fprintf(stderr, "Palette Studio: exported %d of %d requested native standing poses\\n",
+                saved, last - first);
+        return saved == last - first ? 0 : 1;
     }
     if (!p.opt.dumpProgram.empty()) {
         FILE *f = fopen(p.opt.dumpProgram.c_str(), "wb");
