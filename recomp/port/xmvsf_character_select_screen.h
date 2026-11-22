@@ -98,6 +98,17 @@ class CharacterSelectScreen {
                 xmvsf_select::kSlots[i].portrait;
             portraits_[i] = Source(file.c_str());
             valid_ = NativePortrait(portraits_[i]) && valid_;
+            // Extracted portrait sheets retain an opaque hot-magenta key
+            // behind Ryu/Akuma/etc. Clear that key at runtime so the new
+            // portrait FDB remains visible; never rewrite the source PNG.
+            if (portraits_[i].Valid())
+                for (auto &pixel : portraits_[i].pixels) {
+                    const unsigned red = pixel & 255u;
+                    const unsigned green = (pixel >> 8) & 255u;
+                    const unsigned blue = (pixel >> 16) & 255u;
+                    if (red >= 240u && green <= 25u && blue >= 240u)
+                        pixel &= 0x00ffffffu;
+                }
         }
         for (int i = 0; i < 11; ++i)
             stageThumbs_[static_cast<size_t>(i)] =
