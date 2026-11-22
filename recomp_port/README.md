@@ -1,5 +1,14 @@
 # XMVSF native front end — 87.498 (native character-select composition and horizontal ROM grid)
 
+## 87.500 — native directional audio and actual 18-character selection
+
+- Previously 87.499 masked the direction bits from the ROM and only corrected the selected character after a frame. This let the drawn grid move silently while the native acceptance still committed the ROM's own neighboring characters.
+- The machine now provides an optional, source-only, non-serialized RAM write override separate from F10's original observer. In the native XMVSF character-select phase, it translates cursor FF518C/FF51AC and pending-pick FF50B0/B2/B4/B6 byte/word writes BEFORE native M68K code can read them. All 18 grid IDs are supported.
+- Physical directional bits are no longer removed. The original movement-sound and control processing can run normally. Native acceptance count and animation stay in control; native steps 04..06 (mode/speed) are unchanged.
+- The verified 00BAEA stage selection hook reapplies committed P1 (and joined P2) team IDs once before the native match player records are created. It does not replace subsequent arcade CPU-opponent teams. A limited console diagnostic prints the native and mapped ID when each character is accepted.
+- The original Start+Ryu -> Akuma and Start+Chun-Li -> Alpha Chun-Li behavior is retained by the in-frame translation; direct selection of Akuma and Alpha Chun-Li remains mapped separately.
+- The local C++ preflight verifies all 18 IDs through P1/P2 first and second picks and both byte/word RAM writes. In an independent C++ smoke with GCC 14 the pure translation checks passed, but the full Windows recomp build and in-game selection/audio still require testing.
+
 ## 87.499 — native cursor synchronization and second-pick selector cutoff
 
 - The GUI's new horizontal cursor ID is written before the native CPU frame **and restored after the ROM's own original cursor routine**. The newly drawn sprite/portrait now follows the intended cell even when native ROM code rewrites FF518C or FF51AC.
