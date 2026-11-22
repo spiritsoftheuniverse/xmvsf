@@ -205,6 +205,11 @@ public:
     // Optional M68K selection RAM write observer. Never serialized.
     void (*selectionRamWriteProbe)(const Machine &, uint32_t busAddress,
                                    uint16_t value, unsigned byteCount) = nullptr;
+    // Native XMVSF custom-select write filter. Null in ordinary games.
+    // Runs BEFORE the RAM write, so the ROM reads the remapped ID during
+    // the very same frame, including at its character-accept routine.
+    void (*selectionRamWriteOverride)(Machine &, uint32_t busAddress,
+                                      uint16_t &value, unsigned byteCount) = nullptr;
     // The object list the next frame's picture will be made from (the board takes it at the start of the
     // frame): 1024 entries of four big-endian words, as Video::LatchObjects reads them
     const uint8_t *ObjectsToCome() const {
