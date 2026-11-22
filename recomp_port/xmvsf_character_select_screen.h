@@ -152,7 +152,8 @@ public:
     // never display the brace from a guessed frame count.
     const Image *Build(SDL_Renderer *renderer, std::uint64_t nativeFrames,
                        std::uint16_t p1, std::uint16_t p2, bool showP1,
-                       bool showP2, const Font &font, bool stageVisible = false,
+                       bool showP2, bool cursorP1, bool cursorP2,
+                       const Font &font, bool stageVisible = false,
                        int stageIndex = -1) {
         if (!renderer || !LoadArt() || !background_.Open(renderer) ||
             !portraitVideo_.Open(renderer)) return nullptr;
@@ -178,8 +179,8 @@ public:
         // This overlay is intentionally ABOVE the character sprites.
         Blit(canvas_.pixels, 384, 224, grid_, {0,0,384,224}, {0,0,384,224});
         const bool ink = (nativeFrames / 4u) % 2u == 0u;
-        if (ink && showP1 && a >= 0) Cursor(p1Cursor_, 9, a);
-        if (ink && showP2 && b >= 0) Cursor(p2Cursor_, 8, b);
+        if (ink && showP1 && cursorP1 && a >= 0) Cursor(p1Cursor_, 9, a);
+        if (ink && showP2 && cursorP2 && b >= 0) Cursor(p2Cursor_, 8, b);
         if (showP1 && a >= 0)
             font.Text(canvas_.pixels, 384, 224,
                       xmvsf_select::kSlots[static_cast<size_t>(a)].name,
