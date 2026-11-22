@@ -99,62 +99,55 @@ def main():
     assert "machine.players[n] &= static_cast<uint16_t>(~fight::kSticks);" not in chooser
     assert "machine.selectionRamWriteOverride = &RemapSelectionWrite;" in chooser
     assert "machine.selectionRamWriteOverride = nullptr;" in chooser
-    # 87.515: kSlots is the sole identity source, and the actual
-    # FF5183/FF51A3 count transition queues ONE name and confirmation.
-    # No guessed native sprite slot or old M68K execution hook.
+    # 87.518: literal voices are stored with ROM IDs, same for EVERY
+    # P1/P2 first/second pick. No guess from original native sound or
+    # player-indexed voice bank; original ROM announcers are muted.
     assert 'AddHook(HookAt(0x0787E0)' not in chooser
     assert "CorrectNativeQueuedVoice(" not in chooser
-    assert "CorrectQueuedCharacterVoice(" not in chooser
-    assert "CorrectQueuedCharacterSpriteVoice(" not in chooser
-    assert "g_voiceSide" not in chooser
     assert "g_soundAccepted[2]" in chooser
     assert "if (!RunningAhead() && count > g_soundAccepted[n] && count <= 2u)" in chooser
-    assert "g_soundAccepted[n] = count;" in chooser
     assert "const std::uint16_t selected = IntendedNativeId(n);" in chooser
-    assert "port::xmvsf_select::NativeCharacterVoice(selected)" in chooser
-    assert "NativeCharacterVoice(selected, n)" not in chooser
-    assert "port::xmvsf_select::QueueExplicitSelectionSound(" in chooser
-    assert "g_expectedNames[n][pick] = name;" in chooser
-    assert "g_nameTickets[n][pick] = 1u;" in chooser
-    assert "g_confirmTickets[n][pick] = 1u;" in chooser
-    assert "const unsigned pick = count - 1u;" in chooser
     assert "g_committed[n][pick] = selected;" in chooser
-    assert "g_soundTailFrames = 30u;" in chooser
-    assert "machine.selectionSoundRequestFilter = g_soundTailFrames > 0u" in chooser
-    assert "machine.selectionVoiceQueueBeforeSound = nullptr;" in chooser
+    assert "QueueSelectedAudio(static_cast<unsigned>(n), pick, selected);" in chooser
+    assert "port::xmvsf_select::NativeCharacterVoice(selectedRomId)" in chooser
+    assert "machine.LeaveSoundRequest(request)" in chooser
+    assert "machine.selectionVoiceQueueBeforeSound = &DeliverSelectedAudio;" in chooser
     assert "machine.selectionSoundRequestFilter = &AuthoritativeSelectionSound;" in chooser
     assert "machine.selectionSoundRequestFilter = g_soundTailFrames > 0u" in chooser
-    assert "AllowAuthoritativeSelectionSound(" in chooser
-    assert "g_expectedNames, g_nameTickets, g_confirmTickets" in chooser
-    # 87.509 native movement SFX is only filled in when the visual grid
-    # truly moves and the native sound queue did not already emit 0x84.
+    assert "g_soundTailFrames = 30u;" in chooser
+    assert "machine.selectionVoiceQueueBeforeSound = g_soundTailFrames > 0u" in chooser
+    assert "g_injectingAudio = true;" in chooser
+    assert "g_injectingAudio = false;" in chooser
+    assert "g_audioRead = g_audioWrite = 0u;" in chooser
+    assert "const uint16_t fixed = g_committed[n][pick] != 0xFFFFu" in chooser
+    assert "g_committed[n][pick] = fixed;" in chooser
+    assert "if (native != fixed) SetRam16(pickAt, fixed);" in chooser
+    assert "QueueExplicitSelectionSound(" not in chooser
+    assert "kSelectTagA" not in chooser
+    assert "g_nameTickets" not in chooser
+    assert "g_expectedNames" not in chooser
+    # 87.509 original custom movement tick fallback must remain.
     select_rewrite = (SRC / "xmvsf_character_select_rewrite.h").read_text()
+    layout = (SRC / "xmvsf_character_select_layout.h").read_text()
+    assert "std::uint8_t nameVoice;" in layout
+    assert "0x08, 0xA4" in layout # Gambit = A4 on both teams, both slots
+    assert "0x04, 0xA2" in layout # Storm = A2 on both teams, both slots
+    assert "0x1E, 0xAF" in layout # Akuma = AF
+    assert "0x0C, 0xA6" in layout # Juggernaut = A6
+    assert "NativeCharacterVoice(std::uint16_t id)" in select_rewrite
+    assert "kSlots[static_cast<unsigned>(slot)].nameVoice;" in select_rewrite
+    assert "MakeSelectionSoundRequest(std::uint8_t *request" in select_rewrite
+    assert "AllowNativeSelectionSound(std::uint8_t *request)" in select_rewrite
+    assert "SelectionSoundEnvelope(request, 0x10u)" in select_rewrite
+    assert "SelectionSoundEnvelope(request, 0x0Au)" in select_rewrite
+    assert "(code >= 0xA0u && code <= 0xDFu))" in select_rewrite
+    assert "QueueExplicitSelectionSound(" not in select_rewrite
+    assert "kSelectTagA" not in select_rewrite
+    assert "side * 0x20u" not in select_rewrite
     assert "QueueMissingCursorMovementSound(std::uint8_t *ram" in select_rewrite
     assert "p[3] != soundCode" in select_rewrite
     assert "entry[3] = static_cast<std::uint8_t>(soundCode);" in select_rewrite
     assert "soundCode != 0x84u && soundCode != 0x85u" in select_rewrite
-    assert "NativeCharacterVoice(std::uint16_t id)" in select_rewrite
-    assert "0xA0u + voiceId / 2u" in select_rewrite
-    assert "side * 0x20u" not in select_rewrite
-    assert "NativeCharacterVoice(std::uint16_t id," not in select_rewrite
-    assert "CharacterVoiceIdentity(std::uint16_t id)" in select_rewrite
-    assert "id == 0x24u ? 0x16u : id" in select_rewrite
-    assert "QueueExplicitSelectionSound(std::uint8_t *ram" in select_rewrite
-    assert "AllowAuthoritativeSelectionSound(" in select_rewrite
-    assert "kSelectTagA = 0x51u, kSelectTagB = 0x5Eu" in select_rewrite
-    assert "using SelectionNames = std::array<std::array<std::uint16_t, 2>, 2>;" in select_rewrite
-    assert "using SelectionTickets = std::array<std::array<unsigned, 2>, 2>;" in select_rewrite
-    assert "request[8] == kSelectTagA" in select_rewrite
-    assert "p[8] = kSelectTagA;" in select_rewrite
-    assert "request[8] = request[9] = request[10] = request[11] = 0u;" in select_rewrite
-    assert "(code >= 0xA0u && code <= 0xDFu)) return false;" in select_rewrite
-    assert "SelectionSoundEnvelope(request, 0x10u)" in select_rewrite
-    assert "SelectionSoundEnvelope(request, 0x0Au)" in select_rewrite
-    assert "if (code == 0x84u || code == 0x85u) return true;" in select_rewrite
-    assert "--nameTickets[side][pick];" in select_rewrite
-    assert "--confirmTickets[side][pick];" in select_rewrite
-    assert "CorrectQueuedCharacterSpriteVoice(" not in select_rewrite
-    assert "CorrectQueuedCharacterVoice(" not in select_rewrite
     assert "entry[6] = 0x10u;" in select_rewrite
     assert "distance > 128u" in select_rewrite
     assert "if (nativeMoveTick(ram + 0x2648u + at)) return false;" in select_rewrite
@@ -179,8 +172,8 @@ def main():
     assert "void ChoosingLayoutAfterFrame(Machine &machine)" in chooser
     assert "ChoosingLayoutAfterFrame(machine);" in game
     assert "g_accepted[n] = accepted;" in chooser
-    assert "g_committed[n][pick] = committed;" in chooser
-    assert "SetRam16(pickAt, committed)" in chooser
+    assert "g_committed[n][pick] = fixed;" in chooser
+    assert "SetRam16(pickAt, fixed)" in chooser
     assert "ApplyCustomTeamPicksBeforeMatch();" in (
         ROOT / "recomp/games/xmvsf/src/modes.cpp").read_text()
     machine_header = (ROOT / "recomp/machine/machine.h").read_text()
@@ -222,7 +215,7 @@ def main():
                         str(ROOT / "recomp_port/tests/test_character_select_grid.cpp"),
                         "-o", str(binary)], check=True)
         subprocess.run([str(binary)], check=True)
-    print("XMVSF 87.517 P1 pick2 Storm A2, all 18 A-family names, tagged per-pick audio, persistent first/second cursor PASS")
+    print("XMVSF 87.518 literal 18-character voice table, direct unmarked QSound delivery, P1/P2 first/second selection, frozen cursor PASS")
 
 if __name__ == "__main__":
     main()
