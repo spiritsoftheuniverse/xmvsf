@@ -7,6 +7,7 @@
 #include "../fight/session.h"
 #include "../runtime/game.h"
 #include "xmvsf_vs_handoff.h" // 87.485 read-only F10 vs native HUD clock correlation
+#include "xmvsf_character_select_layout.h" // 87.504 read-only custom grid/ROM ID annotation
 
 #include <array>
 #include <cstdint>
@@ -60,7 +61,8 @@ public:
         writes_ = Open("oam_writes.tsv");
         oam_ = Open("oam_delta.tsv");
         ramWrites_ = Open("selection_ram_writes.tsv");
-        if (!frames_ || !hooks_ || !writes_ || !oam_ || !ramWrites_) {
+        handoff_ = Open("selection_handoff.tsv");
+        if (!frames_ || !hooks_ || !writes_ || !oam_ || !ramWrites_ || !handoff_) {
             CloseFiles();
             std::fprintf(stderr, "XMVSF F10: file open failed in %s\n",
                          folder_.string().c_str());
@@ -87,6 +89,18 @@ public:
         std::fprintf(ramWrites_,
             "emu_frame\tcpu_cycles\tbus_address\tbytes\tvalue\t"
             "cpu_pc_observed\tcpu_instruction_field\tD0\tD1\tA0\tA4\n");
+        std::fprintf(handoff_,
+            "emu_frame_begin\temu_frame_end\tevents\t"
+            "p1_raw_input\tp2_raw_input\tp1_cpu_input\tp2_cpu_input\t"
+            "p1_custom_grid\tp1_custom_id\tp2_custom_grid\tp2_custom_id\t"
+            "p1_phase_before\tp1_phase_after\tp2_phase_before\tp2_phase_after\t"
+            "p1_accept_before\tp1_accept_after\tp2_accept_before\tp2_accept_after\t"
+            "p1_native_cursor_before\tp1_native_cursor_after\t"
+            "p2_native_cursor_before\tp2_native_cursor_after\t"
+            "p1_pick1_after\tp1_pick2_after\tp2_pick1_after\tp2_pick2_after\t"
+            "p1_panel_after\tp2_panel_after\t"
+            "sound_queue_next_before\tsound_queue_next_after\tsound_requests_hex\t"
+            "cpu_pc_after\tcpu_cycles_after\n");
         std::fprintf(oam_,
             "emu_frame\tobject_bank_next\tobject_slot\tx_word\ty_word\t"
             "tile_word\tattribute_word\tpalette\tobject_x_offset\tobject_y_offset\t"
@@ -124,6 +138,10 @@ public:
                 "hooks.tsv: actual entry of the hooked ROM address 00B1E8; it does NOT prove acceptance succeeded.\n"
                 "oam_writes.tsv: DISABLED by default; set XMVSF_F10_RAW_OAM=1 for bounded raw bus writes.\n"
                 "selection_ram_writes.tsv: bounded selection, picks and game-state writes (not repetitive panel writes).\n"
+                "selection_handoff.tsv: custom 18-grid position/ROM ID vs native cursor, acceptance, picks,\n"
+                "  routed input and inferred queued sound-request slots ON THE SAME EMULATED FRAME.\n"
+                "  sound_requests_hex is the observed 16-byte ring data at FF2648 after FF2642\n"
+                "  advances; it is NOT a decoded spoken name or proof of audible playback.\n"
                 "oam_delta.tsv: sampled active object changes, compared against each bank separately.\n"
                 "Object-write cpu_pc_observed/cpu_instruction_field are actual CPU fields at the write;\n"
                 "translated-code PC is NOT guaranteed to identify the exact instruction which wrote the word.\n"
@@ -143,6 +161,10 @@ public:
         oamRowsSeen_ = droppedOamRows_ = 0;
         ramThisFrame_ = 0;
         haveBefore_ = false;
+        grid_[0] = grid_[1] = -1;
+        priorGrid_[0] = priorGrid_[1] = -1;
+        soundBefore_ = 0;
+        handoffRowsSeen_ = 0;
         haveOldOam_[0] = haveOldOam_[1] = false;
         frameTag_ = ramFrameTag_ = machine.frame;
         // Do not attach the high-frequency object bus probe unless explicitly requested.
@@ -179,6 +201,8 @@ public:
         if (!active_ || RunningAhead()) return;
         frameTag_ = machine.frame;
         before_ = ReadSelection(machine);
+        soundBefore_ = SoundQueueNext(machine);
+        grid_[0] = grid_[1] = -1;
         raw_[0] = machine.players[0];
         raw_[1] = machine.players[1];
         routed_[0] = raw_[0];
@@ -187,6 +211,15 @@ public:
         final_[1] = raw_[1];
         pcBefore_ = machine.cpu.pc;
         haveBefore_ = true;
+    }
+    // Called from the existing chooser input mapping, after real Training
+    // owner routing. This only annotates F10's frame; it never edits cursor
+    // state, native RAM, sound commands, or the game's selected characters.
+    void CustomGridBeforeCpu(const Machine &machine, int p1, int p2) {
+        if (!active_ || !haveBefore_ || RunningAhead() ||
+            frameTag_ != machine.frame) return;
+        grid_[0] = p1 >= 0 && p1 < 18 ? p1 : -1;
+        grid_[1] = p2 >= 0 && p2 < 18 ? p2 : -1;
     }
     void AfterRouting(const Machine &machine) {
         if (!active_ || !haveBefore_ || RunningAhead()) return;
@@ -201,6 +234,8 @@ public:
     void AfterFrame(const Machine &machine) {
         if (!active_ || !haveBefore_ || RunningAhead()) return;
         const Selection post = ReadSelection(machine);
+        const uint16_t soundAfter = SoundQueueNext(machine);
+        WriteSelectionHandoff(machine, post, soundAfter);
         const auto training = session::SelectionDiagnostics();
         const bool stateChanged = before_.gameStep != post.gameStep ||
                                   before_.playersIn != post.playersIn ||
@@ -247,6 +282,7 @@ public:
             std::fflush(oam_);
             std::fflush(writes_);
             std::fflush(ramWrites_);
+            std::fflush(handoff_);
         }
         if (BytesWritten() >= kMaxBytes) Stop("size limit");
         else if (framesSeen_ >= kMaxFrames) Stop("frame limit");
@@ -274,11 +310,13 @@ private:
     static constexpr uint64_t kMaxRamWrites = 750;
     static constexpr unsigned kMaxRamPerFrame = 6;
     static constexpr uint64_t kMaxOamRows = 1800;
+    static constexpr uint64_t kMaxHandoffRows = 360; // event changes + sparse context
     static constexpr unsigned kMaxOamPerSample = 32;
     struct Selection {
         uint16_t gameStep = 0;
         uint8_t playersIn = 0;
         std::array<uint8_t, 2> phase{};
+        std::array<uint8_t, 2> accepted{};
         std::array<uint16_t, 2> cursor{};
         std::array<uint16_t, 2> panel{};
         std::array<uint8_t, 8> picks{};
@@ -296,6 +334,7 @@ private:
         for (int n = 0; n < 2; ++n) {
             const size_t at = 0x5180 + n * 0x20;
             s.phase[n] = r[at];
+            s.accepted[n] = r[at + 3u];
             s.cursor[n] = Word(r.data() + at + 0x0C);
             s.panel[n] = Word(r.data() + 0x5416 + 2 * n);
             std::memcpy(s.records.data() + n * 0x20, r.data() + at, 0x20);
@@ -310,9 +349,105 @@ private:
             std::fputc(kHex[bytes[n] & 0xF], out);
         }
     }
+
+    // The ROM's 16-byte sound request ring is at FF2648 (0x400 bytes);
+    // FF2642 holds the next request position. Read-only snapshots can
+    // correlate a command with cursor movement without decoding QSound.
+    static uint16_t SoundQueueNext(const Machine &m) {
+        if (m.ram.size() < 0x2A48u) return 0xFFFFu;
+        return Word(m.ram.data() + 0x2642u);
+    }
+    static std::string SoundRequests(const Machine &m, uint16_t before,
+                                     uint16_t after) {
+        if (m.ram.size() < 0x2A48u || before > 0x3F0u ||
+            after > 0x3F0u || (before & 15u) || (after & 15u))
+            return "invalid_index";
+        const unsigned delta = (static_cast<unsigned>(after) + 0x400u -
+                                static_cast<unsigned>(before)) & 0x3FFu;
+        if (!delta) return "-";
+        static constexpr char kHex[] = "0123456789ABCDEF";
+        std::string out;
+        const unsigned requests = delta / 16u;
+        const unsigned shown = requests < 8u ? requests : 8u;
+        for (unsigned n = 0; n < shown; ++n) {
+            if (n) out += ',';
+            const unsigned offset = (static_cast<unsigned>(before) + 16u*n) & 0x3F0u;
+            const uint8_t *bytes = m.ram.data() + 0x2648u + offset;
+            for (unsigned i = 0; i < 16u; ++i) {
+                out += kHex[bytes[i] >> 4u];
+                out += kHex[bytes[i] & 15u];
+            }
+        }
+        if (requests > shown) out += ",truncated";
+        return out;
+    }
+    void WriteSelectionHandoff(const Machine &machine, const Selection &post,
+                               uint16_t soundAfter) {
+        if (!handoff_ || handoffRowsSeen_ >= kMaxHandoffRows) return;
+        // Only the actual ROM character chooser (or a transition leaving
+        // it) is relevant. No large trace during menus or combat.
+        if (before_.gameStep != 4u && post.gameStep != 4u) return;
+        const bool phase = before_.phase != post.phase;
+        const bool accepted = before_.accepted != post.accepted;
+        const bool cursor = before_.cursor != post.cursor;
+        const bool picks = before_.picks != post.picks;
+        const bool grid = grid_[0] != priorGrid_[0] ||
+                          grid_[1] != priorGrid_[1];
+        const bool sound = soundBefore_ != soundAfter;
+        const bool inputs = (raw_[0] != final_[0] || raw_[1] != final_[1]);
+        const bool periodic = framesSeen_ % 8u == 0u;
+        if (!phase && !accepted && !cursor && !picks &&
+            !grid && !sound && !inputs && !periodic) return;
+        std::string events;
+        const auto event = [&events](bool condition, const char *label) {
+            if (!condition) return;
+            if (!events.empty()) events += ',';
+            events += label;
+        };
+        event(phase, "phase"); event(accepted, "accept");
+        event(cursor, "cursor"); event(picks, "picks");
+        event(grid, "grid"); event(sound, "sound_queue");
+        event(inputs, "routed"); event(periodic && events.empty(), "sample");
+        const auto id = [](int index) -> unsigned {
+            return index >= 0 && index < 18 ?
+                ::port::xmvsf_select::kSlots[static_cast<unsigned>(index)].rom : 0xFFFFu;
+        };
+        const auto pick = [&post](size_t at) -> unsigned {
+            return Word(post.picks.data() + at);
+        };
+        const std::string requests = SoundRequests(machine, soundBefore_, soundAfter);
+        std::fprintf(handoff_,
+            "%llu\t%llu\t%s\t%04X\t%04X\t%04X\t%04X\t"
+            "%d\t%04X\t%d\t%04X\t"
+            "%02X\t%02X\t%02X\t%02X\t"
+            "%u\t%u\t%u\t%u\t"
+            "%04X\t%04X\t%04X\t%04X\t"
+            "%04X\t%04X\t%04X\t%04X\t"
+            "%04X\t%04X\t%04X\t%04X\t%s\t%06X\t%llu\n",
+            static_cast<unsigned long long>(frameTag_),
+            static_cast<unsigned long long>(machine.frame), events.c_str(),
+            raw_[0], raw_[1], final_[0], final_[1],
+            grid_[0], id(grid_[0]), grid_[1], id(grid_[1]),
+            before_.phase[0], post.phase[0],
+            before_.phase[1], post.phase[1],
+            static_cast<unsigned>(before_.accepted[0]), static_cast<unsigned>(post.accepted[0]),
+            static_cast<unsigned>(before_.accepted[1]), static_cast<unsigned>(post.accepted[1]),
+            before_.cursor[0], post.cursor[0],
+            before_.cursor[1], post.cursor[1],
+            pick(0u), pick(2u), pick(4u), pick(6u),
+            post.panel[0], post.panel[1],
+            soundBefore_, soundAfter, requests.c_str(),
+            machine.cpu.pc & 0xFFFFFFu,
+            static_cast<unsigned long long>(machine.cpu.cycles));
+        ++handoffRowsSeen_;
+        priorGrid_[0] = grid_[0]; priorGrid_[1] = grid_[1];
+        // Accept boundaries are rare and vital: flush immediately.
+        if (accepted) std::fflush(handoff_);
+    }
+
     uint64_t BytesWritten() const {
         uint64_t total = 0;
-        for (FILE *f : {frames_, hooks_, writes_, oam_, ramWrites_}) {
+        for (FILE *f : {frames_, hooks_, writes_, oam_, ramWrites_, handoff_}) {
             if (!f) continue;
             const long n = std::ftell(f);
             if (n > 0) total += static_cast<uint64_t>(n);
@@ -323,7 +458,7 @@ private:
         return std::fopen((folder_ / name).string().c_str(), "wb");
     }
     void CloseFiles() {
-        for (FILE **f : {&frames_, &hooks_, &writes_, &oam_, &ramWrites_}) {
+        for (FILE **f : {&frames_, &hooks_, &writes_, &oam_, &ramWrites_, &handoff_}) {
             if (*f) std::fclose(*f);
             *f = nullptr;
         }
@@ -430,10 +565,13 @@ private:
     uint32_t pcBefore_ = 0;
     uint16_t raw_[2] = {}, routed_[2] = {}, final_[2] = {};
     Selection before_;
+    int grid_[2] = {-1, -1}, priorGrid_[2] = {-1, -1};
+    uint16_t soundBefore_ = 0;
+    uint64_t handoffRowsSeen_ = 0;
     std::array<uint8_t, 0x2000> oldOam_[2]{};
     std::filesystem::path folder_;
     FILE *frames_ = nullptr, *hooks_ = nullptr, *writes_ = nullptr;
-    FILE *oam_ = nullptr, *ramWrites_ = nullptr;
+    FILE *oam_ = nullptr, *ramWrites_ = nullptr, *handoff_ = nullptr;
 };
 
 } // namespace cps2recomp::xmvsf_f10
