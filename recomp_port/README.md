@@ -1,4 +1,43 @@
-# XMVSF native front end — 87.495 (source-verified paired Training selector delay)
+# XMVSF native front end — 87.496 (SF2 large font foundation for custom character selection)
+
+
+## 87.496 — SF2 large font prepared for custom character selection
+
+On the new `character-select` branch (which started at the same
+commit as `main`), `_art/sf2fontlarge.png` is now registered as a
+**third independent bitmap font**. The image is a native **144×115 RGBA**
+atlas with **12 columns, 12-pixel glyph cells, 15-pixel row stride**.
+It is **not** laid out like the existing 16-column `sf2font.png`
+or `sf2fontsmall.png`; treating it as ASCII-32 on a 12×12
+grid would select the wrong source rectangles.
+
+`recomp/port/xmvsf_character_select_font.h` provides an explicit
+character-to-source-cell mapping for the uppercase/lowercase alphabet,
+`0`–`9`, and observed punctuation needed for character names.
+Unsupported punctuation is left unassigned rather than represented
+by invented glyph cells. The existing font's proportional alpha
+cropping, nearest-neighbor scaling, brightness adjustment and
+alignment behavior are reused. The original menu fonts and menu
+layout are unchanged.
+
+`Menu::selectionLarge_` loads the new sheet from `_art`
+alongside the two existing fonts.
+`TexturedMenu::selectionLargeFont_` owns an independent SDL3
+nearest-neighbor source texture with the usual release lifecycle.
+The new public calls `CharacterSelectText(renderer, name, x, y,
+scale, brightness, alignment)` and `CharacterSelectCountdown(
+renderer, seconds, x, y, scale, brightness)` are available for the
+custom selection compositor when it is built. They are **not**
+yet called by the original game presentation and do not yet
+suppress the ROM's character-select graphics.
+
+Local build runs `recomp_port/tests/test_sf2fontlarge.py`
+before Ninja. It decodes and validates the actual PNG using only
+the Python standard library, checks sampled letters/digits and
+punctuation for real alpha pixels, verifies the mirrored headers,
+and compiles/executes the native C++ mapping smoke.
+Windows compilation and the in-game font draw path remain
+unverified until the local build is run.
 
 ## 87.495 — two native P2 selector object groups withheld until dummy control
 
