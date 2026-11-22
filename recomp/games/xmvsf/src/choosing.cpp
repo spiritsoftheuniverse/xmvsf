@@ -27,10 +27,6 @@ namespace {
     uint8_t g_accepted[2] = {0, 0}; // real FF5183 / FF51A3 native accepted counts
     uint16_t g_committed[2][2] = {{0xFFFFu, 0xFFFFu}, {0xFFFFu, 0xFFFFu}};
     bool g_commitPending = false; // one native match handoff, not every arcade round
-    // 87.506: purely local, frame-scoped voice correction state. This is
-    // never used for character selection, cursor movement or team commits.
-    bool g_voiceConfirm[2] = {false, false};
-    uint16_t g_voiceQueueFrameStart = 0xFFFFu;
 
     uint16_t IntendedNativeId(unsigned n) {
         const uint16_t raw =
@@ -73,59 +69,6 @@ namespace {
                     n + 1u, pick + 1u, g_committed[n][pick], count);
             }
         }
-    }
-
-    // 0787E0 is the native 16-byte sound-request enqueuer (documented in
-    // xmvsf.h / PROGRESS.md). Its hook runs BEFORE the request currently
-    // being inserted. The F10-confirmed 0xA4,0x82 pair means that when
-    // it is called for the following request, the previous voice request
-    // is already in the queue, but has not been handed to the sound CPU.
-    // Patch ONLY the previous request's character ID, keeping the rest of
-    // the native request and its queue timing completely unmodified.
-    bool SelectionVoiceQueued(M68K &) {
-        if (!g_layoutRunning || !Ram8(kPlaying) ||
-            Ram16(kGameStep) != kGameChoosing ||
-            g_voiceQueueFrameStart == 0xFFFFu) return false;
-        const uint16_t next = Ram16(kSoundQueueEnd);
-        if (next > kSoundQueueMask || (next & 15u) != 0u) return false;
-        const unsigned fresh = (static_cast<unsigned>(next) + 0x400u -
-                                g_voiceQueueFrameStart) & kSoundQueueMask;
-        // A newly queued request must have been added *this* CPU frame.
-        // Prevent accidentally rewriting last frame's queued voice.
-        if (fresh < 16u || fresh > 128u) return false;
-        unsigned side = 2u;
-        for (unsigned n = 0u; n < 2u; ++n) {
-            if (!g_voiceConfirm[n] || g_accepted[n] >= 2u) continue;
-            // Do not guess ownership if both players confirmed together.
-            if (side != 2u) return false;
-            side = n;
-        }
-        if (side >= 2u) return false;
-        const uint32_t previous = kSoundQueue +
-            ((static_cast<uint32_t>(next) + 0x400u - 16u) & kSoundQueueMask);
-        // The recorded QSound announcer request is
-        // 00 00 00 A4 00 00 10 00 ... (Gambit), not a generic SFX.
-        if (Ram16(previous) != 0u || Ram8(previous + 2u) != 0u ||
-            Ram16(previous + 4u) != 0u ||
-            Ram16(previous + 6u) != 0x1000u) return false;
-        const uint8_t nativeVoice = Ram8(previous + 3u);
-        if (nativeVoice < 0xA0u || nativeVoice > 0xB2u) return false;
-        const uint16_t nativeRom =
-            static_cast<uint16_t>((nativeVoice - 0xA0u) * 2u);
-        if (port::xmvsf_select::Find(nativeRom) < 0) return false;
-        const uint16_t selectedRom = IntendedNativeId(side);
-        const uint16_t wantedVoice =
-            port::xmvsf_select::CharacterVoiceCommand(selectedRom);
-        if (wantedVoice == 0xFFFFu ||
-            wantedVoice == nativeVoice) return false;
-        SetRam8(previous + 3u, static_cast<uint8_t>(wantedVoice));
-        std::fprintf(stderr,
-            "XMVSF 87.506 VOICE P%u PICK%u: native=%02X corrected=%02X character=%04X\n",
-            side + 1u, static_cast<unsigned>(g_accepted[side]) + 1u,
-            static_cast<unsigned>(nativeVoice),
-            static_cast<unsigned>(wantedVoice),
-            static_cast<unsigned>(selectedRom));
-        return false; // preserve the ROM's actual enqueuer
     }
 
     // 00B1E8: a player's choosing record (A4) takes the character under its cursor
@@ -180,8 +123,6 @@ void ChoosingLayoutBeforeCpu(Machine &machine) {
         if (g_layoutRunning) g_layout.Reset();
         g_layoutRunning = false;
         g_accepted[0] = g_accepted[1] = 0;
-        g_voiceConfirm[0] = g_voiceConfirm[1] = false;
-        g_voiceQueueFrameStart = 0xFFFFu;
         return;
     }
     if (!g_layoutRunning) {
@@ -194,19 +135,12 @@ void ChoosingLayoutBeforeCpu(Machine &machine) {
     // Keep this active for the ROM's actual writes during RunFrame.
     // F10's separate RAM write observer remains undisturbed.
     machine.selectionRamWriteOverride = &RemapSelectionWrite;
-    // The original native sound queue can receive multiple requests in a
-    // frame. Track its starting write index to distinguish a freshly queued
-    // announcer from an old ring slot. Never mutate the index itself.
-    g_voiceQueueFrameStart = Ram16(kSoundQueueEnd);
-    constexpr uint16_t kConfirmButtons = kPunch1 | kPunch2 | kPunch3 |
-                                         kKick1 | kKick2 | kKick3;
     for (int n = 0; n < 2; ++n) {
         const uint32_t record = kChoosing + static_cast<uint32_t>(n) * kChoosingSize;
         // The native 03->04 transition means the second character was
         // accepted. Steps 04..06 are the game's MODE/SPEED choices and
         // MUST retain real directional input (87.477 regression lesson).
         const bool active = Ram8(record) <= 3u && Ram8(record + 3u) < 2u;
-        g_voiceConfirm[n] = active && (machine.players[n] & kConfirmButtons) != 0u;
         const unsigned direction = machine.players[n] & (kRight | kLeft | kDown | kUp);
         g_layout.Advance(n, direction, active);
         if (active) {
@@ -304,7 +238,6 @@ void ApplyCustomTeamPicksBeforeMatch() {
 
 void RegisterChoosing() {
     AddHook(HookAt(0x00B1E8), "Chosen", Chosen);
-    AddHook(HookAt(0x0787E0), "SelectionVoiceQueued", SelectionVoiceQueued);
     TheGame().features.push_back({"hidden_characters", "Game", "Hidden characters",
                                   "The hidden character with no code: hold Start as you choose Ryu for Akuma. (Start held as you "
                                   "choose Chun-Li gives her Street Fighter Alpha look, as on the board.)"});
