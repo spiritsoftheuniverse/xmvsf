@@ -1,3 +1,14 @@
+# XMVSF native front end — 87.498 (native character-select composition and horizontal ROM grid)
+
+## 87.498 — initial integration of source-native character-select screen
+
+- Uses 384x224 PNG composition sheets at their original source coordinates. Characters are drawn first and character grid on top; offsets come from the 1P/P2 selector art (P1 bottom-left Ryu; P2 upper-right Akuma), 33 pixels across and 39 vertically.
+- The new pure layout header maps the exact top row Cyclops, Wolverine, Gambit, Rogue, Sabretooth, Storm, Magneto, Juggernaut, Akuma, and bottom row Ryu, Ken, Cammy, Charlie, Chun-Li, Alpha Chun-Li, Zangief, Dhalsim, M. Bison. IDs are original even-valued ROM words; Apocalypse has no selectable grid cell.
+- Native choosing.cpp redirects directional input ONLY during character-picking steps 00..03. It writes the intended ID into the original two choosing records at FF518C / FF51AC, leaving confirm, selection animations, audio, and steps 04..06 (mode/speed) alone. Training P1-to-dummy routing happens before this mapping. Exact ROM state FF5104=0004 gates the custom canvas.
+- The existing async indexed XMFDBIN2 decoder now also opens portraitbackground.fdb at 160x160 (89 frames). The backing animates beneath the supplied L/R masks, P1 is color-rotated from blue to red, and the hovered 160x120 portraits come from exact hex-ID filenames. The full csbackground.fdb remains 166 frames at 384x224. Composed native pixels go to the normal SDL presenter with its nearest-neighbor scale and transition overlay.
+- Stage brace and thumb composition code is prepared at 76x75 native display, and names are read in file order from stagethumbs/levelnames.csv, but the brace remains HIDDEN until the exact ROM stage-announcement display signal is established; do not guess from a frame count. Likewise, no fake countdown timer is shown: the bitmap font is ready, the real ROM clock binding is not yet verified.
+- RECOMP_BUILD.bat runs the local test_character_select_grid.py preflight before Ninja. It checks FDB indexes, source dimensions, art files, mirrored headers, game/source routing and compiled C++ grid behavior. No build or gameplay test has yet been run on the user's Windows environment; GitHub is source-only, with no Actions.
+
 # XMVSF native front end — 87.496 (SF2 large font foundation for custom character selection)
 
 
