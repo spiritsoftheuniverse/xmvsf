@@ -1012,14 +1012,16 @@ bool Machine::LeaveSoundRequest(const uint8_t request[16]) {
     if (soundRam[0x00F] != 0xFF) {
         return false;
     }
-    // The alternate sound driver uses this same transport. Keep the
-    // explicit selection identity filter consistent with native Z80 mode.
-    // A dropped packet is consumed from the driver's source queue.
+    // The alternate sound-driver path receives a const command. Copy
+    // before stripping the custom select's transient provenance bytes;
+    // never mutate a queued native sound command through this pointer.
+    uint8_t delivered[16];
+    memcpy(delivered, request, sizeof(delivered));
     if (selectionSoundRequestFilter &&
-        !selectionSoundRequestFilter(*this, request))
-        return true;
-    memcpy(soundRam, request, 15);
-    soundRam[0x00F] = request[15];
+        !selectionSoundRequestFilter(*this, delivered))
+        return true; // filtered command acknowledged, not sent to Z80
+    memcpy(soundRam, delivered, 15);
+    soundRam[0x00F] = delivered[15];
     return true;
 }
 
