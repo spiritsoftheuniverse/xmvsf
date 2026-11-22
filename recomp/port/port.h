@@ -36,6 +36,7 @@ struct Options {
     std::string hashLog;       // per-frame state hash log
     std::string recordEntries; // entries file to add to (tools/recomp.py reads it)
     std::string dumpProgram;   // write the deciphered program here and stop
+    std::string paletteSprites; // --palette-sprites all|INDEX: headless, genuine standing PNG export
     std::string audioDump;     // WAV file of the sound (headless)
     std::string soundtrack;    // --soundtrack DIR: the custom soundtrack's folder (soundtrack.h; default: beside settings.ini)
     std::string soundtrackDump; // --soundtrack-dump FILE: WAV file of what the custom soundtrack plays (headless)
