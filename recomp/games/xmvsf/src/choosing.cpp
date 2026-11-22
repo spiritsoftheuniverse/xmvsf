@@ -199,6 +199,10 @@ void ChoosingLayoutBeforeCpu(Machine &machine) {
         // accepted. Steps 04..06 are the game's MODE/SPEED choices and
         // MUST retain real directional input (87.477 regression lesson).
         const bool active = Ram8(record) <= 3u && Ram8(record + 3u) < 2u;
+        const unsigned direction = machine.players[n] & (kRight | kLeft | kDown | kUp);
+        g_layout.Advance(n, direction, active);
+        // Navigation precedes the ROM cursor write. A direction+confirm
+        // on the same frame must use the newly selected character voice.
         // A native confirmation uses punch/kick; direction alone must
         // never activate the voice correction. Simultaneous P1/P2
         // confirmations are ambiguous, so leave both native voices alone.
@@ -211,8 +215,6 @@ void ChoosingLayoutBeforeCpu(Machine &machine) {
                 g_voiceDesired = 0xFFFFu;
             }
         }
-        const unsigned direction = machine.players[n] & (kRight | kLeft | kDown | kUp);
-        g_layout.Advance(n, direction, active);
         if (active) {
             const unsigned slot = static_cast<unsigned>(g_layout.index[n]);
             SetRam16(record + kCursor, port::xmvsf_select::kSlots[slot].rom);
