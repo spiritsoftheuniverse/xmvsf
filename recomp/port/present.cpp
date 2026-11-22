@@ -696,6 +696,34 @@ void Presenter::Show(const uint32_t *pixels, int width, int height, const SDL_FR
         SDL_RenderPresent(m_renderer);
         return;
     }
+    if (m_classicPixels) { // XMVSF_RECOMP_CLASSIC_87_440
+        const bool homeCanvas = !shade && !zoomed && width == 960 && height == 540;
+        if (homeCanvas != m_classicLogicalMenu) {
+            // Reset stale state FIRST, apply logical presentation LAST.
+            SDL_SetRenderTarget(m_renderer, nullptr);
+            SDL_SetRenderLogicalPresentation(m_renderer, 0, 0, SDL_LOGICAL_PRESENTATION_DISABLED);
+            SDL_SetRenderViewport(m_renderer, nullptr);
+            SDL_SetRenderClipRect(m_renderer, nullptr);
+            SDL_SetRenderScale(m_renderer, 1.0f, 1.0f);
+            if (homeCanvas) {
+                SDL_SetRenderLogicalPresentation(m_renderer, 960, 540, SDL_LOGICAL_PRESENTATION_LETTERBOX);
+            }
+            m_classicLogicalMenu = homeCanvas;
+        }
+        SDL_SetTextureScaleMode(m_texture, SDL_SCALEMODE_NEAREST);
+        SDL_SetRenderDrawColor(m_renderer, 0, 0, 0, 255);
+        SDL_RenderClear(m_renderer);
+        if (homeCanvas) {
+            // SDL computes centered letterboxing using the physical output.
+            SDL_RenderTexture(m_renderer, m_texture, nullptr, nullptr);
+        } else {
+            // Native game pixels, existing game aspect and zoom handling.
+            draw(m_texture, 1.0f);
+        }
+        overlay();
+        SDL_RenderPresent(m_renderer);
+        return;
+    }
     if (m_scaling == Scaling::Smooth) {
         // (blended all over: the picture as it is, fitted smoothly)
         SDL_SetTextureScaleMode(m_texture, SDL_SCALEMODE_LINEAR);

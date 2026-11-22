@@ -1,0 +1,46 @@
+The songs of X-Men vs. Street Fighter a custom soundtrack can play: name the file as the first column (or
+the number, the second), with .ogg, .flac, .mp3 or .wav; or name it in soundtrack.ini.
+(With no file named for a song, the folder's files play as a playlist instead.)
+
+opening                01   The opening
+player_select          02   Player select
+                       03   
+next_stage             04   Before each stage
+winner                 05   Winner (played once)
+                       06   
+qsound                 07   The QSound logo (played once)
+                       09   
+game_over              0A   Game over
+wolverine              0B   Wolverine's theme
+cyclops                0C   Cyclops's theme
+storm                  0D   Storm's theme
+rogue                  0E   Rogue's theme
+gambit                 0F   Gambit's theme
+sabretooth             10   Sabretooth's theme
+juggernaut             11   Juggernaut's theme
+magneto                12   Magneto's theme
+apocalypse             13   Apocalypse's theme
+ryu                    14   Ryu's theme
+ken                    15   Ken's theme
+chunli                 16   Chun-Li's theme
+dhalsim                17   Dhalsim's theme
+zangief                18   Zangief's theme
+bison                  19   M. Bison's theme
+akuma                  1A   Akuma's theme
+charlie                1B   Charlie's theme
+cammy                  1C   Cammy's theme
+staff_roll             1D   Staff roll
+                       1E   
+                       1F   
+                       20   
+                       21   
+                       22   
+                       23   
+ending                 24   Ending
+                       25   
+                       26   
+                       27   
+                       28   
+                       29   
+                       2A   
+warning                2B   Before Apocalypse
