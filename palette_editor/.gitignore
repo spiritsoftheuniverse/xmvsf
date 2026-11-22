@@ -1,0 +1,6 @@
+# User palettes and imported ROM-derived sprite images stay local.
+profiles/
+sprites/
+exports/
+__pycache__/
+*.pyc
