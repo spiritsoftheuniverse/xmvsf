@@ -440,6 +440,8 @@ int RunWindowed(Port &port) {
     xmvsf_home::TexturedMenu homeTextures(home);
     xmvsf_home::StagePicker stagePicker; // XMVSF_RECOMP_STAGES_87_455
     xmvsf_home::SelectReveal selectReveal;
+    bool characterSelectWasActive = false;
+    std::uint64_t characterSelectEnteredFrame = 0;
     bool trainingSelectSongOverride = false;
     const auto ensureSelectMusic = [&]() {
         // Use the existing song-02 Ogg through the established custom
@@ -1312,6 +1314,16 @@ int RunWindowed(Port &port) {
             port.machine->video.EnableInkInspection(
                 homeEnabled && graphicsInspector.Active());
         const bool ran = port.Tick();
+        // 87.498: only the real FF5104=0004 chooser is replaced visually.
+        // Never mask the ROM's VS, stage announcement or combat frames.
+        const bool customChoosing = homeEnabled && port.machine &&
+            port.machine->ram.size() > 0x51aDu &&
+            port.machine->ram[0x5100u] != 0u &&
+            port.machine->ram[0x5104u] == 0u &&
+            port.machine->ram[0x5105u] == 4u;
+        if (customChoosing && !characterSelectWasActive)
+            characterSelectEnteredFrame = static_cast<std::uint64_t>(port.machine->frame);
+        characterSelectWasActive = customChoosing;
         if (homeEnabled) {
             const std::uint64_t sequence = xmvsf_vs::Current().sequence;
             if (sequence != versusSeen) {
@@ -1490,7 +1502,33 @@ int RunWindowed(Port &port) {
         // (--video gpu: the game's picture drawn on the GPU from the native records, with the readouts over it, when the
         // presenter draws with SDL_GPU and the GPU can draw the frame: gpu_picture.h; else the CPU's picture)
         bool drawn = false;
-        if (!graphicsInspector.Active() && port.gpuWanted &&
+        // The 384x224 source canvas is sent through the normal Presenter,
+        // preserving nearest-neighbour sizing, the 87.468 dither transition,
+        // F10 status and regular video/device lifecycle. The ROM still ticks.
+        if (customChoosing && !turned && !graphicsInspector.Active() &&
+            !port.menu.IsOpen() && presenter.Renderer()) {
+            const auto &ram = port.machine->ram;
+            const auto cursor = [&](unsigned offset) -> std::uint16_t {
+                return static_cast<std::uint16_t>(
+                    (static_cast<unsigned>(ram[offset]) << 8u) |
+                    static_cast<unsigned>(ram[offset + 1u]));
+            };
+            const bool p1Show = true;
+            const bool p2Show = (ram[0x5101u] & 2u) != 0u &&
+                (!session::InSession() || ram[0x5183u] >= 2u);
+            const std::uint64_t elapsed =
+                static_cast<std::uint64_t>(port.machine->frame) -
+                characterSelectEnteredFrame;
+            if (const auto *image = homeTextures.ComposeCharacterSelect(
+                    presenter.Renderer(), elapsed,
+                    cursor(0x518Cu), cursor(0x51ACu), p1Show, p2Show)) {
+                presenter.UseClassicMenuCanvas(false);
+                presenter.Show(image->pixels.data(), image->width,
+                               image->height, where, nullptr);
+                drawn = true;
+            }
+        }
+        if (!drawn && !graphicsInspector.Active() && port.gpuWanted &&
             presenter.UsesGpu() && !presenter.Shaded() &&
             !turned && !port.FramedColumns()) {
             if (port.gpuPicture.Device() != presenter.Device()) {
