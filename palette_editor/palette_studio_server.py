@@ -37,7 +37,8 @@ PORTRAITS = ROOT / "_art" / "menu" / "characterselect" / "portraits"
 VIEWER_EXPORTS = (
     (Path(os.environ["XMVSF_MODEL_EXPORT_DIR"]),)
     if os.environ.get("XMVSF_MODEL_EXPORT_DIR") else
-    (ROOT / "recomp" / "exports",
+    (ROOT / "recomp" / "exports" / "palette_studio",
+     ROOT / "recomp" / "exports",
      ROOT / "recomp" / "work" / "xmvsf" / "exports")
 )
 
