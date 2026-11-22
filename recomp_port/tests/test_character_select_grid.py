@@ -59,9 +59,12 @@ def main():
     assert "stageVisible = false" in screen
     assert 'Cursor(p1Cursor_, 9, a)' in screen
     assert 'Cursor(p2Cursor_, 8, b)' in screen
-    # The second pick ends selector inversion independently for each side.
-    assert "if (ink && showP1 && cursorP1 && a >= 0)" in screen
-    assert "if (ink && showP2 && cursorP2 && b >= 0)" in screen
+    # 87.511: after native acceptance, the selector stays outlined
+    # steadily rather than disappearing; before acceptance it blinks.
+    assert "if (showP1 && a >= 0 && (!cursorP1 || ink)) Cursor(p1Cursor_, 9, a);" in screen
+    assert "if (showP2 && b >= 0 && (!cursorP2 || ink)) Cursor(p2Cursor_, 8, b);" in screen
+    assert "if (ink && showP1 && cursorP1" not in screen
+    assert "if (ink && showP2 && cursorP2" not in screen
     frontend = (SRC / "frontend_sdl.cpp").read_text()
     chooser = (ROOT / "recomp/games/xmvsf/src/choosing.cpp").read_text()
     game = (ROOT / "recomp/games/xmvsf/src/game.cpp").read_text()
