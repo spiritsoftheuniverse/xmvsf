@@ -5,6 +5,7 @@
 #include "../recomp-common/menu.h"
 #include "../recomp-common/text.h"
 #include "xmvsf_intro_timeline.h"
+#include "xmvsf_character_select_font.h" // native 12x15 SF2 large glyphs
 #include <SDL3/SDL.h>
 #include <algorithm>
 #include <array>
@@ -264,6 +265,43 @@ struct Font {
             }
         }
     }
+    // Independent 12-column bitmap atlas for the custom ROM-driven
+    // character-selection screen. The regular menu's 16-column font
+    // (and all its text geometry) stays exactly as before.
+    void LoadSelection(const char *filename) {
+        cell = selection_font::kCellWidth;
+        glyphs = {};
+        sheet = LoadPng(filename);
+        if (!sheet.Valid()) return;
+        for (int ch = 32; ch <= 126; ++ch) {
+            Glyph &g = glyphs[size_t(ch)];
+            g.advance = (ch == ' ') ? cell / 2 : cell / 2 + 2;
+            const int index = selection_font::GlyphIndex(
+                static_cast<unsigned char>(ch));
+            if (index < 0) continue;
+            const int bx = (index % selection_font::kColumns) *
+                           selection_font::kCellWidth;
+            const int by = (index / selection_font::kColumns) *
+                           selection_font::kRowStride;
+            if (bx >= sheet.width || by >= sheet.height) continue;
+            const int span = std::min(selection_font::kCellWidth,
+                                      sheet.width - bx);
+            const int tall = std::min(selection_font::kRowStride,
+                                      sheet.height - by);
+            int left = span, right = -1;
+            for (int y = 0; y < tall; ++y)
+                for (int x = 0; x < span; ++x)
+                    if ((sheet.pixels[size_t(by + y) * sheet.width +
+                                        size_t(bx + x)] >> 24) > 12) {
+                        left = std::min(left, x);
+                        right = std::max(right, x);
+                    }
+            if (right >= left) {
+                g.rect = {bx + left, by, right - left + 1, tall};
+                g.advance = g.rect.w + 2; // proportional character spacing
+            }
+        }
+    }
     int Measure(const char *s) const {
         int length = 0;
         for (const unsigned char *p = reinterpret_cast<const unsigned char *>(s); *p; ++p)
@@ -297,7 +335,7 @@ class Menu {
     bool visible_ = false;
     int selection_ = 0;
     Image logo_, logoII_;
-    Font large_, small_;
+    Font large_, small_, selectionLarge_;
     Backdrop backdrop_;
     bool warned_ = false;
 
@@ -307,6 +345,7 @@ class Menu {
         logoII_ = LoadPng("logo_II.png");
         large_.Load("sf2font.png", 12);
         small_.Load("sf2fontsmall.png", 8);
+        selectionLarge_.LoadSelection("sf2fontlarge.png");
         backdrop_.Load();
         if (!logo_.Valid() || !large_.sheet.Valid() || !small_.sheet.Valid()) {
             std::fprintf(stderr, "XMVSF 87.436 menu: source art missing; check ../_art or XMVSF_MENU_ASSETS\n");
