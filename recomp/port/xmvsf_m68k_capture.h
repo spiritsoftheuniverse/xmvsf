@@ -163,6 +163,8 @@ public:
         haveBefore_ = false;
         grid_[0] = grid_[1] = -1;
         priorGrid_[0] = priorGrid_[1] = -1;
+        priorRaw_[0] = priorRaw_[1] = 0xFFFFu;
+        priorFinal_[0] = priorFinal_[1] = 0xFFFFu;
         soundBefore_ = 0;
         handoffRowsSeen_ = 0;
         haveOldOam_[0] = haveOldOam_[1] = false;
@@ -394,7 +396,13 @@ private:
         const bool grid = grid_[0] != priorGrid_[0] ||
                           grid_[1] != priorGrid_[1];
         const bool sound = soundBefore_ != soundAfter;
-        const bool inputs = (raw_[0] != final_[0] || raw_[1] != final_[1]);
+        // Compare with the PREVIOUS captured input, not raw-vs-routed in
+        // the SAME frame: Training always owns P2 after the handoff, and a
+        // static owner transfer must not fill the 360-row event budget.
+        const bool inputs = raw_[0] != priorRaw_[0] ||
+                            raw_[1] != priorRaw_[1] ||
+                            final_[0] != priorFinal_[0] ||
+                            final_[1] != priorFinal_[1];
         const bool periodic = framesSeen_ % 8u == 0u;
         if (!phase && !accepted && !cursor && !picks &&
             !grid && !sound && !inputs && !periodic) return;
@@ -441,6 +449,8 @@ private:
             static_cast<unsigned long long>(machine.cpu.cycles));
         ++handoffRowsSeen_;
         priorGrid_[0] = grid_[0]; priorGrid_[1] = grid_[1];
+        priorRaw_[0] = raw_[0]; priorRaw_[1] = raw_[1];
+        priorFinal_[0] = final_[0]; priorFinal_[1] = final_[1];
         // Accept boundaries are rare and vital: flush immediately.
         if (accepted) std::fflush(handoff_);
     }
@@ -564,6 +574,8 @@ private:
     unsigned ramThisFrame_ = 0;
     uint32_t pcBefore_ = 0;
     uint16_t raw_[2] = {}, routed_[2] = {}, final_[2] = {};
+    uint16_t priorRaw_[2] = {0xFFFFu, 0xFFFFu},
+             priorFinal_[2] = {0xFFFFu, 0xFFFFu};
     Selection before_;
     int grid_[2] = {-1, -1}, priorGrid_[2] = {-1, -1};
     uint16_t soundBefore_ = 0;
