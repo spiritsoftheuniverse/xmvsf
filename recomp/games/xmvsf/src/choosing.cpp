@@ -176,7 +176,7 @@ namespace {
             // Reject native timeout and all non-A character confirms.
             // A grant stays armed until the ROM truly advances FF5183.
             if (!port::xmvsf_select::NativePickAllowed(
-                    count, g_accepted[n], Ram8(record + 3u),
+                    count, g_accepted[n], Ram8(counter),
                     g_confirmQueued[n])) {
                 count = g_accepted[n];
                 value = bytes == 2u
