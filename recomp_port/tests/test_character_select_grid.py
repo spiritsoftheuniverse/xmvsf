@@ -128,7 +128,7 @@ def main():
     assert "entry[3] = static_cast<std::uint8_t>(soundCode);" in select_rewrite
     assert "soundCode != 0x84u && soundCode != 0x85u" in select_rewrite
     assert "NativeCharacterVoice(std::uint16_t id," in select_rewrite
-    assert "0xA0u + side * 0x20u + id / 2u" in select_rewrite
+    assert "0xA0u + side * 0x20u + voiceId / 2u" in select_rewrite
     assert "CorrectQueuedCharacterVoice(std::uint8_t *ram" in select_rewrite
     assert "const unsigned base = 0xA0u + side * 0x20u;" in select_rewrite
     assert "p[3] > base + 0x13u" in select_rewrite
