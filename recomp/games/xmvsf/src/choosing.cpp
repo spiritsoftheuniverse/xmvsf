@@ -57,7 +57,10 @@ void ChoosingBeforeFrame(Machine &machine) {
 // through the unmodified native accept routine. Called AFTER Training P1->P2
 // ownership routing so the active dummy receives the same new grid.
 void ChoosingLayoutBeforeCpu(Machine &machine) {
-    const bool choosing = Ram8(kPlaying) != 0 &&
+    // Only the native XMVSF custom frontend owns this layout. Do not change
+    // arcade-replay/headless/online default ROM selection when it is off.
+    const bool choosing = machine.video.hudShock &&
+                          Ram8(kPlaying) != 0 &&
                           Ram16(kGameStep) == kGameChoosing;
     if (!choosing) {
         if (g_layoutRunning) g_layout.Reset();
