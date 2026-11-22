@@ -117,7 +117,6 @@ if errorlevel 1 (
   goto :fail
 )
 
-REM 87.464: compile curl-noise edge smoke; validate 20% entrance dither on all film layers.
 REM 87.498: native source-art composition and ROM cursor/grid preflight.
 "%BASH%" -c "python3 ../recomp_port/tests/test_character_select_grid.py"
 if errorlevel 1 (
@@ -126,6 +125,7 @@ if errorlevel 1 (
   goto :fail
 )
 
+REM 87.464: compile curl-noise edge smoke; validate 20% entrance dither on all film layers.
 "%BASH%" -c "python3 ../recomp_port/tests/test_menu_film.py"
 if errorlevel 1 (
   echo ERROR: XMVSF 87.464 menu film integrity failed. No build performed.
