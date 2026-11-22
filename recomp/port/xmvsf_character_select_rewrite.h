@@ -70,4 +70,49 @@ inline bool CorrectQueuedCharacterVoice(std::uint8_t *ram, std::size_t size,
     return true;
 }
 
+// 87.509: preserve the board's own character-grid movement tick (0x84).
+// F10 confirmed this exact 16-byte request on native movement:
+// 00 00 00 84 00 00 10 00 00 00 00 00 00 00 00 00.
+// If a custom grid movement occurs while the ROM is in its inter-pick
+// animation, the ROM may not queue that tick itself. Append ONLY when no
+// identical native request was produced during this CPU frame.
+//
+// Sound requests are queued as the original game queues them; playback
+// occurs on the following native sound processing, not via a new ROM hook.
+inline bool QueueMissingCursorMovementSound(std::uint8_t *ram, std::size_t size,
+                                             std::uint16_t before,
+                                             std::uint16_t after) {
+    if (!ram || size < 0x10000u ||
+        before > 0x3F0u || after > 0x3F0u ||
+        (before & 15u) || (after & 15u)) return false;
+    const unsigned distance = (static_cast<unsigned>(after) + 0x400u -
+                               static_cast<unsigned>(before)) & 0x3F0u;
+    // Never guess if the queue moved implausibly far in one native
+    // frame or has wrapped so far that its contents might be overwritten.
+    if (distance > 128u) return false;
+    const auto nativeMoveTick = [](const std::uint8_t *p) {
+        if (p[0] || p[1] || p[2] || p[3] != 0x84u ||
+            p[4] || p[5] || p[6] != 0x10u || p[7]) return false;
+        for (unsigned n = 8; n < 16; ++n)
+            if (p[n]) return false;
+        return true;
+    };
+    for (unsigned delta = 0u; delta < distance; delta += 16u) {
+        const unsigned at = (static_cast<unsigned>(before) + delta) & 0x3F0u;
+        if (nativeMoveTick(ram + 0x2648u + at)) return false;
+    }
+    // As in the original sound ring and the existing modes::PlaySound,
+    // FF2642 is the next 16-byte request slot. Preserve all prior
+    // entries (including character announcements and 0x82 SFX).
+    std::uint8_t *entry = ram + 0x2648u + after;
+    for (unsigned i = 0; i < 16u; ++i) entry[i] = 0u;
+    entry[3] = 0x84u;
+    entry[6] = 0x10u;
+    const std::uint16_t next = static_cast<std::uint16_t>(
+        (static_cast<unsigned>(after) + 16u) & 0x3F0u);
+    ram[0x2642u] = static_cast<std::uint8_t>(next >> 8);
+    ram[0x2643u] = static_cast<std::uint8_t>(next);
+    return true;
+}
+
 } // namespace port::xmvsf_select
