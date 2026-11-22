@@ -111,7 +111,7 @@ class DecoderTests(unittest.TestCase):
         # and remain unchanged by palette edits.
         html = (HERE / "palette_studio.html").read_text(encoding="utf-8")
         self.assertIn("Portrait reference", (HERE / "palette_studio_server.py").read_text(encoding="utf-8"))
-        self.assertIn("original portrait PNG", (HERE / "README.md").read_text(encoding="utf-8"))
+        self.assertIn("source portrait PNG", (HERE / "README.md").read_text(encoding="utf-8"))
         self.assertIn('id="portraitPreview"', html)
         self.assertIn('class="preview-pair"', html)
         self.assertIn('id="preview"', html)
