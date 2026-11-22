@@ -21,6 +21,7 @@ namespace {
     bool g_start[2] = {false, false};  // each player's Start held this frame
     port::xmvsf_select::Navigation g_layout;
     bool g_layoutRunning = false;
+    uint8_t g_accepted[2] = {0, 0}; // real FF5183 / FF51A3 native accepted counts
 
     // 00B1E8: a player's choosing record (A4) takes the character under its cursor
     bool Chosen(M68K &c) {
@@ -65,6 +66,7 @@ void ChoosingLayoutBeforeCpu(Machine &machine) {
     if (!choosing) {
         if (g_layoutRunning) g_layout.Reset();
         g_layoutRunning = false;
+        g_accepted[0] = g_accepted[1] = 0;
         return;
     }
     if (!g_layoutRunning) {
@@ -76,7 +78,7 @@ void ChoosingLayoutBeforeCpu(Machine &machine) {
         // The native 03->04 transition means the second character was
         // accepted. Steps 04..06 are the game's MODE/SPEED choices and
         // MUST retain real directional input (87.477 regression lesson).
-        const bool active = Ram8(record) <= 3u;
+        const bool active = Ram8(record) <= 3u && Ram8(record + 3u) < 2u;
         const unsigned direction = machine.players[n] & (kRight | kLeft | kDown | kUp);
         g_layout.Advance(n, direction, active);
         if (active) {
@@ -85,6 +87,46 @@ void ChoosingLayoutBeforeCpu(Machine &machine) {
             // Only character-cursor directions are consumed here.
             // Native accept, sound, MODE/SPEED and combat keys remain intact.
             machine.players[n] &= static_cast<uint16_t>(~fight::kSticks);
+        }
+    }
+}
+
+// The ROM can write its original cursor after the beforeFrame hook. Keep the
+// new horizontal mapping authoritative at the end of the native CPU frame,
+// where the SDL composition reads FF518C / FF51AC. Native accept processing
+// still runs untouched; commit only on the two real FF5183/FF51A3 edges.
+void ChoosingLayoutAfterFrame(Machine &machine) {
+    if (!g_layoutRunning || !machine.video.hudShock ||
+        Ram16(kGameStep) != kGameChoosing || !Ram8(kPlaying)) return;
+    for (int n = 0; n < 2; ++n) {
+        const uint32_t record = kChoosing + static_cast<uint32_t>(n) * kChoosingSize;
+        const uint8_t accepted = Ram8(record + 3u);
+        const uint8_t prior = g_accepted[n];
+        const unsigned slot = static_cast<unsigned>(g_layout.index[n]);
+        if (accepted > prior && accepted <= 2u) {
+            for (unsigned pick = prior; pick < accepted; ++pick) {
+                const uint32_t pickAt = kPicks + static_cast<uint32_t>(n * 4u + pick * 2u);
+                const uint16_t target = port::xmvsf_select::kSlots[slot].rom;
+                const uint16_t native = Ram16(pickAt);
+                // Preserve the ROM's Start+Ryu/Akuma or Start+Chun-Li/Alpha
+                // variation if that feature is enabled on this machine.
+                const bool hidden = FeatureOn("hidden_characters") && g_start[n] &&
+                    ((target == 0x12u && native == kAkuma) ||
+                     (target == 0x16u && native == 0x24u));
+                if (!hidden && native != target) SetRam16(pickAt, target);
+            }
+            // The second character defaults to the next cell across,
+            // as native Cyclops->Wolverine / Ryu->Ken did.
+            if (prior == 0u && accepted == 1u) {
+                g_layout.index[n] = port::xmvsf_select::Navigate(g_layout.index[n], 1u);
+            }
+        }
+        g_accepted[n] = accepted;
+        // Write AFTER the ROM's original navigation, not only before it.
+        // Do not overwrite native mode/speed (steps 4+) or completed picks.
+        if (accepted < 2u && Ram8(record) <= 3u) {
+            const unsigned preview = static_cast<unsigned>(g_layout.index[n]);
+            SetRam16(record + kCursor, port::xmvsf_select::kSlots[preview].rom);
         }
     }
 }
