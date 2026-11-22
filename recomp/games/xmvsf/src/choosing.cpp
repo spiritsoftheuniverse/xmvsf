@@ -36,6 +36,7 @@ namespace {
     // 87.509: beginning-of-frame native ring pointer and custom grid.
     // Used only to fill missing ROM 0x84 ticks on *actual* grid movement.
     uint16_t g_cursorSoundBegin = 0xFFFFu;
+    uint16_t g_nameQueueHead = 0xFFFFu; // next uncorrected FF2648 request
     int g_gridBeforeFrame[2] = {-1, -1};
 
     uint16_t IntendedNativeId(unsigned n) {
@@ -54,29 +55,57 @@ namespace {
         return port::xmvsf_select::AllowNativeSelectionSound(request);
     }
 
+
+    // Complete native requests, not transient native cursor positions, own
+    // voice delivery. Preserve source A/B (P1) vs C/D (P2) until each
+    // entry has been rewritten exactly once.
+    void CorrectNativeQueue(Machine &machine, uint16_t after) {
+        if (!g_layoutRunning || g_nameQueueHead == 0xFFFFu ||
+            g_nameQueueHead > 0x3F0u || after > 0x3F0u ||
+            (g_nameQueueHead & 15u) || (after & 15u)) return;
+        const unsigned distance =
+            (static_cast<unsigned>(after) + 0x400u -
+             static_cast<unsigned>(g_nameQueueHead)) & 0x3F0u;
+        if (distance > 0x80u) return; // pointer byte still being written
+        const std::array<uint16_t, 2> selected{{
+            IntendedNativeId(0u), IntendedNativeId(1u)
+        }};
+        const unsigned changed = port::xmvsf_select::RewriteQueuedSelectionNames(
+            g_nameQueueHead, after, machine.ram.data(),
+            machine.ram.size(), selected);
+        if (changed && !RunningAhead())
+            std::fprintf(stderr,
+                "XMVSF 87.520 ANNOUNCER_QUEUE corrected=%u "
+                "P1=%04X P2=%04X frame=%llu\n",
+                changed, selected[0], selected[1],
+                static_cast<unsigned long long>(machine.frame));
+        g_nameQueueHead = after;
+    }
+
+    void RewriteNativeQueuedNames(Machine &machine) {
+        // Scanline fallback if the guest copied a full entry directly.
+        CorrectNativeQueue(machine, Ram16(kSoundQueueEnd));
+    }
+
     void RemapSelectionWrite(Machine &machine, uint32_t address,
                              uint16_t &value, unsigned bytes) {
         const std::array<uint16_t, 2> selected{{
             IntendedNativeId(0u), IntendedNativeId(1u)
         }};
         const std::array<uint8_t, 2> accepted{{g_accepted[0], g_accepted[1]}};
-        // Rewrite the ROM's ACTUAL announcer command before it is
-        // transferred to the sound CPU. Never synthesize its transport
-        // envelope; the ROM already knows how to transfer this ring.
-        const uint16_t originalSound = value;
-        value = port::xmvsf_select::RewriteSelectionNameRingWrite(
-            address, value, bytes, machine.ram.data(),
-            machine.ram.size(), selected);
-        if (value != originalSound && !RunningAhead()) {
-            std::fprintf(stderr,
-                "XMVSF 87.519 ROM_ANNOUNCER src=%02X dst=%02X "
-                "P%u rom=%04X frame=%llu\n",
-                static_cast<unsigned>(originalSound & 0xFFu),
-                static_cast<unsigned>(value & 0xFFu),
-                static_cast<unsigned>((originalSound & 0xFFu) >= 0xC0u ? 2u : 1u),
-                static_cast<unsigned>(selected[
-                    (originalSound & 0xFFu) >= 0xC0u ? 1u : 0u]),
-                static_cast<unsigned long long>(machine.frame));
+        // FF2642 is the producer's commit pointer. Correct completed
+        // 16-byte names here, before the ROM transfers them to QSound.
+        const uint32_t at = address & 0xFFFFFFu;
+        if (at == 0xFF2642u || at == 0xFF2643u) {
+            const uint16_t prior = Ram16(kSoundQueueEnd);
+            const uint16_t updated =
+                bytes == 2u && at == 0xFF2642u ? value :
+                bytes == 1u && at == 0xFF2642u
+                    ? static_cast<uint16_t>(((value & 0xFFu) << 8u) | (prior & 0xFFu)) :
+                bytes == 1u && at == 0xFF2643u
+                    ? static_cast<uint16_t>((prior & 0xFF00u) | (value & 0xFFu)) :
+                    prior;
+            CorrectNativeQueue(machine, updated);
         }
         value = port::xmvsf_select::RewriteNativeSelectionWrite(
             address, value, bytes, selected, accepted);
@@ -85,7 +114,6 @@ namespace {
         // counters. Capture the ID AT THE RAM WRITE: the ROM can leave
         // character selection on the same frame as pick two, meaning a
         // post-frame check may otherwise never see the second accept.
-        const uint32_t at = address & 0xFFFFFFu;
         for (unsigned n = 0; n < 2u; ++n) {
             const uint32_t counter = 0xFF5183u + n * 0x20u;
             const bool wroteCounter = (bytes == 1u && at == counter) ||
@@ -177,6 +205,7 @@ void ChoosingLayoutBeforeCpu(Machine &machine) {
         machine.selectionSoundRequestFilter = g_soundTailFrames > 0u
             ? &AuthoritativeSelectionSound : nullptr;
         machine.selectionVoiceQueueBeforeSound = nullptr;
+        g_nameQueueHead = 0xFFFFu;
         if (g_soundTailFrames > 0u) {
             --g_soundTailFrames;
         } else {
@@ -203,9 +232,11 @@ void ChoosingLayoutBeforeCpu(Machine &machine) {
     machine.selectionRamWriteOverride = &RemapSelectionWrite;
     // The native sound ROM owns queue delivery and correct QSound format.
     // We alter ONLY its announcer byte at FF2648 when the ROM writes it.
-    machine.selectionVoiceQueueBeforeSound = nullptr;
+    machine.selectionVoiceQueueBeforeSound = &RewriteNativeQueuedNames;
     machine.selectionSoundRequestFilter = &AuthoritativeSelectionSound;
     g_cursorSoundBegin = Ram16(kSoundQueueEnd);
+    // Reset each frame so speculative run-ahead cannot desynchronize us.
+    g_nameQueueHead = g_cursorSoundBegin;
     g_gridBeforeFrame[0] = g_layout.index[0];
     g_gridBeforeFrame[1] = g_layout.index[1];
 
