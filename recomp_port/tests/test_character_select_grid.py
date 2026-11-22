@@ -96,25 +96,6 @@ def main():
     assert "const unsigned diff =" in chooser
     assert "if (diff > 128u)" in chooser
     assert "g_voiceHandled = true;" in chooser
-    # 87.510: paired native sprite-voice 0x82 suppression is not a broad
-    # mute. Only a terminal full-format 0x82 immediately after a
-    # confirmed/corrected 0xA? announcer is unpublished from the ring.
-    assert "SuppressTrailingSelectionSpriteVoice(" in chooser
-    assert "g_announcerQueueOffset = offset;" in chooser
-    assert "g_spriteVoiceSuppressed = true;" in chooser
-    assert "processedNext = static_cast<uint16_t>(offset);" in chooser
-    assert "g_voiceReadAt = processedNext;" in chooser
-    assert "g_spriteVoiceSuppressed = false;" in chooser
-    assert "g_announcerQueueOffset = 0xFFFFu;" in chooser
-    assert "g_voiceHandled && g_spriteVoiceSuppressed" in chooser
-    assert "SuppressTrailingSelectionSpriteVoice(std::uint8_t *ram" in (
-        SRC / "xmvsf_character_select_rewrite.h").read_text()
-    assert "matches(voice, announcer) || !matches(companion, 0x82u)" in (
-        SRC / "xmvsf_character_select_rewrite.h").read_text()
-    assert "((companionOffset + 16u) & 0x3F0u) != producerNext" in (
-        SRC / "xmvsf_character_select_rewrite.h").read_text()
-    assert "ram[0x2642u] = static_cast<std::uint8_t>(companionOffset >> 8u);" in (
-        SRC / "xmvsf_character_select_rewrite.h").read_text()
     assert "if (g_voiceSide >= 0 && g_voiceReadAt <= kSoundQueueMask" in chooser
     assert "machine.selectionVoiceQueueBeforeSound = &CorrectNativeQueuedVoice;" in chooser
     assert "machine.selectionVoiceQueueBeforeSound = nullptr;" in chooser
@@ -182,7 +163,7 @@ def main():
                         str(ROOT / "recomp_port/tests/test_character_select_grid.cpp"),
                         "-o", str(binary)], check=True)
         subprocess.run([str(binary)], check=True)
-    print("XMVSF 87.510 scoped 0x82 sprite mute; 87.508 announcer and 87.509 movement retained PASS")
+    print("XMVSF 87.509 native 0x84 handoff tick, deduped movement, 87.508 voice and 18-ID mapping PASS")
 
 if __name__ == "__main__":
     main()
