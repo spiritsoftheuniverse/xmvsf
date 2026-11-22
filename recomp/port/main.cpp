@@ -3964,7 +3964,7 @@ int main(int argc, char **argv) {
                 if (!p.Tick()) continue;
                 if (model::On() && model::Seen() &&
                     model::CharacterNumber() == character &&
-                    model::ExportStandingPng("exports")) {
+                    model::ExportStandingPng("exports/palette_studio")) {
                     ok = true;
                     saved++;
                     break;
