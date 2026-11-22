@@ -48,8 +48,9 @@ inline constexpr std::uint16_t NativeCharacterVoice(std::uint16_t id) {
 
 // Rewrites just byte +3 of one already-enqueued native character-voice
 // message. The cursor, queue pointers, sound transport, and native
-// 0x82 confirmation SFX are never changed. Returns true for a recognized
-// voice request even if it was already correct; false for other sounds.
+// 0x82 companion request are not changed by THIS announcer helper.
+// Returns true for a recognized voice request even if already correct;
+// false for all other sounds.
 inline bool CorrectQueuedCharacterVoice(std::uint8_t *ram, std::size_t size,
                                         unsigned queueOffset,
                                         std::uint16_t chosenRomId) {
@@ -67,6 +68,58 @@ inline bool CorrectQueuedCharacterVoice(std::uint8_t *ram, std::size_t size,
         Find(static_cast<std::uint16_t>((p[3] - 0xA0u) * 2u)) < 0)
         return false;
     p[3] = static_cast<std::uint8_t>(wanted);
+    return true;
+}
+
+// 87.510: the native selection routine pairs every character-specific
+// announcer command A0..B2 with one trailing 0x82 request. F10 confirmed
+// Magneto A7,82 (frame 648) and wrong Gambit A4,82 (frame 884).
+// 0x82 is the candidate for the unwanted original sprite voice when the
+// native sprite and the custom selection do not agree.
+//
+// Only during a native character confirmation (the caller owns the gate),
+// after the announcer was recognized/corrected, remove that exact trailing
+// 0x82 message BEFORE the sound CPU processes it. Rewind the producer by
+// one entry; do not enqueue a zero sound command, adjust the consumer, or
+// touch the neighboring announcer and 0x84 cursor-movement commands.
+// A request must be immediately adjacent to the corrected announcer and
+// the final queued request; otherwise leave the native queue untouched.
+inline bool SuppressTrailingSelectionSpriteVoice(std::uint8_t *ram, std::size_t size,
+                                                 unsigned announcerOffset,
+                                                 unsigned companionOffset,
+                                                 unsigned producerNext,
+                                                 std::uint16_t selectedRomId) {
+    if (!ram || size < 0x10000u ||
+        announcerOffset > 0x3F0u || companionOffset > 0x3F0u ||
+        producerNext > 0x3F0u ||
+        (announcerOffset & 15u) || (companionOffset & 15u) ||
+        (producerNext & 15u)) return false;
+    if (((announcerOffset + 16u) & 0x3F0u) != companionOffset ||
+        ((companionOffset + 16u) & 0x3F0u) != producerNext)
+        return false;
+    // Never remove a second request that does not follow the expected
+    // character-name announcer for this very same confirmation.
+    const std::uint16_t announcer = NativeCharacterVoice(selectedRomId);
+    if (announcer == 0xFFFFu) return false;
+    const std::uint8_t *voice = ram + 0x2648u + announcerOffset;
+    const std::uint8_t *companion = ram + 0x2648u + companionOffset;
+    const auto matches = [](const std::uint8_t *entry, unsigned id) {
+        if (entry[0] || entry[1] || entry[2] || entry[3] != id ||
+            entry[4] || entry[5] || entry[6] != 0x10u || entry[7])
+            return false;
+        for (unsigned i = 8u; i < 16u; ++i)
+            if (entry[i]) return false;
+        return true;
+    };
+    if (!matches(voice, announcer) || !matches(companion, 0x82u))
+        return false;
+    // This entry was most recently produced by the main CPU in the current
+    // scanline; the native sound CPU has not executed its next slice yet.
+    // Unpublishing the tail is preferable to a fabricated no-op command.
+    for (unsigned i = 0u; i < 16u; ++i)
+        ram[0x2648u + companionOffset + i] = 0u;
+    ram[0x2642u] = static_cast<std::uint8_t>(companionOffset >> 8u);
+    ram[0x2643u] = static_cast<std::uint8_t>(companionOffset);
     return true;
 }
 
