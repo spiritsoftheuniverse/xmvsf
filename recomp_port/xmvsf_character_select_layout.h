@@ -63,7 +63,17 @@ inline constexpr bool SameTeamCharacter(std::uint16_t first, std::uint16_t secon
 // move LEFT instead. Never leave the cursor sitting on its own first pick.
 inline constexpr int NextTeamIndex(int index) {
     if (index < 0 || index >= static_cast<int>(kSlots.size())) return index;
-    return index % kColumns == kColumns - 1 ? index - 1 : index + 1;
+    const int left = index - index % kColumns;
+    const int right = left + kColumns - 1;
+    const int step = index == right ? -1 : 1;
+    int candidate = index + step;
+    // Chun-Li and Alpha Chun-Li are separate portraits but the same
+    // team identity: never auto-hop onto the other version.
+    while (candidate >= left && candidate <= right &&
+           SameTeamCharacter(kSlots[static_cast<unsigned>(index)].rom,
+                             kSlots[static_cast<unsigned>(candidate)].rom))
+        candidate += step;
+    return candidate >= left && candidate <= right ? candidate : index;
 }
 // Directionally skip the first team member. If a vertical move would
 // land on the forbidden cell, remain where the cursor was.
@@ -86,10 +96,13 @@ inline constexpr int SkipTeamIndex(int from, int candidate,
         const int col = candidate % kColumns;
         if ((direction == 1u && col == kColumns - 1) ||
             (direction == 2u && col == 0)) return from;
-        const int next = Navigate(candidate, direction);
-        if (next != candidate &&
-            !SameTeamCharacter(forbidden, kSlots[static_cast<unsigned>(next)].rom))
-            return next;
+        int next = candidate + (direction == 1u ? 1 : -1);
+        const int left = candidate - col, right = left + kColumns - 1;
+        while (next >= left && next <= right &&
+               SameTeamCharacter(forbidden,
+                                 kSlots[static_cast<unsigned>(next)].rom))
+            next += direction == 1u ? 1 : -1;
+        if (next >= left && next <= right) return next;
     }
     return from;
 }
