@@ -103,10 +103,6 @@ def main():
     assert "if (active && (machine.players[n] & kConfirm) != 0u)" in chooser
     assert "g_voiceSide = -2;" in chooser
     assert "g_voiceSide = -1;" in chooser
-    assert "void (*selectionVoiceQueueBeforeSound)(Machine &) = nullptr;" in machine_header
-    assert "if (selectionVoiceQueueBeforeSound)" in machine_src
-    assert "selectionVoiceQueueBeforeSound(*this);" in machine_src
-    assert machine_src.index("selectionVoiceQueueBeforeSound(*this);") < machine_src.index("RunSound(kSoundCyclesPerLine);")
     assert "CorrectQueuedCharacterVoice(std::uint8_t *ram" in (
         SRC / "xmvsf_character_select_rewrite.h").read_text()
 
@@ -122,6 +118,10 @@ def main():
         ROOT / "recomp/games/xmvsf/src/modes.cpp").read_text()
     machine_header = (ROOT / "recomp/machine/machine.h").read_text()
     machine_src = (ROOT / "recomp/machine/machine.cpp").read_text()
+    assert "void (*selectionVoiceQueueBeforeSound)(Machine &) = nullptr;" in machine_header
+    assert "if (selectionVoiceQueueBeforeSound)" in machine_src
+    assert "selectionVoiceQueueBeforeSound(*this);" in machine_src
+    assert machine_src.index("selectionVoiceQueueBeforeSound(*this);") < machine_src.index("RunSound(kSoundCyclesPerLine);")
     assert "selectionRamWriteOverride" in machine_header
     assert "selectionRamWriteOverride(*this, address & ~1u, value, 2)" in machine_src
     assert "selectionRamWriteOverride(*this, address, next, 1)" in machine_src
