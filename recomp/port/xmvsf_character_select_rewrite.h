@@ -56,7 +56,8 @@ inline constexpr std::uint16_t NativeCharacterVoice(std::uint16_t id,
 }
 
 // Rewrites just byte +3 of one already-enqueued native character-voice
-// message. P1 uses A0..B2; P2 uses C0..D2. The cursor, queue pointers,
+// message. P1 accepts native sources A0..B3; P2 C0..D3 (including
+// misaligned second-pick sources seen by F10). The cursor, queue pointers,
 // sound transport, and native 0x82 (P1) / 0x83 (P2) confirmation SFX
 // are never changed. Returns true for a recognized
 // voice request even if it was already correct; false for other sounds.
