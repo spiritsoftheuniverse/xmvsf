@@ -28,8 +28,9 @@ namespace {
     uint16_t g_committed[2][2] = {{0xFFFFu, 0xFFFFu}, {0xFFFFu, 0xFFFFu}};
     bool g_commitPending = false; // one native match handoff, not every arcade round
 
-    // 87.515: one explicit name and one confirmation for EACH native
-    // accepted-count edge. kSlots is the only character identity source.
+    // 87.516: one explicit A-family character name and one native
+    // side-specific confirmation for EACH accepted-count edge.
+    // kSlots is the only name identity source; P1/P2 share its code.
     // Native speech is filtered at the complete M68K->QSound handoff.
     uint8_t g_soundAccepted[2] = {0, 0};
     std::array<std::uint16_t, 2> g_expectedNames{{0xFFFFu, 0xFFFFu}};
@@ -92,7 +93,7 @@ namespace {
                 g_soundAccepted[n] = count; // idempotent even if ROM writes twice
                 const std::uint16_t selected = IntendedNativeId(n);
                 const std::uint16_t name =
-                    port::xmvsf_select::NativeCharacterVoice(selected, n);
+                    port::xmvsf_select::NativeCharacterVoice(selected);
                 if (name != 0xFFFFu &&
                     port::xmvsf_select::QueueExplicitSelectionSound(
                         machine.ram.data(), machine.ram.size(), name)) {
