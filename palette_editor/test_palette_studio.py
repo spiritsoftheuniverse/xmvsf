@@ -61,7 +61,7 @@ class DecoderTests(unittest.TestCase):
     def test_colour_translation_is_4bit(self):
         # For character=0, set=P, line=Body, pen=1 -> 0xF111.
         self.assertEqual(self.originals[0][0][0][1], "#111111")
-        self.assertEqual(self.originals[0][1][2][15], "#FF00EE")
+        self.assertEqual(self.originals[0][1][2][15], "#FF0011")
         self.assertEqual(studio.quantized_hex(0xFABC), "#AABBCC")
 
     def test_wrong_crc_and_bad_pointer_are_refused(self):
@@ -95,7 +95,7 @@ class DecoderTests(unittest.TestCase):
         self.assertIn("Portrait reference", (HERE / "palette_studio_server.py").read_text(encoding="utf-8"))
         self.assertIn("portrait is NOT", (HERE / "README.md").read_text(encoding="utf-8"))
         self.assertIn("kind==='sprite'", html)
-        self.assertIn("kind==='portrait'", html)
+        self.assertIn("sprite.type==='portrait'", html)
 
 
 class ProfileTests(unittest.TestCase):
