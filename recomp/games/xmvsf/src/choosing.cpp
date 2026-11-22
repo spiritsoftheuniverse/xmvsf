@@ -122,7 +122,9 @@ namespace {
         std::fprintf(stderr,
             "XMVSF 87.506 VOICE P%u PICK%u: native=%02X corrected=%02X character=%04X\n",
             side + 1u, static_cast<unsigned>(g_accepted[side]) + 1u,
-            nativeVoice, wantedVoice, selectedRom);
+            static_cast<unsigned>(nativeVoice),
+            static_cast<unsigned>(wantedVoice),
+            static_cast<unsigned>(selectedRom));
         return false; // preserve the ROM's actual enqueuer
     }
 
