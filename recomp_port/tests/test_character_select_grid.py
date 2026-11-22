@@ -77,6 +77,24 @@ def main():
     assert "if (Ram8(record + 3u) >= 2u)" in chooser
     assert "return Ram16(kPicks + static_cast<uint32_t>(side) * 4u + 2u);" in chooser
     assert "return port::xmvsf_select::kSlots[slot].rom;" in chooser
+    # 87.506 sound patch: queue entry at 0787E0, first request already
+    # stored before the native follow-up 0x82 is enqueued.
+    assert "AddHook(HookAt(0x0787E0), \"SelectionVoiceQueued\", SelectionVoiceQueued);" in chooser
+    assert "bool SelectionVoiceQueued(M68K &)" in chooser
+    assert "return false; // preserve the ROM's actual enqueuer" in chooser
+    assert "const uint32_t previous = kSoundQueue +" in chooser
+    assert "g_voiceQueueFrameStart = Ram16(kSoundQueueEnd);" in chooser
+    assert "fresh < 16u || fresh > 128u" in chooser
+    assert "if (!g_voiceConfirm[n] || g_accepted[n] >= 2u) continue;" in chooser
+    assert "Ram16(previous + 6u) != 0x1000u" in chooser
+    assert "if (port::xmvsf_select::Find(nativeRom) < 0) return false;" in chooser
+    assert "port::xmvsf_select::CharacterVoiceCommand(selectedRom)" in chooser
+    assert "SetRam8(previous + 3u, static_cast<uint8_t>(wantedVoice));" in chooser
+    assert "g_voiceConfirm[n] = active && (machine.players[n] & kConfirmButtons) != 0u;" in chooser
+    assert "if (side != 2u) return false;" in chooser
+    assert "g_voiceConfirm[0] = g_voiceConfirm[1] = false;" in chooser
+    assert "const uint16_t selectedRom = IntendedNativeId(side);" in chooser
+    # The baseline callback still owns movement, acceptance and team picks.
     # The working 87.500 selector and audio path must not be touched.
     assert "const bool active = Ram8(record) <= 3u && Ram8(record + 3u) < 2u;" in chooser
     assert "machine.players[n] &= static_cast<uint16_t>(~fight::kSticks);" not in chooser
@@ -118,7 +136,7 @@ def main():
                         str(ROOT / "recomp_port/tests/test_character_select_grid.cpp"),
                         "-o", str(binary)], check=True)
         subprocess.run([str(binary)], check=True)
-    print("XMVSF 87.505 F10-canonical portraits/names, unchanged 87.500 input/audio, 18-ID mapping PASS")
+    print("XMVSF 87.506 guarded native voice queue patch, 87.500 navigation and portrait IDs PASS")
 
 if __name__ == "__main__":
     main()
