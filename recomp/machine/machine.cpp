@@ -111,6 +111,7 @@ void Machine::Reset() {
     std::fill(scrollFromExtra.begin(), scrollFromExtra.end(), 0);
     memset(soundRam, 0, sizeof(soundRam));
     memset(soundRam2, 0, sizeof(soundRam2));
+    selectionSoundRequestFilter = nullptr;
     soundtrack.Reset();
     memset(cpsA, 0, sizeof(cpsA));
     memset(cpsB, 0, sizeof(cpsB));
@@ -1011,6 +1012,12 @@ bool Machine::LeaveSoundRequest(const uint8_t request[16]) {
     if (soundRam[0x00F] != 0xFF) {
         return false;
     }
+    // The alternate sound driver uses this same transport. Keep the
+    // explicit selection identity filter consistent with native Z80 mode.
+    // A dropped packet is consumed from the driver's source queue.
+    if (selectionSoundRequestFilter &&
+        !selectionSoundRequestFilter(*this, request))
+        return true;
     memcpy(soundRam, request, 15);
     soundRam[0x00F] = request[15];
     return true;
