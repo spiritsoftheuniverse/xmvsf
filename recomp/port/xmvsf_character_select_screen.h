@@ -135,6 +135,13 @@ class CharacterSelectScreen {
     }
 public:
     ~CharacterSelectScreen() { Release(); }
+    // Kick asynchronous decode while the main menu is still showing.
+    // Both FDBs are ready before most users enter selection, avoiding
+    // a one-frame flash of the original ROM chooser while decoding.
+    bool Preload(SDL_Renderer *renderer) {
+        return renderer && LoadArt() && background_.Open(renderer) &&
+               portraitVideo_.Open(renderer);
+    }
     void Release() {
         background_.Close();
         portraitVideo_.Close();
