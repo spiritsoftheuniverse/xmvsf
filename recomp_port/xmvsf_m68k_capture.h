@@ -163,6 +163,7 @@ public:
         haveBefore_ = false;
         grid_[0] = grid_[1] = -1;
         priorGrid_[0] = priorGrid_[1] = -1;
+        priorCursorAfter_[0] = priorCursorAfter_[1] = 0xFFFFu;
         priorRaw_[0] = priorRaw_[1] = 0xFFFFu;
         priorFinal_[0] = priorFinal_[1] = 0xFFFFu;
         soundBefore_ = 0;
@@ -391,7 +392,11 @@ private:
         if (before_.gameStep != 4u && post.gameStep != 4u) return;
         const bool phase = before_.phase != post.phase;
         const bool accepted = before_.accepted != post.accepted;
-        const bool cursor = before_.cursor != post.cursor;
+        // Compare native cursor outcomes between frames. The ROM may
+        // reassign its own cursor every frame after the custom mapping;
+        // that is not necessarily a new movement event.
+        const bool cursor = post.cursor[0] != priorCursorAfter_[0] ||
+                            post.cursor[1] != priorCursorAfter_[1];
         const bool picks = before_.picks != post.picks;
         const bool grid = grid_[0] != priorGrid_[0] ||
                           grid_[1] != priorGrid_[1];
@@ -449,6 +454,8 @@ private:
             static_cast<unsigned long long>(machine.cpu.cycles));
         ++handoffRowsSeen_;
         priorGrid_[0] = grid_[0]; priorGrid_[1] = grid_[1];
+        priorCursorAfter_[0] = post.cursor[0];
+        priorCursorAfter_[1] = post.cursor[1];
         priorRaw_[0] = raw_[0]; priorRaw_[1] = raw_[1];
         priorFinal_[0] = final_[0]; priorFinal_[1] = final_[1];
         // Accept boundaries are rare and vital: flush immediately.
@@ -578,6 +585,7 @@ private:
              priorFinal_[2] = {0xFFFFu, 0xFFFFu};
     Selection before_;
     int grid_[2] = {-1, -1}, priorGrid_[2] = {-1, -1};
+    uint16_t priorCursorAfter_[2] = {0xFFFFu, 0xFFFFu};
     uint16_t soundBefore_ = 0;
     uint64_t handoffRowsSeen_ = 0;
     std::array<uint8_t, 0x2000> oldOam_[2]{};
