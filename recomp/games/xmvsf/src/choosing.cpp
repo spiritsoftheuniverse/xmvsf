@@ -407,8 +407,29 @@ void ChoosingLayoutAfterFrame(Machine &machine) {
         Ram16(kGameStep) != kGameChoosing || !Ram8(kPlaying)) return;
     for (int n = 0; n < 2; ++n) {
         const uint32_t record = kChoosing + static_cast<uint32_t>(n) * kChoosingSize;
-        const uint8_t accepted = Ram8(record + 3u);
+        uint8_t accepted = Ram8(record + 3u);
         const uint8_t prior = g_accepted[n];
+        // The native countdown is still running internally. It must
+        // never force a selection past our A-only control scheme, even
+        // if a native write escaped the normal bus-write override.
+        if (accepted > g_soundAccepted[n]) {
+            if (g_confirmQueued[n] &&
+                accepted == static_cast<unsigned>(g_soundAccepted[n]) + 1u) {
+                // Source-native accept without the normal write callback:
+                // legal only during THIS actual A-press frame.
+                g_soundAccepted[n] = accepted;
+                g_committed[n][accepted - 1u] = IntendedNativeId(n);
+            } else {
+                if (!RunningAhead())
+                    std::fprintf(stderr,
+                        "XMVSF 87.525 BLOCK_AUTO_PICK P%u native=%u authorized=%u\\n",
+                        n + 1u, accepted, g_soundAccepted[n]);
+                accepted = g_soundAccepted[n];
+                SetRam8(record + 3u, accepted);
+                SetRam8(record, static_cast<uint8_t>(accepted ? 3u : 1u));
+                SetRam8(record + 5u, static_cast<uint8_t>(accepted ? 4u : 0u));
+            }
+        }
         const unsigned slot = static_cast<unsigned>(g_layout.index[n]);
         if (accepted > prior && accepted <= 2u) {
             for (unsigned pick = prior; pick < accepted; ++pick) {
