@@ -42,10 +42,16 @@ inline constexpr uint16_t RewriteNativeSelectionWrite(
 // Gambit 08 -> 0xC4 and Wolverine 00 -> 0xC0.
 // This helper is called only from the optional between-CPU/sound scanline
 // callback while a real native confirmation button is held.
+// Alpha Chun-Li is a costume/form of Chun-Li, not another separately
+// recorded spoken character. Share her native selection sound identity.
+inline constexpr std::uint16_t CharacterVoiceIdentity(std::uint16_t id) {
+    return id == 0x24u ? 0x16u : id;
+}
 inline constexpr std::uint16_t NativeCharacterVoice(std::uint16_t id,
                                                     unsigned side = 0u) {
-    return (side < 2u && Find(id) >= 0 && (id & 1u) == 0u)
-        ? static_cast<std::uint16_t>(0xA0u + side * 0x20u + id / 2u)
+    const std::uint16_t voiceId = CharacterVoiceIdentity(id);
+    return (side < 2u && Find(voiceId) >= 0 && (voiceId & 1u) == 0u)
+        ? static_cast<std::uint16_t>(0xA0u + side * 0x20u + voiceId / 2u)
         : 0xFFFFu;
 }
 
@@ -69,9 +75,51 @@ inline bool CorrectQueuedCharacterVoice(std::uint8_t *ram, std::size_t size,
     for (unsigned i = 8; i < 16; ++i)
         if (p[i]) return false;
     const unsigned base = 0xA0u + side * 0x20u;
-    if (p[3] < base || p[3] > base + 0x12u ||
-        Find(static_cast<std::uint16_t>((p[3] - base) * 2u)) < 0)
+    // The capture contains a real native 0xB3 second-pick request.
+    // It is outside the 18-cell custom grid, but still a valid native
+    // character announcement needing remapping. Source may also be
+    // Apocalypse, an original game character without a custom cell.
+    if (p[3] < base || p[3] > base + 0x13u)
         return false;
+    p[3] = static_cast<std::uint8_t>(wanted);
+    return true;
+}
+
+// 87.513: the SECOND character sound isn't the A?/C? announcer.
+// The F10 Akuma case records an additional *character-owned* 0x03BB
+// request with native Cammy 0x22 instead of custom Akuma 0x1E.
+// CPS2 XMVSF character sound blocks are 0x20 commands apart; Storm
+// (ROM ID 0x04) occupies 0x1C0..0x1DF, so command 0x03BB is Cammy's
+// block 0x3A0 plus sound slot 0x1B. Preserve the slot and sound
+// envelope, but rebind the block to the actual chosen character.
+//
+// Deliberately limited to the observed slot 0x1B and exact 0x0A00
+// request envelope. This is NOT a generic 0x82 mute or an attack sound
+// filter. Called ONLY during a native selection confirmation, never in
+// battle, training gameplay, or stage selection.
+inline bool CorrectQueuedCharacterSpriteVoice(std::uint8_t *ram, std::size_t size,
+                                              unsigned queueOffset,
+                                              std::uint16_t selectedRomId) {
+    if (!ram || size < 0x10000u || queueOffset > 0x3F0u ||
+        (queueOffset & 15u) != 0u) return false;
+    std::uint8_t *p = ram + 0x2648u + queueOffset;
+    if (p[0] || p[1] || p[4] || p[5] ||
+        p[6] != 0x0Au || p[7]) return false;
+    for (unsigned i = 8u; i < 16u; ++i)
+        if (p[i]) return false;
+    const unsigned nativeCommand =
+        (static_cast<unsigned>(p[2]) << 8u) | p[3];
+    // 0x19B is slot 0x1B of the first character's 0x180 block.
+    // The observed Cammy 0x3BB is the same slot seventeen blocks on.
+    if (nativeCommand < 0x19Bu || nativeCommand > 0x3BBu ||
+        (nativeCommand - 0x19Bu) % 0x20u != 0u)
+        return false;
+    const std::uint16_t voiceId = CharacterVoiceIdentity(selectedRomId);
+    if ((voiceId & 1u) != 0u || Find(voiceId) < 0 ||
+        voiceId > 0x22u) return false;
+    const unsigned wanted = 0x19Bu + voiceId / 2u * 0x20u;
+    if (nativeCommand == wanted) return true;
+    p[2] = static_cast<std::uint8_t>(wanted >> 8u);
     p[3] = static_cast<std::uint8_t>(wanted);
     return true;
 }
