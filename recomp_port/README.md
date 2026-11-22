@@ -1,5 +1,15 @@
 # XMVSF native front end — 87.498 (native character-select composition and horizontal ROM grid)
 
+## 87.505 — F10-proven first/second-pick identity divergence
+
+- Analyzed the `latest(1).zip` native F10 recording (frames 554–934). At frame 648 the custom grid selected Magneto (`0x0E`), the ROM committed `0x0E` and queued `0xA7` plus `0x82`. The custom grid advanced to Juggernaut (`0x0C`) at frame 649 while the ROM's end-of-frame cursor returned `0x00`. Native entry into phase 03 occurred at frame 680.
+- At frame 884 the custom grid was Rogue (`0x06`), but the native M68K cursor ended at `0x08` (Gambit), the native second-pick word was `0x08`, and the sound ring queued `0xA4` plus `0x82`. The existing 87.500 post-frame selection correction yielded the true second pick `0x06` in the next frame. Thus the native voice request likely follows the ROM's own cursor, not the final team pick. `0xA7` for Magneto and `0xA4` for Gambit fit the **hypothesis** `0xA0 + characterID/2`, but the full voice table is not established.
+- `selection_ram_writes.tsv` contains only its header: the current `Machine::Write8/Write16` observer did not receive these native writes. Original guest writes and `SetRam16` may bypass that observer, so do not assume its in-frame translation is effective.
+- The only gameplay-facing change is in the **frontend's read-only identity source**. `ChoosingVisualCharacterId(side)` now supplies the compositor's portrait and printed name from the custom grid until native accepted-count 2, then from the corrected second team slot. The old frontend instead displayed `FF518C/FF51AC`, which the ROM overwrites independently.
+- Verified that the entire 87.500 chooser implementation is byte-identical after removing **only** the F10 observation call and this new read-only getter. Navigation, accepted-count handling, native movement/audio and ROM code are unchanged.
+- **Native spoken names / short handoff silence are not yet fixed**: the next sound patch must target the real native queueing point before QSound consumes the request. Do not change character indices or introduce another phase gate to address an audio request, and do not treat the queue hypothesis as a proven complete voice table.
+- Source/static preflight checks passed; the Windows build and gameplay remain unverified.
+
 ## 87.504 — F10 read-only second-pick/announcement correlation
 
 - F10 adds `screenshots/f10_m68k/latest/selection_handoff.tsv`, opened with the same bounded, replaceable capture as its existing frames/hooks/selection write logs. Launch with `RECOMP_RUN.bat`, press F10 to start and again to stop.
