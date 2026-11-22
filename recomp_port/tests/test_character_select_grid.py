@@ -77,8 +77,18 @@ def main():
     assert "cursor(0x518Cu), cursor(0x51ACu)" not in frontend
     assert "uint16_t ChoosingVisualCharacterId(unsigned side)" in chooser
     assert "if (!g_layoutRunning) return Ram16(record + kCursor);" in chooser
-    assert "if (Ram8(record + 3u) >= 2u)" in chooser
-    assert "return Ram16(kPicks + static_cast<uint32_t>(side) * 4u + 2u);" in chooser
+    assert "g_soundAccepted[side] >= 2u || Ram8(record + 3u) >= 2u" in chooser
+    assert "const uint16_t committed = g_committed[side][1];" in chooser
+    assert "if (port::xmvsf_select::Find(committed) >= 0) return committed;" in chooser
+    assert "return Ram16(kPicks + static_cast<uint32_t>(side) * 4u + 2u);" not in chooser
+    assert "uint16_t ChoosingVisualCommittedId(unsigned side, unsigned pick)" in chooser
+    assert "return g_committed[side][pick];" in chooser
+    assert "cps2recomp::ChoosingVisualCommittedId(0u, 0u)" in frontend
+    assert "cps2recomp::ChoosingVisualCommittedId(1u, 0u)" in frontend
+    assert "const int fixedP1 = xmvsf_select::Find(firstP1);" in screen
+    assert "const int fixedP2 = xmvsf_select::Find(firstP2);" in screen
+    assert "Cursor(p1Cursor_, 9, fixedP1);" in screen
+    assert "Cursor(p2Cursor_, 8, fixedP2);" in screen
     assert "return port::xmvsf_select::kSlots[slot].rom;" in chooser
     # The working 87.500 selector and audio path must not be touched.
     assert "const bool active = Ram8(record) <= 3u && Ram8(record + 3u) < 2u;" in chooser
@@ -104,9 +114,13 @@ def main():
     assert "port::xmvsf_select::NativeCharacterVoice(selected)" in chooser
     assert "NativeCharacterVoice(selected, n)" not in chooser
     assert "port::xmvsf_select::QueueExplicitSelectionSound(" in chooser
-    assert "g_expectedNames[n] = name;" in chooser
-    assert "g_nameTickets[n] = 1u;" in chooser
-    assert "g_confirmTickets[n] = 1u;" in chooser
+    assert "g_expectedNames[n][pick] = name;" in chooser
+    assert "g_nameTickets[n][pick] = 1u;" in chooser
+    assert "g_confirmTickets[n][pick] = 1u;" in chooser
+    assert "const unsigned pick = count - 1u;" in chooser
+    assert "g_committed[n][pick] = selected;" in chooser
+    assert "g_soundTailFrames = 30u;" in chooser
+    assert "machine.selectionSoundRequestFilter = g_soundTailFrames > 0u" in chooser
     assert "machine.selectionVoiceQueueBeforeSound = nullptr;" in chooser
     assert "machine.selectionSoundRequestFilter = &AuthoritativeSelectionSound;" in chooser
     assert "machine.selectionSoundRequestFilter = nullptr;" in chooser
@@ -127,12 +141,18 @@ def main():
     assert "id == 0x24u ? 0x16u : id" in select_rewrite
     assert "QueueExplicitSelectionSound(std::uint8_t *ram" in select_rewrite
     assert "AllowAuthoritativeSelectionSound(" in select_rewrite
-    assert "if (code >= 0xA0u && code <= 0xDFu) return false;" in select_rewrite
+    assert "kSelectTagA = 0x51u, kSelectTagB = 0x5Eu" in select_rewrite
+    assert "using SelectionNames = std::array<std::array<std::uint16_t, 2>, 2>;" in select_rewrite
+    assert "using SelectionTickets = std::array<std::array<unsigned, 2>, 2>;" in select_rewrite
+    assert "request[8] = kSelectTagA" in select_rewrite
+    assert "p[8] = kSelectTagA;" in select_rewrite
+    assert "request[8] = request[9] = request[10] = request[11] = 0u;" in select_rewrite
+    assert "(code >= 0xA0u && code <= 0xDFu)) return false;" in select_rewrite
     assert "SelectionSoundEnvelope(request, 0x10u)" in select_rewrite
     assert "SelectionSoundEnvelope(request, 0x0Au)" in select_rewrite
     assert "if (code == 0x84u || code == 0x85u) return true;" in select_rewrite
-    assert "--nameTickets[side];" in select_rewrite
-    assert "--confirmTickets[side];" in select_rewrite
+    assert "--nameTickets[side][pick];" in select_rewrite
+    assert "--confirmTickets[side][pick];" in select_rewrite
     assert "CorrectQueuedCharacterSpriteVoice(" not in select_rewrite
     assert "CorrectQueuedCharacterVoice(" not in select_rewrite
     assert "entry[6] = 0x10u;" in select_rewrite
@@ -166,10 +186,11 @@ def main():
     machine_header = (ROOT / "recomp/machine/machine.h").read_text()
     machine_src = (ROOT / "recomp/machine/machine.cpp").read_text()
     assert "void (*selectionVoiceQueueBeforeSound)(Machine &) = nullptr;" in machine_header
-    assert "bool (*selectionSoundRequestFilter)(Machine &, const uint8_t *) = nullptr;" in machine_header
+    assert "bool (*selectionSoundRequestFilter)(Machine &, uint8_t *) = nullptr;" in machine_header
     assert "selectionSoundRequestFilter(*this, soundRam)" in machine_src
     assert "soundRam[0x00F] = 0xFF;" in machine_src
-    assert "selectionSoundRequestFilter(*this, request)" in machine_src
+    assert "selectionSoundRequestFilter(*this, delivered)" in machine_src
+    assert "memcpy(delivered, request, sizeof(delivered));" in machine_src
     assert "selectionSoundRequestFilter = nullptr;" in machine_src
     assert "if (selectionVoiceQueueBeforeSound)" in machine_src
     assert "selectionVoiceQueueBeforeSound(*this);" in machine_src
@@ -180,6 +201,7 @@ def main():
     assert "RewriteNativeSelectionWrite(" in chooser
     assert "const uint32_t counter = 0xFF5183u + n * 0x20u;" in chooser
     assert "g_committed[n][pick] = IntendedNativeId(n);" in chooser
+    assert "g_committed[n][pick] = selected;" in chooser
     assert "if (count == 2u) g_commitPending = true;" in chooser
     assert "const bool wroteCounter" in chooser
     assert "const bool active = Ram8(record) <= 3u && Ram8(record + 3u) < 2u;" in chooser
@@ -190,7 +212,8 @@ def main():
     assert "if (ink && showP1 && cursorP1" not in screen
     assert "if (ink && showP2 && cursorP2" not in screen
     assert "const bool p2CursorActive = ram[0x51A3u] < 2u;" in frontend
-    assert "p1CursorActive, p2CursorActive))" in frontend
+    assert "p1CursorActive, p2CursorActive," in frontend
+    assert "cps2recomp::ChoosingVisualCommittedId(1u, 0u)))" in frontend
     gpp = shutil.which("g++")
     assert gpp, "UCRT64 g++ required for selection grid smoke"
     with tempfile.TemporaryDirectory(prefix="xmvsf_cs_layout_") as d:
@@ -199,7 +222,7 @@ def main():
                         str(ROOT / "recomp_port/tests/test_character_select_grid.cpp"),
                         "-o", str(binary)], check=True)
         subprocess.run([str(binary)], check=True)
-    print("XMVSF 87.516 same A-family name for P1/P2, all 18 IDs, single pick voices, native C-family muted PASS")
+    print("XMVSF 87.517 P1 pick2 Storm A2, all 18 A-family names, tagged per-pick audio, persistent first/second cursor PASS")
 
 if __name__ == "__main__":
     main()
