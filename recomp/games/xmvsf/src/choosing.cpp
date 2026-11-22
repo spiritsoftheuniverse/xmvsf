@@ -33,6 +33,10 @@ namespace {
     int g_voiceSide = -1;
     uint16_t g_voiceReadAt = 0xFFFFu, g_voiceDesired = 0xFFFFu;
     bool g_voiceHandled = false;
+    // 87.509: beginning-of-frame native ring pointer and custom grid.
+    // Used only to fill missing ROM 0x84 ticks on *actual* grid movement.
+    uint16_t g_cursorSoundBegin = 0xFFFFu;
+    int g_gridBeforeFrame[2] = {-1, -1};
 
     uint16_t IntendedNativeId(unsigned n) {
         const uint16_t raw =
@@ -171,6 +175,8 @@ void ChoosingLayoutBeforeCpu(Machine &machine) {
         g_voiceSide = -1;
         g_voiceReadAt = g_voiceDesired = 0xFFFFu;
         g_voiceHandled = false;
+        g_cursorSoundBegin = 0xFFFFu;
+        g_gridBeforeFrame[0] = g_gridBeforeFrame[1] = -1;
         if (g_layoutRunning) g_layout.Reset();
         g_layoutRunning = false;
         g_accepted[0] = g_accepted[1] = 0;
@@ -188,6 +194,9 @@ void ChoosingLayoutBeforeCpu(Machine &machine) {
     machine.selectionRamWriteOverride = &RemapSelectionWrite;
     machine.selectionVoiceQueueBeforeSound = nullptr;
     g_voiceReadAt = Ram16(kSoundQueueEnd);
+    g_cursorSoundBegin = g_voiceReadAt;
+    g_gridBeforeFrame[0] = g_layout.index[0];
+    g_gridBeforeFrame[1] = g_layout.index[1];
     g_voiceSide = -1;
     g_voiceDesired = 0xFFFFu;
     g_voiceHandled = false;
@@ -279,6 +288,26 @@ void ChoosingLayoutAfterFrame(Machine &machine) {
         if (accepted < 2u && Ram8(record) <= 3u) {
             const unsigned preview = static_cast<unsigned>(g_layout.index[n]);
             SetRam16(record + kCursor, port::xmvsf_select::kSlots[preview].rom);
+        }
+    }
+    // The original ROM already plays 0x84 when it handles movement.
+    // During the first->second pick animation our custom grid can move
+    // while its native movement sound is temporarily gated. Compare the
+    // grid and this frame's native sound ring, and fill ONLY a missing
+    // movement tick. Includes the ROM-style automatic next-cell hop
+    // after first confirmation, without re-enqueuing the confirm voice.
+    const bool customMoved =
+        (g_gridBeforeFrame[0] >= 0 && g_gridBeforeFrame[0] != g_layout.index[0]) ||
+        (g_gridBeforeFrame[1] >= 0 && g_gridBeforeFrame[1] != g_layout.index[1]);
+    if (customMoved && g_cursorSoundBegin != 0xFFFFu &&
+        !RunningAhead() && machine.ram.size() >= 0x10000u) {
+        const uint16_t after = Ram16(kSoundQueueEnd);
+        if (port::xmvsf_select::QueueMissingCursorMovementSound(
+                machine.ram.data(), machine.ram.size(),
+                g_cursorSoundBegin, after)) {
+            std::fprintf(stderr,
+                "XMVSF 87.509 cursor tick: native omitted 0x84 frame=%llu\n",
+                static_cast<unsigned long long>(machine.frame));
         }
     }
 }
