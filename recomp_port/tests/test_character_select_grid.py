@@ -66,6 +66,21 @@ def main():
     chooser = (ROOT / "recomp/games/xmvsf/src/choosing.cpp").read_text()
     game = (ROOT / "recomp/games/xmvsf/src/game.cpp").read_text()
     assert "homeTextures.ComposeCharacterSelect(" in frontend
+    # F10-confirmed mismatch at frame 884: ROM cursor Gambit (0x08),
+    # but the custom grid and post-commit pick are Rogue (0x06).
+    # Rendering MUST use the committed/custom ID, not transient cursor.
+    assert "cps2recomp::ChoosingVisualCharacterId(0u)" in frontend
+    assert "cps2recomp::ChoosingVisualCharacterId(1u)" in frontend
+    assert "cursor(0x518Cu), cursor(0x51ACu)" not in frontend
+    assert "uint16_t ChoosingVisualCharacterId(unsigned side)" in chooser
+    assert "if (!g_layoutRunning) return Ram16(record + kCursor);" in chooser
+    assert "if (Ram8(record + 3u) >= 2u)" in chooser
+    assert "return Ram16(kPicks + static_cast<uint32_t>(side) * 4u + 2u);" in chooser
+    assert "return port::xmvsf_select::kSlots[slot].rom;" in chooser
+    # The working 87.500 selector and audio path must not be touched.
+    assert "const bool active = Ram8(record) <= 3u && Ram8(record + 3u) < 2u;" in chooser
+    assert "machine.players[n] &= static_cast<uint16_t>(~fight::kSticks);" not in chooser
+    assert "const unsigned direction = machine.players[n] & (kRight | kLeft | kDown | kUp);" in chooser
     assert "ChoosingLayoutBeforeCpu(machine);" in game
     # Native ROM must still receive real directions to generate move sounds.
     assert "machine.players[n] &= static_cast<uint16_t>(~fight::kSticks);" not in chooser
@@ -103,7 +118,7 @@ def main():
                         str(ROOT / "recomp_port/tests/test_character_select_grid.cpp"),
                         "-o", str(binary)], check=True)
         subprocess.run([str(binary)], check=True)
-    print("XMVSF 87.500 native sound/input, in-frame 18-ID ROM writes, stage commit PASS")
+    print("XMVSF 87.505 F10-canonical portraits/names, unchanged 87.500 input/audio, 18-ID mapping PASS")
 
 if __name__ == "__main__":
     main()
