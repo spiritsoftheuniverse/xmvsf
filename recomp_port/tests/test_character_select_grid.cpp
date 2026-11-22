@@ -18,16 +18,15 @@ static_assert(NativeCharacterVoice(0x08) == 0xA4); // Gambit, captured
 static_assert(NativeCharacterVoice(0x06) == 0xA3); // Rogue, intended
 static_assert(NativeCharacterVoice(0x10) == 0xFFFF); // no Apocalypse slot
 static_assert(NativeCharacterVoice(0x25) == 0xFFFF);
-static_assert(NativeCharacterVoice(0x08, 1u) == 0xC4); // F10 P2 Gambit
-static_assert(NativeCharacterVoice(0x00, 1u) == 0xC0); // F10 P2 Wolverine
-static_assert(NativeCharacterVoice(0x22, 1u) == 0xD1); // P2 Cammy
-static_assert(NativeCharacterVoice(0x22, 0u) == 0xB1); // P1 Cammy
-static_assert(NativeCharacterVoice(0x08, 2u) == 0xFFFF); // no third player
+// 87.516: player ownership NEVER changes a character's name sample.
+// The native P2 C-family commands are filtered; canonical names use A?.
+static_assert(NativeCharacterVoice(0x08) == 0xA4); // Gambit for either side
+static_assert(NativeCharacterVoice(0x00) == 0xA0); // Wolverine for either side
+static_assert(NativeCharacterVoice(0x22) == 0xB1); // Cammy for either side
 // 87.513: an alternate Chun-Li costume shares the real Chun-Li voice,
 // not the unverified B2/D2 sequence-table entry.
 static_assert(CharacterVoiceIdentity(0x24) == 0x16);
-static_assert(NativeCharacterVoice(0x24, 0u) == 0xAB);
-static_assert(NativeCharacterVoice(0x24, 1u) == 0xCB);
+static_assert(NativeCharacterVoice(0x24) == 0xAB); // Alpha Chun-Li = Chun-Li
 
 static_assert(Navigate(0, 1) == 1 && Navigate(8, 1) == 0);
 static_assert(Navigate(9, 1) == 10 && Navigate(9, 8) == 0);
@@ -46,23 +45,21 @@ int main() {
     assert(ring[ringBase + 16u + 3u] == 0x82u); // confirmation restored
     assert(!QueueExplicitSelectionSound(ring.data(), 100u, 0xA0u));
     assert(!QueueExplicitSelectionSound(ring.data(), ring.size(), 0x100u));
-    // Every one of the 18 ROM IDs in the actual screen table must
-    // produce an explicit, non-ambiguous P1 and P2 announcer address.
-    // Both picks use that same ID; the native cursor's wrong source
-    // or whether it was the second pick cannot change the spoken name.
+    // All 18 custom IDs must map to exactly ONE A-family name.
+    // Character selection identity has no side, pick index or native
+    // source cursor input. P2 does not shift the bank by 0x20.
     for (const Slot &slot : kSlots) {
-        const std::uint16_t p1Name = NativeCharacterVoice(slot.rom, 0u);
-        const std::uint16_t p2Name = NativeCharacterVoice(slot.rom, 1u);
-        assert(p1Name != 0xFFFFu && p2Name != 0xFFFFu);
-        assert(p1Name >= 0xA0u && p1Name <= 0xB1u);
-        assert(p2Name == p1Name + 0x20u);
+        const std::uint16_t name = NativeCharacterVoice(slot.rom);
+        assert(name >= 0xA0u && name <= 0xB1u);
+        const std::uint16_t voiceId = CharacterVoiceIdentity(slot.rom);
+        assert(name == 0xA0u + voiceId / 2u);
     }
     // The 0x400-byte native ring wraps cleanly.
     ring[0x2642u] = 3u;
     ring[0x2643u] = 0xF0u;
-    assert(QueueExplicitSelectionSound(ring.data(), ring.size(), 0xCBu));
+    assert(QueueExplicitSelectionSound(ring.data(), ring.size(), 0xABu));
     assert(ring[0x2642u] == 0u && ring[0x2643u] == 0u);
-    assert(ring[ringBase + 0x3F0u + 3u] == 0xCBu);
+    assert(ring[ringBase + 0x3F0u + 3u] == 0xABu);
     ring[0x2642u] = 0u;
     ring[0x2643u] = 1u;
     assert(!QueueExplicitSelectionSound(ring.data(), ring.size(), 0xA7u));
@@ -74,7 +71,7 @@ int main() {
         sound[3] = static_cast<std::uint8_t>(code);
         sound[6] = static_cast<std::uint8_t>(mode);
     };
-    std::array<std::uint16_t, 2> expected{{0xAFu, 0xCBu}};
+    std::array<std::uint16_t, 2> expected{{0xAFu, 0xABu}};
     std::array<unsigned, 2> nameTickets{{1u, 1u}};
     std::array<unsigned, 2> confirmTickets{{1u, 1u}};
     request(0xB1u); // Cammy: native is unrelated to selected Akuma
@@ -99,10 +96,11 @@ int main() {
     assert(AllowAuthoritativeSelectionSound(sound.data(), expected, nameTickets, confirmTickets));
     assert(confirmTickets[0] == 0u);
     assert(!AllowAuthoritativeSelectionSound(sound.data(), expected, nameTickets, confirmTickets));
-    // Second player is entirely independent, including name family C?.
-    request(0xABu); // P1 Chun-Li code is NOT P2 Chun-Li
-    assert(!AllowAuthoritativeSelectionSound(sound.data(), expected, nameTickets, confirmTickets));
+    // P2 uses the SAME spoken character-name ID as P1.
+    // A native C-family P2 announcement is NOT our chosen sound.
     request(0xCBu);
+    assert(!AllowAuthoritativeSelectionSound(sound.data(), expected, nameTickets, confirmTickets));
+    request(0xABu);
     assert(AllowAuthoritativeSelectionSound(sound.data(), expected, nameTickets, confirmTickets));
     assert(nameTickets[1] == 0u);
     assert(!AllowAuthoritativeSelectionSound(sound.data(), expected, nameTickets, confirmTickets));
@@ -116,6 +114,30 @@ int main() {
     assert(!AllowAuthoritativeSelectionSound(sound.data(), expected, nameTickets, confirmTickets));
     request(0x03BBu, 0x0Au);
     assert(!AllowAuthoritativeSelectionSound(sound.data(), expected, nameTickets, confirmTickets));
+    // Both players may pick the SAME character. The two accepted
+    // picks authorize two instances of A4, not A4 + C4. Subsequent
+    // native C4 or duplicate A4 requests must not leak.
+    std::array<std::uint16_t, 2> sameNames{{0xA4u, 0xA4u}};
+    std::array<unsigned, 2> sameNameTickets{{1u, 1u}};
+    std::array<unsigned, 2> sameConfirmTickets{{1u, 1u}};
+    request(0xC4u);
+    assert(!AllowAuthoritativeSelectionSound(sound.data(), sameNames,
+                                              sameNameTickets, sameConfirmTickets));
+    request(0xA4u);
+    assert(AllowAuthoritativeSelectionSound(sound.data(), sameNames,
+                                             sameNameTickets, sameConfirmTickets));
+    assert(AllowAuthoritativeSelectionSound(sound.data(), sameNames,
+                                             sameNameTickets, sameConfirmTickets));
+    assert(!AllowAuthoritativeSelectionSound(sound.data(), sameNames,
+                                              sameNameTickets, sameConfirmTickets));
+    assert(sameNameTickets[0] == 0u && sameNameTickets[1] == 0u);
+    request(0x82u);
+    assert(AllowAuthoritativeSelectionSound(sound.data(), sameNames,
+                                             sameNameTickets, sameConfirmTickets));
+    request(0x83u);
+    assert(AllowAuthoritativeSelectionSound(sound.data(), sameNames,
+                                             sameNameTickets, sameConfirmTickets));
+    assert(sameConfirmTickets[0] == 0u && sameConfirmTickets[1] == 0u);
     // Non-character UI and music requests (including a 0x10 envelope)
     // must not be muted just because selection is visible.
     request(0x40u, 0x10u);
