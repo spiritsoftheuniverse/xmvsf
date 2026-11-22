@@ -29,13 +29,16 @@ def synthetic_program() -> bytes:
     offset = studio.TABLE_ADDRESS - studio.PROGRAM_START
     for who in range(len(studio.CHARACTERS)):
         base = studio.PROGRAM_START + 0x20000 + who * 0xC0
-        mem[offset + who * 4:offset + who * 4 + 4] = base.to_bytes(4, "big")
+        # Raw xvs.05a is word-swapped relative to recomp Program().
+        pointer = base.to_bytes(4, "big")
+        mem[offset + who * 4:offset + who * 4 + 4] = bytes(
+            (pointer[1], pointer[0], pointer[3], pointer[2]))
         for set_no in range(2):
             for line in range(3):
                 for pen in range(16):
                     word = 0xF000 | (((who + pen) & 15) << 8) | (((set_no + pen) & 15) << 4) | ((line + pen) & 15)
                     at = base - studio.PROGRAM_START + set_no * studio.SET_SIZE + line * 32 + pen * 2
-                    mem[at:at + 2] = word.to_bytes(2, "big")
+                    mem[at:at + 2] = word.to_bytes(2, "little")
     return bytes(mem)
 
 
@@ -57,6 +60,20 @@ class DecoderTests(unittest.TestCase):
         self.assertEqual(self.addresses[18][0][0][0], f"0x{base + 18 * 0xC0:06X}")
         self.assertEqual([len(s) for s in self.originals[0]], [3, 3])
         self.assertEqual(len(self.originals[0][1][2]), 16)
+
+    def test_rom_file_endianness_matches_recomp_loader(self):
+        # The xvs.05a file stores low byte before high byte, and the
+        # original recomp explicitly swaps these pairs when loading.
+        source = (HERE.parent / "recomp" / "machine" / "romset.cpp").read_text(encoding="utf-8")
+        self.assertIn("set.program.push_back(data[program[n].highFirst ? i : i + 1]);", source)
+        self.assertIn('int.from_bytes(program[off:off + 2], "little")',
+                      (HERE / "palette_studio_server.py").read_text(encoding="utf-8"))
+        table = studio.TABLE_ADDRESS - studio.PROGRAM_START
+        # 0x120000 is native big-endian, but on disk appears 12 00 00 00.
+        self.assertEqual(self.program[table:table + 4], bytes.fromhex("12000000"))
+        self.assertEqual(self.originals[0][0][0][1], "#111111")
+        # The former decoder interpreted raw 12 00 00 00 as address 0x12000000.
+        self.assertNotEqual(int.from_bytes(self.program[table:table + 4], "big"), 0x120000)
 
     def test_colour_translation_is_4bit(self):
         # For character=0, set=P, line=Body, pen=1 -> 0xF111.
