@@ -9,6 +9,7 @@
 #include "session.h"
 #include "alternative.h"
 #include "../../../port/xmvsf_m68k_capture.h" // native accept-hook event, not inferred selection
+#include "../../../port/xmvsf_character_select_layout.h" // fixed 18-slot visual/ROM map
 
 namespace cps2recomp {
 
@@ -18,6 +19,8 @@ namespace {
     constexpr uint16_t kRyu = 0x12, kAkuma = 0x1E;
     constexpr uint32_t kCursor = 0x0C; // word of the choosing record: the character under the player's cursor
     bool g_start[2] = {false, false};  // each player's Start held this frame
+    port::xmvsf_select::Navigation g_layout;
+    bool g_layoutRunning = false;
 
     // 00B1E8: a player's choosing record (A4) takes the character under its cursor
     bool Chosen(M68K &c) {
@@ -46,6 +49,37 @@ void ChoosingBeforeFrame(Machine &machine) {
     machine.video.hideP2Selector = false;
     for (int n = 0; n < 2; n++) {
         g_start[n] = (machine.players[n] & kStart) != 0;
+    }
+}
+
+// The game keeps its own accept/animation/sound/mode routines. Only input
+// navigation and the cursor's source word are replaced; buttons still go
+// through the unmodified native accept routine. Called AFTER Training P1->P2
+// ownership routing so the active dummy receives the same new grid.
+void ChoosingLayoutBeforeCpu(Machine &machine) {
+    const bool choosing = Ram8(kPlaying) != 0 &&
+                          Ram16(kGameStep) == kGameChoosing;
+    if (!choosing) {
+        if (g_layoutRunning) g_layout.Reset();
+        g_layoutRunning = false;
+        return;
+    }
+    if (!g_layoutRunning) {
+        g_layout.Reset();
+        g_layoutRunning = true;
+    }
+    for (int n = 0; n < 2; ++n) {
+        const uint32_t record = kChoosing + static_cast<uint32_t>(n) * kChoosingSize;
+        const bool active = Ram8(record) < kChoosingDone;
+        const unsigned direction = machine.players[n] & (kRight | kLeft | kDown | kUp);
+        g_layout.Advance(n, direction, active);
+        if (active) {
+            const unsigned slot = static_cast<unsigned>(g_layout.index[n]);
+            SetRam16(record + kCursor, port::xmvsf_select::kSlots[slot].rom);
+        }
+        // Native cursor movement must not run a second, conflicting layout.
+        // Keep punch/kick/Start untouched so selection AV runs at normal speed.
+        machine.players[n] &= static_cast<uint16_t>(~kSticks);
     }
 }
 
