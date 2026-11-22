@@ -58,6 +58,53 @@ int main() {
     assert(CorrectQueuedCharacterVoice(ram.data(), ram.size(), 0x3F0u, 0x06u));
     assert(ram[ringBase + 0x3F0u + 3u] == 0xA3u);
 
+    // 87.509: reproduce frame 648 first confirmation: A7 voice and
+    // 82 confirmation SFX already enqueued, but the automatic 1-slot
+    // visual handoff did NOT enqueue the usual 84 movement tick.
+    std::array<std::uint8_t, 65536> cursorRing{};
+    auto &q = cursorRing;
+    const auto command = [&](unsigned at, unsigned id) {
+        auto *entry = q.data() + 0x2648u + at;
+        for (unsigned i = 0u; i < 16u; ++i) entry[i] = 0;
+        entry[3] = static_cast<std::uint8_t>(id);
+        entry[6] = 0x10u;
+    };
+    command(0u, 0xA7u); // Magneto, first voice confirmation
+    command(16u, 0x82u); // ROM's ordinary confirmation SFX
+    q[0x2643u] = 32u;
+    assert(QueueMissingCursorMovementSound(q.data(), q.size(), 0u, 32u));
+    assert(q[0x2643u] == 48u);
+    assert(q[0x2648u + 3u] == 0xA7u); // voice untouched
+    assert(q[0x2648u + 16u + 3u] == 0x82u); // confirmation untouched
+    assert(q[0x2648u + 32u + 3u] == 0x84u); // missing move tick
+    assert(q[0x2648u + 32u + 6u] == 0x10u);
+    // Normal native movement already supplies 84: do NOT double-play it.
+    command(48u, 0x84u);
+    q[0x2643u] = 64u;
+    assert(!QueueMissingCursorMovementSound(q.data(), q.size(), 48u, 64u));
+    assert(q[0x2643u] == 64u);
+    // No native sound requests at all during a muted movement: append.
+    assert(QueueMissingCursorMovementSound(q.data(), q.size(), 64u, 64u));
+    assert(q[0x2643u] == 80u);
+    assert(q[0x2648u + 64u + 3u] == 0x84u);
+    // Validate the last ring entry and wrapped next pointer.
+    command(0x3F0u, 0x82u);
+    q[0x2642u] = 0;
+    q[0x2643u] = 0;
+    assert(QueueMissingCursorMovementSound(q.data(), q.size(), 0x3F0u, 0u));
+    assert(q[0x2642u] == 0 && q[0x2643u] == 16u);
+    assert(q[0x2648u + 3u] == 0x84u);
+    // An already-native 84 at the wrap boundary must also deduplicate.
+    command(0x3F0u, 0x84u);
+    q[0x2642u] = q[0x2643u] = 0;
+    assert(!QueueMissingCursorMovementSound(q.data(), q.size(), 0x3F0u, 0u));
+    assert(q[0x2642u] == 0 && q[0x2643u] == 0);
+    assert(!QueueMissingCursorMovementSound(q.data(), q.size(), 0x3F1u, 0u));
+    assert(!QueueMissingCursorMovementSound(q.data(), q.size(), 0u, 0x400u));
+    assert(!QueueMissingCursorMovementSound(q.data(), 100u, 0u, 0u));
+    // Too many native enqueues is ambiguous: do not add anything.
+    assert(!QueueMissingCursorMovementSound(q.data(), q.size(), 0u, 0x90u));
+
     Navigation n;
     assert(n.index[0] == 9 && n.index[1] == 8);
     n.Advance(0, 1, true);
