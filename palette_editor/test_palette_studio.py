@@ -136,6 +136,19 @@ class DecoderTests(unittest.TestCase):
         self.assertIn("Generate selected sprite", html)
         self.assertIn("NO STANDING SPRITE", html)
 
+    def test_custom_palette_name_and_unified_bank_controls(self):
+        html = (HERE / "palette_studio.html").read_text(encoding="utf-8")
+        self.assertIn('for="selectedName">Custom palette name', html)
+        self.assertIn('id="selectedName" type="text"', html)
+        self.assertIn("state.name=$('selectedName').value.trim();", html)
+        self.assertIn("state.colors[0][state.line][state.pen]=hex.toUpperCase();", html)
+        self.assertIn("state.colors[1][state.line][state.pen]=hex.toUpperCase();", html)
+        self.assertIn("state.colors[1]=copy(state.colors[0]);", html)
+        self.assertNotIn('id="setP"', html)
+        self.assertNotIn('id="setK"', html)
+        self.assertNotIn("$('setP')", html)
+        self.assertNotIn("$('setK')", html)
+
     def test_native_sprite_generator_calls_headless_recomp_only_on_command(self):
         server = (HERE / "palette_studio_server.py").read_text(encoding="utf-8")
         model_header = (HERE.parent / "recomp" / "model" / "model.h").read_text(encoding="utf-8")
