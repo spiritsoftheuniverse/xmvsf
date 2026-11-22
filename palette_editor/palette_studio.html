@@ -156,8 +156,8 @@ header p {font-size:12px;color:#9eb4ca;margin:0}
     <div class="preview-notice" id="previewNotice">Open the recomp Model viewer, choose this character and Standing, then Export → Save picture. Refresh to load its native sprite beside the portrait.</div>
    </div>
    <div class="swatch-box">
-    <div class="swatch-head"><h2 class="section-title">Original ROM addresses</h2>
-     <div class="set-tabs"><button id="setP" class="active">Punch / P</button><button id="setK">Kick / K</button></div>
+    <div class="swatch-head"><h2 class="section-title">Palette colors · Original ROM addresses</h2>
+     
     </div>
     <p class="notice" style="margin:10px 0 2px">Each color shows its real 68000 ROM address; editing changes only the selected profile.</p>
     <div id="swatches"></div>
@@ -167,7 +167,7 @@ header p {font-size:12px;color:#9eb4ca;margin:0}
  <aside class="panel sideedit">
   <div><div class="kicker">COLOR INSPECTOR</div><h2 style="margin:8px 0 0;font-size:18px">Selected swatch</h2></div>
   <div id="editStatus" class="status-tag ref-tag">Original · read only</div>
-  <div class="swatch-details"><strong id="selectedName">P · Body · #01</strong><code id="selectedAddress">0x------</code></div>
+  <div class="swatch-details"><label class="section-title" for="selectedName">Custom palette name</label><input id="selectedName" type="text" maxlength="80" placeholder="Create a profile to name it" disabled><small id="selectedSlot">Body · #01</small><code id="selectedAddress">0x------</code></div>
   <canvas class="picker-square" id="sv" width="238" height="224" aria-label="Saturation and brightness color picker"></canvas>
   <div class="hue-row"><label class="section-title" for="hue">Hue</label><input id="hue" type="range" min="0" max="360" step="1" value="210" disabled></div>
   <div class="hex-row"><label class="section-title" for="hex">HEX · CPS-2 RGB</label><input id="hex" type="text" maxlength="7" value="#000000" spellcheck="false" autocomplete="off" disabled></div>
@@ -247,8 +247,10 @@ function drawPicker(){
   $('hue').value=String(Math.round(state.hue));$('hue').disabled=!editable();
 }
 function renderColorInspector(){
-  const suffix=['P','K'][state.set];
-  $('selectedName').textContent=suffix+' · '+lines[state.line]+' · #'+String(state.pen).padStart(2,'0');
+  // The name belongs to the whole custom palette, not a single pen.
+  if(document.activeElement!==$('selectedName'))$('selectedName').value=editable()?state.name:'Original · read only';
+  $('selectedName').disabled=!editable();
+  $('selectedSlot').textContent=lines[state.line]+' · #'+String(state.pen).padStart(2,'0');
   $('selectedAddress').textContent=sourceAddr();
   $('hex').value=current();$('hex').disabled=!editable();
   $('originalSample').style.background=sourceCurrent();
@@ -294,7 +296,6 @@ function showProfileOptions(){
   $('profileHint').textContent=editable()?'Your edits affect only this profile. Use Save to persist, then Export to download a game-compatible .txt file.':'Original ROM palettes are locked. Click New to make an editable copy.';
 }
 function drawSwatches(){
-  $('setP').classList.toggle('active',state.set===0);$('setK').classList.toggle('active',state.set===1);
   const host=$('swatches');host.replaceChildren();
   if(!colors()){
     const p=document.createElement('p');p.className='notice';
@@ -323,7 +324,9 @@ function drawSwatches(){
 }
 function setEdited(hex){
   if(!editable())return;
-  state.colors[state.set][state.line][state.pen]=hex.toUpperCase();
+  // One custom palette: mirror edited pens into both native P/K banks.
+  state.colors[0][state.line][state.pen]=hex.toUpperCase();
+  state.colors[1][state.line][state.pen]=hex.toUpperCase();
   state.dirty=true;
   drawSwatches();renderColorInspector();refreshPreviews();
   $('saveProfile').disabled=false;
@@ -350,8 +353,20 @@ $('hex').addEventListener('change',()=>{
   if(corrected.toLowerCase()!==value.toLowerCase())show('Rounded to CPS-2 4-bit RGB: '+corrected,false);
 });
 $('resetSwatch').onclick=()=>{setEdited(sourceCurrent());hueFromSelected();renderColorInspector()};
-$('setP').onclick=()=>{state.set=0;hueFromSelected();renderAll()};
-$('setK').onclick=()=>{state.set=1;hueFromSelected();renderAll()};
+$('selectedName').addEventListener('input',()=>{
+  if(!editable())return;
+  state.name=$('selectedName').value;
+  state.dirty=true;
+  $('saveProfile').disabled=false;
+  $('editStatus').textContent=(state.name||'Unnamed palette')+' · unsaved changes';
+});
+$('selectedName').addEventListener('change',()=>{
+  if(!editable())return;
+  state.name=state.name.trim();
+  if(!state.name){show('Palette name cannot be empty.',true);return}
+  $('selectedName').value=state.name;
+  showProfileOptions();
+});
 $('search').oninput=showCharacters;
 function renderAll(){showCharacters();showProfileOptions();drawSwatches();renderColorInspector();refreshPreviews()}
 async function fetchSpriteData(){
@@ -525,7 +540,10 @@ function makeProfile(){
   const proposed=prompt('Name for new palette profile:',state.data.characters[state.who].name+' Custom');
   if(proposed===null)return;
   if(!proposed.trim())return show('Profile name cannot be empty.',true);
-  state.colors=copy(colors());state.mode='draft';state.id=null;state.name=proposed.trim();state.dirty=true;
+  state.colors=copy(colors());
+  // Keep original ROM references immutable; custom profiles are unified.
+  state.colors[1]=copy(state.colors[0]);
+  state.mode='draft';state.id=null;state.name=proposed.trim();state.dirty=true;
   hueFromSelected();renderAll();show('New profile created in memory. Save to keep it.',false);
 }
 async function openProfile(mode){
@@ -543,6 +561,8 @@ async function openProfile(mode){
 }
 async function saveProfile(){
   if(!editable()||!state.data.source)return;
+  state.name=$('selectedName').value.trim();
+  if(!state.name)return show('Palette name cannot be empty.',true);
   try{
     const doc={id:state.id,character:state.who,name:state.name,source_sha256:state.data.source.sha256,colours:state.colors};
     const result=await request('/api/profile/save',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(doc)});
