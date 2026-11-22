@@ -13,6 +13,14 @@ static_assert(Find(0x1e) == 8 && Find(0x24) == 14);
 static_assert(Find(0x10) == -1);
 static_assert(Navigate(0, 1) == 1 && Navigate(8, 1) == 0);
 static_assert(Navigate(9, 1) == 10 && Navigate(9, 8) == 0);
+// User-reported regression: first pick Magneto (0x0E) must default the
+// SECOND hover to its immediate-right neighbor Juggernaut (0x0C),
+// and the returned portrait/label must resolve that same ROM ID.
+static_assert(Find(0x0E) == 6 && Find(0x0C) == 7);
+static_assert(Navigate(Find(0x0E), 1u) == Find(0x0C));
+static_assert(kSlots[Navigate(Find(0x0E), 1u)].rom == 0x0C);
+static_assert(kSlots[Navigate(Find(0x02), 1u)].rom == 0x00);
+static_assert(kSlots[Navigate(Find(0x12), 1u)].rom == 0x14);
 int main() {
     Navigation n;
     assert(n.index[0] == 9 && n.index[1] == 8);
