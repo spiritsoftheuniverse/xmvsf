@@ -73,6 +73,11 @@ inline constexpr int SkipTeamIndex(int from, int candidate,
         !SameTeamCharacter(forbidden, kSlots[static_cast<unsigned>(candidate)].rom))
         return candidate;
     if (direction == 1u || direction == 2u) {
+        // At an outer corner there is no further cell in this row.
+        // Stop instead of wrapping across the entire grid.
+        const int col = candidate % kColumns;
+        if ((direction == 1u && col == kColumns - 1) ||
+            (direction == 2u && col == 0)) return from;
         const int next = Navigate(candidate, direction);
         if (next != candidate &&
             !SameTeamCharacter(forbidden, kSlots[static_cast<unsigned>(next)].rom))
