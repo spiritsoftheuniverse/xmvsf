@@ -43,8 +43,7 @@ namespace {
     // Both are edge-triggered, and the other fighting buttons remain free.
     bool g_aHeld[2] = {false, false};
     bool g_bHeld[2] = {false, false};
-    bool g_confirmQueued[2] = {false, false};
-    unsigned g_confirmPulse[2] = {0u, 0u};
+    bool g_confirmQueued[2] = {false, false}; // valid for THIS frame only
 
     uint16_t IntendedNativeId(unsigned n) {
         const uint16_t raw =
@@ -67,7 +66,6 @@ namespace {
         // the first pick. Otherwise the old permission can remain latched.
         if (count == 0u) {
             g_confirmQueued[n] = false;
-            g_confirmPulse[n] = 0u;
             return;
         }
         const unsigned undone = count - 1u;
@@ -78,7 +76,6 @@ namespace {
         g_accepted[n] = static_cast<uint8_t>(undone);
         g_soundAccepted[n] = static_cast<uint8_t>(undone);
         g_confirmQueued[n] = false;
-        g_confirmPulse[n] = 0u;
         g_commitPending = false;
         // F10 native trace: phase 01 uses progress 00; phase 03 uses
         // progress 04. Reset ALL THREE fields when undoing a pick:
@@ -188,7 +185,7 @@ namespace {
             // Reject native timeout and all non-A character confirms.
             // A grant stays armed until the ROM truly advances FF5183.
             if (!port::xmvsf_select::NativePickAllowed(
-                    count, g_accepted[n], Ram8(counter),
+                    count, g_accepted[n], g_soundAccepted[n],
                     g_confirmQueued[n])) {
                 count = g_accepted[n];
                 value = bytes == 2u
@@ -197,7 +194,6 @@ namespace {
             }
             if (count > g_accepted[n] && count <= 2u) {
                 g_confirmQueued[n] = false;
-                g_confirmPulse[n] = 0u;
             }
             // The native accepted counter is the only authority for
             // an audible selection. Not raw button presses, cursor
@@ -295,7 +291,6 @@ void ChoosingLayoutBeforeCpu(Machine &machine) {
         if (g_layoutRunning) g_layout.Reset();
         for (unsigned n = 0u; n < 2u; ++n) {
             g_aHeld[n] = g_bHeld[n] = g_confirmQueued[n] = false;
-            g_confirmPulse[n] = 0u;
         }
         g_layoutRunning = false;
         g_accepted[0] = g_accepted[1] = 0;
@@ -309,7 +304,6 @@ void ChoosingLayoutBeforeCpu(Machine &machine) {
         g_soundAccepted[0] = g_soundAccepted[1] = 0u;
         for (unsigned n = 0u; n < 2u; ++n) {
             g_aHeld[n] = g_bHeld[n] = g_confirmQueued[n] = false;
-            g_confirmPulse[n] = 0u;
         }
         g_layoutRunning = true;
     }
@@ -379,30 +373,23 @@ void ChoosingLayoutBeforeCpu(Machine &machine) {
             const unsigned slot = static_cast<unsigned>(g_layout.index[n]);
             SetRam16(record + kCursor, port::xmvsf_select::kSlots[slot].rom);
         }
-        // An A pressed during the first-pick animation may wait until
-        // the second selector opens; it still authorizes only ONE pick.
-        const bool canQueue = selecting || (Ram8(record + 3u) == 1u &&
-                                            Ram8(record) == 2u);
-        if (aEdge && !b && canQueue &&
-            (Ram8(record + 3u) == 0u ||
-             !port::xmvsf_select::SameTeamCharacter(
-                  g_committed[n][0], IntendedNativeId(static_cast<unsigned>(n))))) {
-            // A NEW press can replace an old unacknowledged request.
-            // Never let an orphaned g_confirmQueued latch disable A.
+        // No buffered or repeated confirmation: pressing A in a native
+        // animation does NOT preselect the next character. The actual
+        // press must occur at ready phase 01/0 or 03/1.
+        const bool duplicate = Ram8(record + 3u) == 1u &&
+            port::xmvsf_select::SameTeamCharacter(
+                g_committed[n][0], IntendedNativeId(static_cast<unsigned>(n)));
+        if (port::xmvsf_select::FreshPickPress(
+                aEdge, b, Ram8(record), Ram8(record + 3u), duplicate)) {
             g_confirmQueued[n] = true;
-            g_confirmPulse[n] = 0u;
+            // EXACTLY one native confirm pulse, on the actual A edge.
+            machine.players[n] |= kPunch1;
             if (!RunningAhead())
                 std::fprintf(stderr,
-                    "XMVSF 87.524 A_CONFIRM P%u count=%u phase=%u id=%04X\\n",
+                    "XMVSF 87.525 A_ONLY P%u count=%u phase=%u id=%04X\\n",
                     n + 1u, static_cast<unsigned>(Ram8(record + 3u)),
                     static_cast<unsigned>(Ram8(record)),
                     IntendedNativeId(static_cast<unsigned>(n)));
-        }
-        // Only the original native accept receives a synthetic LP
-        // pulse; the chosen character still comes from the custom grid.
-        if (g_confirmQueued[n] && (Ram8(record) == 1u || Ram8(record) == 3u)) {
-            if (g_confirmPulse[n]++ % 8u == 0u)
-                machine.players[n] |= kPunch1;
         }
     }
     // 87.504 F10-only observation of the exact custom positions sent to
@@ -453,6 +440,10 @@ void ChoosingLayoutAfterFrame(Machine &machine) {
         }
         if (accepted == 2u && g_accepted[n] < 2u) g_commitPending = true;
         g_accepted[n] = accepted;
+        // A grant may outlive this CPU frame ONLY if the game actually
+        // accepted it. End-of-frame expiry prevents any ghost dummy pick
+        // from a prior A press or controller handoff.
+        g_confirmQueued[n] = false;
         // Native phase writes are already gated in RemapSelectionWrite.
         // Do not force the phase backward here: phase 02 (the first-pick
         // animation) must reach 03 before the next A can be accepted.
