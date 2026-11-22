@@ -1,5 +1,14 @@
 # XMVSF native front end — 87.498 (native character-select composition and horizontal ROM grid)
 
+## 87.508 — safe scanline voice-queue interception (no M68K hooks)
+
+- Preserve user-confirmed working 87.507 character select, portraits, gameplay picks and level-select transition. **No `AddHook` or `AddWatch` added at `0787E0` or anywhere else.** That earlier 87.506 executable-hook approach was rolled back after a level-select crash.
+- F10 `latest(1).zip` shows frame 648 Magneto `0x0E` with native `0xA7` announcer, and frame 884 Rogue `0x06` with native `0xA4` (Gambit) announcer. Both are followed by common `0x82` sound effect. The resulting voice-map hypothesis is `0xA0 + romCharacterId / 2` for the 18 native selectable characters.
+- An optional **non-serialized Machine callback** runs after native M68K CPU execution and immediately before the sound CPU processes each scanline. The callback is installed **only for one active native character-confirmation input**, not while moving, selecting stage/mode/speed, or when both players confirm simultaneously. It is removed whenever the chooser is inactive.
+- The queue validator scans only new 16-byte entries since the previous scanline, caps at eight per scanline, demands the full exact F10 native voice-request layout and a valid native roster ID, then changes **only byte 3 of one queued voice request** to the ID of the custom grid's chosen character. It never changes the queue pointer, other 15 bytes, the usual `0x82` SFX, native M68K registers, render path or selection state.
+- Captured Magneto `A7`, incorrect Gambit `A4`, expected Rogue `A3`, unrelated `82`, malformed/native invalid messages, and queue wrap-around are all covered in the C++ local smoke; Python preflight forbids the old ROM execution hook and checks callback ordering, native routing preservation and post-navigation confirmation ID.
+- **Source-level review only; local Windows build/gameplay validation pending.** Since the ROM may consume a voice request entirely inside one translated CPU slice, this safer between-slice approach may still be too late to alter the already-playing sample. If audible mismatch persists, use F10 to distinguish whether the queued bytes changed and avoid new execution-hook guesses. Keep 87.507 as the rollback target.
+
 ## 87.507 — immediate rollback after crash on level select
 
 - User reports a crash during level select after the 87.506 voice interception. Treat the 0787E0 sound queue hook as suspect; **remove the entire 87.506 patch**, not just its conditional.
