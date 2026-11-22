@@ -107,8 +107,12 @@ def main():
     assert "g_committed[n][pick] = IntendedNativeId(n);" in chooser
     assert "if (count == 2u) g_commitPending = true;" in chooser
     assert "const bool wroteCounter" in chooser
-    assert "const bool active = (phase == 2u && accepted == 0u) ||" in chooser
-    assert "(phase == 3u && accepted == 1u && g_secondCandidateReady[n]);" in chooser
+    # 87.502: retain the actually working 87.500 movement gate.
+    # Do not tie movement to guessed ROM phase == 2 or to the
+    # independent second-character handoff flag again.
+    assert "const bool active = Ram8(record) <= 3u && Ram8(record + 3u) < 2u;" in chooser
+    assert "(phase == 2u && accepted == 0u)" not in chooser
+    assert "(phase == 3u && accepted == 1u && g_secondCandidateReady[n])" not in chooser
     assert "g_committed[n][pick] != 0xFFFFu" in chooser
     assert "const bool p1CursorActive = ram[0x5183u] < 2u;" in frontend
     assert "const bool p2CursorActive = ram[0x51A3u] < 2u;" in frontend
@@ -121,7 +125,7 @@ def main():
                         str(ROOT / "recomp_port/tests/test_character_select_grid.cpp"),
                         "-o", str(binary)], check=True)
         subprocess.run([str(binary)], check=True)
-    print("XMVSF 87.501 phase-3 handoff, canonical portraits/names, 18-ID native writes PASS")
+    print("XMVSF 87.502 restored cursor movement, 87.501 visual ID sync, native 18-ID writes PASS")
 
 if __name__ == "__main__":
     main()
