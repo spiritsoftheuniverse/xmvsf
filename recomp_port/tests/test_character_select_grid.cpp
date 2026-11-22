@@ -33,11 +33,15 @@ static_assert(NextTeamIndex(0) == 1);
 static_assert(NextTeamIndex(8) == 7);  // right-hand corner
 static_assert(NextTeamIndex(9) == 10);
 static_assert(NextTeamIndex(17) == 16); // lower-right corner
+static_assert(NextTeamIndex(13) == 15); // Chun-Li -> skip Alpha Chun-Li
+static_assert(NextTeamIndex(14) == 15); // Alpha Chun-Li -> Zangief
 static_assert(SameTeamCharacter(0x08u, 0x08u));
 static_assert(SameTeamCharacter(0x16u, 0x24u)); // both Chun-Li forms
 static_assert(!SameTeamCharacter(0x08u, 0x06u));
 static_assert(SkipTeamIndex(1, 2, 1u, 0x08u) == 3); // Gambit skipped going right
 static_assert(SkipTeamIndex(3, 2, 2u, 0x08u) == 1); // skipped going left
+static_assert(SkipTeamIndex(12, 13, 1u, 0x24u) == 15); // skip BOTH Chun-Li forms
+static_assert(SkipTeamIndex(15, 14, 2u, 0x16u) == 12); // skip both going left
 static_assert(SkipTeamIndex(11, 2, 8u, 0x08u) == 3); // vertical slides right
 static_assert(SkipTeamIndex(7, 8, 1u, 0x1Eu) == 7); // Akuma at right corner
 static_assert(SkipTeamIndex(1, 0, 2u, 0x02u) == 1); // Cyclops at left corner
