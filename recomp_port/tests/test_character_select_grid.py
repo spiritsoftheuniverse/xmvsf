@@ -101,7 +101,8 @@ def main():
     assert "if (!RunningAhead() && count > g_soundAccepted[n] && count <= 2u)" in chooser
     assert "g_soundAccepted[n] = count;" in chooser
     assert "const std::uint16_t selected = IntendedNativeId(n);" in chooser
-    assert "port::xmvsf_select::NativeCharacterVoice(selected, n)" in chooser
+    assert "port::xmvsf_select::NativeCharacterVoice(selected)" in chooser
+    assert "NativeCharacterVoice(selected, n)" not in chooser
     assert "port::xmvsf_select::QueueExplicitSelectionSound(" in chooser
     assert "g_expectedNames[n] = name;" in chooser
     assert "g_nameTickets[n] = 1u;" in chooser
@@ -118,8 +119,10 @@ def main():
     assert "p[3] != soundCode" in select_rewrite
     assert "entry[3] = static_cast<std::uint8_t>(soundCode);" in select_rewrite
     assert "soundCode != 0x84u && soundCode != 0x85u" in select_rewrite
-    assert "NativeCharacterVoice(std::uint16_t id," in select_rewrite
-    assert "0xA0u + side * 0x20u + voiceId / 2u" in select_rewrite
+    assert "NativeCharacterVoice(std::uint16_t id)" in select_rewrite
+    assert "0xA0u + voiceId / 2u" in select_rewrite
+    assert "side * 0x20u" not in select_rewrite
+    assert "NativeCharacterVoice(std::uint16_t id," not in select_rewrite
     assert "CharacterVoiceIdentity(std::uint16_t id)" in select_rewrite
     assert "id == 0x24u ? 0x16u : id" in select_rewrite
     assert "QueueExplicitSelectionSound(std::uint8_t *ram" in select_rewrite
@@ -196,7 +199,7 @@ def main():
                         str(ROOT / "recomp_port/tests/test_character_select_grid.cpp"),
                         "-o", str(binary)], check=True)
         subprocess.run([str(binary)], check=True)
-    print("XMVSF 87.515 authoritative 18-ID names, one confirmation per accepted pick, native sprite mute, cursor and stage guard PASS")
+    print("XMVSF 87.516 same A-family name for P1/P2, all 18 IDs, single pick voices, native C-family muted PASS")
 
 if __name__ == "__main__":
     main()
