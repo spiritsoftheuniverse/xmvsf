@@ -1,5 +1,14 @@
 # XMVSF native front end — 87.498 (native character-select composition and horizontal ROM grid)
 
+## 87.504 — F10 read-only second-pick/announcement correlation
+
+- F10 adds `screenshots/f10_m68k/latest/selection_handoff.tsv`, opened with the same bounded, replaceable capture as its existing frames/hooks/selection write logs. Launch with `RECOMP_RUN.bat`, press F10 to start and again to stop.
+- Rows correlate emulated frame, raw/routed CPU input, **custom visual grid index and ROM ID** (reported directly by the existing 87.500 chooser), **native phase**, accepted counts FF5183/FF51A3, cursor words FF518C/FF51AC, committed pick words FF50B0/B2/B4/B6 and native panel bits.
+- The sound fields record the write index FF2642 before and after each emulated CPU frame, plus up to eight 16-byte requests from the FF2648 ring inferred from that index progression. These are **queued requests**, not verified audible commands or decoded character voice names; a pointer that does not change cannot prove a sample did not play.
+- Reports are sampled every eighth native frame plus actual input, native cursor/grid, phase, accepted-pick and sound-queue changes; the new file is capped at 360 rows and included in the existing **512 KiB / 900-frame** F10 ceiling. The original RAM observer, OAM observer and diagnostic lifecycle remain intact, and run-ahead speculative frames are excluded.
+- To reproduce: enable F10 at the character-select grid; hover/select Magneto first; pick a deliberately different second character after navigating away; stop F10. Inspect/send `selection_handoff.tsv` together with `frames.tsv`, `selection_ram_writes.tsv`, `hooks.tsv` and `README.txt`. F10 resets the `latest` files on the next start, so save a copy before recording again.
+- Gameplay selection logic, input routing, audio stream and portrait rendering were **not modified** by this diagnostic. Local Windows compilation and the resulting in-game capture still require verification.
+
 ## 87.503 — restore verified 87.500 character-select behavior
 
 - **87.501 and 87.502 selection code are reverted.** The user reported complete loss of cursor movement and movement sound after those revisions. The full 87.500 chooser, SDL frontend and selection preflight (Python/C++) were restored from commit `23a72344925b559db3fe7de5f6826cc8d236ae77`, not selectively patched.
