@@ -87,7 +87,13 @@ namespace {
             const uint8_t count = static_cast<uint8_t>(value & 0xFFu);
             if (count > g_accepted[n] && count <= 2u) {
                 const unsigned pick = count - 1u;
-                g_committed[n][pick] = IntendedNativeId(n);
+                // Only latch once: a repeated count=1 write within
+                // the same CPU frame must not overwrite the first ID
+                // after the second-candidate transition.
+                if (g_committed[n][pick] == 0xFFFFu)
+                    g_committed[n][pick] = IntendedNativeId(n);
+                if (count == 1u && Ram8(kChoosing + n * kChoosingSize) == 3u)
+                    EnterSecondCandidate(n);
                 if (count == 2u) g_commitPending = true;
                 std::fprintf(stderr,
                     "XMVSF 87.500 BUS_ACCEPT P%u PICK%u: id=%04X count=%u\n",
