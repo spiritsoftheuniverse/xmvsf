@@ -14,16 +14,19 @@
 #include <cstdint>
 #include <cstdio>
 #include <fstream>
+#include <utility>
+#include <cstring>
 #include <limits>
 #include <string>
 #include <vector>
 
 namespace port::xmvsf_home {
-class CharacterSelectBackdrop {
+template<unsigned Width, unsigned Height, unsigned Frames>
+class CharacterSelectFdb {
 public:
-    static constexpr unsigned kWidth = 384u;
-    static constexpr unsigned kHeight = 224u;
-    static constexpr unsigned kFrames = 166u;
+    static constexpr unsigned kWidth = Width;
+    static constexpr unsigned kHeight = Height;
+    static constexpr unsigned kFrames = Frames;
     static constexpr unsigned kHoldNativeFrames = 4u; // Final Destination cadence
 
 private:
@@ -34,6 +37,7 @@ private:
     std::array<Entry, kFrames> index_{};
     std::vector<Image> decoded_;
     std::string path_;
+    std::string asset_;
     SDL_Thread *thread_ = nullptr;
     SDL_Texture *texture_ = nullptr;
     SDL_Renderer *renderer_ = nullptr;
@@ -79,7 +83,7 @@ private:
         return next == fileSize;
     }
     static int SDLCALL Decode(void *opaque) {
-        auto &self = *static_cast<CharacterSelectBackdrop *>(opaque);
+        auto &self = *static_cast<CharacterSelectFdb *>(opaque);
         SDL_SetCurrentThreadPriority(SDL_THREAD_PRIORITY_LOW);
         std::ifstream stream(self.path_, std::ios::binary);
         if (!stream) return -1;
@@ -113,10 +117,11 @@ private:
         return 0;
     }
 public:
-    CharacterSelectBackdrop() = default;
-    CharacterSelectBackdrop(const CharacterSelectBackdrop &) = delete;
-    CharacterSelectBackdrop &operator=(const CharacterSelectBackdrop &) = delete;
-    ~CharacterSelectBackdrop() { Close(); }
+    explicit CharacterSelectFdb(std::string asset = "menu/characterselect/csbackground.fdb")
+        : asset_(std::move(asset)) {}
+    CharacterSelectFdb(const CharacterSelectFdb &) = delete;
+    CharacterSelectFdb &operator=(const CharacterSelectFdb &) = delete;
+    ~CharacterSelectFdb() { Close(); }
 
     void Close() {
         stop_.store(true, std::memory_order_relaxed);
@@ -132,10 +137,10 @@ public:
         if (renderer_ == renderer && texture_ && thread_) return true;
         Close();
         if (!renderer) return false;
-        path_ = FindAsset("menu/characterselect/csbackground.fdb");
+        path_ = FindAsset(asset_.c_str());
         if (path_.empty() || !ReadIndex()) {
             std::fprintf(stderr, "XMVSF CS FDB MISSING/INVALID: %s\n",
-                         path_.empty() ? "menu/characterselect/csbackground.fdb" : path_.c_str());
+                         path_.empty() ? asset_.c_str() : path_.c_str());
             return false;
         }
         texture_ = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ABGR8888,
@@ -155,6 +160,13 @@ public:
     }
     unsigned ReadyCount() const {
         return ready_.load(std::memory_order_acquire);
+    }
+    const Image *Frame(std::uint64_t elapsedNativeFrames) const {
+        const unsigned count = ReadyCount();
+        if (count == 0) return nullptr;
+        unsigned frame = static_cast<unsigned>((elapsedNativeFrames / kHoldNativeFrames) % kFrames);
+        if (frame >= count) frame = count - 1u;
+        return decoded_[frame].Valid() ? &decoded_[frame] : nullptr;
     }
     // elapsedNativeFrames starts at zero on entry to character selection.
     // The custom screen owns the target native rectangle (normally 384x224);
@@ -178,4 +190,6 @@ public:
         return SDL_RenderTexture(renderer, texture_, nullptr, &dest);
     }
 };
+using CharacterSelectBackdrop = CharacterSelectFdb<384u, 224u, 166u>;
+using CharacterSelectPortraitBackdrop = CharacterSelectFdb<160u, 160u, 89u>;
 } // namespace port::xmvsf_home
