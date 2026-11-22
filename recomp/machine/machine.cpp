@@ -703,8 +703,17 @@ void Machine::WriteRegister(uint32_t address, uint16_t value, uint16_t mask) {
             if (extraSound && at >= 0x010) { // (the game's settings and its greeting: the other side's too; not requests)
                 extraSound->Shared(at, static_cast<uint8_t>(value));
             }
-            if (at == 0x00F && soundRam[0x00F] != 0xFF) { // (a request is there: soundtrack.h)
-                soundtrack.Request(soundRam, frame);
+            if (at == 0x00F && soundRam[0x00F] != 0xFF) { // complete CPS2 QSound request
+                // Custom select owns character speech at the final
+                // M68K->Z80 sound handoff, not at a guessed ROM hook.
+                if (selectionSoundRequestFilter &&
+                    !selectionSoundRequestFilter(*this, soundRam)) {
+                    // Acknowledge dropped native selection audio so
+                    // the original main CPU's producer does not stall.
+                    soundRam[0x00F] = 0xFF;
+                } else {
+                    soundtrack.Request(soundRam, frame);
+                }
             }
         }
         return;
