@@ -210,6 +210,11 @@ public:
     // the very same frame, including at its character-accept routine.
     void (*selectionRamWriteOverride)(Machine &, uint32_t busAddress,
                                       uint16_t &value, unsigned byteCount) = nullptr;
+    // Optional 87.508 XMVSF voice queue adjustment between native M68K
+    // execution and the QSound CPU each scanline. Never installed in other
+    // games or outside the native character confirmation window.
+    // Not serialized, and never changes 68000 execution or registers.
+    void (*selectionVoiceQueueBeforeSound)(Machine &) = nullptr;
     // The object list the next frame's picture will be made from (the board takes it at the start of the
     // frame): 1024 entries of four big-endian words, as Video::LatchObjects reads them
     const uint8_t *ObjectsToCome() const {
