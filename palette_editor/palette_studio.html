@@ -344,9 +344,14 @@ $('setK').onclick=()=>{state.set=1;hueFromSelected();renderAll()};
 $('search').oninput=showCharacters;
 function renderAll(){showCharacters();showProfileOptions();drawSwatches();renderColorInspector();refreshPreviews()}
 async function fetchSpriteData(){
-  state.sprites=await request('/api/sprites?character='+state.who);
-  state.selectedSprite=state.sprites.find(v=>v.type==='viewer')||
-    state.sprites.find(v=>v.type==='sprite')||null;
+  // Never let a late response from the previous character populate
+  // the current character's native sprite or portrait preview.
+  const who=state.who;
+  const found=await request('/api/sprites?character='+who);
+  if(state.who!==who)return;
+  state.sprites=found;
+  state.selectedSprite=found.find(v=>v.type==='viewer')||
+    found.find(v=>v.type==='sprite')||null;
   state.spriteImage=null;
   drawSpriteStrip();drawPortrait();
 }
@@ -435,6 +440,9 @@ function chooseCharacter(id){
   if(state.dirty&&!confirm('Discard unsaved profile changes?'))return;
   state.who=id;state.set=0;state.line=0;state.pen=1;state.mode='original';state.id=null;state.name='';
   state.colors=null;state.dirty=false;state.sourceSet=0;$('spriteBase').value='0';
+  // Clear the previous fighter immediately while new files are discovered.
+  state.sprites=[];state.selectedSprite=null;
+  $('portraitPreview').getContext('2d').clearRect(0,0,$('portraitPreview').width,$('portraitPreview').height);
   $('characterTitle').textContent=state.data.characters[id].name;
   $('charMetadata').textContent=selectedText()+' · '+(original()?'2 sets / 3 palettes / 16 colors':'ROM source required');
   hueFromSelected();renderAll();
