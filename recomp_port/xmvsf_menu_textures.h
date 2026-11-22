@@ -29,6 +29,7 @@ class TexturedMenu {
     SDL_Texture *logoII_ = nullptr;
     SDL_Texture *largeFont_ = nullptr;
     SDL_Texture *smallFont_ = nullptr;
+    SDL_Texture *selectionLargeFont_ = nullptr; // 87.496 separate 12x15 source atlas
     SDL_Texture *revealLarge_ = nullptr, *revealSmall_ = nullptr;
     XM87235II::Painter iiPainter_;
     MenuFilmStrips films_;
@@ -82,6 +83,7 @@ class TexturedMenu {
         logoII_ = MakeTexture(r, menu_.logoII_);
         largeFont_ = MakeTexture(r, menu_.large_.sheet);
         smallFont_ = MakeTexture(r, menu_.small_.sheet);
+        selectionLargeFont_ = MakeTexture(r, menu_.selectionLarge_.sheet);
         revealLarge_ = MakeTexture(r, menu_.large_.sheet, true);
         revealSmall_ = MakeTexture(r, menu_.small_.sheet, true);
         if (!menu_.backdrop_.frames.empty()) {
@@ -265,9 +267,9 @@ public:
     void Release() {
         films_.Release();
         iiPainter_.release();
-        for (SDL_Texture *texture : {background_, logo_, logoII_, largeFont_, smallFont_, revealLarge_, revealSmall_})
+        for (SDL_Texture *texture : {background_, logo_, logoII_, largeFont_, smallFont_, selectionLargeFont_, revealLarge_, revealSmall_})
             if (texture) SDL_DestroyTexture(texture);
-        background_ = logo_ = logoII_ = largeFont_ = smallFont_ = nullptr;
+        background_ = logo_ = logoII_ = largeFont_ = smallFont_ = selectionLargeFont_ = nullptr;
         revealLarge_ = revealSmall_ = nullptr;
         originalLogoRGBA_.clear(); pulsedLogo_.clear(); introLogo_.clear();
         backgroundOriginalRGBA_.clear(); introBackground_.clear();
@@ -278,6 +280,27 @@ public:
         renderer_ = nullptr;
         gifW_ = gifH_ = 0;
         gifFrame_ = gifHue_ = -1;
+    }
+
+    // Source-exact SF2 large text, reserved for the custom native
+    // character-select compositor (names and countdown). Expects the
+    // SDL logical space of the eventual selection canvas. It does NOT
+    // alter the current menu, original game, or existing font effects.
+    bool CharacterSelectText(SDL_Renderer *r, const char *text,
+                             int x, int y, float scale = 1.0f,
+                             int brightness = 255, int alignment = 1) {
+        if (!r || !text || !Init(r) || !selectionLargeFont_) return false;
+        GlyphText(r, menu_.selectionLarge_, selectionLargeFont_, text,
+                  x, y, scale, brightness, alignment);
+        return true;
+    }
+
+    bool CharacterSelectCountdown(SDL_Renderer *r, unsigned seconds,
+                                  int x, int y, float scale = 1.0f,
+                                  int brightness = 255) {
+        char digits[16] = {};
+        std::snprintf(digits, sizeof(digits), "%u", seconds);
+        return CharacterSelectText(r, digits, x, y, scale, brightness, 1);
     }
 
     // Dim the original film-strip menu, never replace its moving film.
