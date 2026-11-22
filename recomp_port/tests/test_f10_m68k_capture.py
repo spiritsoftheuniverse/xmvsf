@@ -88,6 +88,11 @@ def main():
     assert "void (*selectionRamWriteOverride)" in machine
     assert "if (BytesWritten() >= kMaxBytes)" in header
     assert "handoffRowsSeen_ >= kMaxHandoffRows" in header
+    assert "post.cursor[0] != priorCursorAfter_[0]" in header
+    assert "post.cursor[1] != priorCursorAfter_[1]" in header
+    assert "priorRaw_[0] = raw_[0];" in header
+    assert "priorFinal_[0] = final_[0];" in header
+    assert "before_.cursor != post.cursor;" not in header.split("void WriteSelectionHandoff(", 1)[1].split("uint64_t BytesWritten()", 1)[0]
     assert "before_.gameStep != 4u && post.gameStep != 4u" in header
     assert choosing.index("AcceptHook(") < choosing.index("session::CharacterAccepted(n);")
     assert "SelectionDebug SelectionDiagnostics();" in api
