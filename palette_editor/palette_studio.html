@@ -457,7 +457,7 @@ function paintSprite(canvas,img,kind){
   // CPS2 pixels are square. Never stretch a fixed-size canvas to fill
   // a differently proportioned preview box, or use fractional zoom.
   const thumbnail=canvas.closest('.thumb');
-  const holder=thumbnail?canvas.parentElement:canvas.parentElement;
+  const holder=canvas.parentElement;
   const maxWidth=thumbnail?76:Math.max(1,holder.clientWidth-16);
   const maxHeight=thumbnail?69:Math.max(1,holder.clientHeight-16);
   const factor=Math.max(1,Math.min(5,
