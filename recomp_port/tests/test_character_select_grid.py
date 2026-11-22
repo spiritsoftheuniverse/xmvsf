@@ -98,7 +98,7 @@ def main():
     assert "CorrectQueuedCharacterSpriteVoice(" not in chooser
     assert "g_voiceSide" not in chooser
     assert "g_soundAccepted[2]" in chooser
-    assert "if (count > g_soundAccepted[n] && count <= 2u)" in chooser
+    assert "if (!RunningAhead() && count > g_soundAccepted[n] && count <= 2u)" in chooser
     assert "g_soundAccepted[n] = count;" in chooser
     assert "const std::uint16_t selected = IntendedNativeId(n);" in chooser
     assert "port::xmvsf_select::NativeCharacterVoice(selected, n)" in chooser
@@ -124,6 +124,7 @@ def main():
     assert "id == 0x24u ? 0x16u : id" in select_rewrite
     assert "QueueExplicitSelectionSound(std::uint8_t *ram" in select_rewrite
     assert "AllowAuthoritativeSelectionSound(" in select_rewrite
+    assert "if (code >= 0xA0u && code <= 0xDFu) return false;" in select_rewrite
     assert "SelectionSoundEnvelope(request, 0x10u)" in select_rewrite
     assert "SelectionSoundEnvelope(request, 0x0Au)" in select_rewrite
     assert "if (code == 0x84u || code == 0x85u) return true;" in select_rewrite
