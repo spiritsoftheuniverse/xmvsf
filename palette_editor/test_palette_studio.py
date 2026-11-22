@@ -90,12 +90,66 @@ class DecoderTests(unittest.TestCase):
         self.assertNotEqual(working, reference[9])
 
     def test_original_png_sources_are_reference_only(self):
-        # The browser intentionally shows a portrait as reference, not an idle sprite.
+        # Portraits are always alongside the source-native combat frame,
+        # and remain unchanged by palette edits.
         html = (HERE / "palette_studio.html").read_text(encoding="utf-8")
         self.assertIn("Portrait reference", (HERE / "palette_studio_server.py").read_text(encoding="utf-8"))
         self.assertIn("portrait is NOT", (HERE / "README.md").read_text(encoding="utf-8"))
-        self.assertIn("kind==='sprite'", html)
+        self.assertIn('id="portraitPreview"', html)
+        self.assertIn('class="preview-pair"', html)
+        self.assertIn('id="preview"', html)
+        self.assertIn("kind==='sprite'||kind==='viewer'", html)
+        self.assertIn("paintSprite(canvas,img,'portrait')", html)
         self.assertIn("sprite.type==='portrait'", html)
+        self.assertIn("refreshSprites", html)
+
+    def test_model_viewer_standing_export_discovery(self):
+        # The recomp's Model viewer uses bare Character.png for standing
+        # and Character N.png for a repeated standing export. Never infer
+        # animation names or a different character by prefix.
+        with tempfile.TemporaryDirectory() as folder:
+            old = studio.VIEWER_EXPORTS
+            studio.VIEWER_EXPORTS = Path(folder)
+            try:
+                for name in ("Ryu.png", "Ryu 2.png", "Ryu A12.png",
+                             "Ryu 1.png", "Ryu-special.png", "Ken.png",
+                             "Chun-Li.png", "Chun-Li (Alpha).png"):
+                    (Path(folder) / name).write_bytes(b"synthetic-data")
+                matches = studio.model_viewer_exports(9)
+                self.assertEqual([f.name for f in matches], ["Ryu.png", "Ryu 2.png"])
+                self.assertEqual([f.name for f in studio.model_viewer_exports(10)], ["Ken.png"])
+                self.assertEqual([f.name for f in studio.model_viewer_exports(11)], ["Chun-Li.png"])
+                self.assertEqual([f.name for f in studio.model_viewer_exports(18)], ["Chun-Li (Alpha).png"])
+                self.assertEqual(studio.viewer_asset(9, "Ryu.png").name, "Ryu.png")
+                with self.assertRaises(ValueError):
+                    studio.viewer_asset(9, "Ken.png")
+                with self.assertRaises(ValueError):
+                    studio.viewer_asset(9, "../Ryu.png")
+                with self.assertRaises(ValueError):
+                    studio.viewer_asset(9, "Ryu A12.png")
+            finally:
+                studio.VIEWER_EXPORTS = old
+
+    def test_model_viewer_png_is_discovered_without_upload(self):
+        with tempfile.TemporaryDirectory() as folder:
+            old = studio.VIEWER_EXPORTS
+            old_sprites = studio.SPRITES
+            old_portraits = studio.PORTRAITS
+            studio.VIEWER_EXPORTS = Path(folder)
+            studio.SPRITES = Path(folder) / "sprite-storage"
+            studio.PORTRAITS = Path(folder) / "portraits"
+            try:
+                (Path(folder) / "Wolverine.png").write_bytes(b"synthetic-data")
+                sprites = studio.sprite_list(0)
+                self.assertEqual(len(sprites), 1)
+                self.assertEqual(sprites[0]["type"], "viewer")
+                self.assertIn("Wolverine.png", sprites[0]["url"])
+                self.assertEqual(sprites[0]["name"], "Standing")
+                self.assertEqual(sprites[0]["url"].count("asset/viewer/"), 1)
+            finally:
+                studio.VIEWER_EXPORTS = old
+                studio.SPRITES = old_sprites
+                studio.PORTRAITS = old_portraits
 
 
 class ProfileTests(unittest.TestCase):
