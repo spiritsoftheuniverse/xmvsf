@@ -104,8 +104,8 @@ def main():
     assert "port::xmvsf_select::NativeCharacterVoice(selected, n)" in chooser
     assert "port::xmvsf_select::QueueExplicitSelectionSound(" in chooser
     assert "g_expectedNames[n] = name;" in chooser
-    assert "++g_nameTickets[n];" in chooser
-    assert "++g_confirmTickets[n];" in chooser
+    assert "g_nameTickets[n] = 1u;" in chooser
+    assert "g_confirmTickets[n] = 1u;" in chooser
     assert "machine.selectionVoiceQueueBeforeSound = nullptr;" in chooser
     assert "machine.selectionSoundRequestFilter = &AuthoritativeSelectionSound;" in chooser
     assert "machine.selectionSoundRequestFilter = nullptr;" in chooser
