@@ -1,5 +1,13 @@
 # XMVSF native front end — 87.498 (native character-select composition and horizontal ROM grid)
 
+## 87.516 — player-independent character-name commands
+
+- Correct the mistaken 87.511/87.515 assumption that a P2 selected-character name uses a different recording bank. The user's direct sound checks confirm the **A-family** as the correct spoken-character names. In particular, Gambit is **A4 on P1 and A4 on P2**, never C4 for the custom selector.
+- **Character name = `NativeCharacterVoice(chosenRomId)`, without a side argument.** The source of the ROM ID remains the authoritative 18-slot table and the native accepted-count write. Remove `side * 0x20` from the voice equation, rather than accepting C-family values by assumption. Existing Alpha Chun-Li alias to Chun-Li is retained; it has not been independently audited by a full sound sweep.
+- The 87.515 transport filter already rejects native wrong/duplicate A0..DF speech; with both sides expecting A-family codes, original P2 C-family requests cannot pass. The per-side **confirm `82/83` and movement `84/85`** codes remain player-specific. Both first and second picks use the same A-family table-derived character name.
+- Update the test to require all 18 selected character IDs resolve to A-family commands, reject native P2 C4 in favor of A4, confirm both players can choose Gambit simultaneously without doubled names, and retain independent P1/P2 confirmation tickets. Preflight bans a side-based voice-bank offset.
+- No input routing, sprites, stage selection, mode handling, or M68K execution hooks changed. **Runtime audio is not yet verified**; testing a single known Gambit pick on P2 should now produce the same spoken A4 name as P1, if the existing 87.515 transport mechanism is working.
+
 ## 87.515 — authoritative audio: isolate native selection speech, issue names from the actual 18-ID table
 
 - User reports that after 87.514 **no character-select audio path is reliable**: some first-pick confirmation sounds are missing, wrong character names are spoken, and wrong underlying sprite voices play. **No prior selection audio revision is called stable.** The speculative corrections by `CorrectNativeQueuedVoice`, `CorrectQueuedCharacterVoice` and `CorrectQueuedCharacterSpriteVoice` are **removed entirely**. The prior ROM execution hook remains disabled.
