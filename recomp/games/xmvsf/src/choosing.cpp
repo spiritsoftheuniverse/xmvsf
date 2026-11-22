@@ -341,6 +341,21 @@ void ChoosingLayoutBeforeCpu(Machine &machine) {
         const bool bEdge = b && !g_bHeld[n];
         g_aHeld[n] = a;
         g_bHeld[n] = b;
+        // F10's native phases/accept counts advance together:
+        // 01/0 -> 02/1 -> 03/1 -> 04/2. After a rollback (or a
+        // rejected native timeout), a phase ahead of its count is
+        // inconsistent. Recover only on a fresh A press, never during
+        // the ROM's legitimate selection animation.
+        if (aEdge && !b && ((count == 0u && phase == 2u) ||
+                            (count == 1u && phase == 4u))) {
+            const unsigned restored = count == 0u ? 1u : 3u;
+            SetRam8(record, static_cast<uint8_t>(restored));
+            SetRam8(record + 5u, static_cast<uint8_t>(count == 0u ? 0u : 4u));
+            if (!RunningAhead())
+                std::fprintf(stderr,
+                    "XMVSF 87.524 A_RECOVER P%u count=%u phase=%u->%u\\n",
+                    n + 1u, count, phase, restored);
+        }
         // Character selection is explicitly A/B, not all six attacks.
         // Keep the original directional bits for native cursor sounds.
         if (count < 2u || (bEdge && phase <= 4u && count == 2u)) {
@@ -372,8 +387,16 @@ void ChoosingLayoutBeforeCpu(Machine &machine) {
             (Ram8(record + 3u) == 0u ||
              !port::xmvsf_select::SameTeamCharacter(
                   g_committed[n][0], IntendedNativeId(static_cast<unsigned>(n))))) {
+            // A NEW press can replace an old unacknowledged request.
+            // Never let an orphaned g_confirmQueued latch disable A.
             g_confirmQueued[n] = true;
             g_confirmPulse[n] = 0u;
+            if (!RunningAhead())
+                std::fprintf(stderr,
+                    "XMVSF 87.524 A_CONFIRM P%u count=%u phase=%u id=%04X\\n",
+                    n + 1u, static_cast<unsigned>(Ram8(record + 3u)),
+                    static_cast<unsigned>(Ram8(record)),
+                    IntendedNativeId(static_cast<unsigned>(n)));
         }
         // Only the original native accept receives a synthetic LP
         // pulse; the chosen character still comes from the custom grid.
