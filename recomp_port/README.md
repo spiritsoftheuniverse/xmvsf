@@ -1,5 +1,13 @@
 # XMVSF native front end — 87.498 (native character-select composition and horizontal ROM grid)
 
+## 87.501 — accepted ID and second-pick selector/voice alignment
+
+- Verified the nine-column grid itself had no geometry/index-table offset. The old 87.500 code jumped one visual slot at FF5183 accepted=1 even though native selection was still completing the first character's flash/voice; this was a separate transition from the native phase-03 second-pick entry.
+- Navigation is now active only for native phase 02 with accepted=0 and native phase 03 with accepted=1. The one-slot next-character default advances at the actual ROM phase-03 write (with post-frame fallback) and is guarded to run once. The first accepted ID is latched from the bus counter write and protected against a duplicate same-frame write after handoff.
+- Frontend portraits, SF2 character names and selector positions now read the custom chooser's canonical ID rather than the transient FF518C/FF51AC words. Once a second character is accepted, the display ID is the committed second team member (FF50B2/FF50B6 fallback), so ROM cursor clean-up cannot show another name/portrait.
+- The existing native sound and physical direction routing are unchanged. This fixes the visual/selection phase association; whether the native spoken character cue also follows the new ID must be checked in gameplay, because it is requested by the ROM and is not the SF2 text label.
+- The local smoke adds Magneto -> Juggernaut, Cyclops -> Wolverine and Ryu -> Ken 18-slot progression checks, plus source guards for the accepted-ID display and phase-specific handoff. No full Windows recomp or in-game audio pass has been claimed.
+
 ## 87.500 — native directional audio and actual 18-character selection
 
 - Previously 87.499 masked the direction bits from the ROM and only corrected the selected character after a frame. This let the drawn grid move silently while the native acceptance still committed the ROM's own neighboring characters.
