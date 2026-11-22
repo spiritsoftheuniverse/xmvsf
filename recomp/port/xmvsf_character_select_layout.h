@@ -30,15 +30,6 @@ inline constexpr std::array<Slot, 18> kSlots{{
     {"Dhalsim",      "layer_0003_0x18_Dhalsim.png",       0x18},
     {"M. Bison",      "layer_0001_0x1C_M. Bison.png",      0x1C}
 }};
-// 87.506: Native F10 captured Magneto 0x0E -> voice 0xA7 and
-// Gambit 0x08 -> voice 0xA4 at the two confirmation edges.
-// This contiguous ROM voice-ID sequence predicts Rogue 0x06 -> 0xA3.
-// Invalid/non-roster IDs (including Apocalypse) are never remapped.
-inline constexpr std::uint16_t CharacterVoiceCommand(std::uint16_t romId) {
-    if ((romId & 1u) != 0u || romId > 0x24u ||
-        romId == 0x10u) return 0xFFFFu;
-    return static_cast<std::uint16_t>(0xA0u + romId / 2u);
-}
 inline constexpr int kColumns = 9;
 inline constexpr int kX0 = 43, kY0 = 136, kStepX = 33, kStepY = 39;
 inline constexpr int X(int index) { return kX0 + index % kColumns * kStepX; }
