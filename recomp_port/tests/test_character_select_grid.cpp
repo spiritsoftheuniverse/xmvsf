@@ -79,6 +79,12 @@ int main() {
     assert(sp[0x2643u] == 16u); // producer rewound exactly one entry
     for (unsigned i = 0u; i < 16u; ++i)
         assert(sp[0x2648u + 16u + i] == 0u);
+    // 87.509 handoff movement is still playable after unpublishing the
+    // native sprite voice; it occupies the newly freed slot (not A3).
+    assert(QueueMissingCursorMovementSound(sp.data(), sp.size(), 0u, 16u));
+    assert(sp[0x2648u + 3u] == 0xA3u);
+    assert(sp[0x2648u + 16u + 3u] == 0x84u);
+    assert(sp[0x2643u] == 32u);
     // Already-correct Magneto must work the same way.
     spriteRequest(32u, 0xA7u);
     spriteRequest(48u, 0x82u);
