@@ -33,6 +33,10 @@ namespace {
     int g_voiceSide = -1;
     uint16_t g_voiceReadAt = 0xFFFFu, g_voiceDesired = 0xFFFFu;
     bool g_voiceHandled = false;
+    // 87.510: one exact native 0x82 companion is suppressed only after
+    // this frame's character-specific announcer has been identified.
+    unsigned g_announcerQueueOffset = 0xFFFFu;
+    bool g_spriteVoiceSuppressed = false;
     // 87.509: beginning-of-frame native ring pointer and custom grid.
     // Used only to fill missing ROM 0x84 ticks on *actual* grid movement.
     uint16_t g_cursorSoundBegin = 0xFFFFu;
@@ -54,7 +58,8 @@ namespace {
     // never from a ROM hook. Only inspect entries added since the last
     // scanline, and only during the exact confirmation-input frame.
     void CorrectNativeQueuedVoice(Machine &machine) {
-        if (!g_layoutRunning || g_voiceSide < 0 || g_voiceHandled ||
+        if (!g_layoutRunning || g_voiceSide < 0 ||
+            (g_voiceHandled && g_spriteVoiceSuppressed) ||
             !machine.video.hudShock || !Ram8(kPlaying) ||
             Ram16(kGameStep) != kGameChoosing ||
             g_voiceReadAt == 0xFFFFu || machine.ram.size() < 0x10000u)
@@ -65,30 +70,52 @@ namespace {
                                static_cast<unsigned>(g_voiceReadAt)) & kSoundQueueMask;
         if (diff == 0u) return;
         // More than eight requests in one scanline indicates ambiguous ring
-        // state, not a safe candidate for a selective announcement fix.
+        // state; leave native sound intact rather than guess about entries.
         if (diff > 128u) {
             g_voiceReadAt = next;
             return;
         }
+        uint16_t processedNext = next;
         for (unsigned delta = 0u; delta < diff; delta += 16u) {
             const unsigned offset =
                 (static_cast<unsigned>(g_voiceReadAt) + delta) & kSoundQueueMask;
-            const unsigned prior = machine.ram[0x2648u + offset + 3u];
-            if (!port::xmvsf_select::CorrectQueuedCharacterVoice(
-                    machine.ram.data(), machine.ram.size(), offset, g_voiceDesired))
-                continue;
-            const unsigned corrected = machine.ram[0x2648u + offset + 3u];
-            g_voiceHandled = true; // one announcer request per confirmation
-            if (prior != corrected) {
-                std::fprintf(stderr,
-                    "XMVSF 87.508 VOICE P%u: queued=%02X corrected=%02X character=%04X frame=%llu\n",
-                    static_cast<unsigned>(g_voiceSide + 1), prior, corrected,
-                    static_cast<unsigned>(g_voiceDesired),
-                    static_cast<unsigned long long>(machine.frame));
+            if (!g_voiceHandled) {
+                const unsigned prior = machine.ram[0x2648u + offset + 3u];
+                if (port::xmvsf_select::CorrectQueuedCharacterVoice(
+                        machine.ram.data(), machine.ram.size(), offset, g_voiceDesired)) {
+                    const unsigned corrected = machine.ram[0x2648u + offset + 3u];
+                    g_voiceHandled = true; // one announcer per confirmation
+                    g_announcerQueueOffset = offset;
+                    if (prior != corrected) {
+                        std::fprintf(stderr,
+                            "XMVSF 87.508 VOICE P%u: queued=%02X corrected=%02X character=%04X frame=%llu\n",
+                            static_cast<unsigned>(g_voiceSide + 1), prior, corrected,
+                            static_cast<unsigned>(g_voiceDesired),
+                            static_cast<unsigned long long>(machine.frame));
+                    }
+                    continue;
+                }
             }
-            break;
+            // F10 captured A7,82 and A4,82 pairs. The original 0x82
+            // companion can trigger a mismatched native sprite voice.
+            // Remove it only when it immediately trails the corrected
+            // announcer AND is the last request written this scanline.
+            // Never rewrite other sound, 0x84 movement or the producer
+            // while later requests are already queued.
+            if (g_voiceHandled && !g_spriteVoiceSuppressed &&
+                port::xmvsf_select::SuppressTrailingSelectionSpriteVoice(
+                    machine.ram.data(), machine.ram.size(),
+                    g_announcerQueueOffset, offset, next, g_voiceDesired)) {
+                g_spriteVoiceSuppressed = true;
+                processedNext = static_cast<uint16_t>(offset);
+                std::fprintf(stderr,
+                    "XMVSF 87.510 removed native 0x82 sprite voice P%u frame=%llu\n",
+                    static_cast<unsigned>(g_voiceSide + 1),
+                    static_cast<unsigned long long>(machine.frame));
+                break;
+            }
         }
-        g_voiceReadAt = next;
+        g_voiceReadAt = processedNext;
     }
 
     void RemapSelectionWrite(Machine &, uint32_t address,
@@ -175,6 +202,8 @@ void ChoosingLayoutBeforeCpu(Machine &machine) {
         g_voiceSide = -1;
         g_voiceReadAt = g_voiceDesired = 0xFFFFu;
         g_voiceHandled = false;
+        g_announcerQueueOffset = 0xFFFFu;
+        g_spriteVoiceSuppressed = false;
         g_cursorSoundBegin = 0xFFFFu;
         g_gridBeforeFrame[0] = g_gridBeforeFrame[1] = -1;
         if (g_layoutRunning) g_layout.Reset();
@@ -200,6 +229,8 @@ void ChoosingLayoutBeforeCpu(Machine &machine) {
     g_voiceSide = -1;
     g_voiceDesired = 0xFFFFu;
     g_voiceHandled = false;
+    g_announcerQueueOffset = 0xFFFFu;
+    g_spriteVoiceSuppressed = false;
     constexpr uint16_t kConfirm = kPunch1 | kPunch2 | kPunch3 |
                                   kKick1 | kKick2 | kKick3;
     for (int n = 0; n < 2; ++n) {
