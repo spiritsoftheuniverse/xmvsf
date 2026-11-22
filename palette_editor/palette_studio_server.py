@@ -29,11 +29,16 @@ PAGE = HERE / "palette_studio.html"
 PROFILES = HERE / "profiles"
 SPRITES = HERE / "sprites"
 PORTRAITS = ROOT / "_art" / "menu" / "characterselect" / "portraits"
-# Native model::ExportPicture writes to PlayerFolder()/exports.
-# RECOMP_RUN.bat passes --settings recomp/work/xmvsf/settings.ini.
-# An explicit environment override supports alternate game settings paths.
-VIEWER_EXPORTS = Path(os.environ.get("XMVSF_MODEL_EXPORT_DIR", "")
-                      or (ROOT / "recomp" / "work" / "xmvsf" / "exports"))
+# Model viewer uses PlayerFolder()/exports. The shipped Windows RECOMP_RUN.bat
+# gives --eeprom "work\xmvsf\eeprom.bin", but PlayerFolder() currently
+# searches only for '/'. That can place exports at recomp/exports instead of
+# recomp/work/xmvsf/exports. Read both, and accept an explicit override.
+VIEWER_EXPORTS = (
+    (Path(os.environ["XMVSF_MODEL_EXPORT_DIR"]),)
+    if os.environ.get("XMVSF_MODEL_EXPORT_DIR") else
+    (ROOT / "recomp" / "exports",
+     ROOT / "recomp" / "work" / "xmvsf" / "exports")
+)
 
 # These constants match recomp/games/xmvsf/src/xmvsf.h and game.cfg.
 CHARACTERS = (
@@ -304,26 +309,27 @@ def portrait_path(who: int) -> Path | None:
 
 
 def model_viewer_exports(who: int) -> list[Path]:
-    """Read ONLY native Model viewer 'Save picture' files, not animation sheets.
+    """Read native standing exports, never animation frames or other fighters.
 
-    model.cpp ExportPicture() names idle pictures <character>.png, or
-    <character> 2.png etc. when saved again. Animation exports have a
-    list suffix and must not be falsely labeled as standing/idle.
+    Windows's shipped RECOMP_RUN.bat can place output under recomp/exports
+    because Port::PlayerFolder searches '/' while its EEPROM uses '\\'.
+    Check both known real locations, preferring the current Windows path
+    when the same filename exists in both.
     """
     name = CHARACTERS[who]
     pattern = re.compile(r"^" + re.escape(name) + r"(?: [2-9][0-9]*)?\.png$", re.I)
-    if not VIEWER_EXPORTS.is_dir() or VIEWER_EXPORTS.is_symlink():
-        return []
-    matches = []
-    for candidate in VIEWER_EXPORTS.iterdir():
-        if (candidate.is_file() and not candidate.is_symlink()
-                and pattern.fullmatch(candidate.name)
-                and 8 < candidate.stat().st_size <= SPRITE_MAX):
-            matches.append(candidate)
+    found: dict[str, Path] = {}
+    for directory in VIEWER_EXPORTS:
+        if not directory.is_dir() or directory.is_symlink():
+            continue
+        for candidate in directory.iterdir():
+            if (candidate.is_file() and not candidate.is_symlink()
+                    and pattern.fullmatch(candidate.name)
+                    and 8 < candidate.stat().st_size <= SPRITE_MAX):
+                found.setdefault(candidate.name.lower(), candidate)
     # Exact character name is the canonical first standing export.
-    return sorted(matches, key=lambda file: (
+    return sorted(found.values(), key=lambda file: (
         file.name.lower() != (name + ".png").lower(), file.name.lower()))[:24]
-
 
 def viewer_asset(who: int, filename: str) -> Path:
     if not filename or Path(filename).name != filename:
