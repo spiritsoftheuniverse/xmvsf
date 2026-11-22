@@ -322,7 +322,6 @@ void ChoosingLayoutBeforeCpu(Machine &machine) {
         // MUST retain real directional input (87.477 regression lesson).
         const unsigned phase = Ram8(record);
         const unsigned count = Ram8(record + 3u);
-        const bool active = phase <= 3u && count < 2u;
         const uint16_t physical = machine.players[n];
         const bool a = (physical & kKick1) != 0u;
         const bool b = (physical & kKick2) != 0u;
