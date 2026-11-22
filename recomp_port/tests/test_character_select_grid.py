@@ -146,9 +146,10 @@ def main():
     assert "g_soundAccepted[n] = static_cast<uint8_t>(undone);" in chooser
     assert "g_confirmQueued[n] = false;" in chooser
     assert "NativePickAllowed(" in chooser
-    # The acceptance loop owns 'counter'; 'record' is not declared there.
-    # Referring to record caused the 87.521 Windows C++ build failure.
-    assert "count, g_accepted[n], Ram8(counter)," in chooser
+    # Native soundAccepted is proof of an A-authorized acceptance at the
+    # ROM bus boundary. Do NOT use raw resident RAM as authorization.
+    assert "count, g_accepted[n], g_soundAccepted[n]," in chooser
+    assert "count, g_accepted[n], Ram8(counter)," not in chooser
     assert "count, g_accepted[n], Ram8(record + 3u)," not in chooser
     assert "g_confirmQueued[n]))" in chooser
     assert "NextTeamIndex(g_layout.index[n])" in chooser
@@ -167,10 +168,15 @@ def main():
     assert "if (aEdge && !b && ((count == 0u && phase == 2u) ||" in chooser
     assert "SetRam8(record + 5u, static_cast<uint8_t>(count == 0u ? 0u : 4u));" in chooser
     assert "XMVSF 87.524 A_RECOVER" in chooser
-    assert "XMVSF 87.524 A_CONFIRM" in chooser
-    # A can re-arm a previously stranded confirmation on a NEW press.
-    assert "if (aEdge && !b && canQueue &&" in chooser
-    assert "canQueue && !g_confirmQueued[n]" not in chooser
+    assert "XMVSF 87.525 A_ONLY" in chooser
+    # Confirm ONE time at the current A edge, never queue a future
+    # dummy selection through the ROM's inter-pick animation.
+    assert "FreshPickPress(" in chooser
+    assert "inline constexpr bool FreshPickPress(" in layout
+    assert "machine.players[n] |= kPunch1;" in chooser
+    assert "const bool canQueue = selecting" not in chooser
+    assert "g_confirmPulse" not in chooser
+    assert "g_confirmQueued[n] = false;" in chooser
     assert "if (bEdge && phase <= 4u)" in chooser
     # Never roll phase 02/04 backward after legitimate native progression.
     assert "if (accepted == 0u && Ram8(record) >= 2u)" not in chooser
@@ -270,7 +276,7 @@ def main():
                         str(ROOT / "recomp_port/tests/test_character_select_grid.cpp"),
                         "-o", str(binary)], check=True)
         subprocess.run([str(binary)], check=True)
-    print("XMVSF 87.524 A rearm / B native progress restore, duplicate team skip, voices unchanged PASS")
+    print("XMVSF 87.525 A-only immediate confirm, no deferred dummy auto-pick, duplicate skip PASS")
 
 if __name__ == "__main__":
     main()
