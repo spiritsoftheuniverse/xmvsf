@@ -173,13 +173,12 @@ void ChoosingLayoutBeforeCpu(Machine &machine) {
         // The native 03->04 transition means the second character was
         // accepted. Steps 04..06 are the game's MODE/SPEED choices and
         // MUST retain real directional input (87.477 regression lesson).
-        const uint8_t phase = Ram8(record);
-        const uint8_t accepted = Ram8(record + 3u);
-        // Native 02 is first-pick input; 03 is second-pick input.
-        // Do not move the visual cursor during 00/01 entry or the
-        // acceptance animation between the two picks.
-        const bool active = (phase == 2u && accepted == 0u) ||
-                            (phase == 3u && accepted == 1u && g_secondCandidateReady[n]);
+        // Restore the 87.500 native movement gate. The ROM's initial
+        // active cursor phase is not reliably just phase 02, and tying
+        // movement to the separate second-candidate flag locked the cursor.
+        // The accepted-character count is the authoritative cutoff; native
+        // mode/speed phases 04..06 still retain their own directional input.
+        const bool active = Ram8(record) <= 3u && Ram8(record + 3u) < 2u;
         const unsigned direction = machine.players[n] & (kRight | kLeft | kDown | kUp);
         g_layout.Advance(n, direction, active);
         if (active) {
