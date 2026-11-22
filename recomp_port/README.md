@@ -1,5 +1,16 @@
 # XMVSF native front end — 87.498 (native character-select composition and horizontal ROM grid)
 
+## 87.511 — fix P2 voice/cursor family and retain selected outline
+
+- User confirms 87.509 corrected inter-pick cursor sound, but reports 87.510 regressed by suppressing the underlying sprite voice, making P2 cursor movement additive/louder, and hiding the selector upon character acceptance. Restore the chooser, two selection-rewrite headers, and both selector smoke tests **byte-for-byte to 87.509** before applying these narrow corrections. The 87.510 `0x82` suppressor is **completely removed**.
+- The attached `latest(2).zip` independently confirms the two native audio families: P1 movement `84`, character voice `A0 + romId/2`, companion `82`; **P2 movement `85`**, character voice `C0 + romId/2`, companion `83`. P2 Gambit (`0x08`) produces `C4` at frame 986 and P2 Wolverine (`0x00`) produces `C0` at frame 1130; both had `83` companion requests. Native P2 movement at frames 905/914/922/1096/1105 produces `85`. The previous P1-only `84` fallback therefore stacked a redundant sound on P2's native `85`.
+- Extend the already working **87.508 scanline voice correction** with a player parameter: P1 remaps the validated `A0..B2` voice family; P2 independently remaps `C0..D2`. Native `82/83` confirmation requests are never erased. This maps the underlying P2 voice to the actual chosen grid character, instead of indiscriminately muting it. No new ROM execution hook or CPU/audio timing changes.
+- Extend the **87.509 cursor-tick fallback** to use `84` for P1 and `85` for P2. Check for the matching native request in the frame's actual ring entries before injecting a missing sound. If both sides moved, independently check each sound code; ordinary P2 movement with native `85` is not doubled.
+- The compositor previously rendered each selector only while `cursorActive && ink`, where `cursorActive` becomes false at accepted-count 2. Change the condition to `!cursorActive || ink`: while selecting the cursor still flickers, and after acceptance the selector **stays visible with steady outline** at the chosen character for both players. Stage-screen transitions remain governed by the existing frontend.
+- C++ tests exercise P1/P2 voice families, Cammy voice mapping, incorrect-family isolation, preservation of `82/83`, native P2 `85` dedup, missing `85` generation, and all prior cursor/announcer cases. Python preflight guards the permanently displayed selected cursor and removal of the wrong 87.510 queue suppression.
+- **Source consistency checks passed; Windows build and audible/visual runtime results not yet confirmed.** The new F10 identifies request families but cannot independently label a sound as sprite speech vs announcer; in-game playback decides whether the voice correction fully resolves that audible symptom.
+- User-confirmed stable fallback is **87.509** commit `ceed4f3b0d9d2941c229dbfebbd03832299a630b`.
+
 ## 87.510 — suppress mismatched native sprite voice on character confirmation
 
 - User confirms 87.509 correctly restores movement audio during selection handoff, but reports that the original ROM's character sprite (for example Cammy) still speaks while a different custom character is selected.
