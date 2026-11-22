@@ -1516,12 +1516,18 @@ int RunWindowed(Port &port) {
             const bool p1Show = true;
             const bool p2Show = (ram[0x5101u] & 2u) != 0u &&
                 (!session::InSession() || ram[0x5183u] >= 2u);
+            // Real ROM acceptance counts: the selector's inversion/blink
+            // ends as soon as a side accepts its second character, while
+            // the chosen portrait remains visible.
+            const bool p1CursorActive = ram[0x5183u] < 2u;
+            const bool p2CursorActive = ram[0x51A3u] < 2u;
             const std::uint64_t elapsed =
                 static_cast<std::uint64_t>(port.machine->frame) -
                 characterSelectEnteredFrame;
             if (const auto *image = homeTextures.ComposeCharacterSelect(
                     presenter.Renderer(), elapsed,
-                    cursor(0x518Cu), cursor(0x51ACu), p1Show, p2Show)) {
+                    cursor(0x518Cu), cursor(0x51ACu), p1Show, p2Show,
+                    p1CursorActive, p2CursorActive)) {
                 presenter.UseClassicMenuCanvas(false);
                 presenter.Show(image->pixels.data(), image->width,
                                image->height, where, nullptr);
