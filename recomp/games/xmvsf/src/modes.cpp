@@ -15,6 +15,8 @@
 
 namespace cps2recomp {
 
+void ApplyCustomTeamPicksBeforeMatch(); // custom native 18-slot accept handoff
+
 namespace {
     using namespace xmvsf;
 
@@ -60,6 +62,7 @@ namespace {
                 }
             }
         }
+        ApplyCustomTeamPicksBeforeMatch(); // final mapped IDs before native match records
         return false;
     }
 } // namespace
