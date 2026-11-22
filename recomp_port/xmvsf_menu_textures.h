@@ -3,6 +3,7 @@
 // Source artwork stays in xmvsf_home::Menu; only layers are uploaded to SDL.
 #pragma once
 #include "xmvsf_home.h"
+#include "xmvsf_character_select_backdrop.h" // 87.497 FD-format async native full-screen backdrop
 #include "xmvsf_stage_picker.h" // XMVSF_RECOMP_STAGES_87_455
 #include "xmvsf_menu_film.h"
 #include "xmvsf_options.h"
@@ -23,6 +24,7 @@ namespace port::xmvsf_home {
 
 class TexturedMenu {
     Menu &menu_;
+    CharacterSelectBackdrop selectionBackdrop_; // dormant until custom select compositor calls it
     SDL_Renderer *renderer_ = nullptr;
     SDL_Texture *background_ = nullptr;
     SDL_Texture *logo_ = nullptr;
@@ -265,6 +267,7 @@ public:
     }
 
     void Release() {
+        selectionBackdrop_.Close();
         films_.Release();
         iiPainter_.release();
         for (SDL_Texture *texture : {background_, logo_, logoII_, largeFont_, smallFont_, selectionLargeFont_, revealLarge_, revealSmall_})
@@ -280,6 +283,15 @@ public:
         renderer_ = nullptr;
         gifW_ = gifH_ = 0;
         gifFrame_ = gifHue_ = -1;
+    }
+
+    // Exact 384x224 source dimensions, no zoom/crop/resize. Future
+    // custom selection compositor calls this first, then draws names
+    // and portraits on top; original ROM graphics are not touched.
+    bool RenderCharacterSelectBackdrop(SDL_Renderer *r,
+                                      std::uint64_t elapsedNativeFrames) {
+        const SDL_FRect native{0.0f, 0.0f, 384.0f, 224.0f};
+        return r && selectionBackdrop_.Draw(r, elapsedNativeFrames, native);
     }
 
     // Source-exact SF2 large text, reserved for the custom native
