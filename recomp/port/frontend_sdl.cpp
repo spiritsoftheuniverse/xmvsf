@@ -41,6 +41,7 @@
 // native audio or character assignment.
 namespace cps2recomp {
 uint16_t ChoosingVisualCharacterId(unsigned side);
+uint16_t ChoosingVisualCommittedId(unsigned side, unsigned pick);
 }
 
 using namespace cps2recomp;
@@ -1533,7 +1534,9 @@ int RunWindowed(Port &port) {
                     cps2recomp::ChoosingVisualCharacterId(0u),
                     cps2recomp::ChoosingVisualCharacterId(1u),
                     p1Show, p2Show,
-                    p1CursorActive, p2CursorActive)) {
+                    p1CursorActive, p2CursorActive,
+                    cps2recomp::ChoosingVisualCommittedId(0u, 0u),
+                    cps2recomp::ChoosingVisualCommittedId(1u, 0u))) {
                 presenter.UseClassicMenuCanvas(false);
                 presenter.Show(image->pixels.data(), image->width,
                                image->height, where, nullptr);
