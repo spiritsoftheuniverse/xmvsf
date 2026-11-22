@@ -18,6 +18,11 @@ static_assert(NativeCharacterVoice(0x08) == 0xA4); // Gambit, captured
 static_assert(NativeCharacterVoice(0x06) == 0xA3); // Rogue, intended
 static_assert(NativeCharacterVoice(0x10) == 0xFFFF); // no Apocalypse slot
 static_assert(NativeCharacterVoice(0x25) == 0xFFFF);
+static_assert(NativeCharacterVoice(0x08, 1u) == 0xC4); // F10 P2 Gambit
+static_assert(NativeCharacterVoice(0x00, 1u) == 0xC0); // F10 P2 Wolverine
+static_assert(NativeCharacterVoice(0x22, 1u) == 0xD1); // P2 Cammy
+static_assert(NativeCharacterVoice(0x22, 0u) == 0xB1); // P1 Cammy
+static_assert(NativeCharacterVoice(0x08, 2u) == 0xFFFF); // no third player
 
 static_assert(Navigate(0, 1) == 1 && Navigate(8, 1) == 0);
 static_assert(Navigate(9, 1) == 10 && Navigate(9, 8) == 0);
@@ -57,6 +62,27 @@ int main() {
     voiceRequest(0x3F0u, 0xA4u);
     assert(CorrectQueuedCharacterVoice(ram.data(), ram.size(), 0x3F0u, 0x06u));
     assert(ram[ringBase + 0x3F0u + 3u] == 0xA3u);
+    // 87.511: P2 uses a DIFFERENT character-voice family C0..D2.
+    // F10 proves Gambit=C4 and Wolverine=C0 on native P2 picks.
+    voiceRequest(0x80u, 0xC4u);
+    assert(CorrectQueuedCharacterVoice(ram.data(), ram.size(), 0x80u, 0x22u, 1u));
+    assert(ram[ringBase + 0x80u + 3u] == 0xD1u); // Cammy in P2
+    assert(ram[ringBase + 0x80u + 6u] == 0x10u);
+    // Don't accidentally rewrite a P1 request using the P2 family.
+    voiceRequest(0x90u, 0xA4u);
+    assert(!CorrectQueuedCharacterVoice(ram.data(), ram.size(), 0x90u, 0x22u, 1u));
+    assert(ram[ringBase + 0x90u + 3u] == 0xA4u);
+    voiceRequest(0xA0u, 0xC4u);
+    assert(!CorrectQueuedCharacterVoice(ram.data(), ram.size(), 0xA0u, 0x22u, 0u));
+    assert(ram[ringBase + 0xA0u + 3u] == 0xC4u);
+    // Native side-specific confirmation sounds MUST remain (87.510
+    // incorrectly attempted to remove P1 82).
+    voiceRequest(0xB0u, 0x82u);
+    voiceRequest(0xC0u, 0x83u);
+    assert(!CorrectQueuedCharacterVoice(ram.data(), ram.size(), 0xB0u, 0x06u, 0u));
+    assert(!CorrectQueuedCharacterVoice(ram.data(), ram.size(), 0xC0u, 0x06u, 1u));
+    assert(ram[ringBase + 0xB0u + 3u] == 0x82u);
+    assert(ram[ringBase + 0xC0u + 3u] == 0x83u);
 
     // 87.509: reproduce frame 648 first confirmation: A7 voice and
     // 82 confirmation SFX already enqueued, but the automatic 1-slot
@@ -87,6 +113,24 @@ int main() {
     assert(QueueMissingCursorMovementSound(q.data(), q.size(), 64u, 64u));
     assert(q[0x2643u] == 80u);
     assert(q[0x2648u + 64u + 3u] == 0x84u);
+    // 87.511: P2 already produces 0x85 on movement, not 0x84.
+    // Emitting P1's 0x84 on top of it caused the louder/additive sound.
+    command(0x80u, 0x85u);
+    q[0x2643u] = 0x90u;
+    assert(!QueueMissingCursorMovementSound(q.data(), q.size(),
+                                            0x80u, 0x90u, 0x85u));
+    assert(q[0x2643u] == 0x90u);
+    // If P2's native tick is genuinely absent, add one native 0x85.
+    assert(QueueMissingCursorMovementSound(q.data(), q.size(),
+                                           0x90u, 0x90u, 0x85u));
+    assert(q[0x2643u] == 0xA0u);
+    assert(q[0x2648u + 0x90u + 3u] == 0x85u);
+    // P1's tick remains distinct, so neither sounds twice.
+    command(0xA0u, 0x84u);
+    assert(!QueueMissingCursorMovementSound(q.data(), q.size(),
+                                            0xA0u, 0xB0u, 0x84u));
+    assert(!QueueMissingCursorMovementSound(q.data(), q.size(),
+                                            0xA0u, 0xB0u, 0x86u));
     // Validate the last ring entry and wrapped next pointer.
     command(0x3F0u, 0x82u);
     q[0x2642u] = 0;
