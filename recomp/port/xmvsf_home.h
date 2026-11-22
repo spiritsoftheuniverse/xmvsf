@@ -442,7 +442,7 @@ public:
 
         Text(pixels, "A SELECT   B / ESC BACK", 489, 495, true, 1.375f, 235);
         Text(pixels, "ESC TO RETURN", 18, 522, true, 1.08f, 185, 0);
-        Text(pixels, "TEST 87.496", 942, 522, true, 1.08f, 185, 2);
+        Text(pixels, "TEST 87.497", 942, 522, true, 1.08f, 185, 2);
     }
 };
 
