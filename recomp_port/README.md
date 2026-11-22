@@ -1,5 +1,15 @@
 # XMVSF native front end — 87.498 (native character-select composition and horizontal ROM grid)
 
+## 87.509 — carry native 0x84 cursor ticks through first/second pick handoff
+
+- User confirmed the **87.508** voice correction works. Treat its queue scanner, portrait identity and the accepted-character controller routing as fixed. No changes to the 87.508 scanline callback or the legacy ROM hooks.
+- Native F10 `latest(1).zip`: regular custom navigation (frames 604, 613, 620, 628, 636 and 715) produces a 16-byte native sound request `00000084000010000000000000000000`. First Magneto pick frame 648 queues voice `A7` + confirmation `82`. The custom cursor **automatically advances to Juggernaut** on the first accepted-count edge and the native ROM enqueues **no cursor `84`**. ROM phase 2 persists until frame 680, then native phase 3; the first recorded manual second-pick navigation is not until frame 715, which already emits `84` correctly.
+- To avoid duplicating native audio, observe the native sound ring's write cursor `FF2642` at the start of a choosing frame and compare with the same cursor after the ROM runs. When the **custom 18-slot grid changed** from its starting index and no complete native `84` request appears in the new 16-byte entries, append **exactly one** native-format `84` request to the existing ring, as the game itself does. This fills the unvoiced automatic move and any custom handoff moves gated by the ROM, while leaving ordinary native movement untouched.
+- The 16-byte source request includes the observed `0x1000` control field; existing voice `A7/A3` and confirmation `82` entries are never rewritten. Ring pointers must be 16-byte aligned inside 0x000–0x3F0; skip implausible deltas over 128 bytes. No direct QSound playback, no new execution hook, no selection phase manipulation and no controller masking.
+- The local C++ smoke tests exercise voice+confirmation followed by missing movement, normal native `84` dedup, silence, queue wrap, malformed pointers and excessive writes. Python source preflight asserts the preserved native selector and 87.508 voice callback.
+- **Windows build/gameplay still need testing.** In the prior F10 recording no physical direction was pressed during frames 649–714; the trace proves the automatic handoff misses `84`, not that every manual movement in that interval would. If the user's mute persists, record a fresh F10 test with deliberate directional movements immediately after first acceptance.
+- Known rollback reference: the confirmed-working **87.508** revision `f1b9ae979551e70f4602d981549ac56777f909fd`.
+
 ## 87.508 — safe scanline voice-queue interception (no M68K hooks)
 
 - Preserve user-confirmed working 87.507 character select, portraits, gameplay picks and level-select transition. **No `AddHook` or `AddWatch` added at `0787E0` or anywhere else.** That earlier 87.506 executable-hook approach was rolled back after a level-select crash.
