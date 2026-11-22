@@ -72,6 +72,14 @@ inline constexpr int SkipTeamIndex(int from, int candidate,
     if (candidate < 0 || candidate >= static_cast<int>(kSlots.size()) ||
         !SameTeamCharacter(forbidden, kSlots[static_cast<unsigned>(candidate)].rom))
         return candidate;
+    if (direction == 4u || direction == 8u) {
+        // A two-row grid cannot continue vertically past the locked
+        // first character; slide into its neighbor instead.
+        const int neighbor = NextTeamIndex(candidate);
+        return SameTeamCharacter(
+            forbidden, kSlots[static_cast<unsigned>(neighbor)].rom)
+            ? from : neighbor;
+    }
     if (direction == 1u || direction == 2u) {
         // At an outer corner there is no further cell in this row.
         // Stop instead of wrapping across the entire grid.
