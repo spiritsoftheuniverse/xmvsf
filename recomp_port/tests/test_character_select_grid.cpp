@@ -55,6 +55,18 @@ static_assert(NativePickAllowed(1, 0, 1, false)); // same native count repeated
 static_assert(!NativePickAllowed(2, 1, 1, false));
 static_assert(NativePickAllowed(2, 1, 1, true));
 static_assert(NativePickAllowed(0, 0, 0, false)); // cancelled slot
+static_assert(!NativePickAllowed(1, 0, 0, false)); // no press, no native auto-pick
+static_assert(NativePickAllowed(1, 0, 1, false)); // already authenticated A write
+static_assert(!NativePickAllowed(2, 0, 1, false)); // no second pick without A
+static_assert(FreshPickPress(true, false, 1, 0, false));
+static_assert(FreshPickPress(true, false, 3, 1, false));
+static_assert(!FreshPickPress(false, false, 1, 0, false)); // A released
+static_assert(!FreshPickPress(true, false, 2, 1, false)); // animation: never buffer
+static_assert(!FreshPickPress(true, false, 4, 1, false)); // mode: never buffer
+static_assert(!FreshPickPress(true, false, 1, 1, false)); // wrong phase
+static_assert(!FreshPickPress(true, false, 3, 0, false)); // wrong count
+static_assert(!FreshPickPress(true, true, 3, 1, false));  // B held
+static_assert(!FreshPickPress(true, false, 3, 1, true));  // duplicate fighter
 static_assert(Navigate(0, 1) == 1 && Navigate(8, 1) == 0);
 static_assert(Navigate(9, 1) == 10 && Navigate(9, 8) == 0);
 int main() {
