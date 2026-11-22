@@ -90,10 +90,10 @@ def main():
     assert "Cursor(p1Cursor_, 9, fixedP1);" in screen
     assert "Cursor(p2Cursor_, 8, fixedP2);" in screen
     assert "return port::xmvsf_select::kSlots[slot].rom;" in chooser
-    # The working 87.500 selector and audio path must not be touched.
-    assert "const bool active = Ram8(record) <= 3u && Ram8(record + 3u) < 2u;" in chooser
+    # Preserve native direction and sound behavior around the A/B selector.
+    assert "const bool selecting = Ram8(record) <= 3u && Ram8(record + 3u) < 2u;" in chooser
     assert "machine.players[n] &= static_cast<uint16_t>(~fight::kSticks);" not in chooser
-    assert "const unsigned direction = machine.players[n] & (kRight | kLeft | kDown | kUp);" in chooser
+    assert "const unsigned direction = physical & (kRight | kLeft | kDown | kUp);" in chooser
     assert "ChoosingLayoutBeforeCpu(machine);" in game
     # Native ROM must still receive real directions to generate move sounds.
     assert "machine.players[n] &= static_cast<uint16_t>(~fight::kSticks);" not in chooser
@@ -232,7 +232,7 @@ def main():
     assert "g_committed[n][pick] = selected;" in chooser
     assert "if (count == 2u) g_commitPending = true;" in chooser
     assert "const bool wroteCounter" in chooser
-    assert "const bool active = Ram8(record) <= 3u && Ram8(record + 3u) < 2u;" in chooser
+    assert "const bool selecting = Ram8(record) <= 3u && Ram8(record + 3u) < 2u;" in chooser
     assert "const bool p1CursorActive = ram[0x5183u] < 2u;" in frontend
     # Selection stops flickering but its outlined cell remains visible.
     assert "(!cursorP1 || ink)" in screen
