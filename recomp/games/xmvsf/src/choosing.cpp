@@ -25,21 +25,8 @@ namespace {
     port::xmvsf_select::Navigation g_layout;
     bool g_layoutRunning = false;
     uint8_t g_accepted[2] = {0, 0}; // real FF5183 / FF51A3 native accepted counts
-    bool g_secondCandidateReady[2] = {false, false}; // advance once at native phase 3
     uint16_t g_committed[2][2] = {{0xFFFFu, 0xFFFFu}, {0xFFFFu, 0xFFFFu}};
     bool g_commitPending = false; // one native match handoff, not every arcade round
-
-    void EnterSecondCandidate(unsigned n) {
-        if (n >= 2u || g_secondCandidateReady[n]) return;
-        const int prior = g_layout.index[n];
-        g_layout.index[n] = port::xmvsf_select::Navigate(prior, 1u);
-        g_secondCandidateReady[n] = true;
-        std::fprintf(stderr,
-            "XMVSF 87.501 SECOND_READY P%u: grid=%d->%d id=%04X\n",
-            n + 1u, prior, g_layout.index[n],
-            port::xmvsf_select::kSlots[
-                static_cast<unsigned>(g_layout.index[n])].rom);
-    }
 
     uint16_t IntendedNativeId(unsigned n) {
         const uint16_t raw =
@@ -55,19 +42,6 @@ namespace {
 
     void RemapSelectionWrite(Machine &, uint32_t address,
                              uint16_t &value, unsigned bytes) {
-        // Follow the NATIVE phase-03 entry, not the first accepted-count
-        // increment (which can precede the end of the first voice/flash).
-        // Do it at the bus write, before the ROM's second-candidate sound
-        // routine reads the cursor; AfterFrame is only a fallback.
-        const uint32_t at = address & 0xFFFFFFu;
-        for (unsigned n = 0; n < 2u; ++n) {
-            const uint32_t record = kChoosing + n * kChoosingSize;
-            const bool phaseWrite = at == record &&
-                ((bytes == 1u && value == 3u) ||
-                 (bytes == 2u && (value >> 8u) == 3u));
-            if (phaseWrite && Ram8(record + 3u) == 1u)
-                EnterSecondCandidate(n);
-        }
         const std::array<uint16_t, 2> selected{{
             IntendedNativeId(0u), IntendedNativeId(1u)
         }};
@@ -79,6 +53,7 @@ namespace {
         // counters. Capture the ID AT THE RAM WRITE: the ROM can leave
         // character selection on the same frame as pick two, meaning a
         // post-frame check may otherwise never see the second accept.
+        const uint32_t at = address & 0xFFFFFFu;
         for (unsigned n = 0; n < 2u; ++n) {
             const uint32_t counter = 0xFF5183u + n * 0x20u;
             const bool wroteCounter = (bytes == 1u && at == counter) ||
@@ -87,13 +62,7 @@ namespace {
             const uint8_t count = static_cast<uint8_t>(value & 0xFFu);
             if (count > g_accepted[n] && count <= 2u) {
                 const unsigned pick = count - 1u;
-                // Only latch once: a repeated count=1 write within
-                // the same CPU frame must not overwrite the first ID
-                // after the second-candidate transition.
-                if (g_committed[n][pick] == 0xFFFFu)
-                    g_committed[n][pick] = IntendedNativeId(n);
-                if (count == 1u && Ram8(kChoosing + n * kChoosingSize) == 3u)
-                    EnterSecondCandidate(n);
+                g_committed[n][pick] = IntendedNativeId(n);
                 if (count == 2u) g_commitPending = true;
                 std::fprintf(stderr,
                     "XMVSF 87.500 BUS_ACCEPT P%u PICK%u: id=%04X count=%u\n",
@@ -154,14 +123,12 @@ void ChoosingLayoutBeforeCpu(Machine &machine) {
         if (g_layoutRunning) g_layout.Reset();
         g_layoutRunning = false;
         g_accepted[0] = g_accepted[1] = 0;
-        g_secondCandidateReady[0] = g_secondCandidateReady[1] = false;
         return;
     }
     if (!g_layoutRunning) {
         g_layout.Reset();
         g_committed[0][0] = g_committed[0][1] = 0xFFFFu;
         g_committed[1][0] = g_committed[1][1] = 0xFFFFu;
-        g_secondCandidateReady[0] = g_secondCandidateReady[1] = false;
         g_commitPending = false;
         g_layoutRunning = true;
     }
@@ -173,11 +140,6 @@ void ChoosingLayoutBeforeCpu(Machine &machine) {
         // The native 03->04 transition means the second character was
         // accepted. Steps 04..06 are the game's MODE/SPEED choices and
         // MUST retain real directional input (87.477 regression lesson).
-        // Restore the 87.500 native movement gate. The ROM's initial
-        // active cursor phase is not reliably just phase 02, and tying
-        // movement to the separate second-candidate flag locked the cursor.
-        // The accepted-character count is the authoritative cutoff; native
-        // mode/speed phases 04..06 still retain their own directional input.
         const bool active = Ram8(record) <= 3u && Ram8(record + 3u) < 2u;
         const unsigned direction = machine.players[n] & (kRight | kLeft | kDown | kUp);
         g_layout.Advance(n, direction, active);
@@ -214,25 +176,21 @@ void ChoosingLayoutAfterFrame(Machine &machine) {
                 const bool hidden = FeatureOn("hidden_characters") && g_start[n] &&
                     ((target == 0x12u && native == kAkuma) ||
                      (target == 0x16u && native == 0x24u));
-                // The bus accepted-count write is the precise commit edge;
-                // do not overwrite its ID using the NEXT character's index.
-                const uint16_t committed = g_committed[n][pick] != 0xFFFFu
-                    ? g_committed[n][pick] : (hidden ? native : target);
+                const uint16_t committed = hidden ? native : target;
                 g_committed[n][pick] = committed;
                 if (native != committed) SetRam16(pickAt, committed);
                 std::fprintf(stderr,
                     "XMVSF 87.500 native select P%d PICK%d: native=%04X mapped=%04X count=%u\n",
                     n + 1, pick + 1, native, committed, accepted);
             }
-         }
+            // The second character defaults to the next cell across,
+            // as native Cyclops->Wolverine / Ryu->Ken did.
+            if (prior == 0u && accepted == 1u) {
+                g_layout.index[n] = port::xmvsf_select::Navigate(g_layout.index[n], 1u);
+            }
+        }
         if (accepted == 2u && g_accepted[n] < 2u) g_commitPending = true;
         g_accepted[n] = accepted;
-        // The original ROM enters phase 03 when the SECOND character is
-        // actually ready. Advance only on that edge, never immediately
-        // when FF5183/FF51A3 first becomes 1 (which is still the first
-        // character's confirmation/voice animation).
-        if (accepted == 1u && Ram8(record) == 3u)
-            EnterSecondCandidate(static_cast<unsigned>(n));
         // Write AFTER the ROM's original navigation, not only before it.
         // Do not overwrite native mode/speed (steps 4+) or completed picks.
         if (accepted < 2u && Ram8(record) <= 3u) {
@@ -240,23 +198,6 @@ void ChoosingLayoutAfterFrame(Machine &machine) {
             SetRam16(record + kCursor, port::xmvsf_select::kSlots[preview].rom);
         }
     }
-}
-
-// Single read-only source of displayed character identity. The original
-// cursor word is NO LONGER authoritative after a second team pick: the ROM
-// can replace it while finalizing its native selection bookkeeping.
-// This gives the art and names the same IDs we actually commit to the team.
-uint16_t ChoosingVisualCharacterId(unsigned side) {
-    if (side >= 2u) return 0xFFFFu;
-    const uint32_t record = kChoosing + side * kChoosingSize;
-    if (!g_layoutRunning) return Ram16(record + kCursor);
-    if (Ram8(record + 3u) >= 2u) {
-        const uint16_t committed = g_committed[side][1];
-        if (committed != 0xFFFFu) return committed;
-        return Ram16(kPicks + side * 4u + 2u);
-    }
-    return port::xmvsf_select::kSlots[
-        static_cast<unsigned>(g_layout.index[side])].rom;
 }
 
 // The native 00BAEA stage hook is before the ROM constructs its final
