@@ -1,5 +1,14 @@
 # XMVSF native front end — 87.498 (native character-select composition and horizontal ROM grid)
 
+## 87.506 — F10-guided native character-announcer correction
+
+- The uploaded `latest(1).zip` captured two 16-byte native confirmation requests: frame 648 chose Magneto (`0x0E`) and queued `000000A700001000...`; frame 884 chose Rogue (`0x06`) but native cursor bookkeeping queued Gambit (`000000A400001000...`). Both voices were followed by `0000008200001000...` in the same emulated frame.
+- The observed native mapping for two independent characters is `voice = 0xA0 + romId/2`, predicting Rogue `0xA3`. The common `0x82` request must **not** be changed.
+- Hook the original 16-byte queue insertion routine at `0787E0`. The hook returns `false` so the ROM still performs its original work. On a native confirmation input **during character selection only**, the hook inspects the *previously queued* request before the follow-up native sound request is enqueued. It requires a new ring write relative to the **current CPU frame's starting write pointer**, a valid native request layout (`000000A?00001000`), and an actual 18-slot character voice ID. It skips ambiguous simultaneous P1/P2 confirmation. Only the message's byte at `FF2648 + ringOffset + 3` can change.
+- Example: frame 884's queued `0xA4` should become `0xA3` for Rogue before the ROM's `0x82` request follows; frame 648's already matching `0xA7` remains unchanged. No code changes to native input, selection phase, character IDs, portraits, or audio playback/buffering.
+- Local `test_character_select_grid.cpp` statically checks the captured Magneto/Gambit IDs and Rogue prediction; the Python preflight guards the native hook, request-format checks, ring freshness guard and preserved 87.500 navigation path.
+- **Windows recompilation and actual audible playback are not verified yet.** The contiguous voice mapping and native hook timing are supported by the F10 capture/source but still require in-game validation. If selection audio remains wrong, collect a new F10 trace to determine whether the ROM bypasses the `0787E0` entry or sends the voice before the follow-up request.
+
 ## 87.505 — F10-proven first/second-pick identity divergence
 
 - Analyzed the `latest(1).zip` native F10 recording (frames 554–934). At frame 648 the custom grid selected Magneto (`0x0E`), the ROM committed `0x0E` and queued `0xA7` plus `0x82`. The custom grid advanced to Juggernaut (`0x0C`) at frame 649 while the ROM's end-of-frame cursor returned `0x00`. Native entry into phase 03 occurred at frame 680.
