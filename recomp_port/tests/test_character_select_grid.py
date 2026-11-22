@@ -95,6 +95,9 @@ def main():
     assert "machine.players[n] &= static_cast<uint16_t>(~fight::kSticks);" not in chooser
     assert "const unsigned direction = physical & (kRight | kLeft | kDown | kUp);" in chooser
     assert "ChoosingLayoutBeforeCpu(machine);" in game
+    # A/B selection edges must only be consumed by committed frames.
+    assert "TheGame().noRunAhead = [] {" in game
+    assert "Ram16(xmvsf::kGameStep) == xmvsf::kGameChoosing;" in game
     # Native ROM must still receive real directions to generate move sounds.
     assert "machine.players[n] &= static_cast<uint16_t>(~fight::kSticks);" not in chooser
     assert "machine.selectionRamWriteOverride = &RemapSelectionWrite;" in chooser
