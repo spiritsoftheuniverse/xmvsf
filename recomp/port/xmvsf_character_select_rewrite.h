@@ -100,6 +100,44 @@ inline std::uint16_t RewriteSelectionNameRingWrite(
     return static_cast<std::uint16_t>((value & 0xFF00u) | name);
 }
 
+
+// The byte-write filter alone cannot see every queued voice: the guest may
+// assemble or copy a complete request in RAM before advancing FF2642.
+// Inspect COMPLETED 16-byte requests at the native queue commit boundary,
+// before the ROM consumes them. The original A/B or C/D-family code still
+// identifies the player; only then is it replaced with that player's
+// custom selector's canonical voice. Never rescan a rewritten entry as if
+// its new A-family command were a fresh P1 request.
+inline unsigned RewriteQueuedSelectionNames(
+    std::uint16_t before, std::uint16_t after,
+    std::uint8_t *ram, std::size_t ramSize,
+    const std::array<std::uint16_t, 2> &selected) {
+    if (!ram || ramSize < 0x10000u ||
+        before > 0x3F0u || after > 0x3F0u ||
+        (before & 15u) || (after & 15u)) return 0u;
+    const unsigned distance = (static_cast<unsigned>(after) + 0x400u -
+                               static_cast<unsigned>(before)) & 0x3F0u;
+    // A queue-pointer byte update can briefly look like an enormous
+    // forward jump (e.g. 03F0 -> 00F0 before the low byte reaches 0000).
+    // Never reinterpret stale ring slots as fresh announcements.
+    if (distance > 0x80u) return 0u;
+    unsigned corrected = 0u;
+    for (unsigned delta = 0u; delta < distance; delta += 16u) {
+        const unsigned offset = (static_cast<unsigned>(before) + delta) & 0x3F0u;
+        std::uint8_t *const entry = ram + 0x2648u + offset;
+        if (!SelectionSoundEnvelope(entry, 0x10u)) continue;
+        const std::uint16_t native = static_cast<std::uint16_t>(
+            (static_cast<unsigned>(entry[2]) << 8u) | entry[3]);
+        const std::uint16_t replacement = RewriteSelectionNameRingWrite(
+            0xFF264Au + offset, native, 2u, ram, ramSize, selected);
+        if (replacement == native) continue;
+        entry[2] = static_cast<std::uint8_t>(replacement >> 8u);
+        entry[3] = static_cast<std::uint8_t>(replacement);
+        ++corrected;
+    }
+    return corrected;
+}
+
 // The ROM's actual FF2648 ring is now the only producer of name speech.
 // The Z80 shared-RAM stage is reserved for the ROM's own conversion.
 // Only mute separately queued character-owned 0A00 sprite speech here.
