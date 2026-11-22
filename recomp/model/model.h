@@ -22,6 +22,7 @@
 #include "machine.h"
 
 #include <cstdint>
+#include <string>
 #include <vector>
 
 namespace cps2recomp::model {
@@ -112,6 +113,10 @@ int CharacterNumber();
 bool Changed();
 // The character was in the last picture made (Frame)
 bool Seen();
+// Palette Studio CLI only: export a genuine standing frame from the
+// model viewer, cropped with the same original object-ink pipeline.
+// Returns false if the native model has not been drawn yet.
+bool ExportStandingPng(const std::string &folder);
 
 // Each frame while viewing, before the game runs it: the animation shown (player 1's controls taken while one is),
 // and the speed chosen
