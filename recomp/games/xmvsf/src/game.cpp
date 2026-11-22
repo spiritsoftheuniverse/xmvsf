@@ -33,6 +33,7 @@ void RegisterColours(); // colours.cpp
 void RegisterBattle(); // battle.cpp
 void ChoosingBeforeFrame(Machine &machine);
 void ChoosingLayoutBeforeCpu(Machine &machine);
+void ChoosingLayoutAfterFrame(Machine &machine);
 void RegisterTag(); // tag.cpp
 
 // 001608, the game's random number: a long divs (001614, about 150 cycles), then the number kept (00161A). The board
@@ -96,6 +97,7 @@ void RegisterGame() {
             Ram8(xmvsf::kFight), static_cast<unsigned>(machine.frame),
             Ram8(xmvsf::kPlaying) != 0 && machine.video.hudShock);
         xmvsf_f10::Capture::Get().AfterFrame(machine);
+        ChoosingLayoutAfterFrame(machine); // ROM has written cursor; restore source-grid preview
         session::Frame(machine);
         modes::Frame(machine);
         BattleFrame(machine);
