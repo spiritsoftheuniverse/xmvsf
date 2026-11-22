@@ -101,6 +101,8 @@ def main():
     assert "machine.selectionVoiceQueueBeforeSound = nullptr;" in chooser
     assert "constexpr uint16_t kConfirm = kPunch1 | kPunch2 | kPunch3 |" in chooser
     assert "if (active && (machine.players[n] & kConfirm) != 0u)" in chooser
+    assert chooser.index("g_layout.Advance(n, direction, active);") < chooser.index(
+        "g_voiceDesired = IntendedNativeId(static_cast<unsigned>(n));")
     assert "g_voiceSide = -2;" in chooser
     assert "g_voiceSide = -1;" in chooser
     assert "CorrectQueuedCharacterVoice(std::uint8_t *ram" in (
