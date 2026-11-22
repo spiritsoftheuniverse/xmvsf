@@ -31,159 +31,76 @@ static_assert(NativeCharacterVoice(0x24) == 0xAB); // Alpha Chun-Li = Chun-Li
 static_assert(Navigate(0, 1) == 1 && Navigate(8, 1) == 0);
 static_assert(Navigate(9, 1) == 10 && Navigate(9, 8) == 0);
 int main() {
-    // 87.517: both P1 choices and both P2 choices use the SAME A-family
-    // character-name table. A native wrong Gambit voice may NEVER replace
-    // P1 pick 2 Storm (A2). Source-specific queue provenance is stripped
-    // at delivery so the Z80 receives the original 16-byte sound envelope.
-    std::array<std::uint8_t, 65536> ring{};
-    constexpr unsigned ringBase = 0x2648u;
-    assert(QueueExplicitSelectionSound(ring.data(), ring.size(), 0xA4u, 0u, 0u));
-    assert(QueueExplicitSelectionSound(ring.data(), ring.size(), 0x82u, 0u, 0u));
-    assert(QueueExplicitSelectionSound(ring.data(), ring.size(), 0xA2u, 0u, 1u));
-    assert(QueueExplicitSelectionSound(ring.data(), ring.size(), 0x82u, 0u, 1u));
-    assert(ring[0x2643u] == 64u);
-    for (unsigned at = 0u; at < 64u; at += 16u) {
-        assert(ring[ringBase + at + 6u] == 0x10u);
-        assert(ring[ringBase + at + 8u] == kSelectTagA);
-        assert(ring[ringBase + at + 9u] == kSelectTagB);
-        assert(ring[ringBase + at + 10u] == 0u);
-        assert(ring[ringBase + at + 11u] == (at >= 32u ? 1u : 0u));
-    }
-    assert(ring[ringBase + 3u] == 0xA4u); // Gambit, first pick
-    assert(ring[ringBase + 32u + 3u] == 0xA2u); // Storm, SECOND pick
-    assert(!QueueExplicitSelectionSound(ring.data(), 100u, 0xA2u, 0u, 1u));
-    assert(!QueueExplicitSelectionSound(ring.data(), ring.size(), 0x100u, 0u, 1u));
-    assert(!QueueExplicitSelectionSound(ring.data(), ring.size(), 0xA2u, 2u, 1u));
-    assert(!QueueExplicitSelectionSound(ring.data(), ring.size(), 0xA2u, 0u, 2u));
-    // Every one of the 18 authoritative portrait ROM IDs must have
-    // exactly one A-family name regardless of side or pick.
-    for (const Slot &slot : kSlots) {
-        const std::uint16_t name = NativeCharacterVoice(slot.rom);
-        assert(name >= 0xA0u && name <= 0xB1u);
-        assert(name == 0xA0u + CharacterVoiceIdentity(slot.rom) / 2u);
-    }
-    // Native ring wrap and alignment are unchanged.
-    ring[0x2642u] = 3u; ring[0x2643u] = 0xF0u;
-    assert(QueueExplicitSelectionSound(ring.data(), ring.size(), 0xA2u, 1u, 1u));
-    assert(ring[0x2642u] == 0u && ring[0x2643u] == 0u);
-    assert(ring[ringBase + 0x3F0u + 3u] == 0xA2u);
-    assert(ring[ringBase + 0x3F0u + 10u] == 1u);
-    assert(ring[ringBase + 0x3F0u + 11u] == 1u);
-    ring[0x2642u] = 0u; ring[0x2643u] = 1u;
-    assert(!QueueExplicitSelectionSound(ring.data(), ring.size(), 0xA7u));
-
-    std::array<std::uint8_t, 16> sound{};
-    auto request = [&](unsigned code, unsigned mode = 0x10u,
-                       bool tagged = false, unsigned side = 0u, unsigned pick = 0u) {
-        sound.fill(0u);
-        sound[2] = static_cast<std::uint8_t>(code >> 8u);
-        sound[3] = static_cast<std::uint8_t>(code);
-        sound[6] = static_cast<std::uint8_t>(mode);
-        if (tagged) {
-            sound[8] = kSelectTagA; sound[9] = kSelectTagB;
-            sound[10] = static_cast<std::uint8_t>(side);
-            sound[11] = static_cast<std::uint8_t>(pick);
+    // 87.518: the actual character table contains the literal AUDIO
+    // assignment for every one of the 18 portraits. Absolutely no
+    // P1/P2 or first/second transformation can be applied to this ID.
+    constexpr std::array<std::uint16_t, 18> expectedVoices{{
+        0xA1u, 0xA0u, 0xA4u, 0xA3u, 0xA5u, 0xA2u,
+        0xA7u, 0xA6u, 0xAFu, 0xA9u, 0xAAu, 0xB1u,
+        0xB0u, 0xABu, 0xABu, 0xADu, 0xACu, 0xAEu
+    }};
+    for (std::size_t slot = 0u; slot < kSlots.size(); ++slot) {
+        assert(kSlots[slot].nameVoice == expectedVoices[slot]);
+        assert(NativeCharacterVoice(kSlots[slot].rom) == expectedVoices[slot]);
+        for (unsigned side = 0u; side < 2u; ++side) {
+            for (unsigned pick = 0u; pick < 2u; ++pick) {
+                (void)side; (void)pick;
+                const auto sound = NativeCharacterVoice(kSlots[slot].rom);
+                assert(sound == expectedVoices[slot]);
+            }
         }
-    };
-    SelectionNames expected{};
-    SelectionTickets nameTickets{}, confirmTickets{};
-    expected[0][0] = 0xA4u; // Gambit P1 FIRST
-    expected[0][1] = 0xA2u; // Storm P1 SECOND
-    expected[1][0] = 0xA4u; // Gambit P2 FIRST, still A4
-    expected[1][1] = 0xAFu; // Akuma P2 SECOND, still AF
+    }
+    // Explicit cross-character and selection-order regressions:
+    // Gambit A4 for P1 pick 1, P1 pick 2, P2 pick 1 and P2 pick 2.
     for (unsigned side = 0u; side < 2u; ++side)
-        for (unsigned pick = 0u; pick < 2u; ++pick)
-            nameTickets[side][pick] = confirmTickets[side][pick] = 1u;
-
-    // Old native voices, even where their character name is correct,
-    // are discarded. The only authorized names are our own tagged
-    // requests matched to an exact side and exact first/second pick.
-    for (const unsigned code : {0xA4u, 0xA2u, 0xB3u, 0xC4u, 0xAFu}) {
-        request(code);
-        assert(!AllowAuthoritativeSelectionSound(
-            sound.data(), expected, nameTickets, confirmTickets));
-    }
-    request(0x03BBu, 0x0Au); // Cammy native sprite voice
-    assert(!AllowAuthoritativeSelectionSound(
-        sound.data(), expected, nameTickets, confirmTickets));
-    request(0x82u);
-    assert(!AllowAuthoritativeSelectionSound(
-        sound.data(), expected, nameTickets, confirmTickets));
-    request(0x83u);
-    assert(!AllowAuthoritativeSelectionSound(
-        sound.data(), expected, nameTickets, confirmTickets));
-    request(0x84u);
-    assert(AllowAuthoritativeSelectionSound(
-        sound.data(), expected, nameTickets, confirmTickets));
-    request(0x85u);
-    assert(AllowAuthoritativeSelectionSound(
-        sound.data(), expected, nameTickets, confirmTickets));
-
-    // P1 first pick: Gambit A4.
-    request(0xA4u, 0x10u, true, 0u, 0u);
-    assert(AllowAuthoritativeSelectionSound(
-        sound.data(), expected, nameTickets, confirmTickets));
-    assert(sound[8] == 0u && sound[9] == 0u &&
-           sound[10] == 0u && sound[11] == 0u);
-    assert(nameTickets[0][0] == 0u);
-    request(0xA4u, 0x10u, true, 0u, 0u);
-    assert(!AllowAuthoritativeSelectionSound(
-        sound.data(), expected, nameTickets, confirmTickets));
-
-    // P1 second pick: Storm A2, NEVER Gambit A4 or native B3.
-    request(0xA4u, 0x10u, true, 0u, 1u);
-    assert(!AllowAuthoritativeSelectionSound(
-        sound.data(), expected, nameTickets, confirmTickets));
-    assert(nameTickets[0][1] == 1u);
-    request(0xA2u, 0x10u, true, 0u, 1u);
-    assert(AllowAuthoritativeSelectionSound(
-        sound.data(), expected, nameTickets, confirmTickets));
-    assert(nameTickets[0][1] == 0u);
-    request(0xA2u, 0x10u, true, 0u, 1u);
-    assert(!AllowAuthoritativeSelectionSound(
-        sound.data(), expected, nameTickets, confirmTickets));
-
-    // Both original character-name codes are player-independent.
-    request(0xC4u, 0x10u, true, 1u, 0u);
-    assert(!AllowAuthoritativeSelectionSound(
-        sound.data(), expected, nameTickets, confirmTickets));
-    request(0xA4u, 0x10u, true, 1u, 0u);
-    assert(AllowAuthoritativeSelectionSound(
-        sound.data(), expected, nameTickets, confirmTickets));
-    assert(nameTickets[1][0] == 0u);
-    request(0xAFu, 0x10u, true, 1u, 1u);
-    assert(AllowAuthoritativeSelectionSound(
-        sound.data(), expected, nameTickets, confirmTickets));
-    assert(nameTickets[1][1] == 0u);
-
-    // One confirmation for EACH accepted pick; the first confirmation
-    // cannot consume the second pick's separate authorization.
-    for (unsigned side = 0u; side < 2u; ++side) {
         for (unsigned pick = 0u; pick < 2u; ++pick) {
-            request(0x82u + side, 0x10u, true, side, pick);
-            assert(AllowAuthoritativeSelectionSound(
-                sound.data(), expected, nameTickets, confirmTickets));
-            assert(sound[8] == 0u && sound[9] == 0u);
-            assert(confirmTickets[side][pick] == 0u);
-            request(0x82u + side, 0x10u, true, side, pick);
-            assert(!AllowAuthoritativeSelectionSound(
-                sound.data(), expected, nameTickets, confirmTickets));
+            (void)side; (void)pick;
+            assert(NativeCharacterVoice(0x08u) == 0xA4u);
+            assert(NativeCharacterVoice(0x04u) == 0xA2u);
+            assert(NativeCharacterVoice(0x1Eu) == 0xAFu);
+            assert(NativeCharacterVoice(0x0Cu) == 0xA6u);
         }
+    assert(NativeCharacterVoice(0x10u) == 0xFFFFu); // no Apocalypse
+    assert(NativeCharacterVoice(0x25u) == 0xFFFFu);
+
+    // The injection request always uses the original QSound envelope,
+    // without ROM ring provenance tags or guessed sprite sound blocks.
+    std::array<std::uint8_t, 16> sound{};
+    assert(MakeSelectionSoundRequest(sound.data(), sound.size(), 0xA4u));
+    assert(sound[3] == 0xA4u);
+    assert(sound[6] == 0x10u);
+    for (unsigned i = 0u; i < sound.size(); ++i) {
+        if (i != 3u && i != 6u) assert(sound[i] == 0u);
     }
-    request(0x40u);
-    assert(AllowAuthoritativeSelectionSound(
-        sound.data(), expected, nameTickets, confirmTickets));
-    request(0x40u, 0x20u);
-    assert(AllowAuthoritativeSelectionSound(
-        sound.data(), expected, nameTickets, confirmTickets));
-    request(0xA2u, 0x10u, true, 2u, 1u);
-    assert(!AllowAuthoritativeSelectionSound(
-        sound.data(), expected, nameTickets, confirmTickets));
-    request(0xA2u, 0x10u, true, 0u, 2u);
-    assert(!AllowAuthoritativeSelectionSound(
-        sound.data(), expected, nameTickets, confirmTickets));
-    assert(!AllowAuthoritativeSelectionSound(
-        nullptr, expected, nameTickets, confirmTickets));
+    assert(SelectionSoundEnvelope(sound.data(), 0x10u));
+    assert(!MakeSelectionSoundRequest(nullptr, sound.size(), 0xA4u));
+    assert(!MakeSelectionSoundRequest(sound.data(), 15u, 0xA4u));
+    assert(!MakeSelectionSoundRequest(sound.data(), sound.size(), 0x100u));
+
+    // Native announcements from either side can NEVER supply our
+    // character voice. The separate, direct, original-format request
+    // is what the injected QSound path plays.
+    for (const unsigned code : {0xA2u, 0xA4u, 0xAFu, 0xB3u,
+                                0xC2u, 0xC4u, 0xCFu, 0xD3u,
+                                0x82u, 0x83u}) {
+        assert(MakeSelectionSoundRequest(sound.data(), sound.size(), code));
+        assert(!AllowNativeSelectionSound(sound.data()));
+    }
+    for (const unsigned code : {0x84u, 0x85u, 0x40u}) {
+        assert(MakeSelectionSoundRequest(sound.data(), sound.size(), code));
+        assert(AllowNativeSelectionSound(sound.data()));
+    }
+    sound.fill(0u);
+    sound[2] = 0x03u;
+    sound[3] = 0xBBu; // native Cammy sprite speech
+    sound[6] = 0x0Au;
+    assert(SelectionSoundEnvelope(sound.data(), 0x0Au));
+    assert(!AllowNativeSelectionSound(sound.data()));
+    sound.fill(0u);
+    sound[3] = 0x40u; // unrelated sound control request
+    sound[6] = 0x20u;
+    assert(AllowNativeSelectionSound(sound.data()));
+    assert(!AllowNativeSelectionSound(nullptr));
 
     // 87.509: reproduce frame 648 first confirmation: A7 voice and
     // 82 confirmation SFX already enqueued, but the automatic 1-slot
