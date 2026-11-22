@@ -116,7 +116,10 @@ int main() {
     assert(!AllowAuthoritativeSelectionSound(sound.data(), expected, nameTickets, confirmTickets));
     request(0x03BBu, 0x0Au);
     assert(!AllowAuthoritativeSelectionSound(sound.data(), expected, nameTickets, confirmTickets));
-    // Non-selection control messages are not misidentified as speech.
+    // Non-character UI and music requests (including a 0x10 envelope)
+    // must not be muted just because selection is visible.
+    request(0x40u, 0x10u);
+    assert(AllowAuthoritativeSelectionSound(sound.data(), expected, nameTickets, confirmTickets));
     request(0x40u, 0x20u);
     assert(AllowAuthoritativeSelectionSound(sound.data(), expected, nameTickets, confirmTickets));
     assert(!AllowAuthoritativeSelectionSound(nullptr, expected, nameTickets, confirmTickets));
