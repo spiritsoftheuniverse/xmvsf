@@ -91,7 +91,8 @@ def main():
     assert "AddHook(HookAt(0x0787E0)" not in chooser
     assert "CorrectNativeQueuedVoice(Machine &machine)" in chooser
     assert "CorrectQueuedCharacterVoice(" in chooser
-    assert "NativeCharacterVoice(g_voiceDesired)" in chooser
+    assert "NativeCharacterVoice(" in chooser
+    assert "g_voiceDesired, static_cast<unsigned>(g_voiceSide)" in chooser
     assert "g_voiceReadAt = Ram16(kSoundQueueEnd);" in chooser
     assert "const unsigned diff =" in chooser
     assert "if (diff > 128u)" in chooser
@@ -111,18 +112,28 @@ def main():
     # truly moves and the native sound queue did not already emit 0x84.
     select_rewrite = (SRC / "xmvsf_character_select_rewrite.h").read_text()
     assert "QueueMissingCursorMovementSound(std::uint8_t *ram" in select_rewrite
-    assert "p[3] != 0x84u" in select_rewrite
-    assert "entry[3] = 0x84u;" in select_rewrite
+    assert "p[3] != soundCode" in select_rewrite
+    assert "entry[3] = static_cast<std::uint8_t>(soundCode);" in select_rewrite
+    assert "soundCode != 0x84u && soundCode != 0x85u" in select_rewrite
+    assert "NativeCharacterVoice(std::uint16_t id," in select_rewrite
+    assert "0xA0u + side * 0x20u + id / 2u" in select_rewrite
+    assert "CorrectQueuedCharacterVoice(std::uint8_t *ram" in select_rewrite
+    assert "const unsigned base = 0xA0u + side * 0x20u;" in select_rewrite
     assert "entry[6] = 0x10u;" in select_rewrite
     assert "distance > 128u" in select_rewrite
     assert "if (nativeMoveTick(ram + 0x2648u + at)) return false;" in select_rewrite
+    assert "SuppressTrailingSelectionSpriteVoice(" not in select_rewrite
+    assert "SuppressTrailingSelectionSpriteVoice(" not in chooser
     assert "g_cursorSoundBegin = g_voiceReadAt;" in chooser
     assert "g_gridBeforeFrame[0] = g_layout.index[0];" in chooser
     assert "g_gridBeforeFrame[1] = g_layout.index[1];" in chooser
     assert "g_gridBeforeFrame[0] != g_layout.index[0]" in chooser
     assert "g_gridBeforeFrame[1] != g_layout.index[1]" in chooser
     assert "QueueMissingCursorMovementSound(" in chooser
-    assert "if (customMoved && g_cursorSoundBegin != 0xFFFFu &&" in chooser
+    assert "const bool p1Moved =" in chooser
+    assert "const bool p2Moved =" in chooser
+    assert "const unsigned soundCode = side == 0u ? 0x84u : 0x85u;" in chooser
+    assert "g_cursorSoundBegin, after, soundCode" in chooser
     assert "if (!RunningAhead()" not in select_rewrite
     assert "AddHook(HookAt(0x0787E0)" not in chooser
     assert "g_voiceReadAt = Ram16(kSoundQueueEnd);" in chooser
@@ -153,6 +164,11 @@ def main():
     assert "const bool wroteCounter" in chooser
     assert "const bool active = Ram8(record) <= 3u && Ram8(record + 3u) < 2u;" in chooser
     assert "const bool p1CursorActive = ram[0x5183u] < 2u;" in frontend
+    # Selection stops flickering but its outlined cell remains visible.
+    assert "(!cursorP1 || ink)" in screen
+    assert "(!cursorP2 || ink)" in screen
+    assert "if (ink && showP1 && cursorP1" not in screen
+    assert "if (ink && showP2 && cursorP2" not in screen
     assert "const bool p2CursorActive = ram[0x51A3u] < 2u;" in frontend
     assert "p1CursorActive, p2CursorActive))" in frontend
     gpp = shutil.which("g++")
@@ -163,7 +179,7 @@ def main():
                         str(ROOT / "recomp_port/tests/test_character_select_grid.cpp"),
                         "-o", str(binary)], check=True)
         subprocess.run([str(binary)], check=True)
-    print("XMVSF 87.509 native 0x84 handoff tick, deduped movement, 87.508 voice and 18-ID mapping PASS")
+    print("XMVSF 87.511 P1/P2 voice/ticks, native 82/83 confirm and steady selected cursor PASS")
 
 if __name__ == "__main__":
     main()
