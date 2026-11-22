@@ -29,6 +29,18 @@ namespace {
     uint16_t g_committed[2][2] = {{0xFFFFu, 0xFFFFu}, {0xFFFFu, 0xFFFFu}};
     bool g_commitPending = false; // one native match handoff, not every arcade round
 
+    void EnterSecondCandidate(unsigned n) {
+        if (n >= 2u || g_secondCandidateReady[n]) return;
+        const int prior = g_layout.index[n];
+        g_layout.index[n] = port::xmvsf_select::Navigate(prior, 1u);
+        g_secondCandidateReady[n] = true;
+        std::fprintf(stderr,
+            "XMVSF 87.501 SECOND_READY P%u: grid=%d->%d id=%04X\n",
+            n + 1u, prior, g_layout.index[n],
+            port::xmvsf_select::kSlots[
+                static_cast<unsigned>(g_layout.index[n])].rom);
+    }
+
     uint16_t IntendedNativeId(unsigned n) {
         const uint16_t raw =
             port::xmvsf_select::kSlots[static_cast<unsigned>(g_layout.index[n])].rom;
@@ -43,6 +55,19 @@ namespace {
 
     void RemapSelectionWrite(Machine &, uint32_t address,
                              uint16_t &value, unsigned bytes) {
+        // Follow the NATIVE phase-03 entry, not the first accepted-count
+        // increment (which can precede the end of the first voice/flash).
+        // Do it at the bus write, before the ROM's second-candidate sound
+        // routine reads the cursor; AfterFrame is only a fallback.
+        const uint32_t at = address & 0xFFFFFFu;
+        for (unsigned n = 0; n < 2u; ++n) {
+            const uint32_t record = kChoosing + n * kChoosingSize;
+            const bool phaseWrite = at == record &&
+                ((bytes == 1u && value == 3u) ||
+                 (bytes == 2u && (value >> 8u) == 3u));
+            if (phaseWrite && Ram8(record + 3u) == 1u)
+                EnterSecondCandidate(n);
+        }
         const std::array<uint16_t, 2> selected{{
             IntendedNativeId(0u), IntendedNativeId(1u)
         }};
@@ -54,7 +79,6 @@ namespace {
         // counters. Capture the ID AT THE RAM WRITE: the ROM can leave
         // character selection on the same frame as pick two, meaning a
         // post-frame check may otherwise never see the second accept.
-        const uint32_t at = address & 0xFFFFFFu;
         for (unsigned n = 0; n < 2u; ++n) {
             const uint32_t counter = 0xFF5183u + n * 0x20u;
             const bool wroteCounter = (bytes == 1u && at == counter) ||
@@ -202,16 +226,8 @@ void ChoosingLayoutAfterFrame(Machine &machine) {
         // actually ready. Advance only on that edge, never immediately
         // when FF5183/FF51A3 first becomes 1 (which is still the first
         // character's confirmation/voice animation).
-        if (accepted == 1u && Ram8(record) == 3u && !g_secondCandidateReady[n]) {
-            const unsigned priorIndex = static_cast<unsigned>(g_layout.index[n]);
-            g_layout.index[n] = port::xmvsf_select::Navigate(g_layout.index[n], 1u);
-            g_secondCandidateReady[n] = true;
-            std::fprintf(stderr,
-                "XMVSF 87.501 SECOND_READY P%d: grid=%u->%d id=%04X phase=%u\n",
-                n + 1, priorIndex, g_layout.index[n],
-                port::xmvsf_select::kSlots[static_cast<unsigned>(g_layout.index[n])].rom,
-                unsigned(Ram8(record)));
-        }
+        if (accepted == 1u && Ram8(record) == 3u)
+            EnterSecondCandidate(static_cast<unsigned>(n));
         // Write AFTER the ROM's original navigation, not only before it.
         // Do not overwrite native mode/speed (steps 4+) or completed picks.
         if (accepted < 2u && Ram8(record) <= 3u) {
