@@ -109,7 +109,7 @@ class DecoderTests(unittest.TestCase):
         # animation names or a different character by prefix.
         with tempfile.TemporaryDirectory() as folder:
             old = studio.VIEWER_EXPORTS
-            studio.VIEWER_EXPORTS = Path(folder)
+            studio.VIEWER_EXPORTS = (Path(folder),)
             try:
                 for name in ("Ryu.png", "Ryu 2.png", "Ryu A12.png",
                              "Ryu 1.png", "Ryu-special.png", "Ken.png",
@@ -135,7 +135,7 @@ class DecoderTests(unittest.TestCase):
             old = studio.VIEWER_EXPORTS
             old_sprites = studio.SPRITES
             old_portraits = studio.PORTRAITS
-            studio.VIEWER_EXPORTS = Path(folder)
+            studio.VIEWER_EXPORTS = (Path(folder),)
             studio.SPRITES = Path(folder) / "sprite-storage"
             studio.PORTRAITS = Path(folder) / "portraits"
             try:
