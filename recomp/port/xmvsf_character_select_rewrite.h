@@ -121,10 +121,11 @@ inline bool AllowAuthoritativeSelectionSound(
                 return true;
             }
         }
-        // Other original selection sound effects, including the wrong
-        // A?/C? announcements, must not leak through. Non-name effects
-        // have no assigned source character in our custom 18-slot grid.
-        return false;
+        // Native names in either family, including invalid source IDs,
+        // cannot select a different recorded character. Other ordinary
+        // UI/music requests are NOT character speech and stay untouched.
+        if (code >= 0xA0u && code <= 0xDFu) return false;
+        return true;
     }
     if (SelectionSoundEnvelope(request, 0x0Au)) {
         // Original sprite speech: this whole 0A00 request family is
