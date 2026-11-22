@@ -24,6 +24,8 @@ namespace {
     port::xmvsf_select::Navigation g_layout;
     bool g_layoutRunning = false;
     uint8_t g_accepted[2] = {0, 0}; // real FF5183 / FF51A3 native accepted counts
+    uint16_t g_committed[2][2] = {{0xFFFFu, 0xFFFFu}, {0xFFFFu, 0xFFFFu}};
+    bool g_commitPending = false; // one native match handoff, not every arcade round
 
     void RemapSelectionWrite(Machine &, uint32_t address,
                              uint16_t &value, unsigned bytes) {
@@ -92,6 +94,9 @@ void ChoosingLayoutBeforeCpu(Machine &machine) {
     }
     if (!g_layoutRunning) {
         g_layout.Reset();
+        g_committed[0][0] = g_committed[0][1] = 0xFFFFu;
+        g_committed[1][0] = g_committed[1][1] = 0xFFFFu;
+        g_commitPending = false;
         g_layoutRunning = true;
     }
     // Keep this active for the ROM's actual writes during RunFrame.
@@ -138,7 +143,12 @@ void ChoosingLayoutAfterFrame(Machine &machine) {
                 const bool hidden = FeatureOn("hidden_characters") && g_start[n] &&
                     ((target == 0x12u && native == kAkuma) ||
                      (target == 0x16u && native == 0x24u));
-                if (!hidden && native != target) SetRam16(pickAt, target);
+                const uint16_t committed = hidden ? native : target;
+                g_committed[n][pick] = committed;
+                if (native != committed) SetRam16(pickAt, committed);
+                std::fprintf(stderr,
+                    "XMVSF 87.500 native select P%d PICK%d: native=%04X mapped=%04X count=%u\n",
+                    n + 1, pick + 1, native, committed, accepted);
             }
             // The second character defaults to the next cell across,
             // as native Cyclops->Wolverine / Ryu->Ken did.
@@ -146,6 +156,7 @@ void ChoosingLayoutAfterFrame(Machine &machine) {
                 g_layout.index[n] = port::xmvsf_select::Navigate(g_layout.index[n], 1u);
             }
         }
+        if (accepted == 2u && g_accepted[n] < 2u) g_commitPending = true;
         g_accepted[n] = accepted;
         // Write AFTER the ROM's original navigation, not only before it.
         // Do not overwrite native mode/speed (steps 4+) or completed picks.
@@ -154,6 +165,23 @@ void ChoosingLayoutAfterFrame(Machine &machine) {
             SetRam16(record + kCursor, port::xmvsf_select::kSlots[preview].rom);
         }
     }
+}
+
+// The native 00BAEA stage hook is before the ROM constructs its final
+// match records. Apply each accepted player team there ONE time. Never
+// replace Arcade CPU opponents on later matches with stale selector data.
+void ApplyCustomTeamPicksBeforeMatch() {
+    if (!g_commitPending) return;
+    for (int n = 0; n < 2; ++n) {
+        if (n == 1 && (Ram8(kPlayersIn) & 2u) == 0u) continue;
+        if (g_committed[n][0] == 0xFFFFu || g_committed[n][1] == 0xFFFFu)
+            continue;
+        for (unsigned pick = 0; pick < 2u; ++pick) {
+            SetRam16(kPicks + static_cast<uint32_t>(n * 4u + pick * 2u),
+                     g_committed[n][pick]);
+        }
+    }
+    g_commitPending = false;
 }
 
 void RegisterChoosing() {
