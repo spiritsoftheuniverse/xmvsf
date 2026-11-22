@@ -33,9 +33,10 @@ namespace {
     // kSlots is the only name identity source; P1/P2 share its code.
     // Native speech is filtered at the complete M68K->QSound handoff.
     uint8_t g_soundAccepted[2] = {0, 0};
-    std::array<std::uint16_t, 2> g_expectedNames{{0xFFFFu, 0xFFFFu}};
-    std::array<unsigned, 2> g_nameTickets{{0u, 0u}};
-    std::array<unsigned, 2> g_confirmTickets{{0u, 0u}};
+    port::xmvsf_select::SelectionNames g_expectedNames{};
+    port::xmvsf_select::SelectionTickets g_nameTickets{};
+    port::xmvsf_select::SelectionTickets g_confirmTickets{};
+    unsigned g_soundTailFrames = 0u; // drain selection requests during ROM handoff
     // 87.509: beginning-of-frame native ring pointer and custom grid.
     // Used only to fill missing ROM 0x84 ticks on *actual* grid movement.
     uint16_t g_cursorSoundBegin = 0xFFFFu;
@@ -57,8 +58,7 @@ namespace {
     // request at the machine's transport boundary. It does not rewrite
     // guest selection identities, call a translated ROM function, or
     // guess character-owned sound-slot offsets.
-    bool AuthoritativeSelectionSound(Machine &, const uint8_t *request) {
-        if (!g_layoutRunning) return true;
+    bool AuthoritativeSelectionSound(Machine &, uint8_t *request) {
         return port::xmvsf_select::AllowAuthoritativeSelectionSound(
             request, g_expectedNames, g_nameTickets, g_confirmTickets);
     }
@@ -91,19 +91,26 @@ namespace {
             // source-only ticket counters are not save-state serialized).
             if (!RunningAhead() && count > g_soundAccepted[n] && count <= 2u) {
                 g_soundAccepted[n] = count; // idempotent even if ROM writes twice
+                const unsigned pick = count - 1u;
+                // Capture the custom grid's ROM ID once at the native
+                // accepted-count edge. Both the sound and final visual
+                // selector refer to THIS pick, never a later ROM cursor.
                 const std::uint16_t selected = IntendedNativeId(n);
+                g_committed[n][pick] = selected;
                 const std::uint16_t name =
                     port::xmvsf_select::NativeCharacterVoice(selected);
                 if (name != 0xFFFFu &&
                     port::xmvsf_select::QueueExplicitSelectionSound(
-                        machine.ram.data(), machine.ram.size(), name)) {
-                    g_expectedNames[n] = name;
-                    g_nameTickets[n] = 1u; // never accumulate stale voice tickets
+                        machine.ram.data(), machine.ram.size(), name,
+                        static_cast<unsigned>(n), pick)) {
+                    g_expectedNames[n][pick] = name;
+                    g_nameTickets[n][pick] = 1u;
                 }
                 if (port::xmvsf_select::QueueExplicitSelectionSound(
                         machine.ram.data(), machine.ram.size(),
-                        static_cast<uint16_t>(0x82u + n))) {
-                    g_confirmTickets[n] = 1u; // one audible confirm per pick
+                        static_cast<uint16_t>(0x82u + n),
+                        static_cast<unsigned>(n), pick)) {
+                    g_confirmTickets[n][pick] = 1u;
                 }
                 std::fprintf(stderr,
                     "XMVSF 87.515 explicit select P%u pick%u id=%04X name=%04X frame=%llu\n",
@@ -171,11 +178,20 @@ void ChoosingLayoutBeforeCpu(Machine &machine) {
     if (!choosing) {
         machine.selectionRamWriteOverride = nullptr;
         machine.selectionVoiceQueueBeforeSound = nullptr;
-        machine.selectionSoundRequestFilter = nullptr;
-        g_soundAccepted[0] = g_soundAccepted[1] = 0u;
-        g_expectedNames = {{0xFFFFu, 0xFFFFu}};
-        g_nameTickets = {{0u, 0u}};
-        g_confirmTickets = {{0u, 0u}};
+        // The second accepted pick can leave choosing in the SAME frame.
+        // Keep filtering native sound requests for a bounded drain tail
+        // so a delayed B3/C-family name cannot leak into the VS handoff.
+        if (g_layoutRunning) g_soundTailFrames = 30u;
+        machine.selectionSoundRequestFilter = g_soundTailFrames > 0u
+            ? &AuthoritativeSelectionSound : nullptr;
+        if (g_soundTailFrames > 0u) {
+            --g_soundTailFrames;
+        } else {
+            g_soundAccepted[0] = g_soundAccepted[1] = 0u;
+            g_expectedNames = {};
+            g_nameTickets = {};
+            g_confirmTickets = {};
+        }
         g_cursorSoundBegin = 0xFFFFu;
         g_gridBeforeFrame[0] = g_gridBeforeFrame[1] = -1;
         if (g_layoutRunning) g_layout.Reset();
@@ -189,11 +205,12 @@ void ChoosingLayoutBeforeCpu(Machine &machine) {
         g_committed[1][0] = g_committed[1][1] = 0xFFFFu;
         g_commitPending = false;
         g_soundAccepted[0] = g_soundAccepted[1] = 0u;
-        g_expectedNames = {{0xFFFFu, 0xFFFFu}};
-        g_nameTickets = {{0u, 0u}};
-        g_confirmTickets = {{0u, 0u}};
+        g_expectedNames = {};
+        g_nameTickets = {};
+        g_confirmTickets = {};
         g_layoutRunning = true;
     }
+    g_soundTailFrames = 0u; // fresh selection owns its own audio
     // Keep this active for the ROM's actual writes during RunFrame.
     // F10's separate RAM write observer remains undisturbed.
     machine.selectionRamWriteOverride = &RemapSelectionWrite;
