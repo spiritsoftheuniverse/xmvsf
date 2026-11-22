@@ -204,6 +204,21 @@ void ChoosingLayoutAfterFrame(Machine &machine) {
     }
 }
 
+// 87.505: Render identity from the same custom slot that is committed
+// to the native team, not the ROM's transient FF518C/FF51AC cursor word.
+// The F10 87.504 capture showed native cursor=0008 (Gambit) while the
+// custom second slot was 0006 (Rogue), subsequently committed at FF50B2.
+// Read-only: this does NOT change navigation, phase, audio or accepted picks.
+uint16_t ChoosingVisualCharacterId(unsigned side) {
+    if (side >= 2u) return 0xFFFFu;
+    const uint32_t record = kChoosing + static_cast<uint32_t>(side) * kChoosingSize;
+    if (!g_layoutRunning) return Ram16(record + kCursor);
+    if (Ram8(record + 3u) >= 2u)
+        return Ram16(kPicks + static_cast<uint32_t>(side) * 4u + 2u);
+    const unsigned slot = static_cast<unsigned>(g_layout.index[side]);
+    return port::xmvsf_select::kSlots[slot].rom;
+}
+
 // The native 00BAEA stage hook is before the ROM constructs its final
 // match records. Apply each accepted player team there ONE time. Never
 // replace Arcade CPU opponents on later matches with stale selector data.
