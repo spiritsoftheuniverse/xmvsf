@@ -48,6 +48,27 @@ namespace {
         const std::array<uint8_t, 2> accepted{{g_accepted[0], g_accepted[1]}};
         value = port::xmvsf_select::RewriteNativeSelectionWrite(
             address, value, bytes, selected, accepted);
+
+        // FF5183 / FF51A3 are the ROM's actual accepted-character
+        // counters. Capture the ID AT THE RAM WRITE: the ROM can leave
+        // character selection on the same frame as pick two, meaning a
+        // post-frame check may otherwise never see the second accept.
+        const uint32_t at = address & 0xFFFFFFu;
+        for (unsigned n = 0; n < 2u; ++n) {
+            const uint32_t counter = 0xFF5183u + n * 0x20u;
+            const bool wroteCounter = (bytes == 1u && at == counter) ||
+                                      (bytes == 2u && at == counter - 1u);
+            if (!wroteCounter) continue;
+            const uint8_t count = static_cast<uint8_t>(value & 0xFFu);
+            if (count > g_accepted[n] && count <= 2u) {
+                const unsigned pick = count - 1u;
+                g_committed[n][pick] = IntendedNativeId(n);
+                if (count == 2u) g_commitPending = true;
+                std::fprintf(stderr,
+                    "XMVSF 87.500 BUS_ACCEPT P%u PICK%u: id=%04X count=%u\n",
+                    n + 1u, pick + 1u, g_committed[n][pick], count);
+            }
+        }
     }
 
     // 00B1E8: a player's choosing record (A4) takes the character under its cursor
