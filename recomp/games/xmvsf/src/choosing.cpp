@@ -28,15 +28,22 @@ namespace {
     uint16_t g_committed[2][2] = {{0xFFFFu, 0xFFFFu}, {0xFFFFu, 0xFFFFu}};
     bool g_commitPending = false; // one native match handoff, not every arcade round
 
-    // 87.516: one explicit A-family character name and one native
-    // side-specific confirmation for EACH accepted-count edge.
-    // kSlots is the only name identity source; P1/P2 share its code.
-    // Native speech is filtered at the complete M68K->QSound handoff.
+    // 87.518: immutable voice codes come directly from each kSlots
+    // entry. Selection side and pick are only event metadata; neither
+    // participates in choosing the sound. Send original 16-byte native
+    // QSound requests DIRECTLY through the shared transport instead of
+    // writing temporary tags into the ROM's character sound ring.
     uint8_t g_soundAccepted[2] = {0, 0};
-    port::xmvsf_select::SelectionNames g_expectedNames{};
-    port::xmvsf_select::SelectionTickets g_nameTickets{};
-    port::xmvsf_select::SelectionTickets g_confirmTickets{};
-    unsigned g_soundTailFrames = 0u; // drain selection requests during ROM handoff
+    struct PendingSelectAudio {
+        std::uint16_t command;
+        std::uint16_t selectedRomId;
+        std::uint8_t side;
+        std::uint8_t pick;
+    };
+    std::array<PendingSelectAudio, 16> g_pendingAudio{};
+    unsigned g_audioRead = 0u, g_audioWrite = 0u;
+    bool g_injectingAudio = false;
+    unsigned g_soundTailFrames = 0u;
     // 87.509: beginning-of-frame native ring pointer and custom grid.
     // Used only to fill missing ROM 0x84 ticks on *actual* grid movement.
     uint16_t g_cursorSoundBegin = 0xFFFFu;
@@ -54,13 +61,49 @@ namespace {
         return raw;
     }
 
-    // This callback receives the COMPLETE 16-byte shared QSound
-    // request at the machine's transport boundary. It does not rewrite
-    // guest selection identities, call a translated ROM function, or
-    // guess character-owned sound-slot offsets.
     bool AuthoritativeSelectionSound(Machine &, uint8_t *request) {
-        return port::xmvsf_select::AllowAuthoritativeSelectionSound(
-            request, g_expectedNames, g_nameTickets, g_confirmTickets);
+        if (g_injectingAudio) return true; // only our direct request
+        return port::xmvsf_select::AllowNativeSelectionSound(request);
+    }
+
+    void QueueSelectedAudio(unsigned side, unsigned pick,
+                            std::uint16_t selectedRomId) {
+        if (side >= 2u || pick >= 2u) return;
+        const std::uint16_t name =
+            port::xmvsf_select::NativeCharacterVoice(selectedRomId);
+        if (name == 0xFFFFu || g_audioWrite + 2u > g_pendingAudio.size())
+            return;
+        g_pendingAudio[g_audioWrite++] = {
+            name, selectedRomId, static_cast<uint8_t>(side),
+            static_cast<uint8_t>(pick)
+        };
+        g_pendingAudio[g_audioWrite++] = {
+            static_cast<std::uint16_t>(0x82u + side), selectedRomId,
+            static_cast<uint8_t>(side), static_cast<uint8_t>(pick)
+        };
+    }
+
+    // Invoked after native CPU work, before native sound CPU work on
+    // EVERY scanline. Retains pending sound if the shared transport is
+    // busy, rather than losing the name or reusing the ROM's wrong voice.
+    void DeliverSelectedAudio(Machine &machine) {
+        if (g_audioRead >= g_audioWrite) return;
+        const auto &item = g_pendingAudio[g_audioRead];
+        std::uint8_t request[16] = {};
+        if (!port::xmvsf_select::MakeSelectionSoundRequest(
+                request, sizeof(request), item.command)) return;
+        g_injectingAudio = true;
+        const bool delivered = machine.LeaveSoundRequest(request);
+        g_injectingAudio = false;
+        if (!delivered) return;
+        std::fprintf(stderr,
+            "XMVSF 87.518 SOUND P%u PICK%u rom=%04X command=%02X frame=%llu\n",
+            static_cast<unsigned>(item.side + 1u),
+            static_cast<unsigned>(item.pick + 1u),
+            static_cast<unsigned>(item.selectedRomId),
+            static_cast<unsigned>(item.command),
+            static_cast<unsigned long long>(machine.frame));
+        ++g_audioRead;
     }
 
     void RemapSelectionWrite(Machine &machine, uint32_t address,
@@ -97,24 +140,12 @@ namespace {
                 // selector refer to THIS pick, never a later ROM cursor.
                 const std::uint16_t selected = IntendedNativeId(n);
                 g_committed[n][pick] = selected;
-                const std::uint16_t name =
-                    port::xmvsf_select::NativeCharacterVoice(selected);
-                if (name != 0xFFFFu &&
-                    port::xmvsf_select::QueueExplicitSelectionSound(
-                        machine.ram.data(), machine.ram.size(), name,
-                        static_cast<unsigned>(n), pick)) {
-                    g_expectedNames[n][pick] = name;
-                    g_nameTickets[n][pick] = 1u;
-                }
-                if (port::xmvsf_select::QueueExplicitSelectionSound(
-                        machine.ram.data(), machine.ram.size(),
-                        static_cast<uint16_t>(0x82u + n),
-                        static_cast<unsigned>(n), pick)) {
-                    g_confirmTickets[n][pick] = 1u;
-                }
+                QueueSelectedAudio(static_cast<unsigned>(n), pick, selected);
                 std::fprintf(stderr,
-                    "XMVSF 87.515 explicit select P%u pick%u id=%04X name=%04X frame=%llu\n",
-                    n + 1u, count, selected, name,
+                    "XMVSF 87.518 ACCEPT P%u PICK%u rom=%04X name=%02X frame=%llu\n",
+                    n + 1u, count, static_cast<unsigned>(selected),
+                    static_cast<unsigned>(
+                        port::xmvsf_select::NativeCharacterVoice(selected)),
                     static_cast<unsigned long long>(machine.frame));
             }
             if (count > g_accepted[n] && count <= 2u) {
@@ -177,20 +208,20 @@ void ChoosingLayoutBeforeCpu(Machine &machine) {
                           Ram16(kGameStep) == kGameChoosing;
     if (!choosing) {
         machine.selectionRamWriteOverride = nullptr;
-        machine.selectionVoiceQueueBeforeSound = nullptr;
         // The second accepted pick can leave choosing in the SAME frame.
         // Keep filtering native sound requests for a bounded drain tail
         // so a delayed B3/C-family name cannot leak into the VS handoff.
         if (g_layoutRunning) g_soundTailFrames = 30u;
         machine.selectionSoundRequestFilter = g_soundTailFrames > 0u
             ? &AuthoritativeSelectionSound : nullptr;
+        machine.selectionVoiceQueueBeforeSound = g_soundTailFrames > 0u
+            ? &DeliverSelectedAudio : nullptr;
         if (g_soundTailFrames > 0u) {
             --g_soundTailFrames;
         } else {
             g_soundAccepted[0] = g_soundAccepted[1] = 0u;
-            g_expectedNames = {};
-            g_nameTickets = {};
-            g_confirmTickets = {};
+            g_audioRead = g_audioWrite = 0u;
+            g_injectingAudio = false;
         }
         g_cursorSoundBegin = 0xFFFFu;
         g_gridBeforeFrame[0] = g_gridBeforeFrame[1] = -1;
@@ -205,18 +236,17 @@ void ChoosingLayoutBeforeCpu(Machine &machine) {
         g_committed[1][0] = g_committed[1][1] = 0xFFFFu;
         g_commitPending = false;
         g_soundAccepted[0] = g_soundAccepted[1] = 0u;
-        g_expectedNames = {};
-        g_nameTickets = {};
-        g_confirmTickets = {};
+        g_audioRead = g_audioWrite = 0u;
+        g_injectingAudio = false;
         g_layoutRunning = true;
     }
     g_soundTailFrames = 0u; // fresh selection owns its own audio
     // Keep this active for the ROM's actual writes during RunFrame.
     // F10's separate RAM write observer remains undisturbed.
     machine.selectionRamWriteOverride = &RemapSelectionWrite;
-    // Keep the old scanline voice rewriter OFF. All selection sound
-    // speech now goes through the one complete-request QSound gate.
-    machine.selectionVoiceQueueBeforeSound = nullptr;
+    // Per-scanline direct playback retries if the shared QSound request
+    // latch is busy; ROM-produced original name/sprite speech is muted.
+    machine.selectionVoiceQueueBeforeSound = &DeliverSelectedAudio;
     machine.selectionSoundRequestFilter = &AuthoritativeSelectionSound;
     g_cursorSoundBegin = Ram16(kSoundQueueEnd);
     g_gridBeforeFrame[0] = g_layout.index[0];
@@ -268,11 +298,16 @@ void ChoosingLayoutAfterFrame(Machine &machine) {
                     ((target == 0x12u && native == kAkuma) ||
                      (target == 0x16u && native == 0x24u));
                 const uint16_t committed = hidden ? native : target;
-                g_committed[n][pick] = committed;
-                if (native != committed) SetRam16(pickAt, committed);
+                // Preserve the EXACT ID captured at the native accept
+                // write. Do not recompute from a cursor that may have
+                // already moved to the following character.
+                const uint16_t fixed = g_committed[n][pick] != 0xFFFFu
+                    ? g_committed[n][pick] : committed;
+                g_committed[n][pick] = fixed;
+                if (native != fixed) SetRam16(pickAt, fixed);
                 std::fprintf(stderr,
                     "XMVSF 87.500 native select P%d PICK%d: native=%04X mapped=%04X count=%u\n",
-                    n + 1, pick + 1, native, committed, accepted);
+                    n + 1, pick + 1, native, fixed, accepted);
             }
             // The second character defaults to the next cell across,
             // as native Cyclops->Wolverine / Ryu->Ken did.
