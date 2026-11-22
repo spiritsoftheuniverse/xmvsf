@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>XMVSF II · Palette Studio</title>
+<style>
+:root {font-family:Segoe UI,Inter,Arial,sans-serif;color-scheme:dark;color:#e7f1fd;background:#090f1d}
+* {box-sizing:border-box}
+body {margin:0;background:radial-gradient(ellipse at 80% -12%,#203958,#090f1d 65%);min-height:100vh}
+button,input,select {font:inherit}
+button {cursor:pointer;color:#e7f1fd;background:#213750;border:1px solid #425e7f;border-radius:9px;padding:9px 13px;font-size:12px;font-weight:700}
+button:hover:not(:disabled) {border-color:#72bbeb;background:#2c4c6d}
+button:disabled {opacity:.35;cursor:not-allowed}
+button.primary {background:#1889bb;border-color:#66c8ee;color:#fff}
+button.active {background:#225b86;border-color:#83d8fa}
+input,select {background:#0e1a2b;color:#e7f1fd;border:1px solid #455f7c;border-radius:8px;padding:10px;font-size:13px;min-width:0}
+input:focus,select:focus {outline:1px solid #61b6e9}
+small,.muted {color:#91a8be}
+.site-head {border-bottom:1px solid #334961;background:#101b2bdb;padding:18px clamp(16px,2vw,32px);display:flex;align-items:center;justify-content:space-between;gap:18px;flex-wrap:wrap}
+.kicker {font-size:10px;letter-spacing:.26em;color:#77b4dd;font-weight:800}
+h1 {font-size:24px;letter-spacing:.03em;margin:5px 0}
+header p {font-size:12px;color:#9eb4ca;margin:0}
+.header-actions {display:flex;gap:9px;align-items:center;flex-wrap:wrap}
+.source {font-size:11px;max-width:355px;line-height:1.45;color:#a8c1d6;word-break:break-word}
+.layout {display:grid;grid-template-columns:225px minmax(440px,1fr) 274px;gap:13px;max-width:1800px;margin:0 auto;padding:15px}
+.panel {background:#101b2bd9;border:1px solid #2d4662;border-radius:14px;min-width:0;overflow:hidden;box-shadow:0 9px 30px #0003}
+.section-title {margin:0;font-size:11px;text-transform:uppercase;letter-spacing:.14em;color:#a6d2ef}
+.sidebar {display:flex;flex-direction:column;min-height:640px}
+.side-head {padding:18px 14px 12px}
+.side-head input {width:100%;margin-top:13px}
+.character-list {overflow-y:auto;padding:5px 8px 20px;max-height:calc(100vh - 235px)}
+.char-btn {display:flex;gap:10px;align-items:center;width:100%;background:transparent;border:1px solid transparent;border-radius:9px;padding:10px 8px;text-align:left;margin:2px 0}
+.char-btn:hover {background:#203751}
+.char-btn.active {background:#203b5b;border-color:#5298c4}
+.char-dot {width:12px;height:26px;border-radius:4px;flex:none;border:1px solid #ffffff22}
+.char-label {display:grid;gap:3px}
+.char-label strong {font-size:12px;font-weight:650}
+.char-label small {font-size:10px}
+.workspace {display:flex;flex-direction:column;gap:13px;min-width:0}
+.worktop {display:flex;align-items:flex-end;gap:14px;justify-content:space-between;flex-wrap:wrap;padding:18px 20px 0}
+.work-title {font-size:22px;font-weight:750;margin:3px 0 1px}
+.toolbar {display:flex;gap:7px;flex-wrap:wrap;align-items:center}
+.profile-select {min-width:155px;max-width:200px}
+.strip {border-top:1px solid #263e56;border-bottom:1px solid #263e56;background:#0b1727;padding:12px 18px}
+.strip-head {display:flex;align-items:center;justify-content:space-between;gap:15px;margin-bottom:10px}
+.strip-list {display:flex;gap:10px;min-height:103px;overflow-x:auto;padding:0 0 6px;align-items:stretch}
+.thumb {flex:0 0 92px;min-width:92px;padding:5px;background:#142539;border:1px solid #37536e;border-radius:9px;display:flex;flex-direction:column;align-items:center;gap:3px}
+.thumb.active {background:#1d4463;border-color:#88d6ff}
+.thumb canvas {width:76px;height:69px;image-rendering:pixelated;object-fit:contain;background:repeating-conic-gradient(#283c51 0% 25%,#192a3d 0% 50%) 50% / 12px 12px;border-radius:4px}
+.thumb span {font-size:10px;color:#c5daec;max-width:85px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.gallery-hint {margin-top:4px;font-size:11px;color:#8da9bd}
+.stage {display:grid;grid-template-columns:minmax(280px,1fr) minmax(280px,1.35fr);gap:12px;padding:0 15px 17px}
+.preview-box,.swatch-box {background:#0e1a2b;border:1px solid #2f4864;border-radius:12px;min-width:0;padding:14px}
+.preview-head,.swatch-head {display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.legend {font-size:10px;color:#9bb3ca}
+.preview {height:315px;display:grid;place-items:center;margin-top:10px;border-radius:10px;border:1px solid #2b4056;background:repeating-conic-gradient(#1a2b3b 0 25%,#11202f 0 50%) 50% / 22px 22px;overflow:hidden}
+.preview canvas {width:100%;height:100%;object-fit:contain;image-rendering:pixelated}
+.preview-notice {min-height:44px;font-size:11px;color:#95b6ca;line-height:1.6;margin-top:10px}
+.sprite-options {display:flex;align-items:center;gap:8px;font-size:11px;margin-top:9px}
+.sprite-options select {padding:6px 8px;max-width:150px}
+.set-tabs {display:flex;gap:5px}
+.set-tabs button {padding:7px 13px}
+.palette-line {padding:11px 0;border-bottom:1px solid #243e55}
+.palette-line:last-child {border-bottom:0}
+.line-head {display:flex;justify-content:space-between;align-items:center;margin-bottom:9px}
+.line-head strong {font-size:12px}
+.line-head small {font-size:10px}
+.swatches {display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:7px}
+.swatch {border:1px solid #425973;padding:4px 2px 6px;background:#152a3b;min-width:0;border-radius:7px;text-align:center}
+.swatch.active {outline:2px solid #8bdcff;outline-offset:1px;border-color:#fff}
+.swatch .chip {height:32px;width:100%;border-radius:4px;border:1px solid #ffffff1e;display:block;margin-bottom:4px}
+.swatch .num {display:block;font-size:10px;line-height:1.2;color:#d4dfed}
+.swatch .addr {display:block;font:8px Consolas,monospace;line-height:1.5;color:#99afc3;white-space:nowrap;letter-spacing:-.035em}
+.sideedit {padding:17px;align-self:start;display:flex;flex-direction:column;gap:13px}
+.status-tag {font-size:11px;display:inline-block;border-radius:7px;border:1px solid #46688a;padding:6px 9px;color:#a5d7f4}
+.ref-tag {color:#f7dba0;border-color:#a17b40}
+.swatch-details {display:grid;gap:4px}
+.swatch-details strong {font-size:14px}
+.swatch-details code {font-size:12px;color:#a6dcff}
+.picker-square {width:100%;height:224px;border-radius:8px;display:block;border:1px solid #536e82;cursor:crosshair;touch-action:none}
+.picker-square.readonly {cursor:default;opacity:.48}
+.hue-row {display:grid;gap:6px}
+.hue-row input {width:100%;padding:0;height:22px;accent-color:#4fc4fc;cursor:pointer}
+.hex-row {display:grid;gap:7px}
+.hex-row input {width:100%;font:20px Consolas,monospace;text-transform:uppercase;letter-spacing:.06em;padding:11px}
+.color-compare {display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.color-compare div {display:grid;gap:6px;font-size:10px;color:#9ebbd0}
+.color-compare .color-sample {display:block;height:37px;border:1px solid #506a80;border-radius:7px}
+.divider {border-top:1px solid #33485e}
+.notice {font-size:11px;color:#96b3c8;line-height:1.65}
+.toast {border:1px solid #386386;background:#0f2842;color:#b8e3fa;padding:11px 16px;border-radius:9px;max-width:1800px;margin:0 auto 14px;min-height:38px;font-size:12px}
+.toast.bad {color:#ffd1c5;border-color:#915551}
+.footer {font-size:11px;color:#7599b0;padding:0 18px 20px;max-width:1800px;margin:auto}
+@media(max-width:1190px){.layout{grid-template-columns:195px minmax(350px,1fr)}.sideedit{grid-column:2;display:grid;grid-template-columns:1fr 1fr}.stage{grid-template-columns:1fr}.preview{height:260px}}
+@media(max-width:750px){.layout{grid-template-columns:1fr}.sidebar{min-height:auto}.character-list{max-height:190px}.sideedit{grid-column:auto;display:flex}.stage{grid-template-columns:1fr}.swatches{grid-template-columns:repeat(8,minmax(0,1fr))}}
+</style>
+</head>
+<body>
+<header class="site-head">
+ <div><div class="kicker">X-MEN VS. STREET FIGHTER II · TOOLS</div><h1>Palette Studio</h1>
+ <p>Original ROM reference · character profiles · palette-aware sprite preview</p></div>
+ <div class="header-actions">
+  <div class="source" id="sourceStatus">Looking for original xvs.05a…</div>
+  <button id="loadRom">Load ROM source</button>
+  <input type="file" id="romInput" accept=".05a,.zip" hidden>
+ </div>
+</header>
+<main class="layout">
+ <aside class="panel sidebar">
+  <div class="side-head"><h2 class="section-title">Characters</h2>
+   <input id="search" type="search" placeholder="Find a character…" aria-label="Find character">
+  </div>
+  <nav id="characters" class="character-list" aria-label="Characters"></nav>
+ </aside>
+ <section class="panel workspace">
+  <div class="worktop">
+   <div><div class="kicker">PALETTE WORKSPACE</div><div class="work-title" id="characterTitle">Wolverine</div>
+    <small id="charMetadata">ROM palette source</small>
+   </div>
+   <div class="toolbar">
+    <select id="profileSelect" class="profile-select" aria-label="Palette profile"><option value="original">Original · read only</option></select>
+    <button id="newProfile" class="primary">+ New</button>
+    <button id="saveProfile" disabled>Save profile</button>
+    <button id="exportProfile" disabled>Export .txt</button>
+   </div>
+  </div>
+  <div class="strip">
+   <div class="strip-head"><h2 class="section-title">Sprite loaders</h2>
+    <div><button id="addSprite">+ Add sprite PNGs</button>
+     <input type="file" id="spriteInput" accept="image/png" multiple hidden></div></div>
+   <div class="strip-list" id="spriteStrip"></div>
+   <div class="gallery-hint">Choose a sprite thumbnail to load it. Portrait art is reference-only; import transparent idle PNGs for live palette recoloring.</div>
+  </div>
+  <div class="stage">
+   <div class="preview-box">
+    <div class="preview-head"><h2 class="section-title">Sprite preview</h2><span class="legend" id="previewType">No idle sprite loaded</span></div>
+    <div class="preview"><canvas id="preview" width="320" height="300" aria-label="Current sprite preview"></canvas></div>
+    <div class="sprite-options"><label for="spriteBase">Sprite source colors</label>
+     <select id="spriteBase"><option value="0">Original P</option><option value="1">Original K</option></select>
+    </div>
+    <div class="preview-notice" id="previewNotice">Imported sprites should be transparent PNGs painted with the game's original colors.</div>
+   </div>
+   <div class="swatch-box">
+    <div class="swatch-head"><h2 class="section-title">Original ROM addresses</h2>
+     <div class="set-tabs"><button id="setP" class="active">Punch / P</button><button id="setK">Kick / K</button></div>
+    </div>
+    <p class="notice" style="margin:10px 0 2px">Each color shows its real 68000 ROM address; editing changes only the selected profile.</p>
+    <div id="swatches"></div>
+   </div>
+  </div>
+ </section>
+ <aside class="panel sideedit">
+  <div><div class="kicker">COLOR INSPECTOR</div><h2 style="margin:8px 0 0;font-size:18px">Selected swatch</h2></div>
+  <div id="editStatus" class="status-tag ref-tag">Original · read only</div>
+  <div class="swatch-details"><strong id="selectedName">P · Body · #01</strong><code id="selectedAddress">0x------</code></div>
+  <canvas class="picker-square" id="sv" width="238" height="224" aria-label="Saturation and brightness color picker"></canvas>
+  <div class="hue-row"><label class="section-title" for="hue">Hue</label><input id="hue" type="range" min="0" max="360" step="1" value="210" disabled></div>
+  <div class="hex-row"><label class="section-title" for="hex">HEX · CPS-2 RGB</label><input id="hex" type="text" maxlength="7" value="#000000" spellcheck="false" autocomplete="off" disabled></div>
+  <div class="color-compare">
+   <div>ORIGINAL<span class="color-sample" id="originalSample"></span></div>
+   <div>PROFILE<span class="color-sample" id="profileSample"></span></div>
+  </div>
+  <div class="divider"></div>
+  <button id="resetSwatch" disabled>Restore this swatch</button>
+  <p class="notice">The picker stays open. Colors snap to the CPS-2's 16 levels per RGB channel. Originals are never written back to the ROM.</p>
+  <p class="notice" id="profileHint">Create a profile to start editing. Save profiles as JSON; Export produces the recomp's [P]/[K] palette text format.</p>
+ </aside>
+</main>
+<div class="toast" id="message" role="status">Loading character palette data…</div>
+<footer class="footer">Local browser tool · never edits original ROMs · transparent PNGs matching original palette colors receive accurate live recoloring · no game rebuild needed for exported palette text</footer>
+
+<script>
+'use strict';
+const TOKEN = '__PALETTE_TOKEN__';
+const $ = id => document.getElementById(id);
+const lines = ['Body / Character', 'Effect palette A', 'Effect palette B'];
+const state = {data:null,who:0,set:0,line:0,pen:1,mode:'original',id:null,name:'',
+  colors:null,dirty:false,sprites:[],selectedSprite:null,spriteImage:null,
+  hue:210,sat:1,val:1,images:new Map(),sourceSet:0};
+function copy(v){return JSON.parse(JSON.stringify(v))}
+function show(text,bad){$('message').textContent=text;$('message').className='toast'+(bad?' bad':'')}
+async function request(route,options){
+  const opt=options||{};
+  if(opt.method==='POST'){opt.headers=Object.assign({},opt.headers||{}, {'X-XMVSF-Token':TOKEN})}
+  const response=await fetch(route,opt);
+  const type=response.headers.get('content-type')||'';
+  const value=type.includes('application/json')?await response.json():await response.text();
+  if(!response.ok)throw Error(value.error||value||'Request failed');
+  return value;
+}
+function original(){return state.data && state.data.originals?state.data.originals[state.who]:null}
+function editable(){return state.mode!=='original' && !!original()}
+function colors(){return editable()?state.colors:original()}
+function current(){const p=colors();return p?p[state.set][state.line][state.pen]:'#000000'}
+function sourceCurrent(){const p=original();return p?p[state.set][state.line][state.pen]:'#000000'}
+function sourceAddr(){const d=state.data;return d&&d.addresses?d.addresses[state.who][state.set][state.line][state.pen]:'0x------'}
+function q8(n){return Math.max(0,Math.min(15,Math.round(n/17)))*17}
+function rgb(hex){return [parseInt(hex.slice(1,3),16),parseInt(hex.slice(3,5),16),parseInt(hex.slice(5,7),16)]}
+function hexOf(r,g,b){return '#'+[q8(r),q8(g),q8(b)].map(v=>v.toString(16).padStart(2,'0')).join('').toUpperCase()}
+function hsvToRgb(h,s,v){
+  const c=v*s,x=c*(1-Math.abs((h/60)%2-1)),m=v-c;
+  let a=[c,x,0];
+  if(h>=60&&h<120)a=[x,c,0];
+  else if(h>=120&&h<180)a=[0,c,x];
+  else if(h>=180&&h<240)a=[0,x,c];
+  else if(h>=240&&h<300)a=[x,0,c];
+  else if(h>=300)a=[c,0,x];
+  return a.map(z=>(z+m)*255);
+}
+function rgbToHsv(v){
+  const r=v[0]/255,g=v[1]/255,b=v[2]/255,max=Math.max(r,g,b),min=Math.min(r,g,b),d=max-min;
+  let h=0;
+  if(d){if(max===r)h=60*(((g-b)/d)%6);else if(max===g)h=60*((b-r)/d+2);else h=60*((r-g)/d+4)}
+  if(h<0)h+=360;
+  return [h,max?d/max:0,max];
+}
+function hueFromSelected(){
+  const hsv=rgbToHsv(rgb(current()));state.hue=hsv[0];state.sat=hsv[1];state.val=hsv[2];
+}
+function drawPicker(){
+  const c=$('sv'),ctx=c.getContext('2d'),w=c.width,h=c.height;
+  const color=hsvToRgb(state.hue,1,1).map(v=>Math.round(v));
+  ctx.fillStyle='rgb('+color.join(',')+')';ctx.fillRect(0,0,w,h);
+  let fade=ctx.createLinearGradient(0,0,w,0);
+  fade.addColorStop(0,'white');fade.addColorStop(1,'transparent');ctx.fillStyle=fade;ctx.fillRect(0,0,w,h);
+  fade=ctx.createLinearGradient(0,0,0,h);
+  fade.addColorStop(0,'transparent');fade.addColorStop(1,'black');ctx.fillStyle=fade;ctx.fillRect(0,0,w,h);
+  const x=state.sat*w,y=(1-state.val)*h;
+  ctx.beginPath();ctx.arc(x,y,7,0,Math.PI*2);ctx.lineWidth=3;ctx.strokeStyle='#080e14';ctx.stroke();
+  ctx.beginPath();ctx.arc(x,y,5.4,0,Math.PI*2);ctx.lineWidth=2;ctx.strokeStyle='#fff';ctx.stroke();
+  $('sv').classList.toggle('readonly',!editable());
+  $('hue').value=String(Math.round(state.hue));$('hue').disabled=!editable();
+}
+function renderColorInspector(){
+  const suffix=['P','K'][state.set];
+  $('selectedName').textContent=suffix+' · '+lines[state.line]+' · #'+String(state.pen).padStart(2,'0');
+  $('selectedAddress').textContent=sourceAddr();
+  $('hex').value=current();$('hex').disabled=!editable();
+  $('originalSample').style.background=sourceCurrent();
+  $('profileSample').style.background=current();
+  $('resetSwatch').disabled=!editable();
+  $('editStatus').className='status-tag'+(editable()?'':' ref-tag');
+  $('editStatus').textContent=editable()?state.name+(state.dirty?' · unsaved changes':' · editable'):'Original · read only';
+  drawPicker();
+}
+function selectedText(){
+  const x=state.data.characters[state.who];return x.name+' · ROM '+x.rom_id;
+}
+function showCharacters(){
+  const list=$('characters');list.replaceChildren();
+  const term=$('search').value.trim().toLowerCase();
+  state.data.characters.forEach((c,i)=>{
+    if(!c.name.toLowerCase().includes(term))return;
+    const button=document.createElement('button');button.className='char-btn'+(i===state.who?' active':'');
+    const dot=document.createElement('span');dot.className='char-dot';
+    dot.style.background=state.data.originals?state.data.originals[i][0][0][5]:'#335772';
+    const label=document.createElement('span');label.className='char-label';
+    const strong=document.createElement('strong');strong.textContent=c.name;
+    const detail=document.createElement('small');detail.textContent=c.rom_id+' · '+c.profiles.length+' profiles';
+    label.append(strong,detail);button.append(dot,label);
+    button.onclick=()=>chooseCharacter(i);list.append(button);
+  });
+}
+function showProfileOptions(){
+  const pick=$('profileSelect'),old=state.mode,id=state.id;
+  pick.replaceChildren();
+  const base=document.createElement('option');base.value='original';base.textContent='Original · read only';pick.add(base);
+  state.data.characters[state.who].profiles.forEach(profile=>{
+    const item=document.createElement('option');item.value=profile.id;item.textContent=profile.name;pick.add(item);
+  });
+  if(old==='draft'){const item=document.createElement('option');item.value='draft';item.textContent=state.name+' · new';pick.add(item)}
+  pick.value=old==='draft'?'draft':id||'original';
+  $('newProfile').disabled=!original();
+  $('saveProfile').disabled=!editable();
+  $('exportProfile').disabled=!(editable()&&!!state.id);
+  $('profileHint').textContent=editable()?'Your edits affect only this profile. Use Save to persist, then Export to download a game-compatible .txt file.':'Original ROM palettes are locked. Click New to make an editable copy.';
+}
+function drawSwatches(){
+  $('setP').classList.toggle('active',state.set===0);$('setK').classList.toggle('active',state.set===1);
+  const host=$('swatches');host.replaceChildren();
+  if(!colors()){const p=document.createElement('p');p.className='notice';p.textContent='Load the original xvs.05a ROM to read palette addresses and colors.';host.append(p);return}
+  for(let l=0;l<3;l++){
+    const section=document.createElement('div');section.className='palette-line';
+    const heading=document.createElement('div');heading.className='line-head';
+    const title=document.createElement('strong');title.textContent=lines[l];
+    const size=document.createElement('small');size.textContent='16 slots · 0x20 bytes';heading.append(title,size);
+    const grid=document.createElement('div');grid.className='swatches';
+    for(let p=0;p<16;p++){
+      const colour=colors()[state.set][l][p],address=state.data.addresses[state.who][state.set][l][p];
+      const b=document.createElement('button');b.type='button';b.className='swatch'+(l===state.line&&p===state.pen?' active':'');
+      b.title=address+' · '+colour;
+      const chip=document.createElement('span');chip.className='chip';chip.style.background=colour;
+      const num=document.createElement('span');num.className='num';num.textContent='#'+String(p).padStart(2,'0');
+      const addr=document.createElement('span');addr.className='addr';addr.textContent=address;
+      b.append(chip,num,addr);b.onclick=()=>{state.line=l;state.pen=p;hueFromSelected();drawSwatches();renderColorInspector()};
+      grid.append(b);
+    }
+    section.append(heading,grid);host.append(section);
+  }
+}
+function setEdited(hex){
+  if(!editable())return;
+  state.colors[state.set][state.line][state.pen]=hex.toUpperCase();
+  state.dirty=true;
+  drawSwatches();renderColorInspector();refreshPreviews();
+  $('saveProfile').disabled=false;
+}
+function applyHsv(){
+  const c=hsvToRgb(state.hue,state.sat,state.val);
+  setEdited(hexOf(c[0],c[1],c[2]));
+}
+function pickerPoint(ev){
+  if(!editable())return;
+  const bounds=$('sv').getBoundingClientRect();
+  state.sat=Math.max(0,Math.min(1,(ev.clientX-bounds.left)/bounds.width));
+  state.val=1-Math.max(0,Math.min(1,(ev.clientY-bounds.top)/bounds.height));
+  applyHsv();
+}
+$('sv').addEventListener('pointerdown',ev=>{if(!editable())return;$('sv').setPointerCapture(ev.pointerId);pickerPoint(ev)});
+$('sv').addEventListener('pointermove',ev=>{if(ev.buttons&&$('sv').hasPointerCapture(ev.pointerId))pickerPoint(ev)});
+$('hue').oninput=()=>{state.hue=Number($('hue').value);applyHsv()};
+$('hex').addEventListener('change',()=>{
+  const value=$('hex').value.trim();
+  if(!/^#[0-9a-fA-F]{6}$/.test(value)){show('Hex requires #RRGGBB',true);$('hex').value=current();return}
+  const v=rgb(value);const corrected=hexOf(v[0],v[1],v[2]);
+  setEdited(corrected);hueFromSelected();renderColorInspector();
+  if(corrected.toLowerCase()!==value.toLowerCase())show('Rounded to CPS-2 4-bit RGB: '+corrected,false);
+});
+$('resetSwatch').onclick=()=>{setEdited(sourceCurrent());hueFromSelected();renderColorInspector()};
+$('setP').onclick=()=>{state.set=0;hueFromSelected();renderAll()};
+$('setK').onclick=()=>{state.set=1;hueFromSelected();renderAll()};
+$('search').oninput=showCharacters;
+function renderAll(){showCharacters();showProfileOptions();drawSwatches();renderColorInspector();refreshPreviews()}
+async function fetchSpriteData(){
+  state.sprites=await request('/api/sprites?character='+state.who);
+  state.selectedSprite=state.sprites.find(v=>v.type==='sprite')||state.sprites[0]||null;
+  state.spriteImage=null;
+  drawSpriteStrip();
+}
+function cachedImage(url){
+  if(!state.images.has(url)){
+    const pending=new Promise((resolve,reject)=>{
+      const img=new Image();img.onload=()=>resolve(img);img.onerror=()=>reject(Error('Cannot read sprite image'));img.src=url;
+    });
+    state.images.set(url,pending);
+  }
+  return state.images.get(url);
+}
+function coloredSprite(img,kind){
+  const off=document.createElement('canvas');off.width=img.naturalWidth;off.height=img.naturalHeight;
+  const ctx=off.getContext('2d',{willReadFrequently:true});ctx.drawImage(img,0,0);
+  let changed=0,visible=0;
+  if(kind==='sprite'&&original()){
+    const pixels=ctx.getImageData(0,0,off.width,off.height);
+    const base=original()[state.sourceSet][0],dest=colors()[state.set][0];
+    const lookup=new Map(base.map((c,i)=>[c.toUpperCase(),i]));
+    const data=pixels.data;
+    for(let i=0;i<data.length;i+=4){
+      if(!data[i+3])continue;visible++;
+      const source='#'+[data[i],data[i+1],data[i+2]].map(v=>v.toString(16).padStart(2,'0')).join('').toUpperCase();
+      const ix=lookup.get(source);
+      if(ix===undefined)continue;
+      const val=rgb(dest[ix]);
+      data[i]=val[0];data[i+1]=val[1];data[i+2]=val[2];changed++;
+    }
+    ctx.putImageData(pixels,0,0);
+  }
+  return {canvas:off,matched:changed,visible:visible};
+}
+function paintSprite(canvas,img,kind){
+  const ctx=canvas.getContext('2d');ctx.clearRect(0,0,canvas.width,canvas.height);
+  if(!img)return {matched:0,visible:0};
+  const result=coloredSprite(img,kind),source=result.canvas;
+  const factor=Math.min((canvas.width-18)/source.width,(canvas.height-18)/source.height,5);
+  const w=source.width*factor,h=source.height*factor;
+  ctx.imageSmoothingEnabled=false;
+  ctx.drawImage(source,(canvas.width-w)/2,(canvas.height-h)/2,w,h);
+  return result;
+}
+function drawSpriteStrip(){
+  const host=$('spriteStrip');host.replaceChildren();
+  if(!state.sprites.length){const label=document.createElement('span');label.className='muted';label.textContent='No sprite or portrait art found. Use Add sprite PNGs.';host.append(label);return}
+  state.sprites.forEach(sprite=>{
+    const button=document.createElement('button');button.className='thumb'+(state.selectedSprite===sprite?' active':'');
+    const canvas=document.createElement('canvas');canvas.width=76;canvas.height=69;
+    const name=document.createElement('span');name.textContent=sprite.name;
+    button.append(canvas,name);button.onclick=()=>{state.selectedSprite=sprite;state.spriteImage=null;drawSpriteStrip();drawPreview()};
+    host.append(button);
+    cachedImage(sprite.url).then(img=>{if(host.contains(button))paintSprite(canvas,img,sprite.type)}).catch(()=>{});
+  });
+  drawPreview();
+}
+async function drawPreview(){
+  const canvas=$('preview');const sprite=state.selectedSprite;const selection=state.who;
+  canvas.getContext('2d').clearRect(0,0,canvas.width,canvas.height);
+  if(!sprite){$('previewType').textContent='Import an idle PNG';$('previewNotice').textContent='Use Add sprite PNGs above to attach actual character frames.';return}
+  $('previewType').textContent=sprite.type==='sprite'?'Sprite · '+sprite.name:'Reference artwork only';
+  try{
+    const img=await cachedImage(sprite.url);
+    if(state.selectedSprite!==sprite||state.who!==selection)return;
+    const result=paintSprite(canvas,img,sprite.type);
+    if(sprite.type==='portrait'){
+      $('previewNotice').textContent='Menu portrait shown as a reference; this is not an idle sprite and is intentionally not recolored. Import a native idle PNG to preview live palettes.';
+    }else{
+      const pct=result.visible?Math.round(100*result.matched/result.visible):0;
+      $('previewNotice').textContent=pct+'% of visible sprite pixels matched the original '+(state.sourceSet?'K':'P')+' body palette. Matched pixels are recolored exactly; unmatched pixels remain unchanged. Use transparent native-color idle sprites.';
+    }
+  }catch(err){$('previewNotice').textContent=err.message}
+}
+function refreshPreviews(){if(!state.sprites)return;drawSpriteStrip()}
+function chooseCharacter(id){
+  if(state.dirty&&!confirm('Discard unsaved profile changes?'))return;
+  state.who=id;state.set=0;state.line=0;state.pen=1;state.mode='original';state.id=null;state.name='';
+  state.colors=null;state.dirty=false;state.sourceSet=0;$('spriteBase').value='0';
+  $('characterTitle').textContent=state.data.characters[id].name;
+  $('charMetadata').textContent=selectedText()+' · '+(original()?'2 sets / 3 palettes / 16 colors':'ROM source required');
+  hueFromSelected();renderAll();
+  fetchSpriteData().catch(err=>show(err.message,true));
+}
+function makeProfile(){
+  if(!original())return show('Load the original ROM first.',true);
+  const proposed=prompt('Name for new palette profile:',state.data.characters[state.who].name+' Custom');
+  if(proposed===null)return;
+  if(!proposed.trim())return show('Profile name cannot be empty.',true);
+  state.colors=copy(colors());state.mode='draft';state.id=null;state.name=proposed.trim();state.dirty=true;
+  hueFromSelected();renderAll();show('New profile created in memory. Save to keep it.',false);
+}
+async function openProfile(mode){
+  if(mode===state.mode||(mode===state.id&&state.mode!=='draft'))return;
+  if(state.dirty&&!confirm('Discard unsaved profile changes?')){$('profileSelect').value=state.mode==='draft'?'draft':state.id||'original';return}
+  if(mode==='original'){state.mode='original';state.id=null;state.name='';state.colors=null;state.dirty=false}
+  else if(mode==='draft'){return}
+  else{
+    try{
+      const obj=await request('/api/profile?character='+state.who+'&id='+encodeURIComponent(mode));
+      state.mode='saved';state.id=obj.id;state.name=obj.name;state.colors=obj.colours;state.dirty=false;
+    }catch(err){show(err.message,true);return}
+  }
+  hueFromSelected();renderAll();
+}
+async function saveProfile(){
+  if(!editable()||!state.data.source)return;
+  try{
+    const doc={id:state.id,character:state.who,name:state.name,source_sha256:state.data.source.sha256,colours:state.colors};
+    const result=await request('/api/profile/save',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(doc)});
+    state.id=result.id;state.mode='saved';state.dirty=false;
+    state.data=await request('/api/state');renderAll();show('Profile saved: '+state.name,false);
+  }catch(err){show(err.message,true)}
+}
+function exportProfile(){
+  if(!editable()||!state.id)return;
+  if(state.dirty)return show('Save the profile before exporting it.',true);
+  const link=document.createElement('a');link.href='/api/export?character='+state.who+'&id='+state.id;
+  link.download=state.data.characters[state.who].name+'.txt';
+  document.body.append(link);link.click();link.remove();
+  show('Exported recomp-compatible palette text. Copy to your game data palettes folder.',false);
+}
+async function uploadSource(file){
+  if(!file)return;
+  try{
+    show('Reading original xvs.05a or its ROM-set ZIP…');
+    await request('/api/source',{method:'POST',headers:{'X-Source-Name':file.name},body:file});
+    state.data=await request('/api/state');state.dirty=false;chooseCharacter(state.who);
+    updateSource();show('Original ROM source validated and loaded. Originals are locked.');
+  }catch(err){show(err.message,true)}
+}
+function updateSource(){
+  $('sourceStatus').textContent=state.data.source?'Verified original · '+state.data.source.label+' · CRC '+state.data.source.crc32:
+    'No original ROM source · load xvs.05a or xmvsf.zip';
+}
+async function uploadSprites(files){
+  for(const file of files){
+    if(!file.name.toLowerCase().endsWith('.png')){show(file.name+' must be PNG',true);continue}
+    try{
+      await request('/api/sprite?character='+state.who,{method:'POST',headers:{'X-File-Name':file.name},body:file});
+      show('Sprite imported: '+file.name,false);
+    }catch(err){show(err.message,true)}
+  }
+  await fetchSpriteData();
+}
+$('newProfile').onclick=makeProfile;
+$('saveProfile').onclick=saveProfile;
+$('profileSelect').onchange=()=>openProfile($('profileSelect').value);
+$('exportProfile').onclick=exportProfile;
+$('loadRom').onclick=()=>$('romInput').click();
+$('romInput').onchange=async()=>{await uploadSource($('romInput').files[0]);$('romInput').value=''};
+$('addSprite').onclick=()=>$('spriteInput').click();
+$('spriteInput').onchange=async()=>{await uploadSprites([...$('spriteInput').files]);$('spriteInput').value=''};
+$('spriteBase').onchange=()=>{state.sourceSet=Number($('spriteBase').value);refreshPreviews()};
+document.addEventListener('keydown',e=>{
+  if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='s'&&editable()){e.preventDefault();saveProfile()}
+});
+(async()=>{
+  try{
+    state.data=await request('/api/state');updateSource();chooseCharacter(0);
+    show(state.data.source?'Original palette source ready. Choose New to edit.':'Source not found. Choose Load ROM source to read verified original palette colors.',!state.data.source);
+  }catch(err){show('Studio initialization failed: '+err.message,true)}
+})();
+</script>
+</body>
+</html>
