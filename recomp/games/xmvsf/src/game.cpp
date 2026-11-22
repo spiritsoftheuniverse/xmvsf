@@ -117,7 +117,15 @@ void RegisterGame() {
         marvel::WidescreenState(ar);
     };
     // (run-ahead: not in the modes, whose workings a save state does not wholly hold)
-    TheGame().noRunAhead = [] { return modes::AttractMode() || modes::StageViewer() || BattleMode() || marvel::ModelViewer(); };
+    // The custom selector owns A/B edges and frozen committed IDs outside
+    // M68K save-state RAM. Never let speculative frames consume an A or B
+    // press ahead of the frame the player actually sees.
+    TheGame().noRunAhead = [] {
+        const bool selecting = Ram8(xmvsf::kPlaying) != 0 &&
+                               Ram16(xmvsf::kGameStep) == xmvsf::kGameChoosing;
+        return selecting || modes::AttractMode() || modes::StageViewer() ||
+               BattleMode() || marvel::ModelViewer();
+    };
     // With the arcade timing, the game's own code runs in place of the rewrites but where they carry what the port adds
     TheGame().rewritesNeeded = [] {
         return session::InSession() || modes::AttractMode() || modes::StageViewer() || BattleMode() || marvel::ModelViewer() || marvel::WidePlay() ||
