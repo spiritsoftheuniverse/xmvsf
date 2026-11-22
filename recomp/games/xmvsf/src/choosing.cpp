@@ -28,6 +28,12 @@ namespace {
     uint16_t g_committed[2][2] = {{0xFFFFu, 0xFFFFu}, {0xFFFFu, 0xFFFFu}};
     bool g_commitPending = false; // one native match handoff, not every arcade round
 
+    // 87.508: per-frame sound-queue observation only. No new ROM/M68K hook.
+    // The known-good 87.507 navigation, acceptance and stage paths remain.
+    int g_voiceSide = -1;
+    uint16_t g_voiceReadAt = 0xFFFFu, g_voiceDesired = 0xFFFFu;
+    bool g_voiceHandled = false;
+
     uint16_t IntendedNativeId(unsigned n) {
         const uint16_t raw =
             port::xmvsf_select::kSlots[static_cast<unsigned>(g_layout.index[n])].rom;
@@ -38,6 +44,47 @@ namespace {
             if (raw == 0x16u) return 0x24u; // Chun-Li -> Alpha Chun-Li
         }
         return raw;
+    }
+
+    // Invoked BETWEEN the main CPU and the sound CPU on each scanline,
+    // never from a ROM hook. Only inspect entries added since the last
+    // scanline, and only during the exact confirmation-input frame.
+    void CorrectNativeQueuedVoice(Machine &machine) {
+        if (!g_layoutRunning || g_voiceSide < 0 || g_voiceHandled ||
+            !machine.video.hudShock || !Ram8(kPlaying) ||
+            Ram16(kGameStep) != kGameChoosing ||
+            g_voiceReadAt == 0xFFFFu || machine.ram.size() < 0x10000u)
+            return;
+        const uint16_t next = Ram16(kSoundQueueEnd);
+        if (next > kSoundQueueMask || (next & 15u) != 0u) return;
+        const unsigned diff = (static_cast<unsigned>(next) + 0x400u -
+                               static_cast<unsigned>(g_voiceReadAt)) & kSoundQueueMask;
+        if (diff == 0u) return;
+        // More than eight requests in one scanline indicates ambiguous ring
+        // state, not a safe candidate for a selective announcement fix.
+        if (diff > 128u) {
+            g_voiceReadAt = next;
+            return;
+        }
+        for (unsigned delta = 0u; delta < diff; delta += 16u) {
+            const unsigned offset =
+                (static_cast<unsigned>(g_voiceReadAt) + delta) & kSoundQueueMask;
+            const unsigned prior = machine.ram[0x2648u + offset + 3u];
+            if (!port::xmvsf_select::CorrectQueuedCharacterVoice(
+                    machine.ram.data(), machine.ram.size(), offset, g_voiceDesired))
+                continue;
+            const unsigned corrected = machine.ram[0x2648u + offset + 3u];
+            g_voiceHandled = true; // one announcer request per confirmation
+            if (prior != corrected) {
+                std::fprintf(stderr,
+                    "XMVSF 87.508 VOICE P%u: queued=%02X corrected=%02X character=%04X frame=%llu\n",
+                    static_cast<unsigned>(g_voiceSide + 1), prior, corrected,
+                    static_cast<unsigned>(g_voiceDesired),
+                    static_cast<unsigned long long>(machine.frame));
+            }
+            break;
+        }
+        g_voiceReadAt = next;
     }
 
     void RemapSelectionWrite(Machine &, uint32_t address,
@@ -120,6 +167,10 @@ void ChoosingLayoutBeforeCpu(Machine &machine) {
                           Ram16(kGameStep) == kGameChoosing;
     if (!choosing) {
         machine.selectionRamWriteOverride = nullptr;
+        machine.selectionVoiceQueueBeforeSound = nullptr;
+        g_voiceSide = -1;
+        g_voiceReadAt = g_voiceDesired = 0xFFFFu;
+        g_voiceHandled = false;
         if (g_layoutRunning) g_layout.Reset();
         g_layoutRunning = false;
         g_accepted[0] = g_accepted[1] = 0;
@@ -135,12 +186,31 @@ void ChoosingLayoutBeforeCpu(Machine &machine) {
     // Keep this active for the ROM's actual writes during RunFrame.
     // F10's separate RAM write observer remains undisturbed.
     machine.selectionRamWriteOverride = &RemapSelectionWrite;
+    machine.selectionVoiceQueueBeforeSound = nullptr;
+    g_voiceReadAt = Ram16(kSoundQueueEnd);
+    g_voiceSide = -1;
+    g_voiceDesired = 0xFFFFu;
+    g_voiceHandled = false;
+    constexpr uint16_t kConfirm = kPunch1 | kPunch2 | kPunch3 |
+                                  kKick1 | kKick2 | kKick3;
     for (int n = 0; n < 2; ++n) {
         const uint32_t record = kChoosing + static_cast<uint32_t>(n) * kChoosingSize;
         // The native 03->04 transition means the second character was
         // accepted. Steps 04..06 are the game's MODE/SPEED choices and
         // MUST retain real directional input (87.477 regression lesson).
         const bool active = Ram8(record) <= 3u && Ram8(record + 3u) < 2u;
+        // A native confirmation uses punch/kick; direction alone must
+        // never activate the voice correction. Simultaneous P1/P2
+        // confirmations are ambiguous, so leave both native voices alone.
+        if (active && (machine.players[n] & kConfirm) != 0u) {
+            if (g_voiceSide == -1) {
+                g_voiceSide = n;
+                g_voiceDesired = IntendedNativeId(static_cast<unsigned>(n));
+            } else {
+                g_voiceSide = -2;
+                g_voiceDesired = 0xFFFFu;
+            }
+        }
         const unsigned direction = machine.players[n] & (kRight | kLeft | kDown | kUp);
         g_layout.Advance(n, direction, active);
         if (active) {
@@ -152,6 +222,13 @@ void ChoosingLayoutBeforeCpu(Machine &machine) {
             // rather than suppressing input and repairing afterwards.
         }
     }
+    // Never register an M68K execution hook: the 87.506 entry hook
+    // crashed on level select. This optional callback runs only while
+    // ONE side confirms an active native character choice.
+    if (g_voiceSide >= 0 && g_voiceReadAt <= kSoundQueueMask &&
+        (g_voiceReadAt & 15u) == 0u &&
+        port::xmvsf_select::NativeCharacterVoice(g_voiceDesired) != 0xFFFFu)
+        machine.selectionVoiceQueueBeforeSound = &CorrectNativeQueuedVoice;
     // 87.504 F10-only observation of the exact custom positions sent to
     // native selection this frame. No navigation/ROM/audio changes.
     xmvsf_f10::Capture::Get().CustomGridBeforeCpu(
