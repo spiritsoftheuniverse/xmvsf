@@ -111,13 +111,13 @@ class DecoderTests(unittest.TestCase):
         # and remain unchanged by palette edits.
         html = (HERE / "palette_studio.html").read_text(encoding="utf-8")
         self.assertIn("Portrait reference", (HERE / "palette_studio_server.py").read_text(encoding="utf-8"))
-        self.assertIn("portrait is **never**", (HERE / "README.md").read_text(encoding="utf-8"))
+        self.assertIn("original portrait PNG", (HERE / "README.md").read_text(encoding="utf-8"))
         self.assertIn('id="portraitPreview"', html)
         self.assertIn('class="preview-pair"', html)
         self.assertIn('id="preview"', html)
         self.assertIn("kind==='sprite'||kind==='viewer'", html)
         self.assertIn("paintSprite(canvas,img,'portrait')", html)
-        self.assertIn("sprite.type==='portrait'", html)
+        self.assertIn("kind==='portrait'&&original()&&editable()", html)
         self.assertIn("refreshSprites", html)
 
     def test_missing_rom_does_not_disable_new_and_explains_missing_sprite(self):
@@ -133,8 +133,42 @@ class DecoderTests(unittest.TestCase):
         self.assertIn('"source_warning": SOURCE_WARNING', server)
         # No actual Model viewer export -> visible, actionable explanation.
         self.assertIn("NO STANDING SPRITE", html)
-        self.assertIn("Save picture", html)
-        self.assertIn("Refresh viewer exports", html)
+        self.assertIn("Generate selected sprite", html)
+        self.assertIn("NO STANDING SPRITE", html)
+
+    def test_native_sprite_generator_calls_headless_recomp_only_on_command(self):
+        server = (HERE / "palette_studio_server.py").read_text(encoding="utf-8")
+        model_header = (HERE.parent / "recomp" / "model" / "model.h").read_text(encoding="utf-8")
+        model_cpp = (HERE.parent / "recomp" / "model" / "model.cpp").read_text(encoding="utf-8")
+        main = (HERE.parent / "recomp" / "port" / "main.cpp").read_text(encoding="utf-8")
+        html = (HERE / "palette_studio.html").read_text(encoding="utf-8")
+        self.assertIn('bool ExportStandingPng(const std::string &folder);', model_header)
+        self.assertIn('bool ExportStandingPng(const std::string &folder) {', model_cpp)
+        self.assertIn('Cut({frame}, g_modelWidth, Video::kHeight', model_cpp)
+        self.assertIn('image_files::WritePng(target, pictures[0], 1)', model_cpp)
+        self.assertIn('model::ExportStandingPng("exports/palette_studio")', main)
+        self.assertIn('--palette-sprites all|N', main)
+        self.assertIn('std::strcmp(c.name, "model_start")', main)
+        self.assertIn('model::CharacterNumber() == character', main)
+        self.assertIn('creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0)', server)
+        self.assertIn('route == "/api/capture"', server)
+        self.assertIn('route == "/api/capture-status"', server)
+        self.assertIn("ROOT / \"recomp\" / \"exports\" / \"palette_studio\"", server)
+        self.assertIn('id="generateSprite"', html)
+        self.assertIn('id="generateAllSprites"', html)
+        self.assertIn('function startCapture(who)', html)
+        self.assertIn("if(kind==='portrait'&&original()&&editable())", html)
+        self.assertIn("function refreshPreviews(){if(!state.sprites)return;drawSpriteStrip();drawPortrait()}", html)
+
+    def test_native_sprite_capture_does_not_execute_arbitrary_command(self):
+        # A browser request can ONLY choose a character or 'all'; paths and
+        # executable are pinned in the server, never supplied by the client.
+        with self.assertRaises(ValueError):
+            studio.start_native_capture("../something")
+        with self.assertRaises(ValueError):
+            studio.start_native_capture("19")
+        with self.assertRaises(ValueError):
+            studio.start_native_capture("1;cmd")
 
     def test_model_viewer_standing_export_discovery(self):
         # The recomp's Model viewer uses bare Character.png for standing
