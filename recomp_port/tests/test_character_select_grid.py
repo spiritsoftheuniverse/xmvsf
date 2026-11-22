@@ -30,6 +30,7 @@ def fdb(path: pathlib.Path, expected):
 
 def main():
     for name in ["xmvsf_character_select_layout.h",
+                 "xmvsf_character_select_rewrite.h",
                  "xmvsf_character_select_backdrop.h",
                  "xmvsf_character_select_screen.h",
                  "xmvsf_menu_textures.h"]:
@@ -66,14 +67,26 @@ def main():
     game = (ROOT / "recomp/games/xmvsf/src/game.cpp").read_text()
     assert "homeTextures.ComposeCharacterSelect(" in frontend
     assert "ChoosingLayoutBeforeCpu(machine);" in game
-    assert "machine.players[n] &= static_cast<uint16_t>(~fight::kSticks);" in chooser
+    # Native ROM must still receive real directions to generate move sounds.
+    assert "machine.players[n] &= static_cast<uint16_t>(~fight::kSticks);" not in chooser
+    assert "machine.selectionRamWriteOverride = &RemapSelectionWrite;" in chooser
+    assert "machine.selectionRamWriteOverride = nullptr;" in chooser
     assert "const bool choosing = machine.video.hudShock &&" in chooser
     assert "session::BeforeFrame(machine);\n        ChoosingLayoutBeforeCpu(machine);" in game
     assert "SetRam16(record + kCursor" in chooser
     assert "void ChoosingLayoutAfterFrame(Machine &machine)" in chooser
     assert "ChoosingLayoutAfterFrame(machine);" in game
     assert "g_accepted[n] = accepted;" in chooser
-    assert "SetRam16(pickAt, target)" in chooser
+    assert "g_committed[n][pick] = committed;" in chooser
+    assert "SetRam16(pickAt, committed)" in chooser
+    assert "ApplyCustomTeamPicksBeforeMatch();" in (
+        ROOT / "recomp/games/xmvsf/src/modes.cpp").read_text()
+    machine_header = (ROOT / "recomp/machine/machine.h").read_text()
+    machine_src = (ROOT / "recomp/machine/machine.cpp").read_text()
+    assert "selectionRamWriteOverride" in machine_header
+    assert "selectionRamWriteOverride(*this, address & ~1u, value, 2)" in machine_src
+    assert "selectionRamWriteOverride(*this, address, next, 1)" in machine_src
+    assert "RewriteNativeSelectionWrite(" in chooser
     assert "const bool active = Ram8(record) <= 3u && Ram8(record + 3u) < 2u;" in chooser
     assert "const bool p1CursorActive = ram[0x5183u] < 2u;" in frontend
     assert "const bool p2CursorActive = ram[0x51A3u] < 2u;" in frontend
@@ -86,7 +99,7 @@ def main():
                         str(ROOT / "recomp_port/tests/test_character_select_grid.cpp"),
                         "-o", str(binary)], check=True)
         subprocess.run([str(binary)], check=True)
-    print("XMVSF 87.498 FDB packs, composition, 18 ROM IDs, selector geometry PASS")
+    print("XMVSF 87.500 native sound/input, in-frame 18-ID ROM writes, stage commit PASS")
 
 if __name__ == "__main__":
     main()
