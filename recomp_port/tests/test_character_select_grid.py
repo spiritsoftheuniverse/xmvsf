@@ -176,6 +176,12 @@ def main():
     assert "machine.players[n] |= kPunch1;" in chooser
     assert "const bool canQueue = selecting" not in chooser
     assert "g_confirmPulse" not in chooser
+    assert "XMVSF 87.525 BLOCK_AUTO_PICK" in chooser
+    assert "if (accepted > g_soundAccepted[n])" in chooser
+    assert "accepted = g_soundAccepted[n];" in chooser
+    assert "SetRam8(record + 3u, accepted);" in chooser
+    assert "g_confirmQueued[n] = false;\n        // Native phase writes" in chooser
+    assert "g_confirmPulse[n]++" not in chooser
     assert "g_confirmQueued[n] = false;" in chooser
     assert "if (bEdge && phase <= 4u)" in chooser
     # Never roll phase 02/04 backward after legitimate native progression.
