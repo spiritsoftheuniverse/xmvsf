@@ -65,11 +65,10 @@ inline constexpr std::uint16_t NativeCharacterVoice(std::uint16_t id,
 // request when the M68K writes 61801E. Filter that request BEFORE it
 // can reach the Z80, not by guessing when the ROM enqueues it.
 //
-// Preserve native cursor ticks 84/85. Only explicitly authorized
-// names and confirmation sounds 82/83 can pass during custom select.
-// Drop other native selection-family commands and character-owned
-// 0A00 speech, even when their source character differs from our grid.
-// Non-selection sound transport and other game phases are untouched.
+// Preserve native cursor ticks 84/85. Names and confirmation sounds
+// 82/83 have one authorization per real pick. Drop WRONG/duplicate
+// native names A0..DF and character-owned 0A00 speech, while retaining
+// unrelated music/UI commands. Other screens and games are untouched.
 inline bool SelectionSoundEnvelope(const std::uint8_t *p, unsigned kind) {
     if (!p || p[0] || p[1] || p[4] || p[5] ||
         p[6] != kind || p[7]) return false;
