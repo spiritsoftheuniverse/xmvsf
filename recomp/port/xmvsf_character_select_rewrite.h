@@ -57,35 +57,58 @@ inline bool SelectionSoundEnvelope(const std::uint8_t *p, unsigned kind) {
     return true;
 }
 
-// This is the exact unmarked command format already used by QSound.
-// It goes DIRECTLY to the Machine's shared sound transport; no private
-// metadata is stored in the guest ROM queue and no M68K copy logic is
-// expected to preserve such metadata.
-inline bool MakeSelectionSoundRequest(std::uint8_t *request, std::size_t size,
-                                     std::uint16_t code) {
-    if (!request || size < 16u || code > 0xFFu) return false;
-    for (unsigned i = 0u; i < 16u; ++i) request[i] = 0u;
-    request[3] = static_cast<std::uint8_t>(code);
-    request[6] = 0x10u;
-    return true;
+// 87.519: character-name command IDs A0..B3 and C0..D3 were captured
+// in the guest's ORIGINAL FF2648 sound ring. They are NOT proved to be
+// the byte layout used at 618000 by the sound CPU. Do NOT bypass the
+// game's native sound-request transfer with LeaveSoundRequest.
+//
+// Instead rewrite the one-byte character-name command when the ROM
+// WRITES it into a 16-byte FF2648 ring entry, before the ROM's own
+// transfer routine consumes it. The source command family tells us
+// which selecting side produced the request, never which recording to
+// play. Both sides are rewritten to the SAME canonical A-family code
+// obtained from their selected ROM character ID.
+inline std::uint16_t RewriteSelectionNameRingWrite(
+    std::uint32_t address, std::uint16_t value, unsigned bytes,
+    const std::uint8_t *ram, std::size_t ramSize,
+    const std::array<std::uint16_t, 2> &selected) {
+    if (!ram || ramSize < 0x10000u ||
+        (bytes != 1u && bytes != 2u)) return value;
+    address &= 0xFFFFFFu;
+    if (address < 0xFF2648u || address >= 0xFF2A48u)
+        return value;
+    const unsigned offset = address - 0xFF2648u;
+    if (bytes == 1u && (offset & 15u) != 3u) return value;
+    if (bytes == 2u && (offset & 15u) != 2u) return value;
+    const unsigned native = value & 0xFFu;
+    // Native first/second P1 sound sources can include B3 even when
+    // the custom grid contains no B3 recording. The source is not an
+    // authority for the resulting character voice.
+    const unsigned side =
+        native >= 0xA0u && native <= 0xB3u ? 0u :
+        native >= 0xC0u && native <= 0xD3u ? 1u : 2u;
+    if (side >= 2u) return value;
+    // The high byte belongs to the 16-bit sound code. 03BB and
+    // similar character-owned sprite commands are NOT announcements.
+    if (bytes == 2u) {
+        if ((value & 0xFF00u) != 0u) return value;
+    } else if (ram[0x2648u + offset - 1u] != 0u) {
+        return value;
+    }
+    const std::uint16_t name = NativeCharacterVoice(selected[side]);
+    if (name == 0xFFFFu) return value;
+    return static_cast<std::uint16_t>((value & 0xFF00u) | name);
 }
 
-// All character announcements in the unmodified ROM are suppressed
-// at the completed 61801E sound request. The ONE authoritative voice
-// for each accepted pick is sent separately as an ordinary request by
-// Choosing's scanline callback. The caller's explicit-send flag is
-// required to bypass this filter for that request only.
-// Keep the real 84/85 navigation and all unrelated UI/music commands.
-inline bool AllowNativeSelectionSound(std::uint8_t *request) {
+// The ROM's actual FF2648 ring is now the only producer of name speech.
+// The Z80 shared-RAM stage is reserved for the ROM's own conversion.
+// Only mute separately queued character-owned 0A00 sprite speech here.
+// Never block names A?/C? at the sound transport: we just corrected
+// their source in the ring, and their transfer format is ROM-owned.
+inline bool AllowNativeSelectionSound(const std::uint8_t *request) {
     if (!request) return false;
-    if (SelectionSoundEnvelope(request, 0x10u) && request[2] == 0u) {
-        const unsigned code = request[3];
-        if (code == 0x82u || code == 0x83u ||
-            (code >= 0xA0u && code <= 0xDFu))
-            return false;
-    }
     if (SelectionSoundEnvelope(request, 0x0Au))
-        return false; // native character sprite speech
+        return false;
     return true;
 }
 
