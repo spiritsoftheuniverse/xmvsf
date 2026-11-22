@@ -37,6 +37,12 @@
 #include <filesystem>
 #include <fstream>
 
+// Read-only visual identity from the 87.500 chooser; never changes input,
+// native audio or character assignment.
+namespace cps2recomp {
+uint16_t ChoosingVisualCharacterId(unsigned side);
+}
+
 using namespace cps2recomp;
 
 namespace port {
@@ -1508,11 +1514,9 @@ int RunWindowed(Port &port) {
         if (customChoosing && !turned && !graphicsInspector.Active() &&
             !port.menu.IsOpen() && presenter.Renderer()) {
             const auto &ram = port.machine->ram;
-            const auto cursor = [&](unsigned offset) -> std::uint16_t {
-                return static_cast<std::uint16_t>(
-                    (static_cast<unsigned>(ram[offset]) << 8u) |
-                    static_cast<unsigned>(ram[offset + 1u]));
-            };
+            // F10 87.504: the ROM sometimes leaves cursor FF518C/FF51AC
+            // pointing at a different character than the accepted ID.
+            // The custom grid remains the authoritative visual location.
             const bool p1Show = true;
             const bool p2Show = (ram[0x5101u] & 2u) != 0u &&
                 (!session::InSession() || ram[0x5183u] >= 2u);
@@ -1526,7 +1530,9 @@ int RunWindowed(Port &port) {
                 characterSelectEnteredFrame;
             if (const auto *image = homeTextures.ComposeCharacterSelect(
                     presenter.Renderer(), elapsed,
-                    cursor(0x518Cu), cursor(0x51ACu), p1Show, p2Show,
+                    cps2recomp::ChoosingVisualCharacterId(0u),
+                    cps2recomp::ChoosingVisualCharacterId(1u),
+                    p1Show, p2Show,
                     p1CursorActive, p2CursorActive)) {
                 presenter.UseClassicMenuCanvas(false);
                 presenter.Show(image->pixels.data(), image->width,
