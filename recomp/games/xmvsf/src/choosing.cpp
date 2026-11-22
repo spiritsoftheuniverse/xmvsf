@@ -85,7 +85,10 @@ namespace {
             // The native accepted counter is the only authority for
             // an audible selection. Not raw button presses, cursor
             // animation frames, or a guessed announcer source ID.
-            if (count > g_soundAccepted[n] && count <= 2u) {
+            // Sound grants must be issued in the committed timeline,
+            // not during speculative run-ahead frames (unlike RAM, the
+            // source-only ticket counters are not save-state serialized).
+            if (!RunningAhead() && count > g_soundAccepted[n] && count <= 2u) {
                 g_soundAccepted[n] = count; // idempotent even if ROM writes twice
                 const std::uint16_t selected = IntendedNativeId(n);
                 const std::uint16_t name =
