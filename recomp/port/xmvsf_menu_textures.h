@@ -100,6 +100,9 @@ class TexturedMenu {
             Tint(background_, 77);
         }
         films_.Init(r);
+        // Preload native character select and both FDBs during HOME,
+        // rather than on the first live selection frame.
+        characterSelect_.Preload(r);
         if (!logo_ || !largeFont_ || !smallFont_) {
             if (!warned_) {
                 std::fprintf(stderr,
