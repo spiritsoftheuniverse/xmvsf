@@ -58,6 +58,9 @@ def main():
     assert "stageVisible = false" in screen
     assert 'Cursor(p1Cursor_, 9, a)' in screen
     assert 'Cursor(p2Cursor_, 8, b)' in screen
+    # The second pick ends selector inversion independently for each side.
+    assert "if (ink && showP1 && cursorP1 && a >= 0)" in screen
+    assert "if (ink && showP2 && cursorP2 && b >= 0)" in screen
     frontend = (SRC / "frontend_sdl.cpp").read_text()
     chooser = (ROOT / "recomp/games/xmvsf/src/choosing.cpp").read_text()
     game = (ROOT / "recomp/games/xmvsf/src/game.cpp").read_text()
@@ -68,6 +71,14 @@ def main():
     assert "const bool choosing = machine.video.hudShock &&" in chooser
     assert "session::BeforeFrame(machine);\n        ChoosingLayoutBeforeCpu(machine);" in game
     assert "SetRam16(record + kCursor" in chooser
+    assert "void ChoosingLayoutAfterFrame(Machine &machine)" in chooser
+    assert "ChoosingLayoutAfterFrame(machine);" in game
+    assert "g_accepted[n] = accepted;" in chooser
+    assert "SetRam16(pickAt, target)" in chooser
+    assert "const bool active = Ram8(record) <= 3u && Ram8(record + 3u) < 2u;" in chooser
+    assert "const bool p1CursorActive = ram[0x5183u] < 2u;" in frontend
+    assert "const bool p2CursorActive = ram[0x51A3u] < 2u;" in frontend
+    assert "p1CursorActive, p2CursorActive))" in frontend
     gpp = shutil.which("g++")
     assert gpp, "UCRT64 g++ required for selection grid smoke"
     with tempfile.TemporaryDirectory(prefix="xmvsf_cs_layout_") as d:
