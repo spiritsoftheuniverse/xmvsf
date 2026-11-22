@@ -107,6 +107,25 @@ def main():
     assert "g_voiceSide = -1;" in chooser
     assert "CorrectQueuedCharacterVoice(std::uint8_t *ram" in (
         SRC / "xmvsf_character_select_rewrite.h").read_text()
+    # 87.509 native movement SFX is only filled in when the visual grid
+    # truly moves and the native sound queue did not already emit 0x84.
+    select_rewrite = (SRC / "xmvsf_character_select_rewrite.h").read_text()
+    assert "QueueMissingCursorMovementSound(std::uint8_t *ram" in select_rewrite
+    assert "p[3] != 0x84u" in select_rewrite
+    assert "entry[3] = 0x84u;" in select_rewrite
+    assert "entry[6] = 0x10u;" in select_rewrite
+    assert "distance > 128u" in select_rewrite
+    assert "if (nativeMoveTick(ram + 0x2648u + at)) return false;" in select_rewrite
+    assert "g_cursorSoundBegin = g_voiceReadAt;" in chooser
+    assert "g_gridBeforeFrame[0] = g_layout.index[0];" in chooser
+    assert "g_gridBeforeFrame[1] = g_layout.index[1];" in chooser
+    assert "g_gridBeforeFrame[0] != g_layout.index[0]" in chooser
+    assert "g_gridBeforeFrame[1] != g_layout.index[1]" in chooser
+    assert "QueueMissingCursorMovementSound(" in chooser
+    assert "if (customMoved && g_cursorSoundBegin != 0xFFFFu &&" in chooser
+    assert "if (!RunningAhead()" not in select_rewrite
+    assert "AddHook(HookAt(0x0787E0)" not in chooser
+    assert "g_voiceReadAt = Ram16(kSoundQueueEnd);" in chooser
 
     assert "const bool choosing = machine.video.hudShock &&" in chooser
     assert "session::BeforeFrame(machine);\n        ChoosingLayoutBeforeCpu(machine);" in game
@@ -144,7 +163,7 @@ def main():
                         str(ROOT / "recomp_port/tests/test_character_select_grid.cpp"),
                         "-o", str(binary)], check=True)
         subprocess.run([str(binary)], check=True)
-    print("XMVSF 87.508 guarded pre-sound queued voice fix, native navigation, 18-ID mapping PASS")
+    print("XMVSF 87.509 native 0x84 handoff tick, deduped movement, 87.508 voice and 18-ID mapping PASS")
 
 if __name__ == "__main__":
     main()
