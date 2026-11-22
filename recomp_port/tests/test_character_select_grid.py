@@ -86,6 +86,30 @@ def main():
     assert "machine.players[n] &= static_cast<uint16_t>(~fight::kSticks);" not in chooser
     assert "machine.selectionRamWriteOverride = &RemapSelectionWrite;" in chooser
     assert "machine.selectionRamWriteOverride = nullptr;" in chooser
+    # 87.508 does not install a translated ROM/M68K hook: the prior
+    # 0787E0 hook crashed upon the stage/level-select handoff.
+    assert "AddHook(HookAt(0x0787E0)" not in chooser
+    assert "CorrectNativeQueuedVoice(Machine &machine)" in chooser
+    assert "CorrectQueuedCharacterVoice(" in chooser
+    assert "NativeCharacterVoice(g_voiceDesired)" in chooser
+    assert "g_voiceReadAt = Ram16(kSoundQueueEnd);" in chooser
+    assert "const unsigned diff =" in chooser
+    assert "if (diff > 128u)" in chooser
+    assert "g_voiceHandled = true;" in chooser
+    assert "if (g_voiceSide >= 0 && g_voiceReadAt <= kSoundQueueMask" in chooser
+    assert "machine.selectionVoiceQueueBeforeSound = &CorrectNativeQueuedVoice;" in chooser
+    assert "machine.selectionVoiceQueueBeforeSound = nullptr;" in chooser
+    assert "constexpr uint16_t kConfirm = kPunch1 | kPunch2 | kPunch3 |" in chooser
+    assert "if (active && (machine.players[n] & kConfirm) != 0u)" in chooser
+    assert "g_voiceSide = -2;" in chooser
+    assert "g_voiceSide = -1;" in chooser
+    assert "void (*selectionVoiceQueueBeforeSound)(Machine &) = nullptr;" in machine_header
+    assert "if (selectionVoiceQueueBeforeSound)" in machine_src
+    assert "selectionVoiceQueueBeforeSound(*this);" in machine_src
+    assert machine_src.index("selectionVoiceQueueBeforeSound(*this);") < machine_src.index("RunSound(kSoundCyclesPerLine);")
+    assert "CorrectQueuedCharacterVoice(std::uint8_t *ram" in (
+        SRC / "xmvsf_character_select_rewrite.h").read_text()
+
     assert "const bool choosing = machine.video.hudShock &&" in chooser
     assert "session::BeforeFrame(machine);\n        ChoosingLayoutBeforeCpu(machine);" in game
     assert "SetRam16(record + kCursor" in chooser
@@ -118,7 +142,7 @@ def main():
                         str(ROOT / "recomp_port/tests/test_character_select_grid.cpp"),
                         "-o", str(binary)], check=True)
         subprocess.run([str(binary)], check=True)
-    print("XMVSF 87.505 F10-canonical portraits/names, unchanged 87.500 input/audio, 18-ID mapping PASS")
+    print("XMVSF 87.508 guarded pre-sound queued voice fix, native navigation, 18-ID mapping PASS")
 
 if __name__ == "__main__":
     main()
