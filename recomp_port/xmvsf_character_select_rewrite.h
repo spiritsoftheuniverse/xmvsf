@@ -37,29 +37,28 @@ inline constexpr uint16_t RewriteNativeSelectionWrite(
 // 87.508: no M68K execution hooks. The native confirmation voice request
 // occupies a 16-byte entry in the FF2648 sound queue. F10 captured:
 // Magneto 0E -> 000000A700001000... ; Gambit 08 -> 000000A400001000...
-// The expected P1 voice for Rogue 06 is therefore 0xA3.
-// 87.511 F10 (latest(2).zip) additionally confirms the P2 family:
-// Gambit 08 -> 0xC4 and Wolverine 00 -> 0xC0.
-// This helper is called only from the optional between-CPU/sound scanline
-// callback while a real native confirmation button is held.
+// The user sound-tested the A-family as the actual correct spoken names.
+// 87.516: Character ID, NOT player side, determines the name. The ROM
+// sometimes emits C-family codes for P2, but they are native transport
+// behavior and NOT the canonical sound assignments for our custom grid.
 // Alpha Chun-Li is a costume/form of Chun-Li, not another separately
 // recorded spoken character. Share her native selection sound identity.
 inline constexpr std::uint16_t CharacterVoiceIdentity(std::uint16_t id) {
     return id == 0x24u ? 0x16u : id;
 }
-inline constexpr std::uint16_t NativeCharacterVoice(std::uint16_t id,
-                                                    unsigned side = 0u) {
+inline constexpr std::uint16_t NativeCharacterVoice(std::uint16_t id) {
     const std::uint16_t voiceId = CharacterVoiceIdentity(id);
-    return (side < 2u && Find(voiceId) >= 0 && (voiceId & 1u) == 0u)
-        ? static_cast<std::uint16_t>(0xA0u + side * 0x20u + voiceId / 2u)
+    return (Find(voiceId) >= 0 && (voiceId & 1u) == 0u)
+        ? static_cast<std::uint16_t>(0xA0u + voiceId / 2u)
         : 0xFFFFu;
 }
 
 // 87.515: Selection audio owns its OWN character identity. The ROM's
 // transient selection cursor cannot choose the samples played by QSound.
 // The authoritative ID is from kSlots/IntendedNativeId at the real
-// FF5183/FF51A3 accepted-count write. P1 speaks A0..B1, P2 C0..D1;
-// Alpha Chun-Li shares Chun-Li's name recording.
+// FF5183/FF51A3 accepted-count write. BOTH players speak the exact
+// same A-family code (e.g. Gambit A4 for P1 OR P2). Alpha Chun-Li
+// shares Chun-Li's name recording until independently sound-tested.
 //
 // The shared sound transport delivers a *complete* 16-byte QSound
 // request when the M68K writes 61801E. Filter that request BEFORE it
@@ -67,7 +66,7 @@ inline constexpr std::uint16_t NativeCharacterVoice(std::uint16_t id,
 //
 // Preserve native cursor ticks 84/85. Names and confirmation sounds
 // 82/83 have one authorization per real pick. Drop WRONG/duplicate
-// native names A0..DF and character-owned 0A00 speech, while retaining
+// native A/C-family names A0..DF and character-owned 0A00 speech, retaining
 // unrelated music/UI commands. Other screens and games are untouched.
 inline bool SelectionSoundEnvelope(const std::uint8_t *p, unsigned kind) {
     if (!p || p[0] || p[1] || p[4] || p[5] ||
