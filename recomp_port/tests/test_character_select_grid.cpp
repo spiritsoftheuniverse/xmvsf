@@ -59,8 +59,17 @@ int main() {
     ram[ringBase + 48u + 7u] = 1u;
     assert(!CorrectQueuedCharacterVoice(ram.data(), ram.size(), 48u, 0x06u));
     assert(ram[ringBase + 48u + 3u] == 0xA4u);
-    voiceRequest(64u, 0xA8u); // Apocalypse has no slot
-    assert(!CorrectQueuedCharacterVoice(ram.data(), ram.size(), 64u, 0x06u));
+    // 87.513: native-source announcers need NOT be present in the custom
+    // 18-cell grid. The old 87.508 test incorrectly rejected 0xA8.
+    // A valid off-grid source must be rewritten to the selected Rogue.
+    voiceRequest(64u, 0xA8u); // native Apocalypse, absent from custom grid
+    assert(CorrectQueuedCharacterVoice(ram.data(), ram.size(), 64u, 0x06u));
+    assert(ram[ringBase + 64u + 3u] == 0xA3u);
+    assert(ram[ringBase + 64u + 6u] == 0x10u);
+    // A real out-of-range announcer must still be rejected unchanged.
+    voiceRequest(0x110u, 0xB4u);
+    assert(!CorrectQueuedCharacterVoice(ram.data(), ram.size(), 0x110u, 0x06u));
+    assert(ram[ringBase + 0x110u + 3u] == 0xB4u);
     assert(!CorrectQueuedCharacterVoice(ram.data(), ram.size(), 0x400u, 0x06u));
     assert(!CorrectQueuedCharacterVoice(ram.data(), 0x100u, 0u, 0x06u));
     // Last entry of ring is still 16 bytes within the 0x400 region.
