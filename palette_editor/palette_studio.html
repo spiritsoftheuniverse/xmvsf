@@ -54,7 +54,10 @@ header p {font-size:12px;color:#9eb4ca;margin:0}
 .preview-box,.swatch-box {background:#0e1a2b;border:1px solid #2f4864;border-radius:12px;min-width:0;padding:14px}
 .preview-head,.swatch-head {display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
 .legend {font-size:10px;color:#9bb3ca}
-.preview {height:315px;display:grid;place-items:center;margin-top:10px;border-radius:10px;border:1px solid #2b4056;background:repeating-conic-gradient(#1a2b3b 0 25%,#11202f 0 50%) 50% / 22px 22px;overflow:hidden}
+.preview-pair {display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);gap:10px;margin-top:10px}
+.preview-frame {display:flex;flex-direction:column;gap:8px;min-width:0}
+.preview-caption {font-size:10px;font-weight:750;letter-spacing:.09em;color:#93b7ce;text-transform:uppercase}
+.preview {height:315px;display:grid;place-items:center;border-radius:10px;border:1px solid #2b4056;background:repeating-conic-gradient(#1a2b3b 0 25%,#11202f 0 50%) 50% / 22px 22px;overflow:hidden}
 .preview canvas {width:100%;height:100%;object-fit:contain;image-rendering:pixelated}
 .preview-notice {min-height:44px;font-size:11px;color:#95b6ca;line-height:1.6;margin-top:10px}
 .sprite-options {display:flex;align-items:center;gap:8px;font-size:11px;margin-top:9px}
@@ -126,20 +129,28 @@ header p {font-size:12px;color:#9eb4ca;margin:0}
    </div>
   </div>
   <div class="strip">
-   <div class="strip-head"><h2 class="section-title">Sprite loaders</h2>
-    <div><button id="addSprite">+ Add sprite PNGs</button>
+   <div class="strip-head"><h2 class="section-title">Combat sprite loaders</h2>
+    <div class="toolbar"><button id="refreshSprites">Refresh viewer exports</button>
+     <button id="addSprite">+ Add sprite PNGs</button>
      <input type="file" id="spriteInput" accept="image/png" multiple hidden></div></div>
    <div class="strip-list" id="spriteStrip"></div>
-   <div class="gallery-hint">Choose a sprite thumbnail to load it. Portrait art is reference-only; import transparent idle PNGs for live palette recoloring.</div>
+   <div class="gallery-hint">The recomp Model viewer's Export → Save picture produces native standing sprites. This strip automatically finds those exports when you choose a character or click Refresh. Imported PNGs still work.</div>
   </div>
   <div class="stage">
    <div class="preview-box">
-    <div class="preview-head"><h2 class="section-title">Sprite preview</h2><span class="legend" id="previewType">No idle sprite loaded</span></div>
-    <div class="preview"><canvas id="preview" width="320" height="300" aria-label="Current sprite preview"></canvas></div>
+    <div class="preview-head"><h2 class="section-title">Matched character art</h2><span class="legend" id="previewType">No standing sprite found</span></div>
+    <div class="preview-pair">
+     <div class="preview-frame"><div class="preview-caption">Select portrait · Original</div>
+      <div class="preview"><canvas id="portraitPreview" width="220" height="300" aria-label="Original character portrait"></canvas></div>
+     </div>
+     <div class="preview-frame"><div class="preview-caption">Combat sprite · Profile colors</div>
+      <div class="preview"><canvas id="preview" width="280" height="300" aria-label="Native combat sprite preview"></canvas></div>
+     </div>
+    </div>
     <div class="sprite-options"><label for="spriteBase">Sprite source colors</label>
      <select id="spriteBase"><option value="0">Original P</option><option value="1">Original K</option></select>
     </div>
-    <div class="preview-notice" id="previewNotice">Imported sprites should be transparent PNGs painted with the game's original colors.</div>
+    <div class="preview-notice" id="previewNotice">Open the recomp Model viewer, choose this character and Standing, then Export → Save picture. Refresh to load its native sprite beside the portrait.</div>
    </div>
    <div class="swatch-box">
     <div class="swatch-head"><h2 class="section-title">Original ROM addresses</h2>
@@ -334,9 +345,10 @@ $('search').oninput=showCharacters;
 function renderAll(){showCharacters();showProfileOptions();drawSwatches();renderColorInspector();refreshPreviews()}
 async function fetchSpriteData(){
   state.sprites=await request('/api/sprites?character='+state.who);
-  state.selectedSprite=state.sprites.find(v=>v.type==='sprite')||state.sprites[0]||null;
+  state.selectedSprite=state.sprites.find(v=>v.type==='viewer')||
+    state.sprites.find(v=>v.type==='sprite')||null;
   state.spriteImage=null;
-  drawSpriteStrip();
+  drawSpriteStrip();drawPortrait();
 }
 function cachedImage(url){
   if(!state.images.has(url)){
@@ -351,7 +363,7 @@ function coloredSprite(img,kind){
   const off=document.createElement('canvas');off.width=img.naturalWidth;off.height=img.naturalHeight;
   const ctx=off.getContext('2d',{willReadFrequently:true});ctx.drawImage(img,0,0);
   let changed=0,visible=0;
-  if(kind==='sprite'&&original()){
+  if((kind==='sprite'||kind==='viewer')&&original()){
     const pixels=ctx.getImageData(0,0,off.width,off.height);
     const base=original()[state.sourceSet][0],dest=colors()[state.set][0];
     const lookup=new Map(base.map((c,i)=>[c.toUpperCase(),i]));
@@ -380,8 +392,9 @@ function paintSprite(canvas,img,kind){
 }
 function drawSpriteStrip(){
   const host=$('spriteStrip');host.replaceChildren();
-  if(!state.sprites.length){const label=document.createElement('span');label.className='muted';label.textContent='No sprite or portrait art found. Use Add sprite PNGs.';host.append(label);return}
-  state.sprites.forEach(sprite=>{
+  const combats=state.sprites.filter(sprite=>sprite.type!=='portrait');
+  if(!combats.length){const label=document.createElement('span');label.className='muted';label.textContent='No combat sprites yet. In the recomp, open Model viewer → Export → Save picture, then Refresh here.';host.append(label);drawPreview();return}
+  combats.forEach(sprite=>{
     const button=document.createElement('button');button.className='thumb'+(state.selectedSprite===sprite?' active':'');
     const canvas=document.createElement('canvas');canvas.width=76;canvas.height=69;
     const name=document.createElement('span');name.textContent=sprite.name;
@@ -394,21 +407,30 @@ function drawSpriteStrip(){
 async function drawPreview(){
   const canvas=$('preview');const sprite=state.selectedSprite;const selection=state.who;
   canvas.getContext('2d').clearRect(0,0,canvas.width,canvas.height);
-  if(!sprite){$('previewType').textContent='Import an idle PNG';$('previewNotice').textContent='Use Add sprite PNGs above to attach actual character frames.';return}
-  $('previewType').textContent=sprite.type==='sprite'?'Sprite · '+sprite.name:'Reference artwork only';
+  if(!sprite){$('previewType').textContent='Waiting for native sprite';$('previewNotice').textContent='In XMVSF, open Alternative modes → Model viewer, choose this fighter and Standing, then Export → Save picture. Return here and click Refresh viewer exports. No manual sprite import needed.';return}
+  $('previewType').textContent=sprite.type==='viewer'?'Native model · '+sprite.name:'Imported sprite · '+sprite.name;
   try{
     const img=await cachedImage(sprite.url);
     if(state.selectedSprite!==sprite||state.who!==selection)return;
     const result=paintSprite(canvas,img,sprite.type);
-    if(sprite.type==='portrait'){
-      $('previewNotice').textContent='Menu portrait shown as a reference; this is not an idle sprite and is intentionally not recolored. Import a native idle PNG to preview live palettes.';
-    }else{
-      const pct=result.visible?Math.round(100*result.matched/result.visible):0;
-      $('previewNotice').textContent=pct+'% of visible sprite pixels matched the original '+(state.sourceSet?'K':'P')+' body palette. Matched pixels are recolored exactly; unmatched pixels remain unchanged. Use transparent native-color idle sprites.';
-    }
+    const pct=result.visible?Math.round(100*result.matched/result.visible):0;
+    $('previewNotice').textContent=(sprite.type==='viewer'?'Genuine native Model viewer export. ':'Imported sprite. ')+
+      pct+'% of visible sprite pixels matched original '+(state.sourceSet?'K':'P')+
+      ' body colors. Matching pixels use this profile; others are left unchanged.';
   }catch(err){$('previewNotice').textContent=err.message}
 }
 function refreshPreviews(){if(!state.sprites)return;drawSpriteStrip()}
+async function drawPortrait(){
+  const canvas=$('portraitPreview');canvas.getContext('2d').clearRect(0,0,canvas.width,canvas.height);
+  const who=state.who;
+  const portrait=state.sprites.find(sprite=>sprite.type==='portrait');
+  if(!portrait)return;
+  try{
+    const img=await cachedImage(portrait.url);
+    if(who!==state.who)return;
+    paintSprite(canvas,img,'portrait');
+  }catch(err){show('Portrait unavailable: '+err.message,true)}
+}
 function chooseCharacter(id){
   if(state.dirty&&!confirm('Discard unsaved profile changes?'))return;
   state.who=id;state.set=0;state.line=0;state.pen=1;state.mode='original';state.id=null;state.name='';
@@ -485,6 +507,10 @@ $('profileSelect').onchange=()=>openProfile($('profileSelect').value);
 $('exportProfile').onclick=exportProfile;
 $('loadRom').onclick=()=>$('romInput').click();
 $('romInput').onchange=async()=>{await uploadSource($('romInput').files[0]);$('romInput').value=''};
+$('refreshSprites').onclick=async()=>{
+  try{await fetchSpriteData();show('Native Model viewer exports refreshed for '+state.data.characters[state.who].name,false)}
+  catch(err){show(err.message,true)}
+};
 $('addSprite').onclick=()=>$('spriteInput').click();
 $('spriteInput').onchange=async()=>{await uploadSprites([...$('spriteInput').files]);$('spriteInput').value=''};
 $('spriteBase').onchange=()=>{state.sourceSet=Number($('spriteBase').value);refreshPreviews()};
