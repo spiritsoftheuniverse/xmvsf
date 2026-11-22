@@ -38,9 +38,10 @@ static_assert(SameTeamCharacter(0x16u, 0x24u)); // both Chun-Li forms
 static_assert(!SameTeamCharacter(0x08u, 0x06u));
 static_assert(SkipTeamIndex(1, 2, 1u, 0x08u) == 3); // Gambit skipped going right
 static_assert(SkipTeamIndex(3, 2, 2u, 0x08u) == 1); // skipped going left
-static_assert(SkipTeamIndex(11, 2, 8u, 0x08u) == 11); // vertical blocked
+static_assert(SkipTeamIndex(11, 2, 8u, 0x08u) == 3); // vertical slides right
 static_assert(SkipTeamIndex(7, 8, 1u, 0x1Eu) == 7); // Akuma at right corner
 static_assert(SkipTeamIndex(1, 0, 2u, 0x02u) == 1); // Cyclops at left corner
+static_assert(SkipTeamIndex(17, 8, 8u, 0x1Eu) == 7); // top-right slides left
 // The timer never authorizes native acceptance. One A press can grant
 // only the next pick, and repeated writes of the same count are harmless.
 static_assert(!NativePickAllowed(1, 0, 0, false));
