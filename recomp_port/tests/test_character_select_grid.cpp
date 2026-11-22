@@ -11,9 +11,53 @@ static_assert(Find(0x02) == 0 && Find(0x00) == 1);
 static_assert(Find(0x12) == 9 && Find(0x14) == 10);
 static_assert(Find(0x1e) == 8 && Find(0x24) == 14);
 static_assert(Find(0x10) == -1);
+// 87.508 F10 native voice mapping. Full announcer request format is
+// validated before any queued byte is changed (no M68K execution hook).
+static_assert(NativeCharacterVoice(0x0E) == 0xA7); // Magneto, captured
+static_assert(NativeCharacterVoice(0x08) == 0xA4); // Gambit, captured
+static_assert(NativeCharacterVoice(0x06) == 0xA3); // Rogue, intended
+static_assert(NativeCharacterVoice(0x10) == 0xFFFF); // no Apocalypse slot
+static_assert(NativeCharacterVoice(0x25) == 0xFFFF);
+
 static_assert(Navigate(0, 1) == 1 && Navigate(8, 1) == 0);
 static_assert(Navigate(9, 1) == 10 && Navigate(9, 8) == 0);
 int main() {
+    // F10 frame 884: wrong Gambit voice when Rogue was confirmed.
+    std::array<std::uint8_t, 65536> ram{};
+    constexpr unsigned ringBase = 0x2648u;
+    const auto voiceRequest = [&](unsigned offset, std::uint8_t voice) {
+        auto *p = ram.data() + ringBase + offset;
+        for (unsigned n = 0; n < 16u; ++n) p[n] = 0u;
+        p[3] = voice;
+        p[6] = 0x10u;
+    };
+    voiceRequest(0u, 0xA4u);
+    assert(CorrectQueuedCharacterVoice(ram.data(), ram.size(), 0u, 0x06u));
+    assert(ram[ringBase + 3u] == 0xA3u); // Rogue
+    assert(ram[ringBase + 6u] == 0x10u); // native envelope preserved
+    // Correct Magneto voice remains untouched.
+    voiceRequest(16u, 0xA7u);
+    assert(CorrectQueuedCharacterVoice(ram.data(), ram.size(), 16u, 0x0Eu));
+    assert(ram[ringBase + 16u + 3u] == 0xA7u);
+    // The common post-announcement SFX 0x82 and all ordinary SFX
+    // remain completely untouched.
+    voiceRequest(32u, 0x82u);
+    assert(!CorrectQueuedCharacterVoice(ram.data(), ram.size(), 32u, 0x06u));
+    assert(ram[ringBase + 32u + 3u] == 0x82u);
+    // Invalid envelope/ID/pointers must not be edited.
+    voiceRequest(48u, 0xA4u);
+    ram[ringBase + 48u + 7u] = 1u;
+    assert(!CorrectQueuedCharacterVoice(ram.data(), ram.size(), 48u, 0x06u));
+    assert(ram[ringBase + 48u + 3u] == 0xA4u);
+    voiceRequest(64u, 0xA8u); // Apocalypse has no slot
+    assert(!CorrectQueuedCharacterVoice(ram.data(), ram.size(), 64u, 0x06u));
+    assert(!CorrectQueuedCharacterVoice(ram.data(), ram.size(), 0x400u, 0x06u));
+    assert(!CorrectQueuedCharacterVoice(ram.data(), 0x100u, 0u, 0x06u));
+    // Last entry of ring is still 16 bytes within the 0x400 region.
+    voiceRequest(0x3F0u, 0xA4u);
+    assert(CorrectQueuedCharacterVoice(ram.data(), ram.size(), 0x3F0u, 0x06u));
+    assert(ram[ringBase + 0x3F0u + 3u] == 0xA3u);
+
     Navigation n;
     assert(n.index[0] == 9 && n.index[1] == 8);
     n.Advance(0, 1, true);
