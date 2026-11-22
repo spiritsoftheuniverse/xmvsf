@@ -87,6 +87,10 @@ def main():
     assert "selectionRamWriteOverride(*this, address & ~1u, value, 2)" in machine_src
     assert "selectionRamWriteOverride(*this, address, next, 1)" in machine_src
     assert "RewriteNativeSelectionWrite(" in chooser
+    assert "const uint32_t counter = 0xFF5183u + n * 0x20u;" in chooser
+    assert "g_committed[n][pick] = IntendedNativeId(n);" in chooser
+    assert "if (count == 2u) g_commitPending = true;" in chooser
+    assert "const bool wroteCounter" in chooser
     assert "const bool active = Ram8(record) <= 3u && Ram8(record + 3u) < 2u;" in chooser
     assert "const bool p1CursorActive = ram[0x5183u] < 2u;" in frontend
     assert "const bool p2CursorActive = ram[0x51A3u] < 2u;" in frontend
