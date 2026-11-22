@@ -34,40 +34,21 @@ inline constexpr uint16_t RewriteNativeSelectionWrite(
     return value;
 }
 
-// 87.508: no M68K execution hooks. The native confirmation voice request
-// occupies a 16-byte entry in the FF2648 sound queue. F10 captured:
-// Magneto 0E -> 000000A700001000... ; Gambit 08 -> 000000A400001000...
-// The user sound-tested the A-family as the actual correct spoken names.
-// 87.516: Character ID, NOT player side, determines the name. The ROM
-// sometimes emits C-family codes for P2, but they are native transport
-// behavior and NOT the canonical sound assignments for our custom grid.
-// Alpha Chun-Li is a costume/form of Chun-Li, not another separately
-// recorded spoken character. Share her native selection sound identity.
+// 87.518: One character, one voice. The canonical command is IN THE
+// SAME RECORD as its character ROM ID and portrait, never computed from
+// P1/P2 ownership, team slot, original ROM cursor or sound source bank.
+inline constexpr std::uint16_t NativeCharacterVoice(std::uint16_t id) {
+    const int slot = Find(id);
+    return slot < 0 ? 0xFFFFu :
+        kSlots[static_cast<unsigned>(slot)].nameVoice;
+}
+
+// An alternate Chun-Li portrait speaks Chun-Li's recorded name; both
+// records explicitly contain AB. This helper remains for legacy checks.
 inline constexpr std::uint16_t CharacterVoiceIdentity(std::uint16_t id) {
     return id == 0x24u ? 0x16u : id;
 }
-inline constexpr std::uint16_t NativeCharacterVoice(std::uint16_t id) {
-    const std::uint16_t voiceId = CharacterVoiceIdentity(id);
-    return (Find(voiceId) >= 0 && (voiceId & 1u) == 0u)
-        ? static_cast<std::uint16_t>(0xA0u + voiceId / 2u)
-        : 0xFFFFu;
-}
 
-// 87.515: Selection audio owns its OWN character identity. The ROM's
-// transient selection cursor cannot choose the samples played by QSound.
-// The authoritative ID is from kSlots/IntendedNativeId at the real
-// FF5183/FF51A3 accepted-count write. BOTH players speak the exact
-// same A-family code (e.g. Gambit A4 for P1 OR P2). Alpha Chun-Li
-// shares Chun-Li's name recording until independently sound-tested.
-//
-// The shared sound transport delivers a *complete* 16-byte QSound
-// request when the M68K writes 61801E. Filter that request BEFORE it
-// can reach the Z80, not by guessing when the ROM enqueues it.
-//
-// Preserve native cursor ticks 84/85. Names and confirmation sounds
-// 82/83 are explicitly tagged per *player AND pick*, then restored to
-// native 16-byte format before the sound CPU sees them. Drop all original
-// A/C-family names and 0A00 sprite speech; pass unrelated music/UI unchanged.
 inline bool SelectionSoundEnvelope(const std::uint8_t *p, unsigned kind) {
     if (!p || p[0] || p[1] || p[4] || p[5] ||
         p[6] != kind || p[7]) return false;
@@ -76,80 +57,35 @@ inline bool SelectionSoundEnvelope(const std::uint8_t *p, unsigned kind) {
     return true;
 }
 
-// Each explicit name/confirmation carries the pick identity that produced
-// it. The ROM uses all-zero bytes 8..15 for these 16-byte native envelopes.
-// Mark bytes 8..11 only while in the M68K request ring; the delivery gate
-// strips them BEFORE the Z80 or sound-driver receives the command.
-// This prevents an old P1 pick 1 sound from consuming P1 pick 2's ticket.
-inline constexpr std::uint8_t kSelectTagA = 0x51u, kSelectTagB = 0x5Eu;
-using SelectionNames = std::array<std::array<std::uint16_t, 2>, 2>;
-using SelectionTickets = std::array<std::array<unsigned, 2>, 2>;
-
-inline bool QueueExplicitSelectionSound(std::uint8_t *ram, std::size_t size,
-                                        std::uint16_t command,
-                                        unsigned side = 0u, unsigned pick = 0u) {
-    if (!ram || size < 0x10000u || command > 0xFFu ||
-        side >= 2u || pick >= 2u) return false;
-    const unsigned at = (static_cast<unsigned>(ram[0x2642u]) << 8u) |
-                         ram[0x2643u];
-    if (at > 0x3F0u || (at & 15u)) return false;
-    std::uint8_t *p = ram + 0x2648u + at;
-    for (unsigned i = 0u; i < 16u; ++i) p[i] = 0u;
-    p[3] = static_cast<std::uint8_t>(command);
-    p[6] = 0x10u;
-    p[8] = kSelectTagA;
-    p[9] = kSelectTagB;
-    p[10] = static_cast<std::uint8_t>(side);
-    p[11] = static_cast<std::uint8_t>(pick);
-    const unsigned next = (at + 16u) & 0x3F0u;
-    ram[0x2642u] = static_cast<std::uint8_t>(next >> 8u);
-    ram[0x2643u] = static_cast<std::uint8_t>(next);
+// This is the exact unmarked command format already used by QSound.
+// It goes DIRECTLY to the Machine's shared sound transport; no private
+// metadata is stored in the guest ROM queue and no M68K copy logic is
+// expected to preserve such metadata.
+inline bool MakeSelectionSoundRequest(std::uint8_t *request, std::size_t size,
+                                     std::uint16_t code) {
+    if (!request || size < 16u || code > 0xFFu) return false;
+    for (unsigned i = 0u; i < 16u; ++i) request[i] = 0u;
+    request[3] = static_cast<std::uint8_t>(code);
+    request[6] = 0x10u;
     return true;
 }
 
-// The ROM is free to produce its old character voice, but NONE of those
-// unmarked A/C-family announcements or 0A00 sprite voices can get through.
-// Only our explicitly tagged, exact-name request for an accepted pick
-// is allowed. Confirmation uses the side-specific 82/83 command but is
-// likewise authorized once per actual pick, not once per input repeat.
-inline bool AllowAuthoritativeSelectionSound(
-    std::uint8_t *request, const SelectionNames &expectedNames,
-    SelectionTickets &nameTickets, SelectionTickets &confirmTickets) {
+// All character announcements in the unmodified ROM are suppressed
+// at the completed 61801E sound request. The ONE authoritative voice
+// for each accepted pick is sent separately as an ordinary request by
+// Choosing's scanline callback. The caller's explicit-send flag is
+// required to bypass this filter for that request only.
+// Keep the real 84/85 navigation and all unrelated UI/music commands.
+inline bool AllowNativeSelectionSound(std::uint8_t *request) {
     if (!request) return false;
-    if (request[0] == 0u && request[1] == 0u && request[2] == 0u &&
-        request[4] == 0u && request[5] == 0u &&
-        request[6] == 0x10u && request[7] == 0u &&
-        request[8] == kSelectTagA && request[9] == kSelectTagB) {
-        for (unsigned n = 12u; n < 16u; ++n)
-            if (request[n] != 0u) return false;
-        const unsigned side = request[10], pick = request[11];
-        if (side >= 2u || pick >= 2u) return false;
-        const unsigned code = request[3];
-        if (code == expectedNames[side][pick] &&
-            nameTickets[side][pick] != 0u) {
-            --nameTickets[side][pick];
-        } else if (code == 0x82u + side &&
-                   confirmTickets[side][pick] != 0u) {
-            --confirmTickets[side][pick];
-        } else {
-            return false;
-        }
-        // The sound CPU must see the game's original native format.
-        request[8] = request[9] = request[10] = request[11] = 0u;
-        return true;
-    }
     if (SelectionSoundEnvelope(request, 0x10u) && request[2] == 0u) {
         const unsigned code = request[3];
-        // Player-specific navigation is unrelated to speech.
-        if (code == 0x84u || code == 0x85u) return true;
-        // The ROM's original confirmations and A/C voice families are
-        // suppressed: only the exact tagged versions above play.
         if (code == 0x82u || code == 0x83u ||
-            (code >= 0xA0u && code <= 0xDFu)) return false;
+            (code >= 0xA0u && code <= 0xDFu))
+            return false;
     }
     if (SelectionSoundEnvelope(request, 0x0Au))
-        return false; // native sprite speech during character selection
-    // Pass non-character sounds, soundtrack control, etc., unchanged.
+        return false; // native character sprite speech
     return true;
 }
 
