@@ -62,6 +62,7 @@ PROFILE_ID = re.compile(r"^[0-9a-f]{16}$")
 SPRITE_NAME = re.compile(r"^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,90}\.png$", re.I)
 SAVE_LOCK = threading.RLock()
 SOURCE = None
+SOURCE_WARNING = ''
 
 
 def slug(index: int) -> str:
@@ -115,7 +116,10 @@ def extract_program(content: bytes) -> bytes:
 def decode_palettes(program: bytes, *, verify_crc: bool = True) -> tuple[list, list]:
     """Return original RGB swatches and exact 68000 program addresses.
 
-    The game uses an array of 19 big-endian pointers at 0x1145A8.
+    Source xvs.05a stores 68000 words LOW byte first. The recomp
+    explicitly swaps each pair in machine/romset.cpp before Program()
+    exposes the character palette pointer table. Decode raw ROM bytes
+    with that exact per-word conversion, never treat raw as native big-endian.
     Each pointer leads to [P: 3x16 colours][K: 3x16 colours].
     The high nibble is native brightness/metadata, retained by the game.
     """
@@ -126,7 +130,11 @@ def decode_palettes(program: bytes, *, verify_crc: bool = True) -> tuple[list, l
     table = TABLE_ADDRESS - PROGRAM_START
     colours, addresses = [], []
     for who in range(len(CHARACTERS)):
-        base = int.from_bytes(program[table + who * 4:table + who * 4 + 4], "big")
+        # romset.cpp: for each word, set.program += [raw[i+1], raw[i]]
+        # Two native big-endian words hold one four-byte 68000 pointer.
+        pointer = program[table + who * 4:table + who * 4 + 4]
+        base = int.from_bytes(bytes((pointer[1], pointer[0],
+                                     pointer[3], pointer[2])), "big")
         if not PROGRAM_START <= base or base + SET_SIZE * 2 > PROGRAM_START + ROM_SIZE:
             raise ValueError(f"{CHARACTERS[who]} palette pointer 0x{base:06X} outside program ROM")
         sets, addrs = [], []
@@ -137,7 +145,7 @@ def decode_palettes(program: bytes, *, verify_crc: bool = True) -> tuple[list, l
                 for pen in range(PENS):
                     addr = base + set_no * SET_SIZE + line * PENS * 2 + pen * 2
                     off = addr - PROGRAM_START
-                    word = int.from_bytes(program[off:off + 2], "big")
+                    word = int.from_bytes(program[off:off + 2], "little")
                     row.append(quantized_hex(word))
                     addr_row.append(f"0x{addr:06X}")
                 rows.append(row)
@@ -425,6 +433,7 @@ class Handler(BaseHTTPRequestHandler):
                                    for i, name in enumerate(CHARACTERS)],
                     "originals": source["originals"] if source else None,
                     "addresses": source["addresses"] if source else None,
+                    "source_warning": SOURCE_WARNING if not source else "",
                 })
             elif route == "/api/profile":
                 who = character(query.get("character"))
@@ -508,10 +517,12 @@ class Handler(BaseHTTPRequestHandler):
 
 
 def main() -> int:
+    global SOURCE_WARNING
     if not PAGE.is_file():
         print("Missing palette_studio.html", file=sys.stderr)
         return 2
     warning = auto_source()
+    SOURCE_WARNING = warning
     if SOURCE:
         print("ROM palette source:", SOURCE["label"], "CRC32", SOURCE["crc32"])
     else:
