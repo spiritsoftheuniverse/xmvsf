@@ -100,6 +100,23 @@ if errorlevel 1 (
   goto :fail
 )
 
+REM 87.497: pack the original 166 native 384x224 selection PNGs as
+REM indexed lossless PNG-payload XMFDBIN2 using the ORIGINAL Final Destination
+REM packer. Runs only when missing/updated; no resize or GitHub workflows.
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%PROJECT%\tools\pack_csbackground_fdb.ps1"
+if errorlevel 1 (
+  echo ERROR: XMVSF 87.497 character-select FDB packaging FAILED. No build performed.
+  popd
+  goto :fail
+)
+REM Validate every compressed FDB frame against its original PNG payload.
+"%BASH%" -c "python3 ../recomp_port/tests/test_csbackground_fdb.py"
+if errorlevel 1 (
+  echo ERROR: XMVSF 87.497 packed character-select frames FAILED integrity checks.
+  popd
+  goto :fail
+)
+
 REM 87.464: compile curl-noise edge smoke; validate 20% entrance dither on all film layers.
 "%BASH%" -c "python3 ../recomp_port/tests/test_menu_film.py"
 if errorlevel 1 (
