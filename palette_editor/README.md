@@ -55,9 +55,11 @@ CPS-2 graphics decoder or game build is needed for this workflow.
 2. Open **Alternative modes → Model viewer**. Choose a character and
    **Standing (you control it)**, then start the viewer.
 3. Open the Model viewer's **Export** subpage and choose **Save picture**.
-   The recomp writes a transparent `<Character>.png` to its own
-   `recomp/work/xmvsf/exports/` folder. A repeated export may be named
-   `<Character> 2.png`, etc.
+   The recomp writes a transparent `<Character>.png`. With the shipped
+   Windows `RECOMP_RUN.bat`, it can land in `recomp/exports/`; with a
+   slash-separated player-folder configuration it can land in
+   `recomp/work/xmvsf/exports/`. The studio scans **both**. Repeated
+   exports may be named `<Character> 2.png`, etc.
 4. Return to Palette Studio, select the same character in the left panel,
    and click **Refresh viewer exports**. The native standing sprite appears
    automatically in the upper thumbnail strip and to the right of its matching
@@ -70,8 +72,8 @@ and is never moved or modified.
 
 If the recomp is using a custom settings directory, set
 `XMVSF_MODEL_EXPORT_DIR` to that viewer's exports folder before launching
-the studio. For the standard `RECOMP_RUN.bat` setup it is automatically
-found at `recomp/work/xmvsf/exports`.
+the studio. Both the `recomp/exports` and
+`recomp/work/xmvsf/exports` standard locations are searched automatically.
 
 Alternatively, **Add sprite PNGs** imports transparent idle or other
 character frames into `palette_editor/sprites/<character>/`. These are
