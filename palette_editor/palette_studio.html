@@ -188,7 +188,7 @@ const $ = id => document.getElementById(id);
 const lines = ['Body / Character', 'Effect palette A', 'Effect palette B'];
 const state = {data:null,who:0,set:0,line:0,pen:1,mode:'original',id:null,name:'',
   colors:null,dirty:false,sprites:[],selectedSprite:null,spriteImage:null,
-  hue:210,sat:1,val:1,images:new Map(),sourceSet:0};
+  hue:210,sat:1,val:1,images:new Map(),sourceSet:0,newAfterLoad:false};
 function copy(v){return JSON.parse(JSON.stringify(v))}
 function show(text,bad){$('message').textContent=text;$('message').className='toast'+(bad?' bad':'')}
 async function request(route,options){
@@ -282,7 +282,10 @@ function showProfileOptions(){
   });
   if(old==='draft'){const item=document.createElement('option');item.value='draft';item.textContent=state.name+' · new';pick.add(item)}
   pick.value=old==='draft'?'draft':id||'original';
-  $('newProfile').disabled=!original();
+  // New is never inert. Without a valid source it opens the ROM picker.
+  $('newProfile').disabled=false;
+  $('newProfile').title=original()?'Create editable palette from original colors':
+    'Choose original xvs.05a ROM and create a new profile';
   $('saveProfile').disabled=!editable();
   $('exportProfile').disabled=!(editable()&&!!state.id);
   $('profileHint').textContent=editable()?'Your edits affect only this profile. Use Save to persist, then Export to download a game-compatible .txt file.':'Original ROM palettes are locked. Click New to make an editable copy.';
@@ -290,7 +293,12 @@ function showProfileOptions(){
 function drawSwatches(){
   $('setP').classList.toggle('active',state.set===0);$('setK').classList.toggle('active',state.set===1);
   const host=$('swatches');host.replaceChildren();
-  if(!colors()){const p=document.createElement('p');p.className='notice';p.textContent='Load the original xvs.05a ROM to read palette addresses and colors.';host.append(p);return}
+  if(!colors()){
+    const p=document.createElement('p');p.className='notice';
+    p.textContent='No original colors loaded. '+(state.data.source_warning||'Choose Load ROM source and select xvs.05a or your ROM ZIP.')+
+      ' Click New to open the ROM chooser.';
+    host.append(p);return;
+  }
   for(let l=0;l<3;l++){
     const section=document.createElement('div');section.className='palette-line';
     const heading=document.createElement('div');heading.className='line-head';
@@ -412,7 +420,19 @@ function drawSpriteStrip(){
 async function drawPreview(){
   const canvas=$('preview');const sprite=state.selectedSprite;const selection=state.who;
   canvas.getContext('2d').clearRect(0,0,canvas.width,canvas.height);
-  if(!sprite){$('previewType').textContent='Waiting for native sprite';$('previewNotice').textContent='In XMVSF, open Alternative modes → Model viewer, choose this fighter and Standing, then Export → Save picture. Return here and click Refresh viewer exports. No manual sprite import needed.';return}
+  if(!sprite){
+    $('previewType').textContent='Standing sprite not exported yet';
+    const ctx=canvas.getContext('2d'),w=canvas.width,h=canvas.height;
+    ctx.fillStyle='#13253A';ctx.fillRect(8,8,w-16,h-16);
+    ctx.strokeStyle='#406484';ctx.lineWidth=2;ctx.strokeRect(8,8,w-16,h-16);
+    ctx.textAlign='center';ctx.fillStyle='#B7D9EB';ctx.font='bold 16px Segoe UI, Arial';
+    ctx.fillText('NO STANDING SPRITE',w/2,h/2-24);
+    ctx.font='12px Segoe UI, Arial';ctx.fillStyle='#9FB9CE';
+    ctx.fillText('Model viewer → Export',w/2,h/2+6);
+    ctx.fillText('Save picture → Refresh',w/2,h/2+25);
+    $('previewNotice').textContent='The palette and portrait are independent of combat exports. For a genuine combat sprite, open XMVSF → Alternative modes → Model viewer → Standing → Export → Save picture, then Refresh viewer exports. No fake sprite is shown.';
+    return;
+  }
   $('previewType').textContent=sprite.type==='viewer'?'Native model · '+sprite.name:'Imported sprite · '+sprite.name;
   try{
     const img=await cachedImage(sprite.url);
@@ -449,7 +469,13 @@ function chooseCharacter(id){
   fetchSpriteData().catch(err=>show(err.message,true));
 }
 function makeProfile(){
-  if(!original())return show('Load the original ROM first.',true);
+  if(!original()){
+    state.newAfterLoad=true;
+    show('Cannot create editable colors until the original ROM is loaded. '+
+      (state.data.source_warning||'Choose original xvs.05a or xmvsf.zip now.'),true);
+    $('romInput').click();
+    return;
+  }
   const proposed=prompt('Name for new palette profile:',state.data.characters[state.who].name+' Custom');
   if(proposed===null)return;
   if(!proposed.trim())return show('Profile name cannot be empty.',true);
@@ -493,11 +519,13 @@ async function uploadSource(file){
     await request('/api/source',{method:'POST',headers:{'X-Source-Name':file.name},body:file});
     state.data=await request('/api/state');state.dirty=false;chooseCharacter(state.who);
     updateSource();show('Original ROM source validated and loaded. Originals are locked.');
+    if(state.newAfterLoad){state.newAfterLoad=false;makeProfile();}
   }catch(err){show(err.message,true)}
 }
 function updateSource(){
   $('sourceStatus').textContent=state.data.source?'Verified original · '+state.data.source.label+' · CRC '+state.data.source.crc32:
-    'No original ROM source · load xvs.05a or xmvsf.zip';
+    'ROM not loaded · '+(state.data.source_warning||'choose xvs.05a or xmvsf.zip');
+  $('loadRom').classList.toggle('primary',!state.data.source);
 }
 async function uploadSprites(files){
   for(const file of files){
@@ -514,7 +542,11 @@ $('saveProfile').onclick=saveProfile;
 $('profileSelect').onchange=()=>openProfile($('profileSelect').value);
 $('exportProfile').onclick=exportProfile;
 $('loadRom').onclick=()=>$('romInput').click();
-$('romInput').onchange=async()=>{await uploadSource($('romInput').files[0]);$('romInput').value=''};
+$('romInput').onchange=async()=>{
+  const chosen=$('romInput').files[0];
+  if(!chosen){state.newAfterLoad=false;return}
+  await uploadSource(chosen);$('romInput').value='';
+};
 $('refreshSprites').onclick=async()=>{
   try{await fetchSpriteData();show('Native Model viewer exports refreshed for '+state.data.characters[state.who].name,false)}
   catch(err){show(err.message,true)}
@@ -528,7 +560,9 @@ document.addEventListener('keydown',e=>{
 (async()=>{
   try{
     state.data=await request('/api/state');updateSource();chooseCharacter(0);
-    show(state.data.source?'Original palette source ready. Choose New to edit.':'Source not found. Choose Load ROM source to read verified original palette colors.',!state.data.source);
+    show(state.data.source?'Original palette source ready. Choose New to edit.':
+      'Palette source not loaded: '+(state.data.source_warning||'choose original xvs.05a or xmvsf.zip')+
+      '. New opens the ROM chooser.',!state.data.source);
   }catch(err){show('Studio initialization failed: '+err.message,true)}
 })();
 </script>
