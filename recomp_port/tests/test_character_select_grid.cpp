@@ -28,6 +28,26 @@ static_assert(NativeCharacterVoice(0x22) == 0xB1); // Cammy for either side
 static_assert(CharacterVoiceIdentity(0x24) == 0x16);
 static_assert(NativeCharacterVoice(0x24) == 0xAB); // Alpha Chun-Li = Chun-Li
 
+// 87.521: first teammate's index is skipped for both players.
+static_assert(NextTeamIndex(0) == 1);
+static_assert(NextTeamIndex(8) == 7);  // right-hand corner
+static_assert(NextTeamIndex(9) == 10);
+static_assert(NextTeamIndex(17) == 16); // lower-right corner
+static_assert(SameTeamCharacter(0x08u, 0x08u));
+static_assert(SameTeamCharacter(0x16u, 0x24u)); // both Chun-Li forms
+static_assert(!SameTeamCharacter(0x08u, 0x06u));
+static_assert(SkipTeamIndex(1, 2, 1u, 0x08u) == 3); // Gambit skipped going right
+static_assert(SkipTeamIndex(3, 2, 2u, 0x08u) == 1); // skipped going left
+static_assert(SkipTeamIndex(11, 2, 8u, 0x08u) == 11); // vertical blocked
+// The timer never authorizes native acceptance. One A press can grant
+// only the next pick, and repeated writes of the same count are harmless.
+static_assert(!NativePickAllowed(1, 0, 0, false));
+static_assert(NativePickAllowed(1, 0, 0, true));
+static_assert(!NativePickAllowed(2, 0, 0, true)); // cannot select two with one A
+static_assert(NativePickAllowed(1, 0, 1, false)); // same native count repeated
+static_assert(!NativePickAllowed(2, 1, 1, false));
+static_assert(NativePickAllowed(2, 1, 1, true));
+static_assert(NativePickAllowed(0, 0, 0, false)); // cancelled slot
 static_assert(Navigate(0, 1) == 1 && Navigate(8, 1) == 0);
 static_assert(Navigate(9, 1) == 10 && Navigate(9, 8) == 0);
 int main() {
