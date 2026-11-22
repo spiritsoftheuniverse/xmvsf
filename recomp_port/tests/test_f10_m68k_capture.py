@@ -82,8 +82,11 @@ def main():
     assert 'xmvsf_f10::Capture::Get().AcceptHook(' in choosing
     assert "xmvsf_f10::Capture::Get().CustomGridBeforeCpu(" in choosing
     assert "machine, g_layout.index[0], g_layout.index[1]);" in choosing
-    # No game-side input mask, sound insertion or change to 87.500 movement.
-    assert "const bool active = Ram8(record) <= 3u && Ram8(record + 3u) < 2u;" in choosing
+    # F10 captures the custom grid after A/B selection routing. The original
+    # stick bits remain intact for native movement sounds and diagnostics.
+    assert "const bool selecting = Ram8(record) <= 3u && Ram8(record + 3u) < 2u;" in choosing
+    assert "const unsigned direction = physical & (kRight | kLeft | kDown | kUp);" in choosing
+    assert "g_layout.Advance(n, direction, selecting);" in choosing
     assert "machine.players[n] &= static_cast<uint16_t>(~fight::kSticks);" not in choosing
     assert "void (*selectionRamWriteOverride)" in machine
     assert "if (BytesWritten() >= kMaxBytes)" in header
