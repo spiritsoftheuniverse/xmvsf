@@ -215,6 +215,10 @@ public:
     // games or outside the native character confirmation window.
     // Not serialized, and never changes 68000 execution or registers.
     void (*selectionVoiceQueueBeforeSound)(Machine &) = nullptr;
+    // Custom XMVSF select, 87.515: filter COMPLETE M68K->Z80 request
+    // at the sound transport commit (0x61801E). Null for all other
+    // screens/games. No M68K execution hooks or speculative ring rewrites.
+    bool (*selectionSoundRequestFilter)(Machine &, const uint8_t *) = nullptr;
     // The object list the next frame's picture will be made from (the board takes it at the start of the
     // frame): 1024 entries of four big-endian words, as Video::LatchObjects reads them
     const uint8_t *ObjectsToCome() const {
