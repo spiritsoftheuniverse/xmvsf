@@ -31,74 +31,124 @@ static_assert(NativeCharacterVoice(0x24) == 0xAB); // Alpha Chun-Li = Chun-Li
 static_assert(Navigate(0, 1) == 1 && Navigate(8, 1) == 0);
 static_assert(Navigate(9, 1) == 10 && Navigate(9, 8) == 0);
 int main() {
-    // 87.518: the actual character table contains the literal AUDIO
-    // assignment for every one of the 18 portraits. Absolutely no
-    // P1/P2 or first/second transformation can be applied to this ID.
+    // 87.519: captured NAME commands are native FF2648 ring bytes.
+    // Never copy a ring-format request directly to QSound shared RAM.
+    // The ROM's own sound transfer supplies that conversion.
     constexpr std::array<std::uint16_t, 18> expectedVoices{{
         0xA1u, 0xA0u, 0xA4u, 0xA3u, 0xA5u, 0xA2u,
         0xA7u, 0xA6u, 0xAFu, 0xA9u, 0xAAu, 0xB1u,
         0xB0u, 0xABu, 0xABu, 0xADu, 0xACu, 0xAEu
     }};
-    for (std::size_t slot = 0u; slot < kSlots.size(); ++slot) {
+    std::array<std::uint8_t, 65536> ringRam{};
+    for (std::size_t slot = 0; slot < kSlots.size(); ++slot) {
         assert(kSlots[slot].nameVoice == expectedVoices[slot]);
         assert(NativeCharacterVoice(kSlots[slot].rom) == expectedVoices[slot]);
+        // Four independently confirmed slots, SAME character voice.
         for (unsigned side = 0u; side < 2u; ++side) {
             for (unsigned pick = 0u; pick < 2u; ++pick) {
-                (void)side; (void)pick;
-                const auto sound = NativeCharacterVoice(kSlots[slot].rom);
-                assert(sound == expectedVoices[slot]);
+                const std::array<std::uint16_t, 2> selected{{
+                    kSlots[slot].rom, kSlots[slot].rom
+                }};
+                const unsigned offset = 16u * pick + side * 32u;
+                const std::uint32_t addr = 0xFF264Au + offset;
+                const unsigned nativeCode = side ? 0xC4u : 0xA4u;
+                assert(RewriteSelectionNameRingWrite(
+                    addr, static_cast<std::uint16_t>(nativeCode), 2u,
+                    ringRam.data(), ringRam.size(), selected) ==
+                        expectedVoices[slot]);
+                // RAM byte and word writes must both produce same name.
+                assert(RewriteSelectionNameRingWrite(
+                    addr + 1u, static_cast<std::uint16_t>(nativeCode), 1u,
+                    ringRam.data(), ringRam.size(), selected) ==
+                        expectedVoices[slot]);
             }
         }
     }
-    // Explicit cross-character and selection-order regressions:
-    // Gambit A4 for P1 pick 1, P1 pick 2, P2 pick 1 and P2 pick 2.
-    for (unsigned side = 0u; side < 2u; ++side)
-        for (unsigned pick = 0u; pick < 2u; ++pick) {
-            (void)side; (void)pick;
-            assert(NativeCharacterVoice(0x08u) == 0xA4u);
-            assert(NativeCharacterVoice(0x04u) == 0xA2u);
-            assert(NativeCharacterVoice(0x1Eu) == 0xAFu);
-            assert(NativeCharacterVoice(0x0Cu) == 0xA6u);
-        }
-    assert(NativeCharacterVoice(0x10u) == 0xFFFFu); // no Apocalypse
-    assert(NativeCharacterVoice(0x25u) == 0xFFFFu);
+    // Exact F10 regression: P1 picked Rogue (06) second, but the
+    // original ROM queued Gambit A4 at FF2648. Rewrite A4 -> A3 at
+    // the native ring BEFORE the M68K transfers it to QSound.
+    const std::array<std::uint16_t, 2> p1Rogue{{0x06u, 0x1Eu}};
+    assert(RewriteSelectionNameRingWrite(
+        0xFF264Au, 0x00A4u, 2u, ringRam.data(), ringRam.size(),
+        p1Rogue) == 0x00A3u);
+    // Other captured case: source B3 (native Akuma) while P1 picks
+    // Storm; MUST be A2, not B3.
+    const std::array<std::uint16_t, 2> p1Storm{{0x04u, 0x1Eu}};
+    assert(RewriteSelectionNameRingWrite(
+        0xFF265Au, 0x00B3u, 2u, ringRam.data(), ringRam.size(),
+        p1Storm) == 0x00A2u);
+    // P2 picking Gambit retains A4, never native C4.
+    const std::array<std::uint16_t, 2> p2Gambit{{0x06u, 0x08u}};
+    assert(RewriteSelectionNameRingWrite(
+        0xFF266Au, 0x00C4u, 2u, ringRam.data(), ringRam.size(),
+        p2Gambit) == 0x00A4u);
+    // P1 *second* Gambit remains A4 even when source is B3.
+    const std::array<std::uint16_t, 2> p1Gambit{{0x08u, 0x04u}};
+    assert(RewriteSelectionNameRingWrite(
+        0xFF267Au, 0x00B3u, 2u, ringRam.data(), ringRam.size(),
+        p1Gambit) == 0x00A4u);
+    // CPS2 longword/word/byte ranges, queue bounds, absent character.
+    assert(RewriteSelectionNameRingWrite(
+        0xFF2A3Au, 0x00A4u, 2u, ringRam.data(), ringRam.size(),
+        p1Rogue) == 0x00A3u);
+    assert(RewriteSelectionNameRingWrite(
+        0xFF2A4Au, 0x00A4u, 2u, ringRam.data(), ringRam.size(),
+        p1Rogue) == 0x00A4u);
+    assert(RewriteSelectionNameRingWrite(
+        0xFF2648u, 0x00A4u, 2u, ringRam.data(), ringRam.size(),
+        p1Rogue) == 0x00A4u);
+    assert(RewriteSelectionNameRingWrite(
+        0xFF264Au, 0x038Bu, 2u, ringRam.data(), ringRam.size(),
+        p1Rogue) == 0x038Bu);
+    assert(RewriteSelectionNameRingWrite(
+        0xFF264Au, 0x03BBu, 2u, ringRam.data(), ringRam.size(),
+        p1Rogue) == 0x03BBu);
+    assert(RewriteSelectionNameRingWrite(
+        0xFF264Au, 0x0082u, 2u, ringRam.data(), ringRam.size(),
+        p1Rogue) == 0x0082u);
+    assert(RewriteSelectionNameRingWrite(
+        0xFF264Au, 0x0084u, 2u, ringRam.data(), ringRam.size(),
+        p1Rogue) == 0x0084u);
+    const std::array<std::uint16_t, 2> noChar{{0x10u, 0x08u}};
+    assert(RewriteSelectionNameRingWrite(
+        0xFF264Au, 0x00A4u, 2u, ringRam.data(), ringRam.size(),
+        noChar) == 0x00A4u);
+    ringRam[0x2648u + 2u] = 0x03u;
+    assert(RewriteSelectionNameRingWrite(
+        0xFF264Bu, 0x00A4u, 1u, ringRam.data(), ringRam.size(),
+        p1Rogue) == 0x00A4u);
+    ringRam[0x2648u + 2u] = 0x00u;
+    assert(RewriteSelectionNameRingWrite(
+        0xFF264Bu, 0x00A4u, 1u, ringRam.data(), ringRam.size(),
+        p1Rogue) == 0x00A3u);
+    assert(RewriteSelectionNameRingWrite(
+        0xFF264Au, 0x00A4u, 2u, nullptr, ringRam.size(),
+        p1Rogue) == 0x00A4u);
+    assert(RewriteSelectionNameRingWrite(
+        0xFF264Au, 0x00A4u, 2u, ringRam.data(), 0x100u,
+        p1Rogue) == 0x00A4u);
+    assert(RewriteSelectionNameRingWrite(
+        0xFF264Au, 0x00A4u, 4u, ringRam.data(), ringRam.size(),
+        p1Rogue) == 0x00A4u);
 
-    // The injection request always uses the original QSound envelope,
-    // without ROM ring provenance tags or guessed sprite sound blocks.
+    // The sound latch no longer suppresses native corrected names.
+    // Only original 0A00 character sprite speech is muted there.
     std::array<std::uint8_t, 16> sound{};
-    assert(MakeSelectionSoundRequest(sound.data(), sound.size(), 0xA4u));
-    assert(sound[3] == 0xA4u);
-    assert(sound[6] == 0x10u);
-    for (unsigned i = 0u; i < sound.size(); ++i) {
-        if (i != 3u && i != 6u) assert(sound[i] == 0u);
-    }
-    assert(SelectionSoundEnvelope(sound.data(), 0x10u));
-    assert(!MakeSelectionSoundRequest(nullptr, sound.size(), 0xA4u));
-    assert(!MakeSelectionSoundRequest(sound.data(), 15u, 0xA4u));
-    assert(!MakeSelectionSoundRequest(sound.data(), sound.size(), 0x100u));
-
-    // Native announcements from either side can NEVER supply our
-    // character voice. The separate, direct, original-format request
-    // is what the injected QSound path plays.
-    for (const unsigned code : {0xA2u, 0xA4u, 0xAFu, 0xB3u,
-                                0xC2u, 0xC4u, 0xCFu, 0xD3u,
-                                0x82u, 0x83u}) {
-        assert(MakeSelectionSoundRequest(sound.data(), sound.size(), code));
-        assert(!AllowNativeSelectionSound(sound.data()));
-    }
-    for (const unsigned code : {0x84u, 0x85u, 0x40u}) {
-        assert(MakeSelectionSoundRequest(sound.data(), sound.size(), code));
+    const auto request = [&](unsigned code, unsigned kind) {
+        sound.fill(0u);
+        sound[2] = static_cast<std::uint8_t>(code >> 8u);
+        sound[3] = static_cast<std::uint8_t>(code);
+        sound[6] = static_cast<std::uint8_t>(kind);
+    };
+    for (const unsigned code : {0xA3u, 0xA4u, 0xAFu, 0xC4u,
+                                0x82u, 0x83u, 0x84u, 0x85u}) {
+        request(code, 0x10u);
         assert(AllowNativeSelectionSound(sound.data()));
     }
-    sound.fill(0u);
-    sound[2] = 0x03u;
-    sound[3] = 0xBBu; // native Cammy sprite speech
-    sound[6] = 0x0Au;
+    request(0x03BBu, 0x0Au);
     assert(SelectionSoundEnvelope(sound.data(), 0x0Au));
     assert(!AllowNativeSelectionSound(sound.data()));
-    sound.fill(0u);
-    sound[3] = 0x40u; // unrelated sound control request
-    sound[6] = 0x20u;
+    request(0x40u, 0x20u);
     assert(AllowNativeSelectionSound(sound.data()));
     assert(!AllowNativeSelectionSound(nullptr));
 
