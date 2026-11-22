@@ -175,7 +175,8 @@ namespace {
             uint8_t count = static_cast<uint8_t>(value & 0xFFu);
             // Reject native timeout and all non-A character confirms.
             // A grant stays armed until the ROM truly advances FF5183.
-            if (count > g_accepted[n] && !g_confirmQueued[n]) {
+            if (count > g_accepted[n] && !g_confirmQueued[n] &&
+                count > Ram8(record + 3u)) {
                 count = g_accepted[n];
                 value = bytes == 2u
                     ? static_cast<uint16_t>((value & 0xFF00u) | count)
@@ -330,7 +331,7 @@ void ChoosingLayoutBeforeCpu(Machine &machine) {
         g_bHeld[n] = b;
         // Character selection is explicitly A/B, not all six attacks.
         // Keep the original directional bits for native cursor sounds.
-        if (phase <= 4u && count <= 2u) {
+        if (count < 2u || (bEdge && phase <= 4u && count == 2u)) {
             machine.players[n] &= static_cast<uint16_t>(
                 ~(kPunch1 | kPunch2 | kPunch3 |
                   kKick1 | kKick2 | kKick3));
@@ -361,7 +362,7 @@ void ChoosingLayoutBeforeCpu(Machine &machine) {
             }
             // The first confirmation can enter native phase 02 for
             // its animation. Hold the grant until phase 03 is ready.
-            if (g_confirmQueued[n] && (phase == 1u || phase == 3u)) {
+            if (g_confirmQueued[n] && (Ram8(record) == 1u || Ram8(record) == 3u)) {
                 if (g_confirmPulse[n]++ % 8u == 0u)
                     machine.players[n] |= kPunch1;
             }
