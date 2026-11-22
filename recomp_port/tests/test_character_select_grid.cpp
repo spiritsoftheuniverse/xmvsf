@@ -11,6 +11,16 @@ static_assert(Find(0x02) == 0 && Find(0x00) == 1);
 static_assert(Find(0x12) == 9 && Find(0x14) == 10);
 static_assert(Find(0x1e) == 8 && Find(0x24) == 14);
 static_assert(Find(0x10) == -1);
+// F10 frame 648: Magneto 0x0E => announcer command 0xA7.
+// F10 frame 884: ROM's wrong Gambit 0x08 => 0xA4.
+// 87.506: Rogue 0x06 must override that queued voice to 0xA3.
+static_assert(CharacterVoiceCommand(0x0E) == 0xA7);
+static_assert(CharacterVoiceCommand(0x08) == 0xA4);
+static_assert(CharacterVoiceCommand(0x06) == 0xA3);
+static_assert(CharacterVoiceCommand(0x10) == 0xFFFF);
+static_assert(CharacterVoiceCommand(0x25) == 0xFFFF);
+static_assert(CharacterVoiceCommand(0x01) == 0xFFFF);
+
 static_assert(Navigate(0, 1) == 1 && Navigate(8, 1) == 0);
 static_assert(Navigate(9, 1) == 10 && Navigate(9, 8) == 0);
 int main() {
