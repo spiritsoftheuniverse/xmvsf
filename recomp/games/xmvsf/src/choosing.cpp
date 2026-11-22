@@ -70,16 +70,19 @@ void ChoosingLayoutBeforeCpu(Machine &machine) {
     }
     for (int n = 0; n < 2; ++n) {
         const uint32_t record = kChoosing + static_cast<uint32_t>(n) * kChoosingSize;
-        const bool active = Ram8(record) < kChoosingDone;
+        // The native 03->04 transition means the second character was
+        // accepted. Steps 04..06 are the game's MODE/SPEED choices and
+        // MUST retain real directional input (87.477 regression lesson).
+        const bool active = Ram8(record) <= 3u;
         const unsigned direction = machine.players[n] & (kRight | kLeft | kDown | kUp);
         g_layout.Advance(n, direction, active);
         if (active) {
             const unsigned slot = static_cast<unsigned>(g_layout.index[n]);
             SetRam16(record + kCursor, port::xmvsf_select::kSlots[slot].rom);
+            // Only character-cursor directions are consumed here.
+            // Native accept, sound, MODE/SPEED and combat keys remain intact.
+            machine.players[n] &= static_cast<uint16_t>(~kSticks);
         }
-        // Native cursor movement must not run a second, conflicting layout.
-        // Keep punch/kick/Start untouched so selection AV runs at normal speed.
-        machine.players[n] &= static_cast<uint16_t>(~kSticks);
     }
 }
 
