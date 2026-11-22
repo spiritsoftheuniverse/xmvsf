@@ -1,5 +1,12 @@
 # XMVSF native front end — 87.498 (native character-select composition and horizontal ROM grid)
 
+## 87.503 — restore verified 87.500 character-select behavior
+
+- **87.501 and 87.502 selection code are reverted.** The user reported complete loss of cursor movement and movement sound after those revisions. The full 87.500 chooser, SDL frontend and selection preflight (Python/C++) were restored from commit `23a72344925b559db3fe7de5f6826cc8d236ae77`, not selectively patched.
+- Verified that 11 selection/runtime implementation files are **byte-identical** to that known working commit, including the M68K write override, audio input route, native scene compositor and game hooks. No art or FDB content changed.
+- The 87.500 behavior was user-confirmed to move, play selection sounds and commit correct gameplay characters. Its unresolved second-pick portrait/name association and brief audio gap remain **open**. Avoid guessed phase-2/phase-3 gates or additional one-slot transitions until fresh native trace evidence identifies their true timing.
+- Local Windows compilation and gameplay validation are still required. GitHub remains source-only and does not run tests.
+
 ## 87.501 — accepted ID and second-pick selector/voice alignment
 
 - Verified the nine-column grid itself had no geometry/index-table offset. The old 87.500 code jumped one visual slot at FF5183 accepted=1 even though native selection was still completing the first character's flash/voice; this was a separate transition from the native phase-03 second-pick entry.
