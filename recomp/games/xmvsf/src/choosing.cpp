@@ -10,6 +10,8 @@
 #include "alternative.h"
 #include "../../../port/xmvsf_m68k_capture.h" // native accept-hook event, not inferred selection
 #include "../../../port/xmvsf_character_select_layout.h" // fixed 18-slot visual/ROM map
+#include "../../../port/xmvsf_character_select_rewrite.h" // in-frame native bus selection writes
+#include <array>
 
 namespace cps2recomp {
 
@@ -23,6 +25,17 @@ namespace {
     bool g_layoutRunning = false;
     uint8_t g_accepted[2] = {0, 0}; // real FF5183 / FF51A3 native accepted counts
 
+    void RemapSelectionWrite(Machine &, uint32_t address,
+                             uint16_t &value, unsigned bytes) {
+        const std::array<uint16_t, 2> selected{{
+            port::xmvsf_select::kSlots[static_cast<unsigned>(g_layout.index[0])].rom,
+            port::xmvsf_select::kSlots[static_cast<unsigned>(g_layout.index[1])].rom
+        }};
+        const std::array<uint8_t, 2> accepted{{g_accepted[0], g_accepted[1]}};
+        value = port::xmvsf_select::RewriteNativeSelectionWrite(
+            address, value, bytes, selected, accepted);
+    }
+
     // 00B1E8: a player's choosing record (A4) takes the character under its cursor
     bool Chosen(M68K &c) {
         const uint32_t record = c.a[4] & 0xFFFFFF;
@@ -31,6 +44,13 @@ namespace {
         }
         const int n = record == kChoosing ? 0 : 1;
         // Real M68K hook entry, before any P1/P2 selection changes.
+        // The custom cursor's ID must be in the ORIGINAL record before
+        // the ROM's subsequent accept logic executes. Unlike a cosmetic
+        // post-frame rewrite, the bus filter also covers its pick writes.
+        if (g_layoutRunning && Ram8(record + 3u) < 2u) {
+            const unsigned slot = static_cast<unsigned>(g_layout.index[n]);
+            SetRam16(record + kCursor, port::xmvsf_select::kSlots[slot].rom);
+        }
         // This does not assert that a character was actually committed.
         xmvsf_f10::Capture::Get().AcceptHook(
             c, n, record, Ram8(record), Ram16(record + kCursor));
@@ -64,6 +84,7 @@ void ChoosingLayoutBeforeCpu(Machine &machine) {
                           Ram8(kPlaying) != 0 &&
                           Ram16(kGameStep) == kGameChoosing;
     if (!choosing) {
+        machine.selectionRamWriteOverride = nullptr;
         if (g_layoutRunning) g_layout.Reset();
         g_layoutRunning = false;
         g_accepted[0] = g_accepted[1] = 0;
@@ -73,6 +94,9 @@ void ChoosingLayoutBeforeCpu(Machine &machine) {
         g_layout.Reset();
         g_layoutRunning = true;
     }
+    // Keep this active for the ROM's actual writes during RunFrame.
+    // F10's separate RAM write observer remains undisturbed.
+    machine.selectionRamWriteOverride = &RemapSelectionWrite;
     for (int n = 0; n < 2; ++n) {
         const uint32_t record = kChoosing + static_cast<uint32_t>(n) * kChoosingSize;
         // The native 03->04 transition means the second character was
@@ -84,9 +108,10 @@ void ChoosingLayoutBeforeCpu(Machine &machine) {
         if (active) {
             const unsigned slot = static_cast<unsigned>(g_layout.index[n]);
             SetRam16(record + kCursor, port::xmvsf_select::kSlots[slot].rom);
-            // Only character-cursor directions are consumed here.
-            // Native accept, sound, MODE/SPEED and combat keys remain intact.
-            machine.players[n] &= static_cast<uint16_t>(~fight::kSticks);
+            // KEEP the physical direction bits: the native movement
+            // sound/effects only run when the original ROM sees them.
+            // Its cursor and pick RAM writes are now remapped in-frame,
+            // rather than suppressing input and repairing afterwards.
         }
     }
 }
