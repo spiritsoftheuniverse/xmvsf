@@ -14,6 +14,7 @@ import os
 from pathlib import Path
 import re
 import secrets
+import subprocess
 import sys
 import tempfile
 import threading
@@ -61,6 +62,9 @@ COLOUR = re.compile(r"^#[0-9A-F]{6}$")
 PROFILE_ID = re.compile(r"^[0-9a-f]{16}$")
 SPRITE_NAME = re.compile(r"^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,90}\.png$", re.I)
 SAVE_LOCK = threading.RLock()
+CAPTURE_LOCK = threading.RLock()
+CAPTURE_JOB = {"running": False, "status": "idle", "message": "No export started",
+               "requested": "", "exported": 0, "log": ""}
 SOURCE = None
 SOURCE_WARNING = ''
 
@@ -354,7 +358,7 @@ def sprite_list(who: int) -> list:
         result.append({"name": "Standing" if file.stem.lower() == CHARACTERS[who].lower()
                        else "Standing " + file.stem[len(CHARACTERS[who]):].strip(),
                        "type": "viewer",
-                       "url": f"/asset/viewer/{who}/{urllib.parse.quote(file.name)}"})
+                       "url": f"/asset/viewer/{who}/{urllib.parse.quote(file.name)}?rev={file.stat().st_mtime_ns}"})
     folder = SPRITES / slug(who)
     if folder.is_dir() and not folder.is_symlink():
         for file in sorted(folder.glob("*.png"))[:64]:
@@ -382,6 +386,64 @@ def save_sprite(who: int, filename: str, data: bytes) -> dict:
         (folder / final).write_bytes(data)
     return {"name": final[:-4], "type": "sprite",
             "url": f"/asset/sprite/{who}/{urllib.parse.quote(final)}"}
+
+
+def native_capture_worker(requested: str) -> None:
+    """Run the compiled game's private headless Model viewer, never a shell.
+
+    The button is explicit; no process is launched by selecting a fighter or
+    loading the page. ROM and settings paths are fixed to the local project.
+    """
+    args = [
+        str(ROOT / "recomp" / "build" / "xmvsf" / "xmvsf.exe"),
+        "--rom", "rom/xmvsf",
+        "--eeprom", "work/xmvsf/palette_studio_eeprom.bin",
+        "--settings", "work/xmvsf/palette_studio_settings.ini",
+        "--headless", "--mute", "--palette-sprites", requested,
+    ]
+    try:
+        (ROOT / "recomp" / "work" / "xmvsf").mkdir(parents=True, exist_ok=True)
+        result = subprocess.run(
+            args, cwd=ROOT / "recomp", capture_output=True,
+            text=True, encoding="utf-8", errors="replace", timeout=300,
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+            check=False)
+        transcript = (result.stdout + "\n" + result.stderr).strip()
+        exported = transcript.count("EXPORTED")
+        if result.returncode:
+            # Never claim success if the native model did not export.
+            status = "failed"
+            message = "Native export failed (exit " + str(result.returncode) + ")"
+        else:
+            status = "ready"
+            message = ("Exported " + str(exported) +
+                       " genuine standing sprite" + ("" if exported == 1 else "s"))
+        with CAPTURE_LOCK:
+            CAPTURE_JOB.update(running=False, status=status, message=message,
+                               exported=exported, log=transcript[-5000:])
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        with CAPTURE_LOCK:
+            CAPTURE_JOB.update(running=False, status="failed",
+                               message=str(exc), exported=0, log=str(exc))
+
+
+def start_native_capture(requested: str) -> dict:
+    if requested != "all":
+        character(requested)
+    exe = ROOT / "recomp" / "build" / "xmvsf" / "xmvsf.exe"
+    if not exe.is_file():
+        raise ValueError("Recomp executable missing. Run RECOMP_BUILD.bat once before generating genuine combat sprites.")
+    if not (ROOT / "recomp" / "rom" / "xmvsf").is_dir():
+        raise ValueError("Expected original ROM set at recomp/rom/xmvsf")
+    with CAPTURE_LOCK:
+        if CAPTURE_JOB["running"]:
+            return dict(CAPTURE_JOB)
+        CAPTURE_JOB.update(running=True, status="running",
+                           message=("Generating all 19 native standing sprites" if requested == "all"
+                                    else "Generating " + CHARACTERS[character(requested)] + " standing sprite"),
+                           requested=requested, exported=0, log="")
+    threading.Thread(target=native_capture_worker, args=(requested,), daemon=True).start()
+    return dict(CAPTURE_JOB)
 
 
 class StudioServer(ThreadingHTTPServer):
@@ -440,6 +502,9 @@ class Handler(BaseHTTPRequestHandler):
                 self.json_reply(read_profile(who, checked_profile_id(query.get("id", ""))))
             elif route == "/api/sprites":
                 self.json_reply(sprite_list(character(query.get("character"))))
+            elif route == "/api/capture-status":
+                with CAPTURE_LOCK:
+                    self.json_reply(dict(CAPTURE_JOB))
             elif route == "/api/export":
                 who = character(query.get("character"))
                 doc = read_profile(who, checked_profile_id(query.get("id", "")))
@@ -506,6 +571,9 @@ class Handler(BaseHTTPRequestHandler):
             elif route == "/api/sprite":
                 who = character(query.get("character"))
                 self.json_reply(save_sprite(who, self.headers.get("X-File-Name", "idle.png"), data))
+            elif route == "/api/capture":
+                requested = query.get("character", "")
+                self.json_reply(start_native_capture(requested))
             else:
                 self.error_reply(ValueError("Not found"), 404)
         except (ValueError, OSError, zipfile.BadZipFile, json.JSONDecodeError, OverflowError) as exc:
