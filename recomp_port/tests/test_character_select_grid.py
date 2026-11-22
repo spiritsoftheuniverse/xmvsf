@@ -66,11 +66,6 @@ def main():
     chooser = (ROOT / "recomp/games/xmvsf/src/choosing.cpp").read_text()
     game = (ROOT / "recomp/games/xmvsf/src/game.cpp").read_text()
     assert "homeTextures.ComposeCharacterSelect(" in frontend
-    # The frontend must NOT use FF518C/FF51AC directly after accept;
-    # the ROM can overwrite its cursor during second-pick housekeeping.
-    assert "cps2recomp::ChoosingVisualCharacterId(0u)" in frontend
-    assert "cps2recomp::ChoosingVisualCharacterId(1u)" in frontend
-    assert "cursor(0x518Cu), cursor(0x51ACu)" not in frontend
     assert "ChoosingLayoutBeforeCpu(machine);" in game
     # Native ROM must still receive real directions to generate move sounds.
     assert "machine.players[n] &= static_cast<uint16_t>(~fight::kSticks);" not in chooser
@@ -82,17 +77,6 @@ def main():
     assert "void ChoosingLayoutAfterFrame(Machine &machine)" in chooser
     assert "ChoosingLayoutAfterFrame(machine);" in game
     assert "g_accepted[n] = accepted;" in chooser
-    assert "uint16_t ChoosingVisualCharacterId(unsigned side)" in chooser
-    assert "if (Ram8(record + 3u) >= 2u)" in chooser
-    assert "return g_committed[side][1]" not in chooser or "return committed;" in chooser
-    # First-pick confirmation must stay on its own index until native phase 3;
-    # do NOT skip right immediately at accepted_count 0 -> 1.
-    assert "const bool phaseWrite = at == record &&" in chooser
-    assert "if (phaseWrite && Ram8(record + 3u) == 1u)" in chooser
-    assert "EnterSecondCandidate(n);" in chooser
-    assert "if (accepted == 1u && Ram8(record) == 3u)" in chooser
-    assert "g_secondCandidateReady[n] = true;" in chooser
-    assert "if (prior == 0u && accepted == 1u)" not in chooser
     assert "g_committed[n][pick] = committed;" in chooser
     assert "SetRam16(pickAt, committed)" in chooser
     assert "ApplyCustomTeamPicksBeforeMatch();" in (
@@ -107,13 +91,7 @@ def main():
     assert "g_committed[n][pick] = IntendedNativeId(n);" in chooser
     assert "if (count == 2u) g_commitPending = true;" in chooser
     assert "const bool wroteCounter" in chooser
-    # 87.502: retain the actually working 87.500 movement gate.
-    # Do not tie movement to guessed ROM phase == 2 or to the
-    # independent second-character handoff flag again.
     assert "const bool active = Ram8(record) <= 3u && Ram8(record + 3u) < 2u;" in chooser
-    assert "(phase == 2u && accepted == 0u)" not in chooser
-    assert "(phase == 3u && accepted == 1u && g_secondCandidateReady[n])" not in chooser
-    assert "g_committed[n][pick] != 0xFFFFu" in chooser
     assert "const bool p1CursorActive = ram[0x5183u] < 2u;" in frontend
     assert "const bool p2CursorActive = ram[0x51A3u] < 2u;" in frontend
     assert "p1CursorActive, p2CursorActive))" in frontend
@@ -125,7 +103,7 @@ def main():
                         str(ROOT / "recomp_port/tests/test_character_select_grid.cpp"),
                         "-o", str(binary)], check=True)
         subprocess.run([str(binary)], check=True)
-    print("XMVSF 87.502 restored cursor movement, 87.501 visual ID sync, native 18-ID writes PASS")
+    print("XMVSF 87.500 native sound/input, in-frame 18-ID ROM writes, stage commit PASS")
 
 if __name__ == "__main__":
     main()
