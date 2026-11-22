@@ -55,73 +55,84 @@ inline constexpr std::uint16_t NativeCharacterVoice(std::uint16_t id,
         : 0xFFFFu;
 }
 
-// Rewrites just byte +3 of one already-enqueued native character-voice
-// message. P1 accepts native sources A0..B3; P2 C0..D3 (including
-// misaligned second-pick sources seen by F10). The cursor, queue pointers,
-// sound transport, and native 0x82 (P1) / 0x83 (P2) confirmation SFX
-// are never changed. Returns true for a recognized
-// voice request even if it was already correct; false for other sounds.
-inline bool CorrectQueuedCharacterVoice(std::uint8_t *ram, std::size_t size,
-                                        unsigned queueOffset,
-                                        std::uint16_t chosenRomId,
-                                        unsigned side = 0u) {
-    if (!ram || size < 0x10000u || queueOffset > 0x3F0u ||
-        (queueOffset & 15u) != 0u) return false;
-    const std::uint16_t wanted = NativeCharacterVoice(chosenRomId, side);
-    if (wanted == 0xFFFFu) return false;
-    std::uint8_t *p = ram + 0x2648u + queueOffset;
-    // All 15 other bytes must match the observed native announcer form.
-    if (p[0] || p[1] || p[2] || p[4] || p[5] ||
-        p[6] != 0x10u || p[7]) return false;
-    for (unsigned i = 8; i < 16; ++i)
+// 87.515: Selection audio owns its OWN character identity. The ROM's
+// transient selection cursor cannot choose the samples played by QSound.
+// The authoritative ID is from kSlots/IntendedNativeId at the real
+// FF5183/FF51A3 accepted-count write. P1 speaks A0..B1, P2 C0..D1;
+// Alpha Chun-Li shares Chun-Li's name recording.
+//
+// The shared sound transport delivers a *complete* 16-byte QSound
+// request when the M68K writes 61801E. Filter that request BEFORE it
+// can reach the Z80, not by guessing when the ROM enqueues it.
+//
+// Preserve native cursor ticks 84/85. Only explicitly authorized
+// names and confirmation sounds 82/83 can pass during custom select.
+// Drop other native selection-family commands and character-owned
+// 0A00 speech, even when their source character differs from our grid.
+// Non-selection sound transport and other game phases are untouched.
+inline bool SelectionSoundEnvelope(const std::uint8_t *p, unsigned kind) {
+    if (!p || p[0] || p[1] || p[4] || p[5] ||
+        p[6] != kind || p[7]) return false;
+    for (unsigned i = 8u; i < 16u; ++i)
         if (p[i]) return false;
-    const unsigned base = 0xA0u + side * 0x20u;
-    // The capture contains a real native 0xB3 second-pick request.
-    // It is outside the 18-cell custom grid, but still a valid native
-    // character announcement needing remapping. Source may also be
-    // Apocalypse, an original game character without a custom cell.
-    if (p[3] < base || p[3] > base + 0x13u)
-        return false;
-    p[3] = static_cast<std::uint8_t>(wanted);
     return true;
 }
 
-// 87.513: the SECOND character sound isn't the A?/C? announcer.
-// The F10 Akuma case records an additional *character-owned* 0x03BB
-// request with native Cammy 0x22 instead of custom Akuma 0x1E.
-// CPS2 XMVSF character sound blocks are 0x20 commands apart; Storm
-// (ROM ID 0x04) occupies 0x1C0..0x1DF, so command 0x03BB is Cammy's
-// block 0x3A0 plus sound slot 0x1B. Preserve the slot and sound
-// envelope, but rebind the block to the actual chosen character.
-//
-// Deliberately limited to the observed slot 0x1B and exact 0x0A00
-// request envelope. This is NOT a generic 0x82 mute or an attack sound
-// filter. Called ONLY during a native selection confirmation, never in
-// battle, training gameplay, or stage selection.
-inline bool CorrectQueuedCharacterSpriteVoice(std::uint8_t *ram, std::size_t size,
-                                              unsigned queueOffset,
-                                              std::uint16_t selectedRomId) {
-    if (!ram || size < 0x10000u || queueOffset > 0x3F0u ||
-        (queueOffset & 15u) != 0u) return false;
-    std::uint8_t *p = ram + 0x2648u + queueOffset;
-    if (p[0] || p[1] || p[4] || p[5] ||
-        p[6] != 0x0Au || p[7]) return false;
-    for (unsigned i = 8u; i < 16u; ++i)
-        if (p[i]) return false;
-    const unsigned nativeCommand =
-        (static_cast<unsigned>(p[2]) << 8u) | p[3];
-    // 0x19B is slot 0x1B of the first character's 0x180 block.
-    // The observed Cammy 0x3BB is the same slot seventeen blocks on.
-    if (nativeCommand < 0x19Bu || nativeCommand > 0x3BBu ||
-        (nativeCommand - 0x19Bu) % 0x20u != 0u)
+inline bool QueueExplicitSelectionSound(std::uint8_t *ram, std::size_t size,
+                                        std::uint16_t command) {
+    if (!ram || size < 0x10000u || command > 0xFFu) return false;
+    const unsigned at = (static_cast<unsigned>(ram[0x2642u]) << 8u) |
+                         ram[0x2643u];
+    if (at > 0x3F0u || (at & 15u)) return false;
+    std::uint8_t *p = ram + 0x2648u + at;
+    for (unsigned i = 0u; i < 16u; ++i) p[i] = 0u;
+    p[3] = static_cast<std::uint8_t>(command);
+    p[6] = 0x10u; // exact envelope observed in the native F10 captures
+    const unsigned next = (at + 16u) & 0x3F0u;
+    ram[0x2642u] = static_cast<std::uint8_t>(next >> 8u);
+    ram[0x2643u] = static_cast<std::uint8_t>(next);
+    return true;
+}
+
+// Tickets are granted only when the ROM actually increments a player's
+// accepted-character counter, once per pick. This prevents wrong native
+// names, duplicate correct names, and duplicate confirmation sounds.
+// A native packet with exactly the same correct command may consume a
+// ticket first; the explicit duplicate is then discarded, so ONE plays.
+inline bool AllowAuthoritativeSelectionSound(
+    const std::uint8_t *request,
+    const std::array<std::uint16_t, 2> &expectedNames,
+    std::array<unsigned, 2> &nameTickets,
+    std::array<unsigned, 2> &confirmTickets) {
+    if (!request) return false;
+    if (SelectionSoundEnvelope(request, 0x10u) && request[2] == 0u) {
+        const unsigned code = request[3];
+        // Character-select movement stays native and side-specific.
+        if (code == 0x84u || code == 0x85u) return true;
+        for (unsigned side = 0u; side < 2u; ++side) {
+            const unsigned confirm = 0x82u + side;
+            if (code == confirm) {
+                if (confirmTickets[side] == 0u) return false;
+                --confirmTickets[side];
+                return true;
+            }
+            if (code == expectedNames[side] && nameTickets[side] != 0u) {
+                --nameTickets[side];
+                return true;
+            }
+        }
+        // Other original selection sound effects, including the wrong
+        // A?/C? announcements, must not leak through. Non-name effects
+        // have no assigned source character in our custom 18-slot grid.
         return false;
-    const std::uint16_t voiceId = CharacterVoiceIdentity(selectedRomId);
-    if ((voiceId & 1u) != 0u || Find(voiceId) < 0 ||
-        voiceId > 0x22u) return false;
-    const unsigned wanted = 0x19Bu + voiceId / 2u * 0x20u;
-    if (nativeCommand == wanted) return true;
-    p[2] = static_cast<std::uint8_t>(wanted >> 8u);
-    p[3] = static_cast<std::uint8_t>(wanted);
+    }
+    if (SelectionSoundEnvelope(request, 0x0Au)) {
+        // Original sprite speech: this whole 0A00 request family is
+        // suppressed during custom select. No guessed 20-byte block
+        // remapping or substituted "Cammy as Akuma" voice.
+        return false;
+    }
+    // Music and non-selection control requests are left alone.
     return true;
 }
 
