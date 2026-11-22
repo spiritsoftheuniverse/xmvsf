@@ -1,5 +1,15 @@
 # XMVSF native front end — 87.498 (native character-select composition and horizontal ROM grid)
 
+## 87.510 — suppress mismatched native sprite voice on character confirmation
+
+- User confirms 87.509 correctly restores movement audio during selection handoff, but reports that the original ROM's character sprite (for example Cammy) still speaks while a different custom character is selected.
+- The existing F10 `latest(1).zip` captures exactly two native commands on each confirmation: a character-specific `A0..B2` announcer (Magneto `A7`, Gambit `A4`) followed by the generic `82` companion. Because this second request doesn't encode the custom-selected character, **`82` is the candidate for the unwanted original sprite voice**. Its precise audible sample is inferred, not separately proven by the F10 files.
+- Extend the **already working 87.508 pre-QSound scanline callback**: retain and correct the first character-specific announcer request exactly as before, remember that queue offset, then inspect subsequent native requests in the *same confirmed selection input frame*. Only when an exact 16-byte `82` request immediately follows the correct announcer and is **the newest queue entry** is it unpublished by moving the producer pointer `FF2642` back by one entry. Zero its unused tail bytes rather than generating a new sound command. Do not change the ROM's cursor, acceptance, modes, playback rate, consumer pointer or any other request.
+- This is **not a blanket mute**: every unpaired/malformed `82` sound stays; `A?` announcer voices and the `84` movement ticks from working 87.509 stay unchanged. No new native `AddHook` (the 87.506 crash mechanism), no new machine callback, no independent sound playback.
+- Local C++ tests cover corrected Rogue + `82`, already-correct Magneto + `82`, unpaired `82`, a subsequent `84` request, invalid envelope, mismatched announcer ID and ring wrapping. Python preflight checks the pairing gate, producer rewind and preserved selection path.
+- **Windows build and in-game sample identification still need verification.** If Cammy's unwanted voice persists, record a short new F10 sample that includes the erroneous audible event: the old F10 captures the queued IDs but does not prove which sample a request triggers.
+- Restore target: user-confirmed working **87.509** commit `ceed4f3b0d9d2941c229dbfebbd03832299a630b`.
+
 ## 87.509 — carry native 0x84 cursor ticks through first/second pick handoff
 
 - User confirmed the **87.508** voice correction works. Treat its queue scanner, portrait identity and the accepted-character controller routing as fixed. No changes to the 87.508 scanline callback or the legacy ROM hooks.
