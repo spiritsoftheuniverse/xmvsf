@@ -352,21 +352,23 @@ void ChoosingLayoutBeforeCpu(Machine &machine) {
         if (selecting) {
             const unsigned slot = static_cast<unsigned>(g_layout.index[n]);
             SetRam16(record + kCursor, port::xmvsf_select::kSlots[slot].rom);
-            // One rising A press = at most one native confirmation.
-            // A held across the first->second handoff cannot choose twice.
-            if (aEdge && !b && !g_confirmQueued[n] &&
-                (Ram8(record + 3u) == 0u ||
-                 !port::xmvsf_select::SameTeamCharacter(
-                      g_committed[n][0], IntendedNativeId(static_cast<unsigned>(n))))) {
-                g_confirmQueued[n] = true;
-                g_confirmPulse[n] = 0u;
-            }
-            // The first confirmation can enter native phase 02 for
-            // its animation. Hold the grant until phase 03 is ready.
-            if (g_confirmQueued[n] && (Ram8(record) == 1u || Ram8(record) == 3u)) {
-                if (g_confirmPulse[n]++ % 8u == 0u)
-                    machine.players[n] |= kPunch1;
-            }
+        }
+        // An A pressed during the first-pick animation may wait until
+        // the second selector opens; it still authorizes only ONE pick.
+        const bool canQueue = selecting || (Ram8(record + 3u) == 1u &&
+                                            Ram8(record) == 2u);
+        if (aEdge && !b && canQueue && !g_confirmQueued[n] &&
+            (Ram8(record + 3u) == 0u ||
+             !port::xmvsf_select::SameTeamCharacter(
+                  g_committed[n][0], IntendedNativeId(static_cast<unsigned>(n))))) {
+            g_confirmQueued[n] = true;
+            g_confirmPulse[n] = 0u;
+        }
+        // Only the original native accept receives a synthetic LP
+        // pulse; the chosen character still comes from the custom grid.
+        if (g_confirmQueued[n] && (Ram8(record) == 1u || Ram8(record) == 3u)) {
+            if (g_confirmPulse[n]++ % 8u == 0u)
+                machine.players[n] |= kPunch1;
         }
     }
     // 87.504 F10-only observation of the exact custom positions sent to
