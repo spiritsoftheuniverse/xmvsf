@@ -198,6 +198,8 @@ void ChoosingLayoutBeforeCpu(Machine &machine) {
     machine.selectionVoiceQueueBeforeSound = nullptr;
     machine.selectionSoundRequestFilter = &AuthoritativeSelectionSound;
     g_cursorSoundBegin = Ram16(kSoundQueueEnd);
+    g_gridBeforeFrame[0] = g_layout.index[0];
+    g_gridBeforeFrame[1] = g_layout.index[1];
 
     for (int n = 0; n < 2; ++n) {
         const uint32_t record = kChoosing + static_cast<uint32_t>(n) * kChoosingSize;
