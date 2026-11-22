@@ -100,6 +100,15 @@ def main():
     assert "const unsigned diff =" in chooser
     assert "if (diff > 128u)" in chooser
     assert "g_voiceHandled = true;" in chooser
+    # 87.513 confirms that the second-pick sound is not always in the
+    # custom roster, and that the character-owned sample 0x03BB for
+    # native Cammy must follow the actual custom selected character.
+    assert "g_spriteVoiceHandled = false;" in chooser
+    assert "CorrectQueuedCharacterSpriteVoice(" in chooser
+    assert "if (g_voiceHandled && !g_spriteVoiceHandled)" in chooser
+    assert "g_spriteVoiceHandled = true;" in chooser
+    assert "if (!g_voiceHandled)" in chooser
+    assert "if (g_voiceHandled && g_spriteVoiceHandled)" in chooser
     assert "if (g_voiceSide >= 0 && g_voiceReadAt <= kSoundQueueMask" in chooser
     assert "machine.selectionVoiceQueueBeforeSound = &CorrectNativeQueuedVoice;" in chooser
     assert "machine.selectionVoiceQueueBeforeSound = nullptr;" in chooser
@@ -122,6 +131,14 @@ def main():
     assert "0xA0u + side * 0x20u + id / 2u" in select_rewrite
     assert "CorrectQueuedCharacterVoice(std::uint8_t *ram" in select_rewrite
     assert "const unsigned base = 0xA0u + side * 0x20u;" in select_rewrite
+    assert "p[3] > base + 0x13u" in select_rewrite
+    assert "CharacterVoiceIdentity(std::uint16_t id)" in select_rewrite
+    assert "id == 0x24u ? 0x16u : id" in select_rewrite
+    assert "CorrectQueuedCharacterSpriteVoice(std::uint8_t *ram" in select_rewrite
+    assert "nativeCommand - 0x19Bu" in select_rewrite
+    assert "p[6] != 0x0Au" in select_rewrite
+    assert "p[2] = static_cast<std::uint8_t>(wanted >> 8u);" in select_rewrite
+    assert "p[3] = static_cast<std::uint8_t>(wanted);" in select_rewrite
     assert "entry[6] = 0x10u;" in select_rewrite
     assert "distance > 128u" in select_rewrite
     assert "if (nativeMoveTick(ram + 0x2648u + at)) return false;" in select_rewrite
@@ -182,7 +199,7 @@ def main():
                         str(ROOT / "recomp_port/tests/test_character_select_grid.cpp"),
                         "-o", str(binary)], check=True)
         subprocess.run([str(binary)], check=True)
-    print("XMVSF 87.511 P1/P2 voice/ticks, native 82/83 confirm and steady selected cursor PASS")
+    print("XMVSF 87.513 F10 second-pick announcer and character-owned sprite voices, P1/P2 sound isolation and steady cursors PASS")
 
 if __name__ == "__main__":
     main()
