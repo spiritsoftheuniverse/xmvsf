@@ -130,6 +130,31 @@ def main():
     assert "g_injectingAudio" not in chooser
     assert "g_nameTickets" not in chooser
     assert "g_expectedNames" not in chooser
+    # 87.521: character select owns an explicit A/B scheme.
+    # Default gamepad South=A=kKick1; East=B=kKick2.
+    assert "const bool a = (physical & kKick1) != 0u;" in chooser
+    assert "const bool b = (physical & kKick2) != 0u;" in chooser
+    assert "const bool aEdge = a && !g_aHeld[n];" in chooser
+    assert "const bool bEdge = b && !g_bHeld[n];" in chooser
+    assert "machine.players[n] |= kPunch1;" in chooser
+    assert "CancelTeamPick(static_cast<unsigned>(n));" in chooser
+    assert "SetRam8(record + 3u, static_cast<uint8_t>(undone));" in chooser
+    assert "g_committed[n][undone] = 0xFFFFu;" in chooser
+    assert "g_soundAccepted[n] = static_cast<uint8_t>(undone);" in chooser
+    assert "g_confirmQueued[n] = false;" in chooser
+    assert "NativePickAllowed(" in chooser
+    assert "g_confirmQueued[n]))" in chooser
+    assert "NextTeamIndex(g_layout.index[n])" in chooser
+    assert "SkipTeamIndex(" in chooser
+    assert "SameTeamCharacter(" in chooser
+    assert "inline constexpr bool NativePickAllowed(" in layout
+    assert "inline constexpr int NextTeamIndex(" in layout
+    assert "inline constexpr int SkipTeamIndex(" in layout
+    assert "TeamIdentity(std::uint16_t rom)" in layout
+    # No native character can auto-confirm merely because the clock elapsed.
+    assert "if (count > g_accepted[n] && count <= 2u)" in chooser
+    assert "if (accepted == 0u && Ram8(record) >= 2u)" in chooser
+    assert "if (accepted == 1u && Ram8(record) >= 4u)" in chooser
     # Existing native cursor-movement tick fallback remains intact.
     select_rewrite = (SRC / "xmvsf_character_select_rewrite.h").read_text()
     layout = (SRC / "xmvsf_character_select_layout.h").read_text()
@@ -225,7 +250,7 @@ def main():
                         str(ROOT / "recomp_port/tests/test_character_select_grid.cpp"),
                         "-o", str(binary)], check=True)
         subprocess.run([str(binary)], check=True)
-    print("XMVSF 87.519 native ROM ring voice A3 Rogue A4 Gambit, P1/P2 first/second, no shared-latch injection, frozen cursors PASS")
+    print("XMVSF 87.521 A accept / B undo, native timer auto-pick blocked, duplicate team skip, voices unchanged PASS")
 
 if __name__ == "__main__":
     main()
