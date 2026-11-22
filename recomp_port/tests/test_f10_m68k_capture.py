@@ -29,6 +29,12 @@ def main():
         "void AcceptHook(", "static void WriteHook(",
         "oam_writes.tsv", "oam_delta.tsv", "frames.tsv", "hooks.tsv",
         "selection_ram_writes.tsv", "void SelectionWritten(",
+        "selection_handoff.tsv", "void CustomGridBeforeCpu(",
+        "void WriteSelectionHandoff(", "SoundQueueNext(",
+        "SoundRequests(", "sound_requests_hex",
+        "0x2642u", "0x2648u", "kMaxHandoffRows = 360",
+        "before_.accepted != post.accepted",
+        "if (accepted) std::fflush(handoff_)",
         "at >= 0xFF5180u && at < 0xFF51C0u", "selectionRamWriteProbe",
         "both_records_before_hex", "both_records_after_hex",
         "0x5180 + n * 0x20", "0x50B0", "0x5416", "0x5104",
@@ -74,6 +80,15 @@ def main():
     assert "xmvsf_f10::Capture::Get().AfterFrame(machine);" in game
     assert game.index("BeforeRouting(machine)") < game.index("session::BeforeFrame(machine);") < game.index("AfterRouting(machine)")
     assert 'xmvsf_f10::Capture::Get().AcceptHook(' in choosing
+    assert "xmvsf_f10::Capture::Get().CustomGridBeforeCpu(" in choosing
+    assert "machine, g_layout.index[0], g_layout.index[1]);" in choosing
+    # No game-side input mask, sound insertion or change to 87.500 movement.
+    assert "const bool active = Ram8(record) <= 3u && Ram8(record + 3u) < 2u;" in choosing
+    assert "machine.players[n] &= static_cast<uint16_t>(~fight::kSticks);" not in choosing
+    assert "void (*selectionRamWriteOverride)" in machine
+    assert "if (BytesWritten() >= kMaxBytes)" in header
+    assert "handoffRowsSeen_ >= kMaxHandoffRows" in header
+    assert "before_.gameStep != 4u && post.gameStep != 4u" in header
     assert choosing.index("AcceptHook(") < choosing.index("session::CharacterAccepted(n);")
     assert "SelectionDebug SelectionDiagnostics();" in api
     assert "SelectionDebug SelectionDiagnostics() {" in sess
@@ -102,7 +117,7 @@ def main():
         command.extend(["-I", str(directory)])
     command.append(str(smoke))
     subprocess.run(command, check=True)
-    print("XMVSF 87.481 F10 compact bounded diagnostics and C++ smoke PASS")
+    print("XMVSF 87.504 F10 compact native handoff, queued sound requests and C++ smoke PASS")
 
 if __name__ == "__main__":
     main()
