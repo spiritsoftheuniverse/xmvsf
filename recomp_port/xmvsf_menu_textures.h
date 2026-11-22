@@ -302,10 +302,12 @@ public:
 
     const Image *ComposeCharacterSelect(SDL_Renderer *r, std::uint64_t nativeFrames,
                                         std::uint16_t p1, std::uint16_t p2,
-                                        bool activeP1, bool activeP2) {
+                                        bool showP1, bool showP2,
+                                        bool cursorP1, bool cursorP2) {
         if (!Init(r)) return nullptr;
-        return characterSelect_.Build(r, nativeFrames, p1, p2, activeP1,
-                                      activeP2, menu_.selectionLarge_);
+        return characterSelect_.Build(r, nativeFrames, p1, p2, showP1,
+                                      showP2, cursorP1, cursorP2,
+                                      menu_.selectionLarge_);
     }
 
     // Source-exact SF2 large text, reserved for the custom native
