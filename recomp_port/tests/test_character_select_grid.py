@@ -108,7 +108,7 @@ def main():
     assert "if (g_voiceHandled && !g_spriteVoiceHandled)" in chooser
     assert "g_spriteVoiceHandled = true;" in chooser
     assert "if (!g_voiceHandled)" in chooser
-    assert "if (g_voiceHandled && g_spriteVoiceHandled)" in chooser
+    assert "(g_voiceHandled && g_spriteVoiceHandled) ||" in chooser
     assert "if (g_voiceSide >= 0 && g_voiceReadAt <= kSoundQueueMask" in chooser
     assert "machine.selectionVoiceQueueBeforeSound = &CorrectNativeQueuedVoice;" in chooser
     assert "machine.selectionVoiceQueueBeforeSound = nullptr;" in chooser
