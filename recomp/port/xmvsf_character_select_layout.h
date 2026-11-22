@@ -106,13 +106,22 @@ inline constexpr int SkipTeamIndex(int from, int candidate,
     }
     return from;
 }
-// The ROM's timed chooser must not create its own team pick. A native
-// counter write is legal only for the next A-authorized pick, or when it
-// repeats the count already present in RAM (idempotent native refresh).
+// Only a current A press may advance the native accepted count.
+// The RAM's resident value is NOT an authorization: an auto-selection
+// can update native RAM without an A edge. Idempotent writes are harmless.
 inline constexpr bool NativePickAllowed(unsigned proposed, unsigned accepted,
-                                        unsigned resident, bool aAuthorized) {
-    return proposed <= accepted || proposed <= resident ||
+                                        bool aAuthorized) {
+    return proposed <= accepted ||
            (aAuthorized && proposed == accepted + 1u);
+}
+// Accept a fresh A only when the native chooser is READY for this pick.
+// Never buffer A through phase 02 animation or phase 04 mode/speed.
+inline constexpr bool FreshPickPress(bool aEdge, bool bHeld,
+                                      unsigned phase, unsigned count,
+                                      bool duplicate) {
+    return aEdge && !bHeld && !duplicate &&
+           ((count == 0u && phase == 1u) ||
+            (count == 1u && phase == 3u));
 }
 struct Navigation {
     int index[2] = {9, 8}; // literal artwork: P1 Ryu (lower-left), P2 Akuma (upper-right).
