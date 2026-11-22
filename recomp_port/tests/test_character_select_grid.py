@@ -108,10 +108,14 @@ def main():
     assert "if (!RunningAhead() && count > g_soundAccepted[n] && count <= 2u)" in chooser
     assert "const std::uint16_t selected = IntendedNativeId(n);" in chooser
     assert "g_committed[n][pick] = selected;" in chooser
-    assert "port::xmvsf_select::RewriteSelectionNameRingWrite(" in chooser
-    assert "address, value, bytes, machine.ram.data()," in chooser
+    assert "port::xmvsf_select::RewriteQueuedSelectionNames(" in chooser
+    assert "CorrectNativeQueue(machine, updated);" in chooser
+    assert "CorrectNativeQueue(machine, Ram16(kSoundQueueEnd));" in chooser
+    assert "g_nameQueueHead = g_cursorSoundBegin;" in chooser
+    assert "value = port::xmvsf_select::RewriteSelectionNameRingWrite(" not in chooser
     assert "machine.ram.size(), selected);" in chooser
     assert "machine.selectionVoiceQueueBeforeSound = nullptr;" in chooser
+    assert "machine.selectionVoiceQueueBeforeSound = &RewriteNativeQueuedNames;" in chooser
     assert "machine.selectionSoundRequestFilter = &AuthoritativeSelectionSound;" in chooser
     assert "machine.selectionSoundRequestFilter = g_soundTailFrames > 0u" in chooser
     assert "g_soundTailFrames = 30u;" in chooser
@@ -137,6 +141,7 @@ def main():
     assert "NativeCharacterVoice(std::uint16_t id)" in select_rewrite
     assert "kSlots[static_cast<unsigned>(slot)].nameVoice;" in select_rewrite
     assert "RewriteSelectionNameRingWrite(" in select_rewrite
+    assert "RewriteQueuedSelectionNames(" in select_rewrite
     assert "address < 0xFF2648u || address >= 0xFF2A48u" in select_rewrite
     assert "(offset & 15u) != 3u" in select_rewrite
     assert "(offset & 15u) != 2u" in select_rewrite
