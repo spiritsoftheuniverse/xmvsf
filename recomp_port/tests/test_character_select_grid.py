@@ -146,6 +146,10 @@ def main():
     assert "g_soundAccepted[n] = static_cast<uint8_t>(undone);" in chooser
     assert "g_confirmQueued[n] = false;" in chooser
     assert "NativePickAllowed(" in chooser
+    # The acceptance loop owns 'counter'; 'record' is not declared there.
+    # Referring to record caused the 87.521 Windows C++ build failure.
+    assert "count, g_accepted[n], Ram8(counter)," in chooser
+    assert "count, g_accepted[n], Ram8(record + 3u)," not in chooser
     assert "g_confirmQueued[n]))" in chooser
     assert "NextTeamIndex(g_layout.index[n])" in chooser
     assert "SkipTeamIndex(" in chooser
