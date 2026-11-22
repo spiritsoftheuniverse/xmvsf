@@ -152,6 +152,10 @@ void ChoosingLayoutBeforeCpu(Machine &machine) {
             // rather than suppressing input and repairing afterwards.
         }
     }
+    // 87.504 F10-only observation of the exact custom positions sent to
+    // native selection this frame. No navigation/ROM/audio changes.
+    xmvsf_f10::Capture::Get().CustomGridBeforeCpu(
+        machine, g_layout.index[0], g_layout.index[1]);
 }
 
 // The ROM can write its original cursor after the beforeFrame hook. Keep the
