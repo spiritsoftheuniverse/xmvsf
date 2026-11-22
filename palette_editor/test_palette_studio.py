@@ -120,6 +120,22 @@ class DecoderTests(unittest.TestCase):
         self.assertIn("sprite.type==='portrait'", html)
         self.assertIn("refreshSprites", html)
 
+    def test_missing_rom_does_not_disable_new_and_explains_missing_sprite(self):
+        html = (HERE / "palette_studio.html").read_text(encoding="utf-8")
+        server = (HERE / "palette_studio_server.py").read_text(encoding="utf-8")
+        # A failed auto-load must not strand the user with an inert button.
+        self.assertIn("$('newProfile').disabled=false;", html)
+        self.assertNotIn("newProfile').disabled=!original()", html)
+        self.assertIn("state.newAfterLoad=true;", html)
+        self.assertIn("if(state.newAfterLoad){state.newAfterLoad=false;makeProfile();}", html)
+        self.assertIn("$('romInput').click();", html)
+        self.assertIn("source_warning", html)
+        self.assertIn('"source_warning": SOURCE_WARNING', server)
+        # No actual Model viewer export -> visible, actionable explanation.
+        self.assertIn("NO STANDING SPRITE", html)
+        self.assertIn("Save picture", html)
+        self.assertIn("Refresh viewer exports", html)
+
     def test_model_viewer_standing_export_discovery(self):
         # The recomp's Model viewer uses bare Character.png for standing
         # and Character N.png for a repeated standing export. Never infer
