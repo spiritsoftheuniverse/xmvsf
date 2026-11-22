@@ -175,8 +175,9 @@ namespace {
             uint8_t count = static_cast<uint8_t>(value & 0xFFu);
             // Reject native timeout and all non-A character confirms.
             // A grant stays armed until the ROM truly advances FF5183.
-            if (count > g_accepted[n] && !g_confirmQueued[n] &&
-                count > Ram8(record + 3u)) {
+            if (!port::xmvsf_select::NativePickAllowed(
+                    count, g_accepted[n], Ram8(record + 3u),
+                    g_confirmQueued[n])) {
                 count = g_accepted[n];
                 value = bytes == 2u
                     ? static_cast<uint16_t>((value & 0xFF00u) | count)
