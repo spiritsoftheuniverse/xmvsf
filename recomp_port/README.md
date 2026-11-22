@@ -1,5 +1,13 @@
 # XMVSF native front end — 87.498 (native character-select composition and horizontal ROM grid)
 
+## 87.499 — native cursor synchronization and second-pick selector cutoff
+
+- The GUI's new horizontal cursor ID is written before the native CPU frame **and restored after the ROM's own original cursor routine**. The newly drawn sprite/portrait now follows the intended cell even when native ROM code rewrites FF518C or FF51AC.
+- At a real FF5183 / FF51A3 accepted-count increase, the selected 18-grid ROM character ID is written to its corresponding native FF50B0/B2/B4/B6 pick word, while preserving the original hidden Start variations.
+- After the first accepted pick, the next candidate defaults to the cell immediately right (Ryu -> Ken, Cyclops -> Wolverine). The native accept routine, character animations/audio, and post-second-pick mode/speed inputs remain in control.
+- The custom P1/P2 selector's flicker/inversion is independently gated on its real accepted count < 2, so it ends after the second accepted character but the portrait stays visible. No countdown number is fabricated; the selection countdown's native RAM source still needs verification.
+- Regression preflight checks the new before/after native frame wiring, accepted-count gating, team write handoff and both mirrored compositor headers. Windows compile and visual acceptance remain local, not claimed here.
+
 ## 87.498 — initial integration of source-native character-select screen
 
 - Uses 384x224 PNG composition sheets at their original source coordinates. Characters are drawn first and character grid on top; offsets come from the 1P/P2 selector art (P1 bottom-left Ryu; P2 upper-right Akuma), 33 pixels across and 39 vertically.
