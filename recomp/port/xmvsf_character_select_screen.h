@@ -179,8 +179,12 @@ public:
         // This overlay is intentionally ABOVE the character sprites.
         Blit(canvas_.pixels, 384, 224, grid_, {0,0,384,224}, {0,0,384,224});
         const bool ink = (nativeFrames / 4u) % 2u == 0u;
-        if (ink && showP1 && cursorP1 && a >= 0) Cursor(p1Cursor_, 9, a);
-        if (ink && showP2 && cursorP2 && b >= 0) Cursor(p2Cursor_, 8, b);
+        // 87.511: native acceptance ends selector BLINKING, not the
+        // selector's visibility. The final selected cell stays outlined
+        // steadily for each side; active selections retain the 4-frame
+        // native flicker independently.
+        if (showP1 && a >= 0 && (!cursorP1 || ink)) Cursor(p1Cursor_, 9, a);
+        if (showP2 && b >= 0 && (!cursorP2 || ink)) Cursor(p2Cursor_, 8, b);
         if (showP1 && a >= 0)
             font.Text(canvas_.pixels, 384, 224,
                       xmvsf_select::kSlots[static_cast<size_t>(a)].name,
