@@ -32,143 +32,83 @@ static_assert(NativeCharacterVoice(0x24, 1u) == 0xCB);
 static_assert(Navigate(0, 1) == 1 && Navigate(8, 1) == 0);
 static_assert(Navigate(9, 1) == 10 && Navigate(9, 8) == 0);
 int main() {
-    // F10 frame 884: wrong Gambit voice when Rogue was confirmed.
-    std::array<std::uint8_t, 65536> ram{};
+    // 87.515: the ROM's exact accepted ID, not its transient native
+    // cursor, determines which ONE character-name recording can pass.
+    // The name is explicitly queued in the same native 16-byte format.
+    std::array<std::uint8_t, 65536> ring{};
     constexpr unsigned ringBase = 0x2648u;
-    const auto voiceRequest = [&](unsigned offset, std::uint8_t voice) {
-        auto *p = ram.data() + ringBase + offset;
-        for (unsigned n = 0; n < 16u; ++n) p[n] = 0u;
-        p[3] = voice;
-        p[6] = 0x10u;
-    };
-    voiceRequest(0u, 0xA4u);
-    assert(CorrectQueuedCharacterVoice(ram.data(), ram.size(), 0u, 0x06u));
-    assert(ram[ringBase + 3u] == 0xA3u); // Rogue
-    assert(ram[ringBase + 6u] == 0x10u); // native envelope preserved
-    // Correct Magneto voice remains untouched.
-    voiceRequest(16u, 0xA7u);
-    assert(CorrectQueuedCharacterVoice(ram.data(), ram.size(), 16u, 0x0Eu));
-    assert(ram[ringBase + 16u + 3u] == 0xA7u);
-    // The common post-announcement SFX 0x82 and all ordinary SFX
-    // remain completely untouched.
-    voiceRequest(32u, 0x82u);
-    assert(!CorrectQueuedCharacterVoice(ram.data(), ram.size(), 32u, 0x06u));
-    assert(ram[ringBase + 32u + 3u] == 0x82u);
-    // Invalid envelope/ID/pointers must not be edited.
-    voiceRequest(48u, 0xA4u);
-    ram[ringBase + 48u + 7u] = 1u;
-    assert(!CorrectQueuedCharacterVoice(ram.data(), ram.size(), 48u, 0x06u));
-    assert(ram[ringBase + 48u + 3u] == 0xA4u);
-    // 87.513: native-source announcers need NOT be present in the custom
-    // 18-cell grid. The old 87.508 test incorrectly rejected 0xA8.
-    // A valid off-grid source must be rewritten to the selected Rogue.
-    voiceRequest(64u, 0xA8u); // native Apocalypse, absent from custom grid
-    assert(CorrectQueuedCharacterVoice(ram.data(), ram.size(), 64u, 0x06u));
-    assert(ram[ringBase + 64u + 3u] == 0xA3u);
-    assert(ram[ringBase + 64u + 6u] == 0x10u);
-    // A real out-of-range announcer must still be rejected unchanged.
-    voiceRequest(0x110u, 0xB4u);
-    assert(!CorrectQueuedCharacterVoice(ram.data(), ram.size(), 0x110u, 0x06u));
-    assert(ram[ringBase + 0x110u + 3u] == 0xB4u);
-    assert(!CorrectQueuedCharacterVoice(ram.data(), ram.size(), 0x400u, 0x06u));
-    assert(!CorrectQueuedCharacterVoice(ram.data(), 0x100u, 0u, 0x06u));
-    // Last entry of ring is still 16 bytes within the 0x400 region.
-    voiceRequest(0x3F0u, 0xA4u);
-    assert(CorrectQueuedCharacterVoice(ram.data(), ram.size(), 0x3F0u, 0x06u));
-    assert(ram[ringBase + 0x3F0u + 3u] == 0xA3u);
-    // 87.511: P2 uses a DIFFERENT character-voice family C0..D2.
-    // F10 proves Gambit=C4 and Wolverine=C0 on native P2 picks.
-    voiceRequest(0x80u, 0xC4u);
-    assert(CorrectQueuedCharacterVoice(ram.data(), ram.size(), 0x80u, 0x22u, 1u));
-    assert(ram[ringBase + 0x80u + 3u] == 0xD1u); // Cammy in P2
-    assert(ram[ringBase + 0x80u + 6u] == 0x10u);
-    // Don't accidentally rewrite a P1 request using the P2 family.
-    voiceRequest(0x90u, 0xA4u);
-    assert(!CorrectQueuedCharacterVoice(ram.data(), ram.size(), 0x90u, 0x22u, 1u));
-    assert(ram[ringBase + 0x90u + 3u] == 0xA4u);
-    voiceRequest(0xA0u, 0xC4u);
-    assert(!CorrectQueuedCharacterVoice(ram.data(), ram.size(), 0xA0u, 0x22u, 0u));
-    assert(ram[ringBase + 0xA0u + 3u] == 0xC4u);
-    // Native side-specific confirmation sounds MUST remain (87.510
-    // incorrectly attempted to remove P1 82).
-    voiceRequest(0xB0u, 0x82u);
-    voiceRequest(0xC0u, 0x83u);
-    assert(!CorrectQueuedCharacterVoice(ram.data(), ram.size(), 0xB0u, 0x06u, 0u));
-    assert(!CorrectQueuedCharacterVoice(ram.data(), ram.size(), 0xC0u, 0x06u, 1u));
-    assert(ram[ringBase + 0xB0u + 3u] == 0x82u);
-    assert(ram[ringBase + 0xC0u + 3u] == 0x83u);
+    assert(QueueExplicitSelectionSound(ring.data(), ring.size(), 0xAFu));
+    assert(ring[0x2643u] == 16u);
+    assert(ring[ringBase + 3u] == 0xAFu);  // Akuma
+    assert(ring[ringBase + 6u] == 0x10u); // native announcement envelope
+    assert(QueueExplicitSelectionSound(ring.data(), ring.size(), 0x82u));
+    assert(ring[0x2643u] == 32u);
+    assert(ring[ringBase + 16u + 3u] == 0x82u); // confirmation restored
+    assert(!QueueExplicitSelectionSound(ring.data(), 100u, 0xA0u));
+    assert(!QueueExplicitSelectionSound(ring.data(), ring.size(), 0x100u));
+    // The 0x400-byte native ring wraps cleanly.
+    ring[0x2642u] = 3u;
+    ring[0x2643u] = 0xF0u;
+    assert(QueueExplicitSelectionSound(ring.data(), ring.size(), 0xCBu));
+    assert(ring[0x2642u] == 0u && ring[0x2643u] == 0u);
+    assert(ring[ringBase + 0x3F0u + 3u] == 0xCBu);
+    ring[0x2642u] = 0u;
+    ring[0x2643u] = 1u;
+    assert(!QueueExplicitSelectionSound(ring.data(), ring.size(), 0xA7u));
 
-    // 87.513 F10: second-pick native announcements can land outside the
-    // nominal grid source. Capture #3: Storm 0x04 vs native B3 (0x26).
-    voiceRequest(0xD0u, 0xB3u);
-    assert(CorrectQueuedCharacterVoice(ram.data(), ram.size(), 0xD0u, 0x04u, 0u));
-    assert(ram[ringBase + 0xD0u + 3u] == 0xA2u);
-    // Capture #5: Alpha Chun-Li selected, native B2 spoke wrong;
-    // the alternate must use Chun-Li's stock AB voice.
-    voiceRequest(0xE0u, 0xB2u);
-    assert(CorrectQueuedCharacterVoice(ram.data(), ram.size(), 0xE0u, 0x24u, 0u));
-    assert(ram[ringBase + 0xE0u + 3u] == 0xABu);
-    // Akuma's native AF when custom Juggernaut is chosen: A6, not AF.
-    voiceRequest(0xF0u, 0xAFu);
-    assert(CorrectQueuedCharacterVoice(ram.data(), ram.size(), 0xF0u, 0x0Cu, 0u));
-    assert(ram[ringBase + 0xF0u + 3u] == 0xA6u);
-    // P2 side uses D3 source and C-family target, not A-family.
-    voiceRequest(0x100u, 0xD3u);
-    assert(CorrectQueuedCharacterVoice(ram.data(), ram.size(), 0x100u, 0x0Cu, 1u));
-    assert(ram[ringBase + 0x100u + 3u] == 0xC6u);
-
-    // The F10 Akuma case has an extra native character-owned 03BB
-    // command immediately after AF,82, while the native pick is Cammy.
-    // Its 0x20-wide sound block maps Cammy 0x3A0 -> Akuma 0x360,
-    // retaining the observed selection-speech slot 0x1B.
-    std::array<std::uint8_t, 65536> spriteRam{};
-    const auto spriteCommand = [&](unsigned offset, unsigned code) {
-        auto *p = spriteRam.data() + ringBase + offset;
-        for (unsigned i = 0u; i < 16u; ++i) p[i] = 0u;
-        p[2] = static_cast<std::uint8_t>(code >> 8u);
-        p[3] = static_cast<std::uint8_t>(code);
-        p[6] = 0x0Au;
+    std::array<std::uint8_t, 16> sound{};
+    auto request = [&](unsigned code, unsigned mode = 0x10u) {
+        sound.fill(0u);
+        sound[2] = static_cast<std::uint8_t>(code >> 8u);
+        sound[3] = static_cast<std::uint8_t>(code);
+        sound[6] = static_cast<std::uint8_t>(mode);
     };
-    spriteCommand(0u, 0x03BBu);
-    assert(CorrectQueuedCharacterSpriteVoice(
-        spriteRam.data(), spriteRam.size(), 0u, 0x1Eu));
-    assert(spriteRam[ringBase + 2u] == 0x03u);
-    assert(spriteRam[ringBase + 3u] == 0x7Bu); // Akuma 037B
-    assert(spriteRam[ringBase + 6u] == 0x0Au);
-    spriteCommand(16u, 0x037Bu);
-    assert(CorrectQueuedCharacterSpriteVoice(
-        spriteRam.data(), spriteRam.size(), 16u, 0x0Cu));
-    assert(spriteRam[ringBase + 16u + 2u] == 0x02u);
-    assert(spriteRam[ringBase + 16u + 3u] == 0x5Bu); // Juggernaut 025B
-    spriteCommand(32u, 0x03BBu);
-    assert(CorrectQueuedCharacterSpriteVoice(
-        spriteRam.data(), spriteRam.size(), 32u, 0x24u));
-    assert(spriteRam[ringBase + 32u + 2u] == 0x02u);
-    assert(spriteRam[ringBase + 32u + 3u] == 0xFBu); // Chun-Li 02FB
-    // A correctly-owned voice must remain byte-identical.
-    spriteCommand(48u, 0x037Bu);
-    assert(CorrectQueuedCharacterSpriteVoice(
-        spriteRam.data(), spriteRam.size(), 48u, 0x1Eu));
-    assert(spriteRam[ringBase + 48u + 3u] == 0x7Bu);
-    // 82/83 confirm SFX, 84/85 movement and other character sound
-    // slots must never be treated as the selected sprite's voice.
-    spriteCommand(64u, 0x0082u);
-    assert(!CorrectQueuedCharacterSpriteVoice(
-        spriteRam.data(), spriteRam.size(), 64u, 0x1Eu));
-    spriteCommand(80u, 0x0084u);
-    assert(!CorrectQueuedCharacterSpriteVoice(
-        spriteRam.data(), spriteRam.size(), 80u, 0x1Eu));
-    spriteCommand(96u, 0x03BAu);
-    assert(!CorrectQueuedCharacterSpriteVoice(
-        spriteRam.data(), spriteRam.size(), 96u, 0x1Eu));
-    spriteCommand(112u, 0x03BBu);
-    spriteRam[ringBase + 112u + 7u] = 1u;
-    assert(!CorrectQueuedCharacterSpriteVoice(
-        spriteRam.data(), spriteRam.size(), 112u, 0x1Eu));
-    assert(!CorrectQueuedCharacterSpriteVoice(
-        spriteRam.data(), spriteRam.size(), 0x400u, 0x1Eu));
-    assert(!CorrectQueuedCharacterSpriteVoice(
-        spriteRam.data(), 0x100u, 0u, 0x1Eu));
+    std::array<std::uint16_t, 2> expected{{0xAFu, 0xCBu}};
+    std::array<unsigned, 2> nameTickets{{1u, 1u}};
+    std::array<unsigned, 2> confirmTickets{{1u, 1u}};
+    request(0xB1u); // Cammy: native is unrelated to selected Akuma
+    assert(!AllowAuthoritativeSelectionSound(sound.data(), expected, nameTickets, confirmTickets));
+    request(0xB3u); // native off-grid second-pick announcer
+    assert(!AllowAuthoritativeSelectionSound(sound.data(), expected, nameTickets, confirmTickets));
+    request(0x03BBu, 0x0Au); // Cammy's native character-owned speech
+    assert(!AllowAuthoritativeSelectionSound(sound.data(), expected, nameTickets, confirmTickets));
+    request(0x037Bu, 0x0Au); // no guessed "Akuma sprite voice" substitution
+    assert(!AllowAuthoritativeSelectionSound(sound.data(), expected, nameTickets, confirmTickets));
+    // Keep side-specific movement clicks without doubling or muting.
+    request(0x84u);
+    assert(AllowAuthoritativeSelectionSound(sound.data(), expected, nameTickets, confirmTickets));
+    request(0x85u);
+    assert(AllowAuthoritativeSelectionSound(sound.data(), expected, nameTickets, confirmTickets));
+    // First acceptance: name and confirmation play exactly once.
+    request(0xAFu);
+    assert(AllowAuthoritativeSelectionSound(sound.data(), expected, nameTickets, confirmTickets));
+    assert(nameTickets[0] == 0u);
+    assert(!AllowAuthoritativeSelectionSound(sound.data(), expected, nameTickets, confirmTickets));
+    request(0x82u);
+    assert(AllowAuthoritativeSelectionSound(sound.data(), expected, nameTickets, confirmTickets));
+    assert(confirmTickets[0] == 0u);
+    assert(!AllowAuthoritativeSelectionSound(sound.data(), expected, nameTickets, confirmTickets));
+    // Second player is entirely independent, including name family C?.
+    request(0xABu); // P1 Chun-Li code is NOT P2 Chun-Li
+    assert(!AllowAuthoritativeSelectionSound(sound.data(), expected, nameTickets, confirmTickets));
+    request(0xCBu);
+    assert(AllowAuthoritativeSelectionSound(sound.data(), expected, nameTickets, confirmTickets));
+    assert(nameTickets[1] == 0u);
+    assert(!AllowAuthoritativeSelectionSound(sound.data(), expected, nameTickets, confirmTickets));
+    request(0x83u);
+    assert(AllowAuthoritativeSelectionSound(sound.data(), expected, nameTickets, confirmTickets));
+    assert(confirmTickets[1] == 0u);
+    assert(!AllowAuthoritativeSelectionSound(sound.data(), expected, nameTickets, confirmTickets));
+    // Without a real accepted-counter edge, no original native speech,
+    // announcer, or confirmation is authorized.
+    request(0xA7u);
+    assert(!AllowAuthoritativeSelectionSound(sound.data(), expected, nameTickets, confirmTickets));
+    request(0x03BBu, 0x0Au);
+    assert(!AllowAuthoritativeSelectionSound(sound.data(), expected, nameTickets, confirmTickets));
+    // Non-selection control messages are not misidentified as speech.
+    request(0x40u, 0x20u);
+    assert(AllowAuthoritativeSelectionSound(sound.data(), expected, nameTickets, confirmTickets));
+    assert(!AllowAuthoritativeSelectionSound(nullptr, expected, nameTickets, confirmTickets));
 
     // 87.509: reproduce frame 648 first confirmation: A7 voice and
     // 82 confirmation SFX already enqueued, but the automatic 1-slot
