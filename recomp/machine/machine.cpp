@@ -274,6 +274,11 @@ void Machine::RunLine() {
     }
     cpu.Run(m_lineStart, cpuMode);
 
+    // 87.508: let the custom native character selector inspect newly
+    // queued M68K sound requests before the Z80/QSound advances.
+    // Null for every other game and outside the active select screen.
+    if (selectionVoiceQueueBeforeSound)
+        selectionVoiceQueueBeforeSound(*this);
     RunSound(kSoundCyclesPerLine);
 
     if (nativeVideo.checking && m_line >= Video::kFirstLine && m_line < Video::kFirstLine + Video::kHeight) {
