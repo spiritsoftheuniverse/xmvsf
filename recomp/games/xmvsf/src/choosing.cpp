@@ -62,7 +62,14 @@ namespace {
         if (n >= 2u) return;
         const uint32_t record = kChoosing + static_cast<uint32_t>(n) * kChoosingSize;
         const unsigned count = Ram8(record + 3u);
-        if (count == 0u || count > 2u || Ram8(record) > 4u) return;
+        if (count > 2u || Ram8(record) > 4u) return;
+        // B must cancel a pending A even if the ROM hasn't yet committed
+        // the first pick. Otherwise the old permission can remain latched.
+        if (count == 0u) {
+            g_confirmQueued[n] = false;
+            g_confirmPulse[n] = 0u;
+            return;
+        }
         const unsigned undone = count - 1u;
         const std::uint16_t old = g_committed[n][undone];
         const int at = port::xmvsf_select::Find(old);
@@ -73,8 +80,13 @@ namespace {
         g_confirmQueued[n] = false;
         g_confirmPulse[n] = 0u;
         g_commitPending = false;
+        // F10 native trace: phase 01 uses progress 00; phase 03 uses
+        // progress 04. Reset ALL THREE fields when undoing a pick:
+        // changing phase/count alone left the native animation stuck at
+        // progress 02 or 06, where later A presses can be ignored.
         SetRam8(record, static_cast<uint8_t>(undone ? 3u : 1u));
         SetRam8(record + 3u, static_cast<uint8_t>(undone));
+        SetRam8(record + 5u, static_cast<uint8_t>(undone ? 4u : 0u));
         SetRam16(kPicks + static_cast<uint32_t>(n * 4u + undone * 2u), 0u);
         SetRam16(record + kCursor,
                  port::xmvsf_select::kSlots[static_cast<unsigned>(g_layout.index[n])].rom);
@@ -336,7 +348,7 @@ void ChoosingLayoutBeforeCpu(Machine &machine) {
                 ~(kPunch1 | kPunch2 | kPunch3 |
                   kKick1 | kKick2 | kKick3));
         }
-        if (bEdge && phase <= 4u && count != 0u) {
+        if (bEdge && phase <= 4u) {
             CancelTeamPick(static_cast<unsigned>(n));
         }
         const bool selecting = Ram8(record) <= 3u && Ram8(record + 3u) < 2u;
@@ -356,7 +368,7 @@ void ChoosingLayoutBeforeCpu(Machine &machine) {
         // the second selector opens; it still authorizes only ONE pick.
         const bool canQueue = selecting || (Ram8(record + 3u) == 1u &&
                                             Ram8(record) == 2u);
-        if (aEdge && !b && canQueue && !g_confirmQueued[n] &&
+        if (aEdge && !b && canQueue &&
             (Ram8(record + 3u) == 0u ||
              !port::xmvsf_select::SameTeamCharacter(
                   g_committed[n][0], IntendedNativeId(static_cast<unsigned>(n))))) {
@@ -418,12 +430,9 @@ void ChoosingLayoutAfterFrame(Machine &machine) {
         }
         if (accepted == 2u && g_accepted[n] < 2u) g_commitPending = true;
         g_accepted[n] = accepted;
-        // Selection no longer times out. Keep native phase aligned with
-        // the number of A-confirmed picks even if its clock reaches zero.
-        if (accepted == 0u && Ram8(record) >= 2u)
-            SetRam8(record, 1u);
-        if (accepted == 1u && Ram8(record) >= 4u)
-            SetRam8(record, 3u);
+        // Native phase writes are already gated in RemapSelectionWrite.
+        // Do not force the phase backward here: phase 02 (the first-pick
+        // animation) must reach 03 before the next A can be accepted.
         // Write AFTER the ROM's original navigation, not only before it.
         // Do not overwrite native mode/speed (steps 4+) or completed picks.
         if (accepted < 2u && Ram8(record) <= 3u) {
