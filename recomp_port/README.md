@@ -1,5 +1,12 @@
 # XMVSF native front end — 87.498 (native character-select composition and horizontal ROM grid)
 
+## 87.507 — immediate rollback after crash on level select
+
+- User reports a crash during level select after the 87.506 voice interception. Treat the 0787E0 sound queue hook as suspect; **remove the entire 87.506 patch**, not just its conditional.
+- The chooser, both layout headers and character-grid Python/C++ tests are restored **byte-for-byte** from commit `44923ea4a467daf906ec8a7212aed9f1977293a0` (87.505). The frontend visual identity getter and 87.504 F10 diagnostics remain intact.
+- **Do not reapply** the 0787E0 sound hook without first inspecting a crash log/stack trace and verifying the translated/native entry and queue lifetime. The 87.506 assumption about a previously queued voice remaining safely writable was not runtime-validated.
+- The native voice mismatch is intentionally **unfixed**. The user needs a working level-select path first. This rollback is source-verified but still requires Windows gameplay testing.
+
 ## 87.506 — F10-guided native character-announcer correction
 
 - The uploaded `latest(1).zip` captured two 16-byte native confirmation requests: frame 648 chose Magneto (`0x0E`) and queued `000000A700001000...`; frame 884 chose Rogue (`0x06`) but native cursor bookkeeping queued Gambit (`000000A400001000...`). Both voices were followed by `0000008200001000...` in the same emulated frame.
