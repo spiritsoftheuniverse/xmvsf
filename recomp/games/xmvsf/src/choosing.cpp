@@ -38,6 +38,13 @@ namespace {
     uint16_t g_cursorSoundBegin = 0xFFFFu;
     uint16_t g_nameQueueHead = 0xFFFFu; // next uncorrected FF2648 request
     int g_gridBeforeFrame[2] = {-1, -1};
+    // A (gamepad South / default kick 1) is the ONLY native select
+    // authorization. B (East / kick 2) undoes the last accepted pick.
+    // Both are edge-triggered, and the other fighting buttons remain free.
+    bool g_aHeld[2] = {false, false};
+    bool g_bHeld[2] = {false, false};
+    bool g_confirmQueued[2] = {false, false};
+    unsigned g_confirmPulse[2] = {0u, 0u};
 
     uint16_t IntendedNativeId(unsigned n) {
         const uint16_t raw =
@@ -49,6 +56,31 @@ namespace {
             if (raw == 0x16u) return 0x24u; // Chun-Li -> Alpha Chun-Li
         }
         return raw;
+    }
+
+    void CancelTeamPick(unsigned n) {
+        if (n >= 2u) return;
+        const uint32_t record = kChoosing + static_cast<uint32_t>(n) * kChoosingSize;
+        const unsigned count = Ram8(record + 3u);
+        if (count == 0u || count > 2u || Ram8(record) > 4u) return;
+        const unsigned undone = count - 1u;
+        const std::uint16_t old = g_committed[n][undone];
+        const int at = port::xmvsf_select::Find(old);
+        if (at >= 0) g_layout.index[n] = at;
+        g_committed[n][undone] = 0xFFFFu;
+        g_accepted[n] = static_cast<uint8_t>(undone);
+        g_soundAccepted[n] = static_cast<uint8_t>(undone);
+        g_confirmQueued[n] = false;
+        g_confirmPulse[n] = 0u;
+        g_commitPending = false;
+        SetRam8(record, static_cast<uint8_t>(undone ? 3u : 1u));
+        SetRam8(record + 3u, static_cast<uint8_t>(undone));
+        SetRam16(kPicks + static_cast<uint32_t>(n * 4u + undone * 2u), 0u);
+        SetRam16(record + kCursor,
+                 port::xmvsf_select::kSlots[static_cast<unsigned>(g_layout.index[n])].rom);
+        if (!RunningAhead())
+            std::fprintf(stderr, "XMVSF 87.521 B_CANCEL P%u PICK%u\\n",
+                         n + 1u, count);
     }
 
     bool AuthoritativeSelectionSound(Machine &, uint8_t *request) {
@@ -110,6 +142,27 @@ namespace {
         value = port::xmvsf_select::RewriteNativeSelectionWrite(
             address, value, bytes, selected, accepted);
 
+        // The original countdown can still run internally, but it has
+        // NO permission to accept a character or leave the selection
+        // phase. Only a real A press can authorize native acceptance.
+        for (unsigned n = 0u; n < 2u; ++n) {
+            const uint32_t record = kChoosing + n * kChoosingSize;
+            if (at == record && (bytes == 1u || bytes == 2u)) {
+                const unsigned next = bytes == 1u ? value & 0xFFu : value >> 8u;
+                const unsigned count = Ram8(record + 3u);
+                const bool mayAdvanceFirst = count > 0u || g_confirmQueued[n];
+                const bool mayAdvanceSecond = count > 1u ||
+                    (count == 1u && g_confirmQueued[n]);
+                if ((next >= 2u && !mayAdvanceFirst) ||
+                    (next >= 4u && !mayAdvanceSecond)) {
+                    const uint16_t prior = Ram8(record);
+                    value = bytes == 1u
+                        ? prior
+                        : static_cast<uint16_t>((prior << 8u) | (value & 0xFFu));
+                }
+            }
+        }
+
         // FF5183 / FF51A3 are the ROM's actual accepted-character
         // counters. Capture the ID AT THE RAM WRITE: the ROM can leave
         // character selection on the same frame as pick two, meaning a
@@ -119,7 +172,19 @@ namespace {
             const bool wroteCounter = (bytes == 1u && at == counter) ||
                                       (bytes == 2u && at == counter - 1u);
             if (!wroteCounter) continue;
-            const uint8_t count = static_cast<uint8_t>(value & 0xFFu);
+            uint8_t count = static_cast<uint8_t>(value & 0xFFu);
+            // Reject native timeout and all non-A character confirms.
+            // A grant stays armed until the ROM truly advances FF5183.
+            if (count > g_accepted[n] && !g_confirmQueued[n]) {
+                count = g_accepted[n];
+                value = bytes == 2u
+                    ? static_cast<uint16_t>((value & 0xFF00u) | count)
+                    : count;
+            }
+            if (count > g_accepted[n] && count <= 2u) {
+                g_confirmQueued[n] = false;
+                g_confirmPulse[n] = 0u;
+            }
             // The native accepted counter is the only authority for
             // an audible selection. Not raw button presses, cursor
             // animation frames, or a guessed announcer source ID.
@@ -214,6 +279,10 @@ void ChoosingLayoutBeforeCpu(Machine &machine) {
         g_cursorSoundBegin = 0xFFFFu;
         g_gridBeforeFrame[0] = g_gridBeforeFrame[1] = -1;
         if (g_layoutRunning) g_layout.Reset();
+        for (unsigned n = 0u; n < 2u; ++n) {
+            g_aHeld[n] = g_bHeld[n] = g_confirmQueued[n] = false;
+            g_confirmPulse[n] = 0u;
+        }
         g_layoutRunning = false;
         g_accepted[0] = g_accepted[1] = 0;
         return;
@@ -224,6 +293,10 @@ void ChoosingLayoutBeforeCpu(Machine &machine) {
         g_committed[1][0] = g_committed[1][1] = 0xFFFFu;
         g_commitPending = false;
         g_soundAccepted[0] = g_soundAccepted[1] = 0u;
+        for (unsigned n = 0u; n < 2u; ++n) {
+            g_aHeld[n] = g_bHeld[n] = g_confirmQueued[n] = false;
+            g_confirmPulse[n] = 0u;
+        }
         g_layoutRunning = true;
     }
     g_soundTailFrames = 0u; // fresh selection owns its own audio
@@ -245,16 +318,53 @@ void ChoosingLayoutBeforeCpu(Machine &machine) {
         // The native 03->04 transition means the second character was
         // accepted. Steps 04..06 are the game's MODE/SPEED choices and
         // MUST retain real directional input (87.477 regression lesson).
-        const bool active = Ram8(record) <= 3u && Ram8(record + 3u) < 2u;
-        const unsigned direction = machine.players[n] & (kRight | kLeft | kDown | kUp);
-        g_layout.Advance(n, direction, active);
-        if (active) {
+        const unsigned phase = Ram8(record);
+        const unsigned count = Ram8(record + 3u);
+        const bool active = phase <= 3u && count < 2u;
+        const uint16_t physical = machine.players[n];
+        const bool a = (physical & kKick1) != 0u;
+        const bool b = (physical & kKick2) != 0u;
+        const bool aEdge = a && !g_aHeld[n];
+        const bool bEdge = b && !g_bHeld[n];
+        g_aHeld[n] = a;
+        g_bHeld[n] = b;
+        // Character selection is explicitly A/B, not all six attacks.
+        // Keep the original directional bits for native cursor sounds.
+        if (phase <= 4u && count <= 2u) {
+            machine.players[n] &= static_cast<uint16_t>(
+                ~(kPunch1 | kPunch2 | kPunch3 |
+                  kKick1 | kKick2 | kKick3));
+        }
+        if (bEdge && phase <= 4u && count != 0u) {
+            CancelTeamPick(static_cast<unsigned>(n));
+        }
+        const bool selecting = Ram8(record) <= 3u && Ram8(record + 3u) < 2u;
+        const unsigned direction = physical & (kRight | kLeft | kDown | kUp);
+        const int before = g_layout.index[n];
+        g_layout.Advance(n, direction, selecting);
+        if (selecting && Ram8(record + 3u) == 1u) {
+            // The first pick is no longer a valid cursor destination.
+            g_layout.index[n] = port::xmvsf_select::SkipTeamIndex(
+                before, g_layout.index[n], direction, g_committed[n][0]);
+        }
+        if (selecting) {
             const unsigned slot = static_cast<unsigned>(g_layout.index[n]);
             SetRam16(record + kCursor, port::xmvsf_select::kSlots[slot].rom);
-            // KEEP the physical direction bits: the native movement
-            // sound/effects only run when the original ROM sees them.
-            // Its cursor and pick RAM writes are now remapped in-frame,
-            // rather than suppressing input and repairing afterwards.
+            // One rising A press = at most one native confirmation.
+            // A held across the first->second handoff cannot choose twice.
+            if (aEdge && !b && !g_confirmQueued[n] &&
+                (Ram8(record + 3u) == 0u ||
+                 !port::xmvsf_select::SameTeamCharacter(
+                      g_committed[n][0], IntendedNativeId(static_cast<unsigned>(n))))) {
+                g_confirmQueued[n] = true;
+                g_confirmPulse[n] = 0u;
+            }
+            // The first confirmation can enter native phase 02 for
+            // its animation. Hold the grant until phase 03 is ready.
+            if (g_confirmQueued[n] && (phase == 1u || phase == 3u)) {
+                if (g_confirmPulse[n]++ % 8u == 0u)
+                    machine.players[n] |= kPunch1;
+            }
         }
     }
     // 87.504 F10-only observation of the exact custom positions sent to
@@ -300,11 +410,17 @@ void ChoosingLayoutAfterFrame(Machine &machine) {
             // The second character defaults to the next cell across,
             // as native Cyclops->Wolverine / Ryu->Ken did.
             if (prior == 0u && accepted == 1u) {
-                g_layout.index[n] = port::xmvsf_select::Navigate(g_layout.index[n], 1u);
+                g_layout.index[n] = port::xmvsf_select::NextTeamIndex(g_layout.index[n]);
             }
         }
         if (accepted == 2u && g_accepted[n] < 2u) g_commitPending = true;
         g_accepted[n] = accepted;
+        // Selection no longer times out. Keep native phase aligned with
+        // the number of A-confirmed picks even if its clock reaches zero.
+        if (accepted == 0u && Ram8(record) >= 2u)
+            SetRam8(record, 1u);
+        if (accepted == 1u && Ram8(record) >= 4u)
+            SetRam8(record, 3u);
         // Write AFTER the ROM's original navigation, not only before it.
         // Do not overwrite native mode/speed (steps 4+) or completed picks.
         if (accepted < 2u && Ram8(record) <= 3u) {
