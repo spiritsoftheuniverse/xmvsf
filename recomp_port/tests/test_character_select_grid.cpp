@@ -64,6 +64,64 @@ int main() {
             }
         }
     }
+    // 87.520: exercise the PRODUCTION completed-queue path, not only a
+    // hypothetical individual byte/word write at FF264B. Each native
+    // announcement must become the SAME voice for all four pick slots.
+    for (const Slot &slot : kSlots) {
+        for (unsigned side = 0u; side < 2u; ++side) {
+            for (unsigned pick = 0u; pick < 2u; ++pick) {
+                std::array<std::uint8_t, 65536> ram{};
+                const unsigned at = 16u * (pick * 2u + side);
+                auto *name = ram.data() + 0x2648u + at;
+                name[3] = static_cast<std::uint8_t>(side ? 0xD3u : 0xB3u);
+                name[6] = 0x10u;
+                auto *confirm = name + 16u;
+                confirm[3] = static_cast<std::uint8_t>(side ? 0x83u : 0x82u);
+                confirm[6] = 0x10u;
+                const std::array<std::uint16_t, 2> selected{{slot.rom, slot.rom}};
+                assert(RewriteQueuedSelectionNames(
+                    static_cast<std::uint16_t>(at),
+                    static_cast<std::uint16_t>(at + 32u),
+                    ram.data(), ram.size(), selected) == 1u);
+                assert(name[3] == slot.nameVoice);
+                assert(name[6] == 0x10u);
+                assert(confirm[3] == (side ? 0x83u : 0x82u));
+                // Scanner state must advance even when no bytes changed:
+                // NEVER revisit a canonicalized P2 name as a P1 entry.
+                assert(RewriteQueuedSelectionNames(
+                    static_cast<std::uint16_t>(at + 32u),
+                    static_cast<std::uint16_t>(at + 32u),
+                    ram.data(), ram.size(), selected) == 0u);
+            }
+        }
+    }
+    // Two simultaneous accepts: the original native C-family byte
+    // identifies P2, while P1's A-family byte identifies P1.
+    std::array<std::uint8_t, 65536> paired{};
+    paired[0x2648u + 3u] = 0xA4u;
+    paired[0x2648u + 6u] = 0x10u;
+    paired[0x2648u + 16u + 3u] = 0xC4u;
+    paired[0x2648u + 16u + 6u] = 0x10u;
+    const std::array<std::uint16_t,2> both{{0x06u, 0x08u}};
+    assert(RewriteQueuedSelectionNames(
+        0u, 32u, paired.data(), paired.size(), both) == 2u);
+    assert(paired[0x2648u + 3u] == 0xA3u); // P1 Rogue
+    assert(paired[0x2648u + 16u + 3u] == 0xA4u); // P2 Gambit
+    // Ring wrap, partial-pointer jumps and non-announcer voices.
+    std::array<std::uint8_t, 65536> wrap{};
+    wrap[0x2648u + 0x3F0u + 3u] = 0xD0u;
+    wrap[0x2648u + 0x3F0u + 6u] = 0x10u;
+    assert(RewriteQueuedSelectionNames(
+        0x3F0u, 0u, wrap.data(), wrap.size(), both) == 1u);
+    assert(wrap[0x2648u + 0x3F0u + 3u] == 0xA4u);
+    assert(RewriteQueuedSelectionNames(
+        0x3F0u, 0x00F0u, wrap.data(), wrap.size(), both) == 0u);
+    wrap[0x2648u + 3u] = 0xD0u;
+    wrap[0x2648u + 6u] = 0x0Au; // sprite voice, never an announcement
+    assert(RewriteQueuedSelectionNames(
+        0u, 16u, wrap.data(), wrap.size(), both) == 0u);
+    assert(wrap[0x2648u + 3u] == 0xD0u);
+
     // Exact F10 regression: P1 picked Rogue (06) second, but the
     // original ROM queued Gambit A4 at FF2648. Rewrite A4 -> A3 at
     // the native ring BEFORE the M68K transfers it to QSound.
