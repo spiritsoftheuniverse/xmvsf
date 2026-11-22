@@ -29,6 +29,11 @@ PAGE = HERE / "palette_studio.html"
 PROFILES = HERE / "profiles"
 SPRITES = HERE / "sprites"
 PORTRAITS = ROOT / "_art" / "menu" / "characterselect" / "portraits"
+# Native model::ExportPicture writes to PlayerFolder()/exports.
+# RECOMP_RUN.bat passes --settings recomp/work/xmvsf/settings.ini.
+# An explicit environment override supports alternate game settings paths.
+VIEWER_EXPORTS = Path(os.environ.get("XMVSF_MODEL_EXPORT_DIR", "")
+                      or (ROOT / "recomp" / "work" / "xmvsf" / "exports"))
 
 # These constants match recomp/games/xmvsf/src/xmvsf.h and game.cfg.
 CHARACTERS = (
@@ -298,9 +303,45 @@ def portrait_path(who: int) -> Path | None:
     return files[0] if files else None
 
 
+def model_viewer_exports(who: int) -> list[Path]:
+    """Read ONLY native Model viewer 'Save picture' files, not animation sheets.
+
+    model.cpp ExportPicture() names idle pictures <character>.png, or
+    <character> 2.png etc. when saved again. Animation exports have a
+    list suffix and must not be falsely labeled as standing/idle.
+    """
+    name = CHARACTERS[who]
+    pattern = re.compile(r"^" + re.escape(name) + r"(?: [2-9][0-9]*)?\.png$", re.I)
+    if not VIEWER_EXPORTS.is_dir() or VIEWER_EXPORTS.is_symlink():
+        return []
+    matches = []
+    for candidate in VIEWER_EXPORTS.iterdir():
+        if (candidate.is_file() and not candidate.is_symlink()
+                and pattern.fullmatch(candidate.name)
+                and 8 < candidate.stat().st_size <= SPRITE_MAX):
+            matches.append(candidate)
+    # Exact character name is the canonical first standing export.
+    return sorted(matches, key=lambda file: (
+        file.name.lower() != (name + ".png").lower(), file.name.lower()))[:24]
+
+
+def viewer_asset(who: int, filename: str) -> Path:
+    if not filename or Path(filename).name != filename:
+        raise ValueError("Invalid model viewer sprite")
+    for candidate in model_viewer_exports(who):
+        if candidate.name == filename:
+            return candidate
+    raise ValueError("Model viewer picture not found for this character")
+
+
 def sprite_list(who: int) -> list:
-    folder = SPRITES / slug(who)
     result = []
+    for file in model_viewer_exports(who):
+        result.append({"name": "Standing" if file.stem.lower() == CHARACTERS[who].lower()
+                       else "Standing " + file.stem[len(CHARACTERS[who]):].strip(),
+                       "type": "viewer",
+                       "url": f"/asset/viewer/{who}/{urllib.parse.quote(file.name)}"})
+    folder = SPRITES / slug(who)
     if folder.is_dir() and not folder.is_symlink():
         for file in sorted(folder.glob("*.png"))[:64]:
             if file.is_file() and not file.is_symlink() and SPRITE_NAME.fullmatch(file.name):
@@ -395,6 +436,14 @@ class Handler(BaseHTTPRequestHandler):
                 path = portrait_path(who)
                 if not path or not path.is_file():
                     raise ValueError("Portrait artwork not available")
+                self.send_bytes(path.read_bytes(), "image/png")
+            elif route.startswith("/asset/viewer/"):
+                parts = route.split("/")
+                if len(parts) != 5:
+                    raise ValueError("Invalid Model viewer request")
+                who = character(parts[3])
+                filename = urllib.parse.unquote(parts[4])
+                path = viewer_asset(who, filename)
                 self.send_bytes(path.read_bytes(), "image/png")
             elif route.startswith("/asset/sprite/"):
                 parts = route.split("/")
