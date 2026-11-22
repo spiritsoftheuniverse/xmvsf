@@ -50,6 +50,36 @@ inline constexpr int Navigate(int index, unsigned pressed) {
     if (pressed == 4u || pressed == 8u) return (1 - row) * 9 + col;
     return index;
 }
+// One selectable character per team. Alpha Chun-Li is the same fighter
+// as Chun-Li for duplicate detection, even though the art/ROM IDs differ.
+inline constexpr std::uint16_t TeamIdentity(std::uint16_t rom) {
+    return rom == 0x24u ? 0x16u : rom;
+}
+inline constexpr bool SameTeamCharacter(std::uint16_t first, std::uint16_t second) {
+    return first != 0xFFFFu && second != 0xFFFFu &&
+           TeamIdentity(first) == TeamIdentity(second);
+}
+// After the first pick, move one cell right; at a right-hand corner,
+// move LEFT instead. Never leave the cursor sitting on its own first pick.
+inline constexpr int NextTeamIndex(int index) {
+    if (index < 0 || index >= static_cast<int>(kSlots.size())) return index;
+    return index % kColumns == kColumns - 1 ? index - 1 : index + 1;
+}
+// Directionally skip the first team member. If a vertical move would
+// land on the forbidden cell, remain where the cursor was.
+inline constexpr int SkipTeamIndex(int from, int candidate,
+                                    unsigned direction, std::uint16_t forbidden) {
+    if (candidate < 0 || candidate >= static_cast<int>(kSlots.size()) ||
+        !SameTeamCharacter(forbidden, kSlots[static_cast<unsigned>(candidate)].rom))
+        return candidate;
+    if (direction == 1u || direction == 2u) {
+        const int next = Navigate(candidate, direction);
+        if (next != candidate &&
+            !SameTeamCharacter(forbidden, kSlots[static_cast<unsigned>(next)].rom))
+            return next;
+    }
+    return from;
+}
 struct Navigation {
     int index[2] = {9, 8}; // literal artwork: P1 Ryu (lower-left), P2 Akuma (upper-right).
     unsigned held[2] = {};
