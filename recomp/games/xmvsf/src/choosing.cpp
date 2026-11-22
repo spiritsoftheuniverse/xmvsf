@@ -94,12 +94,12 @@ namespace {
                     port::xmvsf_select::QueueExplicitSelectionSound(
                         machine.ram.data(), machine.ram.size(), name)) {
                     g_expectedNames[n] = name;
-                    ++g_nameTickets[n];
+                    g_nameTickets[n] = 1u; // never accumulate stale voice tickets
                 }
                 if (port::xmvsf_select::QueueExplicitSelectionSound(
                         machine.ram.data(), machine.ram.size(),
                         static_cast<uint16_t>(0x82u + n))) {
-                    ++g_confirmTickets[n];
+                    g_confirmTickets[n] = 1u; // one audible confirm per pick
                 }
                 std::fprintf(stderr,
                     "XMVSF 87.515 explicit select P%u pick%u id=%04X name=%04X frame=%llu\n",
