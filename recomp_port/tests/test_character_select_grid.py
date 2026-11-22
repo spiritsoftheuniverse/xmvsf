@@ -64,6 +64,7 @@ def main():
     assert "homeTextures.ComposeCharacterSelect(" in frontend
     assert "ChoosingLayoutBeforeCpu(machine);" in game
     assert "machine.players[n] &= static_cast<uint16_t>(~kSticks);" in chooser
+    assert "const bool active = Ram8(record) <= 3u;" in chooser
     assert "session::BeforeFrame(machine);\n        ChoosingLayoutBeforeCpu(machine);" in game
     assert "SetRam16(record + kCursor" in chooser
     gpp = shutil.which("g++")
