@@ -160,8 +160,17 @@ def main():
     assert "TeamIdentity(std::uint16_t rom)" in layout
     # No native character can auto-confirm merely because the clock elapsed.
     assert "if (count > g_accepted[n] && count <= 2u)" in chooser
-    assert "if (accepted == 0u && Ram8(record) >= 2u)" in chooser
-    assert "if (accepted == 1u && Ram8(record) >= 4u)" in chooser
+    # 87.524: B restores native phase AND native progress (F10: phase
+    # 01=progress 00, phase 03=progress 04); stale progress blocks repicks.
+    assert "SetRam8(record, static_cast<uint8_t>(undone ? 3u : 1u));" in chooser
+    assert "SetRam8(record + 5u, static_cast<uint8_t>(undone ? 4u : 0u));" in chooser
+    # A can re-arm a previously stranded confirmation on a NEW press.
+    assert "if (aEdge && !b && canQueue &&" in chooser
+    assert "canQueue && !g_confirmQueued[n]" not in chooser
+    assert "if (bEdge && phase <= 4u)" in chooser
+    # Never roll phase 02/04 backward after legitimate native progression.
+    assert "if (accepted == 0u && Ram8(record) >= 2u)" not in chooser
+    assert "if (accepted == 1u && Ram8(record) >= 4u)" not in chooser
     # Existing native cursor-movement tick fallback remains intact.
     select_rewrite = (SRC / "xmvsf_character_select_rewrite.h").read_text()
     layout = (SRC / "xmvsf_character_select_layout.h").read_text()
@@ -257,7 +266,7 @@ def main():
                         str(ROOT / "recomp_port/tests/test_character_select_grid.cpp"),
                         "-o", str(binary)], check=True)
         subprocess.run([str(binary)], check=True)
-    print("XMVSF 87.521 A accept / B undo, native timer auto-pick blocked, duplicate team skip, voices unchanged PASS")
+    print("XMVSF 87.524 A rearm / B native progress restore, duplicate team skip, voices unchanged PASS")
 
 if __name__ == "__main__":
     main()
