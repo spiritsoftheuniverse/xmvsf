@@ -1,4 +1,6 @@
 #include "../../recomp/port/xmvsf_character_select_layout.h"
+#include "../../recomp/port/xmvsf_character_select_rewrite.h"
+#include <array>
 #include <cassert>
 #include <set>
 using namespace port::xmvsf_select;
@@ -26,4 +28,27 @@ int main() {
     assert(n.index[0] == 9 && n.index[1] == 8);
     std::set<unsigned> ids;
     for (const auto &slot : kSlots) assert(ids.insert(slot.rom).second);
+    // Every native ID must be selectable at the original ROM write point:
+    // two players, two team slots, in both byte and word write paths.
+    for (const Slot &slot : kSlots) {
+        std::array<std::uint16_t,2> selected{{slot.rom, slot.rom}};
+        for (unsigned side = 0; side < 2u; ++side) {
+            const std::uint32_t cursor = 0xFF518Cu + side * 0x20u;
+            for (unsigned pick = 0; pick < 2u; ++pick) {
+                std::array<std::uint8_t,2> accepted{{2u,2u}};
+                accepted[side] = static_cast<std::uint8_t>(pick);
+                const std::uint32_t address = 0xFF50B0u + side * 4u + pick * 2u;
+                assert(RewriteNativeSelectionWrite(cursor, 0xFFFF, 2, selected, accepted) == slot.rom);
+                assert(RewriteNativeSelectionWrite(address, 0xFFFF, 2, selected, accepted) == slot.rom);
+                assert(RewriteNativeSelectionWrite(address, 0xFF, 1, selected, accepted) == (slot.rom >> 8u));
+                assert(RewriteNativeSelectionWrite(address + 1, 0xFF, 1, selected, accepted) == (slot.rom & 0xFFu));
+                assert(RewriteNativeSelectionWrite(0xFF50B0u + side * 4u + (1u - pick) * 2u, 0xAAAA, 2, selected, accepted) == 0xAAAA);
+                // Ordinary memory and completed picks cannot be changed.
+                assert(RewriteNativeSelectionWrite(0xFF5104, 0xABCD, 2, selected, accepted) == 0xABCD);
+                accepted[side] = 2;
+                assert(RewriteNativeSelectionWrite(cursor, 0xAAAA, 2, selected, accepted) == 0xAAAA);
+                assert(RewriteNativeSelectionWrite(address, 0xAAAA, 2, selected, accepted) == 0xAAAA);
+            }
+        }
+    }
 }
