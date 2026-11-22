@@ -75,7 +75,8 @@ namespace {
                 (static_cast<unsigned>(g_voiceReadAt) + delta) & kSoundQueueMask;
             const unsigned prior = machine.ram[0x2648u + offset + 3u];
             if (!port::xmvsf_select::CorrectQueuedCharacterVoice(
-                    machine.ram.data(), machine.ram.size(), offset, g_voiceDesired))
+                    machine.ram.data(), machine.ram.size(), offset,
+                    g_voiceDesired, static_cast<unsigned>(g_voiceSide)))
                 continue;
             const unsigned corrected = machine.ram[0x2648u + offset + 3u];
             g_voiceHandled = true; // one announcer request per confirmation
@@ -238,7 +239,8 @@ void ChoosingLayoutBeforeCpu(Machine &machine) {
     // ONE side confirms an active native character choice.
     if (g_voiceSide >= 0 && g_voiceReadAt <= kSoundQueueMask &&
         (g_voiceReadAt & 15u) == 0u &&
-        port::xmvsf_select::NativeCharacterVoice(g_voiceDesired) != 0xFFFFu)
+        port::xmvsf_select::NativeCharacterVoice(
+            g_voiceDesired, static_cast<unsigned>(g_voiceSide)) != 0xFFFFu)
         machine.selectionVoiceQueueBeforeSound = &CorrectNativeQueuedVoice;
     // 87.504 F10-only observation of the exact custom positions sent to
     // native selection this frame. No navigation/ROM/audio changes.
@@ -296,18 +298,30 @@ void ChoosingLayoutAfterFrame(Machine &machine) {
     // grid and this frame's native sound ring, and fill ONLY a missing
     // movement tick. Includes the ROM-style automatic next-cell hop
     // after first confirmation, without re-enqueuing the confirm voice.
-    const bool customMoved =
-        (g_gridBeforeFrame[0] >= 0 && g_gridBeforeFrame[0] != g_layout.index[0]) ||
-        (g_gridBeforeFrame[1] >= 0 && g_gridBeforeFrame[1] != g_layout.index[1]);
-    if (customMoved && g_cursorSoundBegin != 0xFFFFu &&
+    // F10 87.511: the ROM uses distinct native sound IDs:
+    // P1 0x84, P2 0x85. Injecting 0x84 for P2 caused audible
+    // double-ticks on top of P2's native 0x85 movement.
+    const bool p1Moved = g_gridBeforeFrame[0] >= 0 &&
+                         g_gridBeforeFrame[0] != g_layout.index[0];
+    const bool p2Moved = g_gridBeforeFrame[1] >= 0 &&
+                         g_gridBeforeFrame[1] != g_layout.index[1];
+    if ((p1Moved || p2Moved) && g_cursorSoundBegin != 0xFFFFu &&
         !RunningAhead() && machine.ram.size() >= 0x10000u) {
-        const uint16_t after = Ram16(kSoundQueueEnd);
-        if (port::xmvsf_select::QueueMissingCursorMovementSound(
-                machine.ram.data(), machine.ram.size(),
-                g_cursorSoundBegin, after)) {
-            std::fprintf(stderr,
-                "XMVSF 87.509 cursor tick: native omitted 0x84 frame=%llu\n",
-                static_cast<unsigned long long>(machine.frame));
+        // Both sides can move on one frame; scan for the native ID
+        // belonging to each side. The ring helper never doubles an ID
+        // already queued by the ROM in that frame.
+        for (unsigned side = 0; side < 2u; ++side) {
+            if (!(side == 0u ? p1Moved : p2Moved)) continue;
+            const uint16_t after = Ram16(kSoundQueueEnd);
+            const unsigned soundCode = side == 0u ? 0x84u : 0x85u;
+            if (port::xmvsf_select::QueueMissingCursorMovementSound(
+                    machine.ram.data(), machine.ram.size(),
+                    g_cursorSoundBegin, after, soundCode)) {
+                std::fprintf(stderr,
+                    "XMVSF 87.511 cursor tick: P%u native omitted %02X frame=%llu\n",
+                    side + 1u, soundCode,
+                    static_cast<unsigned long long>(machine.frame));
+            }
         }
     }
 }
