@@ -60,63 +60,70 @@ Press **Save profile** to write a JSON file under
 `palette_editor/profiles/<character>/<id>.json`. Source hashes protect against
 loading a profile with a different original program.
 
-## Portrait + actual combat sprite, side by side
+## Matched portrait + genuine combat sprite
 
-The selected character's **original menu portrait** is always shown on the
-left. Beside it is a **genuine Model viewer combat sprite**, recolored by the
-current profile. They are different source images: the portrait is **never**
-palette-edited and must not be mistaken for a standing game sprite.
+Palette Studio shows the selected character's original **select portrait**
+alongside a native **standing combat sprite**. The source portrait PNG is
+always read-only, but its **editable preview now responds to body palette
+changes**. Portrait artwork is not natively indexed to fighter ROM palettes,
+so this is an explicitly approximate RGB color-delta projection. It assigns
+portrait pixels to the nearest original P/K body swatch and projects that
+swatch's change while preserving the portrait's original shading and alpha.
+Reverting to **Original** displays the untouched portrait. The portrait
+file itself is never overwritten.
 
-### Get the real standing picture
+The combat preview uses the game's **real native Model viewer** and the
+game's original graphics. Unlike the portrait, transparent standing sprites
+are recolored by **exact** matching against the original P/K body palette;
+pixels that do not match remain unchanged. The match percentage is shown.
 
-The recomp already exports native transparent character art. No additional
-CPS-2 graphics decoder or game build is needed for this workflow.
+Only P/K **body palette line 0** is used by a standing pose. The two other
+lines are effects (shown when those animations use them). Pens 0 and 15
+include transparent/invisible slots and might not change visible artwork.
 
-1. Start the game using `RECOMP_RUN.bat`.
-2. Open **Alternative modes → Model viewer**. Choose a character and
-   **Standing (you control it)**, then start the viewer.
-3. Open the Model viewer's **Export** subpage and choose **Save picture**.
-   The recomp writes a transparent `<Character>.png`. With the shipped
-   Windows `RECOMP_RUN.bat`, it can land in `recomp/exports/`; with a
-   slash-separated player-folder configuration it can land in
-   `recomp/work/xmvsf/exports/`. The studio scans **both**. Repeated
-   exports may be named `<Character> 2.png`, etc.
-4. Return to Palette Studio, select the same character in the left panel,
-   and click **Refresh viewer exports**. The native standing sprite appears
-   automatically in the upper thumbnail strip and to the right of its matching
-   portrait. No manual import or file copying is needed.
+### Automatic native sprite generation
 
-Only the exact name for that character, optionally followed by a numeric
-re-export suffix, is matched. Animation names (for example `Ryu A0.png`)
-are **not** silently mislabeled as standing. The source file is read-only
-and is never moved or modified.
+**This upgrade requires one recompilation** because it adds a dedicated
+opt-in headless export command. Run `RECOMP_BUILD.bat` once after pulling.
 
-If the recomp is using a custom settings directory, set
-`XMVSF_MODEL_EXPORT_DIR` to that viewer's exports folder before launching
-the studio. Both the `recomp/exports` and
-`recomp/work/xmvsf/exports` standard locations are searched automatically.
+In Palette Studio, use **Generate selected sprite** or **Generate all 19**.
+These buttons launch the local `recomp/build/xmvsf/xmvsf.exe` with
+`--headless --palette-sprites N` (or `all`) against your existing
+`recomp/rom/xmvsf` ROM set. This starts the existing Model viewer on
+each selected character, enters a real fight and uses its own object-only
+crop pipeline to save a native standing PNG at **1× CPS-2 pixel scale**.
 
-Alternatively, **Add sprite PNGs** imports transparent idle or other
-character frames into `palette_editor/sprites/<character>/`. These are
-kept separately from the recomp's Model viewer exports.
+The generated files are isolated under
+`recomp/exports/palette_studio/<Character>.png`. Neither source ROMs nor
+your normal Model viewer exports are modified. Separate temporary
+Palette Studio EEPROM/settings files ensure the ordinary game save and
+custom color settings are not used.
 
-### Palette-tinted previews
+When the native exporter finishes, the editor refreshes the top sprite
+strip and paired preview automatically. A missing or unsuccessful native
+frame is reported; the studio never substitutes a fake sprite.
 
-The editor performs exact RGB pixel matches against the chosen original
-Punch/Kick **body palette**. Each matching color is replaced by the selected
-profile's corresponding color. This works on both imported native-colour
-PNGs and the genuine Model viewer standing export. Unmatched pixels are left
-unchanged rather than guessing their source color. The displayed match
-percentage makes incorrect source colors visible.
+The generated output can also be requested from a terminal in the
+`recomp` directory:
 
-Sprites exported after modifying the game's palette may not match the
-read-only original reference: export with the game's **Custom colours OFF**
-for the most reliable full-color preview. The thumbnail strip is also tinted
-using the active profile.
+```powershell
+.\build\xmvsf\xmvsf.exe --rom rom/xmvsf --headless --mute --palette-sprites all
+```
 
-The editor itself **does not run the game or emulate animations**. It reads
-the real sprite PNG that the existing recomp Model viewer already generates.
-That preserves exact art instead of substituting an approximate reconstruction.
+### Previously exported or imported sprites
+
+The studio still recognizes manually saved, transparent **Standing**
+pictures from **Alternative modes → Model viewer → Export → Save picture**
+in `recomp/exports/` or `recomp/work/xmvsf/exports/`. It matches only the
+exact character name or name with a numeric re-export suffix, never
+silently treating animation pictures as standing. Generated images take
+priority over manual exports for the same name.
+
+If your custom Model viewer export folder differs, set
+`XMVSF_MODEL_EXPORT_DIR` before launching the studio. To attach a custom
+transparent idle PNG manually, use **Add sprite PNGs**; the editor copies
+these files into `palette_editor/sprites/<character>/` (never overwrites
+the source file).
 
 ## Export to the recomp
 
