@@ -154,7 +154,9 @@ public:
                        std::uint16_t p1, std::uint16_t p2, bool showP1,
                        bool showP2, bool cursorP1, bool cursorP2,
                        const Font &font, bool stageVisible = false,
-                       int stageIndex = -1) {
+                       int stageIndex = -1,
+                       std::uint16_t firstP1 = 0xFFFFu,
+                       std::uint16_t firstP2 = 0xFFFFu) {
         if (!renderer || !LoadArt() || !background_.Open(renderer) ||
             !portraitVideo_.Open(renderer)) return nullptr;
         const Image *base = background_.Frame(nativeFrames);
@@ -179,12 +181,21 @@ public:
         // This overlay is intentionally ABOVE the character sprites.
         Blit(canvas_.pixels, 384, 224, grid_, {0,0,384,224}, {0,0,384,224});
         const bool ink = (nativeFrames / 4u) % 2u == 0u;
-        // 87.511: native acceptance ends selector BLINKING, not the
-        // selector's visibility. The final selected cell stays outlined
-        // steadily for each side; active selections retain the 4-frame
-        // native flicker independently.
-        if (showP1 && a >= 0 && (!cursorP1 || ink)) Cursor(p1Cursor_, 9, a);
-        if (showP2 && b >= 0 && (!cursorP2 || ink)) Cursor(p2Cursor_, 8, b);
+        // Once pick 1 is confirmed it remains visibly outlined while
+        // the movable selector blinks for pick 2. The second confirmed
+        // selector ALSO stays visible permanently instead of vanishing.
+        // Both positions come from the authoritative custom pick IDs,
+        // never the ROM's transient native cursor or pending pick RAM.
+        const int fixedP1 = xmvsf_select::Find(firstP1);
+        const int fixedP2 = xmvsf_select::Find(firstP2);
+        if (showP1 && fixedP1 >= 0 && (cursorP1 || fixedP1 != a))
+            Cursor(p1Cursor_, 9, fixedP1);
+        if (showP2 && fixedP2 >= 0 && (cursorP2 || fixedP2 != b))
+            Cursor(p2Cursor_, 8, fixedP2);
+        if (showP1 && a >= 0 && (!cursorP1 || ink))
+            Cursor(p1Cursor_, 9, a);
+        if (showP2 && b >= 0 && (!cursorP2 || ink))
+            Cursor(p2Cursor_, 8, b);
         if (showP1 && a >= 0)
             font.Text(canvas_.pixels, 384, 224,
                       xmvsf_select::kSlots[static_cast<size_t>(a)].name,
