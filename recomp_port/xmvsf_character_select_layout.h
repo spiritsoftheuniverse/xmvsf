@@ -107,11 +107,12 @@ inline constexpr int SkipTeamIndex(int from, int candidate,
     return from;
 }
 // Only a current A press may advance the native accepted count.
-// The RAM's resident value is NOT an authorization: an auto-selection
-// can update native RAM without an A edge. Idempotent writes are harmless.
+// A repeated native write is allowed ONLY if it was already recorded at
+// the actual accepted-count bus write following an A press. The raw RAM
+// value is never permission to accept a new character.
 inline constexpr bool NativePickAllowed(unsigned proposed, unsigned accepted,
-                                        bool aAuthorized) {
-    return proposed <= accepted ||
+                                        unsigned confirmedByA, bool aAuthorized) {
+    return proposed <= accepted || proposed <= confirmedByA ||
            (aAuthorized && proposed == accepted + 1u);
 }
 // Accept a fresh A only when the native chooser is READY for this pick.
