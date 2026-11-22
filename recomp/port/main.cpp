@@ -3930,7 +3930,7 @@ int main(int argc, char **argv) {
     // This is never entered during a normal game, local preview or netplay.
     if (!p.opt.paletteSprites.empty()) {
         if (std::strcmp(GAME_ID, "xmvsf") != 0) {
-            fprintf(stderr, "--palette-sprites is only supported for XMVSF\\n");
+            fprintf(stderr, "--palette-sprites is only supported for XMVSF\n");
             return 2;
         }
         const auto &commands = TheGame().commands;
@@ -3939,14 +3939,14 @@ int main(int argc, char **argv) {
                 return c.name && std::strcmp(c.name, "model_start") == 0 && c.run;
             });
         if (command == commands.end()) {
-            fprintf(stderr, "--palette-sprites: Model viewer entry missing\\n");
+            fprintf(stderr, "--palette-sprites: Model viewer entry missing\n");
             return 2;
         }
         const bool all = p.opt.paletteSprites == "all";
         char *endNumber = nullptr;
         const long selected = all ? 0L : std::strtol(p.opt.paletteSprites.c_str(), &endNumber, 10);
         if (!all && (!endNumber || *endNumber || selected < 0 || selected >= 19)) {
-            fprintf(stderr, "--palette-sprites expects all or a character index 0..18\\n");
+            fprintf(stderr, "--palette-sprites expects all or a character index 0..18\n");
             return 2;
         }
         const int first = all ? 0 : static_cast<int>(selected);
@@ -3970,13 +3970,13 @@ int main(int argc, char **argv) {
                     break;
                 }
             }
-            fprintf(stderr, "Palette Studio %d/19 %s: %s\\n",
+            fprintf(stderr, "Palette Studio %d/19 %s: %s\n",
                     character + 1, p.opt.paletteSprites.c_str(),
                     ok ? "EXPORTED" : "NOT DRAWN");
             if (!ok && !all) break;
         }
         p.Finish();
-        fprintf(stderr, "Palette Studio: exported %d of %d requested native standing poses\\n",
+        fprintf(stderr, "Palette Studio: exported %d of %d requested native standing poses\n",
                 saved, last - first);
         return saved == last - first ? 0 : 1;
     }
