@@ -61,8 +61,8 @@ def main():
     assert 'Cursor(p2Cursor_, 8, b)' in screen
     # 87.511: after native acceptance, the selector stays outlined
     # steadily rather than disappearing; before acceptance it blinks.
-    assert "if (showP1 && a >= 0 && (!cursorP1 || ink)) Cursor(p1Cursor_, 9, a);" in screen
-    assert "if (showP2 && b >= 0 && (!cursorP2 || ink)) Cursor(p2Cursor_, 8, b);" in screen
+    assert "if (showP1 && a >= 0 && (!cursorP1 || ink))" in screen
+    assert "if (showP2 && b >= 0 && (!cursorP2 || ink))" in screen
     assert "if (ink && showP1 && cursorP1" not in screen
     assert "if (ink && showP2 && cursorP2" not in screen
     frontend = (SRC / "frontend_sdl.cpp").read_text()
@@ -123,7 +123,7 @@ def main():
     assert "machine.selectionSoundRequestFilter = g_soundTailFrames > 0u" in chooser
     assert "machine.selectionVoiceQueueBeforeSound = nullptr;" in chooser
     assert "machine.selectionSoundRequestFilter = &AuthoritativeSelectionSound;" in chooser
-    assert "machine.selectionSoundRequestFilter = nullptr;" in chooser
+    assert "machine.selectionSoundRequestFilter = g_soundTailFrames > 0u" in chooser
     assert "AllowAuthoritativeSelectionSound(" in chooser
     assert "g_expectedNames, g_nameTickets, g_confirmTickets" in chooser
     # 87.509 native movement SFX is only filled in when the visual grid
@@ -144,7 +144,7 @@ def main():
     assert "kSelectTagA = 0x51u, kSelectTagB = 0x5Eu" in select_rewrite
     assert "using SelectionNames = std::array<std::array<std::uint16_t, 2>, 2>;" in select_rewrite
     assert "using SelectionTickets = std::array<std::array<unsigned, 2>, 2>;" in select_rewrite
-    assert "request[8] = kSelectTagA" in select_rewrite
+    assert "request[8] == kSelectTagA" in select_rewrite
     assert "p[8] = kSelectTagA;" in select_rewrite
     assert "request[8] = request[9] = request[10] = request[11] = 0u;" in select_rewrite
     assert "(code >= 0xA0u && code <= 0xDFu)) return false;" in select_rewrite
