@@ -91,6 +91,15 @@ if errorlevel 1 (
   goto :fail
 )
 
+REM 87.496: source SF2 large 12x15 glyph atlas for future character
+REM names/countdown, with original menu fonts and output unchanged.
+"%BASH%" -c "python3 ../recomp_port/tests/test_sf2fontlarge.py"
+if errorlevel 1 (
+  echo ERROR: XMVSF 87.496 character-select large font source/renderer smoke FAILED.
+  popd
+  goto :fail
+)
+
 REM 87.464: compile curl-noise edge smoke; validate 20% entrance dither on all film layers.
 "%BASH%" -c "python3 ../recomp_port/tests/test_menu_film.py"
 if errorlevel 1 (
