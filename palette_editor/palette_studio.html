@@ -130,11 +130,14 @@ header p {font-size:12px;color:#9eb4ca;margin:0}
   </div>
   <div class="strip">
    <div class="strip-head"><h2 class="section-title">Combat sprite loaders</h2>
-    <div class="toolbar"><button id="refreshSprites">Refresh viewer exports</button>
+    <div class="toolbar">
+     <button id="generateSprite" class="primary">Generate selected sprite</button>
+     <button id="generateAllSprites">Generate all 19</button>
+     <button id="refreshSprites">Refresh exports</button>
      <button id="addSprite">+ Add sprite PNGs</button>
      <input type="file" id="spriteInput" accept="image/png" multiple hidden></div></div>
    <div class="strip-list" id="spriteStrip"></div>
-   <div class="gallery-hint">The recomp Model viewer's Export → Save picture produces native standing sprites. This strip automatically finds those exports when you choose a character or click Refresh. Imported PNGs still work.</div>
+   <div class="gallery-hint" id="captureStatus">Generate selected sprite uses the compiled recomp Model viewer automatically (one rebuild required). Preview updates after capture; no manual game navigation.</div>
   </div>
   <div class="stage">
    <div class="preview-box">
@@ -446,7 +449,7 @@ function paintSprite(canvas,img,kind){
 function drawSpriteStrip(){
   const host=$('spriteStrip');host.replaceChildren();
   const combats=state.sprites.filter(sprite=>sprite.type!=='portrait');
-  if(!combats.length){const label=document.createElement('span');label.className='muted';label.textContent='No combat sprites yet. In the recomp, open Model viewer → Export → Save picture, then Refresh here.';host.append(label);drawPreview();return}
+  if(!combats.length){const label=document.createElement('span');label.className='muted';label.textContent='No combat sprite generated yet. Click Generate selected sprite.';host.append(label);drawPreview();return}
   combats.forEach(sprite=>{
     const button=document.createElement('button');button.className='thumb'+(state.selectedSprite===sprite?' active':'');
     const canvas=document.createElement('canvas');canvas.width=76;canvas.height=69;
@@ -470,7 +473,7 @@ async function drawPreview(){
     ctx.font='12px Segoe UI, Arial';ctx.fillStyle='#9FB9CE';
     ctx.fillText('Model viewer → Export',w/2,h/2+6);
     ctx.fillText('Save picture → Refresh',w/2,h/2+25);
-    $('previewNotice').textContent='The palette and portrait are independent of combat exports. For a genuine combat sprite, open XMVSF → Alternative modes → Model viewer → Standing → Export → Save picture, then Refresh viewer exports. No fake sprite is shown.';
+    $('previewNotice').textContent='Click Generate selected sprite above. The local recomp generates the real standing frame automatically, then it appears here with its native palette colors. Requires RECOMP_BUILD.bat once after pulling this update.';
     return;
   }
   $('previewType').textContent=sprite.type==='viewer'?'Native model · '+sprite.name:'Imported sprite · '+sprite.name;
@@ -594,6 +597,41 @@ $('refreshSprites').onclick=async()=>{
   try{await fetchSpriteData();show('Native Model viewer exports refreshed for '+state.data.characters[state.who].name,false)}
   catch(err){show(err.message,true)}
 };
+let lastCaptureStatus='idle';
+function setCaptureButtons(busy){
+  $('generateSprite').disabled=busy;
+  $('generateAllSprites').disabled=busy;
+}
+async function captureStatus(){
+  try{
+    const job=await request('/api/capture-status');
+    $('captureStatus').textContent=job.message+
+      (job.status==='failed'&&job.log?' · '+job.log.slice(-240):'');
+    setCaptureButtons(job.running);
+    if(!job.running && lastCaptureStatus==='running'){
+      await fetchSpriteData();
+      show(job.message+(job.status==='failed'?' · '+job.log.slice(-250):''),job.status==='failed');
+    }
+    lastCaptureStatus=job.status;
+  }catch(err){$('captureStatus').textContent='Capture status unavailable: '+err.message}
+}
+async function startCapture(who){
+  try{
+    const job=await request('/api/capture?character='+encodeURIComponent(who),{
+      method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});
+    setCaptureButtons(job.running);
+    lastCaptureStatus=job.status;
+    $('captureStatus').textContent=job.message;
+    if(!job.running)show(job.message,false);
+  }catch(err){
+    $('captureStatus').textContent=err.message;
+    show(err.message,true);setCaptureButtons(false);
+  }
+}
+$('generateSprite').onclick=()=>startCapture(state.who);
+$('generateAllSprites').onclick=()=>startCapture('all');
+setInterval(()=>{if(lastCaptureStatus==='running')captureStatus()},1500);
+captureStatus();
 $('addSprite').onclick=()=>$('spriteInput').click();
 $('spriteInput').onchange=async()=>{await uploadSprites([...$('spriteInput').files]);$('spriteInput').value=''};
 $('spriteBase').onchange=()=>{state.sourceSet=Number($('spriteBase').value);refreshPreviews()};
