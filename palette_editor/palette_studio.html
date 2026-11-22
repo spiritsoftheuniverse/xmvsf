@@ -140,7 +140,7 @@ header p {font-size:12px;color:#9eb4ca;margin:0}
    <div class="preview-box">
     <div class="preview-head"><h2 class="section-title">Matched character art</h2><span class="legend" id="previewType">No standing sprite found</span></div>
     <div class="preview-pair">
-     <div class="preview-frame"><div class="preview-caption">Select portrait · Original</div>
+     <div class="preview-frame"><div class="preview-caption" id="portraitCaption">Select portrait · Read-only original</div>
       <div class="preview"><canvas id="portraitPreview" width="220" height="300" aria-label="Original character portrait"></canvas></div>
      </div>
      <div class="preview-frame"><div class="preview-caption">Combat sprite · Profile colors</div>
@@ -376,7 +376,47 @@ function coloredSprite(img,kind){
   const off=document.createElement('canvas');off.width=img.naturalWidth;off.height=img.naturalHeight;
   const ctx=off.getContext('2d',{willReadFrequently:true});ctx.drawImage(img,0,0);
   let changed=0,visible=0;
-  if((kind==='sprite'||kind==='viewer')&&original()){
+  if(kind==='portrait'&&original()&&editable()){
+    // Portrait art has its own colour composition and is not directly
+    // indexed by native fighter pens. For the editable preview only,
+    // project changes in the nearest original body pen onto its pixels.
+    // Never modify the portrait PNG or invent original ROM ownership.
+    const pixels=ctx.getImageData(0,0,off.width,off.height);
+    const data=pixels.data;
+    const base=original()[state.set][0],edited=colors()[state.set][0];
+    const candidates=[];
+    for(let pen=1;pen<15;pen++){
+      const old=rgb(base[pen]),next=rgb(edited[pen]);
+      const delta=old.map((n,k)=>next[k]-n);
+      if(delta.some(n=>n!==0))candidates.push({pen,delta});
+    }
+    if(candidates.length){
+      // Map against ALL original pens, so editing one swatch doesn't
+      // incorrectly tint the whole image.
+      const source=base.slice(1,15).map(rgb),changedPen=new Map(candidates.map(c=>[c.pen,c.delta]));
+      const indexCache=new Map();
+      for(let i=0;i<data.length;i+=4){
+        if(data[i+3]===0)continue;visible++;
+        const key=(data[i]<<16)|(data[i+1]<<8)|data[i+2];
+        let pen=indexCache.get(key);
+        if(pen===undefined){
+          let best=Infinity,at=0;
+          for(let n=0;n<source.length;n++){
+            const c=source[n];
+            const dr=data[i]-c[0],dg=data[i+1]-c[1],db=data[i+2]-c[2];
+            const distance=0.26*dr*dr+0.61*dg*dg+0.13*db*db;
+            if(distance<best){best=distance;at=n}
+          }
+          pen=at+1;indexCache.set(key,pen);
+        }
+        const delta=changedPen.get(pen);
+        if(!delta)continue;
+        for(let k=0;k<3;k++)data[i+k]=Math.max(0,Math.min(255,data[i+k]+delta[k]));
+        changed++;
+      }
+      ctx.putImageData(pixels,0,0);
+    }
+  }else if((kind==='sprite'||kind==='viewer')&&original()){
     const pixels=ctx.getImageData(0,0,off.width,off.height);
     const base=original()[state.sourceSet][0],dest=colors()[state.set][0];
     const lookup=new Map(base.map((c,i)=>[c.toUpperCase(),i]));
@@ -444,7 +484,7 @@ async function drawPreview(){
       ' body colors. Matching pixels use this profile; others are left unchanged.';
   }catch(err){$('previewNotice').textContent=err.message}
 }
-function refreshPreviews(){if(!state.sprites)return;drawSpriteStrip()}
+function refreshPreviews(){if(!state.sprites)return;drawSpriteStrip();drawPortrait()}
 async function drawPortrait(){
   const canvas=$('portraitPreview');canvas.getContext('2d').clearRect(0,0,canvas.width,canvas.height);
   const who=state.who;
@@ -454,6 +494,8 @@ async function drawPortrait(){
     const img=await cachedImage(portrait.url);
     if(who!==state.who)return;
     paintSprite(canvas,img,'portrait');
+    $('portraitCaption').textContent=editable()?
+      'Select portrait · Live color projection':'Select portrait · Read-only original';
   }catch(err){show('Portrait unavailable: '+err.message,true)}
 }
 function chooseCharacter(id){
@@ -462,6 +504,7 @@ function chooseCharacter(id){
   state.colors=null;state.dirty=false;state.sourceSet=0;$('spriteBase').value='0';
   // Clear the previous fighter immediately while new files are discovered.
   state.sprites=[];state.selectedSprite=null;
+  $('portraitCaption').textContent='Select portrait · Read-only original';
   $('portraitPreview').getContext('2d').clearRect(0,0,$('portraitPreview').width,$('portraitPreview').height);
   $('characterTitle').textContent=state.data.characters[id].name;
   $('charMetadata').textContent=selectedText()+' · '+(original()?'2 sets / 3 palettes / 16 colors':'ROM source required');
