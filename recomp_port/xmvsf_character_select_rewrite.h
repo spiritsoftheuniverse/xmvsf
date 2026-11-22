@@ -65,9 +65,9 @@ inline constexpr std::uint16_t NativeCharacterVoice(std::uint16_t id) {
 // can reach the Z80, not by guessing when the ROM enqueues it.
 //
 // Preserve native cursor ticks 84/85. Names and confirmation sounds
-// 82/83 have one authorization per real pick. Drop WRONG/duplicate
-// native A/C-family names A0..DF and character-owned 0A00 speech, retaining
-// unrelated music/UI commands. Other screens and games are untouched.
+// 82/83 are explicitly tagged per *player AND pick*, then restored to
+// native 16-byte format before the sound CPU sees them. Drop all original
+// A/C-family names and 0A00 sprite speech; pass unrelated music/UI unchanged.
 inline bool SelectionSoundEnvelope(const std::uint8_t *p, unsigned kind) {
     if (!p || p[0] || p[1] || p[4] || p[5] ||
         p[6] != kind || p[7]) return false;
@@ -76,62 +76,80 @@ inline bool SelectionSoundEnvelope(const std::uint8_t *p, unsigned kind) {
     return true;
 }
 
+// Each explicit name/confirmation carries the pick identity that produced
+// it. The ROM uses all-zero bytes 8..15 for these 16-byte native envelopes.
+// Mark bytes 8..11 only while in the M68K request ring; the delivery gate
+// strips them BEFORE the Z80 or sound-driver receives the command.
+// This prevents an old P1 pick 1 sound from consuming P1 pick 2's ticket.
+inline constexpr std::uint8_t kSelectTagA = 0x51u, kSelectTagB = 0x5Eu;
+using SelectionNames = std::array<std::array<std::uint16_t, 2>, 2>;
+using SelectionTickets = std::array<std::array<unsigned, 2>, 2>;
+
 inline bool QueueExplicitSelectionSound(std::uint8_t *ram, std::size_t size,
-                                        std::uint16_t command) {
-    if (!ram || size < 0x10000u || command > 0xFFu) return false;
+                                        std::uint16_t command,
+                                        unsigned side = 0u, unsigned pick = 0u) {
+    if (!ram || size < 0x10000u || command > 0xFFu ||
+        side >= 2u || pick >= 2u) return false;
     const unsigned at = (static_cast<unsigned>(ram[0x2642u]) << 8u) |
                          ram[0x2643u];
     if (at > 0x3F0u || (at & 15u)) return false;
     std::uint8_t *p = ram + 0x2648u + at;
     for (unsigned i = 0u; i < 16u; ++i) p[i] = 0u;
     p[3] = static_cast<std::uint8_t>(command);
-    p[6] = 0x10u; // exact envelope observed in the native F10 captures
+    p[6] = 0x10u;
+    p[8] = kSelectTagA;
+    p[9] = kSelectTagB;
+    p[10] = static_cast<std::uint8_t>(side);
+    p[11] = static_cast<std::uint8_t>(pick);
     const unsigned next = (at + 16u) & 0x3F0u;
     ram[0x2642u] = static_cast<std::uint8_t>(next >> 8u);
     ram[0x2643u] = static_cast<std::uint8_t>(next);
     return true;
 }
 
-// Tickets are granted only when the ROM actually increments a player's
-// accepted-character counter, once per pick. This prevents wrong native
-// names, duplicate correct names, and duplicate confirmation sounds.
-// A native packet with exactly the same correct command may consume a
-// ticket first; the explicit duplicate is then discarded, so ONE plays.
+// The ROM is free to produce its old character voice, but NONE of those
+// unmarked A/C-family announcements or 0A00 sprite voices can get through.
+// Only our explicitly tagged, exact-name request for an accepted pick
+// is allowed. Confirmation uses the side-specific 82/83 command but is
+// likewise authorized once per actual pick, not once per input repeat.
 inline bool AllowAuthoritativeSelectionSound(
-    const std::uint8_t *request,
-    const std::array<std::uint16_t, 2> &expectedNames,
-    std::array<unsigned, 2> &nameTickets,
-    std::array<unsigned, 2> &confirmTickets) {
+    std::uint8_t *request, const SelectionNames &expectedNames,
+    SelectionTickets &nameTickets, SelectionTickets &confirmTickets) {
     if (!request) return false;
-    if (SelectionSoundEnvelope(request, 0x10u) && request[2] == 0u) {
+    if (request[0] == 0u && request[1] == 0u && request[2] == 0u &&
+        request[4] == 0u && request[5] == 0u &&
+        request[6] == 0x10u && request[7] == 0u &&
+        request[8] == kSelectTagA && request[9] == kSelectTagB) {
+        for (unsigned n = 12u; n < 16u; ++n)
+            if (request[n] != 0u) return false;
+        const unsigned side = request[10], pick = request[11];
+        if (side >= 2u || pick >= 2u) return false;
         const unsigned code = request[3];
-        // Character-select movement stays native and side-specific.
-        if (code == 0x84u || code == 0x85u) return true;
-        for (unsigned side = 0u; side < 2u; ++side) {
-            const unsigned confirm = 0x82u + side;
-            if (code == confirm) {
-                if (confirmTickets[side] == 0u) return false;
-                --confirmTickets[side];
-                return true;
-            }
-            if (code == expectedNames[side] && nameTickets[side] != 0u) {
-                --nameTickets[side];
-                return true;
-            }
+        if (code == expectedNames[side][pick] &&
+            nameTickets[side][pick] != 0u) {
+            --nameTickets[side][pick];
+        } else if (code == 0x82u + side &&
+                   confirmTickets[side][pick] != 0u) {
+            --confirmTickets[side][pick];
+        } else {
+            return false;
         }
-        // Native names in either family, including invalid source IDs,
-        // cannot select a different recorded character. Other ordinary
-        // UI/music requests are NOT character speech and stay untouched.
-        if (code >= 0xA0u && code <= 0xDFu) return false;
+        // The sound CPU must see the game's original native format.
+        request[8] = request[9] = request[10] = request[11] = 0u;
         return true;
     }
-    if (SelectionSoundEnvelope(request, 0x0Au)) {
-        // Original sprite speech: this whole 0A00 request family is
-        // suppressed during custom select. No guessed 20-byte block
-        // remapping or substituted "Cammy as Akuma" voice.
-        return false;
+    if (SelectionSoundEnvelope(request, 0x10u) && request[2] == 0u) {
+        const unsigned code = request[3];
+        // Player-specific navigation is unrelated to speech.
+        if (code == 0x84u || code == 0x85u) return true;
+        // The ROM's original confirmations and A/C voice families are
+        // suppressed: only the exact tagged versions above play.
+        if (code == 0x82u || code == 0x83u ||
+            (code >= 0xA0u && code <= 0xDFu)) return false;
     }
-    // Music and non-selection control requests are left alone.
+    if (SelectionSoundEnvelope(request, 0x0Au))
+        return false; // native sprite speech during character selection
+    // Pass non-character sounds, soundtrack control, etc., unchanged.
     return true;
 }
 
