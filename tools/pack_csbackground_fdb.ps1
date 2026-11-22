@@ -62,8 +62,9 @@ if (-not $needsPack) {
 }
 if ($needsPack) {
     Write-Host 'XMVSF 87.497: pack native 166-frame character-select background (XMFDBIN2)'
+    $replaceExisting = Test-Path -LiteralPath $outputFile -PathType Leaf
     & $packer -RepositoryRoot $root -InputDir $inputDir -OutputFile $outputFile `
-        -FrameGlob 'csbackground*.png' -Force:$([bool](Test-Path -LiteralPath $outputFile))
+        -FrameGlob 'csbackground*.png' -Force:$replaceExisting
     if (-not (Test-Path -LiteralPath $outputFile -PathType Leaf)) {
         throw "FDB package not produced: $outputFile"
     }
