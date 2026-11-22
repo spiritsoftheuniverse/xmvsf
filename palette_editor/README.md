@@ -39,29 +39,61 @@ Press **Save profile** to write a JSON file under
 `palette_editor/profiles/<character>/<id>.json`. Source hashes protect against
 loading a profile with a different original program.
 
-## Sprite loader and preview
+## Portrait + actual combat sprite, side by side
 
-The top thumbnail strip lists imported PNG sprites for the selected character,
-plus the repository's existing menu portrait as an explicit **reference only**.
-The portrait is NOT an idle animation and isn't recolored.
+The selected character's **original menu portrait** is always shown on the
+left. Beside it is a **genuine Model viewer combat sprite**, recolored by the
+current profile. They are different source images: the portrait is **never**
+palette-edited and must not be mistaken for a standing game sprite.
 
-Click **Add sprite PNGs** to attach transparent, cropped **idle** or other
-character frames. Imports are copied to `palette_editor/sprites/<character>/`;
-you can also place PNGs there yourself. Files are never overwritten during import.
+### Get the real standing picture
 
-When an imported sprite is painted with the game's original 16-color body
-palette, every exact source-color match is substituted with the corresponding
-profile color, in both the large preview and thumbnail strip.
-The studio reports the percentage of visible pixels that matched. Colors that
-do not exactly match the source palette remain untouched; this prevents
-incorrect recoloring of unrelated artwork. Select **Original P/K** under the
-preview to match the uploaded sprite's original palette.
+The recomp already exports native transparent character art. No additional
+CPS-2 graphics decoder or game build is needed for this workflow.
 
-**Current limit:** The palette editor does not yet extract or decode CPS-2
-animation frames directly from the graphics ROM. For a real idle preview,
-supply an exported transparent idle PNG whose RGB values match the original
-character palette. Merely displaying a menu portrait would not satisfy
-that requirement, so the editor labels it honestly.
+1. Start the game using `RECOMP_RUN.bat`.
+2. Open **Alternative modes → Model viewer**. Choose a character and
+   **Standing (you control it)**, then start the viewer.
+3. Open the Model viewer's **Export** subpage and choose **Save picture**.
+   The recomp writes a transparent `<Character>.png` to its own
+   `recomp/work/xmvsf/exports/` folder. A repeated export may be named
+   `<Character> 2.png`, etc.
+4. Return to Palette Studio, select the same character in the left panel,
+   and click **Refresh viewer exports**. The native standing sprite appears
+   automatically in the upper thumbnail strip and to the right of its matching
+   portrait. No manual import or file copying is needed.
+
+Only the exact name for that character, optionally followed by a numeric
+re-export suffix, is matched. Animation names (for example `Ryu A0.png`)
+are **not** silently mislabeled as standing. The source file is read-only
+and is never moved or modified.
+
+If the recomp is using a custom settings directory, set
+`XMVSF_MODEL_EXPORT_DIR` to that viewer's exports folder before launching
+the studio. For the standard `RECOMP_RUN.bat` setup it is automatically
+found at `recomp/work/xmvsf/exports`.
+
+Alternatively, **Add sprite PNGs** imports transparent idle or other
+character frames into `palette_editor/sprites/<character>/`. These are
+kept separately from the recomp's Model viewer exports.
+
+### Palette-tinted previews
+
+The editor performs exact RGB pixel matches against the chosen original
+Punch/Kick **body palette**. Each matching color is replaced by the selected
+profile's corresponding color. This works on both imported native-colour
+PNGs and the genuine Model viewer standing export. Unmatched pixels are left
+unchanged rather than guessing their source color. The displayed match
+percentage makes incorrect source colors visible.
+
+Sprites exported after modifying the game's palette may not match the
+read-only original reference: export with the game's **Custom colours OFF**
+for the most reliable full-color preview. The thumbnail strip is also tinted
+using the active profile.
+
+The editor itself **does not run the game or emulate animations**. It reads
+the real sprite PNG that the existing recomp Model viewer already generates.
+That preserves exact art instead of substituting an approximate reconstruction.
 
 ## Export to the recomp
 
