@@ -84,7 +84,7 @@ void ChoosingLayoutBeforeCpu(Machine &machine) {
             SetRam16(record + kCursor, port::xmvsf_select::kSlots[slot].rom);
             // Only character-cursor directions are consumed here.
             // Native accept, sound, MODE/SPEED and combat keys remain intact.
-            machine.players[n] &= static_cast<uint16_t>(~kSticks);
+            machine.players[n] &= static_cast<uint16_t>(~fight::kSticks);
         }
     }
 }
