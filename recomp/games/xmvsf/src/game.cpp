@@ -32,6 +32,7 @@ void RegisterChoosing(); // choosing.cpp
 void RegisterColours(); // colours.cpp
 void RegisterBattle(); // battle.cpp
 void ChoosingBeforeFrame(Machine &machine);
+void ChoosingLayoutBeforeCpu(Machine &machine);
 void RegisterTag(); // tag.cpp
 
 // 001608, the game's random number: a long divs (001614, about 150 cycles), then the number kept (00161A). The board
@@ -76,6 +77,7 @@ void RegisterGame() {
         xmvsf_f10::Capture::Get().BeforeRouting(machine);
         marvel::WidescreenBeforeFrame(machine);
         session::BeforeFrame(machine);
+        ChoosingLayoutBeforeCpu(machine); // after ownership handoff, before native CPU selection
         xmvsf_f10::Capture::Get().AfterRouting(machine);
         modes::BeforeFrame(machine);
         BattleBeforeFrame(machine);
