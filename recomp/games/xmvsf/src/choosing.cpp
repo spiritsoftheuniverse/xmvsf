@@ -328,12 +328,28 @@ void ChoosingLayoutAfterFrame(Machine &machine) {
 // The F10 87.504 capture showed native cursor=0008 (Gambit) while the
 // custom second slot was 0006 (Rogue), subsequently committed at FF50B2.
 // Read-only: this does NOT change navigation, phase, audio or accepted picks.
+// Read only the custom-confirmed identity for an accepted team slot.
+// The ROM can temporarily report a different ID (or even an off-grid
+// value) at FF50B0/FF50B2 during the selection animation. Never use
+// that transient value to place a frozen custom cursor.
+uint16_t ChoosingVisualCommittedId(unsigned side, unsigned pick) {
+    if (side >= 2u || pick >= 2u || !g_layoutRunning)
+        return 0xFFFFu;
+    if (g_soundAccepted[side] <= pick && g_accepted[side] <= pick)
+        return 0xFFFFu;
+    return g_committed[side][pick];
+}
+
 uint16_t ChoosingVisualCharacterId(unsigned side) {
     if (side >= 2u) return 0xFFFFu;
     const uint32_t record = kChoosing + static_cast<uint32_t>(side) * kChoosingSize;
     if (!g_layoutRunning) return Ram16(record + kCursor);
-    if (Ram8(record + 3u) >= 2u)
-        return Ram16(kPicks + static_cast<uint32_t>(side) * 4u + 2u);
+    if (g_soundAccepted[side] >= 2u || Ram8(record + 3u) >= 2u) {
+        // Completed selectors belong at the second custom pick, never
+        // at a stale/incomplete native FF50B2 word.
+        const uint16_t committed = g_committed[side][1];
+        if (port::xmvsf_select::Find(committed) >= 0) return committed;
+    }
     const unsigned slot = static_cast<unsigned>(g_layout.index[side]);
     return port::xmvsf_select::kSlots[slot].rom;
 }
