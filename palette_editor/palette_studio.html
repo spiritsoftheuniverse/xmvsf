@@ -47,7 +47,7 @@ header p {font-size:12px;color:#9eb4ca;margin:0}
 .strip-list {display:flex;gap:10px;min-height:103px;overflow-x:auto;padding:0 0 6px;align-items:stretch}
 .thumb {flex:0 0 92px;min-width:92px;padding:5px;background:#142539;border:1px solid #37536e;border-radius:9px;display:flex;flex-direction:column;align-items:center;gap:3px}
 .thumb.active {background:#1d4463;border-color:#88d6ff}
-.thumb canvas {width:76px;height:69px;image-rendering:pixelated;object-fit:contain;background:repeating-conic-gradient(#283c51 0% 25%,#192a3d 0% 50%) 50% / 12px 12px;border-radius:4px}
+.thumb canvas {width:auto;height:auto;max-width:76px;max-height:69px;image-rendering:pixelated;background:repeating-conic-gradient(#283c51 0% 25%,#192a3d 0% 50%) 50% / 12px 12px;border-radius:4px}
 .thumb span {font-size:10px;color:#c5daec;max-width:85px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .gallery-hint {margin-top:4px;font-size:11px;color:#8da9bd}
 .stage {display:grid;grid-template-columns:minmax(280px,1fr) minmax(280px,1.35fr);gap:12px;padding:0 15px 17px}
@@ -58,7 +58,7 @@ header p {font-size:12px;color:#9eb4ca;margin:0}
 .preview-frame {display:flex;flex-direction:column;gap:8px;min-width:0}
 .preview-caption {font-size:10px;font-weight:750;letter-spacing:.09em;color:#93b7ce;text-transform:uppercase}
 .preview {height:315px;display:grid;place-items:center;border-radius:10px;border:1px solid #2b4056;background:repeating-conic-gradient(#1a2b3b 0 25%,#11202f 0 50%) 50% / 22px 22px;overflow:hidden}
-.preview canvas {width:100%;height:100%;object-fit:contain;image-rendering:pixelated}
+.preview canvas {display:block;width:auto;height:auto;max-width:100%;max-height:100%;image-rendering:pixelated;flex:none}
 .preview-notice {min-height:44px;font-size:11px;color:#95b6ca;line-height:1.6;margin-top:10px}
 .sprite-options {display:flex;align-items:center;gap:8px;font-size:11px;margin-top:9px}
 .sprite-options select {padding:6px 8px;max-width:150px}
@@ -452,13 +452,21 @@ function coloredSprite(img,kind){
   return {canvas:off,matched:changed,visible:visible};
 }
 function paintSprite(canvas,img,kind){
-  const ctx=canvas.getContext('2d');ctx.clearRect(0,0,canvas.width,canvas.height);
   if(!img)return {matched:0,visible:0};
   const result=coloredSprite(img,kind),source=result.canvas;
-  const factor=Math.min((canvas.width-18)/source.width,(canvas.height-18)/source.height,5);
-  const w=source.width*factor,h=source.height*factor;
+  // CPS2 pixels are square. Never stretch a fixed-size canvas to fill
+  // a differently proportioned preview box, or use fractional zoom.
+  const thumbnail=canvas.closest('.thumb');
+  const holder=thumbnail?canvas.parentElement:canvas.parentElement;
+  const maxWidth=thumbnail?76:Math.max(1,holder.clientWidth-16);
+  const maxHeight=thumbnail?69:Math.max(1,holder.clientHeight-16);
+  const factor=Math.max(1,Math.min(5,
+    Math.floor(maxWidth/source.width),Math.floor(maxHeight/source.height)));
+  const width=source.width*factor,height=source.height*factor;
+  canvas.width=width;canvas.height=height;
+  const ctx=canvas.getContext('2d');
   ctx.imageSmoothingEnabled=false;
-  ctx.drawImage(source,(canvas.width-w)/2,(canvas.height-h)/2,w,h);
+  ctx.drawImage(source,0,0,width,height);
   return result;
 }
 function drawSpriteStrip(){
