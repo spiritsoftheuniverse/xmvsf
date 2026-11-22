@@ -4,6 +4,7 @@
 #pragma once
 #include "xmvsf_home.h"
 #include "xmvsf_character_select_backdrop.h" // 87.497 FD-format async native full-screen backdrop
+#include "xmvsf_character_select_screen.h" // source-native 384x224 composition
 #include "xmvsf_stage_picker.h" // XMVSF_RECOMP_STAGES_87_455
 #include "xmvsf_menu_film.h"
 #include "xmvsf_options.h"
@@ -24,7 +25,8 @@ namespace port::xmvsf_home {
 
 class TexturedMenu {
     Menu &menu_;
-    CharacterSelectBackdrop selectionBackdrop_; // dormant until custom select compositor calls it
+    CharacterSelectBackdrop selectionBackdrop_; // compatibility for direct FDB display
+    CharacterSelectScreen characterSelect_; // native CPU composition, SDL presenter unchanged
     SDL_Renderer *renderer_ = nullptr;
     SDL_Texture *background_ = nullptr;
     SDL_Texture *logo_ = nullptr;
@@ -268,6 +270,7 @@ public:
 
     void Release() {
         selectionBackdrop_.Close();
+        characterSelect_.Release();
         films_.Release();
         iiPainter_.release();
         for (SDL_Texture *texture : {background_, logo_, logoII_, largeFont_, smallFont_, selectionLargeFont_, revealLarge_, revealSmall_})
@@ -292,6 +295,14 @@ public:
                                       std::uint64_t elapsedNativeFrames) {
         const SDL_FRect native{0.0f, 0.0f, 384.0f, 224.0f};
         return r && selectionBackdrop_.Draw(r, elapsedNativeFrames, native);
+    }
+
+    const Image *ComposeCharacterSelect(SDL_Renderer *r, std::uint64_t nativeFrames,
+                                        std::uint16_t p1, std::uint16_t p2,
+                                        bool activeP1, bool activeP2) {
+        if (!Init(r)) return nullptr;
+        return characterSelect_.Build(r, nativeFrames, p1, p2, activeP1,
+                                      activeP2, menu_.selectionLarge_);
     }
 
     // Source-exact SF2 large text, reserved for the custom native
