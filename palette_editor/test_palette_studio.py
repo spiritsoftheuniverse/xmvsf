@@ -160,6 +160,33 @@ class DecoderTests(unittest.TestCase):
         self.assertIn("if(kind==='portrait'&&original()&&editable())", html)
         self.assertIn("function refreshPreviews(){if(!state.sprites)return;drawSpriteStrip();drawPortrait()}", html)
 
+    def test_native_capture_worker_uses_fixed_recomp_and_isolated_settings(self):
+        # Simulate success without running Windows or requiring copyrighted
+        # game ROMs. The process must receive a fixed array, never a shell.
+        from types import SimpleNamespace
+        with tempfile.TemporaryDirectory() as folder:
+            old_root, old_status = studio.ROOT, studio.CAPTURE_JOB.copy()
+            studio.ROOT = Path(folder)
+            try:
+                fake = SimpleNamespace(returncode=0, stdout="Palette Studio 1/19 0: EXPORTED\\n",
+                                       stderr="")
+                with mock.patch.object(studio.subprocess, "run", return_value=fake) as called:
+                    studio.native_capture_worker("0")
+                cmd = called.call_args.args[0]
+                self.assertEqual(Path(cmd[0]).name, "xmvsf.exe")
+                self.assertEqual(cmd[-2:], ["--palette-sprites", "0"])
+                self.assertIn("palette_studio_eeprom.bin", " ".join(cmd))
+                self.assertIn("palette_studio_settings.ini", " ".join(cmd))
+                self.assertEqual(called.call_args.kwargs["cwd"], Path(folder) / "recomp")
+                self.assertNotIn("shell", called.call_args.kwargs)
+                self.assertFalse(studio.CAPTURE_JOB["running"])
+                self.assertEqual(studio.CAPTURE_JOB["status"], "ready")
+                self.assertEqual(studio.CAPTURE_JOB["exported"], 1)
+            finally:
+                studio.ROOT = old_root
+                studio.CAPTURE_JOB.clear()
+                studio.CAPTURE_JOB.update(old_status)
+
     def test_native_sprite_capture_does_not_execute_arbitrary_command(self):
         # A browser request can ONLY choose a character or 'all'; paths and
         # executable are pinned in the server, never supplied by the client.
