@@ -46,6 +46,17 @@ int main() {
     assert(ring[ringBase + 16u + 3u] == 0x82u); // confirmation restored
     assert(!QueueExplicitSelectionSound(ring.data(), 100u, 0xA0u));
     assert(!QueueExplicitSelectionSound(ring.data(), ring.size(), 0x100u));
+    // Every one of the 18 ROM IDs in the actual screen table must
+    // produce an explicit, non-ambiguous P1 and P2 announcer address.
+    // Both picks use that same ID; the native cursor's wrong source
+    // or whether it was the second pick cannot change the spoken name.
+    for (const Slot &slot : kSlots) {
+        const std::uint16_t p1Name = NativeCharacterVoice(slot.rom, 0u);
+        const std::uint16_t p2Name = NativeCharacterVoice(slot.rom, 1u);
+        assert(p1Name != 0xFFFFu && p2Name != 0xFFFFu);
+        assert(p1Name >= 0xA0u && p1Name <= 0xB1u);
+        assert(p2Name == p1Name + 0x20u);
+    }
     // The 0x400-byte native ring wraps cleanly.
     ring[0x2642u] = 3u;
     ring[0x2643u] = 0xF0u;
