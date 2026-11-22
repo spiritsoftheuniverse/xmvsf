@@ -12,6 +12,7 @@
 #include "../../../port/xmvsf_character_select_layout.h" // fixed 18-slot visual/ROM map
 #include "../../../port/xmvsf_character_select_rewrite.h" // in-frame native bus selection writes
 #include <array>
+#include <cstdio>
 
 namespace cps2recomp {
 
