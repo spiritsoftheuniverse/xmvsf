@@ -15,6 +15,27 @@ py -3 palette_editor\palette_studio_server.py
 A browser window opens on a random port bound to **127.0.0.1 only**.
 No Python packages, npm, GitHub Actions, or compile step are required.
 
+## If New is disabled or previews are blank
+
+**New is always clickable**. If no ROM source has loaded, clicking New
+opens the ROM chooser and continues to profile creation after a successful
+source load. The page reports *why* auto-loading failed in the source status,
+rather than silently locking every editor control.
+
+The shipped `xvs.05a` stores 68000 words **low byte first**. This editor
+now interprets raw file words in the same order as
+`recomp/machine/romset.cpp` (which swaps each word when loading the ROM).
+The previous byte-order bug incorrectly rejected valid palette pointers.
+
+The combat canvas shows **NO STANDING SPRITE** until the Model viewer has
+exported a real transparent combat sprite. That's separate from loading
+the palette: ROM palette data alone cannot recreate a complete animated
+character from the native graphics. See "Portrait + actual combat sprite,
+side by side" below.
+
+After pulling an update, stop the Palette Studio server with Ctrl+C and
+restart `LAUNCH.bat`, then refresh the browser.
+
 ## Original palettes
 
 The tool automatically looks for `xvs.05a` or `xmvsf.zip` in common
