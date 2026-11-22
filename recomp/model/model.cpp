@@ -769,6 +769,29 @@ int CharacterNumber() {
 bool Seen() {
     return g.seen;
 }
+// Only the explicit --palette-sprites headless command calls this.
+// Reuse the native Model viewer source-ink crop, no palette heuristics,
+// object hide rules, or screenshot background substitutions.
+bool ExportStandingPng(const std::string &folder) {
+    if (!g.on || !g.seen || g.table != 0 || g_model.empty() ||
+        g_modelWidth <= 0 || folder.empty()) return false;
+    Taken frame;
+    frame.pixels = g_model;
+    frame.anchorX = g.anchorX;
+    frame.anchorY = g.anchorY;
+    int ax = 0, ay = 0;
+    const auto pictures = Cut({frame}, g_modelWidth, Video::kHeight, ax, ay);
+    if (pictures.size() != 1) return false;
+    std::error_code error;
+    std::filesystem::create_directories(PathOf(folder), error);
+    if (error) return false;
+    const std::string target = folder + "/" + CharacterName() + ".png";
+    const bool saved = image_files::WritePng(target, pictures[0], 1);
+    if (saved)
+        std::fprintf(stderr, "Palette Studio NATIVE STANDING: %s (%dx%d)\n",
+                     target.c_str(), pictures[0].width, pictures[0].height);
+    return saved;
+}
 bool Changed() {
     return ChosenCharacter() != g.character || ChosenBackground() != g.background;
 }
