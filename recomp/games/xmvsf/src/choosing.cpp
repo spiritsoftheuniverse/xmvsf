@@ -28,11 +28,22 @@ namespace {
     uint16_t g_committed[2][2] = {{0xFFFFu, 0xFFFFu}, {0xFFFFu, 0xFFFFu}};
     bool g_commitPending = false; // one native match handoff, not every arcade round
 
+    uint16_t IntendedNativeId(unsigned n) {
+        const uint16_t raw =
+            port::xmvsf_select::kSlots[static_cast<unsigned>(g_layout.index[n])].rom;
+        // The original board's Start variations are applied at acceptance.
+        // Preserve them even when the native pick write is remapped.
+        if (g_start[n]) {
+            if (raw == kRyu && FeatureOn("hidden_characters")) return kAkuma;
+            if (raw == 0x16u) return 0x24u; // Chun-Li -> Alpha Chun-Li
+        }
+        return raw;
+    }
+
     void RemapSelectionWrite(Machine &, uint32_t address,
                              uint16_t &value, unsigned bytes) {
         const std::array<uint16_t, 2> selected{{
-            port::xmvsf_select::kSlots[static_cast<unsigned>(g_layout.index[0])].rom,
-            port::xmvsf_select::kSlots[static_cast<unsigned>(g_layout.index[1])].rom
+            IntendedNativeId(0u), IntendedNativeId(1u)
         }};
         const std::array<uint8_t, 2> accepted{{g_accepted[0], g_accepted[1]}};
         value = port::xmvsf_select::RewriteNativeSelectionWrite(
