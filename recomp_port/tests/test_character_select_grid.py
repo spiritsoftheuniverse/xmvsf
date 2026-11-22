@@ -164,6 +164,10 @@ def main():
     # 01=progress 00, phase 03=progress 04); stale progress blocks repicks.
     assert "SetRam8(record, static_cast<uint8_t>(undone ? 3u : 1u));" in chooser
     assert "SetRam8(record + 5u, static_cast<uint8_t>(undone ? 4u : 0u));" in chooser
+    assert "if (aEdge && !b && ((count == 0u && phase == 2u) ||" in chooser
+    assert "SetRam8(record + 5u, static_cast<uint8_t>(count == 0u ? 0u : 4u));" in chooser
+    assert "XMVSF 87.524 A_RECOVER" in chooser
+    assert "XMVSF 87.524 A_CONFIRM" in chooser
     # A can re-arm a previously stranded confirmation on a NEW press.
     assert "if (aEdge && !b && canQueue &&" in chooser
     assert "canQueue && !g_confirmQueued[n]" not in chooser
