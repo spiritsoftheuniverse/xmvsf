@@ -33,6 +33,7 @@ namespace {
     int g_voiceSide = -1;
     uint16_t g_voiceReadAt = 0xFFFFu, g_voiceDesired = 0xFFFFu;
     bool g_voiceHandled = false;
+    bool g_spriteVoiceHandled = false; // distinct character-owned QSound request
     // 87.509: beginning-of-frame native ring pointer and custom grid.
     // Used only to fill missing ROM 0x84 ticks on *actual* grid movement.
     uint16_t g_cursorSoundBegin = 0xFFFFu;
@@ -54,7 +55,8 @@ namespace {
     // never from a ROM hook. Only inspect entries added since the last
     // scanline, and only during the exact confirmation-input frame.
     void CorrectNativeQueuedVoice(Machine &machine) {
-        if (!g_layoutRunning || g_voiceSide < 0 || g_voiceHandled ||
+        if (!g_layoutRunning || g_voiceSide < 0 ||
+            (g_voiceHandled && g_spriteVoiceHandled) ||
             !machine.video.hudShock || !Ram8(kPlaying) ||
             Ram16(kGameStep) != kGameChoosing ||
             g_voiceReadAt == 0xFFFFu || machine.ram.size() < 0x10000u)
@@ -73,21 +75,47 @@ namespace {
         for (unsigned delta = 0u; delta < diff; delta += 16u) {
             const unsigned offset =
                 (static_cast<unsigned>(g_voiceReadAt) + delta) & kSoundQueueMask;
-            const unsigned prior = machine.ram[0x2648u + offset + 3u];
-            if (!port::xmvsf_select::CorrectQueuedCharacterVoice(
-                    machine.ram.data(), machine.ram.size(), offset,
-                    g_voiceDesired, static_cast<unsigned>(g_voiceSide)))
-                continue;
-            const unsigned corrected = machine.ram[0x2648u + offset + 3u];
-            g_voiceHandled = true; // one announcer request per confirmation
-            if (prior != corrected) {
-                std::fprintf(stderr,
-                    "XMVSF 87.508 VOICE P%u: queued=%02X corrected=%02X character=%04X frame=%llu\n",
-                    static_cast<unsigned>(g_voiceSide + 1), prior, corrected,
-                    static_cast<unsigned>(g_voiceDesired),
-                    static_cast<unsigned long long>(machine.frame));
+            if (!g_voiceHandled) {
+                const unsigned prior = machine.ram[0x2648u + offset + 3u];
+                if (port::xmvsf_select::CorrectQueuedCharacterVoice(
+                        machine.ram.data(), machine.ram.size(), offset,
+                        g_voiceDesired, static_cast<unsigned>(g_voiceSide))) {
+                    const unsigned corrected = machine.ram[0x2648u + offset + 3u];
+                    g_voiceHandled = true; // one announcer request per confirmation
+                    if (prior != corrected) {
+                        std::fprintf(stderr,
+                            "XMVSF 87.513 ANNOUNCER P%u: queued=%02X corrected=%02X character=%04X frame=%llu\n",
+                            static_cast<unsigned>(g_voiceSide + 1), prior, corrected,
+                            static_cast<unsigned>(g_voiceDesired),
+                            static_cast<unsigned long long>(machine.frame));
+                    }
+                    continue;
+                }
             }
-            break;
+            // Character-owned selection speech is separate from the
+            // A?/C? announcer and common 0x82/0x83 confirmation effects.
+            // Correct only the source-confirmed 0x1B character sound slot
+            // once the actual chosen character's announcer was found.
+            if (g_voiceHandled && !g_spriteVoiceHandled) {
+                const unsigned prior = (static_cast<unsigned>(
+                    machine.ram[0x2648u + offset + 2u]) << 8u) |
+                    machine.ram[0x2648u + offset + 3u];
+                if (port::xmvsf_select::CorrectQueuedCharacterSpriteVoice(
+                        machine.ram.data(), machine.ram.size(), offset,
+                        g_voiceDesired)) {
+                    g_spriteVoiceHandled = true;
+                    const unsigned corrected = (static_cast<unsigned>(
+                        machine.ram[0x2648u + offset + 2u]) << 8u) |
+                        machine.ram[0x2648u + offset + 3u];
+                    if (prior != corrected) {
+                        std::fprintf(stderr,
+                            "XMVSF 87.513 SPRITE P%u: queued=%04X corrected=%04X character=%04X frame=%llu\n",
+                            static_cast<unsigned>(g_voiceSide + 1), prior,
+                            corrected, static_cast<unsigned>(g_voiceDesired),
+                            static_cast<unsigned long long>(machine.frame));
+                    }
+                }
+            }
         }
         g_voiceReadAt = next;
     }
@@ -176,6 +204,7 @@ void ChoosingLayoutBeforeCpu(Machine &machine) {
         g_voiceSide = -1;
         g_voiceReadAt = g_voiceDesired = 0xFFFFu;
         g_voiceHandled = false;
+        g_spriteVoiceHandled = false;
         g_cursorSoundBegin = 0xFFFFu;
         g_gridBeforeFrame[0] = g_gridBeforeFrame[1] = -1;
         if (g_layoutRunning) g_layout.Reset();
@@ -201,6 +230,7 @@ void ChoosingLayoutBeforeCpu(Machine &machine) {
     g_voiceSide = -1;
     g_voiceDesired = 0xFFFFu;
     g_voiceHandled = false;
+    g_spriteVoiceHandled = false;
     constexpr uint16_t kConfirm = kPunch1 | kPunch2 | kPunch3 |
                                   kKick1 | kKick2 | kKick3;
     for (int n = 0; n < 2; ++n) {
