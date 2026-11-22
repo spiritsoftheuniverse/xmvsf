@@ -39,13 +39,6 @@
 
 using namespace cps2recomp;
 
-// 87.501: canonical custom-selector display ID, shared with the ROM
-// acceptance mapper. The native FF518C/FF51AC cursor word is only a
-// transient input while selecting and may be repurposed after pick two.
-namespace cps2recomp {
-uint16_t ChoosingVisualCharacterId(unsigned side);
-}
-
 namespace port {
 
 #ifdef __APPLE__
@@ -1515,8 +1508,11 @@ int RunWindowed(Port &port) {
         if (customChoosing && !turned && !graphicsInspector.Active() &&
             !port.menu.IsOpen() && presenter.Renderer()) {
             const auto &ram = port.machine->ram;
-            // Use the same intended/committed ID as native selection,
-            // not FF518C/FF51AC after ROM second-pick housekeeping.
+            const auto cursor = [&](unsigned offset) -> std::uint16_t {
+                return static_cast<std::uint16_t>(
+                    (static_cast<unsigned>(ram[offset]) << 8u) |
+                    static_cast<unsigned>(ram[offset + 1u]));
+            };
             const bool p1Show = true;
             const bool p2Show = (ram[0x5101u] & 2u) != 0u &&
                 (!session::InSession() || ram[0x5183u] >= 2u);
@@ -1530,9 +1526,7 @@ int RunWindowed(Port &port) {
                 characterSelectEnteredFrame;
             if (const auto *image = homeTextures.ComposeCharacterSelect(
                     presenter.Renderer(), elapsed,
-                    cps2recomp::ChoosingVisualCharacterId(0u),
-                    cps2recomp::ChoosingVisualCharacterId(1u),
-                    p1Show, p2Show,
+                    cursor(0x518Cu), cursor(0x51ACu), p1Show, p2Show,
                     p1CursorActive, p2CursorActive)) {
                 presenter.UseClassicMenuCanvas(false);
                 presenter.Show(image->pixels.data(), image->width,
