@@ -146,7 +146,7 @@ header p {font-size:12px;color:#9eb4ca;margin:0}
     <div class="toolbar"><button id="generateExamples" class="primary">Generate 3 examples</button></div>
    </div>
    <div class="strip-list" id="profileStrip" aria-label="Click a colored character sprite to load its palette"></div>
-   <div class="gallery-hint" id="captureStatus">Click a colored sprite to load its palette. Generate 3 examples captures Body/Character, Effect A and Effect B from genuine model animations.</div>
+   <div class="gallery-hint" id="captureStatus">Click a colored sprite to load its palette. Generate 3 native row samples: Body / Character, palette row 2, and palette row 3. These are palette slots, not guaranteed visual effects.</div>
   </div>
   <div class="stage">
    <div class="preview-box">
@@ -160,7 +160,7 @@ header p {font-size:12px;color:#9eb4ca;margin:0}
      </div>
     </div>
     <div class="example-types" id="exampleTypes" aria-label="Body and effect frame examples"></div>
-    <div class="preview-notice" id="previewNotice">Generate 3 examples to capture genuine Body, Effect A and Effect B native frames. Choose a palette from the colored sprite strip.</div>
+    <div class="preview-notice" id="previewNotice">Generate 3 examples to inspect native Body and secondary palette rows. Only matching ROM palette-slot objects should appear in each secondary sample—not the entire attack pose.</div>
    </div>
    <div class="swatch-box">
     <div class="swatch-head"><h2 class="section-title">Palette colors · Original ROM addresses</h2>
@@ -202,7 +202,7 @@ header p {font-size:12px;color:#9eb4ca;margin:0}
 'use strict';
 const TOKEN = '__PALETTE_TOKEN__';
 const $ = id => document.getElementById(id);
-const lines = ['Body / Character', 'Effect palette A', 'Effect palette B'];
+const lines = ['Body / Character', 'Palette row 2 · secondary', 'Palette row 3 · secondary'];
 const state = {data:null,who:0,set:0,line:0,pen:1,mode:'original',id:null,name:'',
   colors:null,dirty:false,sprites:[],selectedSprite:null,spriteImage:null,profilePreviews:[],
   hue:210,sat:1,val:1,images:new Map(),sourceSet:0,newAfterLoad:false};
@@ -572,7 +572,7 @@ async function fetchProfilePreviews(){
 function drawExampleTypes(){
   const host=$('exampleTypes');host.replaceChildren();
   const who=state.who;
-  for(const [line,name] of [[0,'Body / Character'],[1,'Effect A'],[2,'Effect B']]){
+  for(const [line,name] of [[0,'Body / Character'],[1,'Palette row 2'],[2,'Palette row 3']]){
     const sprite=state.sprites.find(s=>s.type==='viewer'&&s.line===line &&
       (line!==0 || s.name==='Body / Character'));
     const button=document.createElement('button');
@@ -608,8 +608,8 @@ async function drawPreview(){
     ctx.fillText('NO NATIVE EXAMPLE',w/2,h/2-24);
     ctx.font='12px Segoe UI, Arial';ctx.fillStyle='#9FB9CE';
     ctx.fillText('Generate 3 examples',w/2,h/2+6);
-    ctx.fillText('Body · Effect A · Effect B',w/2,h/2+25);
-    $('previewNotice').textContent='Click Generate 3 examples to capture Body / Character, Effect A and Effect B. Missing native effects will be reported instead of substituted with a standing sprite.';
+    ctx.fillText('Body · Palette row 2 · row 3',w/2,h/2+25);
+    $('previewNotice').textContent='Generate native Body and isolated palette-row 2/3 samples. A palette row is not a visual-effect category. Missing row ink is reported rather than replaced by the fighter pose.';
     return;
   }
   $('previewType').textContent=sprite.type==='viewer'?'Native model · '+sprite.name:'Imported sprite · '+sprite.name;
@@ -618,9 +618,12 @@ async function drawPreview(){
     if(state.selectedSprite!==sprite||state.who!==selection)return;
     const result=paintSprite(canvas,img,sprite.type,null,sprite.line||0);
     const pct=result.visible?Math.round(100*result.matched/result.visible):0;
-    $('previewNotice').textContent=(sprite.type==='viewer'?'Genuine native Model viewer image. ':'Imported sprite. ')+
+    $('previewNotice').textContent=(sprite.type==='viewer'?'Native CPS-2 object image. ':'Imported sprite. ')+
       pct+'% of visible pixels matched original palette colors. '+
-      'This is the '+sprite.name+' example with '+(state.mode==='original-k'?'read-only K colors':editable()?state.name:'read-only P colors')+'.';
+      (sprite.type==='viewer'&&sprite.line>0?
+        'Only objects using '+sprite.name+' were exported; they are not necessarily special effects. ':
+        '')+
+      'Palette: '+(state.mode==='original-k'?'read-only K colors':editable()?state.name:'read-only P colors')+'.';
   }catch(err){$('previewNotice').textContent=err.message}
 }
 function refreshPreviews(){
