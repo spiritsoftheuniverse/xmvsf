@@ -203,6 +203,53 @@ class DecoderTests(unittest.TestCase):
         self.assertIn("if(kind==='portrait'&&original()&&target)", html)
         self.assertIn("drawProfileStrip();drawExampleTypes();drawPreview();drawPortrait();", html)
 
+    def test_native_runtime_uses_same_ucrt64_path_as_game_launcher(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder) / "ucrt64"
+            bin_dir = root / "bin"
+            usr_dir = Path(folder) / "usr" / "bin"
+            bin_dir.mkdir(parents=True)
+            usr_dir.mkdir(parents=True)
+            (bin_dir / "libgcc_s_seh-1.dll").write_bytes(b"synthetic test DLL")
+            original = {"PATH": r"C:\\Windows\\System32"}
+            result = studio.native_runtime_environment(
+                windows=True, ucrt_root=root, base_env=original)
+            self.assertEqual(result["MSYSTEM"], "UCRT64")
+            self.assertEqual(result["PATH"].split(";"),
+                             [str(bin_dir), str(usr_dir), original["PATH"]])
+            self.assertEqual(original, {"PATH": r"C:\\Windows\\System32"})
+            self.assertEqual(
+                studio.native_runtime_environment(
+                    windows=False, ucrt_root=root, base_env=original), original)
+
+    def test_native_runtime_missing_libgcc_fails_without_deleting_old_exports(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder) / "ucrt64"
+            (root / "bin").mkdir(parents=True)
+            with self.assertRaisesRegex(OSError, "libgcc_s_seh-1.dll"):
+                studio.native_runtime_environment(
+                    windows=True, ucrt_root=root, base_env={"PATH": "original"})
+            old_root, old_job = studio.ROOT, studio.CAPTURE_JOB.copy()
+            studio.ROOT = Path(folder)
+            exports = studio.ROOT / "recomp" / "exports" / "palette_studio"
+            exports.mkdir(parents=True)
+            previous = exports / "Wolverine.png"
+            previous.write_bytes(b"previous preview")
+            try:
+                with mock.patch.object(
+                    studio, "native_runtime_environment",
+                    side_effect=OSError("Missing UCRT64 libgcc_s_seh-1.dll")
+                ), mock.patch.object(studio.subprocess, "run") as runner:
+                    studio.native_capture_worker("0")
+                runner.assert_not_called()
+                self.assertEqual(previous.read_bytes(), b"previous preview")
+                self.assertEqual(studio.CAPTURE_JOB["status"], "failed")
+                self.assertIn("libgcc_s_seh-1.dll", studio.CAPTURE_JOB["message"])
+            finally:
+                studio.ROOT = old_root
+                studio.CAPTURE_JOB.clear()
+                studio.CAPTURE_JOB.update(old_job)
+
     def test_native_capture_missing_effect_is_not_reported_as_ready(self):
         from types import SimpleNamespace
         with tempfile.TemporaryDirectory() as folder:
@@ -213,7 +260,10 @@ class DecoderTests(unittest.TestCase):
                     stderr="Palette Studio Body / Character: EXPORTED\\n"
                            "Palette Studio Effect A: EXPORTED\\n"
                            "Palette Studio Effect B: NO NATIVE ANIMATION\\n")
-                with mock.patch.object(studio.subprocess, "run", return_value=fake):
+                with mock.patch.object(
+                    studio, "native_runtime_environment",
+                    return_value={"PATH": "mock-UCRT64"}
+                ), mock.patch.object(studio.subprocess, "run", return_value=fake):
                     studio.native_capture_worker("0")
                 self.assertEqual(studio.CAPTURE_JOB["status"], "failed")
                 self.assertEqual(studio.CAPTURE_JOB["exported"], 2)
@@ -236,7 +286,10 @@ class DecoderTests(unittest.TestCase):
             try:
                 fake = SimpleNamespace(returncode=1, stdout="",
                     stderr="Palette Studio Body / Character: NOT DRAWN\\n")
-                with mock.patch.object(studio.subprocess, "run", return_value=fake):
+                with mock.patch.object(
+                    studio, "native_runtime_environment",
+                    return_value={"PATH": "mock-UCRT64"}
+                ), mock.patch.object(studio.subprocess, "run", return_value=fake):
                     studio.native_capture_worker("0")
                 for name in ("Wolverine.png", "Wolverine Effect A.png",
                              "Wolverine Effect B.png"):
@@ -259,7 +312,10 @@ class DecoderTests(unittest.TestCase):
                     stdout="Palette Studio Body / Character: EXPORTED\\n"
                            "Palette Studio Effect A: EXPORTED\\n"
                            "Palette Studio Effect B: EXPORTED\\n", stderr="")
-                with mock.patch.object(studio.subprocess, "run", return_value=fake) as called:
+                with mock.patch.object(
+                    studio, "native_runtime_environment",
+                    return_value={"PATH": "mock-UCRT64"}
+                ), mock.patch.object(studio.subprocess, "run", return_value=fake) as called:
                     studio.native_capture_worker("0")
                 cmd = called.call_args.args[0]
                 self.assertEqual(Path(cmd[0]).name, "xmvsf.exe")
@@ -268,6 +324,8 @@ class DecoderTests(unittest.TestCase):
                 self.assertIn("palette_studio_settings.ini", " ".join(cmd))
                 self.assertEqual(called.call_args.kwargs["cwd"], Path(folder) / "recomp")
                 self.assertNotIn("shell", called.call_args.kwargs)
+                self.assertEqual(called.call_args.kwargs["env"],
+                                 {"PATH": "mock-UCRT64"})
                 self.assertFalse(studio.CAPTURE_JOB["running"])
                 self.assertEqual(studio.CAPTURE_JOB["status"], "ready")
                 self.assertEqual(studio.CAPTURE_JOB["exported"], 3)
