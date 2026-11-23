@@ -3986,6 +3986,10 @@ int main(int argc, char **argv) {
                 effectB = model::AnimationForLine(2);
                 if (effectA != -2 && effectB != -2) break;
             }
+            // Some authentic effect objects are detached from the
+            // character. Retain them only for these explicitly requested
+            // sample PNGs, not ordinary Model viewer/gameplay.
+            model::ShowDetachedEffectsForSamples(true);
             for (int line = 1; line <= 2; line++) {
                 const int choice = line == 1 ? effectA : effectB;
                 bool taken = false;
