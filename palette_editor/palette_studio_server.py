@@ -279,7 +279,12 @@ def profile_list(who: int) -> list:
                                  "swatch": obj.get("swatch")})
         except (OSError, ValueError, TypeError, AttributeError):
             continue
-    return sorted(profiles, key=lambda p: p["name"].lower())
+    # The browser's numbered strip must use the SAME saved nine-slot
+    # ordering as the generated game catalog. Renaming cannot reshuffle.
+    preferred = existing_slot_order().get(who, [])
+    positions = {profile_id: i for i, profile_id in enumerate(preferred)}
+    return sorted(profiles, key=lambda p: (positions.get(p["id"], len(preferred)),
+                                           p["name"].lower(), p["id"]))
 
 
 def read_profile(who: int, profile_id: str) -> dict:
