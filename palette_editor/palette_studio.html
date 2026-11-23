@@ -313,6 +313,11 @@ function renderColorInspector(){
   // The name belongs to the whole custom palette, not a single pen.
   if(document.activeElement!==$('selectedName'))$('selectedName').value=editable()?state.name:(state.mode==='original-k'?'Original K · read only':'Original P · read only');
   $('selectedName').disabled=!editable();
+  const marker=editable()?state.swatch:originalSwatch();
+  if(document.activeElement!==$('selectionHex'))$('selectionHex').value=marker;
+  $('selectionColor').value=marker;
+  $('selectionColor').disabled=!editable();
+  $('selectionHex').disabled=!editable();
   $('selectedSlot').textContent=lines[state.line]+' · #'+String(state.pen).padStart(2,'0');
   $('selectedAddress').textContent=sourceAddr();
   $('hex').value=current();$('hex').disabled=!editable();
@@ -359,21 +364,25 @@ function showProfileOptions(){
   for(const [value,label] of [['original','Original P · read only'],['original-k','Original K · read only']]){
     const item=document.createElement('option');item.value=value;item.textContent=label;pick.add(item);
   }
-  state.data.characters[state.who].profiles.forEach(profile=>{
-    const item=document.createElement('option');item.value=profile.id;item.textContent=profile.name;pick.add(item);
+  const staged=stagedProfiles(state.who);
+  const saved=state.data.characters[state.who].profiles;
+  saved.forEach(profile=>{
+    const cached=staged.find(v=>v.id===profile.id);
+    const item=document.createElement('option');item.value=profile.id;
+    item.textContent=cached?cached.name+' · unsaved':profile.name;
+    pick.add(item);
   });
-  if(state.mode==='draft'){
-    const item=document.createElement('option');item.value='draft';item.textContent=state.name+' · new';pick.add(item);
+  for(const doc of staged.filter(p=>p.id===null)){
+    const item=document.createElement('option');item.value=doc.client_key;
+    item.textContent=(doc.name||'Unnamed palette')+' · new';pick.add(item);
   }
-  pick.value=state.mode==='draft'?'draft':state.mode==='saved'?state.id:state.mode;
+  pick.value=state.mode==='draft'?state.draftKey:state.mode==='saved'?state.id:state.mode;
   $('newProfile').disabled=false;
-  $('newProfile').title=original()?'Create editable palette from the currently selected colors':
-    'Choose original xvs.05a ROM and create a new profile';
-  $('saveProfile').disabled=!editable();
-  $('exportProfile').disabled=!(editable()&&!!state.id);
+  $('newProfile').title='Create another profile (up to seven custom slots per fighter)';
   $('profileHint').textContent=editable()?
-    'This custom palette is editable. Save changes to update its sprite thumbnail.':
-    'Original P and Original K are separate read-only palettes. Click New to copy either one.';
+    'Your edits stay staged while switching characters. Save All persists them together and publishes the 9-slot catalog.':
+    'Original P and Original K are read-only. New copies a reference into a custom slot; Save All writes every fighter.';
+  saveCounter();
 }
 function drawSwatches(){
   const host=$('swatches');host.replaceChildren();
@@ -407,9 +416,8 @@ function setEdited(hex){
   // One custom palette: mirror edited pens into both native P/K banks.
   state.colors[0][state.line][state.pen]=hex.toUpperCase();
   state.colors[1][state.line][state.pen]=hex.toUpperCase();
-  state.dirty=true;
+  state.dirty=true;stageCurrent();
   drawSwatches();renderColorInspector();refreshPreviews();
-  $('saveProfile').disabled=false;
 }
 function applyHsv(){
   const c=hsvToRgb(state.hue,state.sat,state.val);
@@ -438,17 +446,32 @@ $('resetSwatch').onclick=()=>{setEdited(sourceCurrent());hueFromSelected();rende
 $('selectedName').addEventListener('input',()=>{
   if(!editable())return;
   state.name=$('selectedName').value;
-  state.dirty=true;
-  $('saveProfile').disabled=false;
+  state.dirty=true;stageCurrent();
   $('editStatus').textContent=(state.name||'Unnamed palette')+' · unsaved changes';
+  drawProfileStrip();
 });
 $('selectedName').addEventListener('change',()=>{
   if(!editable())return;
   state.name=state.name.trim();
   if(!state.name){show('Palette name cannot be empty.',true);return}
-  $('selectedName').value=state.name;
-  showProfileOptions();
+  $('selectedName').value=state.name;stageCurrent();
+  showProfileOptions();drawProfileStrip();
 });
+function changeSelectionSwatch(value){
+  if(!editable())return;
+  if(!/^#[0-9a-fA-F]{6}$/.test(value)){
+    show('Selection swatch requires #RRGGBB',true);
+    $('selectionHex').value=state.swatch;
+    return;
+  }
+  state.swatch=value.toUpperCase();state.dirty=true;
+  stageCurrent();
+  $('selectionHex').value=state.swatch;
+  $('selectionColor').value=state.swatch;
+  drawProfileStrip();renderColorInspector();
+}
+$('selectionColor').addEventListener('input',()=>changeSelectionSwatch($('selectionColor').value));
+$('selectionHex').addEventListener('change',()=>changeSelectionSwatch($('selectionHex').value.trim()));
 $('search').oninput=showCharacters;
 function renderAll(){showCharacters();showProfileOptions();drawSwatches();renderColorInspector();refreshPreviews()}
 async function fetchSpriteData(){
