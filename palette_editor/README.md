@@ -191,6 +191,39 @@ or picks the first matching entry (preferring the previewed native
 palette row), and explicitly reports the ambiguity. Transparent
 pixels and colors absent from the source palette are ignored.
 
+## Native multi-frame palette-row discovery
+
+**Palette row 2 and row 3 each have an independent ◀ / ▶ cycler** in
+their sample windows. The counter shows the current image and the number
+of discovered examples; selecting one opens that frame in the main
+zoomable, pixel-clickable combat preview.
+
+Previously the scan returned one animation with the highest object count
+per palette row. That often selected unhelpful stationary claws. The
+new generator preserves *every qualifying animation* found by the native
+model viewer's ROM-frame scan, distributes sampling across animation
+groups (not just early normal attacks), and captures up to **24 unique
+native PNG frames per secondary row**. Frames are de-duplicated by
+source-native image pixels. Each animation contributes at most one
+example per sampling pass, so a single move cannot fill the row gallery.
+A repeated claw pose is skipped; distinct objects and smear silhouettes
+can appear even when their animations use the same palette row.
+
+The Row 2 PNGs are `Wolverine Row 2.png` (first),
+`Wolverine Row 2 02.png`, `Wolverine Row 2 03.png` and so forth.
+Row 3 uses the same numbering. Regenerating explicitly replaces
+previous numbered samples for that fighter alone, and the browser
+discovers them in numeric order. This adds discovery data only: **it
+does not label an animation as Berserker Barrage or Cyclops' kick
+without verified native move/frame identification**. If Wolverine's
+barrage smear uses a different sprite palette slot from Row 2, it
+won't appear in Row 2 even after this scan; finding it requires
+following the relevant native object/animation data across rows.
+
+The new native multi-frame exporter requires running
+`RECOMP_BUILD.bat` once after pulling. Palette Studio itself does
+not need separate compilation.
+
 ## Generate genuine Body and secondary palette-row samples
 
 **Requires one recompilation** because the headless Model viewer now filters
@@ -209,10 +242,10 @@ identify a semantic effect, attack, or projectile by itself.
   OAM attribute bits select this character's second original color row
 - **Palette row 3** — only native sprite objects selecting the third row
 
-The color editor's built-in native animation scan finds frames using the
-second or third row. Crucially, the exporter re-renders **only the matching
-OAM objects**, instead of cropping the entire standing or attacking fighter
-as it did before. The target row's color ink is kept at source resolution
+The color editor's built-in native animation scan now retains
+**multiple animations across groups** for each secondary row. Crucially,
+the exporter re-renders **only the matching OAM objects**, instead of
+cropping the entire standing or attacking fighter as it did before. The target row's color ink is kept at source resolution
 and detached objects are included even when they would appear behind the
 body in the fully composited pose.
 
