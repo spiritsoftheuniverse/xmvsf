@@ -117,6 +117,10 @@ bool Seen();
 // model viewer, cropped with the same original object-ink pipeline.
 // Returns false if the native model has not been drawn yet.
 bool ExportStandingPng(const std::string &folder);
+// Palette Studio-only samples for this character's two effect palette lines.
+// A sample is written only if a REAL native animation currently uses that
+// line; never synthesize a substitute or mislabel an idle frame as an effect.
+bool ExportPaletteExamplePng(Machine &machine, const std::string &folder, int line);
 
 // Each frame while viewing, before the game runs it: the animation shown (player 1's controls taken while one is),
 // and the speed chosen
