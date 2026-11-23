@@ -257,9 +257,9 @@ class DecoderTests(unittest.TestCase):
             studio.ROOT = Path(folder)
             try:
                 fake = SimpleNamespace(returncode=1, stdout="",
-                    stderr="Palette Studio Body / Character: EXPORTED\\n"
-                           "Palette Studio Effect A: EXPORTED\\n"
-                           "Palette Studio Effect B: NO NATIVE ANIMATION\\n")
+                    stderr="Palette Studio Body / Character: EXPORTED\n"
+                           "Palette Studio Effect A: EXPORTED\n"
+                           "Palette Studio Effect B: NO NATIVE ANIMATION\n")
                 with mock.patch.object(
                     studio, "native_runtime_environment",
                     return_value={"PATH": "mock-UCRT64"}
@@ -285,7 +285,7 @@ class DecoderTests(unittest.TestCase):
                 (examples / name).write_bytes(b"old sprite")
             try:
                 fake = SimpleNamespace(returncode=1, stdout="",
-                    stderr="Palette Studio Body / Character: NOT DRAWN\\n")
+                    stderr="Palette Studio Body / Character: NOT DRAWN\n")
                 with mock.patch.object(
                     studio, "native_runtime_environment",
                     return_value={"PATH": "mock-UCRT64"}
@@ -309,9 +309,9 @@ class DecoderTests(unittest.TestCase):
             studio.ROOT = Path(folder)
             try:
                 fake = SimpleNamespace(returncode=0,
-                    stdout="Palette Studio Body / Character: EXPORTED\\n"
-                           "Palette Studio Effect A: EXPORTED\\n"
-                           "Palette Studio Effect B: EXPORTED\\n", stderr="")
+                    stdout="Palette Studio Body / Character: EXPORTED\n"
+                           "Palette Studio Effect A: EXPORTED\n"
+                           "Palette Studio Effect B: EXPORTED\n", stderr="")
                 with mock.patch.object(
                     studio, "native_runtime_environment",
                     return_value={"PATH": "mock-UCRT64"}
