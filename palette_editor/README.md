@@ -162,7 +162,7 @@ profile validation, save/load/export, and basic UI/source contracts.
 
 ## Safety
 
-- No writes to `xvs.05a`, ROM ZIPs, `recomp/`, or game palettes.
+- No writes to `xvs.05a`, ROM ZIPs, or the game's palettes. Native example generation writes only under `recomp/exports/palette_studio/` and uses separate Palette Studio settings.
 - User-created files are ignored by git.
 - The HTTP server is local-only, with per-launch request authorization.
 - No invented colors or addresses when the verified ROM is absent.
