@@ -405,7 +405,7 @@ namespace {
             }
         }
 
-        if (g_d.nearestOnly) {
+        if (g_d.nearestOnly && !g_sampleDetachedEffects) {
             KeepNearest(model.data(), width, height, g.anchorX, g.anchorY);
         }
         if (Plain(g.background)) {
