@@ -111,7 +111,7 @@ class DecoderTests(unittest.TestCase):
         # and remain unchanged by palette edits.
         html = (HERE / "palette_studio.html").read_text(encoding="utf-8")
         self.assertIn("Portrait reference", (HERE / "palette_studio_server.py").read_text(encoding="utf-8"))
-        self.assertIn("source portrait PNG", (HERE / "README.md").read_text(encoding="utf-8"))
+        self.assertIn("read-only source PNG", (HERE / "README.md").read_text(encoding="utf-8"))
         self.assertIn('id="portraitPreview"', html)
         self.assertIn('class="preview-pair"', html)
         self.assertIn('id="preview"', html)
@@ -178,6 +178,14 @@ class DecoderTests(unittest.TestCase):
         self.assertIn('Cut({frame}, g_modelWidth, Video::kHeight', model_cpp)
         self.assertIn('image_files::WritePng(target, pictures[0], 1)', model_cpp)
         self.assertIn("model::ExportStandingPng(out)", main)
+        self.assertIn("model::Scan(*p.machine)", main)
+        self.assertIn("model::AnimationForLine(1)", main)
+        self.assertIn("model::AnimationForLine(2)", main)
+        self.assertIn("model::AnimationShown() == choice", main)
+        self.assertIn("model::ExportPaletteExamplePng(*p.machine, out, line)", main)
+        self.assertIn("bool ExportPaletteExamplePng(Machine &machine", model_header)
+        self.assertIn("CountLines(machine, counts);", model_cpp)
+        self.assertIn('line == 1 ? " Effect A.png" : " Effect B.png"', model_cpp)
         self.assertIn('--palette-sprites N', main)
         self.assertIn('std::strcmp(c.name, "model_start")', main)
         self.assertIn('model::CharacterNumber() == character', main)
@@ -191,6 +199,26 @@ class DecoderTests(unittest.TestCase):
         self.assertIn('function startCapture(who)', html)
         self.assertIn("if(kind==='portrait'&&original()&&target)", html)
         self.assertIn("drawProfileStrip();drawExampleTypes();drawPreview();drawPortrait();", html)
+
+    def test_native_capture_missing_effect_is_not_reported_as_ready(self):
+        from types import SimpleNamespace
+        with tempfile.TemporaryDirectory() as folder:
+            old_root, old_job = studio.ROOT, studio.CAPTURE_JOB.copy()
+            studio.ROOT = Path(folder)
+            try:
+                fake = SimpleNamespace(returncode=1, stdout="",
+                    stderr="Palette Studio Body / Character: EXPORTED\\n"
+                           "Palette Studio Effect A: EXPORTED\\n"
+                           "Palette Studio Effect B: NO NATIVE ANIMATION\\n")
+                with mock.patch.object(studio.subprocess, "run", return_value=fake):
+                    studio.native_capture_worker("0")
+                self.assertEqual(studio.CAPTURE_JOB["status"], "failed")
+                self.assertEqual(studio.CAPTURE_JOB["exported"], 2)
+                self.assertIn("2/3", studio.CAPTURE_JOB["message"])
+            finally:
+                studio.ROOT = old_root
+                studio.CAPTURE_JOB.clear()
+                studio.CAPTURE_JOB.update(old_job)
 
     def test_native_capture_worker_uses_fixed_recomp_and_isolated_settings(self):
         # Simulate success without running Windows or requiring copyrighted
@@ -328,6 +356,20 @@ class ProfileTests(unittest.TestCase):
         studio.save_profile(obj)
         self.assertEqual(len(studio.profile_list(9)), 1)
         self.assertEqual(studio.read_profile(9, saved["id"])["colours"][1][2][5], "#000000")
+
+    def test_profile_thumbnail_data_is_saved_and_source_validated(self):
+        doc = self.make_doc()
+        doc["name"] = "Blue Scheme"
+        doc["colours"][0][0][1] = "#112233"
+        saved = studio.save_profile(doc)
+        items = studio.profile_previews(9)
+        self.assertEqual(len(items), 1)
+        self.assertEqual(items[0]["id"], saved["id"])
+        self.assertEqual(items[0]["name"], "Blue Scheme")
+        self.assertEqual(items[0]["colours"][0][0][1], "#112233")
+        self.assertEqual(studio.profile_previews(10), [])
+        studio.SOURCE["sha256"] = "other-ROM"
+        self.assertEqual(studio.profile_previews(9), [])
 
     def test_profile_original_sha_is_enforced(self):
         obj = self.make_doc()
