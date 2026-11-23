@@ -219,7 +219,7 @@ const lines = ['Body / Character', 'Palette row 2 · secondary', 'Palette row 3 
 const state = {data:null,who:0,set:0,line:0,pen:1,mode:'original',id:null,name:'',
   colors:null,dirty:false,sprites:[],selectedSprite:null,spriteImage:null,profilePreviews:[],
   hue:210,sat:1,val:1,images:new Map(),sourceSet:0,newAfterLoad:false,
-  swatch:'#6677CC',draftKey:null,draftSeq:0,pending:new Map(),saving:false};
+  swatch:'#6677CC',draftKey:null,draftSeq:0,pending:new Map(),originalMarkers:new Map(),saving:false};
 function copy(v){return JSON.parse(JSON.stringify(v))}
 function show(text,bad){$('message').textContent=text;$('message').className='toast'+(bad?' bad':'')}
 async function request(route,options){
@@ -250,16 +250,22 @@ function suggestedSwatch(rows){
   }
   return best.toUpperCase();
 }
-function originalSwatch(bank=state.set){
-  return original()?suggestedSwatch(original()[bank]):'#888888';
+function originalSwatch(bank=state.set,who=state.who){
+  const key=who+':'+bank;
+  if(state.originalMarkers.has(key))return state.originalMarkers.get(key);
+  const stored=state.data?.original_swatches?.[who]?.[bank];
+  if(stored)return stored;
+  const palettes=state.data?.originals?.[who];
+  return palettes?suggestedSwatch(palettes[bank]):'#888888';
 }
 function pendingKey(who,key){return who+':'+key}
 function stagedProfiles(who){
   return [...state.pending.values()].filter(p=>p.character===who);
 }
 function saveCounter(){
-  const count=state.pending.size;
+  const count=state.pending.size, markers=state.originalMarkers.size;
   $('saveCounter').textContent=count+' pending profile'+(count===1?'':'s')+
+    (markers?' · '+markers+' original swatch'+(markers===1?'':'es'):'')+
     ' · 9 slots per fighter';
   $('saveAll').disabled=!state.data?.source||state.saving;
   $('saveAll').textContent=state.saving?'Saving…':'Save All';
@@ -316,8 +322,11 @@ function renderColorInspector(){
   const marker=editable()?state.swatch:originalSwatch();
   if(document.activeElement!==$('selectionHex'))$('selectionHex').value=marker;
   $('selectionColor').value=marker;
-  $('selectionColor').disabled=!editable();
-  $('selectionHex').disabled=!editable();
+  // Original ROM color pens and names remain locked; only their separate
+  // character-select indicators can be edited.
+  const canMark=!!original();
+  $('selectionColor').disabled=!canMark;
+  $('selectionHex').disabled=!canMark;
   $('selectedSlot').textContent=lines[state.line]+' · #'+String(state.pen).padStart(2,'0');
   $('selectedAddress').textContent=sourceAddr();
   $('hex').value=current();$('hex').disabled=!editable();
@@ -460,16 +469,23 @@ $('selectedName').addEventListener('change',()=>{
   showProfileOptions();drawProfileStrip();
 });
 function changeSelectionSwatch(value){
-  if(!editable())return;
+  if(!original())return;
   if(!/^#[0-9a-fA-F]{6}$/.test(value)){
     show('Selection swatch requires #RRGGBB',true);
     $('selectionHex').value=state.swatch;
     return;
   }
-  state.swatch=value.toUpperCase();state.dirty=true;
-  stageCurrent();
-  $('selectionHex').value=state.swatch;
-  $('selectionColor').value=state.swatch;
+  const marker=value.toUpperCase();
+  if(editable()){
+    state.swatch=marker;state.dirty=true;stageCurrent();
+  }else{
+    // The ROM's two original palette banks remain completely untouched.
+    state.originalMarkers.set(state.who+':'+state.set,marker);
+    state.swatch=marker;
+    saveCounter();
+  }
+  $('selectionHex').value=marker;
+  $('selectionColor').value=marker;
   drawProfileStrip();renderColorInspector();
 }
 $('selectionColor').addEventListener('input',()=>changeSelectionSwatch($('selectionColor').value));
@@ -808,7 +824,12 @@ async function saveAll(){
   if(!state.data?.source||state.saving)return;
   stageCurrent();
   const staged=[...state.pending.values()].map(copy);
-  const payload={source_sha256:state.data.source.sha256,profiles:staged};
+  const markers=[...state.originalMarkers].map(([key,swatch])=>{
+    const [character,bank]=key.split(':').map(Number);
+    return {character,bank,swatch};
+  });
+  const payload={source_sha256:state.data.source.sha256,profiles:staged,
+    original_swatches:markers};
   const currentKey=state.mode==='draft'?state.draftKey:state.id;
   state.saving=true;saveCounter();
   try{
@@ -821,6 +842,10 @@ async function saveAll(){
       const live=state.pending.get(key);
       if(live&&JSON.stringify(live)===JSON.stringify(doc))state.pending.delete(key);
     }
+    for(const item of markers){
+      const key=item.character+':'+item.bank;
+      if(state.originalMarkers.get(key)===item.swatch)state.originalMarkers.delete(key);
+    }
     if(state.mode==='draft'&&result.ids[currentKey]){
       state.mode='saved';state.id=result.ids[currentKey];state.draftKey=null;state.dirty=false;
     }else if(state.mode==='saved'&&currentKey===state.id&&
@@ -831,6 +856,8 @@ async function saveAll(){
     await fetchProfilePreviews();
     renderAll();
     show('Saved '+result.saved+' changed profile'+(result.saved===1?'':'s')+
+      ' and '+result.original_swatches_saved+' original selection swatch'+
+      (result.original_swatches_saved===1?'':'es')+
       ' across all characters. Nine-slot game catalog written to '+result.catalog+
       '. The in-game X/Y selection hook has not been implemented yet.',false);
   }catch(err){show('Save All failed: '+err.message,true)}
@@ -840,12 +867,14 @@ async function uploadSource(file){
   if(!file)return;
   try{
     show('Reading original xvs.05a or its ROM-set ZIP…');
-    if(state.pending.size&&
-       !confirm('Loading another ROM source clears all unsaved palettes. Continue?'))return;
+    if((state.pending.size||state.originalMarkers.size)&&
+       !confirm('Loading another ROM source clears unsaved palettes and original selection swatches. Continue?'))return;
     const previousSha=state.data.source?.sha256;
     await request('/api/source',{method:'POST',headers:{'X-Source-Name':file.name},body:file});
     state.data=await request('/api/state');
-    if(previousSha!==state.data.source?.sha256)state.pending.clear();
+    if(previousSha!==state.data.source?.sha256){
+      state.pending.clear();state.originalMarkers.clear();
+    }
     state.dirty=false;state.mode='original';state.id=null;state.draftKey=null;
     chooseCharacter(state.who);
     updateSource();show('Original ROM source validated and loaded. Originals are locked.');
