@@ -44,14 +44,14 @@ sprite-generation subprocess now prepend the matching MSYS2 UCRT64 runtime
 directory to `PATH`, including `libgcc_s_seh-1.dll`. The change affects
 the Palette Studio process only; it does not copy or redistribute any DLL.
 
-By default, the UCRT64 prefix is `C:\\msys64\\ucrt64`, matching
+By default, the UCRT64 prefix is `C:\msys64\ucrt64`, matching
 `RECOMP_RUN.bat`. If MSYS2 is installed somewhere else, set
 `XMVSF_UCRT64_ROOT` to the UCRT64 prefix before launching the studio.
 For example:
 
 ```powershell
-$env:XMVSF_UCRT64_ROOT = 'D:\\msys64\\ucrt64'
-& 'F:\\xmvsf-recomp\\palette_editor\\LAUNCH.bat'
+$env:XMVSF_UCRT64_ROOT = 'D:\msys64\ucrt64'
+& 'F:\xmvsf-recomp\palette_editor\LAUNCH.bat'
 ```
 
 If `libgcc_s_seh-1.dll` is genuinely absent from the UCRT64 `bin`
