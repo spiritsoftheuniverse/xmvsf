@@ -122,6 +122,9 @@ bool ExportStandingPng(const std::string &folder);
 // line; never synthesize a substitute or mislabel an idle frame as an effect.
 bool ExportPaletteExamplePng(Machine &machine, const std::string &folder, int line);
 int AnimationShown(); // the current model frame's animation choice, 0 for standing
+// Allow disconnected effect objects only in the headless sample exporter.
+// Normal Model viewer and gameplay retain their native nearest-object filter.
+void ShowDetachedEffectsForSamples(bool enabled);
 
 // Each frame while viewing, before the game runs it: the animation shown (player 1's controls taken while one is),
 // and the speed chosen
