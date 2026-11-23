@@ -600,15 +600,15 @@ async function drawPreview(){
   const canvas=$('preview');const sprite=state.selectedSprite;const selection=state.who;
   canvas.getContext('2d').clearRect(0,0,canvas.width,canvas.height);
   if(!sprite){
-    $('previewType').textContent='Standing sprite not exported yet';
+    $('previewType').textContent='Native examples not generated';
     const ctx=canvas.getContext('2d'),w=canvas.width,h=canvas.height;
     ctx.fillStyle='#13253A';ctx.fillRect(8,8,w-16,h-16);
     ctx.strokeStyle='#406484';ctx.lineWidth=2;ctx.strokeRect(8,8,w-16,h-16);
     ctx.textAlign='center';ctx.fillStyle='#B7D9EB';ctx.font='bold 16px Segoe UI, Arial';
-    ctx.fillText('NO STANDING SPRITE',w/2,h/2-24);
+    ctx.fillText('NO NATIVE EXAMPLE',w/2,h/2-24);
     ctx.font='12px Segoe UI, Arial';ctx.fillStyle='#9FB9CE';
-    ctx.fillText('Model viewer → Export',w/2,h/2+6);
-    ctx.fillText('Save picture → Refresh',w/2,h/2+25);
+    ctx.fillText('Generate 3 examples',w/2,h/2+6);
+    ctx.fillText('Body · Effect A · Effect B',w/2,h/2+25);
     $('previewNotice').textContent='Click Generate 3 examples to capture Body / Character, Effect A and Effect B. Missing native effects will be reported instead of substituted with a standing sprite.';
     return;
   }
@@ -637,7 +637,9 @@ async function drawPortrait(){
     if(who!==state.who)return;
     paintSprite(canvas,img,'portrait');
     $('portraitCaption').textContent=editable()?
-      'Select portrait · Live color projection':'Select portrait · Read-only original';
+      'Select portrait · Live color projection':
+      state.mode==='original-k'?'Select portrait · Original K projection':
+      'Select portrait · Original P';
   }catch(err){show('Portrait unavailable: '+err.message,true)}
 }
 function chooseCharacter(id){
