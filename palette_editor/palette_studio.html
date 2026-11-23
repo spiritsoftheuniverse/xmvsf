@@ -731,10 +731,11 @@ async function drawPortrait(){
   }catch(err){show('Portrait unavailable: '+err.message,true)}
 }
 function chooseCharacter(id){
-  if(state.dirty&&!confirm('Discard unsaved profile changes?'))return;
-  state.who=id;state.set=0;state.line=0;state.pen=1;state.mode='original';state.id=null;state.name='';
+  stageCurrent(); // never discard edits merely because the user browses fighters
+  state.who=id;state.set=0;state.line=0;state.pen=1;
+  state.mode='original';state.id=null;state.draftKey=null;state.name='';
   state.colors=null;state.dirty=false;state.sourceSet=0;state.profilePreviews=[];
-  // Clear the previous fighter immediately while new files are discovered.
+  state.swatch=originalSwatch(0);
   state.sprites=[];state.selectedSprite=null;
   $('portraitCaption').textContent='Select portrait · Read-only original';
   $('portraitPreview').getContext('2d').clearRect(0,0,$('portraitPreview').width,$('portraitPreview').height);
@@ -747,61 +748,91 @@ function chooseCharacter(id){
 function makeProfile(){
   if(!original()){
     state.newAfterLoad=true;
-    show('Cannot create editable colors until the original ROM is loaded. '+
+    show('Load the original ROM before creating palettes. '+
       (state.data.source_warning||'Choose original xvs.05a or xmvsf.zip now.'),true);
-    $('romInput').click();
-    return;
-  }
-  const proposed=prompt('Name for new palette profile:',state.data.characters[state.who].name+' Custom');
-  if(proposed===null)return;
-  if(!proposed.trim())return show('Profile name cannot be empty.',true);
-  // A new custom profile starts from the displayed bank. This matters
-  // when copying the second original K reference into a unified scheme.
-  const base=editable()?copy(state.colors[0]):copy(original()[state.set]);
-  state.colors=[copy(base),copy(base)];state.set=0;state.sourceSet=0;
-  state.mode='draft';state.id=null;state.name=proposed.trim();state.dirty=true;
-  hueFromSelected();renderAll();show('New profile created in memory. Save to keep it.',false);
-}
-async function openProfile(mode){
-  if((mode===state.mode&&mode!=='saved')||(mode===state.id&&state.mode==='saved'))return;
-  if(state.dirty&&!confirm('Discard unsaved profile changes?')){
-    showProfileOptions();drawProfileStrip();return;
+    $('romInput').click();return;
   }
   const who=state.who;
+  const saved=state.data.characters[who].profiles.filter(
+    p=>p.source_sha256===state.data.source.sha256).length;
+  const drafts=stagedProfiles(who).filter(p=>p.id===null).length;
+  if(saved+drafts>=7)
+    return show('Nine slots maximum: Original P, Original K and seven custom palettes for this character.',true);
+  const proposed=prompt('Name for new palette profile:',
+    state.data.characters[who].name+' Custom');
+  if(proposed===null)return;
+  if(!proposed.trim()||proposed.trim().length>60)
+    return show('Palette name must be 1–60 characters.',true);
+  stageCurrent();
+  const base=editable()?copy(state.colors[0]):copy(original()[state.set]);
+  const marker=editable()?state.swatch:originalSwatch();
+  state.colors=[copy(base),copy(base)];state.set=0;state.sourceSet=0;
+  state.mode='draft';state.id=null;state.draftKey='draft-'+(++state.draftSeq);
+  state.name=proposed.trim();state.swatch=marker;state.dirty=true;stageCurrent();
+  hueFromSelected();renderAll();
+  show('New palette staged. You can edit other characters before Save All.',false);
+}
+async function openProfile(mode){
+  if((mode===state.mode&&state.mode!=='saved'&&state.mode!=='draft')||
+     (mode===state.id&&state.mode==='saved')||
+     (mode===state.draftKey&&state.mode==='draft'))return;
+  stageCurrent();
+  const who=state.who;
   if(mode==='original'||mode==='original-k'){
-    state.mode=mode;state.id=null;state.name='';state.colors=null;state.dirty=false;
+    state.mode=mode;state.id=null;state.draftKey=null;state.name='';
+    state.colors=null;state.dirty=false;
     state.set=mode==='original-k'?1:0;state.sourceSet=state.set;
-  }else if(mode==='draft'){return;
+    state.swatch=originalSwatch(state.set);
   }else{
-    try{
-      const obj=await request('/api/profile?character='+who+'&id='+encodeURIComponent(mode));
-      if(state.who!==who)return;
-      state.mode='saved';state.id=obj.id;state.name=obj.name;state.colors=obj.colours;
-      state.dirty=false;state.set=0;state.sourceSet=0;
-    }catch(err){show(err.message,true);showProfileOptions();return}
+    const staged=state.pending.get(pendingKey(who,mode));
+    if(staged){
+      state.mode=staged.id===null?'draft':'saved';
+      state.id=staged.id;state.draftKey=staged.id===null?staged.client_key:null;
+      state.name=staged.name;state.swatch=staged.swatch;
+      state.colors=copy(staged.colours);state.dirty=true;state.set=0;state.sourceSet=0;
+    }else{
+      try{
+        const obj=await request('/api/profile?character='+who+'&id='+encodeURIComponent(mode));
+        if(state.who!==who)return;
+        state.mode='saved';state.id=obj.id;state.draftKey=null;
+        state.name=obj.name;state.swatch=obj.swatch||suggestedSwatch(obj.colours[0]);
+        state.colors=obj.colours;state.dirty=false;state.set=0;state.sourceSet=0;
+      }catch(err){show(err.message,true);showProfileOptions();return}
+    }
   }
   hueFromSelected();renderAll();
 }
-async function saveProfile(){
-  if(!editable()||!state.data.source)return;
-  state.name=$('selectedName').value.trim();
-  if(!state.name)return show('Palette name cannot be empty.',true);
+async function saveAll(){
+  if(!state.data?.source||state.saving)return;
+  stageCurrent();
+  const staged=[...state.pending.values()].map(copy);
+  const payload={source_sha256:state.data.source.sha256,profiles:staged};
+  const currentKey=state.mode==='draft'?state.draftKey:state.id;
+  state.saving=true;saveCounter();
   try{
-    const doc={id:state.id,character:state.who,name:state.name,source_sha256:state.data.source.sha256,colours:state.colors};
-    const result=await request('/api/profile/save',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(doc)});
-    state.id=result.id;state.mode='saved';state.dirty=false;
+    const result=await request('/api/save-all',{
+      method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+    // Remove only entries that were actually sent, protecting any edits
+    // made while the asynchronous Save All response was in flight.
+    for(const doc of staged){
+      const key=pendingKey(doc.character,doc.client_key);
+      const live=state.pending.get(key);
+      if(live&&JSON.stringify(live)===JSON.stringify(doc))state.pending.delete(key);
+    }
+    if(state.mode==='draft'&&result.ids[currentKey]){
+      state.mode='saved';state.id=result.ids[currentKey];state.draftKey=null;state.dirty=false;
+    }else if(state.mode==='saved'&&currentKey===state.id&&
+             !state.pending.has(pendingKey(state.who,currentKey))){
+      state.dirty=false;
+    }
     state.data=await request('/api/state');
     await fetchProfilePreviews();
-    renderAll();show('Profile saved: '+state.name,false);
-  }catch(err){show(err.message,true)}
-}
-function exportProfile(){
-  if(!editable()||!state.id)return;
-  if(state.dirty)return show('Save the profile before exporting it.',true);
-  const link=document.createElement('a');link.href='/api/export?character='+state.who+'&id='+state.id;
-  link.download=state.data.characters[state.who].name+'.txt';
-  document.body.append(link);link.click();link.remove();
-  show('Exported recomp-compatible palette text. Copy to your game data palettes folder.',false);
+    renderAll();
+    show('Saved '+result.saved+' changed profile'+(result.saved===1?'':'s')+
+      ' across all characters. Nine-slot game catalog written to '+result.catalog+
+      '. The in-game X/Y selection hook has not been implemented yet.',false);
+  }catch(err){show('Save All failed: '+err.message,true)}
+  finally{state.saving=false;saveCounter()}
 }
 async function uploadSource(file){
   if(!file)return;
