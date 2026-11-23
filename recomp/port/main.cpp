@@ -4018,6 +4018,7 @@ int main(int argc, char **argv) {
                         choice < 0 ? "NO NATIVE ANIMATION" : "EFFECT FRAME NOT DRAWN");
             }
         }
+        model::ShowDetachedEffectsForSamples(false);
         p.Finish();
         fprintf(stderr, "Palette Studio: exported %d of 3 native palette examples\n", saved);
         return saved == 3 ? 0 : 1;
