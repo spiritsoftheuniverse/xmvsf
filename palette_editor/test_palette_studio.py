@@ -497,6 +497,18 @@ class ProfileTests(unittest.TestCase):
         self.assertEqual(catalog["characters"][9]["slots"][1]["bank"], 1)
         self.assertEqual(studio.read_profile(0, result["ids"]["draft-2"])["name"], "Sunshine")
 
+    def test_save_all_with_existing_profiles_keeps_existing_slots_before_new(self):
+        previous = dict(self.make_doc(), name="Existing")
+        saved = studio.save_profile(previous)
+        fresh = dict(self.make_doc(), name="New", swatch="#112244",
+                     client_key="draft-1")
+        result = studio.save_all_profiles(
+            {"source_sha256": "test-source-sha", "profiles": [fresh]})
+        catalog = json.loads(studio.GAME_CATALOG.read_text(encoding="utf-8"))
+        slots = catalog["characters"][9]["slots"]
+        self.assertEqual([slots[2]["profile_id"], slots[3]["profile_id"]],
+                         [saved["id"], result["ids"]["draft-1"]])
+
     def test_save_all_keeps_existing_slot_order_on_rename(self):
         first = dict(self.make_doc(), name="Zulu", swatch="#AC54FA", client_key="draft-1")
         second = dict(self.make_doc(), name="Alpha", swatch="#D92537", client_key="draft-2")
@@ -504,7 +516,7 @@ class ProfileTests(unittest.TestCase):
             {"source_sha256": "test-source-sha", "profiles": [first, second]})
         initial = json.loads(studio.GAME_CATALOG.read_text(encoding="utf-8"))
         order = [x["profile_id"] for x in initial["characters"][9]["slots"][2:4]]
-        self.assertEqual(set(order), set(result["ids"].values()))
+        self.assertEqual(order, [result["ids"]["draft-1"], result["ids"]["draft-2"]])
         renamed = studio.read_profile(9, result["ids"]["draft-1"])
         renamed["name"] = "Aardvark"
         studio.save_all_profiles(
@@ -599,6 +611,7 @@ class ProfileTests(unittest.TestCase):
         self.assertEqual(items[0]["id"], saved["id"])
         self.assertEqual(items[0]["name"], "Blue Scheme")
         self.assertEqual(items[0]["colours"][0][0][1], "#112233")
+        self.assertRegex(items[0]["swatch"], r"^#[0-9A-F]{6}$")
         self.assertEqual(studio.profile_previews(10), [])
         studio.SOURCE["sha256"] = "other-ROM"
         self.assertEqual(studio.profile_previews(9), [])
