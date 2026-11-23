@@ -168,6 +168,27 @@ class DecoderTests(unittest.TestCase):
         self.assertNotIn('id="generateAllSprites"', html)
         self.assertIn("drawExampleTypes()", html)
 
+    def test_drag_color_from_one_swatch_to_another_in_custom_profile(self):
+        html = (HERE / "palette_studio.html").read_text(encoding="utf-8")
+        self.assertIn("function swatchDragStart(event,line,pen,button)", html)
+        self.assertIn("function swatchDragOver(event,button)", html)
+        self.assertIn("function swatchDrop(event,line,pen)", html)
+        self.assertIn("button.classList.add('drag-source')", html)
+        self.assertIn("button.classList.add('drag-target')", html)
+        self.assertIn("b.draggable=editable();", html)
+        self.assertIn("b.addEventListener('dragstart',ev=>swatchDragStart(ev,l,p,b))", html)
+        self.assertIn("b.addEventListener('drop',ev=>swatchDrop(ev,l,p))", html)
+        self.assertIn("const color=colors()[state.set][line][pen];", html)
+        self.assertIn("drag.id!==state.id||drag.draftKey!==state.draftKey", html)
+        self.assertIn("if(drag.line===line&&drag.pen===pen)return;", html)
+        self.assertIn("state.line=line;state.pen=pen;", html)
+        self.assertIn("setEdited(drag.color);", html)
+        self.assertIn("hueFromSelected();renderColorInspector();", html)
+        self.assertIn("if(!editable()){event.preventDefault();return}", html)
+        self.assertIn("clearSwatchDrag();", html)
+        self.assertIn("b.addEventListener('dragend',clearSwatchDrag)", html)
+        self.assertIn("drag one color swatch onto another", html)
+
     def test_integer_sprite_zoom_and_click_to_native_palette_swatch(self):
         html = (HERE / "palette_studio.html").read_text(encoding="utf-8")
         self.assertIn('id="spriteZoomIn"', html)
