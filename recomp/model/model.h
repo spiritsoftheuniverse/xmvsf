@@ -120,7 +120,11 @@ bool ExportStandingPng(const std::string &folder);
 // Palette Studio-only samples of this fighter's second and third native
 // object PALETTE ROWS (not necessarily visual effects). Render only matching
 // OAM palette-slot objects; never export a full attack pose as a row sample.
-bool ExportPaletteExamplePng(Machine &machine, const std::string &folder, int line);
+bool ExportPaletteExamplePng(Machine &machine, const std::string &folder, int line, int sample = 1);
+// All native animations found to use the row, not just the single "best"
+// animation. Nonzero scores are derived from actual sprite object slots.
+std::vector<int> AnimationsForLine(int line, int maxChoices = 96);
+void ResetPaletteExampleSamples();
 int AnimationShown(); // the current model frame's animation choice, 0 for standing
 // Allow disconnected native objects of the selected palette row in the
 // headless sample exporter only. Normal Model viewer/gameplay are unchanged.
