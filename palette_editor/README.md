@@ -53,77 +53,89 @@ Every swatch displays its native 68000 address. Each color uses 4-bit
 RGB, represented as `#RRGGBB` multiples of 17. Some effects, including
 Rogue's, may use fewer rows at runtime; all ROM-defined addresses remain visible.
 
-**Original** is permanently read-only. Click **New** to clone the current
-source or selected profile. Adjust the always-visible saturation/value picker,
-hue slider, or hex field. The selected swatch updates all three controls.
-Press **Save profile** to write a JSON file under
-`palette_editor/profiles/<character>/<id>.json`. Source hashes protect against
-loading a profile with a different original program.
+The **profile dropdown** always begins with two separate original colors:
+**Original P · read only** and **Original K · read only**, in that order.
+They contain the ROM's two actual original fighter palettes, not two copies
+of the same color. Selecting either changes the swatches, native addresses,
+and sprite preview without changing any ROM file.
 
-## Matched portrait + genuine combat sprite
+Click **New** to create an editable custom palette from the displayed
+original (P or K), or from the currently edited profile. A custom palette
+has one color scheme; edits are mirrored to its native P/K export banks.
+The old P/K editing buttons and the **Sprite source colors** dropdown are
+removed because custom palettes have no separate punch/kick editing modes.
+Adjust the always-visible color square, hue slider and hexadecimal input.
 
-Palette Studio shows the selected character's original **select portrait**
-alongside a native **standing combat sprite**. The source portrait PNG is
-always read-only, but its **editable preview now responds to body palette
-changes**. Portrait artwork is not natively indexed to fighter ROM palettes,
-so this is an explicitly approximate RGB color-delta projection. It assigns
-portrait pixels to the nearest original P/K body swatch and projects that
-swatch's change while preserving the portrait's original shading and alpha.
-Reverting to **Original** displays the untouched portrait. The portrait
-file itself is never overwritten.
+Click **Save profile** to save the named JSON profile under
+`palette_editor/profiles/<character>/<id>.json`; source hashes protect
+against loading it under another original ROM.
 
-The combat preview uses the game's **real native Model viewer** and the
-game's original graphics. Unlike the portrait, transparent standing sprites
-are recolored by **exact** matching against the original P/K body palette;
-pixels that do not match remain unchanged. The match percentage is shown.
+## Character palette profiles strip
 
-Only P/K **body palette line 0** is used by a standing pose. The two other
-lines are effects (shown when those animations use them). Pens 0 and 15
-include transparent/invisible slots and might not change visible artwork.
+The former **Combat sprite loaders** strip is now a row of **colored
+palette-profile thumbnails**. Each entry shows the *same real native
+standing sprite* recolored independently for that entry's palette.
+The first two entries are the immutable original P/K choices; each saved
+custom profile gets its own named sprite thumbnail. A new unsaved draft
+appears in the strip as well. Clicking a thumbnail **selects that palette**
+and updates the editor, swatches, portrait, and main combat preview.
+Clicking a thumbnail does **not** change the native animation.
 
-### Automatic native sprite generation
+The thumbnail art comes from the local recomp's native Model viewer, never
+an invented, stylized or approximated fighter sprite. Before a genuine
+sprite is generated, each entry visibly says **Generate 3 examples**;
+the app does not pretend to have captured artwork it does not have.
 
-**This upgrade requires one recompilation** because it adds a dedicated
-opt-in headless export command. Run `RECOMP_BUILD.bat` once after pulling.
+Portrait art remains a separate read-only source PNG. Its *preview*
+uses an approximate RGB-delta projection to reflect palette changes;
+unlike native sprite pixels, the menu portrait is not indexed by the
+same fighter palette slots. Reverting to Original P displays the
+unaltered portrait.
 
-In Palette Studio, use **Generate selected sprite** or **Generate all 19**.
-These buttons launch the local `recomp/build/xmvsf/xmvsf.exe` with
-`--headless --palette-sprites N` (or `all`) against your existing
-`recomp/rom/xmvsf` ROM set. This starts the existing Model viewer on
-each selected character, enters a real fight and uses its own object-only
-crop pipeline to save a native standing PNG at **1× CPS-2 pixel scale**.
+## Generate Body, Effect A and Effect B examples
 
-The generated files are isolated under
-`recomp/exports/palette_studio/<Character>.png`. Neither source ROMs nor
-your normal Model viewer exports are modified. Separate temporary
-Palette Studio EEPROM/settings files ensure the ordinary game save and
-custom color settings are not used.
+**One native recompilation is required** for this feature: run
+`RECOMP_BUILD.bat` once after pulling.
 
-When the native exporter finishes, the editor refreshes the top sprite
-strip and paired preview automatically. A missing or unsuccessful native
-frame is reported; the studio never substitutes a fake sprite.
+Press **Generate 3 examples** for the currently selected character.
+This runs the compiled game locally and headlessly using the real Model
+viewer, with a separate Palette Studio EEPROM/settings file. The three
+intended outputs are:
 
-The generated output can also be requested from a terminal in the
-`recomp` directory:
+- **Body / Character:** native standing fighter, with the first palette
+  line, at 1× CPS-2 pixel scale
+- **Effect A:** a native animation frame using the second palette line
+- **Effect B:** a native animation frame using the third palette line
+
+Effect A and Effect B are determined by the existing native color-editor
+animation scan. They are only saved when a real frame uses that palette
+line. If no qualifying animation is found, the app reports that the
+example is unavailable rather than displaying a mislabeled standing
+sprite. Different fighters may have different usable effect frames.
+
+The files appear beneath `recomp/exports/palette_studio/`, such as
+`Ryu.png`, `Ryu Effect A.png` and `Ryu Effect B.png`.
+The source ROM, normal gameplay, and manual Model viewer exports are
+left intact. The main combat preview has three **example tabs** beneath
+it; these change the previewed native frame while keeping the selected
+palette profile unchanged.
+
+From inside the `recomp` directory you can also request the three
+examples directly for one character index (0–18):
 
 ```powershell
-.\build\xmvsf\xmvsf.exe --rom rom/xmvsf --headless --mute --palette-sprites all
+.\build\xmvsf\xmvsf.exe --rom rom/xmvsf --headless --mute --palette-sprites 9
 ```
 
-### Previously exported or imported sprites
+This example selects Ryu. The Palette Studio button uses the currently
+selected fighter's index automatically.
 
-The studio still recognizes manually saved, transparent **Standing**
-pictures from **Alternative modes → Model viewer → Export → Save picture**
-in `recomp/exports/` or `recomp/work/xmvsf/exports/`. It matches only the
-exact character name or name with a numeric re-export suffix, never
-silently treating animation pictures as standing. Generated images take
-priority over manual exports for the same name.
-
-If your custom Model viewer export folder differs, set
-`XMVSF_MODEL_EXPORT_DIR` before launching the studio. To attach a custom
-transparent idle PNG manually, use **Add sprite PNGs**; the editor copies
-these files into `palette_editor/sprites/<character>/` (never overwrites
-the source file).
+Existing manual standing PNG exports in `recomp/exports/` and
+`recomp/work/xmvsf/exports/` remain readable. Exact RGB matches against
+the original palette colors are replaced with the selected profile's
+corresponding colors (including effect lines); pixels without a known
+original match remain unchanged. The editor does not fabricate missing
+native artwork.
 
 ## Export to the recomp
 
