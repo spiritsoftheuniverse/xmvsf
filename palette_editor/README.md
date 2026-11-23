@@ -82,22 +82,43 @@ Every swatch displays its native 68000 address. Each color uses 4-bit
 RGB, represented as `#RRGGBB` multiples of 17. Some effects, including
 Rogue's, may use fewer rows at runtime; all ROM-defined addresses remain visible.
 
-The **profile dropdown** always begins with two separate original colors:
-**Original P · read only** and **Original K · read only**, in that order.
-They contain the ROM's two actual original fighter palettes, not two copies
-of the same color. Selecting either changes the swatches, native addresses,
-and sprite preview without changing any ROM file.
+The **profile dropdown** starts with the two immutable choices
+**Original P · read only** and **Original K · read only**. Each has a
+display marker derived from a vivid body-palette color.
 
-Click **New** to create an editable custom palette from the displayed
-original (P or K), or from the currently edited profile. A custom palette
-has one color scheme; edits are mirrored to its native P/K export banks.
-The old P/K editing buttons and the **Sprite source colors** dropdown are
-removed because custom palettes have no separate punch/kick editing modes.
-Adjust the always-visible color square, hue slider and hexadecimal input.
+Select **New** to create a custom scheme. Under **Custom palette name**
+in the right inspector is a separate **Character-select color swatch**:
+a large color picker and exact `#RRGGBB` field. This marker is used to
+identify the palette in the planned vertical nine-swatch selector.
+It is independent of the CPS-2 color pens and supports full 24-bit RGB;
+changing it never changes the character sprite. You may choose a
+deliberately prominent marker without altering combat artwork.
 
-Click **Save profile** to save the named JSON profile under
-`palette_editor/profiles/<character>/<id>.json`; source hashes protect
-against loading it under another original ROM.
+There are exactly **nine selection slots per character**:
+Original P, Original K, and up to seven custom palettes. Palette Studio
+numbers the profile strip 1–9 and displays each custom palette's marker
+above its colored sprite thumbnail. Empty slots are visible.
+
+**Save All** replaces both the old Save profile and Export .txt
+buttons. You can edit or rename one character's palette, switch to other
+profiles and other characters, create more drafts, and keep working:
+all changed profiles stay staged in memory. The header shows the
+number of pending profiles. One **Save All** writes every pending
+profile's JSON file and publishes the complete nine-slot catalog for
+**all 19 characters** to:
+
+`recomp/work/xmvsf/palettes/selection_slots.json`
+
+This includes each slot's display swatch, profile ID, name and full
+three-row native palette color data. Slot IDs remain fixed when you
+rename profiles, so X/Y selection order does not depend on sorting names.
+An empty slot is represented by `null`.
+
+**Important:** The palette catalog is now generated, but the game's
+native character-select X/Y input handler and per-fighter palette
+application have **not** been connected yet. Save All prepares the
+data for that integration; it does not yet change gameplay.
+Original ROM files are never modified.
 
 ## Character palette profiles strip
 
@@ -173,18 +194,23 @@ You can also invoke this capture from the `recomp` directory:
 Character index 9 is Ryu; the Palette Studio button passes the selected
 fighter's index automatically.
 
-## Export to the recomp
+## Saving and game integration
 
-Save a profile, then click **Export .txt**. This downloads a file named after
-the character containing `[P]` and `[K]` sections. Each section has three
-lines of sixteen `#RRGGBB` colors; a `-` line means "use the original".
-This matches `recomp/fight/colours.cpp`'s existing text loader.
+The previously existing per-character `.txt` exporter is retained as
+a low-level compatibility endpoint, but it is no longer an editor control.
+The recomp's existing text-based `custom_colours` feature applies only
+one active character color configuration; it cannot implement the planned
+nine selectable variants or independent P1/P2 combinations.
 
-Copy the downloaded `Character Name.txt` into the recomp game's
-**data-folder `palettes` directory**, not the ROM directory. Enable the
-**Custom colours** display option. The existing "Load colour files again"
-command reloads your changes; the game uses new colors when characters are
-next colored. Saving a JSON editor profile alone does not alter the game.
+The new single manifest is intended for a dedicated runtime loader that
+will read nine indexed slots for each fighter, then let each player's
+character-select **X/Y** input choose a slot. The active slot must be
+applied to the appropriate fighter's live native palette buffer, including
+the partner on tag, independently of another player using the same
+character. That native feature is still a separate implementation.
+
+Do not copy a profile into the old single-palette `Character.txt`
+file expecting nine selectable choices: they have different purposes.
 
 ## Tests
 
