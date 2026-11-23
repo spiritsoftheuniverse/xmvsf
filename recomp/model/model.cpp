@@ -13,6 +13,8 @@
 #include <iterator>
 #include <map>
 #include <mutex>
+#include <set>
+#include <cstdint>
 #include <thread>
 #include <string>
 #include <vector>
@@ -74,6 +76,9 @@ namespace {
     int g_modelWidth = 0;
     bool g_includeDetachedSamples = false; // headless palette-row captures only
     int g_exportOnlyPaletteSlot = -1; // native OAM palette filter; -1 restores normal model output
+    // One hash per rendered native palette-row image. A repeated claw pose
+    // must not consume the gallery that should show other animations.
+    std::set<std::uint64_t> g_sampleHashes[3];
 
     int Characters() {
         return static_cast<int>(g_d.characters.size());
@@ -139,6 +144,9 @@ namespace {
         bool done = false;
         int best[kMostLines] = {}; // for each line, the animation found, and its objects in that line
         int most[kMostLines] = {};
+        // For palette studio: keep EVERY actual animation found to use a
+        // row, not only the highest object-count score for that row.
+        std::map<int,int> candidates[kMostLines];
     } g_scan;
 
     // (in the copy: the objects in each of the character's lines, from the list the game has just made)
@@ -804,13 +812,34 @@ bool ExportStandingPng(const std::string &folder) {
 int AnimationShown() {
     return g.table ? (g.table - 1) * g_d.perList + g.number + 1 : 0;
 }
+std::vector<int> AnimationsForLine(int line, int maxChoices) {
+    std::vector<int> candidates;
+    if (line < 1 || line > 2 || g_scan.character != CharacterNumber() ||
+        !g_scan.done || maxChoices <= 0) return candidates;
+    const auto &found=g_scan.candidates[line];
+    std::vector<std::pair<int,int>> ranked(found.begin(),found.end());
+    // Multiple real animations, prioritized by palette-row object count.
+    // Tie-break by the native choice index, so results are stable.
+    std::sort(ranked.begin(),ranked.end(),[](const auto &a,const auto &b) {
+        return a.second!=b.second?a.second>b.second:a.first<b.first;
+    });
+    for (const auto &[choice,score]:ranked) {
+        if (score<=0 || static_cast<int>(candidates.size())>=maxChoices)break;
+        candidates.push_back(choice);
+    }
+    return candidates;
+}
+void ResetPaletteExampleSamples() {
+    for (auto &hashes:g_sampleHashes)hashes.clear();
+}
 void IncludeDetachedObjectsForSamples(bool enabled) {
     g_includeDetachedSamples = enabled;
 }
 
-bool ExportPaletteExamplePng(Machine &machine, const std::string &folder, int line) {
+bool ExportPaletteExamplePng(Machine &machine, const std::string &folder, int line, int sample) {
     if (line == 0) return ExportStandingPng(folder);
-    if (line < 1 || line > 2 || !g.on || !g.seen || !g.table ||
+    if (line < 1 || line > 2 || sample < 1 || sample > 32 ||
+        !g.on || !g.seen || !g.table ||
         g_modelWidth <= 0 || folder.empty() || !g_d.firstLine) return false;
 
     // PALETTE ROW != EFFECT TYPE. The second and third original colour
@@ -842,14 +871,33 @@ bool ExportPaletteExamplePng(Machine &machine, const std::string &folder, int li
     int ax = 0, ay = 0;
     const auto pictures = Cut({frame}, g_modelWidth, Video::kHeight, ax, ay);
     if (pictures.size() != 1) return false;
+    const auto &picture=pictures[0];
+    // Deduplicate by source-native output pixels and dimensions, not
+    // animation name. Distinct move names can show identical claws.
+    std::uint64_t hash=14695981039346656037ull;
+    auto mix=[&hash](std::uint32_t value){
+        for (int i=0;i<4;i++){
+            hash^=static_cast<unsigned char>(value>>(i*8));
+            hash*=1099511628211ull;
+        }
+    };
+    mix(static_cast<std::uint32_t>(picture.width));
+    mix(static_cast<std::uint32_t>(picture.height));
+    for(const auto pixel:picture.pixels)mix(pixel);
+    if (g_sampleHashes[line].count(hash))return false;
     std::error_code error;
     std::filesystem::create_directories(PathOf(folder), error);
     if (error) return false;
-    const std::string target = folder + "/" + CharacterName() +
-        (line == 1 ? " Row 2.png" : " Row 3.png");
-    if (!image_files::WritePng(target, pictures[0], 1)) return false;
-    std::fprintf(stderr, "Palette Studio Row %d: EXPORTED native OAM slot %d, %dx%d pixels\n",
-                 line + 1, slot, pictures[0].width, pictures[0].height);
+    char suffix[48];
+    if (sample==1)
+        std::snprintf(suffix,sizeof(suffix)," Row %d.png",line+1);
+    else
+        std::snprintf(suffix,sizeof(suffix)," Row %d %02d.png",line+1,sample);
+    const std::string target=folder+"/"+CharacterName()+suffix;
+    if (!image_files::WritePng(target,picture,1))return false;
+    g_sampleHashes[line].insert(hash);
+    std::fprintf(stderr,"Palette Studio SAMPLE Row %d #%d: native OAM slot %d, %dx%d pixels, animation %d\n",
+                 line+1,sample,slot,picture.width,picture.height,AnimationShown());
     return true;
 }
 
@@ -895,6 +943,10 @@ void Scan(Machine &machine) {
                     int counts[kMostLines] = {};
                     CountLines(m, counts);
                     for (int line = 0; line < g_d.linesInSet; line++) {
+                        if (line < kMostLines && counts[line] > 0) {
+                            int &score=g_scan.candidates[line][g_scan.choice];
+                            score=std::max(score,counts[line]);
+                        }
                         if (counts[line] > g_scan.most[line]) {
                             g_scan.most[line] = counts[line];
                             g_scan.best[line] = g_scan.choice;
