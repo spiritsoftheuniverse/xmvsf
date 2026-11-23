@@ -239,7 +239,7 @@ class DecoderTests(unittest.TestCase):
         self.assertIn("g_exportOnlyPaletteSlot = slot;", model_cpp)
         self.assertIn('Row [23](?: [0-9]{2})?', server)
         self.assertIn("def priority(file: Path) -> tuple[int, int, str]", server)
-        self.assertIn("def rowSamples(line)", html)
+        self.assertIn("function rowSamples(line)", html)
         self.assertIn("function chooseRowSample(line,delta)", html)
         self.assertIn("state.sampleIndex[line]=next;", html)
         self.assertIn("next.textContent='▶'", html)
