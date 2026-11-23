@@ -3972,50 +3972,61 @@ int main(int argc, char **argv) {
         fprintf(stderr, "Palette Studio Body / Character: %s\n",
                 standing ? "EXPORTED" : "NOT DRAWN");
         if (standing) {
-            // The existing colour-editor scan identifies animations
-            // containing objects from each native CPS-2 palette row.
-            // These rows are NOT semantic effect types, so the exporter
-            // isolates their actual OAM ink instead of claiming an
-            // arbitrary attack or standing pose is an effect.
-            int effectA = -2, effectB = -2;
+            // The color editor's native scan visits *all* animation lists,
+            // not just standing/one best pose. Use every animation that
+            // actually draws row 2/3 OAM objects. The samples are real
+            // isolated native objects, not inferred move names.
+            int row2 = -2, row3 = -2;
             for (unsigned f = 0; f < 5000u && !p.quit; f++) {
                 if (!p.Tick()) continue;
                 if (!model::On() || model::CharacterNumber() != character) break;
                 model::Scan(*p.machine);
-                effectA = model::AnimationForLine(1);
-                effectB = model::AnimationForLine(2);
-                if (effectA != -2 && effectB != -2) break;
+                row2 = model::AnimationForLine(1);
+                row3 = model::AnimationForLine(2);
+                if (row2 != -2 && row3 != -2) break;
             }
-            // Detached native objects might use the secondary rows;
-            // keep them only for these explicit samples, never gameplay.
+            // Include separate body/effect objects while rendering isolated
+            // rows, without changing ordinary gameplay and viewer output.
             model::IncludeDetachedObjectsForSamples(true);
+            model::ResetPaletteExampleSamples();
+            constexpr int kSamplesPerRow = 24;
+            constexpr int kMaxChoicesPerRow = 96;
             for (int line = 1; line <= 2; line++) {
-                const int choice = line == 1 ? effectA : effectB;
-                bool taken = false;
-                if (choice > 0) {
-                    SetFeatureForNow("model_animation", choice);
-                    // An animation may not draw a single pixel from the
-                    // requested row. The exporter checks the native OAM
-                    // slot and captures only its matching objects, not the
-                    // full fighter pose. No synthetic stand-ins.
-                    for (unsigned f = 0; f < 420u && !p.quit; f++) {
-                        if (!p.Tick()) continue;
-                        if (!model::On() || model::CharacterNumber() != character)
-                            break;
-                        if (model::Seen() &&
-                            model::AnimationShown() == choice &&
-                            model::ExportPaletteExamplePng(*p.machine, out, line)) {
-                            taken = true;
-                            saved++;
-                            break;
+                const auto choices = model::AnimationsForLine(line, kMaxChoicesPerRow);
+                int captured = 0;
+                // Visit different animations before taking more of any one:
+                // this avoids filling the gallery with Wolverine's
+                // stationary claws and can surface Cyclops' kick smears
+                // or Wolverine's Berserker Barrage, IF their native
+                // animation frames actually use this OAM palette slot.
+                for (int pass = 0; pass < 2 && captured < kSamplesPerRow && !p.quit; pass++) {
+                    for (const int choice : choices) {
+                        if (captured >= kSamplesPerRow || p.quit) break;
+                        SetFeatureForNow("model_animation", choice);
+                        int fromThisAnimation = 0;
+                        // Cap per-animation examples for diversity, but
+                        // still visit enough frames to reach held smears.
+                        for (unsigned f = 0; f < 240u && !p.quit; f++) {
+                            if (!p.Tick()) continue;
+                            if (!model::On() || model::CharacterNumber() != character)
+                                break;
+                            if (model::Seen() &&
+                                model::AnimationShown() == choice &&
+                                model::ExportPaletteExamplePng(*p.machine, out, line, captured + 1)) {
+                                captured++;
+                                fromThisAnimation++;
+                                if (fromThisAnimation >= 1 || captured >= kSamplesPerRow) break;
+                            }
                         }
                     }
                 }
+                if (captured) saved++;
                 fprintf(stderr, "Palette Studio Row %d: %s\n",
-                        line + 1,
-                        taken ? "EXPORTED" :
-                        choice == -2 ? "SCAN INCOMPLETE" :
-                        choice < 0 ? "NO NATIVE ANIMATION" : "ROW OBJECTS NOT DRAWN");
+                        line + 1, captured ? "EXPORTED" :
+                        (line == 1 ? row2 : row3) == -2 ? "SCAN INCOMPLETE" :
+                        choices.empty() ? "NO NATIVE ANIMATION" : "ROW OBJECTS NOT DRAWN");
+                fprintf(stderr,"Palette Studio Row %d: %d distinct native frames from %zu animations\n",
+                        line + 1,captured,choices.size());
             }
         }
         model::IncludeDetachedObjectsForSamples(false);
