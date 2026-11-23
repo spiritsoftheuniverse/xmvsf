@@ -3534,7 +3534,7 @@ void Usage() {
             "                         4: both by their distance, the panel left as it is)\n"
             "  --fullscreen  --window (a window, after --fullscreen)  --mute  --unthrottled\n"
             "  --headless             no window, no sound, as fast as it goes\n"
-            "  --palette-sprites all|N  XMVSF only: headless native standing PNG export; N=0..18\n"
+            "  --palette-sprites N    XMVSF only: 3 native palette-line examples for fighter N (0..18)\n"
             "  --frames N             stop after N frames\n"
             "  --shot-every N:PFX     write PFX<frame>.png every N frames\n"
             "  --hash-log FILE        a line per frame with a hash of the game's state\n"
@@ -3942,43 +3942,81 @@ int main(int argc, char **argv) {
             fprintf(stderr, "--palette-sprites: Model viewer entry missing\n");
             return 2;
         }
-        const bool all = p.opt.paletteSprites == "all";
         char *endNumber = nullptr;
-        const long selected = all ? 0L : std::strtol(p.opt.paletteSprites.c_str(), &endNumber, 10);
-        if (!all && (!endNumber || *endNumber || selected < 0 || selected >= 19)) {
-            fprintf(stderr, "--palette-sprites expects all or a character index 0..18\n");
+        const long selected = std::strtol(p.opt.paletteSprites.c_str(), &endNumber, 10);
+        if (endNumber == p.opt.paletteSprites.c_str() || !endNumber ||
+            *endNumber || selected < 0 || selected >= 19) {
+            fprintf(stderr, "--palette-sprites expects a character index 0..18\n");
             return 2;
         }
-        const int first = all ? 0 : static_cast<int>(selected);
-        const int last = all ? 19 : first + 1;
+        const int character = static_cast<int>(selected);
+        const std::string out = "exports/palette_studio";
         int saved = 0;
-        for (int character = first; character < last; character++) {
-            SetFeatureForNow("model_character", character);
-            SetFeatureForNow("model_animation", 0);
-            SetFeatureForNow("model_size", 0);
-            // StartModel resets the machine, enters the desired stage and
-            // fast-forwards to the actual fighter standing in combat.
-            command->run(*p.machine);
-            bool ok = false;
-            for (unsigned frame = 0; frame < 10000u && !p.quit; frame++) {
-                if (!p.Tick()) continue;
-                if (model::On() && model::Seen() &&
-                    model::CharacterNumber() == character &&
-                    model::ExportStandingPng("exports/palette_studio")) {
-                    ok = true;
-                    saved++;
-                    break;
-                }
+        SetFeatureForNow("model_character", character);
+        SetFeatureForNow("model_animation", 0);
+        SetFeatureForNow("model_size", 0);
+        // Enter an actual fight for this character, then let the Model
+        // viewer render and crop its own genuine standing image.
+        command->run(*p.machine);
+        bool standing = false;
+        for (unsigned f = 0; f < 10000u && !p.quit; f++) {
+            if (!p.Tick()) continue;
+            if (model::On() && model::Seen() &&
+                model::CharacterNumber() == character &&
+                model::ExportStandingPng(out)) {
+                standing = true;
+                saved++;
+                break;
             }
-            fprintf(stderr, "Palette Studio %d/19 %s: %s\n",
-                    character + 1, p.opt.paletteSprites.c_str(),
-                    ok ? "EXPORTED" : "NOT DRAWN");
-            if (!ok && !all) break;
+        }
+        fprintf(stderr, "Palette Studio Body / Character: %s\n",
+                standing ? "EXPORTED" : "NOT DRAWN");
+        if (standing) {
+            // The existing native colour editor already scans each of
+            // the fighter's animations on a spare real game machine to
+            // find which use the effect A/B object palette slots.
+            // Reuse its verified results rather than hard-code moves or
+            // relabel the standing sprite as an effect.
+            int effectA = -2, effectB = -2;
+            for (unsigned f = 0; f < 5000u && !p.quit; f++) {
+                if (!p.Tick()) continue;
+                if (!model::On() || model::CharacterNumber() != character) break;
+                model::Scan(*p.machine);
+                effectA = model::AnimationForLine(1);
+                effectB = model::AnimationForLine(2);
+                if (effectA != -2 && effectB != -2) break;
+            }
+            for (int line = 1; line <= 2; line++) {
+                const int choice = line == 1 ? effectA : effectB;
+                bool taken = false;
+                if (choice > 0) {
+                    SetFeatureForNow("model_animation", choice);
+                    // An animation can have frames WITHOUT the effect.
+                    // Capture only one of its real frames that uses the
+                    // requested ROM palette line. No synthetic stand-ins.
+                    for (unsigned f = 0; f < 420u && !p.quit; f++) {
+                        if (!p.Tick()) continue;
+                        if (!model::On() || model::CharacterNumber() != character)
+                            break;
+                        if (model::Seen() &&
+                            model::AnimationShown() == choice &&
+                            model::ExportPaletteExamplePng(*p.machine, out, line)) {
+                            taken = true;
+                            saved++;
+                            break;
+                        }
+                    }
+                }
+                fprintf(stderr, "Palette Studio Effect %c: %s\n",
+                        line == 1 ? 'A' : 'B',
+                        taken ? "EXPORTED" :
+                        choice == -2 ? "SCAN INCOMPLETE" :
+                        choice < 0 ? "NO NATIVE ANIMATION" : "EFFECT FRAME NOT DRAWN");
+            }
         }
         p.Finish();
-        fprintf(stderr, "Palette Studio: exported %d of %d requested native standing poses\n",
-                saved, last - first);
-        return saved == last - first ? 0 : 1;
+        fprintf(stderr, "Palette Studio: exported %d of 3 native palette examples\n", saved);
+        return saved == 3 ? 0 : 1;
     }
     if (!p.opt.dumpProgram.empty()) {
         FILE *f = fopen(p.opt.dumpProgram.c_str(), "wb");
