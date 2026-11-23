@@ -378,7 +378,39 @@ def existing_slot_order() -> dict[int, list[str]]:
         return {}
 
 
-def build_selection_catalog(preferred_order: dict[int, list[str]] | None = None) -> dict:
+def saved_original_swatches() -> dict[int, dict[int, str]]:
+    """Read only the two display-color overrides from the published catalog.
+
+    Original palette pens stay ROM-backed and immutable. An invalid or
+    unrelated source catalog cannot contaminate this editor's defaults.
+    """
+    try:
+        if GAME_CATALOG.is_symlink():
+            return {}
+        document = json.loads(GAME_CATALOG.read_text(encoding="utf-8"))
+        if (document.get("version") != 1 or
+                document.get("source_sha256") != require_source()["sha256"]):
+            return {}
+        result = {}
+        for item in document.get("characters", []):
+            who = character(item["character"])
+            slots = item["slots"]
+            if not isinstance(slots, list) or len(slots) < 2:
+                continue
+            for bank in (0, 1):
+                slot = slots[bank]
+                if (isinstance(slot, dict) and
+                        slot.get("kind") == "original" and
+                        slot.get("bank") == bank):
+                    color = valid_swatch(slot.get("swatch"))
+                    result.setdefault(who, {})[bank] = color
+        return result
+    except (OSError, ValueError, TypeError, KeyError, IndexError, json.JSONDecodeError):
+        return {}
+
+
+def build_selection_catalog(preferred_order: dict[int, list[str]] | None = None,
+                            original_swatches: dict[int, dict[int, str]] | None = None) -> dict:
     """Build all 19 rosters, nine slots each, from verified ROM and profiles.
 
     This is a data contract for the next native X/Y selection feature,
@@ -386,6 +418,7 @@ def build_selection_catalog(preferred_order: dict[int, list[str]] | None = None)
     """
     source = require_source()
     preferred = preferred_order if preferred_order is not None else existing_slot_order()
+    markers = original_swatches if original_swatches is not None else saved_original_swatches()
     roster = []
     for who, name in enumerate(CHARACTERS):
         originals = source["originals"][who]
@@ -393,7 +426,7 @@ def build_selection_catalog(preferred_order: dict[int, list[str]] | None = None)
         for bank, label in ((0, "Original P"), (1, "Original K")):
             slots.append({"slot": bank, "kind": "original", "bank": bank,
                           "name": label, "profile_id": None,
-                          "swatch": suggested_swatch(originals[bank]),
+                          "swatch": markers.get(who, {}).get(bank, suggested_swatch(originals[bank])),
                           "colours": originals[bank]})
         stored = {}
         for summary in profile_list(who):
@@ -447,6 +480,22 @@ def save_all_profiles(payload: dict) -> dict:
     if not isinstance(payload, dict) or payload.get("source_sha256") != source["sha256"]:
         raise ValueError("ROM source changed; reload before Save All")
     updates = payload.get("profiles")
+    original_updates = payload.get("original_swatches", [])
+    if not isinstance(original_updates, list) or len(original_updates) > len(CHARACTERS) * 2:
+        raise ValueError("Save All original swatches must be a list of at most 38 entries")
+    checked_originals = []
+    seen_originals = set()
+    for entry in original_updates:
+        if not isinstance(entry, dict):
+            raise ValueError("Invalid original swatch entry")
+        who = character(entry.get("character"))
+        bank = entry.get("bank")
+        if type(bank) is not int or bank not in (0, 1):
+            raise ValueError("Original swatch bank must be 0 or 1")
+        if (who, bank) in seen_originals:
+            raise ValueError("Duplicate original swatch override")
+        seen_originals.add((who, bank))
+        checked_originals.append((who, bank, valid_swatch(entry.get("swatch"))))
     if not isinstance(updates, list) or len(updates) > len(CHARACTERS) * MAX_CUSTOM_SLOTS:
         raise ValueError("Save All requires a list of at most seven edited profiles per character")
     prepared = []
@@ -502,9 +551,12 @@ def save_all_profiles(payload: dict) -> dict:
             ids[key] = result["id"]
             if result["id"] not in prior[who]:
                 prior[who].append(result["id"])
-        catalog = build_selection_catalog(prior)
+        originals = saved_original_swatches()
+        for who, bank, marker in checked_originals:
+            originals.setdefault(who, {})[bank] = marker
+        catalog = build_selection_catalog(prior, originals)
         write_catalog(catalog)
-    return {"saved": len(prepared), "ids": ids,
+    return {"saved": len(prepared), "original_swatches_saved": len(checked_originals), "ids": ids,
             "catalog": str(GAME_CATALOG),
             "characters": len(catalog["characters"]),
             "slots_per_character": TOTAL_SELECT_SLOTS}
@@ -772,6 +824,7 @@ class Handler(BaseHTTPRequestHandler):
                     "originals": source["originals"] if source else None,
                     "addresses": source["addresses"] if source else None,
                     "source_warning": SOURCE_WARNING if not source else "",
+                    "original_swatches": saved_original_swatches() if source else {},
                 })
             elif route == "/api/profile":
                 who = character(query.get("character"))
