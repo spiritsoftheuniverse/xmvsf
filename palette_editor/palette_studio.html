@@ -59,6 +59,12 @@ header p {font-size:12px;color:#9eb4ca;margin:0}
 .preview-caption {font-size:10px;font-weight:750;letter-spacing:.09em;color:#93b7ce;text-transform:uppercase}
 .preview {height:315px;display:grid;place-items:center;border-radius:10px;border:1px solid #2b4056;background:repeating-conic-gradient(#1a2b3b 0 25%,#11202f 0 50%) 50% / 22px 22px;overflow:hidden}
 .preview canvas {display:block;width:auto;height:auto;max-width:100%;max-height:100%;image-rendering:pixelated;flex:none}
+.preview.sprite-viewport {display:flex;align-items:safe center;justify-content:safe center;overflow:auto;overscroll-behavior:contain}
+.preview.sprite-viewport canvas {max-width:none;max-height:none;flex:none;image-rendering:pixelated;cursor:crosshair}
+.sprite-zoom {display:flex;align-items:center;gap:5px;margin-top:5px;flex-wrap:wrap}
+.sprite-zoom button {padding:5px 9px;min-width:30px;font-size:12px}
+.sprite-zoom .legend {min-width:35px;text-align:center;font:12px Consolas,monospace}
+.sprite-pick-hint {font-size:10px;color:#9fb9cc;line-height:1.4}
 .preview-notice {min-height:44px;font-size:11px;color:#95b6ca;line-height:1.6;margin-top:10px}
 .example-types {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;margin-top:10px}
 .example-type {display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;min-height:80px;padding:7px 4px;font-size:10px}
@@ -164,7 +170,14 @@ header p {font-size:12px;color:#9eb4ca;margin:0}
       <div class="preview"><canvas id="portraitPreview" width="220" height="300" aria-label="Original character portrait"></canvas></div>
      </div>
      <div class="preview-frame"><div class="preview-caption">Combat sprite · Profile colors</div>
-      <div class="preview"><canvas id="preview" width="280" height="300" aria-label="Native combat sprite preview"></canvas></div>
+      <div class="sprite-zoom" aria-label="Combat sprite zoom controls">
+       <button id="spriteZoomOut" type="button" title="Zoom out one integer step">−</button>
+       <span id="spriteZoomLabel" class="legend">Fit</span>
+       <button id="spriteZoomIn" type="button" title="Zoom in one integer step">+</button>
+       <button id="spriteZoomFit" type="button" title="Fit sprite into preview at integer scale">Fit</button>
+      </div>
+      <div class="preview sprite-viewport" id="spriteViewport"><canvas id="preview" width="280" height="300" aria-label="Click a native sprite pixel to select its palette swatch" title="Click a colored pixel to select its matching native palette swatch"></canvas></div>
+      <div class="sprite-pick-hint">Click a sprite pixel to select its native palette swatch; scroll to pan when zoomed.</div>
      </div>
     </div>
     <div class="example-types" id="exampleTypes" aria-label="Body and effect frame examples"></div>
@@ -219,7 +232,8 @@ const lines = ['Body / Character', 'Palette row 2 · secondary', 'Palette row 3 
 const state = {data:null,who:0,set:0,line:0,pen:1,mode:'original',id:null,name:'',
   colors:null,dirty:false,sprites:[],selectedSprite:null,spriteImage:null,profilePreviews:[],
   hue:210,sat:1,val:1,images:new Map(),sourceSet:0,newAfterLoad:false,
-  swatch:'#6677CC',draftKey:null,draftSeq:0,pending:new Map(),originalMarkers:new Map(),saving:false};
+  swatch:'#6677CC',draftKey:null,draftSeq:0,pending:new Map(),originalMarkers:new Map(),saving:false,
+  spriteZoom:0,previewPick:null};
 function copy(v){return JSON.parse(JSON.stringify(v))}
 function show(text,bad){$('message').textContent=text;$('message').className='toast'+(bad?' bad':'')}
 async function request(route,options){
