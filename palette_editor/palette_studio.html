@@ -512,19 +512,88 @@ function paintSprite(canvas,img,kind,profileView=null,spriteLine=0){
   ctx.drawImage(source,0,0,width,height);
   return result;
 }
-function drawSpriteStrip(){
-  const host=$('spriteStrip');host.replaceChildren();
-  const combats=state.sprites.filter(sprite=>sprite.type!=='portrait');
-  if(!combats.length){const label=document.createElement('span');label.className='muted';label.textContent='No combat sprite generated yet. Click Generate selected sprite.';host.append(label);drawPreview();return}
-  combats.forEach(sprite=>{
-    const button=document.createElement('button');button.className='thumb'+(state.selectedSprite===sprite?' active':'');
-    const canvas=document.createElement('canvas');canvas.width=76;canvas.height=69;
-    const name=document.createElement('span');name.textContent=sprite.name;
-    button.append(canvas,name);button.onclick=()=>{state.selectedSprite=sprite;state.spriteImage=null;drawSpriteStrip();drawPreview()};
+function profileCards(){
+  if(!original())return [];
+  const palettes=original(),entries=[
+    {mode:'original',name:'Original P',colours:palettes,bank:0,reference:true},
+    {mode:'original-k',name:'Original K',colours:palettes,bank:1,reference:true}
+  ];
+  for(const doc of state.profilePreviews)
+    entries.push({mode:'saved',id:doc.id,name:doc.name,colours:doc.colours,bank:0});
+  if(state.mode==='draft')
+    entries.push({mode:'draft',name:state.name+' · unsaved',colours:state.colors,bank:0});
+  return entries;
+}
+function drawProfileStrip(){
+  const host=$('profileStrip');host.replaceChildren();
+  const who=state.who;
+  const image=state.sprites.find(s=>s.type==='viewer'&&s.line===0)||
+    state.sprites.find(s=>s.type==='sprite');
+  const entries=profileCards();
+  if(!entries.length){
+    const p=document.createElement('span');p.className='muted';
+    p.textContent='Load the original ROM to see read-only and custom palette choices.';
+    host.append(p);return;
+  }
+  entries.forEach(entry=>{
+    const selected=(entry.mode==='saved'&&state.mode==='saved'&&state.id===entry.id)||
+      (entry.mode!=='saved'&&state.mode===entry.mode);
+    const button=document.createElement('button');
+    button.type='button';button.className='thumb'+(selected?' active':'');
+    button.title=(entry.reference?'Read-only original: ':'Load palette: ')+entry.name;
+    button.setAttribute('aria-pressed',String(selected));
+    const label=document.createElement('span');label.textContent=entry.name;
+    if(image){
+      const canvas=document.createElement('canvas');canvas.width=76;canvas.height=69;
+      button.append(canvas);
+      cachedImage(image.url).then(img=>{
+        if(host.contains(button)&&state.who===who)
+          paintSprite(canvas,img,image.type,{colours:entry.colours,bank:entry.bank},image.line||0);
+      }).catch(()=>{
+        const notice=document.createElement('small');notice.textContent='Sprite unavailable';button.prepend(notice);
+      });
+    }else{
+      const note=document.createElement('small');
+      note.textContent='Generate 3 examples';button.append(note);
+    }
+    button.append(label);
+    button.onclick=()=>openProfile(entry.mode==='saved'?entry.id:entry.mode);
     host.append(button);
-    cachedImage(sprite.url).then(img=>{if(host.contains(button))paintSprite(canvas,img,sprite.type)}).catch(()=>{});
   });
-  drawPreview();
+}
+async function fetchProfilePreviews(){
+  const who=state.who;
+  const docs=await request('/api/profile-previews?character='+who);
+  if(state.who!==who)return;
+  state.profilePreviews=docs;
+  drawProfileStrip();
+}
+function drawExampleTypes(){
+  const host=$('exampleTypes');host.replaceChildren();
+  const who=state.who;
+  for(const [line,name] of [[0,'Body / Character'],[1,'Effect A'],[2,'Effect B']]){
+    const sprite=state.sprites.find(s=>s.type==='viewer'&&s.line===line &&
+      (line!==0 || s.name==='Body / Character'));
+    const button=document.createElement('button');
+    button.className='example-type'+(sprite&&sprite===state.selectedSprite?' active':'');
+    button.type='button';
+    const label=document.createElement('span');label.textContent=name;
+    if(sprite){
+      const canvas=document.createElement('canvas');canvas.width=72;canvas.height=64;
+      button.append(canvas,label);
+      button.onclick=()=>{state.selectedSprite=sprite;drawExampleTypes();drawPreview()};
+      cachedImage(sprite.url).then(img=>{
+        if(host.contains(button)&&state.who===who)
+          paintSprite(canvas,img,sprite.type,null,line);
+      }).catch(()=>{button.title='Could not read native '+name+' image'});
+    }else{
+      const missing=document.createElement('small');
+      missing.textContent='Not generated';
+      button.append(label,missing);
+      button.disabled=true;
+    }
+    host.append(button);
+  }
 }
 async function drawPreview(){
   const canvas=$('preview');const sprite=state.selectedSprite;const selection=state.who;
