@@ -607,15 +607,83 @@ function paintSprite(canvas,img,kind,profileView=null,spriteLine=0){
   const holder=canvas.parentElement;
   const maxWidth=thumbnail?76:Math.max(1,holder.clientWidth-16);
   const maxHeight=thumbnail?69:Math.max(1,holder.clientHeight-16);
-  const factor=Math.max(1,Math.min(5,
+  const autoScale=Math.max(1,Math.min(5,
     Math.floor(maxWidth/source.width),Math.floor(maxHeight/source.height)));
+  // Explicit zoom only affects the main native combat sprite canvas.
+  // At 1x..12x, one source pixel always occupies an INTEGER square.
+  const main=canvas.id==='preview';
+  const factor=main&&state.spriteZoom>0?state.spriteZoom:autoScale;
   const width=source.width*factor,height=source.height*factor;
+  if(main)$('spriteZoomLabel').textContent=
+    (state.spriteZoom?'':'Fit · ')+factor+'×';
   canvas.width=width;canvas.height=height;
   const ctx=canvas.getContext('2d');
   ctx.imageSmoothingEnabled=false;
   ctx.drawImage(source,0,0,width,height);
-  return result;
+  return {...result,scale:factor};
 }
+function nativePaletteMatches(color,preferredLine=0){
+  const source=original();
+  if(!source||!/^#[0-9A-F]{6}$/.test(color))return [];
+  const linesToCheck=[...new Set([preferredLine,0,1,2])];
+  const matches=[];
+  // The native Model viewer normally exports P colors, but allow a
+  // valid K pixel when imported from a different original capture.
+  for(const row of linesToCheck){
+    for(const bank of [0,1]){
+      for(let pen=0;pen<16;pen++){
+        if(source[bank][row][pen].toUpperCase()===color)
+          matches.push({line:row,pen,bank});
+      }
+    }
+  }
+  return matches;
+}
+function pickNativeSpritePixel(event){
+  const capture=state.previewPick;
+  if(!capture||state.selectedSprite!==capture.sprite||state.who!==capture.who||!original())
+    return;
+  const canvas=$('preview'),bounds=canvas.getBoundingClientRect();
+  if(!bounds.width||!bounds.height)return;
+  const x=Math.floor((event.clientX-bounds.left)*capture.image.naturalWidth/bounds.width);
+  const y=Math.floor((event.clientY-bounds.top)*capture.image.naturalHeight/bounds.height);
+  if(x<0||y<0||x>=capture.image.naturalWidth||y>=capture.image.naturalHeight)return;
+  const pixel=document.createElement('canvas');pixel.width=1;pixel.height=1;
+  const ctx=pixel.getContext('2d',{willReadFrequently:true});
+  ctx.drawImage(capture.image,-x,-y);
+  const rgba=ctx.getImageData(0,0,1,1).data;
+  if(!rgba[3]){
+    show('Transparent pixel: select a colored sprite pixel.',false);
+    return;
+  }
+  const color='#'+[rgba[0],rgba[1],rgba[2]]
+    .map(n=>n.toString(16).padStart(2,'0')).join('').toUpperCase();
+  const matches=nativePaletteMatches(color,capture.sprite.line||0);
+  if(!matches.length){
+    show('Pixel '+color+' is not an exact original ROM palette color. No swatch selected.',true);
+    return;
+  }
+  // If several palette pens share a source RGB color, a flattened PNG
+  // cannot prove which native pen produced that pixel. Retain the
+  // current selection when it matches; otherwise prefer this sample row.
+  const choice=matches.find(p=>p.line===state.line&&p.pen===state.pen)||
+    matches[0];
+  state.line=choice.line;state.pen=choice.pen;
+  hueFromSelected();drawSwatches();renderColorInspector();
+  show('Pixel '+color+' → '+lines[choice.line]+' · #'+
+       String(choice.pen).padStart(2,'0')+
+       (matches.length>1?' ('+matches.length+' native palette slots share this RGB; source image cannot distinguish them)':''),
+       false);
+}
+$('preview').addEventListener('click',pickNativeSpritePixel);
+function changeSpriteZoom(direction){
+  const factor=Number($('spriteZoomLabel').textContent.match(/(\\d+)×/)?.[1])||1;
+  state.spriteZoom=Math.max(1,Math.min(12,(state.spriteZoom||factor)+direction));
+  drawPreview();
+}
+$('spriteZoomOut').onclick=()=>changeSpriteZoom(-1);
+$('spriteZoomIn').onclick=()=>changeSpriteZoom(1);
+$('spriteZoomFit').onclick=()=>{state.spriteZoom=0;drawPreview()};
 function profileCards(){
   if(!original())return [];
   const originals=original();
@@ -715,6 +783,7 @@ function drawExampleTypes(){
 }
 async function drawPreview(){
   const canvas=$('preview');const sprite=state.selectedSprite;const selection=state.who;
+  state.previewPick=null;
   canvas.getContext('2d').clearRect(0,0,canvas.width,canvas.height);
   if(!sprite){
     $('previewType').textContent='Native examples not generated';
@@ -734,6 +803,7 @@ async function drawPreview(){
     const img=await cachedImage(sprite.url);
     if(state.selectedSprite!==sprite||state.who!==selection)return;
     const result=paintSprite(canvas,img,sprite.type,null,sprite.line||0);
+    state.previewPick={image:img,sprite,who:selection};
     const pct=result.visible?Math.round(100*result.matched/result.visible):0;
     $('previewNotice').textContent=(sprite.type==='viewer'?'Native CPS-2 object image. ':'Imported sprite. ')+
       pct+'% of visible pixels matched original palette colors. '+
