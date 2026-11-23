@@ -301,6 +301,9 @@ class DecoderTests(unittest.TestCase):
                     (Path(folder) / name).write_bytes(b"synthetic-data")
                 matches = studio.model_viewer_exports(9)
                 self.assertEqual([f.name for f in matches], ["Ryu.png", "Ryu Effect A.png", "Ryu Effect B.png", "Ryu 2.png"])
+                examples = [v for v in studio.sprite_list(9) if v["type"] == "viewer"]
+                self.assertEqual([(v["name"], v["line"]) for v in examples[:3]],
+                                 [("Body / Character", 0), ("Effect A", 1), ("Effect B", 2)])
                 self.assertEqual([f.name for f in studio.model_viewer_exports(10)], ["Ken.png"])
                 self.assertEqual([f.name for f in studio.model_viewer_exports(11)], ["Chun-Li.png"])
                 self.assertEqual([f.name for f in studio.model_viewer_exports(18)], ["Chun-Li (Alpha).png"])
