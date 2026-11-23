@@ -117,14 +117,14 @@ bool Seen();
 // model viewer, cropped with the same original object-ink pipeline.
 // Returns false if the native model has not been drawn yet.
 bool ExportStandingPng(const std::string &folder);
-// Palette Studio-only samples for this character's two effect palette lines.
-// A sample is written only if a REAL native animation currently uses that
-// line; never synthesize a substitute or mislabel an idle frame as an effect.
+// Palette Studio-only samples of this fighter's second and third native
+// object PALETTE ROWS (not necessarily visual effects). Render only matching
+// OAM palette-slot objects; never export a full attack pose as a row sample.
 bool ExportPaletteExamplePng(Machine &machine, const std::string &folder, int line);
 int AnimationShown(); // the current model frame's animation choice, 0 for standing
-// Allow disconnected effect objects only in the headless sample exporter.
-// Normal Model viewer and gameplay retain their native nearest-object filter.
-void ShowDetachedEffectsForSamples(bool enabled);
+// Allow disconnected native objects of the selected palette row in the
+// headless sample exporter only. Normal Model viewer/gameplay are unchanged.
+void IncludeDetachedObjectsForSamples(bool enabled);
 
 // Each frame while viewing, before the game runs it: the animation shown (player 1's controls taken while one is),
 // and the speed chosen
