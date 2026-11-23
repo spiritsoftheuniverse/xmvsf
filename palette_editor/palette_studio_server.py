@@ -353,6 +353,150 @@ def save_profile(obj: dict) -> dict:
             "swatch": swatch, "character": who}
 
 
+def existing_slot_order() -> dict[int, list[str]]:
+    """Preserve saved slot positions across profile renames and edits."""
+    try:
+        if GAME_CATALOG.is_symlink():
+            return {}
+        doc = json.loads(GAME_CATALOG.read_text(encoding="utf-8"))
+        if doc.get("source_sha256") != require_source()["sha256"] or doc.get("version") != 1:
+            return {}
+        result = {}
+        for entry in doc.get("characters", []):
+            who = character(entry.get("character"))
+            result[who] = [slot["profile_id"] for slot in entry.get("slots", [])[2:]
+                           if isinstance(slot, dict) and
+                           isinstance(slot.get("profile_id"), str) and
+                           PROFILE_ID.fullmatch(slot["profile_id"])]
+        return result
+    except (OSError, ValueError, TypeError, KeyError, json.JSONDecodeError):
+        return {}
+
+
+def build_selection_catalog(preferred_order: dict[int, list[str]] | None = None) -> dict:
+    """Build all 19 rosters, nine slots each, from verified ROM and profiles.
+
+    This is a data contract for the next native X/Y selection feature,
+    not an assertion that today's game already reads the catalog.
+    """
+    source = require_source()
+    preferred = preferred_order if preferred_order is not None else existing_slot_order()
+    roster = []
+    for who, name in enumerate(CHARACTERS):
+        originals = source["originals"][who]
+        slots = []
+        for bank, label in ((0, "Original P"), (1, "Original K")):
+            slots.append({"slot": bank, "kind": "original", "bank": bank,
+                          "name": label, "profile_id": None,
+                          "swatch": suggested_swatch(originals[bank]),
+                          "colours": originals[bank]})
+        stored = {}
+        for summary in profile_list(who):
+            try:
+                doc = read_profile(who, summary["id"])
+                stored[doc["id"]] = doc
+            except (OSError, ValueError, TypeError, KeyError, json.JSONDecodeError):
+                continue
+        order = [pid for pid in preferred.get(who, []) if pid in stored]
+        order.extend(pid for pid in stored if pid not in order)
+        if len(order) > MAX_CUSTOM_SLOTS:
+            raise ValueError(f"{name} has {len(order)} custom palettes; maximum is {MAX_CUSTOM_SLOTS} for 9 total slots")
+        for pid in order:
+            doc = stored[pid]
+            slots.append({"slot": len(slots), "kind": "custom", "bank": 0,
+                          "name": doc["name"], "profile_id": pid,
+                          "swatch": doc["swatch"], "colours": doc["colours"][0]})
+        slots.extend([None] * (TOTAL_SELECT_SLOTS - len(slots)))
+        roster.append({"character": who, "name": name, "rom_id": f"0x{who * 2:02X}",
+                       "slots": slots})
+    return {"version": 1, "format": "xmvsf-palette-slots",
+            "source_sha256": source["sha256"], "slots_per_character": TOTAL_SELECT_SLOTS,
+            "characters": roster}
+
+
+def write_catalog(catalog: dict) -> None:
+    """Replace one game-data catalog only after validating all included data."""
+    folder = GAME_CATALOG.parent
+    if GAME_CATALOG.is_symlink() or folder.is_symlink():
+        raise ValueError("Palette catalog destination must not be a symlink")
+    folder.mkdir(parents=True, exist_ok=True)
+    fd, tempname = tempfile.mkstemp(prefix=".selection-slots-", suffix=".tmp", dir=folder)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8", newline="\n") as stream:
+            json.dump(catalog, stream, indent=2)
+            stream.write("\n")
+        os.replace(tempname, GAME_CATALOG)
+    finally:
+        if os.path.exists(tempname):
+            os.unlink(tempname)
+
+
+def save_all_profiles(payload: dict) -> dict:
+    """One Save All action persists changes across characters plus game catalog.
+
+    Validate every changed profile BEFORE any write. An existing profile keeps
+    its ID; new drafts receive real IDs and fixed slots in the manifest.
+    Existing custom-slot ordering is preserved, even when names change.
+    """
+    source = require_source()
+    if not isinstance(payload, dict) or payload.get("source_sha256") != source["sha256"]:
+        raise ValueError("ROM source changed; reload before Save All")
+    updates = payload.get("profiles")
+    if not isinstance(updates, list) or len(updates) > len(CHARACTERS) * MAX_CUSTOM_SLOTS:
+        raise ValueError("Save All requires a list of at most seven edited profiles per character")
+    prepared = []
+    seen = set()
+    new_count = {who: 0 for who in range(len(CHARACTERS))}
+    for item in updates:
+        if not isinstance(item, dict):
+            raise ValueError("Invalid palette in Save All")
+        who = character(item.get("character"))
+        key = item.get("client_key")
+        if not isinstance(key, str) or not (
+                DRAFT_KEY.fullmatch(key) or PROFILE_ID.fullmatch(key)):
+            raise ValueError("Invalid staged palette key")
+        if (who, key) in seen:
+            raise ValueError("Duplicate staged palette")
+        seen.add((who, key))
+        identifier = item.get("id")
+        if identifier is None:
+            if not DRAFT_KEY.fullmatch(key):
+                raise ValueError("New profile requires a draft key")
+            new_count[who] += 1
+        else:
+            checked_profile_id(identifier)
+            if key != identifier or not profile_path(who, identifier).is_file():
+                raise ValueError("Saved palette ID mismatch")
+        name = item.get("name")
+        if not isinstance(name, str) or not 1 <= len(name.strip()) <= 60 or any(
+                ord(c) < 32 or c in "/\\" for c in name):
+            raise ValueError("Invalid palette name (1–60 characters)")
+        colours = valid_colours(item.get("colours"))
+        swatch = valid_swatch(item.get("swatch"))
+        prepared.append((who, key, {"id": identifier, "character": who,
+                      "name": name.strip(), "source_sha256": source["sha256"],
+                      "swatch": swatch, "colours": colours}))
+
+    for who in range(len(CHARACTERS)):
+        count = sum(1 for summary in profile_list(who) if
+                    summary.get("source_sha256") == source["sha256"])
+        if count + new_count[who] > MAX_CUSTOM_SLOTS:
+            raise ValueError(f"{CHARACTERS[who]} allows seven custom palettes alongside Original P/K")
+
+    with SAVE_LOCK:
+        prior = existing_slot_order()
+        ids = {}
+        for who, key, document in prepared:
+            result = save_profile(document)
+            ids[key] = result["id"]
+        catalog = build_selection_catalog(prior)
+        write_catalog(catalog)
+    return {"saved": len(prepared), "ids": ids,
+            "catalog": str(GAME_CATALOG),
+            "characters": len(catalog["characters"]),
+            "slots_per_character": TOTAL_SELECT_SLOTS}
+
+
 def export_text(who: int, doc: dict) -> str:
     source = require_source()
     colours = valid_colours(doc["colours"])
@@ -673,7 +817,8 @@ class Handler(BaseHTTPRequestHandler):
         try:
             length = int(self.headers.get("Content-Length", "-1"))
             cap = SOURCE_MAX if route == "/api/source" else (
-                SPRITE_MAX if route == "/api/sprite" else 200_000)
+                SPRITE_MAX if route == "/api/sprite" else
+                2_000_000 if route == "/api/save-all" else 200_000)
             if length < 0 or length > cap:
                 raise ValueError("Unexpected request length")
             data = self.rfile.read(length)
@@ -684,6 +829,8 @@ class Handler(BaseHTTPRequestHandler):
                 item = load_source(data, name)
                 self.json_reply({"source": {"label": item["label"], "sha256": item["sha256"],
                                              "crc32": item["crc32"]}})
+            elif route == "/api/save-all":
+                self.json_reply(save_all_profiles(json.loads(data)))
             elif route == "/api/profile/save":
                 doc = json.loads(data)
                 if not isinstance(doc, dict):
