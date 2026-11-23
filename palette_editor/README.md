@@ -36,6 +36,35 @@ side by side" below.
 After pulling an update, stop the Palette Studio server with Ctrl+C and
 restart `LAUNCH.bat`, then refresh the browser.
 
+## Windows native exporter DLLs
+
+Palette Studio starts the **same MinGW/UCRT64** `xmvsf.exe` that
+`RECOMP_RUN.bat` starts. On Windows, `LAUNCH.bat` and the Python
+sprite-generation subprocess now prepend the matching MSYS2 UCRT64 runtime
+directory to `PATH`, including `libgcc_s_seh-1.dll`. The change affects
+the Palette Studio process only; it does not copy or redistribute any DLL.
+
+By default, the UCRT64 prefix is `C:\\msys64\\ucrt64`, matching
+`RECOMP_RUN.bat`. If MSYS2 is installed somewhere else, set
+`XMVSF_UCRT64_ROOT` to the UCRT64 prefix before launching the studio.
+For example:
+
+```powershell
+$env:XMVSF_UCRT64_ROOT = 'D:\\msys64\\ucrt64'
+& 'F:\\xmvsf-recomp\\palette_editor\\LAUNCH.bat'
+```
+
+If `libgcc_s_seh-1.dll` is genuinely absent from the UCRT64 `bin`
+directory, install or repair the GCC runtime via **MSYS2 UCRT64**:
+
+```bash
+pacman -S --needed mingw-w64-ucrt-x86_64-gcc-libs
+```
+
+A missing DLL is reported in Palette Studio's capture status **before**
+starting the executable, instead of producing a Windows modal crash.
+This PATH fix does **not** require recompiling the game.
+
 ## Original palettes
 
 The tool automatically looks for `xvs.05a` or `xmvsf.zip` in common
