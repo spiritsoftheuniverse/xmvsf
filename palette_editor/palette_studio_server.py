@@ -415,6 +415,45 @@ def save_sprite(who: int, filename: str, data: bytes) -> dict:
             "url": f"/asset/sprite/{who}/{urllib.parse.quote(final)}"}
 
 
+def native_runtime_environment(*, windows: bool | None = None,
+                               ucrt_root: Path | None = None,
+                               base_env: dict[str, str] | None = None) -> dict[str, str]:
+    """Match RECOMP_RUN.bat's DLL search path for the isolated native exporter.
+
+    Launching Palette Studio from Explorer/VS Code does not inherit the
+    MSYS2 UCRT64 PATH installed by RECOMP_RUN.bat. The headless exe uses
+    the same MinGW runtime, even though the editor itself needs only Python.
+    Do not copy system DLLs into this repository or change the parent's PATH.
+    """
+    env = dict(os.environ if base_env is None else base_env)
+    if windows is None:
+        windows = os.name == "nt"
+    if not windows:
+        return env
+    # RECOMP_RUN.bat uses C:\\msys64\\ucrt64\\bin. Allow a nondefault
+    # installation without importing a different MinGW/MSYS toolchain.
+    if ucrt_root is None:
+        ucrt_root = Path(env.get("XMVSF_UCRT64_ROOT") or
+                         env.get("UCRT_PREFIX") or "C:/msys64/ucrt64")
+    bin_dir = ucrt_root / "bin"
+    libgcc = bin_dir / "libgcc_s_seh-1.dll"
+    if not libgcc.is_file():
+        raise OSError(
+            f"Native sprite generator missing MSYS2 UCRT64 runtime: {libgcc}. "
+            "Install MSYS2 UCRT64 GCC runtime (mingw-w64-ucrt-x86_64-gcc-libs) "
+            "or set XMVSF_UCRT64_ROOT to your UCRT64 directory. "
+            "The normal RECOMP_RUN.bat requires this same runtime.")
+    usr_dir = ucrt_root.parent / "usr" / "bin"
+    paths = [str(bin_dir)]
+    if usr_dir.is_dir():
+        paths.append(str(usr_dir))
+    if env.get("PATH"):
+        paths.append(env["PATH"])
+    env["PATH"] = ";".join(paths)  # Windows path separator, also in unit tests
+    env["MSYSTEM"] = "UCRT64"
+    return env
+
+
 def native_capture_worker(requested: str) -> None:
     """Run the compiled game's private headless Model viewer, never a shell.
 
@@ -429,6 +468,9 @@ def native_capture_worker(requested: str) -> None:
         "--headless", "--mute", "--palette-sprites", requested,
     ]
     try:
+        # Resolve DLLs BEFORE touching existing examples. On Windows a
+        # missing libgcc otherwise creates an OS modal error with no log.
+        child_env = native_runtime_environment()
         (ROOT / "recomp" / "work" / "xmvsf").mkdir(parents=True, exist_ok=True)
         # Only the three dedicated generated files may be replaced.
         # Clear them on explicit regeneration so a missing effect cannot
@@ -447,7 +489,7 @@ def native_capture_worker(requested: str) -> None:
             args, cwd=ROOT / "recomp", capture_output=True,
             text=True, encoding="utf-8", errors="replace", timeout=300,
             creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
-            check=False)
+            env=child_env, check=False)
         transcript = (result.stdout + "\n" + result.stderr).strip()
         exported = sum(1 for line in transcript.splitlines()
                        if line.startswith("Palette Studio ") and line.endswith(": EXPORTED"))
