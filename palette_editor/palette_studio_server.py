@@ -490,10 +490,18 @@ def save_all_profiles(payload: dict) -> dict:
 
     with SAVE_LOCK:
         prior = existing_slot_order()
+        # A first-ever Save All should retain the order already displayed
+        # in the browser; drafts append in user creation order, NOT by name.
+        for who in range(len(CHARACTERS)):
+            if who not in prior:
+                prior[who] = [p["id"] for p in profile_list(who)
+                              if p.get("source_sha256") == source["sha256"]]
         ids = {}
         for who, key, document in prepared:
             result = save_profile(document)
             ids[key] = result["id"]
+            if result["id"] not in prior[who]:
+                prior[who].append(result["id"])
         catalog = build_selection_catalog(prior)
         write_catalog(catalog)
     return {"saved": len(prepared), "ids": ids,
