@@ -436,15 +436,16 @@ def native_capture_worker(requested: str) -> None:
             creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
             check=False)
         transcript = (result.stdout + "\n" + result.stderr).strip()
-        exported = transcript.count("EXPORTED")
-        if result.returncode:
-            # Never claim success if the native model did not export.
+        exported = sum(1 for line in transcript.splitlines()
+                       if line.startswith("Palette Studio ") and line.endswith(": EXPORTED"))
+        if result.returncode or exported < 3:
+            # A genuinely missing effect sample remains missing, never
+            # silently falls back to a duplicate standing sprite.
             status = "failed"
-            message = "Native export failed (exit " + str(result.returncode) + ")"
+            message = f"Generated {exported}/3 native examples; check native export diagnostics"
         else:
             status = "ready"
-            message = ("Exported " + str(exported) +
-                       " genuine standing sprite" + ("" if exported == 1 else "s"))
+            message = "Generated Body / Character, Effect A, and Effect B"
         with CAPTURE_LOCK:
             CAPTURE_JOB.update(running=False, status=status, message=message,
                                exported=exported, log=transcript[-5000:])
@@ -455,8 +456,7 @@ def native_capture_worker(requested: str) -> None:
 
 
 def start_native_capture(requested: str) -> dict:
-    if requested != "all":
-        character(requested)
+    who = character(requested)
     exe = ROOT / "recomp" / "build" / "xmvsf" / "xmvsf.exe"
     if not exe.is_file():
         raise ValueError("Recomp executable missing. Run RECOMP_BUILD.bat once before generating genuine combat sprites.")
@@ -466,8 +466,7 @@ def start_native_capture(requested: str) -> dict:
         if CAPTURE_JOB["running"]:
             return dict(CAPTURE_JOB)
         CAPTURE_JOB.update(running=True, status="running",
-                           message=("Generating all 19 native standing sprites" if requested == "all"
-                                    else "Generating " + CHARACTERS[character(requested)] + " standing sprite"),
+                           message="Generating Body, Effect A, Effect B for " + CHARACTERS[who],
                            requested=requested, exported=0, log="")
     threading.Thread(target=native_capture_worker, args=(requested,), daemon=True).start()
     return dict(CAPTURE_JOB)
