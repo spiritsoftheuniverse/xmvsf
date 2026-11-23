@@ -60,8 +60,14 @@ header p {font-size:12px;color:#9eb4ca;margin:0}
 .preview {height:315px;display:grid;place-items:center;border-radius:10px;border:1px solid #2b4056;background:repeating-conic-gradient(#1a2b3b 0 25%,#11202f 0 50%) 50% / 22px 22px;overflow:hidden}
 .preview canvas {display:block;width:auto;height:auto;max-width:100%;max-height:100%;image-rendering:pixelated;flex:none}
 .preview-notice {min-height:44px;font-size:11px;color:#95b6ca;line-height:1.6;margin-top:10px}
-.sprite-options {display:flex;align-items:center;gap:8px;font-size:11px;margin-top:9px}
-.sprite-options select {padding:6px 8px;max-width:150px}
+.example-types {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;margin-top:10px}
+.example-type {display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;min-height:80px;padding:7px 4px;font-size:10px}
+.example-type canvas {width:auto;height:auto;max-width:100%;max-height:72px;image-rendering:pixelated}
+.example-type small {font-size:9px;color:#9db6cb}
+.example-type.active {border-color:#8bdcff}
+.thumb {flex-basis:118px;min-width:118px}
+.thumb span {max-width:105px}
+.thumb small {font-size:9px;color:#9cbbd1}
 .set-tabs {display:flex;gap:5px}
 .set-tabs button {padding:7px 13px}
 .palette-line {padding:11px 0;border-bottom:1px solid #243e55}
@@ -128,22 +134,19 @@ header p {font-size:12px;color:#9eb4ca;margin:0}
     <small id="charMetadata">ROM palette source</small>
    </div>
    <div class="toolbar">
-    <select id="profileSelect" class="profile-select" aria-label="Palette profile"><option value="original">Original · read only</option></select>
+    <select id="profileSelect" class="profile-select" aria-label="Palette profile"><option value="original">Original P · read only</option><option value="original-k">Original K · read only</option></select>
     <button id="newProfile" class="primary">+ New</button>
     <button id="saveProfile" disabled>Save profile</button>
     <button id="exportProfile" disabled>Export .txt</button>
    </div>
   </div>
   <div class="strip">
-   <div class="strip-head"><h2 class="section-title">Combat sprite loaders</h2>
-    <div class="toolbar">
-     <button id="generateSprite" class="primary">Generate selected sprite</button>
-     <button id="generateAllSprites">Generate all 19</button>
-     <button id="refreshSprites">Refresh exports</button>
-     <button id="addSprite">+ Add sprite PNGs</button>
-     <input type="file" id="spriteInput" accept="image/png" multiple hidden></div></div>
-   <div class="strip-list" id="spriteStrip"></div>
-   <div class="gallery-hint" id="captureStatus">Generate selected sprite uses the compiled recomp Model viewer automatically (one rebuild required). Preview updates after capture; no manual game navigation.</div>
+   <div class="strip-head">
+    <h2 class="section-title">Character palette profiles</h2>
+    <div class="toolbar"><button id="generateExamples" class="primary">Generate 3 examples</button></div>
+   </div>
+   <div class="strip-list" id="profileStrip" aria-label="Click a colored character sprite to load its palette"></div>
+   <div class="gallery-hint" id="captureStatus">Click a colored sprite to load its palette. Generate 3 examples captures Body/Character, Effect A and Effect B from genuine model animations.</div>
   </div>
   <div class="stage">
    <div class="preview-box">
@@ -156,10 +159,8 @@ header p {font-size:12px;color:#9eb4ca;margin:0}
       <div class="preview"><canvas id="preview" width="280" height="300" aria-label="Native combat sprite preview"></canvas></div>
      </div>
     </div>
-    <div class="sprite-options"><label for="spriteBase">Sprite source colors</label>
-     <select id="spriteBase"><option value="0">Original P</option><option value="1">Original K</option></select>
-    </div>
-    <div class="preview-notice" id="previewNotice">Open the recomp Model viewer, choose this character and Standing, then Export → Save picture. Refresh to load its native sprite beside the portrait.</div>
+    <div class="example-types" id="exampleTypes" aria-label="Body and effect frame examples"></div>
+    <div class="preview-notice" id="previewNotice">Generate 3 examples to capture genuine Body, Effect A and Effect B native frames. Choose a palette from the colored sprite strip.</div>
    </div>
    <div class="swatch-box">
     <div class="swatch-head"><h2 class="section-title">Palette colors · Original ROM addresses</h2>
