@@ -353,7 +353,9 @@ function showCharacters(){
     dot.style.background=state.data.originals?state.data.originals[i][0][0][5]:'#335772';
     const label=document.createElement('span');label.className='char-label';
     const strong=document.createElement('strong');strong.textContent=c.name;
-    const detail=document.createElement('small');detail.textContent=c.rom_id+' · '+c.profiles.length+' profiles';
+    const detail=document.createElement('small');
+    detail.textContent=c.rom_id+' · '+(c.profiles.length+
+      stagedProfiles(i).filter(p=>p.id===null).length)+' profiles';
     label.append(strong,detail);button.append(dot,label);
     button.onclick=()=>chooseCharacter(i);list.append(button);
   });
@@ -838,8 +840,14 @@ async function uploadSource(file){
   if(!file)return;
   try{
     show('Reading original xvs.05a or its ROM-set ZIP…');
+    if(state.pending.size&&
+       !confirm('Loading another ROM source clears all unsaved palettes. Continue?'))return;
+    const previousSha=state.data.source?.sha256;
     await request('/api/source',{method:'POST',headers:{'X-Source-Name':file.name},body:file});
-    state.data=await request('/api/state');state.dirty=false;chooseCharacter(state.who);
+    state.data=await request('/api/state');
+    if(previousSha!==state.data.source?.sha256)state.pending.clear();
+    state.dirty=false;state.mode='original';state.id=null;state.draftKey=null;
+    chooseCharacter(state.who);
     updateSource();show('Original ROM source validated and loaded. Originals are locked.');
     if(state.newAfterLoad){state.newAfterLoad=false;makeProfile();}
   }catch(err){show(err.message,true)}
@@ -850,9 +858,8 @@ function updateSource(){
   $('loadRom').classList.toggle('primary',!state.data.source);
 }
 $('newProfile').onclick=makeProfile;
-$('saveProfile').onclick=saveProfile;
+$('saveAll').onclick=saveAll;
 $('profileSelect').onchange=()=>openProfile($('profileSelect').value);
-$('exportProfile').onclick=exportProfile;
 $('loadRom').onclick=()=>$('romInput').click();
 $('romInput').onchange=async()=>{
   const chosen=$('romInput').files[0];
@@ -893,7 +900,9 @@ $('generateExamples').onclick=()=>startCapture(state.who);
 setInterval(()=>{if(lastCaptureStatus==='running')captureStatus()},1500);
 captureStatus();
 document.addEventListener('keydown',e=>{
-  if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='s'&&editable()){e.preventDefault();saveProfile()}
+  if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='s'&&state.data?.source){
+    e.preventDefault();saveAll();
+  }
 });
 (async()=>{
   try{
