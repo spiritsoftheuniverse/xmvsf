@@ -2,6 +2,11 @@
 setlocal EnableExtensions DisableDelayedExpansion
 for %%I in ("%~dp0..") do set "XMVSF_PROJECT=%%~fI"
 cd /d "%XMVSF_PROJECT%"
+REM Match RECOMP_RUN.bat: the native sprite generator needs UCRT64 GCC DLLs.
+REM Only this local launcher inherits the path; the host system is unchanged.
+if not defined XMVSF_UCRT64_ROOT set "XMVSF_UCRT64_ROOT=C:\msys64\ucrt64"
+set "MSYSTEM=UCRT64"
+set "PATH=%XMVSF_UCRT64_ROOT%\bin;%XMVSF_UCRT64_ROOT%\..\usr\bin;%PATH%"
 echo ====================================================
 echo   XMVSF II PALETTE STUDIO
 echo ====================================================
