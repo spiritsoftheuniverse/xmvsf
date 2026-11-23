@@ -84,6 +84,9 @@ header p {font-size:12px;color:#9eb4ca;margin:0}
 .swatches {display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:7px}
 .swatch {border:1px solid #425973;padding:4px 2px 6px;background:#152a3b;min-width:0;border-radius:7px;text-align:center}
 .swatch.active {outline:2px solid #8bdcff;outline-offset:1px;border-color:#fff}
+.swatch[draggable="true"] {cursor:grab}
+.swatch.drag-source {opacity:.55;cursor:grabbing}
+.swatch.drag-target {outline:2px dashed #a9ed8c;outline-offset:2px;border-color:#a9ed8c}
 .swatch .chip {height:32px;width:100%;border-radius:4px;border:1px solid #ffffff1e;display:block;margin-bottom:4px}
 .swatch .num {display:block;font-size:10px;line-height:1.2;color:#d4dfed}
 .swatch .addr {display:block;font:8px Consolas,monospace;line-height:1.5;color:#99afc3;white-space:nowrap;letter-spacing:-.035em}
@@ -187,7 +190,7 @@ header p {font-size:12px;color:#9eb4ca;margin:0}
     <div class="swatch-head"><h2 class="section-title">Palette colors · Original ROM addresses</h2>
      
     </div>
-    <p class="notice" style="margin:10px 0 2px">Each color shows its real 68000 ROM address; editing changes only the selected profile.</p>
+    <p class="notice" style="margin:10px 0 2px">Each color shows its real 68000 ROM address. In a custom profile, drag one color swatch onto another to copy its color across any palette row; original ROM colors remain locked.</p>
     <div id="swatches"></div>
    </div>
   </div>
@@ -233,7 +236,7 @@ const state = {data:null,who:0,set:0,line:0,pen:1,mode:'original',id:null,name:'
   colors:null,dirty:false,sprites:[],selectedSprite:null,spriteImage:null,profilePreviews:[],
   hue:210,sat:1,val:1,images:new Map(),sourceSet:0,newAfterLoad:false,
   swatch:'#6677CC',draftKey:null,draftSeq:0,pending:new Map(),originalMarkers:new Map(),saving:false,
-  spriteZoom:0,previewPick:null};
+  spriteZoom:0,previewPick:null,dragColor:null};
 function copy(v){return JSON.parse(JSON.stringify(v))}
 function show(text,bad){$('message').textContent=text;$('message').className='toast'+(bad?' bad':'')}
 async function request(route,options){
@@ -409,6 +412,42 @@ function showProfileOptions(){
     'Original P and Original K are read-only. New copies a reference into a custom slot; Save All writes every fighter.';
   saveCounter();
 }
+function clearSwatchDrag(){
+  state.dragColor=null;
+  for(const node of $('swatches').querySelectorAll('.drag-source,.drag-target'))
+    node.classList.remove('drag-source','drag-target');
+}
+function swatchDragStart(event,line,pen,button){
+  if(!editable()){event.preventDefault();return}
+  const color=colors()[state.set][line][pen];
+  state.dragColor={who:state.who,id:state.id,draftKey:state.draftKey,
+    line,pen,color};
+  button.classList.add('drag-source');
+  event.dataTransfer.effectAllowed='copy';
+  event.dataTransfer.setData('text/plain',color);
+}
+function swatchDragOver(event,button){
+  if(!editable()||!state.dragColor||state.dragColor.who!==state.who)return;
+  event.preventDefault();
+  event.dataTransfer.dropEffect='copy';
+  button.classList.add('drag-target');
+}
+function swatchDrop(event,line,pen){
+  event.preventDefault();
+  const drag=state.dragColor;
+  clearSwatchDrag();
+  if(!editable()||!drag||drag.who!==state.who||
+     drag.id!==state.id||drag.draftKey!==state.draftKey)return;
+  if(drag.line===line&&drag.pen===pen)return;
+  state.line=line;state.pen=pen;
+  // SetEdited mirrors P/K native banks, stages this custom profile,
+  // and redraws the thumbnails and main sprite preview.
+  setEdited(drag.color);
+  hueFromSelected();renderColorInspector();
+  show('Copied '+drag.color+' from '+lines[drag.line]+' #'+
+    String(drag.pen).padStart(2,'0')+' to '+lines[line]+' #'+
+    String(pen).padStart(2,'0')+'. Save All when finished.',false);
+}
 function drawSwatches(){
   const host=$('swatches');host.replaceChildren();
   if(!colors()){
@@ -426,7 +465,13 @@ function drawSwatches(){
     for(let p=0;p<16;p++){
       const colour=colors()[state.set][l][p],address=state.data.addresses[state.who][state.set][l][p];
       const b=document.createElement('button');b.type='button';b.className='swatch'+(l===state.line&&p===state.pen?' active':'');
-      b.title=address+' · '+colour;
+      b.title=address+' · '+colour+(editable()?' · Drag to copy this color to another swatch':' · Original read only');
+      b.draggable=editable();
+      b.addEventListener('dragstart',ev=>swatchDragStart(ev,l,p,b));
+      b.addEventListener('dragover',ev=>swatchDragOver(ev,b));
+      b.addEventListener('dragleave',()=>b.classList.remove('drag-target'));
+      b.addEventListener('drop',ev=>swatchDrop(ev,l,p));
+      b.addEventListener('dragend',clearSwatchDrag);
       const chip=document.createElement('span');chip.className='chip';chip.style.background=colour;
       const num=document.createElement('span');num.className='num';num.textContent='#'+String(p).padStart(2,'0');
       const addr=document.createElement('span');addr.className='addr';addr.textContent=address;
