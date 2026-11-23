@@ -168,6 +168,35 @@ class DecoderTests(unittest.TestCase):
         self.assertNotIn('id="generateAllSprites"', html)
         self.assertIn("drawExampleTypes()", html)
 
+    def test_integer_sprite_zoom_and_click_to_native_palette_swatch(self):
+        html = (HERE / "palette_studio.html").read_text(encoding="utf-8")
+        self.assertIn('id="spriteZoomIn"', html)
+        self.assertIn('id="spriteZoomOut"', html)
+        self.assertIn('id="spriteZoomFit"', html)
+        self.assertIn('id="spriteViewport"', html)
+        self.assertIn("spriteZoom:0,previewPick:null", html)
+        self.assertIn("state.spriteZoom=Math.max(1,Math.min(12", html)
+        self.assertIn("const factor=main&&state.spriteZoom>0?state.spriteZoom:autoScale;", html)
+        self.assertIn("ctx.imageSmoothingEnabled=false;", html)
+        self.assertIn("max-width:none;max-height:none", html)
+        self.assertIn("overflow:auto", html)
+        self.assertIn("function nativePaletteMatches(color,preferredLine=0)", html)
+        self.assertIn("function pickNativeSpritePixel(event)", html)
+        self.assertIn("$('preview').addEventListener('click',pickNativeSpritePixel);", html)
+        self.assertIn("ctx.drawImage(capture.image,-x,-y);", html)
+        self.assertIn("ctx.getImageData(0,0,1,1).data", html)
+        self.assertIn("const matches=nativePaletteMatches(color,capture.sprite.line||0);", html)
+        self.assertIn("state.line=choice.line;state.pen=choice.pen;", html)
+        self.assertIn("hueFromSelected();drawSwatches();renderColorInspector();", html)
+        self.assertIn("if(!rgba[3])", html)
+        self.assertIn("if(!matches.length)", html)
+        self.assertIn("matches.length>1", html)
+        self.assertIn("state.previewPick={image:img,sprite,who:selection};", html)
+        self.assertIn("state.previewPick=null;", html)
+        # Color picking inspects the original image pixel, not a recolored
+        # destination pixel whose RGB may no longer exist in the ROM.
+        self.assertNotIn("getImageData(x,y,1,1)", html)
+
     def test_native_sprite_generator_calls_headless_recomp_only_on_command(self):
         server = (HERE / "palette_studio_server.py").read_text(encoding="utf-8")
         model_header = (HERE.parent / "recomp" / "model" / "model.h").read_text(encoding="utf-8")
