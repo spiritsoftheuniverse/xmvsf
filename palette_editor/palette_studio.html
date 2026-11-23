@@ -626,14 +626,19 @@ function nativePaletteMatches(color,preferredLine=0){
   const source=original();
   if(!source||!/^#[0-9A-F]{6}$/.test(color))return [];
   const linesToCheck=[...new Set([preferredLine,0,1,2])];
-  const matches=[];
+  const matches=[],seen=new Set();
   // The native Model viewer normally exports P colors, but allow a
   // valid K pixel when imported from a different original capture.
+  // P/K duplicates at the SAME row+pen correspond to the same editor
+  // selection and must not produce a false "ambiguous" warning.
   for(const row of linesToCheck){
     for(const bank of [0,1]){
       for(let pen=0;pen<16;pen++){
-        if(source[bank][row][pen].toUpperCase()===color)
+        const key=row+':'+pen;
+        if(source[bank][row][pen].toUpperCase()===color&&!seen.has(key)){
+          seen.add(key);
           matches.push({line:row,pen,bank});
+        }
       }
     }
   }
