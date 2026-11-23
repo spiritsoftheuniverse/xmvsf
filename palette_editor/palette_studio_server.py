@@ -595,7 +595,7 @@ def model_viewer_exports(who: int) -> list[Path]:
     """
     name = CHARACTERS[who]
     pattern = re.compile(
-        r"^" + re.escape(name) + r"(?: (?:Row 2|Row 3|[2-9][0-9]*))?\.png$", re.I)
+        r"^" + re.escape(name) + r"(?: (?:Row [23](?: [0-9]{2})?|[2-9][0-9]*))?\.png$", re.I)
     found: dict[str, Path] = {}
     for directory in VIEWER_EXPORTS:
         if not directory.is_dir() or directory.is_symlink():
@@ -605,13 +605,18 @@ def model_viewer_exports(who: int) -> list[Path]:
                     and pattern.fullmatch(candidate.name)
                     and 8 < candidate.stat().st_size <= SPRITE_MAX):
                 found.setdefault(candidate.name.lower(), candidate)
-    # The first three slots are the dedicated generated examples; older
-    # manual standing exports follow, without crossing fighter names.
-    priority = {name.lower()+".png": 0,
-                name.lower()+" row 2.png": 1,
-                name.lower()+" row 3.png": 2}
-    return sorted(found.values(), key=lambda file: (
-        priority.get(file.name.lower(), 3), file.name.lower()))[:24]
+    # Keep every generated numbered sample in deterministic row/index
+    # order; never allow another character's files into this gallery.
+    def priority(file: Path) -> tuple[int, int, str]:
+        suffix = file.stem[len(name):].strip().lower()
+        if not suffix:
+            return (0, 0, file.name.lower())
+        sample = re.fullmatch(r"row ([23])(?: ([0-9]{2}))?", suffix)
+        if sample:
+            return (int(sample.group(1)) - 1,
+                    int(sample.group(2) or 1), file.name.lower())
+        return (4, 0, file.name.lower())
+    return sorted(found.values(), key=priority)[:80]
 
 def viewer_asset(who: int, filename: str) -> Path:
     if not filename or Path(filename).name != filename:
@@ -626,11 +631,13 @@ def sprite_list(who: int) -> list:
     result = []
     for file in model_viewer_exports(who):
         suffix = file.stem[len(CHARACTERS[who]):].strip().lower()
-        line = 1 if suffix == "row 2" else 2 if suffix == "row 3" else 0
+        sample = re.fullmatch(r"row ([23])(?: ([0-9]{2}))?", suffix)
+        line = int(sample.group(1)) - 1 if sample else 0
+        number = int(sample.group(2) or 1) if sample else 0
         label = ("Body / Character" if not suffix else
-                 "Palette row 2" if line == 1 else "Palette row 3" if line == 2 else
+                 f"Palette row {line + 1} · {number:02d}" if sample else
                  "Standing " + suffix)
-        result.append({"name": label, "line": line, "type": "viewer",
+        result.append({"name": label, "line": line, "sample": number, "type": "viewer",
                        "url": f"/asset/viewer/{who}/{urllib.parse.quote(file.name)}?rev={file.stat().st_mtime_ns}"})
     folder = SPRITES / slug(who)
     if folder.is_dir() and not folder.is_symlink():
@@ -718,16 +725,21 @@ def native_capture_worker(requested: str) -> None:
         # missing libgcc otherwise creates an OS modal error with no log.
         child_env = native_runtime_environment()
         (ROOT / "recomp" / "work" / "xmvsf").mkdir(parents=True, exist_ok=True)
-        # Only the three dedicated generated files may be replaced.
-        # Clear them on explicit regeneration so a missing effect cannot
-        # reappear as a stale "successful" example from an earlier run.
+        # Only dedicated generated files of this fighter may be replaced.
+        # Clear previous numbered gallery frames so missing native poses
+        # cannot remain as stale "successful" samples on regeneration.
         generated = ROOT / "recomp" / "exports" / "palette_studio"
         if generated.is_symlink():
             raise OSError("Generated sample directory is a symlink")
         who = character(requested)
-        for suffix in (".png", " Row 2.png", " Row 3.png",
-                       " Effect A.png", " Effect B.png"):
-            example = generated / (CHARACTERS[who] + suffix)
+        names = {CHARACTERS[who] + suffix for suffix in
+                 (".png", " Row 2.png", " Row 3.png",
+                  " Effect A.png", " Effect B.png")}
+        for line in (2, 3):
+            names.update(f"{CHARACTERS[who]} Row {line} {n:02d}.png"
+                         for n in range(2, 33))
+        for name in names:
+            example = generated / name
             if example.is_symlink():
                 raise OSError("Generated sample file is a symlink")
             if example.is_file():
@@ -747,7 +759,7 @@ def native_capture_worker(requested: str) -> None:
             message = f"Generated {exported}/3 palette-row samples; missing rows are not substituted"
         else:
             status = "ready"
-            message = "Generated Body / Character and isolated palette rows 2 and 3"
+            message = "Generated Body plus multiple native Row 2 and Row 3 samples; use the gallery arrows to cycle them"
         with CAPTURE_LOCK:
             CAPTURE_JOB.update(running=False, status=status, message=message,
                                exported=exported, log=transcript[-5000:])
@@ -768,7 +780,7 @@ def start_native_capture(requested: str) -> dict:
         if CAPTURE_JOB["running"]:
             return dict(CAPTURE_JOB)
         CAPTURE_JOB.update(running=True, status="running",
-                           message="Generating Body and palette rows 2/3 for " + CHARACTERS[who],
+                           message="Discovering distinct native Row 2/3 frames for " + CHARACTERS[who],
                            requested=requested, exported=0, log="")
     threading.Thread(target=native_capture_worker, args=(requested,), daemon=True).start()
     return dict(CAPTURE_JOB)
