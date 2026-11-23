@@ -71,6 +71,13 @@ header p {font-size:12px;color:#9eb4ca;margin:0}
 .example-type canvas {width:auto;height:auto;max-width:100%;max-height:72px;image-rendering:pixelated}
 .example-type small {font-size:9px;color:#9db6cb}
 .example-type.active {border-color:#8bdcff}
+.example-card {display:flex;flex-direction:column;gap:5px;min-width:0;border:1px solid #354d65;border-radius:8px;padding:5px;background:#142638}
+.example-card.active {border-color:#8bdcff}
+.example-card .example-type {border:0;min-height:78px;padding:4px}
+.example-cycle {display:flex;align-items:center;justify-content:space-between;gap:4px}
+.example-cycle button {padding:4px 7px;min-width:26px}
+.example-cycle span {font:10px Consolas,monospace;text-align:center;color:#a8c5d9}
+.example-card .example-missing {font-size:10px;color:#879fb5;text-align:center}
 .thumb {flex-basis:118px;min-width:118px}
 .thumb span {max-width:105px}
 .thumb small {font-size:9px;color:#9cbbd1}
@@ -236,7 +243,7 @@ const state = {data:null,who:0,set:0,line:0,pen:1,mode:'original',id:null,name:'
   colors:null,dirty:false,sprites:[],selectedSprite:null,spriteImage:null,profilePreviews:[],
   hue:210,sat:1,val:1,images:new Map(),sourceSet:0,newAfterLoad:false,
   swatch:'#6677CC',draftKey:null,draftSeq:0,pending:new Map(),originalMarkers:new Map(),saving:false,
-  spriteZoom:0,previewPick:null,dragColor:null};
+  spriteZoom:0,previewPick:null,dragColor:null,sampleIndex:{1:0,2:0}};
 function copy(v){return JSON.parse(JSON.stringify(v))}
 function show(text,bad){$('message').textContent=text;$('message').className='toast'+(bad?' bad':'')}
 async function request(route,options){
@@ -558,6 +565,7 @@ async function fetchSpriteData(){
   const found=await request('/api/sprites?character='+who);
   if(state.who!==who)return;
   state.sprites=found;
+  state.sampleIndex={1:0,2:0};
   state.selectedSprite=found.find(v=>v.type==='viewer'&&v.name==='Body / Character')||
     found.find(v=>v.type==='viewer')||found.find(v=>v.type==='sprite')||null;
   state.spriteImage=null;
@@ -804,31 +812,67 @@ async function fetchProfilePreviews(){
   state.profilePreviews=docs;
   drawProfileStrip();
 }
+function rowSamples(line){
+  return state.sprites.filter(s=>s.type==='viewer'&&s.line===line&&s.sample>=1)
+    .sort((a,b)=>a.sample-b.sample);
+}
+function chooseRowSample(line,delta){
+  const images=rowSamples(line);
+  if(!images.length)return;
+  const previous=state.sampleIndex[line]||0;
+  const next=(previous+delta+images.length)%images.length;
+  state.sampleIndex[line]=next;
+  state.selectedSprite=images[next];
+  drawExampleTypes();drawPreview();
+}
 function drawExampleTypes(){
   const host=$('exampleTypes');host.replaceChildren();
   const who=state.who;
   for(const [line,name] of [[0,'Body / Character'],[1,'Palette row 2'],[2,'Palette row 3']]){
-    const sprite=state.sprites.find(s=>s.type==='viewer'&&s.line===line &&
-      (line!==0 || s.name==='Body / Character'));
+    const images=line===0?
+      state.sprites.filter(s=>s.type==='viewer'&&s.line===0&&s.name==='Body / Character'):
+      rowSamples(line);
+    const index=line===0?0:Math.min(state.sampleIndex[line]||0,Math.max(0,images.length-1));
+    if(line>0)state.sampleIndex[line]=index;
+    const sprite=images[index];
+    const card=document.createElement('div');
+    card.className='example-card'+(sprite&&sprite===state.selectedSprite?' active':'');
     const button=document.createElement('button');
-    button.className='example-type'+(sprite&&sprite===state.selectedSprite?' active':'');
+    button.className='example-type';
     button.type='button';
     const label=document.createElement('span');label.textContent=name;
     if(sprite){
       const canvas=document.createElement('canvas');canvas.width=72;canvas.height=64;
       button.append(canvas,label);
-      button.onclick=()=>{state.selectedSprite=sprite;drawExampleTypes();drawPreview()};
+      button.onclick=()=>{
+        state.selectedSprite=sprite;
+        drawExampleTypes();drawPreview();
+      };
       cachedImage(sprite.url).then(img=>{
-        if(host.contains(button)&&state.who===who)
+        if(host.contains(card)&&state.who===who)
           paintSprite(canvas,img,sprite.type,null,line);
       }).catch(()=>{button.title='Could not read native '+name+' image'});
     }else{
       const missing=document.createElement('small');
-      missing.textContent='Not generated';
-      button.append(label,missing);
-      button.disabled=true;
+      missing.className='example-missing';missing.textContent='Not generated';
+      button.append(label,missing);button.disabled=true;
     }
-    host.append(button);
+    card.append(button);
+    if(line>0){
+      const cycle=document.createElement('div');cycle.className='example-cycle';
+      const back=document.createElement('button');back.type='button';
+      back.textContent='◀';back.title='Previous native '+name+' sample';
+      back.disabled=images.length<2;
+      back.onclick=()=>chooseRowSample(line,-1);
+      const counter=document.createElement('span');
+      counter.textContent=images.length?(index+1)+' / '+images.length:'0 / 0';
+      const next=document.createElement('button');next.type='button';
+      next.textContent='▶';next.title='Next native '+name+' sample';
+      next.disabled=images.length<2;
+      next.onclick=()=>chooseRowSample(line,1);
+      cycle.append(back,counter,next);card.append(cycle);
+    }
+    host.append(card);
   }
 }
 async function drawPreview(){
@@ -888,7 +932,7 @@ function chooseCharacter(id){
   state.mode='original';state.id=null;state.draftKey=null;state.name='';
   state.colors=null;state.dirty=false;state.sourceSet=0;state.profilePreviews=[];
   state.swatch=originalSwatch(0);
-  state.sprites=[];state.selectedSprite=null;
+  state.sprites=[];state.selectedSprite=null;state.sampleIndex={1:0,2:0};
   $('portraitCaption').textContent='Select portrait · Read-only original';
   $('portraitPreview').getContext('2d').clearRect(0,0,$('portraitPreview').width,$('portraitPreview').height);
   $('characterTitle').textContent=state.data.characters[id].name;
