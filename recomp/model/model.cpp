@@ -792,6 +792,38 @@ bool ExportStandingPng(const std::string &folder) {
                      target.c_str(), pictures[0].width, pictures[0].height);
     return saved;
 }
+bool ExportPaletteExamplePng(Machine &machine, const std::string &folder, int line) {
+    if (line == 0) return ExportStandingPng(folder);
+    if (line < 1 || line > 2 || !g.on || !g.seen || !g.table ||
+        g_model.empty() || g_modelWidth <= 0 || folder.empty() ||
+        !g_d.firstLine) return false;
+
+    // The native colour editor already uses these *object palette slots*
+    // to identify animations for each line. An effect example is valid
+    // only when the current native frame actually uses its matching slot.
+    int counts[kMostLines] = {};
+    CountLines(machine, counts);
+    if (counts[line] <= 0) return false;
+
+    Taken frame;
+    frame.pixels = g_model;
+    frame.anchorX = g.anchorX;
+    frame.anchorY = g.anchorY;
+    int ax = 0, ay = 0;
+    const auto pictures = Cut({frame}, g_modelWidth, Video::kHeight, ax, ay);
+    if (pictures.size() != 1) return false;
+    std::error_code error;
+    std::filesystem::create_directories(PathOf(folder), error);
+    if (error) return false;
+    const std::string filename = CharacterName() +
+        (line == 1 ? " Effect A.png" : " Effect B.png");
+    const std::string target = folder + "/" + filename;
+    if (!image_files::WritePng(target, pictures[0], 1)) return false;
+    std::fprintf(stderr, "Palette Studio NATIVE EFFECT %d: %s (%dx%d)\n",
+                 line, target.c_str(), pictures[0].width, pictures[0].height);
+    return true;
+}
+
 bool Changed() {
     return ChosenCharacter() != g.character || ChosenBackground() != g.background;
 }
