@@ -82,9 +82,15 @@ Every swatch displays its native 68000 address. Each color uses 4-bit
 RGB, represented as `#RRGGBB` multiples of 17. Some effects, including
 Rogue's, may use fewer rows at runtime; all ROM-defined addresses remain visible.
 
-The **profile dropdown** starts with the two immutable choices
-**Original P · read only** and **Original K · read only**. Each has a
-display marker derived from a vivid body-palette color.
+The **profile dropdown** starts with the two native ROM references
+**Original P · read only** and **Original K · read only**. Their CPS-2
+palette colors and names remain locked, but **their character-select
+display swatches are editable independently**. Both initially receive a
+visible marker derived from a body-palette color. Select either original,
+change only the dedicated **Character-select color swatch** field under
+the name, and press **Save All**. This saves that display-color override
+into the shared nine-slot catalog; changing it never touches the ROM or
+recolors the original sprite. P and K may have entirely different markers.
 
 Select **New** to create a custom scheme. Under **Custom palette name**
 in the right inspector is a separate **Character-select color swatch**:
