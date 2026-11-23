@@ -586,16 +586,22 @@ function paintSprite(canvas,img,kind,profileView=null,spriteLine=0){
 }
 function profileCards(){
   if(!original())return [];
-  const palettes=original(),entries=[
-    {mode:'original',name:'Original P',colours:palettes,bank:0,reference:true},
-    {mode:'original-k',name:'Original K',colours:palettes,bank:1,reference:true}
+  const originals=original();
+  const entries=[
+    {mode:'original',name:'Original P',swatch:originalSwatch(0),colours:originals,bank:0,reference:true},
+    {mode:'original-k',name:'Original K',swatch:originalSwatch(1),colours:originals,bank:1,reference:true}
   ];
-  for(const doc of state.profilePreviews)
-    entries.push({mode:'saved',id:doc.id,name:doc.name,
-      colours:state.mode==='saved'&&state.id===doc.id?state.colors:doc.colours,bank:0});
-  if(state.mode==='draft')
-    entries.push({mode:'draft',name:state.name+' · unsaved',colours:state.colors,bank:0});
-  return entries;
+  const staged=stagedProfiles(state.who);
+  for(const doc of state.profilePreviews){
+    const pending=staged.find(p=>p.id===doc.id);
+    const item=pending||doc;
+    entries.push({mode:'saved',id:doc.id,name:item.name,swatch:item.swatch||
+       suggestedSwatch(item.colours[0]),colours:item.colours,bank:0});
+  }
+  for(const draft of staged.filter(p=>p.id===null))
+    entries.push({mode:'draft',id:draft.client_key,name:draft.name+' · new',
+      swatch:draft.swatch,colours:draft.colours,bank:0});
+  return entries.slice(0,9);
 }
 function drawProfileStrip(){
   const host=$('profileStrip');host.replaceChildren();
@@ -608,14 +614,18 @@ function drawProfileStrip(){
     p.textContent='Load the original ROM to see read-only and custom palette choices.';
     host.append(p);return;
   }
-  entries.forEach(entry=>{
-    const selected=(entry.mode==='saved'&&state.mode==='saved'&&state.id===entry.id)||
-      (entry.mode!=='saved'&&state.mode===entry.mode);
+  entries.forEach((entry,index)=>{
+    const selected=entry.mode==='saved'?state.mode==='saved'&&state.id===entry.id:
+      entry.mode==='draft'?state.mode==='draft'&&state.draftKey===entry.id:
+      state.mode===entry.mode;
     const button=document.createElement('button');
     button.type='button';button.className='thumb'+(selected?' active':'');
     button.title=(entry.reference?'Read-only original: ':'Load palette: ')+entry.name;
     button.setAttribute('aria-pressed',String(selected));
-    const label=document.createElement('span');label.textContent=entry.name;
+    const chip=document.createElement('span');
+    chip.className='select-chip';chip.style.background=entry.swatch;
+    chip.title='Selection swatch '+entry.swatch;
+    const label=document.createElement('span');label.textContent=(index+1)+'. '+entry.name;
     if(image){
       const canvas=document.createElement('canvas');canvas.width=76;canvas.height=69;
       button.append(canvas);
@@ -626,13 +636,16 @@ function drawProfileStrip(){
         const notice=document.createElement('small');notice.textContent='Sprite unavailable';button.prepend(notice);
       });
     }else{
-      const note=document.createElement('small');
-      note.textContent='Generate 3 examples';button.append(note);
+      const note=document.createElement('small');note.textContent='Generate 3 examples';button.append(note);
     }
-    button.append(label);
-    button.onclick=()=>openProfile(entry.mode==='saved'?entry.id:entry.mode);
+    button.append(chip,label);
+    button.onclick=()=>openProfile(entry.id||entry.mode);
     host.append(button);
   });
+  for(let n=entries.length;n<9;n++){
+    const blank=document.createElement('div');blank.className='empty-slot';
+    blank.textContent=(n+1)+'. Empty';host.append(blank);
+  }
 }
 async function fetchProfilePreviews(){
   const who=state.who;
