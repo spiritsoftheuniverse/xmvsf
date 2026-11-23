@@ -183,12 +183,12 @@ class DecoderTests(unittest.TestCase):
         self.assertIn("model::AnimationForLine(2)", main)
         self.assertIn("model::AnimationShown() == choice", main)
         self.assertIn("model::ExportPaletteExamplePng(*p.machine, out, line)", main)
-        self.assertIn("model::ShowDetachedEffectsForSamples(true)", main)
-        self.assertIn("model::ShowDetachedEffectsForSamples(false)", main)
-        self.assertIn("g_d.nearestOnly && !g_sampleDetachedEffects", model_cpp)
+        self.assertIn("model::IncludeDetachedObjectsForSamples(true)", main)
+        self.assertIn("model::IncludeDetachedObjectsForSamples(false)", main)
+        self.assertIn("g_d.nearestOnly && !g_includeDetachedSamples", model_cpp)
         self.assertIn("bool ExportPaletteExamplePng(Machine &machine", model_header)
         self.assertIn("CountLines(machine, counts);", model_cpp)
-        self.assertIn('line == 1 ? " Effect A.png" : " Effect B.png"', model_cpp)
+        self.assertIn('line == 1 ? " Row 2.png" : " Row 3.png"', model_cpp)
         self.assertIn('--palette-sprites N', main)
         self.assertIn('std::strcmp(c.name, "model_start")', main)
         self.assertIn('model::CharacterNumber() == character', main)
@@ -202,6 +202,27 @@ class DecoderTests(unittest.TestCase):
         self.assertIn('function startCapture(who)', html)
         self.assertIn("if(kind==='portrait'&&original()&&target)", html)
         self.assertIn("drawProfileStrip();drawExampleTypes();drawPreview();drawPortrait();", html)
+
+    def test_secondary_rows_are_native_oam_objects_not_whole_attack_poses(self):
+        model_cpp = (HERE.parent / "recomp" / "model" / "model.cpp").read_text(encoding="utf-8")
+        main = (HERE.parent / "recomp" / "port" / "main.cpp").read_text(encoding="utf-8")
+        html = (HERE / "palette_studio.html").read_text(encoding="utf-8")
+        body = model_cpp.split("bool ExportPaletteExamplePng(", 1)[1].split("bool Changed()", 1)[0]
+        native = model_cpp.split("bool DrawModel(", 1)[1].split("void Compose(", 1)[0]
+        # Old bug: g_model was the ENTIRE fighter whenever a secondary
+        # palette slot was present in an attack. Native OAM now filters it.
+        self.assertIn("g_exportOnlyPaletteSlot = slot;", body)
+        self.assertIn("const bool ink = DrawModel(machine, isolated);", body)
+        self.assertIn("g_exportOnlyPaletteSlot = -1;", body)
+        self.assertIn("frame.pixels = std::move(isolated);", body)
+        self.assertNotIn("frame.pixels = g_model;", body)
+        self.assertIn("(attributes & 0x1Fu) != static_cast<unsigned>(g_exportOnlyPaletteSlot)", native)
+        self.assertIn("if (!ink) return false;", body)
+        self.assertIn('line == 1 ? " Row 2.png" : " Row 3.png"', body)
+        self.assertIn("Palette Studio Row %d: %s", main)
+        self.assertIn("['Body / Character', 'Palette row 2 · secondary', 'Palette row 3 · secondary']", html)
+        self.assertNotIn("Effect A", html)
+        self.assertNotIn("Effect B", html)
 
     def test_native_runtime_uses_same_ucrt64_path_as_game_launcher(self):
         with tempfile.TemporaryDirectory() as folder:
@@ -258,8 +279,8 @@ class DecoderTests(unittest.TestCase):
             try:
                 fake = SimpleNamespace(returncode=1, stdout="",
                     stderr="Palette Studio Body / Character: EXPORTED\n"
-                           "Palette Studio Effect A: EXPORTED\n"
-                           "Palette Studio Effect B: NO NATIVE ANIMATION\n")
+                           "Palette Studio Row 2: EXPORTED\n"
+                           "Palette Studio Row 3: NO NATIVE ANIMATION\n")
                 with mock.patch.object(
                     studio, "native_runtime_environment",
                     return_value={"PATH": "mock-UCRT64"}
@@ -310,8 +331,8 @@ class DecoderTests(unittest.TestCase):
             try:
                 fake = SimpleNamespace(returncode=0,
                     stdout="Palette Studio Body / Character: EXPORTED\n"
-                           "Palette Studio Effect A: EXPORTED\n"
-                           "Palette Studio Effect B: EXPORTED\n", stderr="")
+                           "Palette Studio Row 2: EXPORTED\n"
+                           "Palette Studio Row 3: EXPORTED\n", stderr="")
                 with mock.patch.object(
                     studio, "native_runtime_environment",
                     return_value={"PATH": "mock-UCRT64"}
@@ -352,17 +373,24 @@ class DecoderTests(unittest.TestCase):
             old = studio.VIEWER_EXPORTS
             studio.VIEWER_EXPORTS = (Path(folder),)
             try:
-                for name in ("Ryu.png", "Ryu Effect A.png", "Ryu Effect B.png",
+                for name in ("Ryu.png", "Ryu Row 2.png", "Ryu Row 3.png",
+                             "Ryu Effect A.png", "Ryu Effect B.png",
                              "Ryu 2.png", "Ryu A12.png",
                              "Ryu 1.png", "Ryu-special.png", "Ken.png",
                              "Chun-Li.png", "Chun-Li (Alpha).png"):
                     (Path(folder) / name).write_bytes(b"synthetic-data")
                 matches = studio.model_viewer_exports(9)
-                self.assertEqual([f.name for f in matches], ["Ryu.png", "Ryu Effect A.png", "Ryu Effect B.png", "Ryu 2.png"])
+                self.assertEqual([f.name for f in matches], ["Ryu.png", "Ryu Row 2.png", "Ryu Row 3.png", "Ryu 2.png"])
                 examples = [v for v in studio.sprite_list(9) if v["type"] == "viewer"]
                 self.assertEqual([(v["name"], v["line"]) for v in examples[:3]],
-                                 [("Body / Character", 0), ("Effect A", 1), ("Effect B", 2)])
+                                 [("Body / Character", 0), ("Palette row 2", 1), ("Palette row 3", 2)])
                 self.assertEqual([f.name for f in studio.model_viewer_exports(10)], ["Ken.png"])
+                # Old whole-fighter "effect" exports must not be shown
+                # as if they were the corrected palette-slot captures.
+                with self.assertRaises(ValueError):
+                    studio.viewer_asset(9, "Ryu Effect A.png")
+                with self.assertRaises(ValueError):
+                    studio.viewer_asset(9, "Ryu Effect B.png")
                 self.assertEqual([f.name for f in studio.model_viewer_exports(11)], ["Chun-Li.png"])
                 self.assertEqual([f.name for f in studio.model_viewer_exports(18)], ["Chun-Li (Alpha).png"])
                 self.assertEqual(studio.viewer_asset(9, "Ryu.png").name, "Ryu.png")
