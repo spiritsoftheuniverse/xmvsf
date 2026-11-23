@@ -677,7 +677,7 @@ function pickNativeSpritePixel(event){
 }
 $('preview').addEventListener('click',pickNativeSpritePixel);
 function changeSpriteZoom(direction){
-  const factor=Number($('spriteZoomLabel').textContent.match(/(\\d+)×/)?.[1])||1;
+  const factor=Number($('spriteZoomLabel').textContent.match(/(\d+)×/)?.[1])||1;
   state.spriteZoom=Math.max(1,Math.min(12,(state.spriteZoom||factor)+direction));
   drawPreview();
 }
