@@ -218,6 +218,59 @@ class DecoderTests(unittest.TestCase):
         # destination pixel whose RGB may no longer exist in the ROM.
         self.assertNotIn("getImageData(x,y,1,1)", html)
 
+    def test_native_multi_frame_row_capture_and_gallery_cyclers(self):
+        model_cpp = (HERE.parent / "recomp" / "model" / "model.cpp").read_text(encoding="utf-8")
+        model_header = (HERE.parent / "recomp" / "model" / "model.h").read_text(encoding="utf-8")
+        main = (HERE.parent / "recomp" / "port" / "main.cpp").read_text(encoding="utf-8")
+        html = (HERE / "palette_studio.html").read_text(encoding="utf-8")
+        server = (HERE / "palette_studio_server.py").read_text(encoding="utf-8")
+        self.assertIn("std::map<int,int> candidates[kMostLines];", model_cpp)
+        self.assertIn("g_scan.candidates[line][g_scan.choice]", model_cpp)
+        self.assertIn("std::vector<int> AnimationsForLine(int line, int maxChoices)", model_cpp)
+        self.assertIn("std::vector<int> AnimationsForLine(int line, int maxChoices", model_header)
+        self.assertIn("g_sampleHashes[line].count(hash)", model_cpp)
+        self.assertIn("g_sampleHashes[line].insert(hash)", model_cpp)
+        self.assertIn("for(const auto pixel:picture.pixels)mix(pixel);", model_cpp)
+        self.assertIn("constexpr int kSamplesPerRow = 24;", main)
+        self.assertIn("constexpr int kMaxChoicesPerRow = 96;", main)
+        self.assertIn("for (const int choice : choices)", main)
+        self.assertIn("fromThisAnimation >= 1", main)
+        self.assertIn("model::ExportPaletteExamplePng(*p.machine, out, line, captured + 1)", main)
+        self.assertIn("g_exportOnlyPaletteSlot = slot;", model_cpp)
+        self.assertIn('Row [23](?: [0-9]{2})?', server)
+        self.assertIn("def priority(file: Path) -> tuple[int, int, str]", server)
+        self.assertIn("def rowSamples(line)", html)
+        self.assertIn("function chooseRowSample(line,delta)", html)
+        self.assertIn("state.sampleIndex[line]=next;", html)
+        self.assertIn("next.textContent='▶'", html)
+        self.assertIn("back.textContent='◀'", html)
+        self.assertIn("counter.textContent=images.length?(index+1)+' / '+images.length:'0 / 0';", html)
+        self.assertIn("state.selectedSprite=images[next];", html)
+
+    def test_numbered_row_exports_are_discovered_in_sequence(self):
+        with tempfile.TemporaryDirectory() as folder:
+            old = studio.VIEWER_EXPORTS
+            studio.VIEWER_EXPORTS = (Path(folder),)
+            try:
+                for name in ("Wolverine.png", "Wolverine Row 2.png",
+                             "Wolverine Row 2 02.png", "Wolverine Row 2 10.png",
+                             "Wolverine Row 3.png", "Wolverine Row 3 02.png",
+                             "Wolverine Row 2 99.png", "Cyclops Row 2 02.png"):
+                    (Path(folder) / name).write_bytes(b"synthetic-test-image")
+                files = studio.model_viewer_exports(0)
+                self.assertEqual([f.name for f in files], [
+                    "Wolverine.png", "Wolverine Row 2.png",
+                    "Wolverine Row 2 02.png", "Wolverine Row 2 10.png",
+                    "Wolverine Row 2 99.png", "Wolverine Row 3.png",
+                    "Wolverine Row 3 02.png"])
+                entries = studio.sprite_list(0)
+                row2 = [x for x in entries if x.get("line") == 1]
+                row3 = [x for x in entries if x.get("line") == 2]
+                self.assertEqual([x["sample"] for x in row2], [1, 2, 10, 99])
+                self.assertEqual([x["sample"] for x in row3], [1, 2])
+            finally:
+                studio.VIEWER_EXPORTS = old
+
     def test_native_sprite_generator_calls_headless_recomp_only_on_command(self):
         server = (HERE / "palette_studio_server.py").read_text(encoding="utf-8")
         model_header = (HERE.parent / "recomp" / "model" / "model.h").read_text(encoding="utf-8")
@@ -233,13 +286,16 @@ class DecoderTests(unittest.TestCase):
         self.assertIn("model::AnimationForLine(1)", main)
         self.assertIn("model::AnimationForLine(2)", main)
         self.assertIn("model::AnimationShown() == choice", main)
-        self.assertIn("model::ExportPaletteExamplePng(*p.machine, out, line)", main)
+        self.assertIn("model::ExportPaletteExamplePng(*p.machine, out, line, captured + 1)", main)
+        self.assertIn("model::AnimationsForLine(line, kMaxChoicesPerRow)", main)
+        self.assertIn("model::ResetPaletteExampleSamples()", main)
         self.assertIn("model::IncludeDetachedObjectsForSamples(true)", main)
         self.assertIn("model::IncludeDetachedObjectsForSamples(false)", main)
         self.assertIn("g_d.nearestOnly && !g_includeDetachedSamples", model_cpp)
         self.assertIn("bool ExportPaletteExamplePng(Machine &machine", model_header)
         self.assertIn("CountLines(machine, counts);", model_cpp)
-        self.assertIn('line == 1 ? " Row 2.png" : " Row 3.png"', model_cpp)
+        self.assertIn('" Row %d.png"', model_cpp)
+        self.assertIn('" Row %d %02d.png"', model_cpp)
         self.assertIn('--palette-sprites N', main)
         self.assertIn('std::strcmp(c.name, "model_start")', main)
         self.assertIn('model::CharacterNumber() == character', main)
@@ -269,7 +325,8 @@ class DecoderTests(unittest.TestCase):
         self.assertNotIn("frame.pixels = g_model;", body)
         self.assertIn("(attributes & 0x1Fu) != static_cast<unsigned>(g_exportOnlyPaletteSlot)", native)
         self.assertIn("if (!ink) return false;", body)
-        self.assertIn('line == 1 ? " Row 2.png" : " Row 3.png"', body)
+        self.assertIn('" Row %d.png"', body)
+        self.assertIn('" Row %d %02d.png"', body)
         self.assertIn("Palette Studio Row %d: %s", main)
         self.assertIn("['Body / Character', 'Palette row 2 · secondary', 'Palette row 3 · secondary']", html)
         self.assertNotIn("Effect A", html)
@@ -436,7 +493,7 @@ class DecoderTests(unittest.TestCase):
                 self.assertEqual([f.name for f in matches], ["Ryu.png", "Ryu Row 2.png", "Ryu Row 3.png", "Ryu 2.png"])
                 examples = [v for v in studio.sprite_list(9) if v["type"] == "viewer"]
                 self.assertEqual([(v["name"], v["line"]) for v in examples[:3]],
-                                 [("Body / Character", 0), ("Palette row 2", 1), ("Palette row 3", 2)])
+                                 [("Body / Character", 0), ("Palette row 2 · 01", 1), ("Palette row 3 · 01", 2)])
                 self.assertEqual([f.name for f in studio.model_viewer_exports(10)], ["Ken.png"])
                 # Old whole-fighter "effect" exports must not be shown
                 # as if they were the corrected palette-slot captures.
