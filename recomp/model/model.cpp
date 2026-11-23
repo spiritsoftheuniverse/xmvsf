@@ -796,6 +796,9 @@ bool ExportStandingPng(const std::string &folder) {
 int AnimationShown() {
     return g.table ? (g.table - 1) * g_d.perList + g.number + 1 : 0;
 }
+void ShowDetachedEffectsForSamples(bool enabled) {
+    g_sampleDetachedEffects = enabled;
+}
 
 bool ExportPaletteExamplePng(Machine &machine, const std::string &folder, int line) {
     if (line == 0) return ExportStandingPng(folder);
