@@ -148,6 +148,33 @@ unlike native sprite pixels, the menu portrait is not indexed by the
 same fighter palette slots. Reverting to Original P displays the
 unaltered portrait.
 
+## Combat sprite zoom and pixel-to-swatch picker
+
+The main **combat sprite preview** now has **−**, **+**, and **Fit**
+controls. Fit uses the largest whole-number enlargement that will fit
+inside the viewport (up to 5×); +/− select explicit integer scales from
+1× to 12×. Pixel edges remain nearest-neighbor and square at every
+size. If the enlarged sprite exceeds the preview box, **scroll within
+the preview** to inspect the remaining pixels. Choosing any of the
+native Body, Palette row 2, or Palette row 3 examples uses the same
+zoom controls; portrait and palette-profile thumbnails remain compact.
+
+**Click any nontransparent pixel on the main combat sprite** to select
+its matching native body/secondary palette swatch in the color editor.
+The picker samples the **unmodified source sprite image**, not its
+recolored preview, so changing a custom palette does not break
+subsequent picking. The original ROM's P/K palette RGB values are
+matched **exactly**; no nearest-color guesses or automatic edits are
+made. Clicking selects an existing palette row and pen, updates its
+highlight and the inspector, and leaves the chosen profile unchanged.
+
+Some ROM palette entries have **identical RGB values**. A flattened
+PNG cannot tell which of those indices a given pixel came from; in
+that case, the picker retains the currently selected matching entry
+or picks the first matching entry (preferring the previewed native
+palette row), and explicitly reports the ambiguity. Transparent
+pixels and colors absent from the source palette are ignored.
+
 ## Generate genuine Body and secondary palette-row samples
 
 **Requires one recompilation** because the headless Model viewer now filters
