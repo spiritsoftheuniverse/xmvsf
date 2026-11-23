@@ -117,8 +117,8 @@ class DecoderTests(unittest.TestCase):
         self.assertIn('id="preview"', html)
         self.assertIn("kind==='sprite'||kind==='viewer'", html)
         self.assertIn("paintSprite(canvas,img,'portrait')", html)
-        self.assertIn("kind==='portrait'&&original()&&editable()", html)
-        self.assertIn("refreshSprites", html)
+        self.assertIn("if(kind==='portrait'&&original()&&target)", html)
+        self.assertIn("function drawProfileStrip()", html)
 
     def test_missing_rom_does_not_disable_new_and_explains_missing_sprite(self):
         html = (HERE / "palette_studio.html").read_text(encoding="utf-8")
@@ -133,7 +133,7 @@ class DecoderTests(unittest.TestCase):
         self.assertIn('"source_warning": SOURCE_WARNING', server)
         # No actual Model viewer export -> visible, actionable explanation.
         self.assertIn("NO STANDING SPRITE", html)
-        self.assertIn("Generate selected sprite", html)
+        self.assertIn("Generate 3 examples", html)
         self.assertIn("NO STANDING SPRITE", html)
 
     def test_custom_palette_name_and_unified_bank_controls(self):
@@ -143,11 +143,29 @@ class DecoderTests(unittest.TestCase):
         self.assertIn("state.name=$('selectedName').value.trim();", html)
         self.assertIn("state.colors[0][state.line][state.pen]=hex.toUpperCase();", html)
         self.assertIn("state.colors[1][state.line][state.pen]=hex.toUpperCase();", html)
-        self.assertIn("state.colors[1]=copy(state.colors[0]);", html)
+        self.assertIn("state.colors=[copy(base),copy(base)];", html)
         self.assertNotIn('id="setP"', html)
         self.assertNotIn('id="setK"', html)
         self.assertNotIn("$('setP')", html)
         self.assertNotIn("$('setK')", html)
+
+    def test_two_originals_appear_as_read_only_dropdown_options(self):
+        html = (HERE / "palette_studio.html").read_text(encoding="utf-8")
+        self.assertIn("['original','Original P · read only']", html)
+        self.assertIn("['original-k','Original K · read only']", html)
+        self.assertIn("state.set=mode==='original-k'?1:0", html)
+        self.assertIn("state.mode==='original-k'?'Original K · read only'", html)
+        self.assertIn("state.colors=[copy(base),copy(base)];state.set=0;", html)
+        self.assertIn('id="profileStrip"', html)
+        self.assertIn("function drawProfileStrip()", html)
+        self.assertIn("fetchProfilePreviews()", html)
+        self.assertIn("button.onclick=()=>openProfile(entry.mode==='saved'?entry.id:entry.mode)", html)
+        self.assertIn("paintSprite(canvas,img,image.type,{colours:entry.colours,bank:entry.bank}", html)
+        self.assertNotIn('id="spriteBase"', html)
+        self.assertNotIn('id="spriteStrip"', html)
+        self.assertNotIn("spriteBase').onchange", html)
+        self.assertNotIn('id="generateAllSprites"', html)
+        self.assertIn("drawExampleTypes()", html)
 
     def test_native_sprite_generator_calls_headless_recomp_only_on_command(self):
         server = (HERE / "palette_studio_server.py").read_text(encoding="utf-8")
@@ -159,19 +177,20 @@ class DecoderTests(unittest.TestCase):
         self.assertIn('bool ExportStandingPng(const std::string &folder) {', model_cpp)
         self.assertIn('Cut({frame}, g_modelWidth, Video::kHeight', model_cpp)
         self.assertIn('image_files::WritePng(target, pictures[0], 1)', model_cpp)
-        self.assertIn('model::ExportStandingPng("exports/palette_studio")', main)
-        self.assertIn('--palette-sprites all|N', main)
+        self.assertIn("model::ExportStandingPng(out)", main)
+        self.assertIn('--palette-sprites N', main)
         self.assertIn('std::strcmp(c.name, "model_start")', main)
         self.assertIn('model::CharacterNumber() == character', main)
         self.assertIn('creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0)', server)
         self.assertIn('route == "/api/capture"', server)
         self.assertIn('route == "/api/capture-status"', server)
         self.assertIn("ROOT / \"recomp\" / \"exports\" / \"palette_studio\"", server)
-        self.assertIn('id="generateSprite"', html)
-        self.assertIn('id="generateAllSprites"', html)
+        self.assertIn('id="generateExamples"', html)
+        self.assertNotIn('id="generateSprite"', html)
+        self.assertNotIn('id="generateAllSprites"', html)
         self.assertIn('function startCapture(who)', html)
-        self.assertIn("if(kind==='portrait'&&original()&&editable())", html)
-        self.assertIn("function refreshPreviews(){if(!state.sprites)return;drawSpriteStrip();drawPortrait()}", html)
+        self.assertIn("if(kind==='portrait'&&original()&&target)", html)
+        self.assertIn("drawProfileStrip();drawExampleTypes();drawPreview();drawPortrait();", html)
 
     def test_native_capture_worker_uses_fixed_recomp_and_isolated_settings(self):
         # Simulate success without running Windows or requiring copyrighted
@@ -181,8 +200,10 @@ class DecoderTests(unittest.TestCase):
             old_root, old_status = studio.ROOT, studio.CAPTURE_JOB.copy()
             studio.ROOT = Path(folder)
             try:
-                fake = SimpleNamespace(returncode=0, stdout="Palette Studio 1/19 0: EXPORTED\\n",
-                                       stderr="")
+                fake = SimpleNamespace(returncode=0,
+                    stdout="Palette Studio Body / Character: EXPORTED\\n"
+                           "Palette Studio Effect A: EXPORTED\\n"
+                           "Palette Studio Effect B: EXPORTED\\n", stderr="")
                 with mock.patch.object(studio.subprocess, "run", return_value=fake) as called:
                     studio.native_capture_worker("0")
                 cmd = called.call_args.args[0]
@@ -194,14 +215,14 @@ class DecoderTests(unittest.TestCase):
                 self.assertNotIn("shell", called.call_args.kwargs)
                 self.assertFalse(studio.CAPTURE_JOB["running"])
                 self.assertEqual(studio.CAPTURE_JOB["status"], "ready")
-                self.assertEqual(studio.CAPTURE_JOB["exported"], 1)
+                self.assertEqual(studio.CAPTURE_JOB["exported"], 3)
             finally:
                 studio.ROOT = old_root
                 studio.CAPTURE_JOB.clear()
                 studio.CAPTURE_JOB.update(old_status)
 
     def test_native_sprite_capture_does_not_execute_arbitrary_command(self):
-        # A browser request can ONLY choose a character or 'all'; paths and
+        # A browser request can ONLY choose a character index; paths and
         # executable are pinned in the server, never supplied by the client.
         with self.assertRaises(ValueError):
             studio.start_native_capture("../something")
@@ -218,12 +239,13 @@ class DecoderTests(unittest.TestCase):
             old = studio.VIEWER_EXPORTS
             studio.VIEWER_EXPORTS = (Path(folder),)
             try:
-                for name in ("Ryu.png", "Ryu 2.png", "Ryu A12.png",
+                for name in ("Ryu.png", "Ryu Effect A.png", "Ryu Effect B.png",
+                             "Ryu 2.png", "Ryu A12.png",
                              "Ryu 1.png", "Ryu-special.png", "Ken.png",
                              "Chun-Li.png", "Chun-Li (Alpha).png"):
                     (Path(folder) / name).write_bytes(b"synthetic-data")
                 matches = studio.model_viewer_exports(9)
-                self.assertEqual([f.name for f in matches], ["Ryu.png", "Ryu 2.png"])
+                self.assertEqual([f.name for f in matches], ["Ryu.png", "Ryu Effect A.png", "Ryu Effect B.png", "Ryu 2.png"])
                 self.assertEqual([f.name for f in studio.model_viewer_exports(10)], ["Ken.png"])
                 self.assertEqual([f.name for f in studio.model_viewer_exports(11)], ["Chun-Li.png"])
                 self.assertEqual([f.name for f in studio.model_viewer_exports(18)], ["Chun-Li (Alpha).png"])
@@ -251,7 +273,8 @@ class DecoderTests(unittest.TestCase):
                 self.assertEqual(len(sprites), 1)
                 self.assertEqual(sprites[0]["type"], "viewer")
                 self.assertIn("Wolverine.png", sprites[0]["url"])
-                self.assertEqual(sprites[0]["name"], "Standing")
+                self.assertEqual(sprites[0]["name"], "Body / Character")
+                self.assertEqual(sprites[0]["line"], 0)
                 self.assertEqual(sprites[0]["url"].count("asset/viewer/"), 1)
             finally:
                 studio.VIEWER_EXPORTS = old
