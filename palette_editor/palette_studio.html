@@ -728,16 +728,6 @@ function updateSource(){
     'ROM not loaded · '+(state.data.source_warning||'choose xvs.05a or xmvsf.zip');
   $('loadRom').classList.toggle('primary',!state.data.source);
 }
-async function uploadSprites(files){
-  for(const file of files){
-    if(!file.name.toLowerCase().endsWith('.png')){show(file.name+' must be PNG',true);continue}
-    try{
-      await request('/api/sprite?character='+state.who,{method:'POST',headers:{'X-File-Name':file.name},body:file});
-      show('Sprite imported: '+file.name,false);
-    }catch(err){show(err.message,true)}
-  }
-  await fetchSpriteData();
-}
 $('newProfile').onclick=makeProfile;
 $('saveProfile').onclick=saveProfile;
 $('profileSelect').onchange=()=>openProfile($('profileSelect').value);
@@ -748,14 +738,9 @@ $('romInput').onchange=async()=>{
   if(!chosen){state.newAfterLoad=false;return}
   await uploadSource(chosen);$('romInput').value='';
 };
-$('refreshSprites').onclick=async()=>{
-  try{await fetchSpriteData();show('Native Model viewer exports refreshed for '+state.data.characters[state.who].name,false)}
-  catch(err){show(err.message,true)}
-};
 let lastCaptureStatus='idle';
 function setCaptureButtons(busy){
-  $('generateSprite').disabled=busy;
-  $('generateAllSprites').disabled=busy;
+  $('generateExamples').disabled=busy;
 }
 async function captureStatus(){
   try{
@@ -783,13 +768,9 @@ async function startCapture(who){
     show(err.message,true);setCaptureButtons(false);
   }
 }
-$('generateSprite').onclick=()=>startCapture(state.who);
-$('generateAllSprites').onclick=()=>startCapture('all');
+$('generateExamples').onclick=()=>startCapture(state.who);
 setInterval(()=>{if(lastCaptureStatus==='running')captureStatus()},1500);
 captureStatus();
-$('addSprite').onclick=()=>$('spriteInput').click();
-$('spriteInput').onchange=async()=>{await uploadSprites([...$('spriteInput').files]);$('spriteInput').value=''};
-$('spriteBase').onchange=()=>{state.sourceSet=Number($('spriteBase').value);refreshPreviews()};
 document.addEventListener('keydown',e=>{
   if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='s'&&editable()){e.preventDefault();saveProfile()}
 });
