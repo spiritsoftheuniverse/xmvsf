@@ -402,7 +402,7 @@ class DecoderTests(unittest.TestCase):
                 studio.CAPTURE_JOB.clear()
                 studio.CAPTURE_JOB.update(old_job)
 
-    def test_explicit_regeneration_clears_only_three_generated_examples(self):
+    def test_explicit_regeneration_clears_numbered_gallery_only_for_fighter(self):
         from types import SimpleNamespace
         with tempfile.TemporaryDirectory() as folder:
             old_root, old_job = studio.ROOT, studio.CAPTURE_JOB.copy()
@@ -410,8 +410,10 @@ class DecoderTests(unittest.TestCase):
             examples = Path(folder) / "recomp" / "exports" / "palette_studio"
             examples.mkdir(parents=True)
             for name in ("Wolverine.png", "Wolverine Row 2.png",
-                         "Wolverine Row 3.png", "Wolverine Effect A.png",
-                         "Wolverine Effect B.png", "Ken.png"):
+                         "Wolverine Row 2 02.png", "Wolverine Row 2 24.png",
+                         "Wolverine Row 3.png", "Wolverine Row 3 03.png",
+                         "Wolverine Effect A.png", "Wolverine Effect B.png",
+                         "Wolverine 2.png", "Ken.png", "Ken Row 2 02.png"):
                 (examples / name).write_bytes(b"old sprite")
             try:
                 fake = SimpleNamespace(returncode=1, stdout="",
@@ -422,10 +424,13 @@ class DecoderTests(unittest.TestCase):
                 ), mock.patch.object(studio.subprocess, "run", return_value=fake):
                     studio.native_capture_worker("0")
                 for name in ("Wolverine.png", "Wolverine Row 2.png",
-                             "Wolverine Row 3.png", "Wolverine Effect A.png",
-                             "Wolverine Effect B.png"):
+                             "Wolverine Row 2 02.png", "Wolverine Row 2 24.png",
+                             "Wolverine Row 3.png", "Wolverine Row 3 03.png",
+                             "Wolverine Effect A.png", "Wolverine Effect B.png"):
                     self.assertFalse((examples / name).exists())
+                self.assertTrue((examples / "Wolverine 2.png").exists())
                 self.assertTrue((examples / "Ken.png").exists())
+                self.assertTrue((examples / "Ken Row 2 02.png").exists())
             finally:
                 studio.ROOT = old_root
                 studio.CAPTURE_JOB.clear()
