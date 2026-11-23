@@ -132,9 +132,9 @@ class DecoderTests(unittest.TestCase):
         self.assertIn("source_warning", html)
         self.assertIn('"source_warning": SOURCE_WARNING', server)
         # No actual Model viewer export -> visible, actionable explanation.
-        self.assertIn("NO STANDING SPRITE", html)
+        self.assertIn("NO NATIVE EXAMPLE", html)
         self.assertIn("Generate 3 examples", html)
-        self.assertIn("NO STANDING SPRITE", html)
+        self.assertIn("NO NATIVE EXAMPLE", html)
 
     def test_custom_palette_name_and_unified_bank_controls(self):
         html = (HERE / "palette_studio.html").read_text(encoding="utf-8")
@@ -215,6 +215,30 @@ class DecoderTests(unittest.TestCase):
                 self.assertEqual(studio.CAPTURE_JOB["status"], "failed")
                 self.assertEqual(studio.CAPTURE_JOB["exported"], 2)
                 self.assertIn("2/3", studio.CAPTURE_JOB["message"])
+            finally:
+                studio.ROOT = old_root
+                studio.CAPTURE_JOB.clear()
+                studio.CAPTURE_JOB.update(old_job)
+
+    def test_explicit_regeneration_clears_only_three_generated_examples(self):
+        from types import SimpleNamespace
+        with tempfile.TemporaryDirectory() as folder:
+            old_root, old_job = studio.ROOT, studio.CAPTURE_JOB.copy()
+            studio.ROOT = Path(folder)
+            examples = Path(folder) / "recomp" / "exports" / "palette_studio"
+            examples.mkdir(parents=True)
+            for name in ("Wolverine.png", "Wolverine Effect A.png",
+                         "Wolverine Effect B.png", "Ken.png"):
+                (examples / name).write_bytes(b"old sprite")
+            try:
+                fake = SimpleNamespace(returncode=1, stdout="",
+                    stderr="Palette Studio Body / Character: NOT DRAWN\\n")
+                with mock.patch.object(studio.subprocess, "run", return_value=fake):
+                    studio.native_capture_worker("0")
+                for name in ("Wolverine.png", "Wolverine Effect A.png",
+                             "Wolverine Effect B.png"):
+                    self.assertFalse((examples / name).exists())
+                self.assertTrue((examples / "Ken.png").exists())
             finally:
                 studio.ROOT = old_root
                 studio.CAPTURE_JOB.clear()
