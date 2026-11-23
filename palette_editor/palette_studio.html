@@ -80,6 +80,12 @@ header p {font-size:12px;color:#9eb4ca;margin:0}
 .ref-tag {color:#f7dba0;border-color:#a17b40}
 .swatch-details {display:grid;gap:4px}
 .swatch-details strong {font-size:14px}
+.reference-choice {display:flex;align-items:center;gap:9px;width:100%;padding:7px 9px;text-align:left;border:1px solid #40566d;background:#142638;border-radius:8px;color:#c5d8e7}
+.reference-choice.active {border-color:#89d9ff;outline:1px solid #89d9ff}
+.reference-choice .color-sample {display:inline-block;flex:none;width:29px;height:29px;border:1px solid #ffffff45;border-radius:5px}
+.reference-choice .reference-info {display:flex;flex-direction:column;gap:2px;font-size:11px}
+.reference-choice .reference-info small {font:10px Consolas,monospace;color:#a6bed0}
+.reference-choices {display:grid;gap:6px}
 .swatch-details code {font-size:12px;color:#a6dcff}
 .picker-square {width:100%;height:224px;border-radius:8px;display:block;border:1px solid #536e82;cursor:crosshair;touch-action:none}
 .picker-square.readonly {cursor:default;opacity:.48}
@@ -171,10 +177,17 @@ header p {font-size:12px;color:#9eb4ca;margin:0}
   <canvas class="picker-square" id="sv" width="238" height="224" aria-label="Saturation and brightness color picker"></canvas>
   <div class="hue-row"><label class="section-title" for="hue">Hue</label><input id="hue" type="range" min="0" max="360" step="1" value="210" disabled></div>
   <div class="hex-row"><label class="section-title" for="hex">HEX · CPS-2 RGB</label><input id="hex" type="text" maxlength="7" value="#000000" spellcheck="false" autocomplete="off" disabled></div>
-  <div class="color-compare">
-   <div>ORIGINAL<span class="color-sample" id="originalSample"></span></div>
-   <div>PROFILE<span class="color-sample" id="profileSample"></span></div>
+  <div class="reference-choices" aria-label="Read-only original color references">
+   <button class="reference-choice active" type="button" id="originalChoice" aria-pressed="true">
+    <span class="color-sample" id="originalSample"></span>
+    <span class="reference-info">ORIGINAL · P <small id="originalHex">#000000</small></span>
+   </button>
+   <button class="reference-choice" type="button" id="secondOriginalChoice" aria-pressed="false">
+    <span class="color-sample" id="secondOriginalSample"></span>
+    <span class="reference-info">SECOND ORIGINAL · K <small id="secondOriginalHex">#000000</small></span>
+   </button>
   </div>
+  <div class="color-compare"><div>PROFILE<span class="color-sample" id="profileSample"></span></div></div>
   <div class="divider"></div>
   <button id="resetSwatch" disabled>Restore this swatch</button>
   <p class="notice">The picker stays open. Colors snap to the CPS-2's 16 levels per RGB channel. Originals are never written back to the ROM.</p>
@@ -207,7 +220,7 @@ function original(){return state.data && state.data.originals?state.data.origina
 function editable(){return state.mode!=='original' && !!original()}
 function colors(){return editable()?state.colors:original()}
 function current(){const p=colors();return p?p[state.set][state.line][state.pen]:'#000000'}
-function sourceCurrent(){const p=original();return p?p[state.set][state.line][state.pen]:'#000000'}
+function sourceCurrent(){const p=original();return p?p[state.sourceSet][state.line][state.pen]:'#000000'}
 function sourceAddr(){const d=state.data;return d&&d.addresses?d.addresses[state.who][state.set][state.line][state.pen]:'0x------'}
 function q8(n){return Math.max(0,Math.min(15,Math.round(n/17)))*17}
 function rgb(hex){return [parseInt(hex.slice(1,3),16),parseInt(hex.slice(3,5),16),parseInt(hex.slice(5,7),16)]}
@@ -253,7 +266,19 @@ function renderColorInspector(){
   $('selectedSlot').textContent=lines[state.line]+' · #'+String(state.pen).padStart(2,'0');
   $('selectedAddress').textContent=sourceAddr();
   $('hex').value=current();$('hex').disabled=!editable();
-  $('originalSample').style.background=sourceCurrent();
+  const sources=original();
+  const first=sources?sources[0][state.line][state.pen]:'#000000';
+  const second=sources?sources[1][state.line][state.pen]:'#000000';
+  $('originalSample').style.background=first;
+  $('secondOriginalSample').style.background=second;
+  $('originalHex').textContent=first;
+  $('secondOriginalHex').textContent=second;
+  for(const [id,bank] of [['originalChoice',0],['secondOriginalChoice',1]]){
+    const button=$(id);
+    button.classList.toggle('active',state.sourceSet===bank);
+    button.setAttribute('aria-pressed',String(state.sourceSet===bank));
+    button.disabled=!sources;
+  }
   $('profileSample').style.background=current();
   $('resetSwatch').disabled=!editable();
   $('editStatus').className='status-tag'+(editable()?'':' ref-tag');
@@ -352,6 +377,8 @@ $('hex').addEventListener('change',()=>{
   setEdited(corrected);hueFromSelected();renderColorInspector();
   if(corrected.toLowerCase()!==value.toLowerCase())show('Rounded to CPS-2 4-bit RGB: '+corrected,false);
 });
+$('originalChoice').onclick=()=>{state.sourceSet=0;renderColorInspector()};
+$('secondOriginalChoice').onclick=()=>{state.sourceSet=1;renderColorInspector()};
 $('resetSwatch').onclick=()=>{setEdited(sourceCurrent());hueFromSelected();renderColorInspector()};
 $('selectedName').addEventListener('input',()=>{
   if(!editable())return;
