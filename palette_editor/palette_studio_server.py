@@ -2,7 +2,8 @@
 """XMVSF Palette Studio: local-only ROM palette browser and profile editor.
 
 Only reads the original CPS-2 xvs.05a program ROM. Never patches a ROM,
-replaces an original colour, or writes to the game's palettes folder.
+replaces an original colour. Save All publishes a nine-slot selection catalog
+beside the recomp's settings; the game-side X/Y reader is a separate feature.
 Python standard library only; the browser provides the editing interface.
 """
 from __future__ import annotations
@@ -28,6 +29,10 @@ ROOT = Path(__file__).resolve().parents[1]
 HERE = Path(__file__).resolve().parent
 PAGE = HERE / "palette_studio.html"
 PROFILES = HERE / "profiles"
+# Generated on explicit Save All; consumed by a future native X/Y selector.
+GAME_CATALOG = ROOT / "recomp" / "work" / "xmvsf" / "palettes" / "selection_slots.json"
+MAX_CUSTOM_SLOTS = 7
+TOTAL_SELECT_SLOTS = 9
 SPRITES = HERE / "sprites"
 PORTRAITS = ROOT / "_art" / "menu" / "characterselect" / "portraits"
 # Model viewer uses PlayerFolder()/exports. The shipped Windows RECOMP_RUN.bat
@@ -61,6 +66,7 @@ SPRITE_MAX = 8 * 1024 * 1024
 TOKEN = secrets.token_urlsafe(32)
 COLOUR = re.compile(r"^#[0-9A-F]{6}$")
 PROFILE_ID = re.compile(r"^[0-9a-f]{16}$")
+DRAFT_KEY = re.compile(r"^draft-[0-9]{1,8}$")
 SPRITE_NAME = re.compile(r"^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,90}\.png$", re.I)
 SAVE_LOCK = threading.RLock()
 CAPTURE_LOCK = threading.RLock()
@@ -221,6 +227,32 @@ def valid_colours(value: object) -> list:
     return result
 
 
+def valid_swatch(value: object) -> str:
+    """Explicit 24-bit character-select indicator, not a CPS-2 color pen."""
+    if not isinstance(value, str) or not re.fullmatch(r"#[0-9a-fA-F]{6}", value):
+        raise ValueError("Select-screen swatch must be #RRGGBB")
+    return value.upper()
+
+
+def suggested_swatch(rows: list) -> str:
+    """Choose a visible starting swatch from the native body row.
+
+    The original P/K samples are immutable; custom profiles may override
+    this marker freely without altering any game palette pen.
+    """
+    best = "#888888"
+    score = -1.0
+    for colour in rows[0][1:15]:
+        r, g, b = (int(colour[i:i + 2], 16) for i in (1, 3, 5))
+        chroma = max(r, g, b) - min(r, g, b)
+        brightness = (r + g + b) / 3
+        weight = chroma * 2 + brightness * 0.12 - (100 if brightness < 35 else 0)
+        if weight > score:
+            score = weight
+            best = colour
+    return best.upper()
+
+
 def require_source() -> dict:
     if SOURCE is None:
         raise ValueError("Load the original xvs.05a ROM before editing or saving")
@@ -243,7 +275,8 @@ def profile_list(who: int) -> list:
             obj = json.loads(path.read_text(encoding="utf-8"))
             if obj.get("character") == who and isinstance(obj.get("name"), str):
                 profiles.append({"id": path.stem, "name": obj["name"],
-                                 "source_sha256": obj.get("source_sha256", "")})
+                                 "source_sha256": obj.get("source_sha256", ""),
+                                 "swatch": obj.get("swatch")})
         except (OSError, ValueError, TypeError, AttributeError):
             continue
     return sorted(profiles, key=lambda p: p["name"].lower())
@@ -260,6 +293,8 @@ def read_profile(who: int, profile_id: str) -> dict:
     if obj.get("source_sha256") != source["sha256"]:
         raise ValueError("Profile belongs to a different original ROM")
     obj["colours"] = valid_colours(obj.get("colours"))
+    obj["swatch"] = valid_swatch(
+        obj.get("swatch", suggested_swatch(obj["colours"][0])))
     return obj
 
 
@@ -275,7 +310,7 @@ def profile_previews(who: int) -> list[dict]:
         try:
             doc = read_profile(who, summary["id"])
             items.append({"id": doc["id"], "name": doc["name"],
-                          "colours": doc["colours"]})
+                          "swatch": doc["swatch"], "colours": doc["colours"]})
         except (ValueError, OSError, TypeError, KeyError, json.JSONDecodeError):
             continue
     return items
@@ -291,6 +326,7 @@ def save_profile(obj: dict) -> dict:
     if obj.get("source_sha256") != source["sha256"]:
         raise ValueError("The original ROM has changed; reload the profile")
     colours = valid_colours(obj.get("colours"))
+    swatch = valid_swatch(obj.get("swatch", suggested_swatch(colours[0])))
     identifier = obj.get("id")
     if identifier is not None:
         checked_profile_id(identifier)
@@ -300,7 +336,7 @@ def save_profile(obj: dict) -> dict:
         identifier = secrets.token_hex(8)
     doc = {"version": 1, "id": identifier, "character": who,
            "name": name.strip(), "source_sha256": source["sha256"],
-           "colours": colours}
+           "swatch": swatch, "colours": colours}
     target = profile_path(who, identifier)
     with SAVE_LOCK:
         target.parent.mkdir(parents=True, exist_ok=True)
@@ -313,7 +349,8 @@ def save_profile(obj: dict) -> dict:
         finally:
             if os.path.exists(tempname):
                 os.unlink(tempname)
-    return {"id": identifier, "name": doc["name"], "character": who}
+    return {"id": identifier, "name": doc["name"],
+            "swatch": swatch, "character": who}
 
 
 def export_text(who: int, doc: dict) -> str:
