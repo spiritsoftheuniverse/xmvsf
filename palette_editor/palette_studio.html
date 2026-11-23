@@ -93,6 +93,13 @@ header p {font-size:12px;color:#9eb4ca;margin:0}
 .reference-choice .reference-info small {font:10px Consolas,monospace;color:#a6bed0}
 .reference-choices {display:grid;gap:6px}
 .swatch-details code {font-size:12px;color:#a6dcff}
+.selection-marker {display:grid;gap:6px;padding-top:10px}
+.selection-marker-row {display:flex;gap:9px;align-items:center}
+.selection-marker-row input[type=color] {height:46px;width:94px;padding:3px;cursor:pointer;flex:none}
+.selection-marker-row input[type=text] {flex:1;width:100%;font:14px Consolas,monospace;letter-spacing:.05em}
+.select-chip {width:100%;height:17px;border:1px solid #ffffff44;border-radius:3px;margin:4px 0 3px}
+.save-counter {font-size:11px;color:#a6cbe6}
+.empty-slot {min-width:118px;display:grid;place-items:center;gap:4px;border:1px dashed #3e566b;border-radius:8px;color:#67829b;font-size:11px;text-align:center;padding:12px 5px}
 .picker-square {width:100%;height:224px;border-radius:8px;display:block;border:1px solid #536e82;cursor:crosshair;touch-action:none}
 .picker-square.readonly {cursor:default;opacity:.48}
 .hue-row {display:grid;gap:6px}
@@ -136,8 +143,8 @@ header p {font-size:12px;color:#9eb4ca;margin:0}
    <div class="toolbar">
     <select id="profileSelect" class="profile-select" aria-label="Palette profile"><option value="original">Original P · read only</option><option value="original-k">Original K · read only</option></select>
     <button id="newProfile" class="primary">+ New</button>
-    <button id="saveProfile" disabled>Save profile</button>
-    <button id="exportProfile" disabled>Export .txt</button>
+    <button id="saveAll" class="primary" disabled>Save All</button>
+    <small id="saveCounter" class="save-counter">0 unsaved · 9 slots per fighter</small>
    </div>
   </div>
   <div class="strip">
@@ -175,7 +182,12 @@ header p {font-size:12px;color:#9eb4ca;margin:0}
  <aside class="panel sideedit">
   <div><div class="kicker">COLOR INSPECTOR</div><h2 style="margin:8px 0 0;font-size:18px">Selected swatch</h2></div>
   <div id="editStatus" class="status-tag ref-tag">Original · read only</div>
-  <div class="swatch-details"><label class="section-title" for="selectedName">Custom palette name</label><input id="selectedName" type="text" maxlength="80" placeholder="Create a profile to name it" disabled><small id="selectedSlot">Body · #01</small><code id="selectedAddress">0x------</code></div>
+  <div class="swatch-details"><label class="section-title" for="selectedName">Custom palette name</label><input id="selectedName" type="text" maxlength="60" placeholder="Create a profile to name it" disabled>
+    <div class="selection-marker"><label class="section-title" for="selectionColor">Character-select color swatch</label>
+     <div class="selection-marker-row"><input id="selectionColor" type="color" value="#6677CC" disabled aria-label="Character-select marker color"><input id="selectionHex" type="text" maxlength="7" value="#6677CC" disabled aria-label="Character-select marker hex"></div>
+     <small>Large display-only swatch for the nine-color selection row. Does not change sprite colors.</small>
+    </div>
+    <small id="selectedSlot">Body · #01</small><code id="selectedAddress">0x------</code></div>
   <canvas class="picker-square" id="sv" width="238" height="224" aria-label="Saturation and brightness color picker"></canvas>
   <div class="hue-row"><label class="section-title" for="hue">Hue</label><input id="hue" type="range" min="0" max="360" step="1" value="210" disabled></div>
   <div class="hex-row"><label class="section-title" for="hex">HEX · CPS-2 RGB</label><input id="hex" type="text" maxlength="7" value="#000000" spellcheck="false" autocomplete="off" disabled></div>
@@ -193,11 +205,11 @@ header p {font-size:12px;color:#9eb4ca;margin:0}
   <div class="divider"></div>
   <button id="resetSwatch" disabled>Restore this swatch</button>
   <p class="notice">The picker stays open. Colors snap to the CPS-2's 16 levels per RGB channel. Originals are never written back to the ROM.</p>
-  <p class="notice" id="profileHint">Create a profile to start editing. Save profiles as JSON; Export produces the recomp's [P]/[K] palette text format.</p>
+  <p class="notice" id="profileHint">Create up to seven custom profiles alongside the two originals. Save All commits every character's edits and publishes the nine-slot selection catalog.</p>
  </aside>
 </main>
 <div class="toast" id="message" role="status">Loading character palette data…</div>
-<footer class="footer">Local browser tool · never edits original ROMs · transparent PNGs matching original palette colors receive accurate live recoloring · no game rebuild needed for exported palette text</footer>
+<footer class="footer">Local browser tool · original ROMs remain unchanged · Save All publishes profiles and one nine-slot data catalog · the in-game X/Y selector is not wired yet</footer>
 
 <script>
 'use strict';
