@@ -423,18 +423,20 @@ function cachedImage(url){
   }
   return state.images.get(url);
 }
-function coloredSprite(img,kind){
+function coloredSprite(img,kind,profileView=null,spriteLine=0){
   const off=document.createElement('canvas');off.width=img.naturalWidth;off.height=img.naturalHeight;
   const ctx=off.getContext('2d',{willReadFrequently:true});ctx.drawImage(img,0,0);
   let changed=0,visible=0;
-  if(kind==='portrait'&&original()&&editable()){
+  const target=profileView?profileView.colours:colors();
+  const targetBank=profileView?profileView.bank:state.set;
+  if(kind==='portrait'&&original()&&target){
     // Portrait art has its own colour composition and is not directly
     // indexed by native fighter pens. For the editable preview only,
     // project changes in the nearest original body pen onto its pixels.
     // Never modify the portrait PNG or invent original ROM ownership.
     const pixels=ctx.getImageData(0,0,off.width,off.height);
     const data=pixels.data;
-    const base=original()[state.set][0],edited=colors()[state.set][0];
+    const base=original()[0][0],edited=target[targetBank][0];
     const candidates=[];
     for(let pen=1;pen<15;pen++){
       const old=rgb(base[pen]),next=rgb(edited[pen]);
@@ -467,26 +469,34 @@ function coloredSprite(img,kind){
       }
       ctx.putImageData(pixels,0,0);
     }
-  }else if((kind==='sprite'||kind==='viewer')&&original()){
+  }else if((kind==='sprite'||kind==='viewer')&&original()&&target){
     const pixels=ctx.getImageData(0,0,off.width,off.height);
-    const base=original()[state.sourceSet][0],dest=colors()[state.set][0];
-    const lookup=new Map(base.map((c,i)=>[c.toUpperCase(),i]));
+    // The native PNG has RGB pixels, not palette indexes. Use exact RGB
+    // lookups from the original game's P bank. Prioritize the example's
+    // actual object palette line; match the other two for mixed poses.
+    const lookup=new Map();
+    for(const line of [spriteLine,0,1,2]){
+      for(let pen=0;pen<16;pen++){
+        const source=original()[0][line][pen].toUpperCase();
+        if(!lookup.has(source))
+          lookup.set(source,rgb(target[targetBank][line][pen]));
+      }
+    }
     const data=pixels.data;
     for(let i=0;i<data.length;i+=4){
       if(!data[i+3])continue;visible++;
       const source='#'+[data[i],data[i+1],data[i+2]].map(v=>v.toString(16).padStart(2,'0')).join('').toUpperCase();
-      const ix=lookup.get(source);
-      if(ix===undefined)continue;
-      const val=rgb(dest[ix]);
+      const val=lookup.get(source);
+      if(!val)continue;
       data[i]=val[0];data[i+1]=val[1];data[i+2]=val[2];changed++;
     }
     ctx.putImageData(pixels,0,0);
   }
   return {canvas:off,matched:changed,visible:visible};
 }
-function paintSprite(canvas,img,kind){
+function paintSprite(canvas,img,kind,profileView=null,spriteLine=0){
   if(!img)return {matched:0,visible:0};
-  const result=coloredSprite(img,kind),source=result.canvas;
+  const result=coloredSprite(img,kind,profileView,spriteLine),source=result.canvas;
   // CPS2 pixels are square. Never stretch a fixed-size canvas to fill
   // a differently proportioned preview box, or use fractional zoom.
   const thumbnail=canvas.closest('.thumb');
