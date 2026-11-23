@@ -433,8 +433,10 @@ class ProfileTests(unittest.TestCase):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
         self.orig_profile_dir = studio.PROFILES
+        self.orig_catalog = studio.GAME_CATALOG
         self.orig_source = studio.SOURCE
-        studio.PROFILES = Path(self.tmp.name)
+        studio.PROFILES = Path(self.tmp.name) / "profiles"
+        studio.GAME_CATALOG = Path(self.tmp.name) / "game" / "palettes" / "selection_slots.json"
         originals, addresses = studio.decode_palettes(synthetic_program(), verify_crc=False)
         studio.SOURCE = {"label": "synthetic for testing", "sha256": "test-source-sha",
                          "crc32": "DUMMY", "originals": originals, "addresses": addresses}
@@ -442,12 +444,123 @@ class ProfileTests(unittest.TestCase):
 
     def restore(self) -> None:
         studio.PROFILES = self.orig_profile_dir
+        studio.GAME_CATALOG = self.orig_catalog
         studio.SOURCE = self.orig_source
 
     def make_doc(self) -> dict:
         return {"id": None, "name": "Color Test", "character": 9,
                 "source_sha256": "test-source-sha",
                 "colours": copy.deepcopy(studio.SOURCE["originals"][9])}
+
+    def test_select_swatch_is_explicit_24bit_metadata_not_a_rom_pen(self):
+        doc = self.make_doc()
+        doc["swatch"] = "#a12fbc"  # not quantized to CPS-2 steps
+        saved = studio.save_profile(doc)
+        read = studio.read_profile(9, saved["id"])
+        self.assertEqual(read["swatch"], "#A12FBC")
+        self.assertEqual(read["colours"][0][0][0], self.make_doc()["colours"][0][0][0])
+        self.assertEqual(studio.valid_swatch("#11aa33"), "#11AA33")
+        for malformed in ("red", "#FFFFF", "#GG0000", "#12345678", None):
+            with self.assertRaises(ValueError):
+                studio.valid_swatch(malformed)
+
+    def test_save_all_two_characters_nine_slots_and_isolated_display_swatches(self):
+        ryu = self.make_doc()
+        ryu["swatch"] = "#AC24EF"
+        ryu["colours"][0][0][1] = "#AABBCC"
+        wolverine = self.make_doc()
+        wolverine["character"] = 0
+        wolverine["name"] = "Sunshine"
+        wolverine["swatch"] = "#FBCE12"
+        payload = {"source_sha256": "test-source-sha",
+                   "profiles": [dict(ryu, client_key="draft-1"),
+                                dict(wolverine, client_key="draft-2")]}
+        result = studio.save_all_profiles(payload)
+        self.assertEqual(result["saved"], 2)
+        self.assertEqual(result["characters"], 19)
+        self.assertEqual(result["slots_per_character"], 9)
+        self.assertTrue(studio.GAME_CATALOG.is_file())
+        catalog = json.loads(studio.GAME_CATALOG.read_text(encoding="utf-8"))
+        self.assertEqual(catalog["format"], "xmvsf-palette-slots")
+        self.assertEqual(catalog["source_sha256"], "test-source-sha")
+        self.assertEqual(len(catalog["characters"]), 19)
+        self.assertTrue(all(len(row["slots"]) == 9 for row in catalog["characters"]))
+        ryu_slots = catalog["characters"][9]["slots"]
+        self.assertEqual([v["name"] for v in ryu_slots[:3]],
+                         ["Original P", "Original K", "Color Test"])
+        self.assertEqual(ryu_slots[2]["swatch"], "#AC24EF")
+        self.assertEqual(ryu_slots[2]["colours"][0][1], "#AABBCC")
+        self.assertIsNone(ryu_slots[3])
+        self.assertEqual(catalog["characters"][0]["slots"][2]["swatch"], "#FBCE12")
+        self.assertEqual(catalog["characters"][9]["slots"][0]["kind"], "original")
+        self.assertEqual(catalog["characters"][9]["slots"][1]["bank"], 1)
+        self.assertEqual(studio.read_profile(0, result["ids"]["draft-2"])["name"], "Sunshine")
+
+    def test_save_all_keeps_existing_slot_order_on_rename(self):
+        first = dict(self.make_doc(), name="Zulu", swatch="#AC54FA", client_key="draft-1")
+        second = dict(self.make_doc(), name="Alpha", swatch="#D92537", client_key="draft-2")
+        result = studio.save_all_profiles(
+            {"source_sha256": "test-source-sha", "profiles": [first, second]})
+        initial = json.loads(studio.GAME_CATALOG.read_text(encoding="utf-8"))
+        order = [x["profile_id"] for x in initial["characters"][9]["slots"][2:4]]
+        self.assertEqual(set(order), set(result["ids"].values()))
+        renamed = studio.read_profile(9, result["ids"]["draft-1"])
+        renamed["name"] = "Aardvark"
+        studio.save_all_profiles(
+            {"source_sha256": "test-source-sha",
+             "profiles": [dict(renamed, client_key=renamed["id"])]})
+        newer = json.loads(studio.GAME_CATALOG.read_text(encoding="utf-8"))
+        self.assertEqual([x["profile_id"] for x in newer["characters"][9]["slots"][2:4]],
+                         order)
+
+    def test_save_all_rejects_bad_batch_before_writing_or_publishing(self):
+        good = dict(self.make_doc(), swatch="#123456", client_key="draft-1")
+        bad = dict(self.make_doc(), swatch="not-a-color", client_key="draft-2")
+        with self.assertRaisesRegex(ValueError, "swatch"):
+            studio.save_all_profiles(
+                {"source_sha256": "test-source-sha", "profiles": [good, bad]})
+        self.assertEqual(studio.profile_list(9), [])
+        self.assertFalse(studio.GAME_CATALOG.exists())
+        with self.assertRaisesRegex(ValueError, "ROM source"):
+            studio.save_all_profiles(
+                {"source_sha256": "wrong-source", "profiles": [good]})
+
+    def test_nine_total_slots_enforces_seven_custom_without_partial_saves(self):
+        updates = [dict(self.make_doc(), name=f"Style {i}",
+                        swatch=f"#{i:06X}", client_key=f"draft-{i+1}")
+                   for i in range(8)]
+        with self.assertRaisesRegex(ValueError, "seven custom"):
+            studio.save_all_profiles(
+                {"source_sha256": "test-source-sha", "profiles": updates})
+        self.assertEqual(studio.profile_list(9), [])
+        self.assertFalse(studio.GAME_CATALOG.exists())
+
+    def test_save_all_with_no_changes_publishes_originals_only(self):
+        result = studio.save_all_profiles(
+            {"source_sha256": "test-source-sha", "profiles": []})
+        self.assertEqual(result["saved"], 0)
+        doc = json.loads(studio.GAME_CATALOG.read_text(encoding="utf-8"))
+        slots = doc["characters"][0]["slots"]
+        self.assertEqual(len(slots), 9)
+        self.assertIsNone(slots[2])
+        self.assertRegex(slots[0]["swatch"], r"^#[0-9A-F]{6}$")
+
+    def test_one_save_all_button_and_cross_character_draft_staging(self):
+        html = (HERE / "palette_studio.html").read_text(encoding="utf-8")
+        server = (HERE / "palette_studio_server.py").read_text(encoding="utf-8")
+        self.assertIn('id="saveAll"', html)
+        self.assertNotIn('id="saveProfile"', html)
+        self.assertNotIn('id="exportProfile"', html)
+        self.assertIn('id="selectionColor" type="color"', html)
+        self.assertIn('id="selectionHex" type="text"', html)
+        self.assertIn("function stageCurrent()", html)
+        self.assertIn("state.pending=new Map()", html.replace("pending:new Map()", "state.pending=new Map()"))
+        self.assertIn("const staged=[...state.pending.values()].map(copy);", html)
+        self.assertIn("stageCurrent(); // never discard edits", html)
+        self.assertIn("'/api/save-all'", html)
+        self.assertIn("drawProfileStrip()", html)
+        self.assertIn("function suggestedSwatch(rows)", html)
+        self.assertIn('route == "/api/save-all"', server)
 
     def test_create_save_open_and_export(self):
         doc = self.make_doc()
