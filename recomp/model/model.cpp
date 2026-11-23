@@ -792,6 +792,10 @@ bool ExportStandingPng(const std::string &folder) {
                      target.c_str(), pictures[0].width, pictures[0].height);
     return saved;
 }
+int AnimationShown() {
+    return g.table ? (g.table - 1) * g_d.perList + g.number + 1 : 0;
+}
+
 bool ExportPaletteExamplePng(Machine &machine, const std::string &folder, int line) {
     if (line == 0) return ExportStandingPng(folder);
     if (line < 1 || line > 2 || !g.on || !g.seen || !g.table ||
