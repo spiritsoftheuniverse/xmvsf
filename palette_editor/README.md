@@ -121,50 +121,57 @@ unlike native sprite pixels, the menu portrait is not indexed by the
 same fighter palette slots. Reverting to Original P displays the
 unaltered portrait.
 
-## Generate Body, Effect A and Effect B examples
+## Generate genuine Body and secondary palette-row samples
 
-**One native recompilation is required** for this feature: run
-`RECOMP_BUILD.bat` once after pulling.
+**Requires one recompilation** because the headless Model viewer now filters
+CPS-2 sprite objects by their **actual native OAM palette-slot attributes**.
+Run `RECOMP_BUILD.bat` once after pulling this update.
 
-Press **Generate 3 examples** for the currently selected character.
-This runs the compiled game locally and headlessly using the real Model
-viewer, with a separate Palette Studio EEPROM/settings file. The three
-intended outputs are:
+The old **Effect A / Effect B** naming was not justified. Those were just
+the second and third native *palette rows*. A row may be used by body tiles,
+weapons, highlights, projectile visuals or other objects. It does **not**
+identify a semantic effect, attack, or projectile by itself.
 
-- **Body / Character:** native standing fighter, with the first palette
-  line, at 1× CPS-2 pixel scale
-- **Effect A:** a native animation frame using the second palette line
-- **Effect B:** a native animation frame using the third palette line
+**Generate 3 examples** asks the native viewer for:
 
-Effect A and Effect B are determined by the existing native color-editor
-animation scan. They are only saved when a real frame uses that palette
-line. If no qualifying animation is found, the app reports that the
-example is unavailable rather than displaying a mislabeled standing
-sprite. Different fighters may have different usable effect frames.
+- **Body / Character** — a real standing character model at 1× pixel scale
+- **Palette row 2** — only native CPS-2 sprite objects whose low five
+  OAM attribute bits select this character's second original color row
+- **Palette row 3** — only native sprite objects selecting the third row
 
-The files appear beneath `recomp/exports/palette_studio/`, such as
-`Ryu.png`, `Ryu Effect A.png` and `Ryu Effect B.png`.
-The source ROM, normal gameplay, and manual Model viewer exports are
-left intact. The main combat preview has three **example tabs** beneath
-it; these change the previewed native frame while keeping the selected
-palette profile unchanged.
+The color editor's built-in native animation scan finds frames using the
+second or third row. Crucially, the exporter re-renders **only the matching
+OAM objects**, instead of cropping the entire standing or attacking fighter
+as it did before. The target row's color ink is kept at source resolution
+and detached objects are included even when they would appear behind the
+body in the fully composited pose.
 
-From inside the `recomp` directory you can also request the three
-examples directly for one character index (0–18):
+A successful palette-row export proves that some *native objects* use that
+color row. It does **not** prove that those objects are VFX or separate
+projectiles. If the selected row colors a piece of the character, that
+piece is what the preview should show. If no actual matching pixels are
+visible, no row sample is substituted or generated.
+
+The corrected sample files appear in
+`recomp/exports/palette_studio/` as `Ryu.png`, `Ryu Row 2.png`
+and `Ryu Row 3.png`. Old `Ryu Effect A.png` / `Ryu Effect B.png`
+full-fighter exports are ignored by discovery and deleted for that
+character when the user explicitly regenerates their samples. Other
+characters' files and normal Model viewer exports are preserved.
+
+The program uses an isolated Palette Studio settings and EEPROM file;
+neither original ROMs nor gameplay palettes are modified. The preview
+has three sample selectors below the main character display. The selected
+custom palette persists while switching these samples.
+
+You can also invoke this capture from the `recomp` directory:
 
 ```powershell
 .\build\xmvsf\xmvsf.exe --rom rom/xmvsf --headless --mute --palette-sprites 9
 ```
 
-This example selects Ryu. The Palette Studio button uses the currently
-selected fighter's index automatically.
-
-Existing manual standing PNG exports in `recomp/exports/` and
-`recomp/work/xmvsf/exports/` remain readable. Exact RGB matches against
-the original palette colors are replaced with the selected profile's
-corresponding colors (including effect lines); pixels without a known
-original match remain unchanged. The editor does not fabricate missing
-native artwork.
+Character index 9 is Ryu; the Palette Studio button passes the selected
+fighter's index automatically.
 
 ## Export to the recomp
 
