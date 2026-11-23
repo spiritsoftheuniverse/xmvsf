@@ -3972,11 +3972,11 @@ int main(int argc, char **argv) {
         fprintf(stderr, "Palette Studio Body / Character: %s\n",
                 standing ? "EXPORTED" : "NOT DRAWN");
         if (standing) {
-            // The existing native colour editor already scans each of
-            // the fighter's animations on a spare real game machine to
-            // find which use the effect A/B object palette slots.
-            // Reuse its verified results rather than hard-code moves or
-            // relabel the standing sprite as an effect.
+            // The existing colour-editor scan identifies animations
+            // containing objects from each native CPS-2 palette row.
+            // These rows are NOT semantic effect types, so the exporter
+            // isolates their actual OAM ink instead of claiming an
+            // arbitrary attack or standing pose is an effect.
             int effectA = -2, effectB = -2;
             for (unsigned f = 0; f < 5000u && !p.quit; f++) {
                 if (!p.Tick()) continue;
@@ -3986,18 +3986,18 @@ int main(int argc, char **argv) {
                 effectB = model::AnimationForLine(2);
                 if (effectA != -2 && effectB != -2) break;
             }
-            // Some authentic effect objects are detached from the
-            // character. Retain them only for these explicitly requested
-            // sample PNGs, not ordinary Model viewer/gameplay.
-            model::ShowDetachedEffectsForSamples(true);
+            // Detached native objects might use the secondary rows;
+            // keep them only for these explicit samples, never gameplay.
+            model::IncludeDetachedObjectsForSamples(true);
             for (int line = 1; line <= 2; line++) {
                 const int choice = line == 1 ? effectA : effectB;
                 bool taken = false;
                 if (choice > 0) {
                     SetFeatureForNow("model_animation", choice);
-                    // An animation can have frames WITHOUT the effect.
-                    // Capture only one of its real frames that uses the
-                    // requested ROM palette line. No synthetic stand-ins.
+                    // An animation may not draw a single pixel from the
+                    // requested row. The exporter checks the native OAM
+                    // slot and captures only its matching objects, not the
+                    // full fighter pose. No synthetic stand-ins.
                     for (unsigned f = 0; f < 420u && !p.quit; f++) {
                         if (!p.Tick()) continue;
                         if (!model::On() || model::CharacterNumber() != character)
@@ -4011,16 +4011,16 @@ int main(int argc, char **argv) {
                         }
                     }
                 }
-                fprintf(stderr, "Palette Studio Effect %c: %s\n",
-                        line == 1 ? 'A' : 'B',
+                fprintf(stderr, "Palette Studio Row %d: %s\n",
+                        line + 1,
                         taken ? "EXPORTED" :
                         choice == -2 ? "SCAN INCOMPLETE" :
-                        choice < 0 ? "NO NATIVE ANIMATION" : "EFFECT FRAME NOT DRAWN");
+                        choice < 0 ? "NO NATIVE ANIMATION" : "ROW OBJECTS NOT DRAWN");
             }
         }
-        model::ShowDetachedEffectsForSamples(false);
+        model::IncludeDetachedObjectsForSamples(false);
         p.Finish();
-        fprintf(stderr, "Palette Studio: exported %d of 3 native palette examples\n", saved);
+        fprintf(stderr, "Palette Studio: exported %d of 3 native palette-row samples\n", saved);
         return saved == 3 ? 0 : 1;
     }
     if (!p.opt.dumpProgram.empty()) {
