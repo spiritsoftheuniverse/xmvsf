@@ -409,10 +409,10 @@ async function fetchSpriteData(){
   const found=await request('/api/sprites?character='+who);
   if(state.who!==who)return;
   state.sprites=found;
-  state.selectedSprite=found.find(v=>v.type==='viewer')||
-    found.find(v=>v.type==='sprite')||null;
+  state.selectedSprite=found.find(v=>v.type==='viewer'&&v.name==='Body / Character')||
+    found.find(v=>v.type==='viewer')||found.find(v=>v.type==='sprite')||null;
   state.spriteImage=null;
-  drawSpriteStrip();drawPortrait();
+  refreshPreviews();
 }
 function cachedImage(url){
   if(!state.images.has(url)){
@@ -519,7 +519,8 @@ function profileCards(){
     {mode:'original-k',name:'Original K',colours:palettes,bank:1,reference:true}
   ];
   for(const doc of state.profilePreviews)
-    entries.push({mode:'saved',id:doc.id,name:doc.name,colours:doc.colours,bank:0});
+    entries.push({mode:'saved',id:doc.id,name:doc.name,
+      colours:state.mode==='saved'&&state.id===doc.id?state.colors:doc.colours,bank:0});
   if(state.mode==='draft')
     entries.push({mode:'draft',name:state.name+' · unsaved',colours:state.colors,bank:0});
   return entries;
@@ -608,21 +609,24 @@ async function drawPreview(){
     ctx.font='12px Segoe UI, Arial';ctx.fillStyle='#9FB9CE';
     ctx.fillText('Model viewer → Export',w/2,h/2+6);
     ctx.fillText('Save picture → Refresh',w/2,h/2+25);
-    $('previewNotice').textContent='Click Generate selected sprite above. The local recomp generates the real standing frame automatically, then it appears here with its native palette colors. Requires RECOMP_BUILD.bat once after pulling this update.';
+    $('previewNotice').textContent='Click Generate 3 examples to capture Body / Character, Effect A and Effect B. Missing native effects will be reported instead of substituted with a standing sprite.';
     return;
   }
   $('previewType').textContent=sprite.type==='viewer'?'Native model · '+sprite.name:'Imported sprite · '+sprite.name;
   try{
     const img=await cachedImage(sprite.url);
     if(state.selectedSprite!==sprite||state.who!==selection)return;
-    const result=paintSprite(canvas,img,sprite.type);
+    const result=paintSprite(canvas,img,sprite.type,null,sprite.line||0);
     const pct=result.visible?Math.round(100*result.matched/result.visible):0;
-    $('previewNotice').textContent=(sprite.type==='viewer'?'Genuine native Model viewer export. ':'Imported sprite. ')+
-      pct+'% of visible sprite pixels matched original '+(state.sourceSet?'K':'P')+
-      ' body colors. Matching pixels use this profile; others are left unchanged.';
+    $('previewNotice').textContent=(sprite.type==='viewer'?'Genuine native Model viewer image. ':'Imported sprite. ')+
+      pct+'% of visible pixels matched original palette colors. '+
+      'This is the '+sprite.name+' example with '+(state.mode==='original-k'?'read-only K colors':editable()?state.name:'read-only P colors')+'.';
   }catch(err){$('previewNotice').textContent=err.message}
 }
-function refreshPreviews(){if(!state.sprites)return;drawSpriteStrip();drawPortrait()}
+function refreshPreviews(){
+  if(!state.sprites)return;
+  drawProfileStrip();drawExampleTypes();drawPreview();drawPortrait();
+}
 async function drawPortrait(){
   const canvas=$('portraitPreview');canvas.getContext('2d').clearRect(0,0,canvas.width,canvas.height);
   const who=state.who;
@@ -647,7 +651,8 @@ function chooseCharacter(id){
   $('characterTitle').textContent=state.data.characters[id].name;
   $('charMetadata').textContent=selectedText()+' · '+(original()?'2 sets / 3 palettes / 16 colors':'ROM source required');
   hueFromSelected();renderAll();
-  fetchSpriteData().catch(err=>show(err.message,true));
+  fetchSpriteData().catch(err=>show('Native example discovery: '+err.message,true));
+  fetchProfilePreviews().catch(err=>show('Profile thumbnails: '+err.message,true));
 }
 function makeProfile(){
   if(!original()){
@@ -695,7 +700,9 @@ async function saveProfile(){
     const doc={id:state.id,character:state.who,name:state.name,source_sha256:state.data.source.sha256,colours:state.colors};
     const result=await request('/api/profile/save',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(doc)});
     state.id=result.id;state.mode='saved';state.dirty=false;
-    state.data=await request('/api/state');renderAll();show('Profile saved: '+state.name,false);
+    state.data=await request('/api/state');
+    await fetchProfilePreviews();
+    renderAll();show('Profile saved: '+state.name,false);
   }catch(err){show(err.message,true)}
 }
 function exportProfile(){
