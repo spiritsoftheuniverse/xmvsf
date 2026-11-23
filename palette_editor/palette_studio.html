@@ -204,7 +204,7 @@ const TOKEN = '__PALETTE_TOKEN__';
 const $ = id => document.getElementById(id);
 const lines = ['Body / Character', 'Effect palette A', 'Effect palette B'];
 const state = {data:null,who:0,set:0,line:0,pen:1,mode:'original',id:null,name:'',
-  colors:null,dirty:false,sprites:[],selectedSprite:null,spriteImage:null,
+  colors:null,dirty:false,sprites:[],selectedSprite:null,spriteImage:null,profilePreviews:[],
   hue:210,sat:1,val:1,images:new Map(),sourceSet:0,newAfterLoad:false};
 function copy(v){return JSON.parse(JSON.stringify(v))}
 function show(text,bad){$('message').textContent=text;$('message').className='toast'+(bad?' bad':'')}
@@ -218,7 +218,7 @@ async function request(route,options){
   return value;
 }
 function original(){return state.data && state.data.originals?state.data.originals[state.who]:null}
-function editable(){return state.mode!=='original' && !!original()}
+function editable(){return (state.mode==='draft'||state.mode==='saved') && !!original()}
 function colors(){return editable()?state.colors:original()}
 function current(){const p=colors();return p?p[state.set][state.line][state.pen]:'#000000'}
 function sourceCurrent(){const p=original();return p?p[state.sourceSet][state.line][state.pen]:'#000000'}
@@ -262,7 +262,7 @@ function drawPicker(){
 }
 function renderColorInspector(){
   // The name belongs to the whole custom palette, not a single pen.
-  if(document.activeElement!==$('selectedName'))$('selectedName').value=editable()?state.name:'Original · read only';
+  if(document.activeElement!==$('selectedName'))$('selectedName').value=editable()?state.name:(state.mode==='original-k'?'Original K · read only':'Original P · read only');
   $('selectedName').disabled=!editable();
   $('selectedSlot').textContent=lines[state.line]+' · #'+String(state.pen).padStart(2,'0');
   $('selectedAddress').textContent=sourceAddr();
@@ -283,7 +283,7 @@ function renderColorInspector(){
   $('profileSample').style.background=current();
   $('resetSwatch').disabled=!editable();
   $('editStatus').className='status-tag'+(editable()?'':' ref-tag');
-  $('editStatus').textContent=editable()?state.name+(state.dirty?' · unsaved changes':' · editable'):'Original · read only';
+  $('editStatus').textContent=editable()?state.name+(state.dirty?' · unsaved changes':' · editable'):(state.mode==='original-k'?'Original K · read only':'Original P · read only');
   drawPicker();
 }
 function selectedText(){
@@ -305,21 +305,26 @@ function showCharacters(){
   });
 }
 function showProfileOptions(){
-  const pick=$('profileSelect'),old=state.mode,id=state.id;
+  const pick=$('profileSelect');
   pick.replaceChildren();
-  const base=document.createElement('option');base.value='original';base.textContent='Original · read only';pick.add(base);
+  for(const [value,label] of [['original','Original P · read only'],['original-k','Original K · read only']]){
+    const item=document.createElement('option');item.value=value;item.textContent=label;pick.add(item);
+  }
   state.data.characters[state.who].profiles.forEach(profile=>{
     const item=document.createElement('option');item.value=profile.id;item.textContent=profile.name;pick.add(item);
   });
-  if(old==='draft'){const item=document.createElement('option');item.value='draft';item.textContent=state.name+' · new';pick.add(item)}
-  pick.value=old==='draft'?'draft':id||'original';
-  // New is never inert. Without a valid source it opens the ROM picker.
+  if(state.mode==='draft'){
+    const item=document.createElement('option');item.value='draft';item.textContent=state.name+' · new';pick.add(item);
+  }
+  pick.value=state.mode==='draft'?'draft':state.mode==='saved'?state.id:state.mode;
   $('newProfile').disabled=false;
-  $('newProfile').title=original()?'Create editable palette from original colors':
+  $('newProfile').title=original()?'Create editable palette from the currently selected colors':
     'Choose original xvs.05a ROM and create a new profile';
   $('saveProfile').disabled=!editable();
   $('exportProfile').disabled=!(editable()&&!!state.id);
-  $('profileHint').textContent=editable()?'Your edits affect only this profile. Use Save to persist, then Export to download a game-compatible .txt file.':'Original ROM palettes are locked. Click New to make an editable copy.';
+  $('profileHint').textContent=editable()?
+    'This custom palette is editable. Save changes to update its sprite thumbnail.':
+    'Original P and Original K are separate read-only palettes. Click New to copy either one.';
 }
 function drawSwatches(){
   const host=$('swatches');host.replaceChildren();
@@ -555,7 +560,7 @@ async function drawPortrait(){
 function chooseCharacter(id){
   if(state.dirty&&!confirm('Discard unsaved profile changes?'))return;
   state.who=id;state.set=0;state.line=0;state.pen=1;state.mode='original';state.id=null;state.name='';
-  state.colors=null;state.dirty=false;state.sourceSet=0;$('spriteBase').value='0';
+  state.colors=null;state.dirty=false;state.sourceSet=0;state.profilePreviews=[];
   // Clear the previous fighter immediately while new files are discovered.
   state.sprites=[];state.selectedSprite=null;
   $('portraitCaption').textContent='Select portrait · Read-only original';
@@ -576,22 +581,30 @@ function makeProfile(){
   const proposed=prompt('Name for new palette profile:',state.data.characters[state.who].name+' Custom');
   if(proposed===null)return;
   if(!proposed.trim())return show('Profile name cannot be empty.',true);
-  state.colors=copy(colors());
-  // Keep original ROM references immutable; custom profiles are unified.
-  state.colors[1]=copy(state.colors[0]);
+  // A new custom profile starts from the displayed bank. This matters
+  // when copying the second original K reference into a unified scheme.
+  const base=editable()?copy(state.colors[0]):copy(original()[state.set]);
+  state.colors=[copy(base),copy(base)];state.set=0;state.sourceSet=0;
   state.mode='draft';state.id=null;state.name=proposed.trim();state.dirty=true;
   hueFromSelected();renderAll();show('New profile created in memory. Save to keep it.',false);
 }
 async function openProfile(mode){
-  if(mode===state.mode||(mode===state.id&&state.mode!=='draft'))return;
-  if(state.dirty&&!confirm('Discard unsaved profile changes?')){$('profileSelect').value=state.mode==='draft'?'draft':state.id||'original';return}
-  if(mode==='original'){state.mode='original';state.id=null;state.name='';state.colors=null;state.dirty=false}
-  else if(mode==='draft'){return}
-  else{
+  if((mode===state.mode&&mode!=='saved')||(mode===state.id&&state.mode==='saved'))return;
+  if(state.dirty&&!confirm('Discard unsaved profile changes?')){
+    showProfileOptions();drawProfileStrip();return;
+  }
+  const who=state.who;
+  if(mode==='original'||mode==='original-k'){
+    state.mode=mode;state.id=null;state.name='';state.colors=null;state.dirty=false;
+    state.set=mode==='original-k'?1:0;state.sourceSet=state.set;
+  }else if(mode==='draft'){return;
+  }else{
     try{
-      const obj=await request('/api/profile?character='+state.who+'&id='+encodeURIComponent(mode));
-      state.mode='saved';state.id=obj.id;state.name=obj.name;state.colors=obj.colours;state.dirty=false;
-    }catch(err){show(err.message,true);return}
+      const obj=await request('/api/profile?character='+who+'&id='+encodeURIComponent(mode));
+      if(state.who!==who)return;
+      state.mode='saved';state.id=obj.id;state.name=obj.name;state.colors=obj.colours;
+      state.dirty=false;state.set=0;state.sourceSet=0;
+    }catch(err){show(err.message,true);showProfileOptions();return}
   }
   hueFromSelected();renderAll();
 }
