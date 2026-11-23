@@ -72,7 +72,8 @@ namespace {
     // the picture shown
     std::vector<uint32_t> g_model;
     int g_modelWidth = 0;
-    bool g_sampleDetachedEffects = false; // opt-in, headless 3-example export only
+    bool g_includeDetachedSamples = false; // headless palette-row captures only
+    int g_exportOnlyPaletteSlot = -1; // native OAM palette filter; -1 restores normal model output
 
     int Characters() {
         return static_cast<int>(g_d.characters.size());
@@ -337,7 +338,14 @@ namespace {
         const auto hidden = video.hideObject;
         video.layerMask = 1;
         video.markObjects = true;
-        video.hideObject = [](uint32_t tile, uint16_t attributes) { return !g_d.isModel(tile, attributes); };
+        video.hideObject = [](uint32_t tile, uint16_t attributes) {
+            // The normal Model viewer keeps all of this fighter's palette
+            // slots. Only an explicit headless secondary-row export
+            // restricts the genuine native CPS-2 objects by their OAM slot.
+            return !g_d.isModel(tile, attributes) ||
+                   (g_exportOnlyPaletteSlot >= 0 &&
+                    (attributes & 0x1Fu) != static_cast<unsigned>(g_exportOnlyPaletteSlot));
+        };
         bool seen = false;
         for (int line = 0; line < height; line++) {
             uint32_t *row = &model[static_cast<size_t>(line) * width];
@@ -405,7 +413,7 @@ namespace {
             }
         }
 
-        if (g_d.nearestOnly && !g_sampleDetachedEffects) {
+        if (g_d.nearestOnly && !g_includeDetachedSamples) {
             KeepNearest(model.data(), width, height, g.anchorX, g.anchorY);
         }
         if (Plain(g.background)) {
@@ -796,25 +804,39 @@ bool ExportStandingPng(const std::string &folder) {
 int AnimationShown() {
     return g.table ? (g.table - 1) * g_d.perList + g.number + 1 : 0;
 }
-void ShowDetachedEffectsForSamples(bool enabled) {
-    g_sampleDetachedEffects = enabled;
+void IncludeDetachedObjectsForSamples(bool enabled) {
+    g_includeDetachedSamples = enabled;
 }
 
 bool ExportPaletteExamplePng(Machine &machine, const std::string &folder, int line) {
     if (line == 0) return ExportStandingPng(folder);
     if (line < 1 || line > 2 || !g.on || !g.seen || !g.table ||
-        g_model.empty() || g_modelWidth <= 0 || folder.empty() ||
-        !g_d.firstLine) return false;
+        g_modelWidth <= 0 || folder.empty() || !g_d.firstLine) return false;
 
-    // The native colour editor already uses these *object palette slots*
-    // to identify animations for each line. An effect example is valid
-    // only when the current native frame actually uses its matching slot.
+    // PALETTE ROW != EFFECT TYPE. The second and third original colour
+    // rows can colour anything the character's native objects draw:
+    // particles, weapons, highlights, or body pieces. An attack pose
+    // alone never establishes that it is an effect.
     int counts[kMostLines] = {};
     CountLines(machine, counts);
     if (counts[line] <= 0) return false;
+    const int slot = g_d.firstLine(machine) + line;
+    if (slot < 0 || slot > 31) return false;
+
+    // IMPORTANT: do NOT crop g_model here. It contains the FULL fighter
+    // regardless of whether an object uses this slot (the old bug).
+    // Render a NEW source-native object picture with only this slot's
+    // actual CPS-2 OAM records. This excludes the standing/attack body
+    // from a secondary row sample unless the body itself truly uses it.
+    // An object behind the body is now rendered, too, not occluded by it.
+    g_exportOnlyPaletteSlot = slot;
+    std::vector<uint32_t> isolated;
+    const bool ink = DrawModel(machine, isolated);
+    g_exportOnlyPaletteSlot = -1;
+    if (!ink) return false; // no visible pixels in this row: no fake sample
 
     Taken frame;
-    frame.pixels = g_model;
+    frame.pixels = std::move(isolated);
     frame.anchorX = g.anchorX;
     frame.anchorY = g.anchorY;
     int ax = 0, ay = 0;
@@ -823,12 +845,11 @@ bool ExportPaletteExamplePng(Machine &machine, const std::string &folder, int li
     std::error_code error;
     std::filesystem::create_directories(PathOf(folder), error);
     if (error) return false;
-    const std::string filename = CharacterName() +
-        (line == 1 ? " Effect A.png" : " Effect B.png");
-    const std::string target = folder + "/" + filename;
+    const std::string target = folder + "/" + CharacterName() +
+        (line == 1 ? " Row 2.png" : " Row 3.png");
     if (!image_files::WritePng(target, pictures[0], 1)) return false;
-    std::fprintf(stderr, "Palette Studio NATIVE EFFECT %d: %s (%dx%d)\n",
-                 line, target.c_str(), pictures[0].width, pictures[0].height);
+    std::fprintf(stderr, "Palette Studio Row %d: EXPORTED native OAM slot %d, %dx%d pixels\n",
+                 line + 1, slot, pictures[0].width, pictures[0].height);
     return true;
 }
 
