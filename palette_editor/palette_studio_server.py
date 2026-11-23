@@ -263,6 +263,24 @@ def read_profile(who: int, profile_id: str) -> dict:
     return obj
 
 
+def profile_previews(who: int) -> list[dict]:
+    """Return only validated profiles for this character's sprite chooser.
+
+    The immutable P/K ROM references are provided by /api/state; this
+    endpoint contains just saved custom schemes. Invalid or stale profiles
+    are never offered as deceptively functional thumbnails.
+    """
+    items = []
+    for summary in profile_list(who):
+        try:
+            doc = read_profile(who, summary["id"])
+            items.append({"id": doc["id"], "name": doc["name"],
+                          "colours": doc["colours"]})
+        except (ValueError, OSError, TypeError, KeyError, json.JSONDecodeError):
+            continue
+    return items
+
+
 def save_profile(obj: dict) -> dict:
     source = require_source()
     who = character(obj.get("character"))
@@ -330,7 +348,8 @@ def model_viewer_exports(who: int) -> list[Path]:
     when the same filename exists in both.
     """
     name = CHARACTERS[who]
-    pattern = re.compile(r"^" + re.escape(name) + r"(?: [2-9][0-9]*)?\.png$", re.I)
+    pattern = re.compile(
+        r"^" + re.escape(name) + r"(?: (?:Effect A|Effect B|[2-9][0-9]*))?\.png$", re.I)
     found: dict[str, Path] = {}
     for directory in VIEWER_EXPORTS:
         if not directory.is_dir() or directory.is_symlink():
@@ -340,9 +359,13 @@ def model_viewer_exports(who: int) -> list[Path]:
                     and pattern.fullmatch(candidate.name)
                     and 8 < candidate.stat().st_size <= SPRITE_MAX):
                 found.setdefault(candidate.name.lower(), candidate)
-    # Exact character name is the canonical first standing export.
+    # The first three slots are the dedicated generated examples; older
+    # manual standing exports follow, without crossing fighter names.
+    priority = {name.lower()+".png": 0,
+                name.lower()+" effect a.png": 1,
+                name.lower()+" effect b.png": 2}
     return sorted(found.values(), key=lambda file: (
-        file.name.lower() != (name + ".png").lower(), file.name.lower()))[:24]
+        priority.get(file.name.lower(), 3), file.name.lower()))[:24]
 
 def viewer_asset(who: int, filename: str) -> Path:
     if not filename or Path(filename).name != filename:
@@ -356,9 +379,12 @@ def viewer_asset(who: int, filename: str) -> Path:
 def sprite_list(who: int) -> list:
     result = []
     for file in model_viewer_exports(who):
-        result.append({"name": "Standing" if file.stem.lower() == CHARACTERS[who].lower()
-                       else "Standing " + file.stem[len(CHARACTERS[who]):].strip(),
-                       "type": "viewer",
+        suffix = file.stem[len(CHARACTERS[who]):].strip().lower()
+        line = 1 if suffix == "effect a" else 2 if suffix == "effect b" else 0
+        label = ("Body / Character" if not suffix else
+                 "Effect A" if line == 1 else "Effect B" if line == 2 else
+                 "Standing " + suffix)
+        result.append({"name": label, "line": line, "type": "viewer",
                        "url": f"/asset/viewer/{who}/{urllib.parse.quote(file.name)}?rev={file.stat().st_mtime_ns}"})
     folder = SPRITES / slug(who)
     if folder.is_dir() and not folder.is_symlink():
@@ -503,6 +529,8 @@ class Handler(BaseHTTPRequestHandler):
                 self.json_reply(read_profile(who, checked_profile_id(query.get("id", ""))))
             elif route == "/api/sprites":
                 self.json_reply(sprite_list(character(query.get("character"))))
+            elif route == "/api/profile-previews":
+                self.json_reply(profile_previews(character(query.get("character"))))
             elif route == "/api/capture-status":
                 with CAPTURE_LOCK:
                     self.json_reply(dict(CAPTURE_JOB))
