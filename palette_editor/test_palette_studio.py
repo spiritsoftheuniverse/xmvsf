@@ -465,6 +465,59 @@ class ProfileTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 studio.valid_swatch(malformed)
 
+    def test_original_p_k_selection_swatch_edits_survive_save_all(self):
+        original_banks = copy.deepcopy(studio.SOURCE["originals"][0])
+        initial = studio.save_all_profiles({
+            "source_sha256": "test-source-sha", "profiles": [],
+            "original_swatches": [
+                {"character": 0, "bank": 0, "swatch": "#1234ab"},
+                {"character": 0, "bank": 1, "swatch": "#ef6732"},
+                {"character": 9, "bank": 1, "swatch": "#7e59e0"},
+            ]})
+        self.assertEqual(initial["original_swatches_saved"], 3)
+        saved = studio.saved_original_swatches()
+        self.assertEqual(saved[0], {0: "#1234AB", 1: "#EF6732"})
+        self.assertEqual(saved[9][1], "#7E59E0")
+        catalog = studio.build_selection_catalog()
+        self.assertEqual(catalog["characters"][0]["slots"][0]["swatch"], "#1234AB")
+        self.assertEqual(catalog["characters"][0]["slots"][1]["swatch"], "#EF6732")
+        self.assertEqual(studio.SOURCE["originals"][0], original_banks)
+        self.assertEqual(catalog["characters"][0]["slots"][0]["colours"], original_banks[0])
+        self.assertEqual(catalog["characters"][0]["slots"][1]["colours"], original_banks[1])
+        studio.save_all_profiles({"source_sha256": "test-source-sha", "profiles": []})
+        persisted = studio.saved_original_swatches()
+        self.assertEqual(persisted[0], {0: "#1234AB", 1: "#EF6732"})
+        self.assertEqual(persisted[9][1], "#7E59E0")
+
+    def test_invalid_original_markers_rejected_without_catalog_mutation(self):
+        studio.save_all_profiles({
+            "source_sha256": "test-source-sha", "profiles": [],
+            "original_swatches": [{"character": 0, "bank": 0, "swatch": "#556677"}]})
+        before = studio.GAME_CATALOG.read_bytes()
+        for overrides in (
+            [{"character": 0, "bank": 2, "swatch": "#123456"}],
+            [{"character": 0, "bank": True, "swatch": "#123456"}],
+            [{"character": 0, "bank": 1, "swatch": "blue"}],
+            [{"character": 0, "bank": 1, "swatch": "#123456"},
+             {"character": 0, "bank": 1, "swatch": "#ABCDEF"}],
+        ):
+            with self.assertRaises(ValueError):
+                studio.save_all_profiles({
+                    "source_sha256": "test-source-sha", "profiles": [],
+                    "original_swatches": overrides})
+            self.assertEqual(studio.GAME_CATALOG.read_bytes(), before)
+
+    def test_original_marker_ui_unlocked_but_native_palette_edits_locked(self):
+        html = (HERE / "palette_studio.html").read_text(encoding="utf-8")
+        self.assertIn("const canMark=!!original();", html)
+        self.assertIn("state.originalMarkers.set(state.who+':'+state.set,marker);", html)
+        self.assertIn("original_swatches:markers", html)
+        self.assertIn("originalMarkers:new Map()", html)
+        self.assertIn("state.originalMarkers.size", html)
+        self.assertIn("function originalSwatch(bank=state.set,who=state.who)", html)
+        self.assertIn("if(!editable())return;", html)
+        self.assertIn("$('selectedName').disabled=!editable()", html)
+
     def test_save_all_two_characters_nine_slots_and_isolated_display_swatches(self):
         ryu = self.make_doc()
         ryu["swatch"] = "#AC24EF"
