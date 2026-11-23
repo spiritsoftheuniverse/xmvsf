@@ -72,6 +72,7 @@ namespace {
     // the picture shown
     std::vector<uint32_t> g_model;
     int g_modelWidth = 0;
+    bool g_sampleDetachedEffects = false; // opt-in, headless 3-example export only
 
     int Characters() {
         return static_cast<int>(g_d.characters.size());
