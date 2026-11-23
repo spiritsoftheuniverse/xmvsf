@@ -211,13 +211,13 @@ class DecoderTests(unittest.TestCase):
             bin_dir.mkdir(parents=True)
             usr_dir.mkdir(parents=True)
             (bin_dir / "libgcc_s_seh-1.dll").write_bytes(b"synthetic test DLL")
-            original = {"PATH": r"C:\\Windows\\System32"}
+            original = {"PATH": r"C:\Windows\System32"}
             result = studio.native_runtime_environment(
                 windows=True, ucrt_root=root, base_env=original)
             self.assertEqual(result["MSYSTEM"], "UCRT64")
             self.assertEqual(result["PATH"].split(";"),
                              [str(bin_dir), str(usr_dir), original["PATH"]])
-            self.assertEqual(original, {"PATH": r"C:\\Windows\\System32"})
+            self.assertEqual(original, {"PATH": r"C:\Windows\System32"})
             self.assertEqual(
                 studio.native_runtime_environment(
                     windows=False, ucrt_root=root, base_env=original), original)
