@@ -430,6 +430,19 @@ def native_capture_worker(requested: str) -> None:
     ]
     try:
         (ROOT / "recomp" / "work" / "xmvsf").mkdir(parents=True, exist_ok=True)
+        # Only the three dedicated generated files may be replaced.
+        # Clear them on explicit regeneration so a missing effect cannot
+        # reappear as a stale "successful" example from an earlier run.
+        generated = ROOT / "recomp" / "exports" / "palette_studio"
+        if generated.is_symlink():
+            raise OSError("Generated sample directory is a symlink")
+        who = character(requested)
+        for suffix in (".png", " Effect A.png", " Effect B.png"):
+            example = generated / (CHARACTERS[who] + suffix)
+            if example.is_symlink():
+                raise OSError("Generated sample file is a symlink")
+            if example.is_file():
+                example.unlink()
         result = subprocess.run(
             args, cwd=ROOT / "recomp", capture_output=True,
             text=True, encoding="utf-8", errors="replace", timeout=300,
