@@ -823,9 +823,24 @@ std::vector<int> AnimationsForLine(int line, int maxChoices) {
     std::sort(ranked.begin(),ranked.end(),[](const auto &a,const auto &b) {
         return a.second!=b.second?a.second>b.second:a.first<b.first;
     });
+    // Spread candidates across native animation groups rather than
+    // taking only early normals or high-count stationary claw records.
+    // This gives later special/super animation lists a chance to show
+    // separate smear objects. There is no hard-coded move mapping.
+    const int perList=std::max(1,g_d.perList);
+    std::map<int,std::vector<int>> groups;
     for (const auto &[choice,score]:ranked) {
-        if (score<=0 || static_cast<int>(candidates.size())>=maxChoices)break;
-        candidates.push_back(choice);
+        if (score>0)groups[(choice-1)/perList].push_back(choice);
+    }
+    for (std::size_t depth=0;
+         static_cast<int>(candidates.size())<maxChoices;depth++) {
+        bool found=false;
+        for(const auto &[group,items]:groups) {
+            if (depth>=items.size())continue;
+            candidates.push_back(items[depth]);found=true;
+            if (static_cast<int>(candidates.size())>=maxChoices)break;
+        }
+        if (!found)break;
     }
     return candidates;
 }
