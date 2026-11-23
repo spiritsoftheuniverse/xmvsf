@@ -100,6 +100,22 @@ It is independent of the CPS-2 color pens and supports full 24-bit RGB;
 changing it never changes the character sprite. You may choose a
 deliberately prominent marker without altering combat artwork.
 
+### Quick color match by dragging
+
+With a **custom palette** selected, drag any color swatch from the
+three native palette rows onto another swatch. The destination adopts
+the **source swatch's exact RGB color**, while keeping its own palette
+slot, index, and ROM address. The source color stays unchanged.
+This works across rows, not only within one row. As with ordinary
+editing, the custom profile's P/K export banks are mirrored and the
+change is staged for **Save All**. Hovering a destination highlights
+it; the destination becomes the selected swatch after dropping.
+
+The **Original P** and **Original K** native palette colors remain
+read-only: they cannot be dragged or overwritten. Their *separate*
+character-select marker colors are still independently editable.
+Dragging a swatch doesn't modify the original ROM.
+
 There are exactly **nine selection slots per character**:
 Original P, Original K, and up to seven custom palettes. Palette Studio
 numbers the profile strip 1–9 and displays each custom palette's marker
