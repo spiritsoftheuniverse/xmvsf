@@ -301,7 +301,8 @@ class DecoderTests(unittest.TestCase):
             studio.ROOT = Path(folder)
             examples = Path(folder) / "recomp" / "exports" / "palette_studio"
             examples.mkdir(parents=True)
-            for name in ("Wolverine.png", "Wolverine Effect A.png",
+            for name in ("Wolverine.png", "Wolverine Row 2.png",
+                         "Wolverine Row 3.png", "Wolverine Effect A.png",
                          "Wolverine Effect B.png", "Ken.png"):
                 (examples / name).write_bytes(b"old sprite")
             try:
@@ -312,7 +313,8 @@ class DecoderTests(unittest.TestCase):
                     return_value={"PATH": "mock-UCRT64"}
                 ), mock.patch.object(studio.subprocess, "run", return_value=fake):
                     studio.native_capture_worker("0")
-                for name in ("Wolverine.png", "Wolverine Effect A.png",
+                for name in ("Wolverine.png", "Wolverine Row 2.png",
+                             "Wolverine Row 3.png", "Wolverine Effect A.png",
                              "Wolverine Effect B.png"):
                     self.assertFalse((examples / name).exists())
                 self.assertTrue((examples / "Ken.png").exists())
