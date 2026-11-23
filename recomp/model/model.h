@@ -121,6 +121,7 @@ bool ExportStandingPng(const std::string &folder);
 // A sample is written only if a REAL native animation currently uses that
 // line; never synthesize a substitute or mislabel an idle frame as an effect.
 bool ExportPaletteExamplePng(Machine &machine, const std::string &folder, int line);
+int AnimationShown(); // the current model frame's animation choice, 0 for standing
 
 // Each frame while viewing, before the game runs it: the animation shown (player 1's controls taken while one is),
 // and the speed chosen
