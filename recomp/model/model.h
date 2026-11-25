@@ -117,6 +117,7 @@ bool Seen();
 // model viewer, cropped with the same original object-ink pipeline.
 // Returns false if the native model has not been drawn yet.
 bool ExportStandingPng(const std::string &folder);
+void EnablePalettePenCapture();
 // Palette Studio-only samples of this fighter's second and third native
 // object PALETTE ROWS (not necessarily visual effects). Render only matching
 // OAM palette-slot objects; never export a full attack pose as a row sample.

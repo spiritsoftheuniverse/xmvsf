@@ -74,6 +74,9 @@ namespace {
     // the picture shown
     std::vector<uint32_t> g_model;
     int g_modelWidth = 0;
+    bool g_capturePalettePens = false;
+    std::vector<uint16_t> g_modelPens;
+    int g_modelFirstSlot = -1;
     bool g_includeDetachedSamples = false; // headless palette-row captures only
     int g_exportOnlyPaletteSlot = -1; // native OAM palette filter; -1 restores normal model output
     // One hash per rendered native palette-row image. A repeated claw pose
@@ -334,9 +337,11 @@ namespace {
 
     // The character by itself: the objects alone, its own only, and marked so that their pixels are told from what is
     // behind them (the top bit set). True: something of it was drawn.
-    bool DrawModel(Machine &machine, std::vector<uint32_t> &model) {
+    bool DrawModel(Machine &machine, std::vector<uint32_t> &model,
+                   std::vector<uint16_t> *indices = nullptr) {
         const int width = machine.PictureWidth(), height = Video::kHeight;
         model.resize(static_cast<size_t>(width) * height);
+        if (indices) indices->assign(model.size(), 0xFFFFu);
         if (g_d.beforeCompose) {
             g_d.beforeCompose(machine);
         }
@@ -355,11 +360,14 @@ namespace {
                     (attributes & 0x1Fu) != static_cast<unsigned>(g_exportOnlyPaletteSlot));
         };
         bool seen = false;
+        auto *previousPens = video.captureObjectPens;
         for (int line = 0; line < height; line++) {
             uint32_t *row = &model[static_cast<size_t>(line) * width];
+            if (indices) video.captureObjectPens = indices->data() + static_cast<size_t>(line) * width;
             video.RenderLine(line, row);
             seen = seen || std::any_of(row, row + width, [](uint32_t pixel) { return (pixel & 0x80000000u) != 0; });
         }
+        video.captureObjectPens = previousPens;
         video.layerMask = layers;
         video.markObjects = marked;
         video.hideObject = hidden;
@@ -372,7 +380,8 @@ namespace {
         const int width = machine.PictureWidth(), height = Video::kHeight;
         uint32_t *picture = machine.Picture();
         Video &video = machine.video;
-        g.seen = DrawModel(machine, model);
+        g.seen = DrawModel(machine, model, g_capturePalettePens ? &g_modelPens : nullptr);
+        if (g_capturePalettePens) g_modelFirstSlot = g_d.firstLine ? g_d.firstLine(machine) : -1;
         g_modelWidth = width;
         const unsigned layers = video.layerMask;
         const bool marked = video.markObjects;
@@ -572,6 +581,35 @@ namespace {
             pictures.push_back(std::move(picture));
         }
         return pictures;
+    }
+
+    // Sidecar has the identical crop and visible-object mask as Cut.
+    // XPEN + BE width/height (16 bits each) + one byte per pixel:
+    // row*16+pen (0..47), or 255 for unowned/transparent pixels.
+    bool WritePalettePens(const std::string &target, const Taken &frame,
+                          const std::vector<uint16_t> &indices, int firstSlot,
+                          int width, int height, const image_files::Picture &picture,
+                          int ax, int ay) {
+        if (firstSlot < 0 || firstSlot > 29 || indices.size() != frame.pixels.size() ||
+            picture.width <= 0 || picture.height <= 0 || picture.width > 65535 || picture.height > 65535) return false;
+        std::vector<uint8_t> bytes = {'X','P','E','N',
+            static_cast<uint8_t>(picture.width >> 8), static_cast<uint8_t>(picture.width),
+            static_cast<uint8_t>(picture.height >> 8), static_cast<uint8_t>(picture.height)};
+        bytes.reserve(8 + picture.pixels.size());
+        for (int y = 0; y < picture.height; ++y) for (int x = 0; x < picture.width; ++x) {
+            const int sx = x + frame.anchorX - ax, sy = y + frame.anchorY - ay;
+            uint8_t value = 255;
+            if (sx >= 0 && sx < width && sy >= 0 && sy < height) {
+                const size_t pos = static_cast<size_t>(sy) * width + sx;
+                if (frame.pixels[pos] & 0x80000000u) {
+                    const int relative = static_cast<int>(indices[pos]) - firstSlot * 16;
+                    if (relative >= 0 && relative < 48 && (relative & 15) != 15)
+                        value = static_cast<uint8_t>(relative);
+                }
+            }
+            bytes.push_back(value);
+        }
+        return image_files::WriteAll(target + ".pens", bytes);
     }
 
     // The picture shown: the character as it is now, by itself
@@ -789,6 +827,8 @@ bool Seen() {
 // Only the explicit --palette-sprites headless command calls this.
 // Reuse the native Model viewer source-ink crop, no palette heuristics,
 // object hide rules, or screenshot background substitutions.
+void EnablePalettePenCapture() { g_capturePalettePens = true; }
+
 bool ExportStandingPng(const std::string &folder) {
     if (!g.on || !g.seen || g.table != 0 || g_model.empty() ||
         g_modelWidth <= 0 || folder.empty()) return false;
@@ -803,7 +843,8 @@ bool ExportStandingPng(const std::string &folder) {
     std::filesystem::create_directories(PathOf(folder), error);
     if (error) return false;
     const std::string target = folder + "/" + CharacterName() + ".png";
-    const bool saved = image_files::WritePng(target, pictures[0], 1);
+    const bool saved = image_files::WritePng(target, pictures[0], 1) &&
+        WritePalettePens(target, frame, g_modelPens, g_modelFirstSlot, g_modelWidth, Video::kHeight, pictures[0], ax, ay);
     if (saved)
         std::fprintf(stderr, "Palette Studio NATIVE STANDING: %s (%dx%d)\n",
                      target.c_str(), pictures[0].width, pictures[0].height);
@@ -875,7 +916,8 @@ bool ExportPaletteExamplePng(Machine &machine, const std::string &folder, int li
     // An object behind the body is now rendered, too, not occluded by it.
     g_exportOnlyPaletteSlot = slot;
     std::vector<uint32_t> isolated;
-    const bool ink = DrawModel(machine, isolated);
+    std::vector<uint16_t> indices;
+    const bool ink = DrawModel(machine, isolated, &indices);
     g_exportOnlyPaletteSlot = -1;
     if (!ink) return false; // no visible pixels in this row: no fake sample
 
@@ -909,7 +951,8 @@ bool ExportPaletteExamplePng(Machine &machine, const std::string &folder, int li
     else
         std::snprintf(suffix,sizeof(suffix)," Row %d %02d.png",line+1,sample);
     const std::string target=folder+"/"+CharacterName()+suffix;
-    if (!image_files::WritePng(target,picture,1))return false;
+    if (!image_files::WritePng(target,picture,1) ||
+        !WritePalettePens(target, frame, indices, slot - line, g_modelWidth, Video::kHeight, picture, ax, ay))return false;
     g_sampleHashes[line].insert(hash);
     std::fprintf(stderr,"Palette Studio SAMPLE Row %d #%d: native OAM slot %d, %dx%d pixels, animation %d\n",
                  line+1,sample,slot,picture.width,picture.height,AnimationShown());

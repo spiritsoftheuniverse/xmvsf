@@ -276,6 +276,19 @@ You can also invoke this capture from the `recomp` directory:
 Character index 9 is Ryu; the Palette Studio button passes the selected
 fighter's index automatically.
 
+## Exact native pen ownership (Ryu and all fighters)
+
+The RGB preview previously merged distinct palette entries containing identical
+RGB values. The headless exporter now writes a matching `.png.pens` sidecar
+from the renderer's actual object pen and palette slot. Both previews and
+pixel selection use the indexed row/pen, including duplicate whites. Existing
+profiles, original ROMs, and ordinary gameplay rendering are unchanged.
+Run `RECOMP_BUILD.bat` once, restart Palette Studio, and Generate 3 examples
+for Ryu (and other fighters as needed). Older captures remain explicitly marked
+RGB-only until regenerated. If eye and gi pixels select the same actual native
+pen after regeneration, their source graphics share a pen; the editor cannot
+separate that by palette editing alone.
+
 ## Saving and game integration
 
 The previously existing per-character `.txt` exporter is retained as

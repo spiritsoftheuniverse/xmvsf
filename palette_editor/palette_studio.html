@@ -580,6 +580,28 @@ function cachedImage(url){
   }
   return state.images.get(url);
 }
+async function cachedSprite(sprite){
+  const img=await cachedImage(sprite.url);
+  if(!sprite.pens_url)return img;
+  if(!state.images.has(sprite.pens_url)){
+    state.images.set(sprite.pens_url,fetch(sprite.pens_url).then(async response=>{
+      if(!response.ok)throw Error('Native pen map unavailable; regenerate this fighter');
+      const bytes=new Uint8Array(await response.arrayBuffer());
+      if(bytes.length!==8+img.naturalWidth*img.naturalHeight||
+         String.fromCharCode(...bytes.subarray(0,4))!=='XPEN'||
+         (bytes[4]*256+bytes[5])!==img.naturalWidth||(bytes[6]*256+bytes[7])!==img.naturalHeight)
+        throw Error('Native pen map dimensions do not match sprite');
+      return bytes.subarray(8);
+    }));
+  }
+  img.nativePens=await state.images.get(sprite.pens_url);
+  return img;
+}
+function nativePixelPen(img,x,y){
+  const value=img.nativePens?.[y*img.naturalWidth+x];
+  return Number.isInteger(value)&&value>=0&&value<48&&value%16!==15?
+    {line:Math.floor(value/16),pen:value%16}:null;
+}
 function coloredSprite(img,kind,profileView=null,spriteLine=0){
   const off=document.createElement('canvas');off.width=img.naturalWidth;off.height=img.naturalHeight;
   const ctx=off.getContext('2d',{willReadFrequently:true});ctx.drawImage(img,0,0);
@@ -628,7 +650,20 @@ function coloredSprite(img,kind,profileView=null,spriteLine=0){
     }
   }else if((kind==='sprite'||kind==='viewer')&&original()&&target){
     const pixels=ctx.getImageData(0,0,off.width,off.height);
-    // The native PNG has RGB pixels, not palette indexes. Use exact RGB
+    // Actual native row and tile pen, not the first matching RGB.
+    if(kind==='viewer'&&img.nativePens){
+      const data=pixels.data;
+      for(let i=0;i<data.length;i+=4){
+        if(!data[i+3])continue;visible++;
+        const n=i/4,owner=nativePixelPen(img,n%off.width,Math.floor(n/off.width));
+        if(!owner)continue;
+        const val=rgb(target[targetBank][owner.line][owner.pen]);
+        data[i]=val[0];data[i+1]=val[1];data[i+2]=val[2];changed++;
+      }
+      ctx.putImageData(pixels,0,0);
+      return {canvas:off,matched:changed,visible:visible};
+    }
+    // A legacy/imported PNG has RGB pixels, not palette indexes. Use exact RGB
     // lookups from the original game's P bank. Prioritize the example's
     // actual object palette line; match the other two for mixed poses.
     const lookup=new Map();
@@ -716,6 +751,14 @@ function pickNativeSpritePixel(event){
   }
   const color='#'+[rgba[0],rgba[1],rgba[2]]
     .map(n=>n.toString(16).padStart(2,'0')).join('').toUpperCase();
+  const indexed=nativePixelPen(capture.image,x,y);
+  if(capture.image.nativePens){
+    if(!indexed){show('Pixel is outside the three native fighter palette rows.',true);return;}
+    state.line=indexed.line;state.pen=indexed.pen;
+    hueFromSelected();drawSwatches();renderColorInspector();
+    show('Native pixel → '+lines[indexed.line]+' · #'+String(indexed.pen).padStart(2,'0'),false);
+    return;
+  }
   const matches=nativePaletteMatches(color,capture.sprite.line||0);
   if(!matches.length){
     show('Pixel '+color+' is not an exact original ROM palette color. No swatch selected.',true);
@@ -787,7 +830,7 @@ function drawProfileStrip(){
     if(image){
       const canvas=document.createElement('canvas');canvas.width=76;canvas.height=69;
       button.append(canvas);
-      cachedImage(image.url).then(img=>{
+      cachedSprite(image).then(img=>{
         if(host.contains(button)&&state.who===who)
           paintSprite(canvas,img,image.type,{colours:entry.colours,bank:entry.bank},image.line||0);
       }).catch(()=>{
@@ -848,7 +891,7 @@ function drawExampleTypes(){
         state.selectedSprite=sprite;
         drawExampleTypes();drawPreview();
       };
-      cachedImage(sprite.url).then(img=>{
+      cachedSprite(sprite).then(img=>{
         if(host.contains(card)&&state.who===who)
           paintSprite(canvas,img,sprite.type,null,line);
       }).catch(()=>{button.title='Could not read native '+name+' image'});
@@ -894,13 +937,14 @@ async function drawPreview(){
   }
   $('previewType').textContent=sprite.type==='viewer'?'Native model · '+sprite.name:'Imported sprite · '+sprite.name;
   try{
-    const img=await cachedImage(sprite.url);
+    const img=await cachedSprite(sprite);
     if(state.selectedSprite!==sprite||state.who!==selection)return;
     const result=paintSprite(canvas,img,sprite.type,null,sprite.line||0);
     state.previewPick={image:img,sprite,who:selection};
     const pct=result.visible?Math.round(100*result.matched/result.visible):0;
     $('previewNotice').textContent=(sprite.type==='viewer'?'Native CPS-2 object image. ':'Imported sprite. ')+
-      pct+'% of visible pixels matched original palette colors. '+
+      pct+'% of visible pixels '+(img.nativePens?'mapped to exact native pens. ':'matched original RGB colors. ')+
+      (sprite.type==='viewer'&&!img.nativePens?'Legacy RGB-only sample: regenerate this fighter for exact pen ownership. ':'')+
       (sprite.type==='viewer'&&sprite.line>0?
         'Only objects using '+sprite.name+' were exported; they are not necessarily special effects. ':
         '')+

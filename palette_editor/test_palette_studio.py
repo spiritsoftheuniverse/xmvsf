@@ -189,6 +189,25 @@ class DecoderTests(unittest.TestCase):
         self.assertIn("b.addEventListener('dragend',clearSwatchDrag)", html)
         self.assertIn("drag one color swatch onto another", html)
 
+    def test_native_pen_map_preserves_equal_rgb_owners(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "Ryu.png"
+            path.write_bytes(b"\x89PNG\r\n\x1a\n" + b"\0" * 8 + b"\0\0\0\x03\0\0\0\x01")
+            sidecar = path.with_name(path.name + ".pens")
+            # Two visible pixels can have equal RGB and different pen indices.
+            data = b"XPEN\0\x03\0\x01" + bytes([5, 9, 255])
+            sidecar.write_bytes(data)
+            self.assertEqual(studio.native_pen_map(path), data)
+            sidecar.write_bytes(data[:-1] + bytes([15]))
+            self.assertIsNone(studio.native_pen_map(path))
+            sidecar.write_bytes(data[:-1])
+            self.assertIsNone(studio.native_pen_map(path))
+        html = (HERE / "palette_studio.html").read_text(encoding="utf-8")
+        self.assertIn("target[targetBank][owner.line][owner.pen]", html)
+        self.assertIn("state.line=indexed.line;state.pen=indexed.pen;", html)
+        renderer = (HERE.parent / "recomp" / "video" / "video.cpp").read_text(encoding="utf-8")
+        self.assertIn("captureObjectPens[x] = priority[x] == 31 ? pens[x]", renderer)
+
     def test_integer_sprite_zoom_and_click_to_native_palette_swatch(self):
         html = (HERE / "palette_studio.html").read_text(encoding="utf-8")
         self.assertIn('id="spriteZoomIn"', html)
@@ -319,7 +338,7 @@ class DecoderTests(unittest.TestCase):
         # Old bug: g_model was the ENTIRE fighter whenever a secondary
         # palette slot was present in an attack. Native OAM now filters it.
         self.assertIn("g_exportOnlyPaletteSlot = slot;", body)
-        self.assertIn("const bool ink = DrawModel(machine, isolated);", body)
+        self.assertIn("const bool ink = DrawModel(machine, isolated, &indices);", body)
         self.assertIn("g_exportOnlyPaletteSlot = -1;", body)
         self.assertIn("frame.pixels = std::move(isolated);", body)
         self.assertNotIn("frame.pixels = g_model;", body)

@@ -627,6 +627,30 @@ def viewer_asset(who: int, filename: str) -> Path:
     raise ValueError("Model viewer picture not found for this character")
 
 
+def native_pen_map(file: Path) -> bytes | None:
+    """Reject missing, stale, malformed and out-of-range native pen maps."""
+    sidecar = file.with_name(file.name + ".pens")
+    try:
+        if sidecar.is_symlink() or not sidecar.is_file():
+            return None
+        if sidecar.stat().st_mtime_ns < file.stat().st_mtime_ns or sidecar.stat().st_size > SPRITE_MAX:
+            return None
+        with file.open("rb") as image:
+            header = image.read(24)
+        if len(header) != 24 or not header.startswith(b"\x89PNG\r\n\x1a\n"):
+            return None
+        width, height = int.from_bytes(header[16:20], "big"), int.from_bytes(header[20:24], "big")
+        data = sidecar.read_bytes()
+        if (not 0 < width <= 2048 or not 0 < height <= 2048 or len(data) != 8 + width * height
+                or data[:4] != b"XPEN" or int.from_bytes(data[4:6], "big") != width
+                or int.from_bytes(data[6:8], "big") != height
+                or any(v != 255 and (v >= 48 or v % 16 == 15) for v in data[8:])):
+            return None
+        return data
+    except OSError:
+        return None
+
+
 def sprite_list(who: int) -> list:
     result = []
     for file in model_viewer_exports(who):
@@ -637,8 +661,11 @@ def sprite_list(who: int) -> list:
         label = ("Body / Character" if not suffix else
                  f"Palette row {line + 1} · {number:02d}" if sample else
                  "Standing " + suffix)
-        result.append({"name": label, "line": line, "sample": number, "type": "viewer",
-                       "url": f"/asset/viewer/{who}/{urllib.parse.quote(file.name)}?rev={file.stat().st_mtime_ns}"})
+        entry = {"name": label, "line": line, "sample": number, "type": "viewer",
+                 "url": f"/asset/viewer/{who}/{urllib.parse.quote(file.name)}?rev={file.stat().st_mtime_ns}"}
+        if native_pen_map(file) is not None:
+            entry["pens_url"] = entry["url"] + "&pens=1"
+        result.append(entry)
     folder = SPRITES / slug(who)
     if folder.is_dir() and not folder.is_symlink():
         for file in sorted(folder.glob("*.png"))[:64]:
@@ -738,6 +765,7 @@ def native_capture_worker(requested: str) -> None:
         for line in (2, 3):
             names.update(f"{CHARACTERS[who]} Row {line} {n:02d}.png"
                          for n in range(2, 33))
+        names.update(name + ".pens" for name in tuple(names))
         for name in names:
             example = generated / name
             if example.is_symlink():
@@ -867,7 +895,13 @@ class Handler(BaseHTTPRequestHandler):
                 who = character(parts[3])
                 filename = urllib.parse.unquote(parts[4])
                 path = viewer_asset(who, filename)
-                self.send_bytes(path.read_bytes(), "image/png")
+                if query.get("pens") == "1":
+                    data = native_pen_map(path)
+                    if data is None:
+                        raise ValueError("Native pen map missing or stale; regenerate this fighter")
+                    self.send_bytes(data, "application/octet-stream")
+                else:
+                    self.send_bytes(path.read_bytes(), "image/png")
             elif route.startswith("/asset/sprite/"):
                 parts = route.split("/")
                 if len(parts) != 5:

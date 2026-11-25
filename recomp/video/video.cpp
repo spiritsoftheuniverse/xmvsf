@@ -897,6 +897,7 @@ void Video::RenderLineAs(int line, uint32_t *out) {
                            marking ? marks : nullptr, hudInk);
     }
     for (int x = 0; x < width; x++) {
+        if (captureObjectPens) captureObjectPens[x] = priority[x] == 31 ? pens[x] : 0xFFFFu;
         out[x] = m_palette[pens[x]];
         if (hudInk[x]) {
             // FBNeo's shineRGB uses 00RRGGBB; recomp's output is

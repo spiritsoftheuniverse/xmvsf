@@ -3951,6 +3951,7 @@ int main(int argc, char **argv) {
         }
         const int character = static_cast<int>(selected);
         const std::string out = "exports/palette_studio";
+        model::EnablePalettePenCapture();
         int saved = 0;
         SetFeatureForNow("model_character", character);
         SetFeatureForNow("model_animation", 0);

@@ -138,6 +138,8 @@ public:
     // have their top byte set (0x80 and the object's colour set, 0-31), the others clear, so that a picture
     // of the objects alone can be laid over another picture, and one object's pixels told from another's.
     bool markObjects = false;
+    // Palette Studio's optional scanline output: native object pen, or 0xFFFF.
+    uint16_t *captureObjectPens = nullptr;
     // ... and the pixels of these scroll screens too (layerMask's bits; 0: none): a game whose panel is a scroll
     // screen, not objects, has it laid over the other picture with its fighters
     unsigned markLayers = 0;
